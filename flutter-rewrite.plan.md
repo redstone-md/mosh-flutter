@@ -644,3 +644,22 @@ clean build (MLS on device; the M-1 .so links a Windows/x86 libolm today),
 app_data_dir via the ADR 0010 bridge (replace the temp/mosh fallback shared
 by Rust+Dart), and a real device integration pass (build apk, install,
 open a mosh:// link, confirm Keystore DEK + history persist).
+### M-5: app_data_dir bridge (commit `62e5b52`)
+The encrypted redb history DB + attachments moved out of the temp/mosh
+fallback into the platform's app-support dir via path_provider
+getApplicationSupportDirectory (Context7-confirmed for an app-private
+encrypted DB). Dart resolves the dir, injects it into Rust via new frb
+set_app_data_dir(String) (OnceLock<PathBuf>, idempotent-once), and uses the
+same path locally so mobile_dek._historyRedbPath() and construct_runtime
+agree (no Dart/Rust path divergence). main() runs setAppDataDirBridge on ALL
+platforms before initMobileDek / deep-link intake / runApp; the None arm keeps
+the temp fallback for tests that don't inject. A pure resolve_data_dir helper
+makes the path-selection unit-testable.
+Verified: cargo 222/0/5-ignored (+4 Rust), flutter 54/54 (+2), clippy clean,
+analyze clean, codegen idempotent. Note: existing temp history.redb is orphaned
+on first launch after upgrade (DB moves to %APPDATA%/.../mosh/history.redb);
+expected path migration.
+Remaining mobile work (deferred): iOS Keychain backend for the DEK, biometric/
+user-presence UI (ADR 0011), libolm android-arm64 clean build (MLS on device),
+and a real device integration pass (build apk, install, open mosh://, confirm
+Keystore DEK + history persist across restart in the app-support dir).
