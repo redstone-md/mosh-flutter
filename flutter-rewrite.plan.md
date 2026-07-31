@@ -382,3 +382,53 @@ Per `AGENTS.md`, ordered skills/commands with reason:
 Inherited from upstream at fork time: `v0.8.14` (see `moss.config.json`).
 Slice one does NOT bump the pin. Any future bump is a deliberate step with
 its own ADR note.
+---
+
+## Follow-up slice (closing slice-one tails)
+
+Slice 1 shipped (HEAD `7ae704b docs: close out slice one`). Five tails were
+recorded in the close-out handoff; this slice closes them with atomic tasks.
+One subagent = one task; the orchestrator makes the conventional commit.
+
+- [ ] **FU-1: Make NativeRuntimeStatus sub-structs non-opaque.**
+  - Root cause: `NativeRuntimeStatus` is `#[frb(non_opaque)]` but its 5 fields
+    (`MossRuntimeStatus`, `SecureStorageStatus`, `PersistenceRuntimeStatus`,
+    `OpenMlsSmokeStatus`, `OpenMlsRoundTripStatus`) stay auto-opaque, so Dart
+    cannot read field values. `FakeGateway.nativeRuntimeStatus()` throws
+    `UnsupportedError`; `DiagnosticsScreen` renders `<opaque: ...>`.
+  - Rust: add `#[frb(non_opaque)]` to those 5 structs.
+  - Convert `&'static str` fields to owned `String` (frb 2.12 quirk: non_opaque
+    breaks on `&'static str`, as already done for `AppDiagnostics`). Update
+    every constructor to `.to_string()` the consts.
+  - Regen bindings: `cargo install flutter_rust_bridge_codegen --version 2.12.0
+    --locked` then `flutter_rust_bridge_codegen generate --no-dart-fix
+    --no-dart-format --no-deps-check --no-build-runner --no-rust-format`.
+  - Update `FakeGateway.nativeRuntimeStatus()` to return real field data;
+    collapse the `DiagnosticsScreen` split-path so native status goes through
+    the `Gateway` seam (or keep split-path but make `_describe` read fields).
+  - Verify: `cargo test --manifest-path mosh-core/Cargo.toml` green;
+    `git diff --exit-code lib/src/rust mosh-core/src/frb_generated.rs` (no
+    drift after regen); `flutter analyze` clean; `flutter test` 42/42; the
+    diagnostics widget test asserts readable field values, not `<opaque>`.
+- [ ] **FU-2: ARB key for DiagnosticsScreen AppBar title.**
+  - Add `diagnosticsDiagnostics` to `lib/l10n/app_en.arb` (template) and
+    `app_ru.arb`; replace the hardcoded `Text('Diagnostics')` in
+    `diagnostics_screen.dart` with `AppLocalizations.of(context)`.
+  - Clear the existing `TODO(slice-one)` comment.
+  - Verify: `flutter test` green; `flutter gen-l10n` regen (gitignored output,
+    but no ARB drift).
+- [ ] **FU-3: Dedup invite_detection.dart.**
+  - `invite_detection.dart` duplicates parse logic already in `invite_uri.dart`.
+  - Consolidate so `invite_uri.dart` is the single source; `invite_detection`
+    only adds the clipboard `Clipboard.getData` + timing concerns.
+  - Verify: existing invite tests still pass.
+- [ ] **FU-4 (optional): Restore clippy + mosh-probe to CI.**
+  - Re-add the `clippy` job and the `mosh-probe` crate to `.github/workflows/ci.yml`
+    if dropped scope is still cheap enough.
+  - Verify: CI matrix green.
+
+## Slice 2 (after follow-up): deep-link mosh:// desktop
+
+Per ADR 0015. Windows registry association + launch-arg parsing in `main()`.
+Mobile intent-filter / CFBundleURLSchemes deferred to the mobile slice. The
+detailed step list is filled in when this slice starts.
