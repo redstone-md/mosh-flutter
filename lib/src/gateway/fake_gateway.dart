@@ -1,0 +1,202 @@
+// S4.1: In-Dart test double for the slice-one Gateway surface (ADR 0013).
+//
+// FakeGateway lets slice-one widget tests run without the Rust runtime. It
+// implements the eight Gateway methods with canned data and keeps an in-memory
+// session map so createInvite/acceptInvite/sendMessage/pollSession feel
+// stateful. Widgets consume this via the gatewayProvider seam (S4.4 wires it
+// in); S4.1 ships the class + a focused unit test only.
+
+import 'package:mosh/src/gateway/gateway.dart';
+import 'package:mosh/src/rust/api/diagnostics.dart';
+import 'package:mosh/src/rust/outbound_delivery.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+
+/// Slice-one fake runtime: canned diagnostics + an in-memory session map.
+///
+/// Stateful by design (ADR 0013): each createInvite/acceptInvite inserts a
+/// SessionSnapshot; sendMessage/pollSession/closeSession mutate or read it.
+/// All methods complete synchronously via Future.value.
+class FakeGateway implements Gateway {
+  final Map<String, SessionSnapshot> _sessions = {};
+
+  @override
+  Future<AppDiagnostics> appDiagnostics() => Future.value(const AppDiagnostics(
+        appName: 'Mosh',
+        privacyModel: 'OpenMLS private messages over Moss transport',
+        discoveryModel: 'default public Moss trackers',
+        mossLinkMode: 'dynamic',
+      ));
+
+  // NativeRuntimeStatus fields (moss, secureStorage, persistence,
+  // openmlsSmoke, openmlsRoundtrip) are all opaque RustAutoOpaque types with no
+  // pure-Dart constructor and are non-nullable, so the fake cannot synthesize
+  // a valid instance. Report the blocker at runtime instead of crashing; the
+  // real surface lands in S5 (RealBridgeGateway).
+  @override
+  Future<NativeRuntimeStatus> nativeRuntimeStatus() => Future.error(
+        UnsupportedError(
+          'FakeGateway.nativeRuntimeStatus: cannot construct opaque '
+          'NativeRuntimeStatus fields in pure Dart; real runtime wiring lands '
+          'in S5 (RealBridgeGateway).',
+        ),
+      );
+
+  @override
+  Future<InviteCreated> createInvite({required StartSessionRequest request}) {
+    final sessionId = 'fake-${_sessions.length + 1}';
+    final fingerprint = _fakeFingerprint(sessionId);
+    final inviteUri =
+        'mosh://invite?mesh=fakemesh&session=$sessionId#fp=$fingerprint';
+    final created = InviteCreated(
+      inviteUri: inviteUri,
+      sessionId: sessionId,
+      meshId: 'fakemesh',
+      fingerprint: fingerprint,
+      listenAddress: '127.0.0.1:${request.listenPort}',
+    );
+    _sessions[sessionId] = _fakeSession(
+      sessionId: sessionId,
+      displayName: request.displayName,
+      role: 'inviter',
+      inviteUri: inviteUri,
+      fingerprint: fingerprint,
+    );
+    return Future.value(created);
+  }
+
+  @override
+  Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request}) {
+    final sessionId = 'fake-accept-${_sessions.length + 1}';
+    final fingerprint = _fakeFingerprint(sessionId);
+    final snapshot = _fakeSession(
+      sessionId: sessionId,
+      displayName: request.displayName,
+      role: 'invitee',
+      inviteUri: request.inviteUri,
+      fingerprint: fingerprint,
+    );
+    _sessions[sessionId] = snapshot;
+    return Future.value(snapshot);
+  }
+
+  @override
+  Future<SendMessageResult> sendMessage({
+    required String sessionId,
+    required String body,
+  }) {
+    final existing = _sessions[sessionId];
+    if (existing == null) {
+      return Future.error(
+        Exception('FakeGateway.sendMessage: unknown sessionId "$sessionId"'),
+      );
+    }
+    final sentAtMs = BigInt.from(DateTime.now().millisecondsSinceEpoch);
+    final messageId = 'msg-${existing.messages.length + 1}';
+    _sessions[sessionId] = _withMessage(existing, body, messageId, sentAtMs);
+    return Future.value(SendMessageResult(
+      sessionId: sessionId,
+      state: 'connecting',
+      ciphertextBytes: BigInt.from(body.codeUnits.length),
+      messageId: messageId,
+      sentAtMs: sentAtMs,
+      deliveryStatus: MessageDeliveryStatus.sent,
+      deliveryError: null,
+    ));
+  }
+
+  @override
+  Future<SessionSnapshot> pollSession({required String sessionId}) {
+    final snapshot = _sessions[sessionId];
+    if (snapshot == null) {
+      return Future.error(
+        Exception('FakeGateway.pollSession: unknown sessionId "$sessionId"'),
+      );
+    }
+    return Future.value(snapshot);
+  }
+
+  @override
+  Future<SessionListSnapshot> listSessions() =>
+      Future.value(SessionListSnapshot(sessions: _sessions.values.toList()));
+
+  @override
+  Future<CloseSessionResult> closeSession({required String sessionId}) {
+    final removed = _sessions.remove(sessionId) != null;
+    return Future.value(
+      CloseSessionResult(sessionId: sessionId, closed: removed),
+    );
+  }
+
+  SessionSnapshot _fakeSession({
+    required String sessionId,
+    required String displayName,
+    required String role,
+    required String inviteUri,
+    required String fingerprint,
+  }) =>
+      SessionSnapshot(
+        sessionId: sessionId,
+        meshId: 'fakemesh',
+        role: role,
+        displayName: displayName,
+        peerDisplayName: '',
+        state: 'connecting',
+        path: 'connecting',
+        relayReady: null,
+        inviteUri: inviteUri,
+        fingerprint: fingerprint,
+        messages: const [],
+        attachments: const [],
+        mesh: null,
+        events: const [],
+        pendingCall: null,
+        outgoingCall: null,
+        activeCall: null,
+      );
+
+  SessionSnapshot _withMessage(
+    SessionSnapshot base,
+    String body,
+    String messageId,
+    BigInt sentAtMs,
+  ) =>
+      SessionSnapshot(
+        sessionId: base.sessionId,
+        meshId: base.meshId,
+        role: base.role,
+        displayName: base.displayName,
+        peerDisplayName: base.peerDisplayName,
+        state: base.state,
+        path: base.path,
+        relayReady: base.relayReady,
+        inviteUri: base.inviteUri,
+        fingerprint: base.fingerprint,
+        messages: [
+          ...base.messages,
+          ChatMessage(
+            fromDevice: base.displayName,
+            body: body,
+            messageId: messageId,
+            sentAtMs: sentAtMs,
+            deliveryStatus: MessageDeliveryStatus.sent,
+            deliveryError: null,
+            retryable: null,
+            retryCount: null,
+          ),
+        ],
+        attachments: base.attachments,
+        mesh: base.mesh,
+        events: base.events,
+        pendingCall: base.pendingCall,
+        outgoingCall: base.outgoingCall,
+        activeCall: base.activeCall,
+      );
+
+  String _fakeFingerprint(String sessionId) {
+    final hex = sessionId.codeUnits
+        .map((c) => c.toRadixString(16).padLeft(2, '0'))
+        .join()
+        .toUpperCase();
+    return (hex + '0' * 16).substring(0, 16);
+  }
+}
