@@ -13,7 +13,25 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
             // These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
 
 
-            /// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
+            /// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
+///
+/// Dart calls this ONCE at startup on Android, AFTER reading/minting 32 raw
+/// bytes from the Android Keystore via `flutter_secure_storage`, and BEFORE
+/// the first private-DM runtime construct. `construct_runtime` then opens
+/// the DB with `Persistence::open_with_dek(path, *injected)` instead of the
+/// keychain-backed `Persistence::open`, so the live runtime uses the
+/// Keystore DEK on a device. Desktop/iOS never call this and keep the
+/// desktop `OsSecureSecretStore` path.
+///
+/// Idempotent-once: the first call wins; a second call returns `Err` (the
+/// DEK cannot be swapped after the DB is already open under it -- a
+/// different DEK would fail to decrypt existing rows). Returns `Err` for a
+/// wrong-length DEK (must be exactly 32 bytes). The frb-exposed surface for
+/// mobile injection is THIS fn only; `Persistence::open_with_dek` is public
+/// but internal and not bridged.
+Future<void>  setHistoryDek({required List<int> dek }) => RustLib.instance.api.crateApiPrivateDmSetHistoryDek(dek: dek);
+
+/// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
 /// Tauri command). The inviter publishes a KeyPackage and an invite URI.
 Future<InviteCreated>  createInvite({required StartSessionRequest request }) => RustLib.instance.api.crateApiPrivateDmCreateInvite(request: request);
 

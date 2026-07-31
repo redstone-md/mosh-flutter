@@ -171,6 +171,8 @@ import 'vpn_consent.dart';
 
 @protected List<PeerDetail> dco_decode_list_peer_detail(dynamic raw);
 
+@protected List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+
 @protected Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
 @protected List<SessionSnapshot> dco_decode_list_session_snapshot(dynamic raw);
@@ -403,6 +405,8 @@ import 'vpn_consent.dart';
 
 @protected List<PeerDetail> sse_decode_list_peer_detail(SseDeserializer deserializer);
 
+@protected List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+
 @protected Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
 @protected List<SessionSnapshot> sse_decode_list_session_snapshot(SseDeserializer deserializer);
@@ -634,6 +638,8 @@ import 'vpn_consent.dart';
 @protected void sse_encode_list_org_snapshot(List<OrgSnapshot> self, SseSerializer serializer);
 
 @protected void sse_encode_list_peer_detail(List<PeerDetail> self, SseSerializer serializer);
+
+@protected void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
 @protected void sse_encode_list_prim_u_8_strict(Uint8List self, SseSerializer serializer);
 
