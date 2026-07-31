@@ -442,7 +442,14 @@ One subagent = one task; the orchestrator makes the conventional commit.
   nightly integration probe, not a per-PR gate.
   Deferred as explicit follow-ups, not weak half-measures:
   - FU-4a: clean stub `unused` warnings in `api/*.rs`, add
-    `cargo clippy -- -D warnings` job to `.github/workflows/ci.yml`.
+    `cargo clippy -- -D warnings` job to `.github/workflows/ci.yml`. DONE —
+    commit `6b11c70`. `#![allow(unused_variables)]` on the 4 stub modules
+    (channel/org/private_group/vpn); removed 2 dead imports in org.rs;
+    `cargo clippy --all-targets -- -D warnings` exit 0; registered
+    `frb_expand` cfg in `mosh-core/Cargo.toml [lints.rust]` (frb macros emit
+    `#[cfg(frb_expand)]`; without it the strict gate fails on 16 pre-existing
+    `unexpected_cfgs`); clippy step added to rust-core CI (after fmt, before
+    test). cargo test 215/0/5-ignored, flutter analyze clean.
   - FU-4b: add a `mosh-probe` job (likely nightly, two-process, with a
     relay bootstrap) — separate infra task, not per-PR.
 
