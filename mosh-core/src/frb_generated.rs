@@ -26,7 +26,6 @@
 
 // Section: imports
 
-use crate::api::diagnostics::*;
 use crate::moss_runtime::*;
 use crate::persistence::*;
 use crate::secure_storage::*;
@@ -37,13 +36,20 @@ use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
 
+// frb 2.12 drops the `crate::api::diagnostics` glob import once a struct in
+// that module becomes non-opaque, but the generated Rust still references
+// `OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus` unqualified (the inner
+// `Result<T, String>` of `NativeRuntimeStatus` stays auto-opaque and the
+// inner type lives outside `rust_input`). Bring them back into scope here.
+use crate::api::diagnostics::{OpenMlsRoundTripStatus, OpenMlsSmokeStatus};
+
 flutter_rust_bridge::frb_generated_boilerplate!(
     default_stream_sink_codec = SseCodec,
     default_rust_opaque = RustOpaqueMoi,
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 953581470;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -779654576;
 
 // Section: executor
 
@@ -51,493 +57,6 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_moss_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_get_moss",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok(api_that_guard.moss.clone())?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_openmls_roundtrip_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_get_openmls_roundtrip",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok(api_that_guard.openmls_roundtrip.clone())?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_openmls_smoke_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_get_openmls_smoke",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok(api_that_guard.openmls_smoke.clone())?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_persistence_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_get_persistence",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok(api_that_guard.persistence.clone())?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_secure_storage_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_get_secure_storage",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok(api_that_guard.secure_storage.clone())?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_moss_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_set_moss",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            let api_moss = <MossRuntimeStatus>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, true,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref_mut()),
-                        _ => unreachable!(),
-                    }
-                }
-                let mut api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok({
-                    {
-                        api_that_guard.moss = api_moss;
-                    };
-                })?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_openmls_roundtrip_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_set_openmls_roundtrip",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            let api_openmls_roundtrip =
-                <Result<OpenMlsRoundTripStatus, String>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, true,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref_mut()),
-                        _ => unreachable!(),
-                    }
-                }
-                let mut api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok({
-                    {
-                        api_that_guard.openmls_roundtrip = api_openmls_roundtrip;
-                    };
-                })?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_openmls_smoke_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_set_openmls_smoke",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            let api_openmls_smoke =
-                <Result<OpenMlsSmokeStatus, String>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, true,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref_mut()),
-                        _ => unreachable!(),
-                    }
-                }
-                let mut api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok({
-                    {
-                        api_that_guard.openmls_smoke = api_openmls_smoke;
-                    };
-                })?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_persistence_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_set_persistence",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            let api_persistence = <PersistenceRuntimeStatus>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, true,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref_mut()),
-                        _ => unreachable!(),
-                    }
-                }
-                let mut api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok({
-                    {
-                        api_that_guard.persistence = api_persistence;
-                    };
-                })?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_secure_storage_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "NativeRuntimeStatus_auto_accessor_set_secure_storage",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
-            >>::sse_decode(&mut deserializer);
-            let api_secure_storage = <SecureStorageStatus>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, true,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref_mut()),
-                        _ => unreachable!(),
-                    }
-                }
-                let mut api_that_guard = api_that_guard.unwrap();
-                let output_ok = Result::<_, ()>::Ok({
-                    {
-                        api_that_guard.secure_storage = api_secure_storage;
-                    };
-                })?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
 fn wire__crate__api__org__accept_dm_offer_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2205,13 +1724,7 @@ fn wire__crate__api__vpn__set_vpn_bypass_consent_impl(
 // Section: related_funcs
 
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>
@@ -2228,31 +1741,11 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
 
 // Section: dart2rust
 
-impl SseDecode for AppDiagnostics {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
 impl SseDecode for MossRuntimeStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for NativeRuntimeStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
     }
@@ -2303,27 +1796,7 @@ impl SseDecode for SecureStorageStatus {
 }
 
 impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2418,6 +1891,22 @@ impl SseDecode for crate::private_dm_runtime::contracts::ActiveCall {
             key_b64: var_keyB64,
             nonce_prefix_b64: var_noncePrefixB64,
             started_at_ms: var_startedAtMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::diagnostics::AppDiagnostics {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_appName = <String>::sse_decode(deserializer);
+        let mut var_privacyModel = <String>::sse_decode(deserializer);
+        let mut var_discoveryModel = <String>::sse_decode(deserializer);
+        let mut var_mossLinkMode = <String>::sse_decode(deserializer);
+        return crate::api::diagnostics::AppDiagnostics {
+            app_name: var_appName,
+            privacy_model: var_privacyModel,
+            discovery_model: var_discoveryModel,
+            moss_link_mode: var_mossLinkMode,
         };
     }
 }
@@ -3215,6 +2704,25 @@ impl SseDecode for crate::outbound_delivery::MessageDeliveryStatus {
     }
 }
 
+impl SseDecode for crate::api::diagnostics::NativeRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_moss = <MossRuntimeStatus>::sse_decode(deserializer);
+        let mut var_secureStorage = <SecureStorageStatus>::sse_decode(deserializer);
+        let mut var_persistence = <PersistenceRuntimeStatus>::sse_decode(deserializer);
+        let mut var_openmlsSmoke = <Result<OpenMlsSmokeStatus, String>>::sse_decode(deserializer);
+        let mut var_openmlsRoundtrip =
+            <Result<OpenMlsRoundTripStatus, String>>::sse_decode(deserializer);
+        return crate::api::diagnostics::NativeRuntimeStatus {
+            moss: var_moss,
+            secure_storage: var_secureStorage,
+            persistence: var_persistence,
+            openmls_smoke: var_openmlsSmoke,
+            openmls_roundtrip: var_openmlsRoundtrip,
+        };
+    }
+}
+
 impl SseDecode for crate::network_inventory::NetworkInterfaceInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3733,83 +3241,81 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        11 => wire__crate__api__org__accept_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__org__accept_group_offer_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__private_dm__accept_invite_impl(port, ptr, rust_vec_len, data_len),
-        14 => {
-            wire__crate__api__diagnostics__app_diagnostics_impl(port, ptr, rust_vec_len, data_len)
-        }
-        15 => wire__crate__api__channel__cancel_attachment_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__private_group__cancel_attachment_impl(
+        1 => wire__crate__api__org__accept_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__org__accept_group_offer_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__private_dm__accept_invite_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__diagnostics__app_diagnostics_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__channel__cancel_attachment_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__private_group__cancel_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        17 => wire__crate__api__private_group__close_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__private_dm__close_session_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__private_group__dismiss_dm_offer_impl(
+        7 => wire__crate__api__private_group__close_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__private_dm__close_session_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__private_group__dismiss_dm_offer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
-        27 => {
+        16 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
+        17 => {
             wire__crate__api__channel__download_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        28 => wire__crate__api__private_group__download_attachment_impl(
+        18 => wire__crate__api__private_group__download_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__channel__leave_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__diagnostics__native_runtime_status_impl(
+        19 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__channel__leave_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__diagnostics__native_runtime_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__channel__retry_message_impl(port, ptr, rust_vec_len, data_len),
-        48 => {
+        33 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__channel__retry_message_impl(port, ptr, rust_vec_len, data_len),
+        38 => {
             wire__crate__api__private_group__retry_message_impl(port, ptr, rust_vec_len, data_len)
         }
-        49 => wire__crate__api__channel__send_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__private_group__send_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__channel__send_attachment_impl(port, ptr, rust_vec_len, data_len),
-        52 => {
+        39 => wire__crate__api__channel__send_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__private_group__send_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__channel__send_attachment_impl(port, ptr, rust_vec_len, data_len),
+        42 => {
             wire__crate__api__private_group__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        53 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        55 => {
+        43 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        45 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        56 => wire__crate__api__private_dm__send_message_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__private_dm__send_message_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -3822,36 +3328,11 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-                        1 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_moss_impl(ptr, rust_vec_len, data_len),
-2 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_openmls_roundtrip_impl(ptr, rust_vec_len, data_len),
-3 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_openmls_smoke_impl(ptr, rust_vec_len, data_len),
-4 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_persistence_impl(ptr, rust_vec_len, data_len),
-5 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_get_secure_storage_impl(ptr, rust_vec_len, data_len),
-6 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_moss_impl(ptr, rust_vec_len, data_len),
-7 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_openmls_roundtrip_impl(ptr, rust_vec_len, data_len),
-8 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_openmls_smoke_impl(ptr, rust_vec_len, data_len),
-9 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_persistence_impl(ptr, rust_vec_len, data_len),
-10 => wire__crate__api__diagnostics__NativeRuntimeStatus_auto_accessor_set_secure_storage_impl(ptr, rust_vec_len, data_len),
-                        _ => unreachable!(),
-                    }
+        _ => unreachable!(),
+    }
 }
 
 // Section: rust2dart
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<AppDiagnostics> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<AppDiagnostics> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<AppDiagnostics>> for AppDiagnostics {
-    fn into_into_dart(self) -> FrbWrapper<AppDiagnostics> {
-        self.into()
-    }
-}
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<MossRuntimeStatus> {
@@ -3864,24 +3345,6 @@ impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<
 
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<MossRuntimeStatus>> for MossRuntimeStatus {
     fn into_into_dart(self) -> FrbWrapper<MossRuntimeStatus> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<NativeRuntimeStatus> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<NativeRuntimeStatus>
-{
-}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<NativeRuntimeStatus>> for NativeRuntimeStatus {
-    fn into_into_dart(self) -> FrbWrapper<NativeRuntimeStatus> {
         self.into()
     }
 }
@@ -4008,6 +3471,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Act
     for crate::private_dm_runtime::contracts::ActiveCall
 {
     fn into_into_dart(self) -> crate::private_dm_runtime::contracts::ActiveCall {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::AppDiagnostics {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.app_name.into_into_dart().into_dart(),
+            self.privacy_model.into_into_dart().into_dart(),
+            self.discovery_model.into_into_dart().into_dart(),
+            self.moss_link_mode.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::diagnostics::AppDiagnostics
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::AppDiagnostics>
+    for crate::api::diagnostics::AppDiagnostics
+{
+    fn into_into_dart(self) -> crate::api::diagnostics::AppDiagnostics {
         self
     }
 }
@@ -4654,6 +4140,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::outbound_delivery::MessageDelivery
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::NativeRuntimeStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.moss.into_into_dart().into_dart(),
+            self.secure_storage.into_into_dart().into_dart(),
+            self.persistence.into_into_dart().into_dart(),
+            self.openmls_smoke.into_into_dart().into_dart(),
+            self.openmls_roundtrip.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::diagnostics::NativeRuntimeStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::NativeRuntimeStatus>
+    for crate::api::diagnostics::NativeRuntimeStatus
+{
+    fn into_into_dart(self) -> crate::api::diagnostics::NativeRuntimeStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::network_inventory::NetworkInterfaceInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -5045,24 +4555,10 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::vpn::VpnDetection>
     }
 }
 
-impl SseEncode for AppDiagnostics {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
 impl SseEncode for MossRuntimeStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode for NativeRuntimeStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
     }
 }
 
@@ -5114,29 +4610,7 @@ impl SseEncode for SecureStorageStatus {
 }
 
 impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5223,6 +4697,16 @@ impl SseEncode for crate::private_dm_runtime::contracts::ActiveCall {
         <String>::sse_encode(self.key_b64, serializer);
         <String>::sse_encode(self.nonce_prefix_b64, serializer);
         <u64>::sse_encode(self.started_at_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::diagnostics::AppDiagnostics {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.app_name, serializer);
+        <String>::sse_encode(self.privacy_model, serializer);
+        <String>::sse_encode(self.discovery_model, serializer);
+        <String>::sse_encode(self.moss_link_mode, serializer);
     }
 }
 
@@ -5794,6 +5278,17 @@ impl SseEncode for crate::outbound_delivery::MessageDeliveryStatus {
     }
 }
 
+impl SseEncode for crate::api::diagnostics::NativeRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <MossRuntimeStatus>::sse_encode(self.moss, serializer);
+        <SecureStorageStatus>::sse_encode(self.secure_storage, serializer);
+        <PersistenceRuntimeStatus>::sse_encode(self.persistence, serializer);
+        <Result<OpenMlsSmokeStatus, String>>::sse_encode(self.openmls_smoke, serializer);
+        <Result<OpenMlsRoundTripStatus, String>>::sse_encode(self.openmls_roundtrip, serializer);
+    }
+}
+
 impl SseEncode for crate::network_inventory::NetworkInterfaceInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6183,7 +5678,6 @@ mod io {
     // Section: imports
 
     use super::*;
-    use crate::api::diagnostics::*;
     use crate::moss_runtime::*;
     use crate::persistence::*;
     use crate::secure_storage::*;
@@ -6196,21 +5690,14 @@ mod io {
 
     // Section: boilerplate
 
+    // frb 2.12 drops the `crate::api::diagnostics` glob import once a struct in
+    // that module becomes non-opaque, but the generated Rust still references
+    // `OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus` unqualified (the inner
+    // `Result<T, String>` of `NativeRuntimeStatus` stays auto-opaque and the
+    // inner type lives outside `rust_input`). Bring them back into scope here.
+    use crate::api::diagnostics::{OpenMlsRoundTripStatus, OpenMlsSmokeStatus};
+
     flutter_rust_bridge::frb_generated_boilerplate_io!();
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>>::decrement_strong_count(ptr as _);
-    }
 
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
@@ -6224,20 +5711,6 @@ mod io {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>>::decrement_strong_count(ptr as _);
     }
 
     #[unsafe(no_mangle)]
@@ -6324,7 +5797,6 @@ mod web {
     // Section: imports
 
     use super::*;
-    use crate::api::diagnostics::*;
     use crate::moss_runtime::*;
     use crate::persistence::*;
     use crate::secure_storage::*;
@@ -6339,21 +5811,14 @@ mod web {
 
     // Section: boilerplate
 
+    // frb 2.12 drops the `crate::api::diagnostics` glob import once a struct in
+    // that module becomes non-opaque, but the generated Rust still references
+    // `OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus` unqualified (the inner
+    // `Result<T, String>` of `NativeRuntimeStatus` stays auto-opaque and the
+    // inner type lives outside `rust_input`). Bring them back into scope here.
+    use crate::api::diagnostics::{OpenMlsRoundTripStatus, OpenMlsSmokeStatus};
+
     flutter_rust_bridge::frb_generated_boilerplate_web!();
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>>::decrement_strong_count(ptr as _);
-    }
 
     #[wasm_bindgen]
     pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
@@ -6367,20 +5832,6 @@ mod web {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>>::decrement_strong_count(ptr as _);
     }
 
     #[wasm_bindgen]

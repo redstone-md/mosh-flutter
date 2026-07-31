@@ -16,6 +16,7 @@ pub use crate::openmls_crypto::{
 };
 use crate::persistence::PersistenceRuntimeStatus;
 use crate::secure_storage::{OsSecureSecretStore, SecureStorageStatus};
+use flutter_rust_bridge::frb;
 
 // App-level identity strings. Mirror the previous Tauri shell constants; kept
 // as named consts (not inline literals) per AGENTS.md no-hardcoding rule.
@@ -36,17 +37,25 @@ const PERSISTENCE_BACKEND: &str = "redb+aes-256-gcm+os-keychain";
 const PERSISTENCE_UNAVAILABLE: &str = "no persistence instance running in this api call";
 
 /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
+#[frb(non_opaque)]
 #[derive(serde::Serialize, Clone)]
 pub struct AppDiagnostics {
-    pub app_name: &'static str,
-    pub privacy_model: &'static str,
-    pub discovery_model: &'static str,
-    pub moss_link_mode: &'static str,
+    // Owned `String` (not `&'static str`): `flutter_rust_bridge` 2.x cannot
+    // translate `&'static str` fields of a non-opaque struct across the FFI
+    // boundary (the bare `str` is unsized, so its auto-opaque wrapper fails
+    // to compile). Owned `String` is the bridge-friendly form and matches the
+    // generated Dart `String` fields; the consts below stay `&'static str`
+    // literals and are copied into the struct on construction.
+    pub app_name: String,
+    pub privacy_model: String,
+    pub discovery_model: String,
+    pub moss_link_mode: String,
 }
 
 /// Per-runtime readiness report, one row of `native_runtime_status`. Carries
 /// statuses produced by the mosh-core runtimes; persistence is a not-available
 /// marker when no host owns a running instance (see module doc).
+#[frb(non_opaque)]
 #[derive(serde::Serialize, Clone)]
 pub struct NativeRuntimeStatus {
     pub moss: MossRuntimeStatus,
@@ -68,14 +77,14 @@ fn persistence_status_without_instance() -> PersistenceRuntimeStatus {
     }
 }
 
-/// App-level identity diagnostics. One-shot query; no lifetime params, all
-/// fields are `'static` so the bridge serializes it cleanly.
+/// App-level identity diagnostics. One-shot query; owned `String` fields so
+/// the non-opaque bridge translation serializes them cleanly (see struct).
 pub fn app_diagnostics() -> AppDiagnostics {
     AppDiagnostics {
-        app_name: APP_NAME,
-        privacy_model: PRIVACY_MODEL,
-        discovery_model: DISCOVERY_MODEL,
-        moss_link_mode: MOSS_LINK_MODE,
+        app_name: APP_NAME.to_string(),
+        privacy_model: PRIVACY_MODEL.to_string(),
+        discovery_model: DISCOVERY_MODEL.to_string(),
+        moss_link_mode: MOSS_LINK_MODE.to_string(),
     }
 }
 

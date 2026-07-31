@@ -15,58 +15,68 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
 
 
-            /// App-level identity diagnostics. One-shot query; no lifetime params, all
-/// fields are `'static` so the bridge serializes it cleanly.
+            /// App-level identity diagnostics. One-shot query; owned `String` fields so
+/// the non-opaque bridge translation serializes them cleanly (see struct).
 Future<AppDiagnostics>  appDiagnostics() => RustLib.instance.api.crateApiDiagnosticsAppDiagnostics();
 
 /// Per-runtime readiness diagnostics. Delegates to the mosh-core runtimes;
 /// persistence reports not-available because the api facade owns no DB handle.
 Future<NativeRuntimeStatus>  nativeRuntimeStatus() => RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatus();
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AppDiagnostics>>
-                abstract class AppDiagnostics implements RustOpaqueInterface {
-                    
+            /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
+class AppDiagnostics  {
+                final String appName;
+final String privacyModel;
+final String discoveryModel;
+final String mossLinkMode;
 
-                    
-                }
+                const AppDiagnostics({required this.appName ,required this.privacyModel ,required this.discoveryModel ,required this.mossLinkMode ,});
+
+                
                 
 
-
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NativeRuntimeStatus>>
-                abstract class NativeRuntimeStatus implements RustOpaqueInterface {
-                     MossRuntimeStatus get moss;
-
-
- ResultOpenMlsRoundTripStatusString get openmlsRoundtrip;
-
-
- ResultOpenMlsSmokeStatusString get openmlsSmoke;
-
-
- PersistenceRuntimeStatus get persistence;
-
-
- SecureStorageStatus get secureStorage;
-
-
-  set moss(MossRuntimeStatus moss);
-
-
-  set openmlsRoundtrip(ResultOpenMlsRoundTripStatusString openmlsRoundtrip);
-
-
-  set openmlsSmoke(ResultOpenMlsSmokeStatusString openmlsSmoke);
-
-
-  set persistence(PersistenceRuntimeStatus persistence);
-
-
-  set secureStorage(SecureStorageStatus secureStorage);
-
-
-
-                    
-                }
                 
+        @override
+        int get hashCode => appName.hashCode^privacyModel.hashCode^discoveryModel.hashCode^mossLinkMode.hashCode;
+        
+
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is AppDiagnostics &&
+                runtimeType == other.runtimeType
+                && appName == other.appName&& privacyModel == other.privacyModel&& discoveryModel == other.discoveryModel&& mossLinkMode == other.mossLinkMode;
+        
+            }
+
+/// Per-runtime readiness report, one row of `native_runtime_status`. Carries
+/// statuses produced by the mosh-core runtimes; persistence is a not-available
+/// marker when no host owns a running instance (see module doc).
+class NativeRuntimeStatus  {
+                final MossRuntimeStatus moss;
+final SecureStorageStatus secureStorage;
+final PersistenceRuntimeStatus persistence;
+final ResultOpenMlsSmokeStatusString openmlsSmoke;
+final ResultOpenMlsRoundTripStatusString openmlsRoundtrip;
+
+                const NativeRuntimeStatus({required this.moss ,required this.secureStorage ,required this.persistence ,required this.openmlsSmoke ,required this.openmlsRoundtrip ,});
+
+                
+                
+
+                
+        @override
+        int get hashCode => moss.hashCode^secureStorage.hashCode^persistence.hashCode^openmlsSmoke.hashCode^openmlsRoundtrip.hashCode;
+        
+
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is NativeRuntimeStatus &&
+                runtimeType == other.runtimeType
+                && moss == other.moss&& secureStorage == other.secureStorage&& persistence == other.persistence&& openmlsSmoke == other.openmlsSmoke&& openmlsRoundtrip == other.openmlsRoundtrip;
+        
+            }
             
