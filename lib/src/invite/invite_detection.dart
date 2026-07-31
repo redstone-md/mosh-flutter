@@ -7,30 +7,21 @@
 ///
 /// The TS implementation delegates the heavy lifting to the invite-uri
 /// parser (`invite-uri.ts`). The Dart parser lives in
-/// `package:mosh/src/invite/invite_uri.dart`, authored by S4.2 in
-/// parallel. To keep this module testable and green independently of
-/// S4.2's completion, the parsing needed to reproduce the exact
-/// `errorCode`/`kind` behavior of the TS tests is inlined below. Once
-/// S4.2's `invite_uri.dart` lands, a follow-up should swap this inline
-/// parse for `import 'package:mosh/src/invite/invite_uri.dart';` and
-/// route through `parseMoshInvite` / `parseMoshGroupInvite` /
-/// `InviteParseError` directly. That integration is deliberately
-/// deferred to avoid a hard cross-subagent dependency at test time.
+/// `package:mosh/src/invite/invite_uri.dart` (S4.2). This module routes the
+/// dm/group parse through `parseMoshInvite` / `parseMoshGroupInvite` and
+/// surfaces the canonical `InviteParseError.code` — `invite_uri.dart` is the
+/// single source of truth for invite-URI parsing (ADR 0012). It still owns
+/// the bits uri has no concept of: `org` bundle detection, the
+/// `_InviteFamily` host switch, and the family-branched fingerprint message.
 library;
+
+import 'package:mosh/src/invite/invite_uri.dart';
+
+export 'package:mosh/src/invite/invite_uri.dart'
+    show InviteParseErrorCode, InviteParseError;
 
 /// The kind of invite (or non-invite) a pasted string was classified as.
 enum InviteDetectionKind { dm, group, org, empty, unknown }
-
-/// Error codes — mirror the TS `InviteParseErrorCode` union.
-enum InviteParseErrorCode {
-  invalidUrl,
-  invalidScheme,
-  missingMesh,
-  missingSession,
-  missingGroup,
-  missingFingerprint,
-  invalidFingerprint,
-}
 
 /// Result of [detectInvite]. Value-equal so tests mirror TS `toEqual`.
 class InviteDetection {
@@ -143,94 +134,28 @@ _InviteFamily _detectInviteFamily(String value) {
 }
 
 /// Attempts a DM (mosh://invite) parse. Returns the error code on failure,
-/// null on success. Mirrors the validation in invite-uri.ts.
+/// null on success. Delegates to the canonical `parseMoshInvite` parser
+/// (invite_uri.dart) and reads the thrown `InviteParseError.code`.
 InviteParseErrorCode? _tryParseDm(String value) {
-  final uri = Uri.tryParse(value);
-  if (uri == null || !uri.hasScheme) {
-    return InviteParseErrorCode.invalidUrl;
+  try {
+    parseMoshInvite(value);
+    return null;
+  } on InviteParseError catch (e) {
+    return e.code;
   }
-  if (uri.scheme != 'mosh' || uri.host != 'invite') {
-    return InviteParseErrorCode.invalidScheme;
-  }
-  final mesh = _readToken(uri, 'mesh');
-  if (mesh == null) {
-    return InviteParseErrorCode.missingMesh;
-  }
-  final session = _readToken(uri, 'session');
-  if (session == null) {
-    return InviteParseErrorCode.missingSession;
-  }
-  final fp = _fingerprintFromHash(uri);
-  if (fp == null) {
-    return InviteParseErrorCode.missingFingerprint;
-  }
-  final normalized = fp.replaceAll('-', '').toUpperCase();
-  final validHex =
-      RegExp(r'^[a-f0-9-]+$', caseSensitive: false).hasMatch(normalized);
-  if (normalized.length < 8 || !validHex) {
-    return InviteParseErrorCode.invalidFingerprint;
-  }
-  return null;
 }
 
 /// Attempts a group (mosh://group) parse. Returns the error code on
-/// failure, null on success. Group fingerprints must be exactly 32 hex
-/// chars (mirrors `GROUP_FINGERPRINT_LENGTH` in invite-uri.ts).
+/// failure, null on success. Delegates to the canonical
+/// `parseMoshGroupInvite` parser (invite_uri.dart). Group fingerprints must
+/// be exactly 32 hex chars (the parser's `GROUP_FINGERPRINT_LENGTH`).
 InviteParseErrorCode? _tryParseGroup(String value) {
-  final uri = Uri.tryParse(value);
-  if (uri == null || !uri.hasScheme) {
-    return InviteParseErrorCode.invalidUrl;
-  }
-  if (uri.scheme != 'mosh' || uri.host != 'group') {
-    return InviteParseErrorCode.invalidScheme;
-  }
-  final mesh = _readToken(uri, 'mesh');
-  if (mesh == null) {
-    return InviteParseErrorCode.missingMesh;
-  }
-  final group = _readToken(uri, 'group');
-  if (group == null) {
-    return InviteParseErrorCode.missingGroup;
-  }
-  final fp = _fingerprintFromHash(uri);
-  if (fp == null) {
-    return InviteParseErrorCode.missingFingerprint;
-  }
-  final normalized = fp.replaceAll('-', '').toUpperCase();
-  final validHex =
-      RegExp(r'^[a-f0-9-]+$', caseSensitive: false).hasMatch(normalized);
-  if (normalized.length != 32 || !validHex) {
-    return InviteParseErrorCode.invalidFingerprint;
-  }
-  return null;
-}
-
-/// Reads and validates a path/query token: must be present, trimmed
-/// non-empty, at least 4 chars, and match `[a-z0-9][a-z0-9._-]*` (mirrors
-/// `TOKEN_PATTERN` / `MIN_TOKEN_LENGTH`). Returns null if missing/invalid.
-String? _readToken(Uri uri, String param) {
-  final raw = uri.queryParameters[param]?.trim();
-  if (raw == null || raw.isEmpty) {
+  try {
+    parseMoshGroupInvite(value);
     return null;
+  } on InviteParseError catch (e) {
+    return e.code;
   }
-  final tokenPattern = RegExp(r'^[a-z0-9][a-z0-9._-]*$', caseSensitive: false);
-  return raw.length >= 4 && tokenPattern.hasMatch(raw) ? raw : null;
-}
-
-/// Extracts the `fp=` value from the URI fragment. Returns null if the
-/// `fp` key is absent (mirrors `fingerprintFromHash`, which throws
-/// `missing_fingerprint` — here null signals that to the caller).
-String? _fingerprintFromHash(Uri uri) {
-  final fragment = uri.fragment;
-  if (fragment.isEmpty) {
-    return null;
-  }
-  final params = Uri.splitQueryString(fragment);
-  final raw = params['fp']?.trim();
-  if (raw == null || raw.isEmpty) {
-    return null;
-  }
-  return raw;
 }
 
 /// Maps a parse error code to the human message shown in the UI, branching
