@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/main.dart';
 
@@ -13,7 +14,10 @@ void main() {
   // shown. The full bridge end-to-end proof is `flutter build windows
   // --debug`, not this unit test.
   testWidgets('MoshApp renders AppBar and handles uninitialized bridge gracefully', (tester) async {
-    await tester.pumpWidget(const MoshApp());
+    // MoshApp is a ConsumerWidget (S3.5), so it must run inside a ProviderScope
+    // or Riverpod throws on ref.watch. The localeProvider default derives from
+    // the device locale; we do not override it here (smoke test only).
+    await tester.pumpWidget(const ProviderScope(child: MoshApp()));
 
     expect(find.text('Mosh'), findsOneWidget); // AppBar title renders
 
