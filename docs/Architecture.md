@@ -294,6 +294,46 @@ Slice one is complete. Summary of the final state:
   ADR 0016); five stubs (`channel`, `private_group`, `org`, `network`,
   `vpn`) carry signatures only, bodies `todo!()`.
 
+## Slice Two Status
+
+Slice two (deep-link `mosh://` desktop, ADR 0015) is complete. The
+slice-one screens were unreachable from the running app (`main.dart`
+shipped a static `MoshHome` smoke-screen with no router), so slice two
+first laid a route shell, then wired the OS deep-link into it.
+
+- **Route shell (S2-1):** `go_router` (`lib/src/routing/app_router.dart`)
+  with `/` (OnboardingScreen home), `/join` (InvitePasteScreen),
+  `/diagnostics`, `/dm/:sessionId` (DmScreen). `MoshApp` is
+  `MaterialApp.router(routerConfig: appRouter)`. The Join tile navigates
+  to `/join`; the Group tile stays a "later slice" placeholder (1:1 with
+  the React OnboardMenu); Diagnostics is an AppBar action. `MoshHome` is
+  gone.
+- **Windows scheme registration (S2-2):** `mosh://` registered under
+  `HKCU\Software\Classes\mosh` via `win32_registry` 3.0.3
+  (`lib/src/deeplink/mosh_url_scheme_windows.dart`): `URL Protocol` +
+  `shell\open\command = "<exe>" "%1"`. HKCU needs no admin elevation;
+  idempotent; never throws. Called from `main()` after `RustLib.init()`,
+  gated `Platform.isWindows`. `app_links 7.2.1` added as a dependency
+  for the intake.
+- **Intake (S2-3):** `windows/runner/main.cpp` calls
+  `SendAppLinkToInstance()` at the top of `wWinMain` so a `mosh://`
+  click that launches a second instance forwards the URI to the
+  already-running one (single window). Dart
+  `lib/src/deeplink/mosh_deep_link.dart` subscribes
+  `AppLinks().uriLinkStream` (covers cold-start initial + warm links),
+  gates scheme `== 'mosh'`, and navigates `appRouter.go('/join', extra:
+  <uri>)`. A cold-start link before the router mounts is buffered and
+  replayed once via a post-frame callback; navigation is try/catch.
+  `/join` reads `state.extra` and seeds `InvitePasteScreen`'s text
+  field + live detection. Three widget tests cover warm / scheme-gate /
+  cold-start replay.
+- Single scheme `mosh://` everywhere (ADR 0009/0015); no per-fork
+  variant. Mobile intent-filter / `CFBundleURLSchemes` remain deferred
+  to the mobile slice (ADR 0015).
+- Tests green: 48 Dart (was 42 after slice one; +6 across follow-up +
+  slice two), Rust `cargo test` 215/0/5-ignored (serial), `flutter
+  analyze` clean.
+
 ## References
 
 - docs/ADR/0009-flutter-shell-replaces-tauri-frontend.md - Flutter shell replaces Tauri frontend.

@@ -2,7 +2,36 @@
 
 ## Status
 
-Proposed (Flutter fork sandbox)
+Accepted (slice two complete)
+
+## Slice two outcome
+
+Slice two (deep-link `mosh://` desktop) shipped and is closed:
+
+- **Route shell:** `go_router` with `/`, `/join`, `/diagnostics`,
+  `/dm/:id`; `MoshApp` is `MaterialApp.router`. The slice-one screens are
+  now reachable (commit 5be0817).
+- **Windows registration:** the `mosh://` scheme is registered under
+  `HKCU\Software\Classes\mosh` via the `win32_registry` 3.0.3 Dart package
+  (`lib/src/deeplink/mosh_url_scheme_windows.dart`): `URL Protocol` +
+  `shell\open\command = "<resolvedExecutable>" "%1"`. HKCU needs no admin
+  elevation for a dev build; idempotent; never throws (commit 9d30796).
+- **Intake:** `windows/runner/main.cpp` calls `SendAppLinkToInstance()`
+  (app_links 7.2.1 Windows C API) at the top of `wWinMain` so a second
+  instance forwards the URI to the already-running one. Dart
+  `lib/src/deeplink/mosh_deep_link.dart` subscribes
+  `AppLinks().uriLinkStream`, gates scheme `== 'mosh'`, and navigates
+  `appRouter.go('/join', extra: <uri>)`; a cold-start link is replayed on
+  first frame (commit 4af9a27).
+- **Single scheme** `mosh://` everywhere; no per-fork variant.
+- **Mobile deferred:** Android `intent-filter` and iOS
+  `CFBundleURLSchemes` remain a later slice (the mobile Moss cross-build
+  + secure-storage platform channels slice). The Dart intake seam
+  (`uriLinkStream`) is platform-agnostic, so mobile only needs the OS
+  registration, not a new intake.
+
+Tests: 48 Dart (was 42), `cargo test` 215/0/5-ignored (serial), `flutter
+analyze` clean.
 
 ## Context
 

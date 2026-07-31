@@ -471,7 +471,7 @@ Ordered atomic tasks. One subagent = one task; orchestrator commits.
     registration is fine. Document how to verify (open a `mosh://...` link from
     a browser/Run dialog -> mosh.exe starts with the arg).
   - Verify: registration present in registry; round-trip launches mosh.exe.
-- [ ] **S2-3: Dart-side deep-link intake + route to invite-paste.**
+- [x] **S2-3: Dart-side deep-link intake + route to invite-paste.** DONE — commit `4af9a27`. Runner calls `SendAppLinkToInstance()` (single-instance handoff). `mosh_deep_link.dart` subscribes `AppLinks().uriLinkStream`, gates scheme `== 'mosh'`, `appRouter.go('/join', extra: uri)`; cold-start replay buffer + post-frame callback; navigation try/catch. `/join` reads `state.extra`→`InvitePasteScreen(initialInviteUri:)`; screen seeds `_controller`+`_detection`. main() starts intake after RustLib.init(). Tests +3 (warm, scheme gate, cold-start replay) → 48/48.
   - Read the launch arg (entrypoint argument) in `main()`; if it is a
     `mosh://...` URI, route the app to the invite-paste screen with the URI
     pre-filled (reuse `detectInvite`). Use `app_links` (desktop launch-arg
@@ -484,7 +484,7 @@ Ordered atomic tasks. One subagent = one task; orchestrator commits.
   - Verify: `flutter analyze` clean; `flutter test` green; a unit/widget test
     that feeds a `mosh://invite?...#fp=...` entrypoint arg asserts the app
     navigates to invite-paste with the field pre-filled.
-- [ ] **S2-4: Slice 2 docs close-out.**
+- [x] **S2-4: Slice 2 docs close-out.** DONE — Architecture.md gains a Slice Two Status section (route shell + Windows registration + intake); ADR 0015 Status → Accepted with a slice-two-outcome note (registry approach, mobile deferred). This plan marks S2-1..S2-3 done.
   - Update `docs/Architecture.md` with the route shell + deep-link intake.
   - ADR note (or update 0015) recording the registry association approach and
     that mobile remains deferred.
