@@ -38,3 +38,17 @@ docs/UX_UI_FIX_PLAN.md
 probe-timeline.jsonl
 
 
+
+# Flutter / Dart / Rust build artifacts (added by Flutter scaffold)
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+/mosh-core/target/
+/target/
+.pub-cache/
+.pub/
+ios/Pods/
+macos/Pods/
+generated_plugin_registrant.dart
+# pubspec.lock for Flutter; keep package-lock.json (npm)
