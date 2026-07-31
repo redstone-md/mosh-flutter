@@ -548,13 +548,28 @@ mobile task is executor-shaped and ready to spawn.
 
 ### M-1: code written, build NOT verified (commit `4deb369`)
 
-The code half of the first mobile task landed without the NDK so the queue
-kept moving. `scripts/moss-prepare-android.mjs` (NDK resolution, CC
-derivation, `CGO_ENABLED=1 GOOS=android GOARCH=arm64` go build, output to
-`android/app/src/main/jniLibs/arm64-v8a/libmoss.so`) and an android bare-name
-dlopen candidate in `mosh-core/src/moss_runtime.rs` (with a runs-everywhere
-unit test). Verified on Windows: node --check, cargo fmt, clippy -D warnings,
-cargo test 216/0/5-ignored, flutter analyze — all clean. The Go cross-compile
-itself was NOT run (NDK absent). Remaining verification once the NDK is
-installed: run the script, confirm `libmoss.so` exists, `go env GOOS GOARCH`
-reports android/arm64, and `go tool nm` shows the 8 `Moss_*` exports.
+The code half of the first mobile task. `scripts/moss-prepare-android.mjs`
+(NDK resolution, CC derivation, `CGO_ENABLED=1 GOOS=android GOARCH=arm64`
+go build, output to `android/app/src/main/jniLibs/arm64-v8a/libmoss.so`) and
+an android bare-name dlopen candidate in `mosh-core/src/moss_runtime.rs`
+(with a runs-everywhere unit test).
+
+**BLOCKER RESOLVED** — Android SDK 34+36 + NDK 27.0.12077973 installed at
+`D:\android-sdk` (commandline-tools, licenses accepted, platform-tools,
+platforms android-34/36, build-tools 34/36, ndk 27). `flutter config
+--android-sdk D:\android-sdk`. Env: `ANDROID_NDK_HOME=D:\android-sdk\ndk\
+27.0.12077973`.
+
+**M-1 FULLY VERIFIED** (commits `4deb369` + `6c02c66` fs/promises fix):
+`node scripts/moss-prepare-android.mjs` exits 0; produces a 19 MB
+`libmoss.so` (go1.25.9, GOOS=android GOARCH=arm64) at
+`android/app/src/main/jniLibs/arm64-v8a/libmoss.so`; all 8 FFI symbols
+present (Moss_Init/Start/Stop/Subscribe/Publish/SetCallback/SetKeyStore/
+Free) via `go tool nm`. Windows: cargo test 216/0/5-ignored, clippy clean,
+analyze clean.
+
+**Follow-up flagged**: the link emits ld.lld warnings — the Windows/x86
+`C:\Users\nevermore\local\libolm\lib\libolm.a` is cgo-linked into an
+android/arm64 .so. The .so builds and exports the FFI symbols, proving
+the moss FFI pipeline, but a clean android-arm64 libolm is needed before
+a real device runtime can exercise MLS. Separate task.
