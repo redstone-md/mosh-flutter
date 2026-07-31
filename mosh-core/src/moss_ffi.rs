@@ -102,6 +102,15 @@ pub fn set_moss_keystore(store: Arc<dyn MossKeyStore>) {
     *MOSS_KEYSTORE.lock().expect("moss keystore lock poisoned") = Some(store);
 }
 
+/// Drop the registered keystore so subsequent `init_node` calls in the same
+/// process mint a fresh identity again (the C callbacks stay installed but
+/// no-op while the global is `None`). Test-only lifecycle hook: production
+/// registers the keystore once and never clears it.
+#[cfg(test)]
+pub fn clear_moss_keystore() {
+    *MOSS_KEYSTORE.lock().expect("moss keystore lock poisoned") = None;
+}
+
 #[cfg(test)]
 pub static MOSS_TEST_LOCK: Mutex<()> = Mutex::new(());
 
@@ -279,6 +288,18 @@ impl MossFfiRuntime {
         check_code("set_key_store", unsafe {
             (self.set_key_store)(Some(keystore_load), Some(keystore_save))
         })
+    }
+
+    /// Uninstall the identity keystore callbacks so Moss reverts to minting a
+    /// fresh identity per `init_node` (the state of a process that never
+    /// installed a keystore). Test-only lifecycle hook: production registers
+    /// the keystore once and never uninstalls it. Needed because
+    /// `Moss_SetKeyStore` is a Go-process-global -- once installed by one
+    /// test, the callbacks stay live for every later `init_node` in the same
+    /// test binary, which would otherwise contaminate unrelated Moss tests.
+    #[cfg(test)]
+    pub fn uninstall_keystore(&self) -> Result<(), MossFfiError> {
+        check_code("set_key_store", unsafe { (self.set_key_store)(None, None) })
     }
 
     pub fn init_node(

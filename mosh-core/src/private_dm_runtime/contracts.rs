@@ -310,6 +310,13 @@ pub enum PrivateDmRuntimeError {
     DuplicateSession(String),
     Attachment(String),
     MissingAttachment(String),
+    /// At-rest persistence layer failure (encrypted redb store or the OS
+    /// keychain backing the DEK). Surfaced as a distinct variant -- not
+    /// folded into `Moss` -- so the fail-closed path (DEK unavailable while a
+    /// DB exists, corrupt DEK, etc.) is identifiable in diagnostics without
+    /// parsing the message text. First wired consumer: `api::private_dm`
+    /// `ensure_runtime` (ADR 0011 SecureSecretStore).
+    Persistence(String),
 }
 
 impl std::fmt::Display for PrivateDmRuntimeError {
@@ -328,6 +335,9 @@ impl std::fmt::Display for PrivateDmRuntimeError {
             Self::Attachment(error) => write!(formatter, "attachment error: {error}"),
             Self::MissingAttachment(id) => {
                 write!(formatter, "attachment not found: {id}")
+            }
+            Self::Persistence(error) => {
+                write!(formatter, "persistence error: {error}")
             }
         }
     }
@@ -354,6 +364,12 @@ impl From<crate::attachment_runtime::AttachmentRuntimeError> for PrivateDmRuntim
 impl From<crate::attachment_store::AttachmentStoreError> for PrivateDmRuntimeError {
     fn from(error: crate::attachment_store::AttachmentStoreError) -> Self {
         Self::Attachment(error.to_string())
+    }
+}
+
+impl From<crate::persistence::PersistenceError> for PrivateDmRuntimeError {
+    fn from(error: crate::persistence::PersistenceError) -> Self {
+        Self::Persistence(error.to_string())
     }
 }
 

@@ -28,25 +28,40 @@
 //! They are NOT redefined. `Result<T, String>` matches the Tauri command
 //! shape exactly.
 //!
-//! PERSISTENCE: the Tauri shell built `Persistence::open(app_data_dir)` in
-//! `setup()` and handed the resulting `Arc<Persistence>` to the runtime so
-//! conversations survive restart. The api facade owns no DB path yet (the
-//! bridge does not pass one in slice one), so the singleton is initialized
-//! with `persistence: None`. `rehydrate()` is still called (it is a no-op
-//! without a store) so the wiring is correct the moment a path arrives in a
-//! later slice. Persistence wiring is a later-slice deliverable, not a hack.
+//! PERSISTENCE: `construct_runtime` opens the encrypted at-rest store and
+//! wires the Moss transport-identity keystore the same way the Tauri shell
+//! did in `setup()` -- `Persistence::open(...)` -> `set_moss_keystore` ->
+//! `install_keystore` (before any node starts) -> `from_shared_node(...,
+//! Some(persistence))` -> `rehydrate()`. Conversations AND the device
+//! identity now survive restart (ADR 0011 SecureSecretStore: this is the
+//! first real consumer of `OsSecureSecretStore`, i.e. the Windows Credential
+//! Manager on this host; the mobile platform channel stays deferred). The
+//! api facade owns no app handle, so the DB path mirrors the AttachmentStore
+//! fallback exactly: a `mosh` dir under `std::env::temp_dir()`, file
+//! `history.redb`. A real `app_data_dir` arrives via the ADR 0010 bridge
+//! contract in a later slice; the temp fallback is correct for now because
+//! it keeps both stores co-located and survives within a single install
+//! session. Persistence opens fail-closed (`PersistenceError` ->
+//! `PrivateDmRuntimeError::Persistence`): a desktop app that silently drops
+//! every conversation on restart is worse than a surfaced error.
 //!
 //! TESTING: `ensure_runtime()` calls `MossFfiRuntime::load_default()`, which
 //! loads the Moss shared library. There is no way to exercise ANY of the
 //! six public functions without triggering that load, so a unit test here
 //! would require the Moss lib to be present and would fail in CI without
-//! it. `api::private_dm` is therefore integration-tested in S2/S5 (live
-//! Moss), not unit-tested here — per the task brief point 6.
+//! it. The six public functions are integration-tested in S2/S5 (live
+//! Moss). The persistence + keystore wiring IS unit/integration-tested
+//! here (`persistence_and_identity_survive_restart`): it loads the live
+//! Moss lib, opens a real `Persistence` via the `OsSecureSecretStore`
+//! (Windows Credential Manager on this host), and proves the transport
+//! identity + a history blob survive a drop-and-reopen -- cleaning its DEK
+//! out of the keychain in teardown so the host keychain is not polluted.
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use crate::attachment_store::AttachmentStore;
-use crate::moss_ffi::MossFfiRuntime;
+use crate::moss_ffi::{set_moss_keystore, MossFfiRuntime};
+use crate::persistence::Persistence;
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CloseSessionResult, InviteCreated, PrivateDmRuntime,
     PrivateDmRuntimeError, SendMessageResult, SessionListSnapshot, SessionSnapshot,
@@ -109,9 +124,10 @@ fn build_runtime() -> Option<PrivateDmRuntime> {
     }
 }
 
-/// The construction recipe — a verbatim port of the Tauri shell's
-/// `PrivateDmState::ready`, minus the keystore/persistence wiring that
-/// needs a DB path the api facade does not own yet (see module doc).
+/// The construction recipe -- the api-facade analogue of the Tauri shell's
+/// `PrivateDmState::ready`. Opens the encrypted at-rest store, wires the
+/// Moss transport-identity keystore, then builds the runtime so conversations
+/// AND the device identity survive restart (ADR 0011 SecureSecretStore).
 fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     // `load_default` internally calls
     // `MossDynamicRuntime::from_default_candidates` (same path the Tauri
@@ -120,23 +136,57 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     // `PrivateDmState::missing(message)`.
     let moss = MossFfiRuntime::load_default()
         .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
+
+    // Open the encrypted at-rest store BEFORE the Moss node starts. Moss
+    // resolves its transport identity inside `Moss_Init` (probe-then-load on
+    // the registered keystore): an existing identity is reused, a missing
+    // one is minted and saved back. So the keystore must be registered + the
+    // C callbacks installed on the loaded runtime before any `init_node`
+    // runs -- the shared node is initialized lazily on the first session, so
+    // installing here (right after load) is before every node start.
+    //
+    // Path: mirrors the AttachmentStore fallback exactly -- a `mosh` dir
+    // under temp. The api facade owns no app handle (the bridge does not pass
+    // one in this slice), so temp is the same fallback the Tauri shell used
+    // when `app_data_dir` was unavailable; ADR 0010's bridge contract can
+    // route a real app_data_dir here in a later slice. Fail closed:
+    // `Persistence::open` refuses to mint a fresh DEK when a DB already
+    // exists (it would orphan all persisted history), and a keychain failure
+    // is surfaced as `PrivateDmRuntimeError::Persistence` rather than
+    // silently degrading to ephemeral -- a desktop app that silently drops
+    // every conversation on restart is worse than a visible error.
+    let data_dir = std::env::temp_dir().join("mosh");
+    std::fs::create_dir_all(&data_dir)
+        .map_err(|error| PrivateDmRuntimeError::Persistence(format!("mkdir data dir: {error}")))?;
+    let persistence = std::sync::Arc::new(Persistence::open(&data_dir.join("history.redb"))?);
+
+    // Register the persistence store as the host keystore, then install the
+    // C callbacks on the loaded Moss runtime. `set_moss_keystore` is the
+    // process global the callbacks read; `install_keystore` hands the
+    // callbacks to Moss. Both BEFORE `init_node` (which the shared node runs
+    // lazily) so Moss loads the existing identity instead of minting a fresh
+    // one. This closes the gap at `moss_ffi.rs` set_moss_keystore/
+    // install_keystore, which were only exercised by the MemStore test.
+    set_moss_keystore(persistence.clone());
+    moss.install_keystore()
+        .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
+
     // One holder for the whole process: DMs, channels, groups and orgs share
     // a single Moss node (see `shared_node`). The api facade owns its own
     // holder today; when other api slices land, they should take a
     // reference to THIS shared node rather than minting their own.
     let shared_node = SharedMossNode::new(std::sync::Arc::new(moss));
-    // The Tauri shell preferred `app_data_dir` then fell back to temp. The
-    // api facade has no app handle, so it uses a `mosh` dir under the temp
-    // dir — the same fallback the Tauri shell used when app_data_dir failed.
+    // Same `mosh` temp dir as the persistence DB (mirrors the Tauri shell's
+    // `app_data_dir`-then-temp fallback for attachments).
     let attachment_store = std::sync::Arc::new(
-        AttachmentStore::new(std::env::temp_dir().join("mosh"))
+        AttachmentStore::new(data_dir)
             .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?,
     );
-    // persistence: None for slice one — see module doc.
-    let mut runtime = PrivateDmRuntime::from_shared_node(shared_node, attachment_store, None);
-    // The Tauri shell calls `rehydrate()` after construction; it is a no-op
-    // without a persistence store, so this is correct today and stays
-    // correct the moment a later slice wires a DB path.
+    let mut runtime =
+        PrivateDmRuntime::from_shared_node(shared_node, attachment_store, Some(persistence));
+    // Rehydrate saved conversations from the encrypted store; with
+    // persistence wired it now rebuilds sessions + history instead of the
+    // slice-one no-op.
     runtime.rehydrate();
     Ok(runtime)
 }
@@ -198,8 +248,152 @@ pub fn close_session(session_id: String) -> Result<CloseSessionResult, String> {
         .map_err(|error| error.to_string())
 }
 
-// No unit tests: every public function routes through `ensure_runtime`,
-// which calls `MossFfiRuntime::load_default` and therefore loads the Moss
-// shared library. There is no way to exercise the facade without that load,
-// so a test here would fail in CI without the lib present. `api::private_dm`
-// is integration-tested in S2/S5 (live Moss), not unit-tested — see module doc.
+#[cfg(test)]
+mod tests {
+    use crate::moss_ffi::{
+        clear_moss_keystore, set_moss_keystore, MossFfiRuntime, MossNodeConfig, MOSS_TEST_LOCK,
+    };
+    use crate::persistence::Persistence;
+    use crate::secure_storage::{OsSecureSecretStore, SecureSecretStore};
+    use std::sync::Arc;
+
+    // The DEK key Persistence::open hardcodes (persistence.rs). The test mints
+    // it on first open and MUST delete it from the host keychain on teardown so
+    // it does not pollute the user's Windows Credential Manager. No other test
+    // uses this key (existing persistence tests use open_with_dek, bypassing the
+    // keychain), so there is no cross-test collision.
+    const DEK_KEY: &str = "history-dek-v1";
+
+    /// Build a minimal config for a lone node: a random-ish port in a range the
+    /// other tests do not use, no static peers. Identity is resolved at init
+    /// time, so the node never needs to actually exchange traffic here.
+    fn lone_node_config(port: u16) -> MossNodeConfig {
+        MossNodeConfig {
+            listen_port: port,
+            static_peer: None,
+            bind_interface: None,
+        }
+    }
+
+    /// A unique temp dir per run so two invocations (or a leftover from a prior
+    /// run) never collide. Caller removes it in teardown.
+    fn unique_test_dir(label: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "mosh-m2-test-{label}-{}-{nanos}",
+            std::process::id()
+        ))
+    }
+
+    /// Load Moss, open Persistence at `dir/history.redb`, register + install the
+    /// keystore, init + start a node, and return its public key hex (the stable
+    /// transport identity). Mirrors `construct_runtime`'s ordering: keystore is
+    /// installed BEFORE init so Moss loads any existing identity instead of
+    /// minting a fresh one.
+    fn load_identity_at(
+        dir: &std::path::Path,
+        port: u16,
+        mesh_id: &str,
+    ) -> (Arc<MossFfiRuntime>, Arc<Persistence>, String) {
+        let persistence = Arc::new(
+            Persistence::open(&dir.join("history.redb")).expect("persistence should open"),
+        );
+        let moss = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        // Register the keystore + install the C callbacks BEFORE init_node, so
+        // Moss resolves identity from the registered store.
+        set_moss_keystore(persistence.clone());
+        moss.install_keystore().expect("keystore should install");
+        let node = moss
+            .init_default_node(mesh_id, &lone_node_config(port))
+            .expect("node should init");
+        node.start().expect("node should start");
+        let key = node
+            .public_key_hex()
+            .expect("node should expose its public key");
+        (moss, persistence, key)
+    }
+
+    // First real consumer of OsSecureSecretStore (ADR 0011): prove the redb
+    // at-rest store + the Moss transport-identity keystore survive a restart
+    // when wired the way `construct_runtime` wires them. Uses the live Moss
+    // library and the live Windows Credential Manager on this host, so it
+    // needs moss.dll present (npm run moss:prepare) and is gated by
+    // MOSS_TEST_LOCK like the other live-Moss tests. Serial under
+    // --test-threads=1.
+    #[test]
+    fn persistence_and_identity_survive_restart() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+        let dir = unique_test_dir("identity");
+        std::fs::create_dir_all(&dir).expect("test dir should create");
+        let mesh_id = "mosh-m2-identity-test";
+        let port = 43050u16;
+
+        // --- Load #1: first run, keystore empty -> Moss mints an identity,
+        // saves it through the keystore into the encrypted redb store. Also
+        // persist a history blob so we can prove it round-trips after reopen.
+        let (_moss1, p1, identity_a) = load_identity_at(&dir, port, mesh_id);
+        p1.put_session("m2-session", b"{\"hello\":\"restart\"}")
+            .expect("session record should persist");
+        // The keystore MUST have saved the identity for load #2 to reuse it.
+        assert!(
+            p1.get_moss_identity()
+                .expect("identity read should succeed")
+                .is_some(),
+            "first run must have saved the transport identity through the keystore"
+        );
+        // --- Simulate a restart: release the process-global keystore (which
+        // still holds a ref to p1, so the redb DB lock would otherwise stay
+        // held), then drop p1 so the redb handle closes. The DEK stays in the
+        // keychain and the DB file stays on disk -- the state a fresh
+        // process sees. `clear_moss_keystore` is the test-only hook for the
+        // "process exit drops the global" step; production never clears it.
+        clear_moss_keystore();
+        drop(p1);
+
+        // --- Load #2: reopen the SAME path. Persistence::open must find the
+        // existing DB AND the existing DEK in the keychain (it fail-closes if
+        // the DEK is missing while the DB exists), then Moss must load -- not
+        // mint -- the saved identity.
+        let (moss2, p2, identity_b) = load_identity_at(&dir, port + 1, mesh_id);
+
+        assert_eq!(
+            identity_a, identity_b,
+            "transport identity must survive restart (loaded, not regenerated)"
+        );
+
+        // The persisted history blob must decrypt under the reopened DEK.
+        let sessions = p2.list_sessions().expect("sessions should list");
+        assert!(
+            sessions.iter().any(|row| row == b"{\"hello\":\"restart\"}"),
+            "persisted session record must round-trip and decrypt after reopen: {sessions:?}"
+        );
+
+        // --- Teardown (restores the pre-test process state so unrelated Moss
+        // tests in this binary are not contaminated):
+        //   1. Uninstall the Go-side keystore callbacks. Moss_SetKeyStore is a
+        //      Go-process-global; once installed here it stays live for every
+        //      later init_node in the same test binary. Uninstalling reverts
+        //      Moss to its baseline "callbacks nil -> mint a fresh identity
+        //      per node" behavior. Without this, a later test that loads the
+        //      Rust MOSS_KEYSTORE global (e.g. the moss_ffi MemStore test, which
+        //      leaves a saved identity in the global and never clears it) would
+        //      feed that stale identity to every later node, collapsing all
+        //      their peer ids to one and failing connect-to-counterpart
+        //      assertions.
+        //   2. Clear the Rust keystore global (belt-and-suspenders; inert once
+        //      the Go callbacks are gone, but keeps the Rust state clean).
+        //   3. Delete the DEK from the host keychain so the test does not
+        //      pollute the user's Windows Credential Manager.
+        //   4. Remove the unique temp dir.
+        let _ = moss2.uninstall_keystore();
+        clear_moss_keystore();
+        let _ = OsSecureSecretStore.delete_secret(DEK_KEY);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
