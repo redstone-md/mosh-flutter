@@ -623,3 +623,24 @@ Remaining mobile work (deferred): iOS Keychain, biometric/user-presence UI,
 libolm android-arm64 (clean build for MLS on device), app_data_dir via the
 ADR 0010 bridge (currently temp/mosh fallback shared by Rust+Dart), mobile
 deep-link registration (Dart intake seam already platform-agnostic).
+Remaining mobile work (deferred): iOS Keychain, biometric/user-presence UI,
+libolm android-arm64 (clean build for MLS on device), app_data_dir via the
+ADR 0010 bridge (currently temp/mosh fallback shared by Rust+Dart), mobile
+deep-link registration (Dart intake seam already platform-agnostic).
+### M-4: mosh:// scheme registered on Android + iOS (commit `481eea0`)
+The OS-side half of mobile deep-link (ADR 0015). Android: a second
+intent-filter on MainActivity (VIEW + DEFAULT + BROWSABLE + scheme=mosh,
+autoVerify=false, scheme-only so invite/group/org all route; MAIN/LAUNCHER
+unchanged, singleTop kept). iOS: CFBundleURLTypes with CFBundleURLSchemes=
+[mosh], CFBundleURLName=app.mosh (ADR 0009); scene manifest untouched
+(app_links handles scene/legacy open-url). The Dart intake from S2-3 is
+platform-agnostic and now routes on both platforms. Single scheme mosh://.
+Verified: analyze clean, flutter test 52/52 (no Dart changed); device
+verification = opening a mosh:// link launches mosh -> /join pre-filled.
+Remaining mobile work (deferred): iOS Keychain backend for the DEK (mirror
+of M-3's Android path via flutter_secure_storage iOS), biometric/user-
+presence UI (ADR 0011 default-on, separate UX slice), libolm android-arm64
+clean build (MLS on device; the M-1 .so links a Windows/x86 libolm today),
+app_data_dir via the ADR 0010 bridge (replace the temp/mosh fallback shared
+by Rust+Dart), and a real device integration pass (build apk, install,
+open a mosh:// link, confirm Keystore DEK + history persist).
