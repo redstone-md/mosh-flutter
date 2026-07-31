@@ -489,3 +489,34 @@ Ordered atomic tasks. One subagent = one task; orchestrator commits.
   - ADR note (or update 0015) recording the registry association approach and
     that mobile remains deferred.
   - Update this plan: mark S2-1..S2-3 done.
+## Slice 3 (mobile): BLOCKED on environment — Android NDK not installed
+
+Research brief captured by subagent (Heisenberg): see notes below. The
+first atomic mobile task is to cross-compile the Moss Go c-shared library
+to `libmoss.so` for `GOOS=android GOARCH=arm64` via the NDK clang, place
+it in `android/app/src/main/jniLibs/arm64-v8a/`, and add an android
+bare-name dlopen candidate in `mosh-core/src/moss_runtime.rs`
+(`default_candidate_paths()` has no android arm today).
+
+BLOCKER: `flutter doctor` reports "Unable to locate Android SDK";
+`ANDROID_NDK_HOME`/`ANDROID_SDK_ROOT` are empty, no SDK/NDK in any standard
+or custom location on C:\ or D:\, `sdkmanager` not on PATH. Go cross-compile
+to android/arm64 (`CGO_ENABLED=1 GOOS=android GOARCH=arm64 CC=<ndk clang>`)
+requires the NDK, which needs an interactive Android Studio install /
+`sdkmanager` license acceptance (~1+ GB, GUI or interactive license flow).
+This cannot be resolved from the sandbox without user action.
+
+State of the fork as of this slice:
+- `moss/` is a git submodule pinned `v0.8.14`; `go.mod` toolchain
+  `go1.25.9`; only `cmd/moss-ffi/main.go` uses cgo (stdlib headers only).
+- mosh-core dlopens moss via `libloading`; `MOSS_LIBRARY_NAME` resolves to
+  `libmoss.so` on android (name is right; path probing is desktop-only).
+- cargokit builds the **mosh-core** Rust crate for android (arm64-v8a,
+  minSdk 21); moss is a SEPARATE Go dylib cargokit has no hook for.
+- `src-tauri/` legacy project is still physically present in the fork
+  (ADR 0009 says remove from the Flutter track — out of scope for the
+  moss-load task; the android prepare script must NOT reuse its output dir).
+
+Unblocks when: Android NDK is installed and `ANDROID_NDK_HOME` set (or
+ `flutter config --android-sdk` + NDK side-by-side). Then the first
+ mobile task is executor-shaped and ready to spawn.
