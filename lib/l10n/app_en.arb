@@ -269,5 +269,7 @@
   "orgRejoinNeededTitle": "Group out of sync",
   "@orgRejoinNeededTitle": { "description": "Title of the rejoin-needed notice" },
   "orgRejoinNeededBody": "This group missed membership changes that could not be replayed. Ask an admin to re-invite you from the roster.",
-  "@orgRejoinNeededBody": { "description": "Body of the rejoin-needed notice" }
+  "@orgRejoinNeededBody": { "description": "Body of the rejoin-needed notice" },
+  "diagnosticsDiagnostics": "Diagnostics",
+  "@diagnosticsDiagnostics": { "description": "AppBar title of the diagnostics screen" }
 }
