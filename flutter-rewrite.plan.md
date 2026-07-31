@@ -543,5 +543,18 @@ State of the fork as of this slice:
   moss-load task; the android prepare script must NOT reuse its output dir).
 
 Unblocks when: Android NDK is installed and `ANDROID_NDK_HOME` set (or
- `flutter config --android-sdk` + NDK side-by-side). Then the first
- mobile task is executor-shaped and ready to spawn.
+`flutter config --android-sdk` + NDK side-by-side). Then the first
+mobile task is executor-shaped and ready to spawn.
+
+### M-1: code written, build NOT verified (commit `4deb369`)
+
+The code half of the first mobile task landed without the NDK so the queue
+kept moving. `scripts/moss-prepare-android.mjs` (NDK resolution, CC
+derivation, `CGO_ENABLED=1 GOOS=android GOARCH=arm64` go build, output to
+`android/app/src/main/jniLibs/arm64-v8a/libmoss.so`) and an android bare-name
+dlopen candidate in `mosh-core/src/moss_runtime.rs` (with a runs-everywhere
+unit test). Verified on Windows: node --check, cargo fmt, clippy -D warnings,
+cargo test 216/0/5-ignored, flutter analyze — all clean. The Go cross-compile
+itself was NOT run (NDK absent). Remaining verification once the NDK is
+installed: run the script, confirm `libmoss.so` exists, `go env GOOS GOARCH`
+reports android/arm64, and `go tool nm` shows the 8 `Moss_*` exports.
