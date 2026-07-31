@@ -663,3 +663,23 @@ Remaining mobile work (deferred): iOS Keychain backend for the DEK, biometric/
 user-presence UI (ADR 0011), libolm android-arm64 clean build (MLS on device),
 and a real device integration pass (build apk, install, open mosh://, confirm
 Keystore DEK + history persist across restart in the app-support dir).
+Remaining mobile work (deferred): iOS Keychain backend for the DEK, biometric/
+user-presence UI (ADR 0011), libolm android-arm64 clean build (MLS on device),
+and a real device integration pass (build apk, install, open mosh://, confirm
+Keystore DEK + history persist across restart in the app-support dir).
+### M-6 (cancelled — non-task): libolm android-arm64 clean build
+Investigation (Mendel, read-only: go env / rg / go tool nm) proved libolm is
+NOT a moss dependency: zero olm_* symbols in moss or veil/core Go source, no
+#cgo directive adds -lolm, and the M-1 .so contains 0 olm_* symbols (the 87
+loose "olm" matches are all andybalholm/brotli — pure-Go). moss crypto is
+pure-Go Noise (flynn/noise + golang.org/x/crypto). The libolm linkage came
+100% from a globally-set go env (GOENV file pins CGO_LDFLAGS/CGO_CFLAGS at a
+Windows/x86 libolm, left over from an earlier setup). Real fix = commit
+`4cf7d05`: moss-prepare-android.mjs points GOENV at a per-invocation empty
+temp file so go reads NO stored cgo flags for the android build; ld.lld
+warnings gone; .so is 19 MB, 8 FFI symbols, 0 olm_*. MLS-on-device was never
+blocked by libolm. libolm cross-compile is dropped from the plan.
+Remaining mobile work (deferred): iOS Keychain backend for the DEK, biometric/
+user-presence UI (ADR 0011), and a real device integration pass (build apk,
+install, open mosh://, confirm Keystore DEK + history persist across restart
+in the app-support dir).
