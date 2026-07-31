@@ -11,12 +11,34 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
             
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>>
-                abstract class PersistenceRuntimeStatus implements RustOpaqueInterface {
-                    
+            /// Runtime status snapshot for the persistence module. Canonical home for the
+/// readiness marker the diagnostics facade reports; fields mirror the struct
+/// the previous Tauri shell carried (backend id, database path, availability,
+/// at-rest encryption flag, and an optional error string).
+class PersistenceRuntimeStatus  {
+                final String backend;
+final String database;
+final bool available;
+final bool encryptedAtRest;
+final String? error;
 
-                    
-                }
+                const PersistenceRuntimeStatus({required this.backend ,required this.database ,required this.available ,required this.encryptedAtRest ,this.error ,});
+
                 
+                
+
+                
+        @override
+        int get hashCode => backend.hashCode^database.hashCode^available.hashCode^encryptedAtRest.hashCode^error.hashCode;
+        
+
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is PersistenceRuntimeStatus &&
+                runtimeType == other.runtimeType
+                && backend == other.backend&& database == other.database&& available == other.available&& encryptedAtRest == other.encryptedAtRest&& error == other.error;
+        
+            }
             

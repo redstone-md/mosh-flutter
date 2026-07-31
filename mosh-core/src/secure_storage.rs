@@ -1,3 +1,4 @@
+use flutter_rust_bridge::frb;
 use keyring_core::Entry;
 use std::sync::OnceLock;
 
@@ -12,9 +13,10 @@ pub trait SecureSecretStore {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[frb(non_opaque)]
 pub struct SecureStorageStatus {
-    pub backend: &'static str,
-    pub service: &'static str,
+    pub backend: String,
+    pub service: String,
     pub available: bool,
 }
 
@@ -53,8 +55,8 @@ impl OsSecureSecretStore {
 
 pub fn storage_status_for(_store: &dyn SecureSecretStore) -> SecureStorageStatus {
     SecureStorageStatus {
-        backend: BACKEND_NAME,
-        service: SERVICE_NAME,
+        backend: BACKEND_NAME.to_string(),
+        service: SERVICE_NAME.to_string(),
         available: ensure_native_store().is_ok(),
     }
 }

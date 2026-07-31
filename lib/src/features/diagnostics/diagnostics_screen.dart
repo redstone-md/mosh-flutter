@@ -1,10 +1,10 @@
 // S4.8: Diagnostics screen - app + runtime status (slice-one).
 //
-// Split path per S4.0: AppDiagnostics via diagnosticsProvider (Gateway seam;
-// Fake works); NativeRuntimeStatus via the frb `nativeRuntimeStatus()` called
-// DIRECTLY (its 5 sub-structs are opaque, so Fake cannot synthesize them).
-// Under `flutter test` RustLib is NOT initialized (main() never runs), so the
-// call throws synchronously - we catch that and render an error row.
+// Both rows flow through the Gateway seam (ADR 0013): AppDiagnostics via
+// `diagnosticsProvider` and NativeRuntimeStatus via `nativeRuntimeStatusProvider`.
+// The five `NativeRuntimeStatus` sub-structs are non-opaque across
+// flutter_rust_bridge, so the card reads real field values under both
+// `FakeGateway` (tests) and `RealBridgeGateway` (S5) - no `<opaque>` fallback.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,30 +31,12 @@ class DiagnosticsScreen extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
-  late final Future<NativeRuntimeStatus?> _nativeStatus;
-
-  @override
-  void initState() {
-    super.initState();
-    _nativeStatus = _fetchNativeRuntimeStatus();
-  }
-
-  // One-shot fetch via the frb binding. try/catch + onError guarantee the
-  // future completes when RustLib is not initialized (test env) or Moss absent.
-  Future<NativeRuntimeStatus?> _fetchNativeRuntimeStatus() {
-    try {
-      return nativeRuntimeStatus()
-          .then<NativeRuntimeStatus?>((v) => v, onError: (Object _) => null);
-    } catch (_) {
-      return Future<NativeRuntimeStatus?>.value(null);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // TODO(slice-one): add a `diagnosticsDiagnostics` ARB key for the AppBar
     // title. Field values below are raw and intentionally not localized.
     final theme = Theme.of(context);
+    final nativeRuntime = ref.watch(nativeRuntimeStatusProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Row(
@@ -80,7 +62,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                 const SizedBox(height: 24),
                 _heading(theme, 'Native runtime'),
                 const SizedBox(height: 8),
-                _NativeRuntimeCard(future: _nativeStatus),
+                _NativeRuntimeCard(async: nativeRuntime),
               ],
             ),
           ),
@@ -137,8 +119,8 @@ class _AppDiagnosticsCard extends StatelessWidget {
 }
 
 class _NativeRuntimeCard extends StatelessWidget {
-  const _NativeRuntimeCard({required this.future});
-  final Future<NativeRuntimeStatus?> future;
+  const _NativeRuntimeCard({required this.async});
+  final AsyncValue<NativeRuntimeStatus> async;
 
   @override
   Widget build(BuildContext context) {
@@ -150,61 +132,74 @@ class _NativeRuntimeCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: FutureBuilder<NativeRuntimeStatus?>(
-          future: future,
-          builder: (context, snap) {
-            if (snap.connectionState != ConnectionState.done) {
-              return _spinner;
-            }
-            if (snap.hasError) {
-              return _StatusRow(
-                label: 'nativeRuntimeStatus',
-                value: 'error: ${snap.error}',
-                isError: true,
-              );
-            }
-            final status = snap.data;
-            if (status == null) {
-              return _StatusRow(
-                label: 'nativeRuntimeStatus',
-                value: 'unavailable',
-                isError: true,
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _StatusRow(
-                    label: 'moss.linkMode', value: _describe(status.moss)),
-                _StatusRow(
-                    label: 'secureStorage.backend',
-                    value: _describe(status.secureStorage)),
-                _StatusRow(
-                    label: 'persistence.backend',
-                    value: _describe(status.persistence)),
-                _StatusRow(
-                    label: 'openmlsSmoke',
-                    value: _describe(status.openmlsSmoke)),
-                _StatusRow(
-                    label: 'openmlsRoundtrip',
-                    value: _describe(status.openmlsRoundtrip)),
-              ],
-            );
-          },
+        child: async.when(
+          loading: () => _spinner,
+          error: (err, _) => _StatusRow(
+            label: 'nativeRuntimeStatus',
+            value: 'error: $err',
+            isError: true,
+          ),
+          data: (status) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _StatusRow(label: 'moss.linkMode', value: status.moss.linkMode),
+              _StatusRow(
+                  label: 'moss.available',
+                  value: status.moss.available ? 'true' : 'false'),
+              _StatusRow(
+                  label: 'moss.libraryName', value: status.moss.libraryName),
+              _StatusRow(
+                  label: 'secureStorage.backend',
+                  value: status.secureStorage.backend),
+              _StatusRow(
+                  label: 'secureStorage.available',
+                  value: status.secureStorage.available ? 'true' : 'false'),
+              _StatusRow(
+                  label: 'persistence.backend',
+                  value: status.persistence.backend),
+              _StatusRow(
+                  label: 'persistence.available',
+                  value: status.persistence.available ? 'true' : 'false'),
+              _StatusRow(
+                  label: 'openmlsSmoke',
+                  value: _describeOpenMlsResult(
+                    status.openmlsSmoke.error,
+                    () {
+                      final ok = status.openmlsSmoke.ok;
+                      if (ok == null) return null;
+                      return 'provider=${ok.provider}, '
+                          'ciphersuite=${ok.ciphersuite}, '
+                          'protectedMessageCreated=${ok.protectedMessageCreated}';
+                    }(),
+                  )),
+              _StatusRow(
+                  label: 'openmlsRoundtrip',
+                  value: _describeOpenMlsResult(
+                    status.openmlsRoundtrip.error,
+                    () {
+                      final ok = status.openmlsRoundtrip.ok;
+                      if (ok == null) return null;
+                      return 'provider=${ok.provider}, '
+                          'ciphersuite=${ok.ciphersuite}, '
+                          'welcomeJoined=${ok.welcomeJoined}, '
+                          'plaintextRoundtrip=${ok.plaintextRoundtrip}';
+                    }(),
+                  )),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Opaque sub-structs expose no field getters in slice-one's frb bindings;
-  // try/catch guards against a getter changing in a future frb regen.
-  static String _describe(Object? sub) {
-    try {
-      if (sub == null) return '<null>';
-      return '<opaque: ${sub.runtimeType.toString().split('<').first}>';
-    } catch (_) {
-      return '<opaque>';
-    }
+  // The OpenMLS fields are flattened into non-opaque `OpenMls*RuntimeStatus`
+  // wrappers (`ok` carries the success snapshot, `error` carries the failure
+  // message). Render the snapshot's real fields when the test passed, the failure
+  // message when it did not, and `unavailable` if neither is set.
+  static String _describeOpenMlsResult(String? error, String? okDescription) {
+    if (error != null) return 'error: $error';
+    if (okDescription != null) return 'ok: $okDescription';
+    return 'unavailable';
   }
 }
 

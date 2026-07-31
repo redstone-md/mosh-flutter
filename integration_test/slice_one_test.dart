@@ -44,11 +44,13 @@ void main() {
 
     // 2. nativeRuntimeStatus(): must complete without throwing. Moss may or
     //    may not load depending on the dev env; the call is honest either
-    //    way. The `moss` field is an opaque sub-struct (RustAutoOpaque) with
-    //    no Dart getters, so we only assert it is reachable (non-null) --
-    //    the call completing is the proof the runtime layer is wired.
+    //    way. The five sub-structs are non-opaque across flutter_rust_bridge
+    //    (FU-1), so the fields are real Dart getters; we still only assert
+    //    reachability here (plus a real field read on moss) -- the call
+    //    completing is the proof the runtime layer is wired.
     final status = await gateway.nativeRuntimeStatus();
     expect(status.moss, isNotNull);
+    expect(status.moss.linkMode, isNotEmpty);
     expect(status.secureStorage, isNotNull);
     expect(status.persistence, isNotNull);
     expect(status.openmlsSmoke, isNotNull);

@@ -26,10 +26,6 @@
 
 // Section: imports
 
-use crate::moss_runtime::*;
-use crate::persistence::*;
-use crate::secure_storage::*;
-use crate::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
@@ -37,10 +33,13 @@ use flutter_rust_bridge::{Handler, IntoIntoDart};
 // Section: boilerplate
 
 // frb 2.12 drops the `crate::api::diagnostics` glob import once a struct in
-// that module becomes non-opaque, but the generated Rust still references
-// `OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus` unqualified (the inner
-// `Result<T, String>` of `NativeRuntimeStatus` stays auto-opaque and the
-// inner type lives outside `rust_input`). Bring them back into scope here.
+// that module becomes non-opaque. The generated Rust references the
+// OpenMLS status types (`OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus`,
+// which live outside `rust_input: crate::api`, in `crate::openmls_crypto`)
+// via the non-opaque `OpenMls*RuntimeStatus` wrappers on `NativeRuntimeStatus`.
+// frb 2.12 emits fully-qualified `crate::openmls_crypto::...` paths for those,
+// so this `use` is currently redundant; it is retained so a future regen that
+// drops to unqualified references still compiles without re-editing the config.
 use crate::api::diagnostics::{OpenMlsRoundTripStatus, OpenMlsSmokeStatus};
 
 flutter_rust_bridge::frb_generated_boilerplate!(
@@ -1721,137 +1720,7 @@ fn wire__crate__api__vpn__set_vpn_bypass_consent_impl(
     )
 }
 
-// Section: related_funcs
-
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Result<OpenMlsRoundTripStatus, String>>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Result<OpenMlsSmokeStatus, String>>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>
-);
-
 // Section: dart2rust
-
-impl SseDecode for MossRuntimeStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for PersistenceRuntimeStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for Result<OpenMlsRoundTripStatus, String> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsRoundTripStatus, String>,
-            >,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for Result<OpenMlsSmokeStatus, String> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsSmokeStatus, String>,
-            >,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for SecureStorageStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-            Result<OpenMlsRoundTripStatus, String>,
-        >,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Result<OpenMlsSmokeStatus, String>>,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
 
 impl SseDecode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2704,15 +2573,36 @@ impl SseDecode for crate::outbound_delivery::MessageDeliveryStatus {
     }
 }
 
+impl SseDecode for crate::moss_runtime::MossRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_linkMode = <String>::sse_decode(deserializer);
+        let mut var_libraryName = <String>::sse_decode(deserializer);
+        let mut var_requiredSymbols = <Vec<String>>::sse_decode(deserializer);
+        let mut var_available = <bool>::sse_decode(deserializer);
+        let mut var_checkedPaths = <Vec<String>>::sse_decode(deserializer);
+        return crate::moss_runtime::MossRuntimeStatus {
+            link_mode: var_linkMode,
+            library_name: var_libraryName,
+            required_symbols: var_requiredSymbols,
+            available: var_available,
+            checked_paths: var_checkedPaths,
+        };
+    }
+}
+
 impl SseDecode for crate::api::diagnostics::NativeRuntimeStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_moss = <MossRuntimeStatus>::sse_decode(deserializer);
-        let mut var_secureStorage = <SecureStorageStatus>::sse_decode(deserializer);
-        let mut var_persistence = <PersistenceRuntimeStatus>::sse_decode(deserializer);
-        let mut var_openmlsSmoke = <Result<OpenMlsSmokeStatus, String>>::sse_decode(deserializer);
+        let mut var_moss = <crate::moss_runtime::MossRuntimeStatus>::sse_decode(deserializer);
+        let mut var_secureStorage =
+            <crate::secure_storage::SecureStorageStatus>::sse_decode(deserializer);
+        let mut var_persistence =
+            <crate::persistence::PersistenceRuntimeStatus>::sse_decode(deserializer);
+        let mut var_openmlsSmoke =
+            <crate::api::diagnostics::OpenMlsSmokeRuntimeStatus>::sse_decode(deserializer);
         let mut var_openmlsRoundtrip =
-            <Result<OpenMlsRoundTripStatus, String>>::sse_decode(deserializer);
+            <crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus>::sse_decode(deserializer);
         return crate::api::diagnostics::NativeRuntimeStatus {
             moss: var_moss,
             secure_storage: var_secureStorage,
@@ -2745,6 +2635,62 @@ impl SseDecode for crate::network_inventory::NetworkInterfaceInfo {
             is_virtual: var_isVirtual,
             is_vpn: var_isVpn,
             is_default_route: var_isDefaultRoute,
+        };
+    }
+}
+
+impl SseDecode for crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_ok =
+            <Option<crate::openmls_crypto::OpenMlsRoundTripStatus>>::sse_decode(deserializer);
+        let mut var_error = <Option<String>>::sse_decode(deserializer);
+        return crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus {
+            ok: var_ok,
+            error: var_error,
+        };
+    }
+}
+
+impl SseDecode for crate::openmls_crypto::OpenMlsRoundTripStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_provider = <String>::sse_decode(deserializer);
+        let mut var_ciphersuite = <String>::sse_decode(deserializer);
+        let mut var_welcomeJoined = <bool>::sse_decode(deserializer);
+        let mut var_plaintextRoundtrip = <bool>::sse_decode(deserializer);
+        return crate::openmls_crypto::OpenMlsRoundTripStatus {
+            provider: var_provider,
+            ciphersuite: var_ciphersuite,
+            welcome_joined: var_welcomeJoined,
+            plaintext_roundtrip: var_plaintextRoundtrip,
+        };
+    }
+}
+
+impl SseDecode for crate::api::diagnostics::OpenMlsSmokeRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_ok =
+            <Option<crate::openmls_crypto::OpenMlsSmokeStatus>>::sse_decode(deserializer);
+        let mut var_error = <Option<String>>::sse_decode(deserializer);
+        return crate::api::diagnostics::OpenMlsSmokeRuntimeStatus {
+            ok: var_ok,
+            error: var_error,
+        };
+    }
+}
+
+impl SseDecode for crate::openmls_crypto::OpenMlsSmokeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_provider = <String>::sse_decode(deserializer);
+        let mut var_ciphersuite = <String>::sse_decode(deserializer);
+        let mut var_protectedMessageCreated = <bool>::sse_decode(deserializer);
+        return crate::openmls_crypto::OpenMlsSmokeStatus {
+            provider: var_provider,
+            ciphersuite: var_ciphersuite,
+            protected_message_created: var_protectedMessageCreated,
         };
     }
 }
@@ -2832,6 +2778,32 @@ impl SseDecode for Option<crate::outbound_delivery::MessageDeliveryStatus> {
             return Some(
                 <crate::outbound_delivery::MessageDeliveryStatus>::sse_decode(deserializer),
             );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::openmls_crypto::OpenMlsRoundTripStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::openmls_crypto::OpenMlsRoundTripStatus>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::openmls_crypto::OpenMlsSmokeStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::openmls_crypto::OpenMlsSmokeStatus>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -3037,6 +3009,38 @@ impl SseDecode for crate::private_dm_runtime::contracts::PendingCall {
         return crate::private_dm_runtime::contracts::PendingCall {
             call_id: var_callId,
             from_device: var_fromDevice,
+        };
+    }
+}
+
+impl SseDecode for crate::persistence::PersistenceRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_backend = <String>::sse_decode(deserializer);
+        let mut var_database = <String>::sse_decode(deserializer);
+        let mut var_available = <bool>::sse_decode(deserializer);
+        let mut var_encryptedAtRest = <bool>::sse_decode(deserializer);
+        let mut var_error = <Option<String>>::sse_decode(deserializer);
+        return crate::persistence::PersistenceRuntimeStatus {
+            backend: var_backend,
+            database: var_database,
+            available: var_available,
+            encrypted_at_rest: var_encryptedAtRest,
+            error: var_error,
+        };
+    }
+}
+
+impl SseDecode for crate::secure_storage::SecureStorageStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_backend = <String>::sse_decode(deserializer);
+        let mut var_service = <String>::sse_decode(deserializer);
+        let mut var_available = <bool>::sse_decode(deserializer);
+        return crate::secure_storage::SecureStorageStatus {
+            backend: var_backend,
+            service: var_service,
+            available: var_available,
         };
     }
 }
@@ -3333,99 +3337,6 @@ fn pde_ffi_dispatcher_sync_impl(
 }
 
 // Section: rust2dart
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<MossRuntimeStatus> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<MossRuntimeStatus> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<MossRuntimeStatus>> for MossRuntimeStatus {
-    fn into_into_dart(self) -> FrbWrapper<MossRuntimeStatus> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<PersistenceRuntimeStatus> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<PersistenceRuntimeStatus>
-{
-}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<PersistenceRuntimeStatus>>
-    for PersistenceRuntimeStatus
-{
-    fn into_into_dart(self) -> FrbWrapper<PersistenceRuntimeStatus> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<Result<OpenMlsRoundTripStatus, String>> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<Result<OpenMlsRoundTripStatus, String>>
-{
-}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Result<OpenMlsRoundTripStatus, String>>>
-    for Result<OpenMlsRoundTripStatus, String>
-{
-    fn into_into_dart(self) -> FrbWrapper<Result<OpenMlsRoundTripStatus, String>> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<Result<OpenMlsSmokeStatus, String>> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<Result<OpenMlsSmokeStatus, String>>
-{
-}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Result<OpenMlsSmokeStatus, String>>>
-    for Result<OpenMlsSmokeStatus, String>
-{
-    fn into_into_dart(self) -> FrbWrapper<Result<OpenMlsSmokeStatus, String>> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<SecureStorageStatus> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<SecureStorageStatus>
-{
-}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<SecureStorageStatus>> for SecureStorageStatus {
-    fn into_into_dart(self) -> FrbWrapper<SecureStorageStatus> {
-        self.into()
-    }
-}
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::AcceptInviteRequest {
@@ -4140,6 +4051,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::outbound_delivery::MessageDelivery
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::moss_runtime::MossRuntimeStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.link_mode.into_into_dart().into_dart(),
+            self.library_name.into_into_dart().into_dart(),
+            self.required_symbols.into_into_dart().into_dart(),
+            self.available.into_into_dart().into_dart(),
+            self.checked_paths.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::moss_runtime::MossRuntimeStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::moss_runtime::MossRuntimeStatus>
+    for crate::moss_runtime::MossRuntimeStatus
+{
+    fn into_into_dart(self) -> crate::moss_runtime::MossRuntimeStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::NativeRuntimeStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4188,6 +4123,93 @@ impl flutter_rust_bridge::IntoIntoDart<crate::network_inventory::NetworkInterfac
     for crate::network_inventory::NetworkInterfaceInfo
 {
     fn into_into_dart(self) -> crate::network_inventory::NetworkInterfaceInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.ok.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus>
+    for crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus
+{
+    fn into_into_dart(self) -> crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::openmls_crypto::OpenMlsRoundTripStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.provider.into_into_dart().into_dart(),
+            self.ciphersuite.into_into_dart().into_dart(),
+            self.welcome_joined.into_into_dart().into_dart(),
+            self.plaintext_roundtrip.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::openmls_crypto::OpenMlsRoundTripStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::openmls_crypto::OpenMlsRoundTripStatus>
+    for crate::openmls_crypto::OpenMlsRoundTripStatus
+{
+    fn into_into_dart(self) -> crate::openmls_crypto::OpenMlsRoundTripStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::OpenMlsSmokeRuntimeStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.ok.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::diagnostics::OpenMlsSmokeRuntimeStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::OpenMlsSmokeRuntimeStatus>
+    for crate::api::diagnostics::OpenMlsSmokeRuntimeStatus
+{
+    fn into_into_dart(self) -> crate::api::diagnostics::OpenMlsSmokeRuntimeStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::openmls_crypto::OpenMlsSmokeStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.provider.into_into_dart().into_dart(),
+            self.ciphersuite.into_into_dart().into_dart(),
+            self.protected_message_created.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::openmls_crypto::OpenMlsSmokeStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::openmls_crypto::OpenMlsSmokeStatus>
+    for crate::openmls_crypto::OpenMlsSmokeStatus
+{
+    fn into_into_dart(self) -> crate::openmls_crypto::OpenMlsSmokeStatus {
         self
     }
 }
@@ -4366,6 +4388,52 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Pen
     for crate::private_dm_runtime::contracts::PendingCall
 {
     fn into_into_dart(self) -> crate::private_dm_runtime::contracts::PendingCall {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::persistence::PersistenceRuntimeStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.backend.into_into_dart().into_dart(),
+            self.database.into_into_dart().into_dart(),
+            self.available.into_into_dart().into_dart(),
+            self.encrypted_at_rest.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::persistence::PersistenceRuntimeStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::persistence::PersistenceRuntimeStatus>
+    for crate::persistence::PersistenceRuntimeStatus
+{
+    fn into_into_dart(self) -> crate::persistence::PersistenceRuntimeStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::secure_storage::SecureStorageStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.backend.into_into_dart().into_dart(),
+            self.service.into_into_dart().into_dart(),
+            self.available.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::secure_storage::SecureStorageStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::secure_storage::SecureStorageStatus>
+    for crate::secure_storage::SecureStorageStatus
+{
+    fn into_into_dart(self) -> crate::secure_storage::SecureStorageStatus {
         self
     }
 }
@@ -4552,123 +4620,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::vpn::VpnDetection>
 {
     fn into_into_dart(self) -> crate::api::vpn::VpnDetection {
         self
-    }
-}
-
-impl SseEncode for MossRuntimeStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode for PersistenceRuntimeStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>,
-        >>::sse_encode(
-            flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self),
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for Result<OpenMlsRoundTripStatus, String> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsRoundTripStatus, String>,
-            >,
-        >>::sse_encode(
-            flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self),
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for Result<OpenMlsSmokeStatus, String> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsSmokeStatus, String>,
-            >,
-        >>::sse_encode(
-            flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self),
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for SecureStorageStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-            Result<OpenMlsRoundTripStatus, String>,
-        >,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Result<OpenMlsSmokeStatus, String>>,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
     }
 }
 
@@ -5278,14 +5229,31 @@ impl SseEncode for crate::outbound_delivery::MessageDeliveryStatus {
     }
 }
 
+impl SseEncode for crate::moss_runtime::MossRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.link_mode, serializer);
+        <String>::sse_encode(self.library_name, serializer);
+        <Vec<String>>::sse_encode(self.required_symbols, serializer);
+        <bool>::sse_encode(self.available, serializer);
+        <Vec<String>>::sse_encode(self.checked_paths, serializer);
+    }
+}
+
 impl SseEncode for crate::api::diagnostics::NativeRuntimeStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <MossRuntimeStatus>::sse_encode(self.moss, serializer);
-        <SecureStorageStatus>::sse_encode(self.secure_storage, serializer);
-        <PersistenceRuntimeStatus>::sse_encode(self.persistence, serializer);
-        <Result<OpenMlsSmokeStatus, String>>::sse_encode(self.openmls_smoke, serializer);
-        <Result<OpenMlsRoundTripStatus, String>>::sse_encode(self.openmls_roundtrip, serializer);
+        <crate::moss_runtime::MossRuntimeStatus>::sse_encode(self.moss, serializer);
+        <crate::secure_storage::SecureStorageStatus>::sse_encode(self.secure_storage, serializer);
+        <crate::persistence::PersistenceRuntimeStatus>::sse_encode(self.persistence, serializer);
+        <crate::api::diagnostics::OpenMlsSmokeRuntimeStatus>::sse_encode(
+            self.openmls_smoke,
+            serializer,
+        );
+        <crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus>::sse_encode(
+            self.openmls_roundtrip,
+            serializer,
+        );
     }
 }
 
@@ -5301,6 +5269,41 @@ impl SseEncode for crate::network_inventory::NetworkInterfaceInfo {
         <bool>::sse_encode(self.is_virtual, serializer);
         <bool>::sse_encode(self.is_vpn, serializer);
         <bool>::sse_encode(self.is_default_route, serializer);
+    }
+}
+
+impl SseEncode for crate::api::diagnostics::OpenMlsRoundTripRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::openmls_crypto::OpenMlsRoundTripStatus>>::sse_encode(self.ok, serializer);
+        <Option<String>>::sse_encode(self.error, serializer);
+    }
+}
+
+impl SseEncode for crate::openmls_crypto::OpenMlsRoundTripStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.provider, serializer);
+        <String>::sse_encode(self.ciphersuite, serializer);
+        <bool>::sse_encode(self.welcome_joined, serializer);
+        <bool>::sse_encode(self.plaintext_roundtrip, serializer);
+    }
+}
+
+impl SseEncode for crate::api::diagnostics::OpenMlsSmokeRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::openmls_crypto::OpenMlsSmokeStatus>>::sse_encode(self.ok, serializer);
+        <Option<String>>::sse_encode(self.error, serializer);
+    }
+}
+
+impl SseEncode for crate::openmls_crypto::OpenMlsSmokeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.provider, serializer);
+        <String>::sse_encode(self.ciphersuite, serializer);
+        <bool>::sse_encode(self.protected_message_created, serializer);
     }
 }
 
@@ -5372,6 +5375,26 @@ impl SseEncode for Option<crate::outbound_delivery::MessageDeliveryStatus> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::outbound_delivery::MessageDeliveryStatus>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::openmls_crypto::OpenMlsRoundTripStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::openmls_crypto::OpenMlsRoundTripStatus>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::openmls_crypto::OpenMlsSmokeStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::openmls_crypto::OpenMlsSmokeStatus>::sse_encode(value, serializer);
         }
     }
 }
@@ -5513,6 +5536,26 @@ impl SseEncode for crate::private_dm_runtime::contracts::PendingCall {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.call_id, serializer);
         <String>::sse_encode(self.from_device, serializer);
+    }
+}
+
+impl SseEncode for crate::persistence::PersistenceRuntimeStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.backend, serializer);
+        <String>::sse_encode(self.database, serializer);
+        <bool>::sse_encode(self.available, serializer);
+        <bool>::sse_encode(self.encrypted_at_rest, serializer);
+        <Option<String>>::sse_encode(self.error, serializer);
+    }
+}
+
+impl SseEncode for crate::secure_storage::SecureStorageStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.backend, serializer);
+        <String>::sse_encode(self.service, serializer);
+        <bool>::sse_encode(self.available, serializer);
     }
 }
 
@@ -5678,10 +5721,6 @@ mod io {
     // Section: imports
 
     use super::*;
-    use crate::moss_runtime::*;
-    use crate::persistence::*;
-    use crate::secure_storage::*;
-    use crate::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -5691,99 +5730,16 @@ mod io {
     // Section: boilerplate
 
     // frb 2.12 drops the `crate::api::diagnostics` glob import once a struct in
-    // that module becomes non-opaque, but the generated Rust still references
-    // `OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus` unqualified (the inner
-    // `Result<T, String>` of `NativeRuntimeStatus` stays auto-opaque and the
-    // inner type lives outside `rust_input`). Bring them back into scope here.
+    // that module becomes non-opaque. The generated Rust references the
+    // OpenMLS status types (`OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus`,
+    // which live outside `rust_input: crate::api`, in `crate::openmls_crypto`)
+    // via the non-opaque `OpenMls*RuntimeStatus` wrappers on `NativeRuntimeStatus`.
+    // frb 2.12 emits fully-qualified `crate::openmls_crypto::...` paths for those,
+    // so this `use` is currently redundant; it is retained so a future regen that
+    // drops to unqualified references still compiles without re-editing the config.
     use crate::api::diagnostics::{OpenMlsRoundTripStatus, OpenMlsSmokeStatus};
 
     flutter_rust_bridge::frb_generated_boilerplate_io!();
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsRoundTripStatus, String>,
-            >,
-        >::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsRoundTripStatus, String>,
-            >,
-        >::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsSmokeStatus, String>,
-            >,
-        >::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsSmokeStatus, String>,
-            >,
-        >::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>>::decrement_strong_count(ptr as _);
-    }
 }
 #[cfg(not(target_family = "wasm"))]
 pub use io::*;
@@ -5797,10 +5753,6 @@ mod web {
     // Section: imports
 
     use super::*;
-    use crate::moss_runtime::*;
-    use crate::persistence::*;
-    use crate::secure_storage::*;
-    use crate::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -5812,99 +5764,16 @@ mod web {
     // Section: boilerplate
 
     // frb 2.12 drops the `crate::api::diagnostics` glob import once a struct in
-    // that module becomes non-opaque, but the generated Rust still references
-    // `OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus` unqualified (the inner
-    // `Result<T, String>` of `NativeRuntimeStatus` stays auto-opaque and the
-    // inner type lives outside `rust_input`). Bring them back into scope here.
+    // that module becomes non-opaque. The generated Rust references the
+    // OpenMLS status types (`OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus`,
+    // which live outside `rust_input: crate::api`, in `crate::openmls_crypto`)
+    // via the non-opaque `OpenMls*RuntimeStatus` wrappers on `NativeRuntimeStatus`.
+    // frb 2.12 emits fully-qualified `crate::openmls_crypto::...` paths for those,
+    // so this `use` is currently redundant; it is retained so a future regen that
+    // drops to unqualified references still compiles without re-editing the config.
     use crate::api::diagnostics::{OpenMlsRoundTripStatus, OpenMlsSmokeStatus};
 
     flutter_rust_bridge::frb_generated_boilerplate_web!();
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MossRuntimeStatus>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PersistenceRuntimeStatus>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsRoundTripStatus, String>,
-            >,
-        >::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsRoundTripStatus, String>,
-            >,
-        >::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsSmokeStatus, String>,
-            >,
-        >::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                Result<OpenMlsSmokeStatus, String>,
-            >,
-        >::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SecureStorageStatus>>::decrement_strong_count(ptr as _);
-    }
 }
 #[cfg(target_family = "wasm")]
 pub use web::*;

@@ -1,3 +1,4 @@
+use flutter_rust_bridge::frb;
 use openmls::prelude::tls_codec::Deserialize;
 use openmls::prelude::*;
 use openmls_basic_credential::SignatureKeyPair;
@@ -15,16 +16,18 @@ pub trait PrivateMessageCrypto {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[frb(non_opaque)]
 pub struct OpenMlsSmokeStatus {
-    pub provider: &'static str,
-    pub ciphersuite: &'static str,
+    pub provider: String,
+    pub ciphersuite: String,
     pub protected_message_created: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[frb(non_opaque)]
 pub struct OpenMlsRoundTripStatus {
-    pub provider: &'static str,
-    pub ciphersuite: &'static str,
+    pub provider: String,
+    pub ciphersuite: String,
     pub welcome_joined: bool,
     pub plaintext_roundtrip: bool,
 }
@@ -91,8 +94,8 @@ impl PrivateMessageCrypto for OpenMlsPrivateMessageCrypto {
             .map_err(|error| OpenMlsAdapterError::Message(error.to_string()))?;
 
         Ok(OpenMlsSmokeStatus {
-            provider: "openmls_rust_crypto",
-            ciphersuite: CIPHERSUITE_NAME,
+            provider: "openmls_rust_crypto".to_string(),
+            ciphersuite: CIPHERSUITE_NAME.to_string(),
             protected_message_created: matches!(
                 protected_message.body(),
                 MlsMessageBodyOut::PrivateMessage(_)
@@ -137,8 +140,8 @@ pub fn run_openmls_alice_bob_roundtrip() -> Result<OpenMlsRoundTripStatus, OpenM
     let plaintext = decrypt_application_message(&bob.provider, &mut bob_group, encrypted)?;
 
     Ok(OpenMlsRoundTripStatus {
-        provider: "openmls_rust_crypto",
-        ciphersuite: CIPHERSUITE_NAME,
+        provider: "openmls_rust_crypto".to_string(),
+        ciphersuite: CIPHERSUITE_NAME.to_string(),
         welcome_joined: alice_group.export_ratchet_tree() == bob_group.export_ratchet_tree(),
         plaintext_roundtrip: plaintext == TEST_MESSAGE,
     })

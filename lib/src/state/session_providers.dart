@@ -31,8 +31,6 @@ class SessionListNotifier extends AsyncNotifier<SessionListSnapshot> {
 }
 
 /// Server state: app identity diagnostics (diagnostics screen, S4.8).
-/// appDiagnostics() works under the FakeGateway; nativeRuntimeStatus does not
-/// (opaque sub-structs), so no provider is offered for it here.
 final diagnosticsProvider =
     AsyncNotifierProvider<DiagnosticsNotifier, AppDiagnostics>(
   DiagnosticsNotifier.new,
@@ -43,6 +41,15 @@ class DiagnosticsNotifier extends AsyncNotifier<AppDiagnostics> {
   Future<AppDiagnostics> build() =>
       ref.watch(gatewayProvider).appDiagnostics();
 }
+
+/// Server state: native runtime readiness (diagnostics screen, S4.8).
+/// Routed through the `gatewayProvider` seam (ADR 0013) so the screen renders
+/// real field values under both `FakeGateway` (tests) and `RealBridgeGateway`
+/// (S5). The five `NativeRuntimeStatus` sub-structs are non-opaque across
+/// flutter_rust_bridge, so both gateways return constructible, field-readable
+/// values (no `<opaque>` fallback).
+final nativeRuntimeStatusProvider = FutureProvider<NativeRuntimeStatus>(
+    (ref) => ref.watch(gatewayProvider).nativeRuntimeStatus());
 
 /// Ephemeral cross-screen UI state for the invite-create flow (onboarding sets
 /// displayName; invite-paste reads it). ADR 0010 allows widget-local state,

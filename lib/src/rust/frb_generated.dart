@@ -16,9 +16,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart' if (dart.library.js_interop) 'frb_generated.web.dart';
-import 'lib.dart';
 import 'moss_runtime.dart';
 import 'network_inventory.dart';
+import 'openmls_crypto.dart';
 import 'org_runtime.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -190,36 +190,6 @@ Future<void> crateApiPrivateGroupSendDmOffer({required String groupId , required
 Future<SendMessageResult> crateApiPrivateDmSendMessage({required String sessionId , required String body });
 
 Future<void> crateApiVpnSetVpnBypassConsent({String? interface_ });
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_MossRuntimeStatus;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_MossRuntimeStatus;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_MossRuntimeStatusPtr;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_PersistenceRuntimeStatus;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_PersistenceRuntimeStatus;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_PersistenceRuntimeStatusPtr;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_ResultOpenMlsRoundTripStatusString;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_ResultOpenMlsRoundTripStatusString;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ResultOpenMlsRoundTripStatusStringPtr;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_ResultOpenMlsSmokeStatusString;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_ResultOpenMlsSmokeStatusString;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ResultOpenMlsSmokeStatusStringPtr;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_SecureStorageStatus;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_SecureStorageStatus;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatusPtr;
 
 
                 }
@@ -1454,59 +1424,9 @@ sse_encode_String(body, serializer);
         );
         
 
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_MossRuntimeStatus => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_MossRuntimeStatus => wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_PersistenceRuntimeStatus => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_PersistenceRuntimeStatus => wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_ResultOpenMlsRoundTripStatusString => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_ResultOpenMlsRoundTripStatusString => wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_ResultOpenMlsSmokeStatusString => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_ResultOpenMlsSmokeStatusString => wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_SecureStorageStatus => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_SecureStorageStatus => wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus;
 
 
-
-                  @protected MossRuntimeStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return MossRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected PersistenceRuntimeStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return PersistenceRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected ResultOpenMlsRoundTripStatusString dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return ResultOpenMlsRoundTripStatusStringImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected ResultOpenMlsSmokeStatusString dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return ResultOpenMlsSmokeStatusStringImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected SecureStorageStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return SecureStorageStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected MossRuntimeStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return MossRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected PersistenceRuntimeStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return PersistenceRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected ResultOpenMlsRoundTripStatusString dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return ResultOpenMlsRoundTripStatusStringImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected ResultOpenMlsSmokeStatusString dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return ResultOpenMlsSmokeStatusStringImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected SecureStorageStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return SecureStorageStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected String dco_decode_String(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+                  @protected String dco_decode_String(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return raw as String; }
 
 @protected AcceptInviteRequest dco_decode_accept_invite_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1600,6 +1520,12 @@ return dco_decode_mesh_info(raw); }
 
 @protected MessageDeliveryStatus dco_decode_box_autoadd_message_delivery_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return dco_decode_message_delivery_status(raw); }
+
+@protected OpenMlsRoundTripStatus dco_decode_box_autoadd_open_mls_round_trip_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+return dco_decode_open_mls_round_trip_status(raw); }
+
+@protected OpenMlsSmokeStatus dco_decode_box_autoadd_open_mls_smoke_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+return dco_decode_open_mls_smoke_status(raw); }
 
 @protected OutgoingCall dco_decode_box_autoadd_outgoing_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return dco_decode_outgoing_call(raw); }
@@ -1895,14 +1821,23 @@ peerDetails: dco_decode_list_peer_detail(arr[14]),); }
 @protected MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return MessageDeliveryStatus.values[raw as int]; }
 
+@protected MossRuntimeStatus dco_decode_moss_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+                return MossRuntimeStatus(linkMode: dco_decode_String(arr[0]),
+libraryName: dco_decode_String(arr[1]),
+requiredSymbols: dco_decode_list_String(arr[2]),
+available: dco_decode_bool(arr[3]),
+checkedPaths: dco_decode_list_String(arr[4]),); }
+
 @protected NativeRuntimeStatus dco_decode_native_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 final arr = raw as List<dynamic>;
                 if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return NativeRuntimeStatus(moss: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(arr[0]),
-secureStorage: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(arr[1]),
-persistence: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(arr[2]),
-openmlsSmoke: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(arr[3]),
-openmlsRoundtrip: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(arr[4]),); }
+                return NativeRuntimeStatus(moss: dco_decode_moss_runtime_status(arr[0]),
+secureStorage: dco_decode_secure_storage_status(arr[1]),
+persistence: dco_decode_persistence_runtime_status(arr[2]),
+openmlsSmoke: dco_decode_open_mls_smoke_runtime_status(arr[3]),
+openmlsRoundtrip: dco_decode_open_mls_round_trip_runtime_status(arr[4]),); }
 
 @protected NetworkInterfaceInfo dco_decode_network_interface_info(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 final arr = raw as List<dynamic>;
@@ -1916,6 +1851,33 @@ isUp: dco_decode_bool(arr[5]),
 isVirtual: dco_decode_bool(arr[6]),
 isVpn: dco_decode_bool(arr[7]),
 isDefaultRoute: dco_decode_bool(arr[8]),); }
+
+@protected OpenMlsRoundTripRuntimeStatus dco_decode_open_mls_round_trip_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+                return OpenMlsRoundTripRuntimeStatus(ok: dco_decode_opt_box_autoadd_open_mls_round_trip_status(arr[0]),
+error: dco_decode_opt_String(arr[1]),); }
+
+@protected OpenMlsRoundTripStatus dco_decode_open_mls_round_trip_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+                return OpenMlsRoundTripStatus(provider: dco_decode_String(arr[0]),
+ciphersuite: dco_decode_String(arr[1]),
+welcomeJoined: dco_decode_bool(arr[2]),
+plaintextRoundtrip: dco_decode_bool(arr[3]),); }
+
+@protected OpenMlsSmokeRuntimeStatus dco_decode_open_mls_smoke_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+                return OpenMlsSmokeRuntimeStatus(ok: dco_decode_opt_box_autoadd_open_mls_smoke_status(arr[0]),
+error: dco_decode_opt_String(arr[1]),); }
+
+@protected OpenMlsSmokeStatus dco_decode_open_mls_smoke_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+                return OpenMlsSmokeStatus(provider: dco_decode_String(arr[0]),
+ciphersuite: dco_decode_String(arr[1]),
+protectedMessageCreated: dco_decode_bool(arr[2]),); }
 
 @protected String? dco_decode_opt_String(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return raw == null ? null : dco_decode_String(raw); }
@@ -1937,6 +1899,12 @@ return raw == null ? null : dco_decode_box_autoadd_mesh_info(raw); }
 
 @protected MessageDeliveryStatus? dco_decode_opt_box_autoadd_message_delivery_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return raw == null ? null : dco_decode_box_autoadd_message_delivery_status(raw); }
+
+@protected OpenMlsRoundTripStatus? dco_decode_opt_box_autoadd_open_mls_round_trip_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+return raw == null ? null : dco_decode_box_autoadd_open_mls_round_trip_status(raw); }
+
+@protected OpenMlsSmokeStatus? dco_decode_opt_box_autoadd_open_mls_smoke_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+return raw == null ? null : dco_decode_box_autoadd_open_mls_smoke_status(raw); }
 
 @protected OutgoingCall? dco_decode_opt_box_autoadd_outgoing_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return raw == null ? null : dco_decode_box_autoadd_outgoing_call(raw); }
@@ -2019,6 +1987,22 @@ final arr = raw as List<dynamic>;
                 if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
                 return PendingCall(callId: dco_decode_String(arr[0]),
 fromDevice: dco_decode_String(arr[1]),); }
+
+@protected PersistenceRuntimeStatus dco_decode_persistence_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+                return PersistenceRuntimeStatus(backend: dco_decode_String(arr[0]),
+database: dco_decode_String(arr[1]),
+available: dco_decode_bool(arr[2]),
+encryptedAtRest: dco_decode_bool(arr[3]),
+error: dco_decode_opt_String(arr[4]),); }
+
+@protected SecureStorageStatus dco_decode_secure_storage_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+                return SecureStorageStatus(backend: dco_decode_String(arr[0]),
+service: dco_decode_String(arr[1]),
+available: dco_decode_bool(arr[2]),); }
 
 @protected SendMessageResult dco_decode_send_message_result(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 final arr = raw as List<dynamic>;
@@ -2108,36 +2092,6 @@ final arr = raw as List<dynamic>;
                 return VpnDetection(vpnLikely: dco_decode_bool(arr[0]),
 suspectInterfaces: dco_decode_list_String(arr[1]),
 vpnOwnsDefaultRoute: dco_decode_bool(arr[2]),); }
-
-@protected MossRuntimeStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return MossRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected PersistenceRuntimeStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return PersistenceRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected ResultOpenMlsRoundTripStatusString sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return ResultOpenMlsRoundTripStatusStringImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected ResultOpenMlsSmokeStatusString sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return ResultOpenMlsSmokeStatusStringImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected SecureStorageStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return SecureStorageStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected MossRuntimeStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return MossRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected PersistenceRuntimeStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return PersistenceRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected ResultOpenMlsRoundTripStatusString sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return ResultOpenMlsRoundTripStatusStringImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected ResultOpenMlsSmokeStatusString sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return ResultOpenMlsSmokeStatusStringImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected SecureStorageStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return SecureStorageStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
 
 @protected String sse_decode_String(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 var inner = sse_decode_list_prim_u_8_strict(deserializer);
@@ -2229,6 +2183,12 @@ return (sse_decode_mesh_info(deserializer)); }
 
 @protected MessageDeliveryStatus sse_decode_box_autoadd_message_delivery_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 return (sse_decode_message_delivery_status(deserializer)); }
+
+@protected OpenMlsRoundTripStatus sse_decode_box_autoadd_open_mls_round_trip_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+return (sse_decode_open_mls_round_trip_status(deserializer)); }
+
+@protected OpenMlsSmokeStatus sse_decode_box_autoadd_open_mls_smoke_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+return (sse_decode_open_mls_smoke_status(deserializer)); }
 
 @protected OutgoingCall sse_decode_box_autoadd_outgoing_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 return (sse_decode_outgoing_call(deserializer)); }
@@ -2590,12 +2550,20 @@ return MeshInfo(meshId: var_meshId, listenPort: var_listenPort, advertisedAddr: 
 var inner = sse_decode_i_32(deserializer);
         return MessageDeliveryStatus.values[inner]; }
 
+@protected MossRuntimeStatus sse_decode_moss_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_linkMode = sse_decode_String(deserializer);
+var var_libraryName = sse_decode_String(deserializer);
+var var_requiredSymbols = sse_decode_list_String(deserializer);
+var var_available = sse_decode_bool(deserializer);
+var var_checkedPaths = sse_decode_list_String(deserializer);
+return MossRuntimeStatus(linkMode: var_linkMode, libraryName: var_libraryName, requiredSymbols: var_requiredSymbols, available: var_available, checkedPaths: var_checkedPaths); }
+
 @protected NativeRuntimeStatus sse_decode_native_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_moss = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(deserializer);
-var var_secureStorage = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(deserializer);
-var var_persistence = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(deserializer);
-var var_openmlsSmoke = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(deserializer);
-var var_openmlsRoundtrip = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(deserializer);
+var var_moss = sse_decode_moss_runtime_status(deserializer);
+var var_secureStorage = sse_decode_secure_storage_status(deserializer);
+var var_persistence = sse_decode_persistence_runtime_status(deserializer);
+var var_openmlsSmoke = sse_decode_open_mls_smoke_runtime_status(deserializer);
+var var_openmlsRoundtrip = sse_decode_open_mls_round_trip_runtime_status(deserializer);
 return NativeRuntimeStatus(moss: var_moss, secureStorage: var_secureStorage, persistence: var_persistence, openmlsSmoke: var_openmlsSmoke, openmlsRoundtrip: var_openmlsRoundtrip); }
 
 @protected NetworkInterfaceInfo sse_decode_network_interface_info(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2609,6 +2577,29 @@ var var_isVirtual = sse_decode_bool(deserializer);
 var var_isVpn = sse_decode_bool(deserializer);
 var var_isDefaultRoute = sse_decode_bool(deserializer);
 return NetworkInterfaceInfo(name: var_name, description: var_description, index: var_index, ipv4: var_ipv4, isLoopback: var_isLoopback, isUp: var_isUp, isVirtual: var_isVirtual, isVpn: var_isVpn, isDefaultRoute: var_isDefaultRoute); }
+
+@protected OpenMlsRoundTripRuntimeStatus sse_decode_open_mls_round_trip_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_ok = sse_decode_opt_box_autoadd_open_mls_round_trip_status(deserializer);
+var var_error = sse_decode_opt_String(deserializer);
+return OpenMlsRoundTripRuntimeStatus(ok: var_ok, error: var_error); }
+
+@protected OpenMlsRoundTripStatus sse_decode_open_mls_round_trip_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_provider = sse_decode_String(deserializer);
+var var_ciphersuite = sse_decode_String(deserializer);
+var var_welcomeJoined = sse_decode_bool(deserializer);
+var var_plaintextRoundtrip = sse_decode_bool(deserializer);
+return OpenMlsRoundTripStatus(provider: var_provider, ciphersuite: var_ciphersuite, welcomeJoined: var_welcomeJoined, plaintextRoundtrip: var_plaintextRoundtrip); }
+
+@protected OpenMlsSmokeRuntimeStatus sse_decode_open_mls_smoke_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_ok = sse_decode_opt_box_autoadd_open_mls_smoke_status(deserializer);
+var var_error = sse_decode_opt_String(deserializer);
+return OpenMlsSmokeRuntimeStatus(ok: var_ok, error: var_error); }
+
+@protected OpenMlsSmokeStatus sse_decode_open_mls_smoke_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_provider = sse_decode_String(deserializer);
+var var_ciphersuite = sse_decode_String(deserializer);
+var var_protectedMessageCreated = sse_decode_bool(deserializer);
+return OpenMlsSmokeStatus(provider: var_provider, ciphersuite: var_ciphersuite, protectedMessageCreated: var_protectedMessageCreated); }
 
 @protected String? sse_decode_opt_String(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2668,6 +2659,24 @@ return NetworkInterfaceInfo(name: var_name, description: var_description, index:
 
             if (sse_decode_bool(deserializer)) {
                 return (sse_decode_box_autoadd_message_delivery_status(deserializer));
+            } else {
+                return null;
+            }
+             }
+
+@protected OpenMlsRoundTripStatus? sse_decode_opt_box_autoadd_open_mls_round_trip_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+
+            if (sse_decode_bool(deserializer)) {
+                return (sse_decode_box_autoadd_open_mls_round_trip_status(deserializer));
+            } else {
+                return null;
+            }
+             }
+
+@protected OpenMlsSmokeStatus? sse_decode_opt_box_autoadd_open_mls_smoke_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+
+            if (sse_decode_bool(deserializer)) {
+                return (sse_decode_box_autoadd_open_mls_smoke_status(deserializer));
             } else {
                 return null;
             }
@@ -2783,6 +2792,20 @@ var var_callId = sse_decode_String(deserializer);
 var var_fromDevice = sse_decode_String(deserializer);
 return PendingCall(callId: var_callId, fromDevice: var_fromDevice); }
 
+@protected PersistenceRuntimeStatus sse_decode_persistence_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_backend = sse_decode_String(deserializer);
+var var_database = sse_decode_String(deserializer);
+var var_available = sse_decode_bool(deserializer);
+var var_encryptedAtRest = sse_decode_bool(deserializer);
+var var_error = sse_decode_opt_String(deserializer);
+return PersistenceRuntimeStatus(backend: var_backend, database: var_database, available: var_available, encryptedAtRest: var_encryptedAtRest, error: var_error); }
+
+@protected SecureStorageStatus sse_decode_secure_storage_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_backend = sse_decode_String(deserializer);
+var var_service = sse_decode_String(deserializer);
+var var_available = sse_decode_bool(deserializer);
+return SecureStorageStatus(backend: var_backend, service: var_service, available: var_available); }
+
 @protected SendMessageResult sse_decode_send_message_result(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 var var_sessionId = sse_decode_String(deserializer);
 var var_state = sse_decode_String(deserializer);
@@ -2863,36 +2886,6 @@ var var_vpnLikely = sse_decode_bool(deserializer);
 var var_suspectInterfaces = sse_decode_list_String(deserializer);
 var var_vpnOwnsDefaultRoute = sse_decode_bool(deserializer);
 return VpnDetection(vpnLikely: var_vpnLikely, suspectInterfaces: var_suspectInterfaces, vpnOwnsDefaultRoute: var_vpnOwnsDefaultRoute); }
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(MossRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as MossRuntimeStatusImpl).frbInternalSseEncode(move: true), serializer); }
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(PersistenceRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as PersistenceRuntimeStatusImpl).frbInternalSseEncode(move: true), serializer); }
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(ResultOpenMlsRoundTripStatusString self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as ResultOpenMlsRoundTripStatusStringImpl).frbInternalSseEncode(move: true), serializer); }
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(ResultOpenMlsSmokeStatusString self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as ResultOpenMlsSmokeStatusStringImpl).frbInternalSseEncode(move: true), serializer); }
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SecureStorageStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as SecureStorageStatusImpl).frbInternalSseEncode(move: true), serializer); }
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(MossRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as MossRuntimeStatusImpl).frbInternalSseEncode(move: null), serializer); }
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(PersistenceRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as PersistenceRuntimeStatusImpl).frbInternalSseEncode(move: null), serializer); }
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(ResultOpenMlsRoundTripStatusString self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as ResultOpenMlsRoundTripStatusStringImpl).frbInternalSseEncode(move: null), serializer); }
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(ResultOpenMlsSmokeStatusString self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as ResultOpenMlsSmokeStatusStringImpl).frbInternalSseEncode(move: null), serializer); }
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SecureStorageStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as SecureStorageStatusImpl).frbInternalSseEncode(move: null), serializer); }
 
 @protected void sse_encode_String(String self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer); }
@@ -2982,6 +2975,12 @@ sse_encode_mesh_info(self, serializer); }
 
 @protected void sse_encode_box_autoadd_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_message_delivery_status(self, serializer); }
+
+@protected void sse_encode_box_autoadd_open_mls_round_trip_status(OpenMlsRoundTripStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_open_mls_round_trip_status(self, serializer); }
+
+@protected void sse_encode_box_autoadd_open_mls_smoke_status(OpenMlsSmokeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_open_mls_smoke_status(self, serializer); }
 
 @protected void sse_encode_box_autoadd_outgoing_call(OutgoingCall self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_outgoing_call(self, serializer); }
@@ -3274,12 +3273,20 @@ sse_encode_list_peer_detail(self.peerDetails, serializer);
 @protected void sse_encode_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_i_32(self.index, serializer); }
 
+@protected void sse_encode_moss_runtime_status(MossRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_String(self.linkMode, serializer);
+sse_encode_String(self.libraryName, serializer);
+sse_encode_list_String(self.requiredSymbols, serializer);
+sse_encode_bool(self.available, serializer);
+sse_encode_list_String(self.checkedPaths, serializer);
+ }
+
 @protected void sse_encode_native_runtime_status(NativeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(self.moss, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(self.secureStorage, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(self.persistence, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(self.openmlsSmoke, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(self.openmlsRoundtrip, serializer);
+sse_encode_moss_runtime_status(self.moss, serializer);
+sse_encode_secure_storage_status(self.secureStorage, serializer);
+sse_encode_persistence_runtime_status(self.persistence, serializer);
+sse_encode_open_mls_smoke_runtime_status(self.openmlsSmoke, serializer);
+sse_encode_open_mls_round_trip_runtime_status(self.openmlsRoundtrip, serializer);
  }
 
 @protected void sse_encode_network_interface_info(NetworkInterfaceInfo self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
@@ -3292,6 +3299,29 @@ sse_encode_bool(self.isUp, serializer);
 sse_encode_bool(self.isVirtual, serializer);
 sse_encode_bool(self.isVpn, serializer);
 sse_encode_bool(self.isDefaultRoute, serializer);
+ }
+
+@protected void sse_encode_open_mls_round_trip_runtime_status(OpenMlsRoundTripRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_opt_box_autoadd_open_mls_round_trip_status(self.ok, serializer);
+sse_encode_opt_String(self.error, serializer);
+ }
+
+@protected void sse_encode_open_mls_round_trip_status(OpenMlsRoundTripStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_String(self.provider, serializer);
+sse_encode_String(self.ciphersuite, serializer);
+sse_encode_bool(self.welcomeJoined, serializer);
+sse_encode_bool(self.plaintextRoundtrip, serializer);
+ }
+
+@protected void sse_encode_open_mls_smoke_runtime_status(OpenMlsSmokeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_opt_box_autoadd_open_mls_smoke_status(self.ok, serializer);
+sse_encode_opt_String(self.error, serializer);
+ }
+
+@protected void sse_encode_open_mls_smoke_status(OpenMlsSmokeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_String(self.provider, serializer);
+sse_encode_String(self.ciphersuite, serializer);
+sse_encode_bool(self.protectedMessageCreated, serializer);
  }
 
 @protected void sse_encode_opt_String(String? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
@@ -3347,6 +3377,22 @@ sse_encode_bool(self.isDefaultRoute, serializer);
                 sse_encode_bool(self != null, serializer);
                 if (self != null) {
                     sse_encode_box_autoadd_message_delivery_status(self, serializer);
+                }
+                 }
+
+@protected void sse_encode_opt_box_autoadd_open_mls_round_trip_status(OpenMlsRoundTripStatus? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+
+                sse_encode_bool(self != null, serializer);
+                if (self != null) {
+                    sse_encode_box_autoadd_open_mls_round_trip_status(self, serializer);
+                }
+                 }
+
+@protected void sse_encode_opt_box_autoadd_open_mls_smoke_status(OpenMlsSmokeStatus? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+
+                sse_encode_bool(self != null, serializer);
+                if (self != null) {
+                    sse_encode_box_autoadd_open_mls_smoke_status(self, serializer);
                 }
                  }
 
@@ -3454,6 +3500,20 @@ sse_encode_String(self.callId, serializer);
 sse_encode_String(self.fromDevice, serializer);
  }
 
+@protected void sse_encode_persistence_runtime_status(PersistenceRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_String(self.backend, serializer);
+sse_encode_String(self.database, serializer);
+sse_encode_bool(self.available, serializer);
+sse_encode_bool(self.encryptedAtRest, serializer);
+sse_encode_opt_String(self.error, serializer);
+ }
+
+@protected void sse_encode_secure_storage_status(SecureStorageStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_String(self.backend, serializer);
+sse_encode_String(self.service, serializer);
+sse_encode_bool(self.available, serializer);
+ }
+
 @protected void sse_encode_send_message_result(SendMessageResult self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_String(self.sessionId, serializer);
 sse_encode_String(self.state, serializer);
@@ -3536,89 +3596,3 @@ sse_encode_bool(self.vpnOwnsDefaultRoute, serializer);
  }
                 }
                 
-
-            @sealed class MossRuntimeStatusImpl extends RustOpaque implements MossRuntimeStatus {
-                // Not to be used by end users
-                MossRuntimeStatusImpl.frbInternalDcoDecode(List<dynamic> wire):
-                    super.frbInternalDcoDecode(wire, _kStaticData);
-
-                // Not to be used by end users
-                MossRuntimeStatusImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative):
-                    super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-                static final _kStaticData = RustArcStaticData(
-                    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_MossRuntimeStatus,
-                    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_MossRuntimeStatus,
-                    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_MossRuntimeStatusPtr,
-                );
-
-                
-            }
-            @sealed class PersistenceRuntimeStatusImpl extends RustOpaque implements PersistenceRuntimeStatus {
-                // Not to be used by end users
-                PersistenceRuntimeStatusImpl.frbInternalDcoDecode(List<dynamic> wire):
-                    super.frbInternalDcoDecode(wire, _kStaticData);
-
-                // Not to be used by end users
-                PersistenceRuntimeStatusImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative):
-                    super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-                static final _kStaticData = RustArcStaticData(
-                    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_PersistenceRuntimeStatus,
-                    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_PersistenceRuntimeStatus,
-                    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_PersistenceRuntimeStatusPtr,
-                );
-
-                
-            }
-            @sealed class ResultOpenMlsRoundTripStatusStringImpl extends RustOpaque implements ResultOpenMlsRoundTripStatusString {
-                // Not to be used by end users
-                ResultOpenMlsRoundTripStatusStringImpl.frbInternalDcoDecode(List<dynamic> wire):
-                    super.frbInternalDcoDecode(wire, _kStaticData);
-
-                // Not to be used by end users
-                ResultOpenMlsRoundTripStatusStringImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative):
-                    super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-                static final _kStaticData = RustArcStaticData(
-                    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_ResultOpenMlsRoundTripStatusString,
-                    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_ResultOpenMlsRoundTripStatusString,
-                    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_ResultOpenMlsRoundTripStatusStringPtr,
-                );
-
-                
-            }
-            @sealed class ResultOpenMlsSmokeStatusStringImpl extends RustOpaque implements ResultOpenMlsSmokeStatusString {
-                // Not to be used by end users
-                ResultOpenMlsSmokeStatusStringImpl.frbInternalDcoDecode(List<dynamic> wire):
-                    super.frbInternalDcoDecode(wire, _kStaticData);
-
-                // Not to be used by end users
-                ResultOpenMlsSmokeStatusStringImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative):
-                    super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-                static final _kStaticData = RustArcStaticData(
-                    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_ResultOpenMlsSmokeStatusString,
-                    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_ResultOpenMlsSmokeStatusString,
-                    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_ResultOpenMlsSmokeStatusStringPtr,
-                );
-
-                
-            }
-            @sealed class SecureStorageStatusImpl extends RustOpaque implements SecureStorageStatus {
-                // Not to be used by end users
-                SecureStorageStatusImpl.frbInternalDcoDecode(List<dynamic> wire):
-                    super.frbInternalDcoDecode(wire, _kStaticData);
-
-                // Not to be used by end users
-                SecureStorageStatusImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative):
-                    super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-                static final _kStaticData = RustArcStaticData(
-                    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_SecureStorageStatus,
-                    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_SecureStorageStatus,
-                    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_SecureStorageStatusPtr,
-                );
-
-                
-            }
