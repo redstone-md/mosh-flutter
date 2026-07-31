@@ -63,27 +63,29 @@ class ArtifactProvider {
       return result;
     }
 
-    final rustup = Rustup();
-    for (final target in targets) {
-      final builder = RustBuilder(target: target, environment: environment);
-      builder.prepare(rustup);
-      _log.info('Building ${environment.crateInfo.packageName} for $target');
-      final targetDir = await builder.build();
-      // For local build accept both static and dynamic libraries.
-      final artifactNames = <String>{
-        ...getArtifactNames(
-          target: target,
-          libraryName: environment.crateInfo.packageName,
-          aritifactType: AritifactType.dylib,
-          remote: false,
-        ),
-        ...getArtifactNames(
-          target: target,
-          libraryName: environment.crateInfo.packageName,
-          aritifactType: AritifactType.staticlib,
-          remote: false,
-        )
-      };
+   final rustup = Rustup();
+   for (final target in targets) {
+     final builder = RustBuilder(target: target, environment: environment);
+     builder.prepare(rustup);
+     _log.info('Building ${environment.crateInfo.packageName} for $target');
+     final targetDir = await builder.build();
+     // For local build accept both static and dynamic libraries.
+      // Normalize hyphens to underscores: cargo's cdylib output filename uses underscores
+      // for hyphenated crate names (cargo convention), so the artifact name must match.
+     final artifactNames = <String>{
+       ...getArtifactNames(
+         target: target,
+         libraryName: environment.crateInfo.packageName.replaceAll('-', '_'),
+         aritifactType: AritifactType.dylib,
+         remote: false,
+       ),
+       ...getArtifactNames(
+         target: target,
+         libraryName: environment.crateInfo.packageName.replaceAll('-', '_'),
+         aritifactType: AritifactType.staticlib,
+         remote: false,
+       )
+     };
       final artifacts = artifactNames
           .map((artifactName) => Artifact(
                 path: path.join(targetDir, artifactName),
@@ -119,12 +121,12 @@ class ArtifactProvider {
 
     final res = <Target, List<Artifact>>{};
 
-    for (final target in targets) {
-      final requiredArtifacts = getArtifactNames(
-        target: target,
-        libraryName: environment.crateInfo.packageName,
-        remote: true,
-      );
+   for (final target in targets) {
+     final requiredArtifacts = getArtifactNames(
+       target: target,
+       libraryName: environment.crateInfo.packageName.replaceAll('-', '_'),
+       remote: true,
+     );
       final artifactsForTarget = <Artifact>[];
 
       for (final artifact in requiredArtifacts) {
