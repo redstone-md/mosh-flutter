@@ -460,7 +460,7 @@ Ordered atomic tasks. One subagent = one task; orchestrator commits.
   - Verify: `flutter analyze` clean; `flutter test` green (existing widget
     tests pin `MoshApp` rendering the AppBar — update if the home changed);
     manual `flutter run -d windows` reaches invite-paste from a tile.
-- [ ] **S2-2: Windows registry association for the mosh:// scheme.**
+- [x] **S2-2: Windows registry association for the mosh:// scheme.** DONE — commit `9d30796`. `app_links 7.2.1` (dep, not yet imported) + `win32_registry 3.0.3`; `lib/src/deeplink/mosh_url_scheme_windows.dart` writes `HKCU\Software\Classes\mosh` (URL Protocol + `shell\open\command` = `"<exe>" "%1"`). Called from `main()` after `RustLib.init()`, gated `Platform.isWindows`, idempotent + never throws. `main.cpp` untouched (arg piping already works). flutter test 45/45 (+2 guard tests).
   - Register `mosh://` -> mosh.exe in the Windows registry at install/run time
     (HKCU or HKLM `Software\Classes\mosh\shell\open\command`). Bundle id
     `app.mosh.desktop` per ADR 0009. Use a post-install step or a small
