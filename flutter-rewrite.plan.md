@@ -422,7 +422,6 @@ One subagent = one task; the orchestrator makes the conventional commit.
   - Consolidate so `invite_uri.dart` is the single source; `invite_detection`
     only adds the clipboard `Clipboard.getData` + timing concerns.
   - Verify: existing invite tests still pass.
-- [ ] **FU-4 (optional): Restore clippy + mosh-probe to CI.**
 - [ ] **FU-4 (deferred — not cheap): Restore clippy + mosh-probe to CI.**
   Investigated: FU-4 is NOT a cheap restoration.
   (a) `cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets`
