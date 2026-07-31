@@ -390,7 +390,7 @@ Slice 1 shipped (HEAD `7ae704b docs: close out slice one`). Five tails were
 recorded in the close-out handoff; this slice closes them with atomic tasks.
 One subagent = one task; the orchestrator makes the conventional commit.
 
-- [ ] **FU-1: Make NativeRuntimeStatus sub-structs non-opaque.**
+- [x] **FU-1: Make NativeRuntimeStatus sub-structs non-opaque.** DONE — commit `063f7d8`. The 5 sub-structs are `#[frb(non_opaque)]` with owned `String` fields; the two `Result<OpenMlsXxxStatus,String>` fields became non-opaque `OpenMlsSmokeRuntimeStatus`/`OpenMlsRoundTripRuntimeStatus` wrappers (frb 2.12 auto-opaques `Result` fields). FakeGateway returns real data; DiagnosticsScreen renders real fields. cargo test 215/0, analyze clean, flutter test 43/43, fmt clean, codegen idempotent.
   - Root cause: `NativeRuntimeStatus` is `#[frb(non_opaque)]` but its 5 fields
     (`MossRuntimeStatus`, `SecureStorageStatus`, `PersistenceRuntimeStatus`,
     `OpenMlsSmokeStatus`, `OpenMlsRoundTripStatus`) stay auto-opaque, so Dart
