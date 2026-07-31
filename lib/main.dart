@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 
@@ -10,16 +13,17 @@ void main() async {
   // environments without the native cdylib this throws; main() is only
   // exercised in real device/desktop runs, not in `flutter test`.
   await RustLib.init();
-  runApp(const MoshApp());
+  runApp(const ProviderScope(child: MoshApp()));
 }
 
-class MoshApp extends StatelessWidget {
+class MoshApp extends ConsumerWidget {
   const MoshApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Mosh',
+      locale: ref.watch(localeProvider),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
