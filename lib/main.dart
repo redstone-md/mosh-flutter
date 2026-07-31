@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 
@@ -19,6 +20,8 @@ class MoshApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Mosh',
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
       home: const MoshHome(),
     );

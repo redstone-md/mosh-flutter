@@ -1,0 +1,7 @@
+{
+  "@@locale": "en",
+  "shellProductName": "MOSH",
+  "@shellProductName": {
+    "description": "Product name shown in the app shell"
+  }
+}
