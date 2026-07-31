@@ -14,6 +14,7 @@ import { promises as fs } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import os from "node:os";
 
 const OUTPUT_DIR = path.resolve("android", "app", "src", "main", "jniLibs", "arm64-v8a");
 const OUTPUT_NAME = "libmoss.so";
@@ -48,27 +49,42 @@ function resolveNdkRoot() {
   return root;
 }
 
-function resolveToolchain() {
+async function resolveToolchain() {
   const ndkRoot = resolveNdkRoot();
   const prebuilt = path.join(ndkRoot, "toolchains", "llvm", "prebuilt", ndkHostTag());
   const cc = path.join(prebuilt, "bin", `${NDK_TRIPLE}${NDK_API_LEVEL}-clang`);
   const cxx = path.join(prebuilt, "bin", `${NDK_TRIPLE}${NDK_API_LEVEL}-clang++`);
+  // Go reads cgo flags from its stored env (GOENV file), NOT only process env.
+  // On this dev machine the GOENV pins CGO_LDFLAGS/CGO_CFLAGS at a Windows/x86
+  // libolm.a + headers (left over from an earlier setup). moss has NO libolm
+  // dependency (crypto is pure-Go: flynn/noise + golang.org/x/crypto), so
+  // linking the Windows libolm into an android/arm64 .so only emitted ld.lld
+  // "archive member is neither ET_REL nor LLVM bitcode" warnings — the linker
+   // skipped the wrong-format members and nothing olm reached the .so symbol
+   // table. Pointing GOENV at an empty file for this invocation makes go read
+   // NO stored cgo flags, so the link line stays honest (only the NDK
+   // CC/CXX below supply the C toolchain). We do NOT touch the user's real
+   // GOENV; the empty file is a per-invocation override.
+  const cleanGoEnv = await fs.open(path.join(os.tmpdir(), `mosh-goenv-android-${process.pid}.txt`), "w");
+  await cleanGoEnv.close();
+  const cleanGoEnvPath = path.join(os.tmpdir(), `mosh-goenv-android-${process.pid}.txt`);
 
   // Verify the CC wrapper exists so a misconfigured NDK_HOME fails fast with
   // the exact path that was expected, not a cryptic go/cgo error later.
   try {
     statSync(cc);
   } catch {
+    await rm(cleanGoEnvPath, { force: true });
     throw new Error(
       `NDK clang not found at ${cc}; ensure ANDROID_NDK_HOME points at an installed NDK with API ${NDK_API_LEVEL} toolchains`,
     );
   }
 
-  return { cc, cxx };
+  return { cc, cxx, cleanGoEnvPath };
 }
 
 async function main() {
-  const { cc, cxx } = resolveToolchain();
+  const { cc, cxx, cleanGoEnvPath } = await resolveToolchain();
   await ensureMossCheckout();
   await mkdir(OUTPUT_DIR, { recursive: true });
 
@@ -81,20 +97,29 @@ async function main() {
       env: {
         ...process.env,
         CGO_ENABLED: "1",
-        GOOS: "android",
-        GOARCH: "arm64",
-        CC: cc,
-        CXX: cxx,
+       GOOS: "android",
+       GOARCH: "arm64",
+       CC: cc,
+       CXX: cxx,
         GOTOOLCHAIN: "go1.25.9",
+        // Use the per-invocation empty GOENV so go reads NO stored cgo flags
+        // (see resolveToolchain); CGO_LDFLAGS/CFLAGS explicitly empty too as
+        // belt-and-suspenders in case a future go honors process env over
+        // the empty GOENV file.
+        GOENV: cleanGoEnvPath,
+        CGO_LDFLAGS: "",
+        CGO_CFLAGS: "",
       },
     },
   );
 
   if (result.status !== 0) {
+    await rm(cleanGoEnvPath, { force: true });
     process.exit(result.status ?? 1);
   }
 
   await removeGeneratedHeader();
+  await rm(cleanGoEnvPath, { force: true });
   console.log(`mosh.android.runtime=${OUTPUT_PATH}`);
 }
 
