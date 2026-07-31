@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::attachment_runtime::VoiceMeta;
 use crate::mls_crypto::MlsCryptoError;
 pub use crate::outbound_delivery::MessageDeliveryStatus;
+use flutter_rust_bridge::frb;
 
+#[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StartSessionRequest {
     pub display_name: String,
@@ -11,6 +13,7 @@ pub struct StartSessionRequest {
     pub static_peer: Option<String>,
 }
 
+#[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct InviteCreated {
     pub invite_uri: String,
@@ -20,6 +23,7 @@ pub struct InviteCreated {
     pub listen_address: String,
 }
 
+#[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcceptInviteRequest {
     pub invite_uri: String,
@@ -28,6 +32,7 @@ pub struct AcceptInviteRequest {
     pub static_peer: Option<String>,
 }
 
+#[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionSnapshot {
     pub session_id: String,
@@ -65,11 +70,13 @@ pub struct SessionSnapshot {
     pub active_call: Option<ActiveCall>,
 }
 
+#[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionListSnapshot {
     pub sessions: Vec<SessionSnapshot>,
 }
 
+#[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct CloseSessionResult {
     pub session_id: String,
@@ -278,6 +285,7 @@ pub struct DmOffer {
     pub invite_uri: String,
 }
 
+#[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SendMessageResult {
     pub session_id: String,

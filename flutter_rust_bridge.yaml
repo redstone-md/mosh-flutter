@@ -1,3 +1,10 @@
 rust_root: mosh-core/
 dart_output: lib/src/rust
 rust_input: crate::api
+rust_preamble: |
+  // frb 2.12 drops the `crate::api::diagnostics` glob import once a struct in
+  // that module becomes non-opaque, but the generated Rust still references
+  // `OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus` unqualified (the inner
+  // `Result<T, String>` of `NativeRuntimeStatus` stays auto-opaque and the
+  // inner type lives outside `rust_input`). Bring them back into scope here.
+  use crate::api::diagnostics::{OpenMlsRoundTripStatus, OpenMlsSmokeStatus};

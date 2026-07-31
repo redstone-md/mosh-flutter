@@ -85,7 +85,7 @@ import 'vpn_consent.dart';
                   String get codegenVersion => '2.12.0';
 
                   @override
-                  int get rustContentHash => 953581470;
+                  int get rustContentHash => -779654576;
 
                   static const kDefaultExternalLibraryLoaderConfig = ExternalLibraryLoaderConfig(
                     stem: 'mosh_core',
@@ -97,27 +97,7 @@ import 'vpn_consent.dart';
                 
 
                 abstract class RustLibApi extends BaseApi {
-                  MossRuntimeStatus crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetMoss({required NativeRuntimeStatus that });
-
-ResultOpenMlsRoundTripStatusString crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsRoundtrip({required NativeRuntimeStatus that });
-
-ResultOpenMlsSmokeStatusString crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsSmoke({required NativeRuntimeStatus that });
-
-PersistenceRuntimeStatus crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetPersistence({required NativeRuntimeStatus that });
-
-SecureStorageStatus crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetSecureStorage({required NativeRuntimeStatus that });
-
-void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetMoss({required NativeRuntimeStatus that , required MossRuntimeStatus moss });
-
-void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsRoundtrip({required NativeRuntimeStatus that , required ResultOpenMlsRoundTripStatusString openmlsRoundtrip });
-
-void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsSmoke({required NativeRuntimeStatus that , required ResultOpenMlsSmokeStatusString openmlsSmoke });
-
-void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetPersistence({required NativeRuntimeStatus that , required PersistenceRuntimeStatus persistence });
-
-void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetSecureStorage({required NativeRuntimeStatus that , required SecureStorageStatus secureStorage });
-
-Future<SessionSnapshot> crateApiOrgAcceptDmOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer });
+                  Future<SessionSnapshot> crateApiOrgAcceptDmOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer });
 
 Future<GroupSnapshot> crateApiOrgAcceptGroupOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer });
 
@@ -211,23 +191,11 @@ Future<SendMessageResult> crateApiPrivateDmSendMessage({required String sessionI
 
 Future<void> crateApiVpnSetVpnBypassConsent({String? interface_ });
 
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_AppDiagnostics;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_AppDiagnostics;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_AppDiagnosticsPtr;
-
 RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_MossRuntimeStatus;
 
 RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_MossRuntimeStatus;
 
 CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_MossRuntimeStatusPtr;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_NativeRuntimeStatus;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_NativeRuntimeStatus;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_NativeRuntimeStatusPtr;
 
 RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_PersistenceRuntimeStatus;
 
@@ -265,262 +233,7 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
                     required super.portManager,
                   });
 
-                  @override MossRuntimeStatus crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetMoss({required NativeRuntimeStatus that })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetMossConstMeta,
-            argValues: [that],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetMossConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_get_moss",
-            argNames: ["that"],
-        );
-        
-
-@override ResultOpenMlsRoundTripStatusString crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsRoundtrip({required NativeRuntimeStatus that })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsRoundtripConstMeta,
-            argValues: [that],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsRoundtripConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_get_openmls_roundtrip",
-            argNames: ["that"],
-        );
-        
-
-@override ResultOpenMlsSmokeStatusString crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsSmoke({required NativeRuntimeStatus that })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsSmokeConstMeta,
-            argValues: [that],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsSmokeConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_get_openmls_smoke",
-            argNames: ["that"],
-        );
-        
-
-@override PersistenceRuntimeStatus crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetPersistence({required NativeRuntimeStatus that })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetPersistenceConstMeta,
-            argValues: [that],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetPersistenceConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_get_persistence",
-            argNames: ["that"],
-        );
-        
-
-@override SecureStorageStatus crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetSecureStorage({required NativeRuntimeStatus that })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetSecureStorageConstMeta,
-            argValues: [that],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetSecureStorageConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_get_secure_storage",
-            argNames: ["that"],
-        );
-        
-
-@override void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetMoss({required NativeRuntimeStatus that , required MossRuntimeStatus moss })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(moss, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetMossConstMeta,
-            argValues: [that, moss],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetMossConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_set_moss",
-            argNames: ["that", "moss"],
-        );
-        
-
-@override void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsRoundtrip({required NativeRuntimeStatus that , required ResultOpenMlsRoundTripStatusString openmlsRoundtrip })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(openmlsRoundtrip, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsRoundtripConstMeta,
-            argValues: [that, openmlsRoundtrip],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsRoundtripConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_set_openmls_roundtrip",
-            argNames: ["that", "openmlsRoundtrip"],
-        );
-        
-
-@override void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsSmoke({required NativeRuntimeStatus that , required ResultOpenMlsSmokeStatusString openmlsSmoke })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(openmlsSmoke, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsSmokeConstMeta,
-            argValues: [that, openmlsSmoke],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsSmokeConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_set_openmls_smoke",
-            argNames: ["that", "openmlsSmoke"],
-        );
-        
-
-@override void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetPersistence({required NativeRuntimeStatus that , required PersistenceRuntimeStatus persistence })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(persistence, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetPersistenceConstMeta,
-            argValues: [that, persistence],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetPersistenceConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_set_persistence",
-            argNames: ["that", "persistence"],
-        );
-        
-
-@override void crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetSecureStorage({required NativeRuntimeStatus that , required SecureStorageStatus secureStorage })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(that, serializer);
-sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(secureStorage, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetSecureStorageConstMeta,
-            argValues: [that, secureStorage],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetSecureStorageConstMeta => const TaskConstMeta(
-            debugName: "NativeRuntimeStatus_auto_accessor_set_secure_storage",
-            argNames: ["that", "secureStorage"],
-        );
-        
-
-@override Future<SessionSnapshot> crateApiOrgAcceptDmOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer })  { return handler.executeNormal(NormalTask(
+                  @override Future<SessionSnapshot> crateApiOrgAcceptDmOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
@@ -528,7 +241,7 @@ sse_encode_String(offerId, serializer);
 sse_encode_String(displayName, serializer);
 sse_encode_u_16(listenPort, serializer);
 sse_encode_opt_String(staticPeer, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1, port: port_);
             
             },
             codec: 
@@ -557,7 +270,7 @@ sse_encode_String(offerId, serializer);
 sse_encode_String(displayName, serializer);
 sse_encode_u_16(listenPort, serializer);
 sse_encode_opt_String(staticPeer, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2, port: port_);
             
             },
             codec: 
@@ -582,7 +295,7 @@ sse_encode_opt_String(staticPeer, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_accept_invite_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3, port: port_);
             
             },
             codec: 
@@ -607,12 +320,12 @@ sse_encode_opt_String(staticPeer, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4, port: port_);
             
             },
             codec: 
         SseCodec(
-          decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics,
+          decodeSuccessData: sse_decode_app_diagnostics,
           decodeErrorData: null,
         )
         ,
@@ -633,7 +346,7 @@ sse_encode_opt_String(staticPeer, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
 sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5, port: port_);
             
             },
             codec: 
@@ -659,7 +372,7 @@ sse_encode_String(attachmentId, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
 sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6, port: port_);
             
             },
             codec: 
@@ -684,7 +397,7 @@ sse_encode_String(attachmentId, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7, port: port_);
             
             },
             codec: 
@@ -709,7 +422,7 @@ sse_encode_String(attachmentId, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(sessionId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8, port: port_);
             
             },
             codec: 
@@ -739,7 +452,7 @@ sse_encode_list_String(memberPeerIds, serializer);
 sse_encode_String(displayName, serializer);
 sse_encode_u_16(listenPort, serializer);
 sse_encode_opt_String(staticPeer, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9, port: port_);
             
             },
             codec: 
@@ -764,7 +477,7 @@ sse_encode_opt_String(staticPeer, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_create_group_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10, port: port_);
             
             },
             codec: 
@@ -789,7 +502,7 @@ sse_encode_opt_String(staticPeer, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_start_session_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11, port: port_);
             
             },
             codec: 
@@ -814,7 +527,7 @@ sse_encode_opt_String(staticPeer, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12, port: port_);
             
             },
             codec: 
@@ -840,7 +553,7 @@ sse_encode_opt_String(staticPeer, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
 sse_encode_String(offerId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13, port: port_);
             
             },
             codec: 
@@ -866,7 +579,7 @@ sse_encode_String(offerId, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
 sse_encode_String(offerId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14, port: port_);
             
             },
             codec: 
@@ -892,7 +605,7 @@ sse_encode_String(offerId, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
 sse_encode_String(offerId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15, port: port_);
             
             },
             codec: 
@@ -918,7 +631,7 @@ sse_encode_String(offerId, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
 sse_encode_String(offerId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16, port: port_);
             
             },
             codec: 
@@ -944,7 +657,7 @@ sse_encode_String(offerId, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
 sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17, port: port_);
             
             },
             codec: 
@@ -970,7 +683,7 @@ sse_encode_String(attachmentId, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
 sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18, port: port_);
             
             },
             codec: 
@@ -995,7 +708,7 @@ sse_encode_String(attachmentId, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19, port: port_);
             
             },
             codec: 
@@ -1020,7 +733,7 @@ sse_encode_String(attachmentId, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20, port: port_);
             
             },
             codec: 
@@ -1047,7 +760,7 @@ sse_encode_String(attachmentId, serializer);
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
 sse_encode_String(groupId, serializer);
 sse_encode_list_String(memberPeerIds, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21, port: port_);
             
             },
             codec: 
@@ -1072,7 +785,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_join_channel_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22, port: port_);
             
             },
             codec: 
@@ -1097,7 +810,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_join_group_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23, port: port_);
             
             },
             codec: 
@@ -1122,7 +835,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_join_org_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24, port: port_);
             
             },
             codec: 
@@ -1147,7 +860,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25, port: port_);
             
             },
             codec: 
@@ -1172,7 +885,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26, port: port_);
             
             },
             codec: 
@@ -1197,7 +910,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27, port: port_);
             
             },
             codec: 
@@ -1222,7 +935,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28, port: port_);
             
             },
             codec: 
@@ -1247,7 +960,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29, port: port_);
             
             },
             codec: 
@@ -1272,7 +985,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30, port: port_);
             
             },
             codec: 
@@ -1297,7 +1010,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31, port: port_);
             
             },
             codec: 
@@ -1322,12 +1035,12 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32, port: port_);
             
             },
             codec: 
         SseCodec(
-          decodeSuccessData: sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus,
+          decodeSuccessData: sse_decode_native_runtime_status,
           decodeErrorData: null,
         )
         ,
@@ -1347,7 +1060,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33, port: port_);
             
             },
             codec: 
@@ -1372,7 +1085,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34, port: port_);
             
             },
             codec: 
@@ -1397,7 +1110,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35, port: port_);
             
             },
             codec: 
@@ -1422,7 +1135,7 @@ sse_encode_list_String(memberPeerIds, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(sessionId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 46, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36, port: port_);
             
             },
             codec: 
@@ -1448,7 +1161,7 @@ sse_encode_list_String(memberPeerIds, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
 sse_encode_String(messageId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37, port: port_);
             
             },
             codec: 
@@ -1474,7 +1187,7 @@ sse_encode_String(messageId, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
 sse_encode_String(messageId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38, port: port_);
             
             },
             codec: 
@@ -1500,7 +1213,7 @@ sse_encode_String(messageId, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
 sse_encode_String(body, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39, port: port_);
             
             },
             codec: 
@@ -1526,7 +1239,7 @@ sse_encode_String(body, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
 sse_encode_String(body, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 50, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40, port: port_);
             
             },
             codec: 
@@ -1556,7 +1269,7 @@ sse_encode_String(mime, serializer);
 sse_encode_String(dataBase64, serializer);
 sse_encode_opt_String(thumbnailBase64, serializer);
 sse_encode_opt_box_autoadd_voice_meta(voice, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 51, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41, port: port_);
             
             },
             codec: 
@@ -1586,7 +1299,7 @@ sse_encode_String(mime, serializer);
 sse_encode_String(dataBase64, serializer);
 sse_encode_opt_String(thumbnailBase64, serializer);
 sse_encode_opt_box_autoadd_voice_meta(voice, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42, port: port_);
             
             },
             codec: 
@@ -1613,7 +1326,7 @@ sse_encode_opt_box_autoadd_voice_meta(voice, serializer);
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
 sse_encode_String(targetFingerprint, serializer);
 sse_encode_String(inviteUri, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 53, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43, port: port_);
             
             },
             codec: 
@@ -1642,7 +1355,7 @@ sse_encode_String(targetPeerId, serializer);
 sse_encode_String(displayName, serializer);
 sse_encode_u_16(listenPort, serializer);
 sse_encode_opt_String(staticPeer, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 54, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44, port: port_);
             
             },
             codec: 
@@ -1669,7 +1382,7 @@ sse_encode_opt_String(staticPeer, serializer);
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
 sse_encode_String(targetFingerprint, serializer);
 sse_encode_String(inviteUri, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45, port: port_);
             
             },
             codec: 
@@ -1695,7 +1408,7 @@ sse_encode_String(inviteUri, serializer);
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(sessionId, serializer);
 sse_encode_String(body, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 56, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 46, port: port_);
             
             },
             codec: 
@@ -1720,7 +1433,7 @@ sse_encode_String(body, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_opt_String(interface_, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 57, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47, port: port_);
             
             },
             codec: 
@@ -1741,17 +1454,9 @@ sse_encode_String(body, serializer);
         );
         
 
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_AppDiagnostics => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_AppDiagnostics => wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics;
-
 RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_MossRuntimeStatus => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus;
 
 RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_MossRuntimeStatus => wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus;
-
-RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_NativeRuntimeStatus => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus;
-
-RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_NativeRuntimeStatus => wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus;
 
 RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_PersistenceRuntimeStatus => wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus;
 
@@ -1771,14 +1476,8 @@ RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_SecureStor
 
 
 
-                  @protected AppDiagnostics dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return AppDiagnosticsImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected MossRuntimeStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+                  @protected MossRuntimeStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return MossRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected NativeRuntimeStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return NativeRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
 
 @protected PersistenceRuntimeStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return PersistenceRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
@@ -1792,20 +1491,8 @@ return ResultOpenMlsSmokeStatusStringImpl.frbInternalDcoDecode(raw as List<dynam
 @protected SecureStorageStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return SecureStorageStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
 
-@protected NativeRuntimeStatus dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return NativeRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected NativeRuntimeStatus dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return NativeRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected AppDiagnostics dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return AppDiagnosticsImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
 @protected MossRuntimeStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return MossRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
-
-@protected NativeRuntimeStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return NativeRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
 
 @protected PersistenceRuntimeStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return PersistenceRuntimeStatusImpl.frbInternalDcoDecode(raw as List<dynamic>); }
@@ -1838,6 +1525,14 @@ direction: dco_decode_String(arr[1]),
 keyB64: dco_decode_String(arr[2]),
 noncePrefixB64: dco_decode_String(arr[3]),
 startedAtMs: dco_decode_u_64(arr[4]),); }
+
+@protected AppDiagnostics dco_decode_app_diagnostics(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+                return AppDiagnostics(appName: dco_decode_String(arr[0]),
+privacyModel: dco_decode_String(arr[1]),
+discoveryModel: dco_decode_String(arr[2]),
+mossLinkMode: dco_decode_String(arr[3]),); }
 
 @protected AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 final arr = raw as List<dynamic>;
@@ -2200,6 +1895,15 @@ peerDetails: dco_decode_list_peer_detail(arr[14]),); }
 @protected MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return MessageDeliveryStatus.values[raw as int]; }
 
+@protected NativeRuntimeStatus dco_decode_native_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+final arr = raw as List<dynamic>;
+                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+                return NativeRuntimeStatus(moss: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(arr[0]),
+secureStorage: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(arr[1]),
+persistence: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(arr[2]),
+openmlsSmoke: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(arr[3]),
+openmlsRoundtrip: dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(arr[4]),); }
+
 @protected NetworkInterfaceInfo dco_decode_network_interface_info(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 final arr = raw as List<dynamic>;
                 if (arr.length != 9) throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
@@ -2405,14 +2109,8 @@ final arr = raw as List<dynamic>;
 suspectInterfaces: dco_decode_list_String(arr[1]),
 vpnOwnsDefaultRoute: dco_decode_bool(arr[2]),); }
 
-@protected AppDiagnostics sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return AppDiagnosticsImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
 @protected MossRuntimeStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 return MossRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected NativeRuntimeStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return NativeRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
 
 @protected PersistenceRuntimeStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 return PersistenceRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
@@ -2426,20 +2124,8 @@ return ResultOpenMlsSmokeStatusStringImpl.frbInternalSseDecode(sse_decode_usize(
 @protected SecureStorageStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 return SecureStorageStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
 
-@protected NativeRuntimeStatus sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return NativeRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected NativeRuntimeStatus sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return NativeRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected AppDiagnostics sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return AppDiagnosticsImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
 @protected MossRuntimeStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 return MossRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
-
-@protected NativeRuntimeStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return NativeRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
 
 @protected PersistenceRuntimeStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 return PersistenceRuntimeStatusImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer)); }
@@ -2471,6 +2157,13 @@ var var_keyB64 = sse_decode_String(deserializer);
 var var_noncePrefixB64 = sse_decode_String(deserializer);
 var var_startedAtMs = sse_decode_u_64(deserializer);
 return ActiveCall(callId: var_callId, direction: var_direction, keyB64: var_keyB64, noncePrefixB64: var_noncePrefixB64, startedAtMs: var_startedAtMs); }
+
+@protected AppDiagnostics sse_decode_app_diagnostics(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_appName = sse_decode_String(deserializer);
+var var_privacyModel = sse_decode_String(deserializer);
+var var_discoveryModel = sse_decode_String(deserializer);
+var var_mossLinkMode = sse_decode_String(deserializer);
+return AppDiagnostics(appName: var_appName, privacyModel: var_privacyModel, discoveryModel: var_discoveryModel, mossLinkMode: var_mossLinkMode); }
 
 @protected AttachmentDescriptor sse_decode_attachment_descriptor(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 var var_attachmentId = sse_decode_String(deserializer);
@@ -2897,6 +2590,14 @@ return MeshInfo(meshId: var_meshId, listenPort: var_listenPort, advertisedAddr: 
 var inner = sse_decode_i_32(deserializer);
         return MessageDeliveryStatus.values[inner]; }
 
+@protected NativeRuntimeStatus sse_decode_native_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var var_moss = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(deserializer);
+var var_secureStorage = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(deserializer);
+var var_persistence = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(deserializer);
+var var_openmlsSmoke = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(deserializer);
+var var_openmlsRoundtrip = sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(deserializer);
+return NativeRuntimeStatus(moss: var_moss, secureStorage: var_secureStorage, persistence: var_persistence, openmlsSmoke: var_openmlsSmoke, openmlsRoundtrip: var_openmlsRoundtrip); }
+
 @protected NetworkInterfaceInfo sse_decode_network_interface_info(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 var var_name = sse_decode_String(deserializer);
 var var_description = sse_decode_String(deserializer);
@@ -3163,14 +2864,8 @@ var var_suspectInterfaces = sse_decode_list_String(deserializer);
 var var_vpnOwnsDefaultRoute = sse_decode_bool(deserializer);
 return VpnDetection(vpnLikely: var_vpnLikely, suspectInterfaces: var_suspectInterfaces, vpnOwnsDefaultRoute: var_vpnOwnsDefaultRoute); }
 
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(AppDiagnostics self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as AppDiagnosticsImpl).frbInternalSseEncode(move: true), serializer); }
-
 @protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(MossRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_usize((self as MossRuntimeStatusImpl).frbInternalSseEncode(move: true), serializer); }
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(NativeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as NativeRuntimeStatusImpl).frbInternalSseEncode(move: true), serializer); }
 
 @protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(PersistenceRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_usize((self as PersistenceRuntimeStatusImpl).frbInternalSseEncode(move: true), serializer); }
@@ -3184,20 +2879,8 @@ sse_encode_usize((self as ResultOpenMlsSmokeStatusStringImpl).frbInternalSseEnco
 @protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SecureStorageStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_usize((self as SecureStorageStatusImpl).frbInternalSseEncode(move: true), serializer); }
 
-@protected void sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(NativeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as NativeRuntimeStatusImpl).frbInternalSseEncode(move: false), serializer); }
-
-@protected void sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(NativeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as NativeRuntimeStatusImpl).frbInternalSseEncode(move: false), serializer); }
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAppDiagnostics(AppDiagnostics self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as AppDiagnosticsImpl).frbInternalSseEncode(move: null), serializer); }
-
 @protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(MossRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_usize((self as MossRuntimeStatusImpl).frbInternalSseEncode(move: null), serializer); }
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerNativeRuntimeStatus(NativeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_usize((self as NativeRuntimeStatusImpl).frbInternalSseEncode(move: null), serializer); }
 
 @protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(PersistenceRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_usize((self as PersistenceRuntimeStatusImpl).frbInternalSseEncode(move: null), serializer); }
@@ -3227,6 +2910,13 @@ sse_encode_String(self.direction, serializer);
 sse_encode_String(self.keyB64, serializer);
 sse_encode_String(self.noncePrefixB64, serializer);
 sse_encode_u_64(self.startedAtMs, serializer);
+ }
+
+@protected void sse_encode_app_diagnostics(AppDiagnostics self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_String(self.appName, serializer);
+sse_encode_String(self.privacyModel, serializer);
+sse_encode_String(self.discoveryModel, serializer);
+sse_encode_String(self.mossLinkMode, serializer);
  }
 
 @protected void sse_encode_attachment_descriptor(AttachmentDescriptor self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
@@ -3584,6 +3274,14 @@ sse_encode_list_peer_detail(self.peerDetails, serializer);
 @protected void sse_encode_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_i_32(self.index, serializer); }
 
+@protected void sse_encode_native_runtime_status(NativeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(self.moss, serializer);
+sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(self.secureStorage, serializer);
+sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(self.persistence, serializer);
+sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(self.openmlsSmoke, serializer);
+sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(self.openmlsRoundtrip, serializer);
+ }
+
 @protected void sse_encode_network_interface_info(NetworkInterfaceInfo self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_String(self.name, serializer);
 sse_encode_String(self.description, serializer);
@@ -3839,23 +3537,6 @@ sse_encode_bool(self.vpnOwnsDefaultRoute, serializer);
                 }
                 
 
-            @sealed class AppDiagnosticsImpl extends RustOpaque implements AppDiagnostics {
-                // Not to be used by end users
-                AppDiagnosticsImpl.frbInternalDcoDecode(List<dynamic> wire):
-                    super.frbInternalDcoDecode(wire, _kStaticData);
-
-                // Not to be used by end users
-                AppDiagnosticsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative):
-                    super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-                static final _kStaticData = RustArcStaticData(
-                    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_AppDiagnostics,
-                    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_AppDiagnostics,
-                    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_AppDiagnosticsPtr,
-                );
-
-                
-            }
             @sealed class MossRuntimeStatusImpl extends RustOpaque implements MossRuntimeStatus {
                 // Not to be used by end users
                 MossRuntimeStatusImpl.frbInternalDcoDecode(List<dynamic> wire):
@@ -3872,52 +3553,6 @@ sse_encode_bool(self.vpnOwnsDefaultRoute, serializer);
                 );
 
                 
-            }
-            @sealed class NativeRuntimeStatusImpl extends RustOpaque implements NativeRuntimeStatus {
-                // Not to be used by end users
-                NativeRuntimeStatusImpl.frbInternalDcoDecode(List<dynamic> wire):
-                    super.frbInternalDcoDecode(wire, _kStaticData);
-
-                // Not to be used by end users
-                NativeRuntimeStatusImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative):
-                    super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-                static final _kStaticData = RustArcStaticData(
-                    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_NativeRuntimeStatus,
-                    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_NativeRuntimeStatus,
-                    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_NativeRuntimeStatusPtr,
-                );
-
-                 MossRuntimeStatus get moss=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetMoss(that: this, );
-
-
- ResultOpenMlsRoundTripStatusString get openmlsRoundtrip=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsRoundtrip(that: this, );
-
-
- ResultOpenMlsSmokeStatusString get openmlsSmoke=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetOpenmlsSmoke(that: this, );
-
-
- PersistenceRuntimeStatus get persistence=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetPersistence(that: this, );
-
-
- SecureStorageStatus get secureStorage=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorGetSecureStorage(that: this, );
-
-
-  set moss(MossRuntimeStatus moss)=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetMoss(that: this, moss: moss);
-
-
-  set openmlsRoundtrip(ResultOpenMlsRoundTripStatusString openmlsRoundtrip)=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsRoundtrip(that: this, openmlsRoundtrip: openmlsRoundtrip);
-
-
-  set openmlsSmoke(ResultOpenMlsSmokeStatusString openmlsSmoke)=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetOpenmlsSmoke(that: this, openmlsSmoke: openmlsSmoke);
-
-
-  set persistence(PersistenceRuntimeStatus persistence)=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetPersistence(that: this, persistence: persistence);
-
-
-  set secureStorage(SecureStorageStatus secureStorage)=>RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatusAutoAccessorSetSecureStorage(that: this, secureStorage: secureStorage);
-
-
             }
             @sealed class PersistenceRuntimeStatusImpl extends RustOpaque implements PersistenceRuntimeStatus {
                 // Not to be used by end users
