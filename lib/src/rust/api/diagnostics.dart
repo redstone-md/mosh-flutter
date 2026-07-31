@@ -4,15 +4,15 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import '../lib.dart';
 import '../moss_runtime.dart';
+import '../openmls_crypto.dart';
 import '../persistence.dart';
 import '../secure_storage.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 
-            // These functions are ignored because they are not marked as `pub`: `persistence_status_without_instance`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
+            // These functions are ignored because they are not marked as `pub`: `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `persistence_status_without_instance`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
 
             /// App-level identity diagnostics. One-shot query; owned `String` fields so
@@ -57,8 +57,8 @@ class NativeRuntimeStatus  {
                 final MossRuntimeStatus moss;
 final SecureStorageStatus secureStorage;
 final PersistenceRuntimeStatus persistence;
-final ResultOpenMlsSmokeStatusString openmlsSmoke;
-final ResultOpenMlsRoundTripStatusString openmlsRoundtrip;
+final OpenMlsSmokeRuntimeStatus openmlsSmoke;
+final OpenMlsRoundTripRuntimeStatus openmlsRoundtrip;
 
                 const NativeRuntimeStatus({required this.moss ,required this.secureStorage ,required this.persistence ,required this.openmlsSmoke ,required this.openmlsRoundtrip ,});
 
@@ -77,6 +77,64 @@ final ResultOpenMlsRoundTripStatusString openmlsRoundtrip;
             other is NativeRuntimeStatus &&
                 runtimeType == other.runtimeType
                 && moss == other.moss&& secureStorage == other.secureStorage&& persistence == other.persistence&& openmlsSmoke == other.openmlsSmoke&& openmlsRoundtrip == other.openmlsRoundtrip;
+        
+            }
+
+/// Bridge-friendly view of the OpenMLS Alice/Bob roundtrip outcome; see
+/// `OpenMlsSmokeRuntimeStatus` for why the result is flattened rather than
+/// carried as a `Result<OpenMlsRoundTripStatus, String>`.
+class OpenMlsRoundTripRuntimeStatus  {
+                final OpenMlsRoundTripStatus? ok;
+final String? error;
+
+                const OpenMlsRoundTripRuntimeStatus({this.ok ,this.error ,});
+
+                
+                
+
+                
+        @override
+        int get hashCode => ok.hashCode^error.hashCode;
+        
+
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is OpenMlsRoundTripRuntimeStatus &&
+                runtimeType == other.runtimeType
+                && ok == other.ok&& error == other.error;
+        
+            }
+
+/// Bridge-friendly view of the OpenMLS smoke-test outcome. `flutter_rust_bridge`
+/// 2.x auto-opaques `Result<T, E>` fields of non-opaque structs (the wrapper has
+/// no Dart constructor and no field accessors), so the api facade flattens the
+/// result into a plain non-opaque struct: `ok` carries the success snapshot
+/// when the test passed, `error` carries the failure message when it did not.
+/// This keeps the field constructible from pure Dart (FakeGateway, tests) and
+/// readable by the Diagnostics screen.
+class OpenMlsSmokeRuntimeStatus  {
+                final OpenMlsSmokeStatus? ok;
+final String? error;
+
+                const OpenMlsSmokeRuntimeStatus({this.ok ,this.error ,});
+
+                
+                
+
+                
+        @override
+        int get hashCode => ok.hashCode^error.hashCode;
+        
+
+                
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is OpenMlsSmokeRuntimeStatus &&
+                runtimeType == other.runtimeType
+                && ok == other.ok&& error == other.error;
         
             }
             

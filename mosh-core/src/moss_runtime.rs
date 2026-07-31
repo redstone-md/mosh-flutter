@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use flutter_rust_bridge::frb;
 use libloading::Library;
 
 const LINK_MODE: &str = "dynamic";
@@ -26,9 +27,10 @@ pub trait MossRuntime {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[frb(non_opaque)]
 pub struct MossRuntimeStatus {
-    pub link_mode: &'static str,
-    pub library_name: &'static str,
+    pub link_mode: String,
+    pub library_name: String,
     pub required_symbols: Vec<String>,
     pub available: bool,
     pub checked_paths: Vec<String>,
@@ -98,8 +100,8 @@ impl MossRuntime for MossDynamicRuntime {
         let available = self.first_available_path().is_some();
 
         MossRuntimeStatus {
-            link_mode: LINK_MODE,
-            library_name: MOSS_LIBRARY_NAME,
+            link_mode: LINK_MODE.to_string(),
+            library_name: MOSS_LIBRARY_NAME.to_string(),
             required_symbols: required_symbol_names(),
             available,
             checked_paths: self

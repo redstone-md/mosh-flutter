@@ -16,9 +16,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'frb_generated.dart';
-import 'lib.dart';
 import 'moss_runtime.dart';
 import 'network_inventory.dart';
+import 'openmls_crypto.dart';
 import 'org_runtime.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
@@ -39,39 +39,9 @@ import 'vpn_consent.dart';
                     required super.portManager,
                   });
 
-                  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_MossRuntimeStatusPtr => wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatusPtr;
+                  
 
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_PersistenceRuntimeStatusPtr => wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatusPtr;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ResultOpenMlsRoundTripStatusStringPtr => wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusStringPtr;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ResultOpenMlsSmokeStatusStringPtr => wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusStringPtr;
-
-CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatusPtr => wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatusPtr;
-
-
-
-                  @protected MossRuntimeStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(dynamic raw);
-
-@protected PersistenceRuntimeStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(dynamic raw);
-
-@protected ResultOpenMlsRoundTripStatusString dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(dynamic raw);
-
-@protected ResultOpenMlsSmokeStatusString dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(dynamic raw);
-
-@protected SecureStorageStatus dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(dynamic raw);
-
-@protected MossRuntimeStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(dynamic raw);
-
-@protected PersistenceRuntimeStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(dynamic raw);
-
-@protected ResultOpenMlsRoundTripStatusString dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(dynamic raw);
-
-@protected ResultOpenMlsSmokeStatusString dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(dynamic raw);
-
-@protected SecureStorageStatus dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(dynamic raw);
-
-@protected String dco_decode_String(dynamic raw);
+                  @protected String dco_decode_String(dynamic raw);
 
 @protected AcceptInviteRequest dco_decode_accept_invite_request(dynamic raw);
 
@@ -110,6 +80,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected MeshInfo dco_decode_box_autoadd_mesh_info(dynamic raw);
 
 @protected MessageDeliveryStatus dco_decode_box_autoadd_message_delivery_status(dynamic raw);
+
+@protected OpenMlsRoundTripStatus dco_decode_box_autoadd_open_mls_round_trip_status(dynamic raw);
+
+@protected OpenMlsSmokeStatus dco_decode_box_autoadd_open_mls_smoke_status(dynamic raw);
 
 @protected OutgoingCall dco_decode_box_autoadd_outgoing_call(dynamic raw);
 
@@ -207,9 +181,19 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 
 @protected MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw);
 
+@protected MossRuntimeStatus dco_decode_moss_runtime_status(dynamic raw);
+
 @protected NativeRuntimeStatus dco_decode_native_runtime_status(dynamic raw);
 
 @protected NetworkInterfaceInfo dco_decode_network_interface_info(dynamic raw);
+
+@protected OpenMlsRoundTripRuntimeStatus dco_decode_open_mls_round_trip_runtime_status(dynamic raw);
+
+@protected OpenMlsRoundTripStatus dco_decode_open_mls_round_trip_status(dynamic raw);
+
+@protected OpenMlsSmokeRuntimeStatus dco_decode_open_mls_smoke_runtime_status(dynamic raw);
+
+@protected OpenMlsSmokeStatus dco_decode_open_mls_smoke_status(dynamic raw);
 
 @protected String? dco_decode_opt_String(dynamic raw);
 
@@ -224,6 +208,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw);
 
 @protected MessageDeliveryStatus? dco_decode_opt_box_autoadd_message_delivery_status(dynamic raw);
+
+@protected OpenMlsRoundTripStatus? dco_decode_opt_box_autoadd_open_mls_round_trip_status(dynamic raw);
+
+@protected OpenMlsSmokeStatus? dco_decode_opt_box_autoadd_open_mls_smoke_status(dynamic raw);
 
 @protected OutgoingCall? dco_decode_opt_box_autoadd_outgoing_call(dynamic raw);
 
@@ -253,6 +241,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 
 @protected PendingCall dco_decode_pending_call(dynamic raw);
 
+@protected PersistenceRuntimeStatus dco_decode_persistence_runtime_status(dynamic raw);
+
+@protected SecureStorageStatus dco_decode_secure_storage_status(dynamic raw);
+
 @protected SendMessageResult dco_decode_send_message_result(dynamic raw);
 
 @protected SessionListSnapshot dco_decode_session_list_snapshot(dynamic raw);
@@ -280,26 +272,6 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected VpnBypassConsent dco_decode_vpn_bypass_consent(dynamic raw);
 
 @protected VpnDetection dco_decode_vpn_detection(dynamic raw);
-
-@protected MossRuntimeStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(SseDeserializer deserializer);
-
-@protected PersistenceRuntimeStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(SseDeserializer deserializer);
-
-@protected ResultOpenMlsRoundTripStatusString sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(SseDeserializer deserializer);
-
-@protected ResultOpenMlsSmokeStatusString sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(SseDeserializer deserializer);
-
-@protected SecureStorageStatus sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SseDeserializer deserializer);
-
-@protected MossRuntimeStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(SseDeserializer deserializer);
-
-@protected PersistenceRuntimeStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(SseDeserializer deserializer);
-
-@protected ResultOpenMlsRoundTripStatusString sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(SseDeserializer deserializer);
-
-@protected ResultOpenMlsSmokeStatusString sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(SseDeserializer deserializer);
-
-@protected SecureStorageStatus sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SseDeserializer deserializer);
 
 @protected String sse_decode_String(SseDeserializer deserializer);
 
@@ -340,6 +312,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected MeshInfo sse_decode_box_autoadd_mesh_info(SseDeserializer deserializer);
 
 @protected MessageDeliveryStatus sse_decode_box_autoadd_message_delivery_status(SseDeserializer deserializer);
+
+@protected OpenMlsRoundTripStatus sse_decode_box_autoadd_open_mls_round_trip_status(SseDeserializer deserializer);
+
+@protected OpenMlsSmokeStatus sse_decode_box_autoadd_open_mls_smoke_status(SseDeserializer deserializer);
 
 @protected OutgoingCall sse_decode_box_autoadd_outgoing_call(SseDeserializer deserializer);
 
@@ -437,9 +413,19 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 
 @protected MessageDeliveryStatus sse_decode_message_delivery_status(SseDeserializer deserializer);
 
+@protected MossRuntimeStatus sse_decode_moss_runtime_status(SseDeserializer deserializer);
+
 @protected NativeRuntimeStatus sse_decode_native_runtime_status(SseDeserializer deserializer);
 
 @protected NetworkInterfaceInfo sse_decode_network_interface_info(SseDeserializer deserializer);
+
+@protected OpenMlsRoundTripRuntimeStatus sse_decode_open_mls_round_trip_runtime_status(SseDeserializer deserializer);
+
+@protected OpenMlsRoundTripStatus sse_decode_open_mls_round_trip_status(SseDeserializer deserializer);
+
+@protected OpenMlsSmokeRuntimeStatus sse_decode_open_mls_smoke_runtime_status(SseDeserializer deserializer);
+
+@protected OpenMlsSmokeStatus sse_decode_open_mls_smoke_status(SseDeserializer deserializer);
 
 @protected String? sse_decode_opt_String(SseDeserializer deserializer);
 
@@ -454,6 +440,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected MeshInfo? sse_decode_opt_box_autoadd_mesh_info(SseDeserializer deserializer);
 
 @protected MessageDeliveryStatus? sse_decode_opt_box_autoadd_message_delivery_status(SseDeserializer deserializer);
+
+@protected OpenMlsRoundTripStatus? sse_decode_opt_box_autoadd_open_mls_round_trip_status(SseDeserializer deserializer);
+
+@protected OpenMlsSmokeStatus? sse_decode_opt_box_autoadd_open_mls_smoke_status(SseDeserializer deserializer);
 
 @protected OutgoingCall? sse_decode_opt_box_autoadd_outgoing_call(SseDeserializer deserializer);
 
@@ -483,6 +473,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 
 @protected PendingCall sse_decode_pending_call(SseDeserializer deserializer);
 
+@protected PersistenceRuntimeStatus sse_decode_persistence_runtime_status(SseDeserializer deserializer);
+
+@protected SecureStorageStatus sse_decode_secure_storage_status(SseDeserializer deserializer);
+
 @protected SendMessageResult sse_decode_send_message_result(SseDeserializer deserializer);
 
 @protected SessionListSnapshot sse_decode_session_list_snapshot(SseDeserializer deserializer);
@@ -510,26 +504,6 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected VpnBypassConsent sse_decode_vpn_bypass_consent(SseDeserializer deserializer);
 
 @protected VpnDetection sse_decode_vpn_detection(SseDeserializer deserializer);
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(MossRuntimeStatus self, SseSerializer serializer);
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(PersistenceRuntimeStatus self, SseSerializer serializer);
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(ResultOpenMlsRoundTripStatusString self, SseSerializer serializer);
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(ResultOpenMlsSmokeStatusString self, SseSerializer serializer);
-
-@protected void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SecureStorageStatus self, SseSerializer serializer);
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(MossRuntimeStatus self, SseSerializer serializer);
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(PersistenceRuntimeStatus self, SseSerializer serializer);
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(ResultOpenMlsRoundTripStatusString self, SseSerializer serializer);
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(ResultOpenMlsSmokeStatusString self, SseSerializer serializer);
-
-@protected void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(SecureStorageStatus self, SseSerializer serializer);
 
 @protected void sse_encode_String(String self, SseSerializer serializer);
 
@@ -570,6 +544,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected void sse_encode_box_autoadd_mesh_info(MeshInfo self, SseSerializer serializer);
 
 @protected void sse_encode_box_autoadd_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer);
+
+@protected void sse_encode_box_autoadd_open_mls_round_trip_status(OpenMlsRoundTripStatus self, SseSerializer serializer);
+
+@protected void sse_encode_box_autoadd_open_mls_smoke_status(OpenMlsSmokeStatus self, SseSerializer serializer);
 
 @protected void sse_encode_box_autoadd_outgoing_call(OutgoingCall self, SseSerializer serializer);
 
@@ -667,9 +645,19 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 
 @protected void sse_encode_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer);
 
+@protected void sse_encode_moss_runtime_status(MossRuntimeStatus self, SseSerializer serializer);
+
 @protected void sse_encode_native_runtime_status(NativeRuntimeStatus self, SseSerializer serializer);
 
 @protected void sse_encode_network_interface_info(NetworkInterfaceInfo self, SseSerializer serializer);
+
+@protected void sse_encode_open_mls_round_trip_runtime_status(OpenMlsRoundTripRuntimeStatus self, SseSerializer serializer);
+
+@protected void sse_encode_open_mls_round_trip_status(OpenMlsRoundTripStatus self, SseSerializer serializer);
+
+@protected void sse_encode_open_mls_smoke_runtime_status(OpenMlsSmokeRuntimeStatus self, SseSerializer serializer);
+
+@protected void sse_encode_open_mls_smoke_status(OpenMlsSmokeStatus self, SseSerializer serializer);
 
 @protected void sse_encode_opt_String(String? self, SseSerializer serializer);
 
@@ -684,6 +672,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected void sse_encode_opt_box_autoadd_mesh_info(MeshInfo? self, SseSerializer serializer);
 
 @protected void sse_encode_opt_box_autoadd_message_delivery_status(MessageDeliveryStatus? self, SseSerializer serializer);
+
+@protected void sse_encode_opt_box_autoadd_open_mls_round_trip_status(OpenMlsRoundTripStatus? self, SseSerializer serializer);
+
+@protected void sse_encode_opt_box_autoadd_open_mls_smoke_status(OpenMlsSmokeStatus? self, SseSerializer serializer);
 
 @protected void sse_encode_opt_box_autoadd_outgoing_call(OutgoingCall? self, SseSerializer serializer);
 
@@ -712,6 +704,10 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
 @protected void sse_encode_peer_detail(PeerDetail self, SseSerializer serializer);
 
 @protected void sse_encode_pending_call(PendingCall self, SseSerializer serializer);
+
+@protected void sse_encode_persistence_runtime_status(PersistenceRuntimeStatus self, SseSerializer serializer);
+
+@protected void sse_encode_secure_storage_status(SecureStorageStatus self, SseSerializer serializer);
 
 @protected void sse_encode_send_message_result(SendMessageResult self, SseSerializer serializer);
 
@@ -760,116 +756,6 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SecureStorageStatu
             RustLibWire(ffi.DynamicLibrary dynamicLibrary)
                 : _lookup = dynamicLibrary.lookup;
 
-            
-            void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatusPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus');
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus = _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatusPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatusPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus');
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatus = _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMossRuntimeStatusPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatusPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus');
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus = _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatusPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatusPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus');
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatus = _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPersistenceRuntimeStatusPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusStringPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString');
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString = _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusStringPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusStringPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString');
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusString = _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsRoundTripStatusStringPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusStringPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString');
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString = _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusStringPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusStringPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString');
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusString = _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerResultOpenMlsSmokeStatusStringPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatusPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus');
-            late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus = _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatusPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-            
-            void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(
-              ffi.Pointer<ffi.Void> ptr,
-            ) {
-              return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus(
-                ptr,
-              );
-            }
-
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatusPtr = _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>('frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus');
-            late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatus = _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecureStorageStatusPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
             
         }
         

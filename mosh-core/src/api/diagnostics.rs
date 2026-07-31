@@ -61,19 +61,73 @@ pub struct NativeRuntimeStatus {
     pub moss: MossRuntimeStatus,
     pub secure_storage: SecureStorageStatus,
     pub persistence: PersistenceRuntimeStatus,
-    pub openmls_smoke: Result<OpenMlsSmokeStatus, String>,
-    pub openmls_roundtrip: Result<OpenMlsRoundTripStatus, String>,
+    pub openmls_smoke: OpenMlsSmokeRuntimeStatus,
+    pub openmls_roundtrip: OpenMlsRoundTripRuntimeStatus,
+}
+
+/// Bridge-friendly view of the OpenMLS smoke-test outcome. `flutter_rust_bridge`
+/// 2.x auto-opaques `Result<T, E>` fields of non-opaque structs (the wrapper has
+/// no Dart constructor and no field accessors), so the api facade flattens the
+/// result into a plain non-opaque struct: `ok` carries the success snapshot
+/// when the test passed, `error` carries the failure message when it did not.
+/// This keeps the field constructible from pure Dart (FakeGateway, tests) and
+/// readable by the Diagnostics screen.
+#[frb(non_opaque)]
+#[derive(serde::Serialize, Clone)]
+pub struct OpenMlsSmokeRuntimeStatus {
+    pub ok: Option<OpenMlsSmokeStatus>,
+    pub error: Option<String>,
+}
+
+/// Bridge-friendly view of the OpenMLS Alice/Bob roundtrip outcome; see
+/// `OpenMlsSmokeRuntimeStatus` for why the result is flattened rather than
+/// carried as a `Result<OpenMlsRoundTripStatus, String>`.
+#[frb(non_opaque)]
+#[derive(serde::Serialize, Clone)]
+pub struct OpenMlsRoundTripRuntimeStatus {
+    pub ok: Option<OpenMlsRoundTripStatus>,
+    pub error: Option<String>,
 }
 
 /// Builds the not-available persistence status used when no host owns a running
 /// redb instance for this api call.
 fn persistence_status_without_instance() -> PersistenceRuntimeStatus {
     PersistenceRuntimeStatus {
-        backend: PERSISTENCE_BACKEND,
+        backend: PERSISTENCE_BACKEND.to_string(),
         database: "unavailable".to_string(),
         available: false,
         encrypted_at_rest: false,
         error: Some(PERSISTENCE_UNAVAILABLE.to_string()),
+    }
+}
+
+/// Runs the OpenMLS smoke test and flattens the result into the bridge-friendly
+/// `OpenMlsSmokeRuntimeStatus` (see struct doc).
+fn openmls_smoke_runtime_status() -> OpenMlsSmokeRuntimeStatus {
+    match run_openmls_smoke_test() {
+        Ok(ok) => OpenMlsSmokeRuntimeStatus {
+            ok: Some(ok),
+            error: None,
+        },
+        Err(error) => OpenMlsSmokeRuntimeStatus {
+            ok: None,
+            error: Some(error.to_string()),
+        },
+    }
+}
+
+/// Runs the OpenMLS Alice/Bob roundtrip and flattens the result into the
+/// bridge-friendly `OpenMlsRoundTripRuntimeStatus` (see struct doc).
+fn openmls_roundtrip_runtime_status() -> OpenMlsRoundTripRuntimeStatus {
+    match run_openmls_alice_bob_roundtrip() {
+        Ok(ok) => OpenMlsRoundTripRuntimeStatus {
+            ok: Some(ok),
+            error: None,
+        },
+        Err(error) => OpenMlsRoundTripRuntimeStatus {
+            ok: None,
+            error: Some(error.to_string()),
+        },
     }
 }
 
@@ -95,8 +149,8 @@ pub fn native_runtime_status() -> NativeRuntimeStatus {
         moss: MossDynamicRuntime::from_default_candidates().status(),
         secure_storage: OsSecureSecretStore::status(),
         persistence: persistence_status_without_instance(),
-        openmls_smoke: run_openmls_smoke_test().map_err(|error| error.to_string()),
-        openmls_roundtrip: run_openmls_alice_bob_roundtrip().map_err(|error| error.to_string()),
+        openmls_smoke: openmls_smoke_runtime_status(),
+        openmls_roundtrip: openmls_roundtrip_runtime_status(),
     }
 }
 
@@ -120,5 +174,24 @@ mod tests {
         assert!(!status.moss.checked_paths.is_empty());
         assert!(!status.secure_storage.backend.is_empty());
         assert!(!status.persistence.available);
+        // The OpenMLS results are flattened into bridge-friendly wrappers:
+        // exactly one of `ok`/`error` is set per runtime.
+        assert!(
+            status.openmls_smoke.ok.is_some() ^ status.openmls_smoke.error.is_some(),
+            "openmls_smoke must carry exactly one of ok/error"
+        );
+        assert!(
+            status.openmls_roundtrip.ok.is_some() ^ status.openmls_roundtrip.error.is_some(),
+            "openmls_roundtrip must carry exactly one of ok/error"
+        );
+        if let Some(ok) = &status.openmls_smoke.ok {
+            assert_eq!(ok.provider, "openmls_rust_crypto");
+            assert!(ok.protected_message_created);
+        }
+        if let Some(ok) = &status.openmls_roundtrip.ok {
+            assert_eq!(ok.provider, "openmls_rust_crypto");
+            assert!(ok.welcome_joined);
+            assert!(ok.plaintext_roundtrip);
+        }
     }
 }

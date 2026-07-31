@@ -30,4 +30,27 @@ void main() {
     final remaining = await gateway.listSessions();
     expect(remaining.sessions.map((s) => s.sessionId), isNot(contains(invite.sessionId)));
   });
+
+  // FU-1: NativeRuntimeStatus is now constructible in pure Dart (the five
+  // sub-structs are non-opaque across flutter_rust_bridge), so FakeGateway
+  // returns a real snapshot instead of throwing UnsupportedError.
+  test('FakeGateway nativeRuntimeStatus returns real readable fields',
+      () async {
+    final gateway = FakeGateway();
+    final status = await gateway.nativeRuntimeStatus();
+
+    expect(status.moss.linkMode, 'dynamic');
+    expect(status.moss.available, isTrue);
+    expect(status.secureStorage.backend, 'os-keychain');
+    expect(status.secureStorage.available, isTrue);
+    expect(status.persistence.available, isFalse);
+    // OpenMLS smoke + roundtrip report success (ok set, error null).
+    expect(status.openmlsSmoke.error, isNull);
+    expect(status.openmlsSmoke.ok, isNotNull);
+    expect(status.openmlsSmoke.ok!.protectedMessageCreated, isTrue);
+    expect(status.openmlsRoundtrip.error, isNull);
+    expect(status.openmlsRoundtrip.ok, isNotNull);
+    expect(status.openmlsRoundtrip.ok!.welcomeJoined, isTrue);
+    expect(status.openmlsRoundtrip.ok!.plaintextRoundtrip, isTrue);
+  });
 }

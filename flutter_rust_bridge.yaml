@@ -3,8 +3,11 @@ dart_output: lib/src/rust
 rust_input: crate::api
 rust_preamble: |
   // frb 2.12 drops the `crate::api::diagnostics` glob import once a struct in
-  // that module becomes non-opaque, but the generated Rust still references
-  // `OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus` unqualified (the inner
-  // `Result<T, String>` of `NativeRuntimeStatus` stays auto-opaque and the
-  // inner type lives outside `rust_input`). Bring them back into scope here.
+  // that module becomes non-opaque. The generated Rust references the
+  // OpenMLS status types (`OpenMlsRoundTripStatus` / `OpenMlsSmokeStatus`,
+  // which live outside `rust_input: crate::api`, in `crate::openmls_crypto`)
+  // via the non-opaque `OpenMls*RuntimeStatus` wrappers on `NativeRuntimeStatus`.
+  // frb 2.12 emits fully-qualified `crate::openmls_crypto::...` paths for those,
+  // so this `use` is currently redundant; it is retained so a future regen that
+  // drops to unqualified references still compiles without re-editing the config.
   use crate::api::diagnostics::{OpenMlsRoundTripStatus, OpenMlsSmokeStatus};

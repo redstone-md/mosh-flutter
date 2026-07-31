@@ -1,3 +1,4 @@
+use flutter_rust_bridge::frb;
 use std::path::Path;
 
 use aes_gcm::aead::{Aead, KeyInit};
@@ -14,8 +15,9 @@ const NONCE_LEN: usize = 12;
 /// the previous Tauri shell carried (backend id, database path, availability,
 /// at-rest encryption flag, and an optional error string).
 #[derive(serde::Serialize, Clone)]
+#[frb(non_opaque)]
 pub struct PersistenceRuntimeStatus {
-    pub backend: &'static str,
+    pub backend: String,
     pub database: String,
     pub available: bool,
     pub encrypted_at_rest: bool,

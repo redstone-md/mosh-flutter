@@ -10,6 +10,10 @@ import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/moss_runtime.dart';
+import 'package:mosh/src/rust/openmls_crypto.dart';
+import 'package:mosh/src/rust/persistence.dart';
+import 'package:mosh/src/rust/secure_storage.dart';
 
 /// Slice-one fake runtime: canned diagnostics + an in-memory session map.
 ///
@@ -27,17 +31,62 @@ class FakeGateway implements Gateway {
         mossLinkMode: 'dynamic',
       ));
 
-  // NativeRuntimeStatus fields (moss, secureStorage, persistence,
-  // openmlsSmoke, openmlsRoundtrip) are all opaque RustAutoOpaque types with no
-  // pure-Dart constructor and are non-nullable, so the fake cannot synthesize
-  // a valid instance. Report the blocker at runtime instead of crashing; the
-  // real surface lands in S5 (RealBridgeGateway).
+  // Now that the five NativeRuntimeStatus sub-structs are non-opaque across
+  // flutter_rust_bridge, the generated Dart classes have real field
+  // constructors, so the fake can synthesize a plausible runtime snapshot
+  // without the Rust runtime. Values mirror the real `native_runtime_status()`
+  // shape: moss dynamically available, secure storage on the OS keychain,
+  // persistence not running in this fake, OpenMLS smoke + roundtrip succeeding.
   @override
-  Future<NativeRuntimeStatus> nativeRuntimeStatus() => Future.error(
-        UnsupportedError(
-          'FakeGateway.nativeRuntimeStatus: cannot construct opaque '
-          'NativeRuntimeStatus fields in pure Dart; real runtime wiring lands '
-          'in S5 (RealBridgeGateway).',
+  Future<NativeRuntimeStatus> nativeRuntimeStatus() => Future.value(
+        NativeRuntimeStatus(
+          moss: MossRuntimeStatus(
+            linkMode: 'dynamic',
+            libraryName: 'moss.dll',
+            requiredSymbols: const [
+              'Moss_Init',
+              'Moss_Start',
+              'Moss_Stop',
+              'Moss_Subscribe',
+              'Moss_Publish',
+              'Moss_SetCallback',
+              'Moss_SetKeyStore',
+              'Moss_Free',
+            ],
+            available: true,
+            checkedPaths: const ['moss.dll', 'moss-runtime/moss.dll'],
+          ),
+          secureStorage: SecureStorageStatus(
+            backend: 'os-keychain',
+            service: 'app.mosh.desktop',
+            available: true,
+          ),
+          persistence: PersistenceRuntimeStatus(
+            backend: 'redb+aes-256-gcm+os-keychain',
+            database: 'unavailable',
+            available: false,
+            encryptedAtRest: false,
+            error: 'no persistence instance running in this fake',
+          ),
+          openmlsSmoke: OpenMlsSmokeRuntimeStatus(
+            ok: OpenMlsSmokeStatus(
+              provider: 'openmls_rust_crypto',
+              ciphersuite:
+                  'MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519',
+              protectedMessageCreated: true,
+            ),
+            error: null,
+          ),
+          openmlsRoundtrip: OpenMlsRoundTripRuntimeStatus(
+            ok: OpenMlsRoundTripStatus(
+              provider: 'openmls_rust_crypto',
+              ciphersuite:
+                  'MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519',
+              welcomeJoined: true,
+              plaintextRoundtrip: true,
+            ),
+            error: null,
+          ),
         ),
       );
 
