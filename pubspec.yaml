@@ -18,6 +18,8 @@ dependencies:
   intl: any
   mosh_core:
     path: rust_builder
+  app_links: ^7.2.1
+  win32_registry: ^3.0.3
 
 dev_dependencies:
   flutter_test:
