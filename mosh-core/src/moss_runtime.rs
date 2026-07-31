@@ -116,6 +116,12 @@ impl MossRuntime for MossDynamicRuntime {
 fn default_candidate_paths() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
+    // Android: dlopen a bare name — the loader resolves it against the app's
+    // nativeLibraryDir, where AGP unpacks jniLibs/arm64-v8a/libmoss.so. Push
+    // it first so a packaged build does not accidentally probe desktop paths.
+    #[cfg(target_os = "android")]
+    candidates.push(android_candidate());
+
     if let Ok(current_dir) = std::env::current_dir() {
         candidates.push(current_dir.join(MOSS_LIBRARY_NAME));
         candidates.push(current_dir.join("moss-runtime").join(MOSS_LIBRARY_NAME));
@@ -161,6 +167,23 @@ fn default_candidate_paths() -> Vec<PathBuf> {
     candidates
 }
 
+// The android dlopen candidate: the bare library name, which android's loader
+// resolves against the app's nativeLibraryDir. Off-android this returns a
+// distinct sentinel so the cross-platform test can assert the android candidate
+// never leaks into the desktop candidate list.
+#[cfg(target_os = "android")]
+fn android_candidate() -> PathBuf {
+    PathBuf::from(MOSS_LIBRARY_NAME)
+}
+
+#[cfg(not(target_os = "android"))]
+// Dead in the non-test lib build (only the android arm runs there); the test
+// module exercises it. allow, not expect, since usage flips with --tests.
+#[allow(dead_code)]
+fn android_candidate() -> PathBuf {
+    PathBuf::from("__no_android_candidate__")
+}
+
 fn verify_required_symbols(library: &Library) -> Result<(), MossRuntimeError> {
     for symbol in REQUIRED_SYMBOLS {
         unsafe { library.get::<unsafe extern "C" fn()>(symbol) }
@@ -196,5 +219,21 @@ mod tests {
         assert_eq!(status.library_name, MOSS_LIBRARY_NAME);
         assert!(status.required_symbols.contains(&"Moss_Init".to_string()));
         assert!(!status.checked_paths.is_empty());
+    }
+
+    // Runs on every target. On android, the bare-name candidate is present;
+    // off android it must be absent so desktop hosts never probe a path the
+    // android loader would have resolved.
+    #[test]
+    fn android_candidate_only_on_android() {
+        let candidates = default_candidate_paths();
+
+        if cfg!(target_os = "android") {
+            assert!(candidates.contains(&android_candidate()));
+            assert_eq!(android_candidate(), PathBuf::from(MOSS_LIBRARY_NAME));
+        } else {
+            assert!(!candidates.contains(&PathBuf::from(MOSS_LIBRARY_NAME)));
+            assert!(!candidates.contains(&android_candidate()));
+        }
     }
 }
