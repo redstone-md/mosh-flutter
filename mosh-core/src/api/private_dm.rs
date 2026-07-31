@@ -39,9 +39,12 @@
 //! api facade owns no app handle, so the DB path mirrors the AttachmentStore
 //! fallback exactly: a `mosh` dir under `std::env::temp_dir()`, file
 //! `history.redb`. A real `app_data_dir` arrives via the ADR 0010 bridge
-//! contract in a later slice; the temp fallback is correct for now because
-//! it keeps both stores co-located and survives within a single install
-//! session. Persistence opens fail-closed (`PersistenceError` ->
+//! (M-5: `set_app_data_dir`, called by Dart at startup on every platform
+//! via `getApplicationSupportDirectory`). When injected, both the history
+//! DB and the AttachmentStore live under that app-private dir instead of
+//! temp; the temp fallback remains for tests and any caller that does not
+//! inject (e.g. a host without the path_provider plugin). Persistence
+//! opens fail-closed (`PersistenceError` ->
 //! `PrivateDmRuntimeError::Persistence`): a desktop app that silently drops
 //! every conversation on restart is worse than a surfaced error.
 //!
@@ -57,6 +60,7 @@
 //! identity + a history blob survive a drop-and-reopen -- cleaning its DEK
 //! out of the keychain in teardown so the host keychain is not polluted.
 
+use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use crate::attachment_store::AttachmentStore;
@@ -108,6 +112,25 @@ static LOAD_ERROR: OnceLock<String> = OnceLock::new();
 /// construction site that swaps the at-rest backend.
 static INJECTED_DEK: OnceLock<[u8; 32]> = OnceLock::new();
 
+/// The app-private data directory bridged from the platform channel (ADR
+/// 0010, M-5). Dart resolves it ONCE at startup via
+/// `getApplicationSupportDirectory()` (iOS NSApplicationSupportDirectory,
+/// Android files dir, Windows %APPDATA%, macOS ~/Library/Application
+/// Support, Linux ~/.local/share) and hands it to Rust through
+/// `set_app_data_dir` BEFORE the private-DM runtime constructs. When set,
+/// `construct_runtime` opens `history.redb` and the AttachmentStore under
+/// `<app_data_dir>/mosh` instead of `std::env::temp_dir().join("mosh")` --
+/// production-correct on a device, where temp is cleared by the OS.
+///
+/// Desktop ALSO injects (path_provider works on Windows/macOS/Linux), so
+/// desktop now gets a real app-support dir too -- strictly better than
+/// temp. Tests that don't inject (the existing 218) keep the temp arm, so
+/// they stay green and keep their `unique_test_dir`-based isolation. The
+/// dir is read ONCE at construction time, so a process-global `OnceLock`
+/// matches the "set once, read at construct" lifetime exactly -- mirrors
+/// `INJECTED_DEK`.
+static APP_DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
+
 /// Lazily construct the singleton on first call, then lock it.
 ///
 /// On the first call: load Moss, build the attachment store, construct the
@@ -143,6 +166,21 @@ fn build_runtime() -> Option<PrivateDmRuntime> {
     }
 }
 
+/// Resolve the data dir `construct_runtime` opens the DB + AttachmentStore
+/// under. Pure helper extracted so the path-selection logic is unit-testable
+/// without touching the process-global `APP_DATA_DIR` `OnceLock` (which, once
+/// set, stays set for the whole binary and would contaminate other tests).
+/// When the bridge has injected an app_data_dir (ADR 0010, M-5), open under
+/// `<app_data_dir>/mosh`; otherwise fall back to the temp-dir `mosh` dir the
+/// Tauri shell used -- the unchanged arm tests and any caller without a
+/// bridged dir rely on.
+fn resolve_data_dir(app_data_dir: Option<&std::path::Path>) -> std::path::PathBuf {
+    match app_data_dir {
+        Some(dir) => dir.join("mosh"),
+        None => std::env::temp_dir().join("mosh"),
+    }
+}
+
 /// The construction recipe -- the api-facade analogue of the Tauri shell's
 /// `PrivateDmState::ready`. Opens the encrypted at-rest store, wires the
 /// Moss transport-identity keystore, then builds the runtime so conversations
@@ -164,17 +202,19 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     // runs -- the shared node is initialized lazily on the first session, so
     // installing here (right after load) is before every node start.
     //
-    // Path: mirrors the AttachmentStore fallback exactly -- a `mosh` dir
-    // under temp. The api facade owns no app handle (the bridge does not pass
-    // one in this slice), so temp is the same fallback the Tauri shell used
-    // when `app_data_dir` was unavailable; ADR 0010's bridge contract can
-    // route a real app_data_dir here in a later slice. Fail closed:
-    // `Persistence::open` refuses to mint a fresh DEK when a DB already
-    // exists (it would orphan all persisted history), and a keychain failure
-    // is surfaced as `PrivateDmRuntimeError::Persistence` rather than
-    // silently degrading to ephemeral -- a desktop app that silently drops
-    // every conversation on restart is worse than a visible error.
-    let data_dir = std::env::temp_dir().join("mosh");
+    // Path (ADR 0010, M-5): when Dart has bridged a real app_data_dir via
+    // `set_app_data_dir`, open under `<app_data_dir>/mosh` -- app-private,
+    // not OS-cleared, so the encrypted history DB + attachments survive
+    // restart on a device. Otherwise fall back to the temp-dir `mosh` dir
+    // the Tauri shell used; this keeps tests that don't inject (the
+    // existing 218) and any caller without a bridged dir working unchanged.
+    // Fail closed: `Persistence::open` refuses to mint a fresh DEK when a
+    // DB already exists (it would orphan all persisted history), and a
+    // keychain failure is surfaced as `PrivateDmRuntimeError::Persistence`
+    // rather than silently degrading to ephemeral -- a desktop app that
+    // silently drops every conversation on restart is worse than a visible
+    // error.
+    let data_dir = resolve_data_dir(APP_DATA_DIR.get().map(std::path::PathBuf::as_path));
     std::fs::create_dir_all(&data_dir)
         .map_err(|error| PrivateDmRuntimeError::Persistence(format!("mkdir data dir: {error}")))?;
     let db_path = data_dir.join("history.redb");
@@ -249,6 +289,31 @@ pub fn set_history_dek(dek: Vec<u8>) -> Result<(), String> {
     })
 }
 
+/// Inject the app-private data directory from the platform channel (ADR
+/// 0010, M-5). Dart calls this ONCE at startup on EVERY platform (Android,
+/// iOS, Windows, macOS, Linux) BEFORE the first private-DM runtime
+/// construct, after resolving the dir via `getApplicationSupportDirectory()`.
+/// `construct_runtime` then opens `history.redb` + the AttachmentStore under
+/// `<app_data_dir>/mosh` instead of `std::env::temp_dir().join("mosh")`, so
+/// the encrypted history DB + attachments survive OS temp clearing on a
+/// device and live in the platform's app-private support dir on desktop.
+///
+/// Idempotent-once: the first call wins; a second call returns `Err` (the
+/// dir cannot be moved after the DB is already open under it -- a different
+/// dir would point at a different DB and orphan all persisted history).
+/// Returns `Err` for an empty path. Mirrors `set_history_dek`'s shape so the
+/// bridge surface for the two mobile-inject knobs is symmetric. The
+/// frb-exposed surface is THIS fn only; `construct_runtime` reads the
+/// `OnceLock` directly.
+pub fn set_app_data_dir(path: String) -> Result<(), String> {
+    if path.trim().is_empty() {
+        return Err("set_app_data_dir: path must be a non-empty directory".to_string());
+    }
+    APP_DATA_DIR.set(PathBuf::from(path)).map_err(|_| {
+        "set_app_data_dir: app_data_dir already set; re-setting is not allowed".to_string()
+    })
+}
+
 /// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
 /// Tauri command). The inviter publishes a KeyPackage and an invite URI.
 pub fn create_invite(request: StartSessionRequest) -> Result<InviteCreated, String> {
@@ -308,6 +373,7 @@ pub fn close_session(session_id: String) -> Result<CloseSessionResult, String> {
 
 #[cfg(test)]
 mod tests {
+    use super::resolve_data_dir;
     use crate::moss_ffi::{
         clear_moss_keystore, set_moss_keystore, MossFfiRuntime, MossNodeConfig, MOSS_TEST_LOCK,
     };
@@ -452,6 +518,77 @@ mod tests {
         let _ = moss2.uninstall_keystore();
         clear_moss_keystore();
         let _ = OsSecureSecretStore.delete_secret(DEK_KEY);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // M-5 (ADR 0010): unit tests for the app_data_dir bridge. The
+    // path-selection logic is exercised through the pure `resolve_data_dir`
+    // helper (no process-global mutation), so it stays fully isolated. The
+    // `set_app_data_dir` validation tests touch the real `APP_DATA_DIR`
+    // `OnceLock`: the empty-reject test returns Err BEFORE the cell is touched
+    // (the `trim().is_empty()` guard is first), so it never mutates state; the
+    // double-set test DOES set the cell on its first call, but the cell is
+    // inert in the test binary -- no test here exercises `construct_runtime`
+    // (the only reader of `APP_DATA_DIR`), and production never runs in a test
+    // binary -- so leaving it set cannot contaminate the other 218 tests. The
+    // dir it sets to is a unique temp subdir so even a hypothetical future
+    // reader would point at an isolated, real path.
+
+    #[test]
+    fn resolve_data_dir_uses_injected_app_data_dir() {
+        let injected = unique_test_dir("app_data_dir");
+        let resolved = resolve_data_dir(Some(&injected));
+        assert_eq!(
+            resolved,
+            injected.join("mosh"),
+            "resolve_data_dir must open under <app_data_dir>/mosh when injected"
+        );
+        let _ = std::fs::remove_dir_all(&injected);
+    }
+
+    #[test]
+    fn resolve_data_dir_falls_back_to_temp_when_not_injected() {
+        let resolved = resolve_data_dir(None);
+        assert_eq!(
+            resolved,
+            std::env::temp_dir().join("mosh"),
+            "resolve_data_dir must fall back to temp/mosh when no dir is injected"
+        );
+    }
+
+    #[test]
+    fn set_app_data_dir_rejects_empty_path() {
+        // Empty (and whitespace-only) paths must be rejected BEFORE the cell
+        // is touched, so this test never mutates the process global and stays
+        // isolated from the other tests.
+        assert!(
+            super::set_app_data_dir(String::new()).is_err(),
+            "set_app_data_dir must reject an empty path"
+        );
+        assert!(
+            super::set_app_data_dir("   ".to_string()).is_err(),
+            "set_app_data_dir must reject a whitespace-only path"
+        );
+    }
+
+    #[test]
+    fn set_app_data_dir_rejects_second_call() {
+        // Idempotent-once: the first call wins; the second returns Err. This
+        // test sets the process-global cell (OnceLock is irreversible), but
+        // the cell is inert in the test binary -- no test exercises
+        // `construct_runtime` (its only reader) -- so leaving it set cannot
+        // contaminate the other 218 tests. The dir is a unique temp subdir so
+        // a hypothetical future reader would point at an isolated, real path.
+        let dir = unique_test_dir("app_data_dir_set");
+        std::fs::create_dir_all(&dir).expect("test dir should create");
+        assert!(
+            super::set_app_data_dir(dir.to_string_lossy().to_string()).is_ok(),
+            "first set_app_data_dir call must succeed"
+        );
+        assert!(
+            super::set_app_data_dir(dir.to_string_lossy().to_string()).is_err(),
+            "second set_app_data_dir call must be rejected (idempotent-once)"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

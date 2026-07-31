@@ -21,6 +21,12 @@ dependencies:
   app_links: ^7.2.1
   win32_registry: ^3.0.3
   flutter_secure_storage: ^10.3.1
+  # M-5 (ADR 0010): direct dep so Dart can resolve the platform's
+  # app-private support directory (getApplicationSupportDirectory) and
+  # bridge it to Rust via set_app_data_dir before construct_runtime runs.
+  # Already a transitive dep via flutter_secure_storage; pinning the
+  # resolved lock version (2.1.6) keeps the lock untouched on `pub get`.
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
