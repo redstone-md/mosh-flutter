@@ -27,11 +27,13 @@
 // `INJECTED_DEK` OnceLock stays `None` and `construct_runtime` falls back to
 // the desktop `Persistence::open` (OsSecureSecretStore) path, unchanged.
 //
-// TODO(ADR 0010): the DB-exists check currently mirrors Rust's temp-dir
-// fallback (`std::env::temp_dir().join("mosh").join("history.redb")`). When
-// the ADR 0010 bridge routes a real `app_data_dir` to both sides, replace
-// `_historyRedbPath()` with the bridged app_data_dir so Dart and Rust agree
-// on the exact DB location before the first construct.
+// M-5 (ADR 0010 RESOLVED): the DB-exists check now uses the bridged
+// app_data_dir from `app_data_dir.appDataDir()` (Dart resolves it via
+// `getApplicationSupportDirectory()` at startup and hands it to Rust via
+// `setAppDataDir`), so `_historyRedbPath()` and Rust's `construct_runtime`
+// agree on `<app_data_dir>/mosh/history.redb` before the first construct.
+// If the bridge has not run yet, `_historyRedbPath()` falls back to the
+// pre-M-5 temp path with a warning so a misordered caller stays correct.
 
 import 'dart:convert' show base64Decode, base64Encode;
 import 'dart:io' show Directory, File, Platform;
@@ -39,7 +41,9 @@ import 'dart:math' show Random;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:mosh/src/rust/api/private_dm.dart' as api show setHistoryDek;
+import 'package:mosh/src/platform/app_data_dir.dart' show appDataDir;
 
 /// The Keystore key the DEK is stored under. Mirrors the Rust constant
 /// `persistence::DEK_KEY` (`"history-dek-v1"`) so both sides address the same
@@ -61,6 +65,7 @@ const int _dekLength = 32;
 enum MobileDekResolution {
   /// An existing DEK was read from the Keystore and injected.
   loaded,
+
   /// No DEK was stored and no DB existed, so a fresh DEK was minted, written
   /// to the Keystore, and injected.
   minted,
@@ -169,18 +174,34 @@ List<int> _secureMint32() {
   return List<int>.generate(_dekLength, (_) => rng.nextInt(256));
 }
 
-/// The path `construct_runtime` opens today. Mirrors the Rust fallback
-/// `std::env::temp_dir().join("mosh").join("history.redb")` so Dart's
-/// DB-exists check and Rust's open agree on the exact file. Replaced by the
-/// ADR 0010 bridged app_data_dir later (see module TODO).
+/// The path `construct_runtime` opens. M-5 (ADR 0010): uses the bridged
+/// app_data_dir from `app_data_dir.appDataDir()` (which Dart resolves via
+/// `getApplicationSupportDirectory()` at startup and hands to Rust via
+/// `setAppDataDir`) so Dart's DB-exists check and Rust's open agree on the
+/// exact file. Falls back to `temp/mosh/history.redb` (the pre-M-5 path) with
+/// a warning if the bridge has not run yet -- should not happen given
+/// `main()` calls `setAppDataDirBridge()` before `initMobileDek()`, but the
+/// guard keeps a misordered caller correct rather than crashing.
 File _historyRedbPath() {
-  // Directory.systemTemp is Dart's equivalent of Rust's std::env::temp_dir().
-  // `Directory.createSync` returns void, so build the `mosh` subdir path
-  // explicitly, create it (idempotent via recursive), then return the
-  // `history.redb` File under it -- the same path Rust's
-  // `std::env::temp_dir().join("mosh").join("history.redb")` opens.
-  final Directory moshDir =
-      Directory('${Directory.systemTemp.path}${Platform.pathSeparator}mosh');
+  final String? injected = appDataDir();
+  final Directory moshDir;
+  if (injected != null && injected.isNotEmpty) {
+    // Bridged app_data_dir: `<app_data_dir>/mosh/history.redb`, the SAME path
+    // Rust opens via `resolve_data_dir(Some(<app_data_dir>))`. `mosh` is the
+    // subdir both sides append so the DB + attachments stay co-located.
+    moshDir = Directory('$injected${Platform.pathSeparator}mosh');
+  } else {
+    // Bridge not yet run -- fall back to the pre-M-5 temp path. This is a
+    // divergence from Rust (which would also keep temp in this case, so the
+    // two still agree), but log it loudly so the misorder is visible.
+    debugPrint(
+      'mosh: app_data_dir not yet bridged; falling back to temp/mosh for '
+      '_historyRedbPath. setAppDataDirBridge() should run before '
+      'initMobileDek() in main().',
+    );
+    moshDir =
+        Directory('${Directory.systemTemp.path}${Platform.pathSeparator}mosh');
+  }
   moshDir.createSync(recursive: true);
   return File('${moshDir.path}${Platform.pathSeparator}history.redb');
 }

@@ -10,7 +10,7 @@ import '../private_dm_runtime/contracts.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 
-            // These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
+            // These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`, `resolve_data_dir`
 
 
             /// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
@@ -30,6 +30,24 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// mobile injection is THIS fn only; `Persistence::open_with_dek` is public
 /// but internal and not bridged.
 Future<void>  setHistoryDek({required List<int> dek }) => RustLib.instance.api.crateApiPrivateDmSetHistoryDek(dek: dek);
+
+/// Inject the app-private data directory from the platform channel (ADR
+/// 0010, M-5). Dart calls this ONCE at startup on EVERY platform (Android,
+/// iOS, Windows, macOS, Linux) BEFORE the first private-DM runtime
+/// construct, after resolving the dir via `getApplicationSupportDirectory()`.
+/// `construct_runtime` then opens `history.redb` + the AttachmentStore under
+/// `<app_data_dir>/mosh` instead of `std::env::temp_dir().join("mosh")`, so
+/// the encrypted history DB + attachments survive OS temp clearing on a
+/// device and live in the platform's app-private support dir on desktop.
+///
+/// Idempotent-once: the first call wins; a second call returns `Err` (the
+/// dir cannot be moved after the DB is already open under it -- a different
+/// dir would point at a different DB and orphan all persisted history).
+/// Returns `Err` for an empty path. Mirrors `set_history_dek`'s shape so the
+/// bridge surface for the two mobile-inject knobs is symmetric. The
+/// frb-exposed surface is THIS fn only; `construct_runtime` reads the
+/// `OnceLock` directly.
+Future<void>  setAppDataDir({required String path }) => RustLib.instance.api.crateApiPrivateDmSetAppDataDir(path: path);
 
 /// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
 /// Tauri command). The inviter publishes a KeyPackage and an invite URI.

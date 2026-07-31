@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 import 'package:mosh/src/deeplink/mosh_url_scheme_windows.dart';
+import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
@@ -28,16 +29,28 @@ void main() async {
   if (Platform.isWindows) {
     registerMoshUrlScheme();
   }
+  // M-5 (ADR 0010): resolve the platform's app-private data directory ONCE
+  // via `getApplicationSupportDirectory()` (path_provider) and hand it to
+  // Rust via the frb `setAppDataDir` bridge call BEFORE the private-DM
+  // runtime constructs (the runtime constructs lazily on the first api call
+  // and reads the dir to open `history.redb` + the AttachmentStore). Runs on
+  // ALL platforms -- path_provider works on Android/iOS/Windows/macOS/Linux,
+  // and desktop getting a real app-support dir is strictly better than the
+  // pre-M-5 temp fallback. The bridge ALSO caches the path in
+  // `app_data_dir.appDataDir()` so `mobile_dek._historyRedbPath()` reuses the
+  // SAME dir -- no divergence between Dart's DB-exists check and Rust's open.
+  // Must run BEFORE `initMobileDek()` (which reads the dir) and before the
+  // first private-DM runtime construct. Idempotent-once on the Rust side, so
+  // this is the single caller per process.
+  await setAppDataDirBridge();
   // M-3 (ADR 0011): on Android, load/mint the at-rest history DEK from the
   // Android Keystore via `flutter_secure_storage` and inject the 32 raw bytes
-  // into Rust via the new frb `set_history_dek` BEFORE the private-DM runtime
-  // constructs (the runtime constructs lazily on the first api call). Rust's
-  // `construct_runtime` then opens the DB with `Persistence::open_with_dek`
-  // instead of the OS keychain, so the live runtime uses the Keystore DEK on
-  // a device. Desktop/iOS keep the Rust desktop keychain path: initMobileDek
-  // is a no-op off-Android, so startup is never blocked on desktop. The DB
-  // path currently mirrors Rust's temp-dir fallback; TODO(ADR 0010) route a
-  // real app_data_dir through the bridge so both sides agree on the path.
+  // into Rust via the frb `set_history_dek` BEFORE the private-DM runtime
+  // constructs. Rust's `construct_runtime` then opens the DB (now under the
+  // M-5 bridged app_data_dir) with `Persistence::open_with_dek` instead of
+  // the OS keychain, so the live runtime uses the Keystore DEK on a device.
+  // Desktop/iOS keep the Rust desktop keychain path: initMobileDek is a
+  // no-op off-Android, so startup is never blocked on desktop.
   if (Platform.isAndroid) {
     await initMobileDek();
   }
@@ -64,7 +77,8 @@ class MoshApp extends ConsumerWidget {
       locale: ref.watch(localeProvider),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
+      theme:
+          ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
       // S2-1: route shell. Home is OnboardingScreen; tiles reach invite-paste,
       // diagnostics, and dm (via path param). The static diagnostics smoke
       // screen (MoshHome + its FutureBuilder) is gone; the bridge smoke proof

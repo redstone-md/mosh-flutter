@@ -85,7 +85,7 @@ import 'vpn_consent.dart';
                   String get codegenVersion => '2.12.0';
 
                   @override
-                  int get rustContentHash => 159793336;
+                  int get rustContentHash => -1394613021;
 
                   static const kDefaultExternalLibraryLoaderConfig = ExternalLibraryLoaderConfig(
                     stem: 'mosh_core',
@@ -188,6 +188,8 @@ Future<InviteCreated> crateApiOrgSendDmOffer({required String orgPubkey , requir
 Future<void> crateApiPrivateGroupSendDmOffer({required String groupId , required String targetFingerprint , required String inviteUri });
 
 Future<SendMessageResult> crateApiPrivateDmSendMessage({required String sessionId , required String body });
+
+Future<void> crateApiPrivateDmSetAppDataDir({required String path });
 
 Future<void> crateApiPrivateDmSetHistoryDek({required List<int> dek });
 
@@ -1401,11 +1403,36 @@ sse_encode_String(body, serializer);
         );
         
 
+@override Future<void> crateApiPrivateDmSetAppDataDir({required String path })  { return handler.executeNormal(NormalTask(
+            callFfi: (port_) {
+              
+            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(path, serializer);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47, port: port_);
+            
+            },
+            codec: 
+        SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        )
+        ,
+            constMeta: kCrateApiPrivateDmSetAppDataDirConstMeta,
+            argValues: [path],
+            apiImpl: this,
+        )); }
+
+
+        TaskConstMeta get kCrateApiPrivateDmSetAppDataDirConstMeta => const TaskConstMeta(
+            debugName: "set_app_data_dir",
+            argNames: ["path"],
+        );
+        
+
 @override Future<void> crateApiPrivateDmSetHistoryDek({required List<int> dek })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_list_prim_u_8_loose(dek, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48, port: port_);
             
             },
             codec: 
@@ -1430,7 +1457,7 @@ sse_encode_String(body, serializer);
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_opt_String(interface_, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49, port: port_);
             
             },
             codec: 
