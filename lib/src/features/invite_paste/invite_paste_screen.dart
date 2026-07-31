@@ -26,15 +26,27 @@ import 'package:mosh/src/state/session_providers.dart';
 /// gateway.acceptInvite with the trimmed URI plus the cross-screen form
 /// fields from [inviteFlowProvider]. For slice-one the accepted session id
 /// is shown inline; full navigation to the DM screen is S4.7's wiring.
+///
+/// S2-3: an optional [initialInviteUri] seeds the field on first build so a
+/// `mosh://` deep link that landed on /join arrives pre-pasted (and live
+/// detection runs on it immediately). Null by default, so the existing
+/// no-arg widget test and in-app navigation (which construct
+/// `InvitePasteScreen()`) keep working unchanged. The /join route builder
+/// reads `state.extra` (the raw URI string) and passes it here.
 class InvitePasteScreen extends ConsumerStatefulWidget {
-  const InvitePasteScreen({super.key});
+  const InvitePasteScreen({super.key, this.initialInviteUri});
+
+  /// Optional URI string to pre-fill into the invite field. The S2-3
+  /// deep-link intake passes the incoming `mosh://` URI here via the /join
+  /// route's `extra`. Null for in-app navigation (manual paste).
+  final String? initialInviteUri;
 
   @override
   ConsumerState<InvitePasteScreen> createState() => _InvitePasteScreenState();
 }
 
 class _InvitePasteScreenState extends ConsumerState<InvitePasteScreen> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller;
   InviteDetection _detection =
       const InviteDetection(kind: InviteDetectionKind.empty);
   bool _busy = false;
@@ -44,6 +56,13 @@ class _InvitePasteScreenState extends ConsumerState<InvitePasteScreen> {
   @override
   void initState() {
     super.initState();
+    // Seed from the deep-link pre-fill (if any). Setting the controller's
+    // initial value in its constructor does NOT notify listeners, so we also
+    // seed `_detection` directly here; the badge then matches the seeded
+    // text on first paint without waiting for a keystroke. _onChanged keeps
+    // it in sync for every subsequent edit.
+    _controller = TextEditingController(text: widget.initialInviteUri);
+    _detection = detectInvite(widget.initialInviteUri ?? '');
     _controller.addListener(_onChanged);
   }
 

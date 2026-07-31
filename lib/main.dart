@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 import 'package:mosh/src/deeplink/mosh_url_scheme_windows.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
@@ -23,12 +24,19 @@ void main() async {
   // registry failure (logged via debugPrint), so startup is never blocked.
   // Idempotent under HKCU (no admin elevation). Under `flutter test` the
   // Platform.isWindows gate skips it, keeping tests green.
-  // TODO(S2-3): wire the incoming `mosh://` URI to a route via app_links'
-  //   `uriLinkStream`; app_links is already a pubspec dependency but is
-  //   intentionally not imported here yet (avoids an unused-import lint).
   if (Platform.isWindows) {
     registerMoshUrlScheme();
   }
+  // S2-3: subscribe to the `mosh://` link stream BEFORE runApp so the
+  // cold-start initial link is captured (app_links delivers it shortly
+  // after the first frame; the intake replays it once the GoRouter is
+  // mounted). Single scheme (ADR 0015): non-`mosh` URIs are ignored. The
+  // intake navigates appRouter to /join with the URI as `extra`, which the
+  // /join route builder forwards to InvitePasteScreen.initialInviteUri.
+  // Platform-agnostic subscription: app_links is a no-op platform interface
+  // on hosts without a registered implementation (e.g. the `flutter test`
+  // host), so this stays green in tests. The handle lives for the process.
+  startMoshDeepLinkIntake();
   runApp(const ProviderScope(child: MoshApp()));
 }
 

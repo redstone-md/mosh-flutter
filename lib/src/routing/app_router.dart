@@ -51,8 +51,15 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.join,
-      builder: (BuildContext context, GoRouterState state) =>
-          const InvitePasteScreen(),
+      // S2-3: pass the deep-link URI through. The intake calls
+      // appRouter.go(AppRoutes.join, extra: <uri string>); `extra` is an
+      // untyped Object, so we narrow it to String? here. In-app navigation
+      // (no extra) leaves the field empty for manual paste.
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra;
+        final initialInviteUri = extra is String ? extra : null;
+        return InvitePasteScreen(initialInviteUri: initialInviteUri);
+      },
     ),
     GoRoute(
       path: AppRoutes.diagnostics,
