@@ -9,8 +9,9 @@
 // "libmoss.so" against the app's nativeLibraryDir at runtime (see
 // mosh-core/src/moss_runtime.rs default_candidate_paths).
 import { spawnSync } from "node:child_process";
-import { mkdir, rm, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { promises as fs } from "node:fs";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
