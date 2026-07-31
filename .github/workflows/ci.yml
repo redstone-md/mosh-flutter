@@ -62,6 +62,11 @@ jobs:
       - name: Rustfmt check
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
 
+      # Strict lint gate (ADR 0015): warnings fail the job. Mirrors the local
+      # `cargo clippy ... -- -D warnings` invocation.
+      - name: Clippy check
+        run: cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings
+
       - name: Cargo test
         run: cargo test --manifest-path mosh-core/Cargo.toml
 

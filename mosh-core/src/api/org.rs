@@ -29,7 +29,11 @@
 //! so the bridge stays parameter-light and the cross-runtime wiring is an
 //! implementation detail, not a surface change.
 
-use crate::org_runtime::{JoinOrgRequest, OrgDmOfferView, OrgGroupOfferView, OrgSnapshot};
+// Stub api signatures mirror the future runtime contract (ADR 0010); params
+// are intentionally unused until the runtime lands.
+#![allow(unused_variables)]
+
+use crate::org_runtime::{JoinOrgRequest, OrgSnapshot};
 use crate::private_dm_runtime::{InviteCreated, SessionSnapshot};
 use crate::private_group_runtime::{GroupCreated, GroupSnapshot};
 

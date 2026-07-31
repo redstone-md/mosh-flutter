@@ -34,3 +34,10 @@ if-addrs = "0.15.0"
 
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_NetworkManagement_IpHelper", "Win32_Foundation", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
+
+# flutter_rust_bridge's `frb` attribute macros emit `#[cfg(frb_expand)]`
+# during expansion; register it as an expected cfg so the
+# `unexpected_cfgs` lint stays quiet under the strict clippy gate
+# (ADR 0015). No code is gated on this cfg — it is macro-internal.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

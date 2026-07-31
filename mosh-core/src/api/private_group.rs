@@ -20,6 +20,10 @@
 //! implementation maps `PrivateGroupError` to a plain `String` so the bridge
 //! surfaces it as a Dart exception.
 
+// Stub api signatures mirror the future runtime contract (ADR 0010); params
+// are intentionally unused until the runtime lands.
+#![allow(unused_variables)]
+
 use crate::private_dm_runtime::{AttachmentSendResult, VoiceMeta};
 use crate::private_group_runtime::{
     CreateGroupRequest, GroupCreated, GroupLeaveResult, GroupListSnapshot, GroupSendResult,
