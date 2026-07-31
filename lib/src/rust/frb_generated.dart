@@ -85,7 +85,7 @@ import 'vpn_consent.dart';
                   String get codegenVersion => '2.12.0';
 
                   @override
-                  int get rustContentHash => -779654576;
+                  int get rustContentHash => 159793336;
 
                   static const kDefaultExternalLibraryLoaderConfig = ExternalLibraryLoaderConfig(
                     stem: 'mosh_core',
@@ -188,6 +188,8 @@ Future<InviteCreated> crateApiOrgSendDmOffer({required String orgPubkey , requir
 Future<void> crateApiPrivateGroupSendDmOffer({required String groupId , required String targetFingerprint , required String inviteUri });
 
 Future<SendMessageResult> crateApiPrivateDmSendMessage({required String sessionId , required String body });
+
+Future<void> crateApiPrivateDmSetHistoryDek({required List<int> dek });
 
 Future<void> crateApiVpnSetVpnBypassConsent({String? interface_ });
 
@@ -1399,11 +1401,36 @@ sse_encode_String(body, serializer);
         );
         
 
+@override Future<void> crateApiPrivateDmSetHistoryDek({required List<int> dek })  { return handler.executeNormal(NormalTask(
+            callFfi: (port_) {
+              
+            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_list_prim_u_8_loose(dek, serializer);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47, port: port_);
+            
+            },
+            codec: 
+        SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        )
+        ,
+            constMeta: kCrateApiPrivateDmSetHistoryDekConstMeta,
+            argValues: [dek],
+            apiImpl: this,
+        )); }
+
+
+        TaskConstMeta get kCrateApiPrivateDmSetHistoryDekConstMeta => const TaskConstMeta(
+            debugName: "set_history_dek",
+            argNames: ["dek"],
+        );
+        
+
 @override Future<void> crateApiVpnSetVpnBypassConsent({String? interface_ })  { return handler.executeNormal(NormalTask(
             callFfi: (port_) {
               
             final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_opt_String(interface_, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47, port: port_);
+            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48, port: port_);
             
             },
             codec: 
@@ -1789,6 +1816,9 @@ return (raw as List<dynamic>).map(dco_decode_org_snapshot).toList(); }
 
 @protected List<PeerDetail> dco_decode_list_peer_detail(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return (raw as List<dynamic>).map(dco_decode_peer_detail).toList(); }
+
+@protected List<int> dco_decode_list_prim_u_8_loose(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
+return raw as List<int>; }
 
 @protected Uint8List dco_decode_list_prim_u_8_strict(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
 return raw as Uint8List; }
@@ -2507,6 +2537,10 @@ return JoinOrgRequest(bundleUri: var_bundleUri, displayName: var_displayName, li
         for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_peer_detail(deserializer)); }
         return ans_;
          }
+
+@protected List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+var len_ = sse_decode_i_32(deserializer);
+                return deserializer.buffer.getUint8List(len_); }
 
 @protected Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 var len_ = sse_decode_i_32(deserializer);
@@ -3239,6 +3273,10 @@ sse_encode_i_32(self.length, serializer);
 @protected void sse_encode_list_peer_detail(List<PeerDetail> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_i_32(self.length, serializer);
         for (final item in self) { sse_encode_peer_detail(item, serializer); } }
+
+@protected void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
+sse_encode_i_32(self.length, serializer);
+                    serializer.buffer.putUint8List(self is Uint8List ? self : Uint8List.fromList(self)); }
 
 @protected void sse_encode_list_prim_u_8_strict(Uint8List self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
 sse_encode_i_32(self.length, serializer);

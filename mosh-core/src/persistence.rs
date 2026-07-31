@@ -169,6 +169,55 @@ impl Persistence {
         Ok(Self { db, dek })
     }
 
+    /// Open (or create) the encrypted DB at `path` using a caller-supplied
+    /// DEK instead of the OS keychain (ADR 0011 mobile-inject path). Public
+    /// but internal: the only external caller is `api::private_dm`'s
+    /// `construct_runtime`, when Dart has injected a Keystore-minted DEK via
+    /// `set_history_dek`. This is NOT exposed across `flutter_rust_bridge`
+    /// (the bridge surface for injection is `set_history_dek` only). The
+    /// caller's DEK is trusted as-is -- the keychain mint/load branch is
+    /// skipped entirely, so a wrong DEK surfaces later as a redb `Crypto`
+    /// decrypt failure (the `open` path fail-closes on a missing DEK when
+    /// the DB exists; the inject path defers that mismatch to read time,
+    /// the correct posture for a caller that already owns the secret).
+    pub fn open_with_dek(path: &Path, dek: [u8; 32]) -> Result<Self, PersistenceError> {
+        let db = Database::create(path).map_err(|e| PersistenceError::Db(e.to_string()))?;
+        let wtx = db
+            .begin_write()
+            .map_err(|e| PersistenceError::Db(e.to_string()))?;
+        {
+            wtx.open_table(MLS_SNAPSHOT)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(MESSAGES)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(SESSIONS)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(GROUP_MLS_SNAPSHOT)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(GROUP_MESSAGES)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(GROUPS)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(CHANNEL_MESSAGES)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(CHANNELS)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(OUTBOUND_ATTEMPTS)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(MOSS_IDENTITY)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(ORG_ROSTERS)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(GROUP_COMMIT_LOG)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(ORG_RECORDS)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+        }
+        wtx.commit()
+            .map_err(|e| PersistenceError::Db(e.to_string()))?;
+        Ok(Self { db, dek })
+    }
+
     fn put(
         &self,
         table: TableDefinition<&str, &[u8]>,
@@ -754,47 +803,6 @@ impl crate::moss_ffi::MossKeyStore for Persistence {
 }
 
 #[cfg(test)]
-impl Persistence {
-    pub fn open_with_dek(path: &Path, dek: [u8; 32]) -> Result<Self, PersistenceError> {
-        let db = Database::create(path).map_err(|e| PersistenceError::Db(e.to_string()))?;
-        let wtx = db
-            .begin_write()
-            .map_err(|e| PersistenceError::Db(e.to_string()))?;
-        {
-            wtx.open_table(MLS_SNAPSHOT)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(MESSAGES)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(SESSIONS)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(GROUP_MLS_SNAPSHOT)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(GROUP_MESSAGES)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(GROUPS)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(CHANNEL_MESSAGES)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(CHANNELS)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(OUTBOUND_ATTEMPTS)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(MOSS_IDENTITY)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(ORG_ROSTERS)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(GROUP_COMMIT_LOG)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-            wtx.open_table(ORG_RECORDS)
-                .map_err(|e| PersistenceError::Db(e.to_string()))?;
-        }
-        wtx.commit()
-            .map_err(|e| PersistenceError::Db(e.to_string()))?;
-        Ok(Self { db, dek })
-    }
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -1040,6 +1048,57 @@ mod tests {
             .list_outbound_attempts("channel", "general")
             .unwrap()
             .is_empty());
+
+        std::fs::remove_file(&path).ok();
+    }
+
+    // M-3 (ADR 0011 mobile-inject path): prove the Keystore-injected DEK
+    // round-trips a history row across a drop-and-reopen, WITHOUT touching
+    // the OS keychain. This is the host-runnable half of the mobile
+    // platform channel: `construct_runtime` calls `open_with_dek(path, *dek)`
+    // when Dart has injected a DEK via `set_history_dek`, so this test drives
+    // that exact call (the "internal set_history_dek equivalent" -- a known
+    // 32-byte DEK handed straight to `open_with_dek`, bypassing the
+    // process-global OnceLock the live `set_history_dek` writes, which is
+    // idempotent-once and not resettable between tests). The keychain is
+    // never read or written on this path: `open_with_dek` skips the
+    // `OsSecureSecretStore` mint/load branch entirely (confirmed by code --
+    // it never constructs `OsSecureSecretStore` nor calls `load_secret` /
+    // `save_secret` / `delete_secret`), so the host Windows Credential
+    // Manager is not touched. Serial under --test-threads=1 alongside the
+    // other persistence tests; cleans its unique temp file in teardown.
+    #[test]
+    fn open_with_dek_round_trips_session_across_reopen_without_keychain() {
+        let path = std::env::temp_dir().join(format!(
+            "mosh-m3-inject-{}-{}.redb",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_file(&path);
+        let dek = [42u8; 32];
+
+        // First open under the injected DEK: write a session row.
+        {
+            let p = Persistence::open_with_dek(&path, dek).expect("first open_with_dek");
+            p.put_session("m3-session", b"{\"hello\":\"inject\"}")
+                .expect("session should persist under injected DEK");
+        }
+
+        // Reopen the SAME path with the SAME injected DEK: the row must
+        // decrypt and round-trip. A wrong DEK here would surface as a redb
+        // Crypto decrypt failure (the mismatch the inject path defers to
+        // read time).
+        {
+            let p = Persistence::open_with_dek(&path, dek).expect("reopen open_with_dek");
+            let sessions = p.list_sessions().expect("sessions should list");
+            assert!(
+                sessions.iter().any(|row| row == b"{\"hello\":\"inject\"}"),
+                "persisted session must round-trip and decrypt under the injected DEK: {sessions:?}"
+            );
+        }
 
         std::fs::remove_file(&path).ok();
     }

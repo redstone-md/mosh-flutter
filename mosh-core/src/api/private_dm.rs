@@ -89,6 +89,25 @@ static RUNTIME: OnceLock<Mutex<Option<PrivateDmRuntime>>> = OnceLock::new();
 /// `PrivateDmState::load_error`).
 static LOAD_ERROR: OnceLock<String> = OnceLock::new();
 
+/// The at-rest DEK injected by the mobile platform channel (ADR 0011).
+///
+/// On Android, Dart owns both the load AND the first-run mint of the
+/// history DEK (Shape A1): it reads/mints 32 raw bytes from the Android
+/// Keystore via `flutter_secure_storage` (namespace `app.mosh.mobile`,
+/// mirroring the desktop `app.mosh.desktop` SERVICE_NAME) and hands them to
+/// Rust through `set_history_dek` BEFORE the private-DM runtime constructs.
+/// `construct_runtime` then opens the DB with `Persistence::open_with_dek`
+/// instead of the keychain-backed `Persistence::open`, so the live runtime
+/// uses the Keystore DEK rather than the OS keychain on a device. The DEK
+/// is loaded ONCE at construction time (not per-call), so a process-global
+/// `OnceLock` matches the "set once, read at construct" lifetime exactly.
+///
+/// Desktop/iOS do NOT call `set_history_dek`; the cell stays `None` and
+/// `construct_runtime` falls back to `Persistence::open` (the unchanged
+/// desktop path backed by `OsSecureSecretStore`). This is the single
+/// construction site that swaps the at-rest backend.
+static INJECTED_DEK: OnceLock<[u8; 32]> = OnceLock::new();
+
 /// Lazily construct the singleton on first call, then lock it.
 ///
 /// On the first call: load Moss, build the attachment store, construct the
@@ -158,7 +177,16 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     let data_dir = std::env::temp_dir().join("mosh");
     std::fs::create_dir_all(&data_dir)
         .map_err(|error| PrivateDmRuntimeError::Persistence(format!("mkdir data dir: {error}")))?;
-    let persistence = std::sync::Arc::new(Persistence::open(&data_dir.join("history.redb"))?);
+    let db_path = data_dir.join("history.redb");
+    // ADR 0011 mobile-inject path: when Dart has injected a Keystore-minted
+    // DEK via `set_history_dek`, open the DB with that DEK instead of the OS
+    // keychain. Desktop/iOS never inject, so the cell is `None` and the
+    // desktop `Persistence::open` path (OsSecureSecretStore) is unchanged.
+    // This is the single construction site that swaps the at-rest backend.
+    let persistence = std::sync::Arc::new(match INJECTED_DEK.get() {
+        Some(dek) => Persistence::open_with_dek(&db_path, *dek)?,
+        None => Persistence::open(&db_path)?,
+    });
 
     // Register the persistence store as the host keystore, then install the
     // C callbacks on the loaded Moss runtime. `set_moss_keystore` is the
@@ -189,6 +217,36 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     // slice-one no-op.
     runtime.rehydrate();
     Ok(runtime)
+}
+
+/// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
+///
+/// Dart calls this ONCE at startup on Android, AFTER reading/minting 32 raw
+/// bytes from the Android Keystore via `flutter_secure_storage`, and BEFORE
+/// the first private-DM runtime construct. `construct_runtime` then opens
+/// the DB with `Persistence::open_with_dek(path, *injected)` instead of the
+/// keychain-backed `Persistence::open`, so the live runtime uses the
+/// Keystore DEK on a device. Desktop/iOS never call this and keep the
+/// desktop `OsSecureSecretStore` path.
+///
+/// Idempotent-once: the first call wins; a second call returns `Err` (the
+/// DEK cannot be swapped after the DB is already open under it -- a
+/// different DEK would fail to decrypt existing rows). Returns `Err` for a
+/// wrong-length DEK (must be exactly 32 bytes). The frb-exposed surface for
+/// mobile injection is THIS fn only; `Persistence::open_with_dek` is public
+/// but internal and not bridged.
+pub fn set_history_dek(dek: Vec<u8>) -> Result<(), String> {
+    if dek.len() != 32 {
+        return Err(format!(
+            "set_history_dek: DEK must be exactly 32 bytes, got {}",
+            dek.len()
+        ));
+    }
+    let mut fixed = [0u8; 32];
+    fixed.copy_from_slice(&dek);
+    INJECTED_DEK.set(fixed).map_err(|_| {
+        "set_history_dek: DEK already injected; re-injection is not allowed".to_string()
+    })
 }
 
 /// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
