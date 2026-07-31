@@ -5,10 +5,19 @@
 // yet). Group/Join show a "later slice" SnackBar. State split per ADR 0010:
 // cross-screen displayName lives in inviteFlowProvider; the TextEditingController
 // is local State. All strings resolve through AppLocalizations.
+//
+// S2-1: the Join tile now navigates to /join (InvitePasteScreen) and the
+// Group tile keeps its "later slice" placeholder (group UI is a later slice).
+// Diagnostics is reachable from the AppBar action (cable_outlined -> 
+// /diagnostics), not by repurposing a tile, so the four React tiles stay 1:1
+// with the upstream design. Only existing ARB keys are reused
+// (diagnosticsDiagnostics for the action tooltip).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -45,6 +54,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     scaffold.showSnackBar(SnackBar(content: Text(invite.inviteUri)));
   }
 
+  // S2-1: navigate via go_router. The home route is '/', so these are
+  // push-style destinations (back returns here). go_router resolves the
+  // declarative route table in app_router.dart; no Navigator.pushNamed hand-
+  // rolling, and S2-3 deep-link intake reuses the same paths.
+  void _goJoin() => context.go(AppRoutes.join);
+  void _goDiagnostics() => context.go(AppRoutes.diagnostics);
+
   void _showLaterSlice() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(AppLocalizations.of(context)!.onboardJoinStepBody)),
@@ -61,6 +77,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.cable_outlined),
+            tooltip: l.diagnosticsDiagnostics,
+            onPressed: _goDiagnostics,
+          ),
+        ],
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
@@ -104,7 +129,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   icon: Icons.link,
                   title: l.onboardTileJoinTitle,
                   desc: l.onboardTileJoinDesc,
-                  onTap: _showLaterSlice,
+                  onTap: _goJoin,
                 ),
               ],
             ),
