@@ -573,3 +573,30 @@ analyze clean.
 android/arm64 .so. The .so builds and exports the FFI symbols, proving
 the moss FFI pipeline, but a clean android-arm64 libolm is needed before
 a real device runtime can exercise MLS. Separate task.
+### M-2: persistence + Moss identity wired into the live runtime (commit `3471864`)
+The first REAL consumer of SecureSecretStore (ADR 0011). api/private_dm.rs
+construct_runtime now: MossFfiRuntime::load_default -> Persistence::open(
+temp/mosh/history.redb) -> set_moss_keystore(persistence) ->
+moss.install_keystore() -> from_shared_node(..., Some(persistence)) ->
+rehydrate(). Conversations survive restart; Moss transport identity persists
+(loads, not mints). Fail-closed: PersistenceError -> PrivateDmRuntimeError::
+Persistence (new variant), never silently None. DB = temp/mosh/history.redb
+(AttachmentStore's temp fallback; real app_data_dir via ADR 0010 bridge later).
+New test persistence_and_identity_survive_restart proves identity-equality
+across a simulated restart + history round-trip against the live
+OsSecureSecretStore (Windows Credential Manager); teardown cleans history-dek-v1
+keychain entry + temp dir.
+Latent bug fixed: moss_ffi::tests::keystore_callbacks_round_trip_identity
+set_moss_keystore(MemStore)s but never clears the Rust global — harmless until
+the new test installed the Go Moss_SetKeyStore callbacks, which read the stale
+MemStore identity and collapsed all peer ids (Bob loaded Alice's id). Added
+test-only MossFfiRuntime::uninstall_keystore() + clear_moss_keystore()
+([cfg(test)]-gated) in the new test teardown; Moss_SetKeyStore(None,None) nils
+the Go callbacks so loadIdentityBytes short-circuits. Production never
+uninstalls.
+Verified: cargo fmt --check clean; clippy --all-targets -- -D warnings clean;
+cargo test 217/0/5-ignored (serial, +1); flutter analyze clean.
+Mobile secure-storage platform channel (Flutter -> Android Keystore) is now the
+correct NEXT mobile task — the runtime consumes SecureSecretStore on desktop,
+so a device backend is no longer dead code. ADR 0011 open question (which
+Flutter plugin for Keystore/Keychain) must be rechecked via Context7 first.
