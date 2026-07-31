@@ -73,6 +73,8 @@ bool _routerReady = false;
 void resetMoshDeepLinkIntakeStateForTest() {
   _pendingJoinUri = null;
   _routerReady = false;
+  _activeIntake?.dispose();
+  _activeIntake = null;
 }
 
 /// Starts the `mosh://` deep-link intake. Call once from main() AFTER
@@ -89,12 +91,19 @@ void resetMoshDeepLinkIntakeStateForTest() {
 ///
 /// Returns a [MoshDeepLinkIntake] whose lifetime bounds the subscription;
 /// in production it lives for the whole process, so the handle is usually
-/// discarded. Tests keep the handle so they can dispose the intake.
+/// discarded. Tests keep the handle so they can dispose the intake. The
+/// module retains the most recent handle so a re-run of `main()` (Flutter
+/// hot restart) disposes the previous subscription before starting a new
+/// one — otherwise the old listener would leak and double-navigate.
 /// The optional [linkStream] is the single test seam: tests inject a
 /// `StreamController<Uri>` so they can push a `mosh://` URI without the
 /// Windows app_links plugin (which is absent under `flutter test`).
 /// Production calls omit it and get the real app_links stream.
 MoshDeepLinkIntake startMoshDeepLinkIntake({Stream<Uri>? linkStream}) {
+  // Hot-restart re-runs main(); dispose any prior intake so its listener
+  // does not leak and double-navigate on the next warm link.
+  _activeIntake?.dispose();
+  _activeIntake = null;
   // Default to the app_links singleton stream (factory singleton, 7.2.1).
   final source = linkStream ?? AppLinks().uriLinkStream;
   final subscription = source.listen(
@@ -112,8 +121,16 @@ MoshDeepLinkIntake startMoshDeepLinkIntake({Stream<Uri>? linkStream}) {
       _goJoin(pending);
     }
   });
-  return MoshDeepLinkIntake._(subscription);
+  final intake = MoshDeepLinkIntake._(subscription);
+  _activeIntake = intake;
+  return intake;
 }
+
+/// The most recent intake handle, retained module-side so a re-run of
+/// `main()` (hot restart) can dispose the previous subscription before
+/// starting a new one. Production sets it once; tests reset it via
+/// [resetMoshDeepLinkIntakeStateForTest].
+MoshDeepLinkIntake? _activeIntake;
 
 /// Route a single incoming link to /join (mosh scheme only).
 void _handleLink(Uri uri) {
