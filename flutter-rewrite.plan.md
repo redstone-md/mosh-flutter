@@ -447,7 +447,7 @@ The OS association (registry) is the missing piece on the Windows side.
 
 Ordered atomic tasks. One subagent = one task; orchestrator commits.
 
-- [ ] **S2-1: Minimal named-route shell so the slice-one screens are reachable.**
+- [x] **S2-1: Minimal named-route shell so the slice-one screens are reachable.** DONE — commit `5be0817`. go_router 17.3.0 + route table (`/` onboarding, `/join`, `/diagnostics`, `/dm/:id`). MoshApp → `MaterialApp.router`. Join tile → `/join`; Group tile kept 1:1 (later-slice placeholder); Diagnostics as AppBar action (cable_outlined). widget_test updated. analyze clean, flutter test 43/43.
   - Replace `MoshHome` smoke-screen with a `Navigator` (or `GoRouter`) shell
     exposing named routes for the slice-one screens: onboarding, invite-paste,
     diagnostics, dm (with sessionId arg). Home = onboarding (matches the React
