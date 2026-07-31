@@ -410,14 +410,14 @@ One subagent = one task; the orchestrator makes the conventional commit.
     `git diff --exit-code lib/src/rust mosh-core/src/frb_generated.rs` (no
     drift after regen); `flutter analyze` clean; `flutter test` 42/42; the
     diagnostics widget test asserts readable field values, not `<opaque>`.
-- [ ] **FU-2: ARB key for DiagnosticsScreen AppBar title.**
+- [x] **FU-2: ARB key for DiagnosticsScreen AppBar title.** DONE — commit `1976db0`. `diagnosticsDiagnostics` added to en/ru ARB; hardcoded `Text('Diagnostics')` replaced with `AppLocalizations.of(context)!.diagnosticsDiagnostics`; TODO cleared. analyze clean, flutter test 43/43.
   - Add `diagnosticsDiagnostics` to `lib/l10n/app_en.arb` (template) and
     `app_ru.arb`; replace the hardcoded `Text('Diagnostics')` in
     `diagnostics_screen.dart` with `AppLocalizations.of(context)`.
   - Clear the existing `TODO(slice-one)` comment.
   - Verify: `flutter test` green; `flutter gen-l10n` regen (gitignored output,
     but no ARB drift).
-- [ ] **FU-3: Dedup invite_detection.dart.**
+- [x] **FU-3: Dedup invite_detection.dart.** DONE — commit `665afd4`. Removed the inlined second parse copy + private enum; detection now imports `invite_uri.dart` and re-exports `InviteParseErrorCode`/`InviteParseError` so the test's single import still resolves. `_tryParseDm`/`_tryParseGroup` are thin try/catch wrappers over the canonical parser. Org-bundle detection + family-branched fingerprint message kept. One boundary (`mosh:foo` → `invalidUrl` not `invalidScheme`) aligned to uri. analyze clean, flutter test 43/43, invite/ 18/18.
   - `invite_detection.dart` duplicates parse logic already in `invite_uri.dart`.
   - Consolidate so `invite_uri.dart` is the single source; `invite_detection`
     only adds the clipboard `Clipboard.getData` + timing concerns.
