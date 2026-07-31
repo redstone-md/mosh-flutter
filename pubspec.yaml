@@ -15,6 +15,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
+  mosh_core:
+    path: rust_builder
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +28,8 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+
+flutter_rust_bridge:
+  rust_input: crate::api
+  rust_root: mosh-core/
+  dart_output: lib/src/rust
