@@ -600,3 +600,26 @@ Mobile secure-storage platform channel (Flutter -> Android Keystore) is now the
 correct NEXT mobile task — the runtime consumes SecureSecretStore on desktop,
 so a device backend is no longer dead code. ADR 0011 open question (which
 Flutter plugin for Keystore/Keychain) must be rechecked via Context7 first.
+### M-3: Android Keystore DEK injection (commit `23af8f8`)
+Context7 resolved ADR 0011's open question: flutter_secure_storage fits
+(Android backend is KeyStore-direct AES-GCM; EncryptedSharedPreferences
+deprecated/ignored; biometrics opt-in for a later UX slice). Architecture A1:
+Dart owns load+mint, hands 32 raw bytes to Rust via new frb
+`set_history_dek(Vec<u8>)`; Rust `construct_runtime` prefers the injected DEK
+via promoted `Persistence::open_with_dek` (desktop `open` unchanged, no mobile
+`SecureSecretStore` impl needed). Moss transport identity rides free under
+the same DEK. `set_history_dek` is idempotent-once (OnceLock, reject re-inject).
+mobile_dek.dart: write-before-inject on mint (so a crash never orphans the
+DB), fail-closed on missing-key+DB-exists, fast-throw on corrupt-length,
+AndroidOptions(storageNamespace: "app.mosh.mobile"), Platform.isAndroid-gated
+in main() before runApp. flutter_secure_storage 10.3.1 (9.x conflicts with
+win32_registry ^3.0.3 via win32 version); storageNamespace API present in 10.x.
+frb Vec<u8> -> List<int>, named-param adapter handled. Codegen idempotent.
+Tests: Rust open_with_dek round-trip (no keychain touch); Dart 4 fake-storage
+branch tests. Device-only piece = the real Keystore read in initMobileDek.
+Verified: cargo 218/0/5-ignored (+1 Rust), clippy -D warnings clean, flutter
+test 52/52 (+4), analyze clean, codegen idempotent, fmt clean.
+Remaining mobile work (deferred): iOS Keychain, biometric/user-presence UI,
+libolm android-arm64 (clean build for MLS on device), app_data_dir via the
+ADR 0010 bridge (currently temp/mosh fallback shared by Rust+Dart), mobile
+deep-link registration (Dart intake seam already platform-agnostic).
