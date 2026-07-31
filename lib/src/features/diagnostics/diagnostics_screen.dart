@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
@@ -33,18 +34,17 @@ class DiagnosticsScreen extends ConsumerStatefulWidget {
 class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   @override
   Widget build(BuildContext context) {
-    // TODO(slice-one): add a `diagnosticsDiagnostics` ARB key for the AppBar
-    // title. Field values below are raw and intentionally not localized.
     final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
     final nativeRuntime = ref.watch(nativeRuntimeStatusProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.cable_outlined, size: 18),
             SizedBox(width: 8),
-            Text('Diagnostics'),
+            Text(l.diagnosticsDiagnostics),
           ],
         ),
       ),
