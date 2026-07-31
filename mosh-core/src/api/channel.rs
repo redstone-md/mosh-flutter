@@ -19,9 +19,14 @@
 //! shape exactly; the future implementation maps `ChannelRuntimeError` to a
 //! plain `String` so the bridge surfaces it as a Dart exception.
 
+// Stub api signatures mirror the future runtime contract (ADR 0010); params
+// are intentionally unused until the runtime lands.
+#![allow(unused_variables)]
+
 use crate::channel_runtime::{
     ChannelLeaveResult, ChannelListSnapshot, ChannelSendResult, ChannelSnapshot, JoinChannelRequest,
 };
+
 use crate::private_dm_runtime::{AttachmentSendResult, VoiceMeta};
 
 /// Join a public channel (1:1 port of the `channel_join` Tauri command).

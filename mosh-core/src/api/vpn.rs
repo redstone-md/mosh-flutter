@@ -19,6 +19,10 @@
 //! `AppDiagnostics` / `NativeRuntimeStatus`. It is NOT redefined elsewhere.
 //! `Result<T, String>` matches the Tauri command shape exactly.
 
+// Stub api signatures mirror the future runtime contract (ADR 0010); params
+// are intentionally unused until the runtime lands.
+#![allow(unused_variables)]
+
 use crate::vpn_consent::VpnBypassConsent;
 
 /// VPN-detection result. Verbatim port of the struct the former Tauri shell
