@@ -10,7 +10,7 @@
 //! touching a Tauri-typed type.
 
 use crate::moss_runtime::{MossDynamicRuntime, MossRuntime, MossRuntimeStatus};
-use crate::openmls_crypto::{
+pub use crate::openmls_crypto::{
     run_openmls_alice_bob_roundtrip, run_openmls_smoke_test, OpenMlsRoundTripStatus,
     OpenMlsSmokeStatus,
 };

@@ -1,0 +1,3 @@
+rust_root: mosh-core/
+dart_output: lib/src/rust
+rust_input: crate::api
