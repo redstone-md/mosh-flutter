@@ -427,8 +427,65 @@ One subagent = one task; the orchestrator makes the conventional commit.
     if dropped scope is still cheap enough.
   - Verify: CI matrix green.
 
-## Slice 2 (after follow-up): deep-link mosh:// desktop
+## Slice 2 (current): deep-link mosh:// desktop
 
-Per ADR 0015. Windows registry association + launch-arg parsing in `main()`.
-Mobile intent-filter / CFBundleURLSchemes deferred to the mobile slice. The
-detailed step list is filled in when this slice starts.
+Per ADR 0015: single scheme `mosh://` everywhere, desktop-first. Mobile
+intent-filter / CFBundleURLSchemes deferred to the mobile slice.
+
+GAP discovered at slice-2 start: the slice-one screens (`InvitePasteScreen`,
+`DmScreen`, `DiagnosticsScreen`, `OnboardingScreen`) are NOT reachable from
+the running app. `main.dart` ships `MoshHome`, a static smoke-screen with no
+`Navigator`/router and no route to any real screen. Upstream Tauri mosh was a
+single-view stepper app (no URL routing; invite flowed through component state),
+so there is no existing router to port. Deep-link needs a router to open into.
+So slice 2 first lays a minimal named-route shell, then wires deep-link into it.
+
+The Windows runner (`windows/runner/main.cpp`) ALREADY pipes launch args via
+`GetCommandLineArguments()` -> `project.set_dart_entrypoint_arguments(...)`,
+so a `mosh://...` arg passed at launch reaches Dart as an entrypoint argument.
+The OS association (registry) is the missing piece on the Windows side.
+
+Ordered atomic tasks. One subagent = one task; orchestrator commits.
+
+- [ ] **S2-1: Minimal named-route shell so the slice-one screens are reachable.**
+  - Replace `MoshHome` smoke-screen with a `Navigator` (or `GoRouter`) shell
+    exposing named routes for the slice-one screens: onboarding, invite-paste,
+    diagnostics, dm (with sessionId arg). Home = onboarding (matches the React
+    app's entry flow). Keep `MoshApp`/`ProviderScope`/locale wiring intact.
+  - Add a tile/list on the home screen to reach invite-paste + diagnostics (so
+    the screens are human-reachable without a deep-link for now; mirrors the
+    React `onboardTileJoin*` entries already in the ARB).
+  - No new screens; reuse the four existing ones. `DmScreen` takes a
+    `sessionId` (already does).
+  - Verify: `flutter analyze` clean; `flutter test` green (existing widget
+    tests pin `MoshApp` rendering the AppBar — update if the home changed);
+    manual `flutter run -d windows` reaches invite-paste from a tile.
+- [ ] **S2-2: Windows registry association for the mosh:// scheme.**
+  - Register `mosh://` -> mosh.exe in the Windows registry at install/run time
+    (HKCU or HKLM `Software\Classes\mosh\shell\open\command`). Bundle id
+    `app.mosh.desktop` per ADR 0009. Use a post-install step or a small
+    registration helper; do NOT require admin for a dev build (HKCU).
+  - The open command launches `mosh.exe` with the URI as a launch arg, which
+    the existing `main.cpp` arg piping already forwards to Dart.
+  - Keep it desktop-Windows only for this task; a `.reg`-style or programmatic
+    registration is fine. Document how to verify (open a `mosh://...` link from
+    a browser/Run dialog -> mosh.exe starts with the arg).
+  - Verify: registration present in registry; round-trip launches mosh.exe.
+- [ ] **S2-3: Dart-side deep-link intake + route to invite-paste.**
+  - Read the launch arg (entrypoint argument) in `main()`; if it is a
+    `mosh://...` URI, route the app to the invite-paste screen with the URI
+    pre-filled (reuse `detectInvite`). Use `app_links` (desktop launch-arg
+    path) or the raw entrypoint arg — pick whichever needs the least new
+    surface and stays testable.
+  - Single scheme `mosh://` (ADR 0009/0015); no per-fork variant.
+  - The invite-paste screen must accept a pre-fill (extend its controller init
+    or a constructor arg) WITHOUT breaking the existing widget test (which
+    types the URI).
+  - Verify: `flutter analyze` clean; `flutter test` green; a unit/widget test
+    that feeds a `mosh://invite?...#fp=...` entrypoint arg asserts the app
+    navigates to invite-paste with the field pre-filled.
+- [ ] **S2-4: Slice 2 docs close-out.**
+  - Update `docs/Architecture.md` with the route shell + deep-link intake.
+  - ADR note (or update 0015) recording the registry association approach and
+    that mobile remains deferred.
+  - Update this plan: mark S2-1..S2-3 done.
