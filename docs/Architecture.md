@@ -21,18 +21,27 @@ flowchart LR
     Store[redb local store]
     Trackers[Default/public Moss trackers]
 
-    User --> Flutter
-    Flutter --> Bridge
-    Bridge --> Api
-    Api --> Runtimes
-    Runtimes --> OpenMLS
-    Runtimes --> Moss
-    Runtimes --> Keychain
-    Runtimes --> Store
-    Moss --> Trackers
+User --> Flutter
+Flutter --> Bridge
+Bridge --> Api
+Api --> Runtimes
+Runtimes --> OpenMLS
+Runtimes --> Moss
+Runtimes --> Keychain
+Runtimes --> Store
+Moss --> Trackers
 ```
 
 Dart never crosses this seam except through the generated bridge. The `api` module is the only Rust surface the bridge binds; it is a thin facade over the runtimes (private_dm, group, channel, org, voice, attachment, persistence, secure_storage). Secrets, MLS state, Moss transport, and redb persistence all live on the Rust side of the boundary (ADR 0009, ADR 0010).
+In slice one the Dart side reaches `api` through the `Gateway` seam:
+`RealBridgeGateway` delegates every call to the generated free functions in
+`lib/src/rust/api/`, and `FakeGateway` is the in-Dart opt-in double selected
+by `-dMOSH_FAKE_GATEWAY=true` (default `false` = Real). Widgets consume
+`gatewayProvider`, never a concrete `Gateway` (ADR 0013). The `api` facade
+itself is real for `diagnostics` + `private_dm` (OnceLock singleton, ADR 0016)
+and stubbed (`todo!()`) for `channel`, `private_group`, `org`, `network`,
+`vpn` — five stubs whose signatures are laid so the bridge generates against
+the full command surface before later slices wire them.
 
 ## Repository Boundaries
 
@@ -57,6 +66,34 @@ flowchart TB
 ```
 
 `mosh-core/` is the built Rust runtime. `moss/` is the Moss Go shared library, pinned at `v0.8.14` inherited from upstream. `lib/` is the Flutter + Dart frontend. `docs/` holds this map, the ADRs, the glossary, and the plan. `src-tauri/` and `src/` are kept on disk as read-only design reference for the bridge API contract (the Tauri command list is the verbatim checklist for the `api` module) but are NOT built or shipped from this fork (ADR 0013). Do not modify `src-tauri/` or `src/` from this fork; they exist to guide the port and are removed at upstream merge time.
+## Gateway and Provider Layer (slice one)
+
+```mermaid
+flowchart LR
+    Widget[Widget / Screen]
+    Providers[Riverpod providers]
+    GW[Gateway interface]
+    Real[RealBridgeGateway default]
+    Fake[FakeGateway opt-in]
+    Frb[frb-generated api functions]
+    Core[mosh_core::api Rust facade]
+
+    Widget -->|ref.watch| Providers
+    Providers -->|gatewayProvider| GW
+    GW -->|default| Real
+    GW -->|"-dMOSH_FAKE_GATEWAY=true"| Fake
+    Real --> Frb
+    Frb --> Core
+```
+
+Slice one ships four providers behind `gatewayProvider`
+(`lib/src/state/session_providers.dart`): `sessionListProvider`
+(AsyncNotifierProvider for the session list), `activeSessionProvider.family`
+(FutureProvider.family for a per-session snapshot, the DM screen poll),
+`diagnosticsProvider` (AsyncNotifierProvider for `appDiagnostics`), and
+`inviteFlowProvider` (sync NotifierProvider for the cross-screen invite-create
+flow: displayName + listenPort + lastInvite). All consume `gatewayProvider`,
+never a concrete `Gateway`, so the fake<->real swap is one provider body.
 
 ## Private DM Slice
 
@@ -99,6 +136,11 @@ sequenceDiagram
 ```
 
 This reuses the invite / fingerprint / send flow already proven in the Tauri frontend; only the seam between UI and runtime changes from Tauri commands to the generated bridge. Snapshot delivery is a `StreamSink<T>` on the Rust side and a Dart `Stream<T>` on the UI side, replacing the old Tauri `app.emit` events (ADR 0009, ADR 0010). The fingerprint confirmation gate blocks `sendMessage` until the user confirms the safety number; this is a UI-side gate enforced by the Dart orchestration layer over the `Gateway` interface.
+Slice one is poll-based, not stream-based: `api::private_dm` exposes no
+`StreamSink` in slice one (the React frontend polled on `AUTO_POLL_MS`), so
+the DM screen re-polls `activeSessionProvider.family`. The sequence above is
+the design intent; the slice-one proof is
+`integration_test/slice_one_test.dart` (see Features/private-dm.md).
 
 ## Interface Contracts
 
@@ -156,6 +198,13 @@ classDiagram
 ```
 
 `Gateway` is the Dart seam declared in slice one (ADR 0013). `FakeGateway` is the temporary in-Dart test double used so widget tests run without the Rust runtime; `RealBridgeGateway` wraps the generated `flutter_rust_bridge` `api` and is the production path. The Rust `api` module owns the `MossAdapter`, `MlsAdapter`, and `SecureStorageAdapter` composition; Dart never instantiates them directly. The `api` surface is the verbatim Tauri command list plus a `StreamSink<T>` function for each former Tauri event (ADR 0010).
+In the shipped slice one the `Gateway` surface has eight methods, mirroring
+the real `mosh_core::api` signatures 1:1: `appDiagnostics`,
+`nativeRuntimeStatus`, `createInvite`, `acceptInvite`, `sendMessage`,
+`pollSession`, `listSessions`, `closeSession`. `RealBridgeGateway` is a pure
+pass-through to the frb functions; `FakeGateway` is the in-Dart double with
+an in-memory session map. The `api` facade is real for `diagnostics` +
+`private_dm` and stubbed for the other five families until later slices.
 
 ## State Ownership
 
@@ -210,6 +259,7 @@ This domain context is inherited unchanged from upstream; the Flutter rewrite do
 ## Slice One Scope
 
 Slice one proves the bridge, the state stack, i18n, and the core DM flow on desktop, behind a temporary fake gateway that is removed (or kept flagged) before the slice closes. Reference: `flutter-rewrite.plan.md`.
+- **Status: COMPLETE.** See "Slice One Status" below.
 
 - Onboarding (display name).
 - Invite paste (`mosh://invite?...#fp=...`) parsed via ported `invite_uri.dart`; manual paste only, NO `mosh://` deep-link OS association (ADR 0015).
@@ -222,6 +272,27 @@ Slice one proves the bridge, the state stack, i18n, and the core DM flow on desk
 - Port `invite-uri.ts`, `invite-detection.ts`, `unread.ts`, `format.ts`, `private-dm.content.ts` to Dart; move `frame-crypto.ts`, `jitter-buffer.ts`, `call-drain.ts` into `mosh-core` (ADR 0012).
 
 Out of scope for slice one: deep-link `mosh://` OS association, mobile Moss builds and mobile secure-storage platform channels, voice call / org / VPN / channels / private groups Dart UI (runtimes are bound via `api` but the UI is later slices), manual language switch UI.
+## Slice One Status
+
+Slice one is complete. Summary of the final state:
+
+- Bridge proven end-to-end on real `mosh_core.dll` via
+  `integration_test/slice_one_test.dart` (RealBridgeGateway: diagnostics,
+  runtime status, session list, invite).
+- Tests green: 42 Dart widget + unit tests; 28 Rust `#[test]` items across
+  the voice-call files (`voice_call_frame_crypto` 10, `voice_call_jitter` 8,
+  `voice_call_drain` 5, `voice_call_runtime` 5); 1 integration test.
+- CI matrix of 5 jobs on `windows-latest` (`.github/workflows/ci.yml`):
+  `rust-core`, `codegen-drift`, `flutter-test`, `l10n-drift`, and
+  `integration-test` (needs the other four).
+- Fake-gateway is opt-in via `-dMOSH_FAKE_GATEWAY=true`; default = Real. Not
+  removed; gated flag, the ADR 0013 extended-exception path. See ADR 0013
+  Final Status.
+- Five slice-one screens shipped: onboarding, invite paste, fingerprint
+  confirm, one DM screen, diagnostics.
+- `api` facade real for `diagnostics` + `private_dm` (OnceLock singleton,
+  ADR 0016); five stubs (`channel`, `private_group`, `org`, `network`,
+  `vpn`) carry signatures only, bodies `todo!()`.
 
 ## References
 
@@ -230,7 +301,10 @@ Out of scope for slice one: deep-link `mosh://` OS association, mobile Moss buil
 - docs/ADR/0011 - secure storage and at-rest history key (referenced by glossary).
 - docs/ADR/0012-port-strategy-what-goes-to-dart-vs-mosh-core.md - port boundary: Dart vs mosh-core.
 - docs/ADR/0013 - temporary fake gateway and read-only reference policy for `src-tauri/` / `src/`.
+- docs/ADR/0013 - Final Status (slice one close-out): fake kept behind `-dMOSH_FAKE_GATEWAY=true`, default Real.
 - docs/ADR/0014 - i18n via `gen-l10n`, `LocaleProvider`.
 - docs/ADR/0015 - fork version line `0.8.0-dev`, deep-link deferral.
+- docs/ADR/0016-api-runtime-ownership-oncelock-singleton.md - api runtime ownership via OnceLock singleton.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - flutter-rewrite.plan.md - slice scope and ordered implementation steps.
+- docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).

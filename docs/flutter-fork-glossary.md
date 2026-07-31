@@ -1,7 +1,7 @@
 # Flutter fork glossary
 
 Companion to the existing `CONTEXT.md` ubiquitous language. This file only
-records terms introduced by the Flutter-rewrite effort (ADRs 0009-0011). All
+records terms introduced by the Flutter-rewrite effort (ADRs 0009-0016). All
 domain terms (org, roster, moss peer-id, MLS fingerprint, confirmation code,
 etc.) remain defined in `CONTEXT.md` and are not redefined here.
 
@@ -109,3 +109,54 @@ history. (Defined in ADR 0011.)
 Mobile behavior where releasing a secret from secure storage requires
 biometric or device PIN. Default-on for mosh on mobile; the UI must surface
 the prompt and a "locked" state, not silently bypass it. (Defined in ADR 0011.)
+## MOSH_FAKE_GATEWAY flag
+
+A compile-time `dart-define` that selects `FakeGateway` as the wired
+`Gateway`. Default `false` selects `RealBridgeGateway` (the real Rust
+runtime); passing `-dMOSH_FAKE_GATEWAY=true` selects the in-Dart fake for
+widget tests and local dev without a built cdylib. The ADR 0013 opt-in
+mechanism: the fake is never a silent default. (Set in ADR 0013 close-out.)
+
+## RealBridgeGateway
+
+The `Gateway` implementation that delegates every method to the
+`flutter_rust_bridge`-generated free functions in `lib/src/rust/api/`. A
+thin pass-through with no caching or shaping, backed by the real
+`mosh_core` runtime. The default production path (ADR 0013).
+
+## activeSessionProvider.family
+
+A Riverpod `FutureProvider.family<SessionSnapshot, String>` for the
+per-session snapshot read behind a `sessionId`. The DM screen watches it;
+poll-based refresh mirrors the React frontend's `AUTO_POLL_MS` cadence.
+(Defined in ADR 0010, used from S4.6.)
+
+## codegen-drift gate
+
+A CI job that regenerates the `flutter_rust_bridge` bindings and fails if
+the committed `frb_generated.*` files differ, so Rust signatures and Dart
+bindings cannot silently desync. One of the slice-one CI matrix jobs.
+(Referenced in ADR 0010, plan S7.)
+
+## mosh_core.dll auto-deploy
+
+The S5b fix where cargokit normalizes the package name hyphen-to-underscore
+(`mosh-core` -> `mosh_core`) so the built Rust `cdylib` lands next to
+`mosh.exe` on Windows and the integration test runs against the real
+backend without a manual copy step. (Windows desktop, slice one.)
+
+## api runtime ownership (OnceLock singleton)
+
+The `mosh_core::api` pattern where each runtime family is held in a
+process-global `OnceLock<Mutex<Option<...>>>` with a cached construction
+error, so the first call builds the runtime and later calls just lock.
+The Dart side never sees this; it is the bridge-facing analogue of the
+Tauri shell's managed state. (Defined in ADR 0016.)
+
+## integration test (slice one)
+
+`integration_test/slice_one_test.dart`, the real-bridge proof. Runs on a
+real desktop target against the actual `mosh_core.dll` (built via cargokit)
+and exercises diagnostics + runtime status + session list + invite through
+`RealBridgeGateway`. Moss-absent graceful path is asserted, not crashed.
+The CI close-out job. (Required by ADR 0013.)

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed (Flutter fork sandbox)
+Proposed (Flutter fork sandbox; updated at slice-one close-out — see Final Status below)
 
 ## Context
 
@@ -109,3 +109,34 @@ flowchart TB
 - Before creating the fork: confirm Git remote URL with the user.
 - Plan file must list the fake-gateway removal as an explicit done-criteria
   step for slice one.
+## Final Status (Slice One Close-Out)
+
+The fake gateway was NOT removed. It is now an explicit opt-in behind the
+compile-time flag `-dMOSH_FAKE_GATEWAY=true` (dart-define). Default `false`
+selects `RealBridgeGateway` (the real Rust runtime); only the flag selects
+`FakeGateway`. This is the ADR's "kept behind the flag with an ADR-extended
+exception" path, not the "removed" path, and it is recorded here so the
+exception is explicit rather than silent.
+
+The swap is contained to one provider body
+(`lib/src/state/gateway_provider.dart`): widgets depend on `gatewayProvider`,
+never a concrete `Gateway` impl. The flag rationale:
+
+- Default (no flag, CI `integration-test` job): `RealBridgeGateway` against
+  the real `mosh_core.dll` built by cargokit. This is the wired runtime.
+- `-dMOSH_FAKE_GATEWAY=true` (CI `flutter-test` job, local widget-test loop):
+  `FakeGateway`, so tests run without a built cdylib (`flutter test` has no
+  native runtime). Widget tests also override `gatewayProvider` with
+  `FakeGateway()` in their `ProviderScope`; the flag is belt-and-suspenders.
+
+The integration test (`integration_test/slice_one_test.dart`) proves the Real
+path works end-to-end on a real `mosh_core.dll`: it initializes the bridge,
+calls `appDiagnostics`, `nativeRuntimeStatus`, `listSessions`, and
+`createInvite` through `RealBridgeGateway`, and degrades gracefully when Moss
+is absent (error string, not a crash). This closes the ADR's open question
+about fake removal: the real path is proven, and the fake remains a
+deliberately-gated developer-loop accelerator, not a default.
+
+Open question resolved: the fork remote exists at
+`redstone-md/mosh-flutter` (confirmed during S0). The other open question
+(fake removal) is resolved above as "kept behind the flag."
