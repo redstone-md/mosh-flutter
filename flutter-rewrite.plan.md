@@ -423,9 +423,28 @@ One subagent = one task; the orchestrator makes the conventional commit.
     only adds the clipboard `Clipboard.getData` + timing concerns.
   - Verify: existing invite tests still pass.
 - [ ] **FU-4 (optional): Restore clippy + mosh-probe to CI.**
-  - Re-add the `clippy` job and the `mosh-probe` crate to `.github/workflows/ci.yml`
-    if dropped scope is still cheap enough.
-  - Verify: CI matrix green.
+- [ ] **FU-4 (deferred — not cheap): Restore clippy + mosh-probe to CI.**
+  Investigated: FU-4 is NOT a cheap restoration.
+  (a) `cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets`
+  exits 0 but emits 94 warnings, almost all `unused variable` on the
+  `todo!()` stubs in `mosh-core/src/api/*.rs` (channel/group/org/network/vpn).
+  A strict `-D warnings` gate would fail today; gating without `-D` is a
+  weak no-op (clippy exit 0 even with warnings). Real value needs the stub
+  params cleaned first (`#[allow(unused)]` per stub or drop the unused
+  args), THEN `cargo clippy -- -D warnings` in CI.
+  (b) `mosh-probe/` is a standalone cargo crate (separate Cargo.toml, not
+  a mosh-core workspace member) — a headless TWO-ENDED reachability probe
+  that dlopens moss.dll, runs live MLS handshakes + message delivery over
+  the real moss network (listen/dial, up to 180s timeout, two processes).
+  Running it in CI on windows-latest needs two-process orchestration + a
+  stable network path; it is the opposite of a cheap unit gate and is
+  exactly why slice one dropped it. Its real value is as a manual /
+  nightly integration probe, not a per-PR gate.
+  Deferred as explicit follow-ups, not weak half-measures:
+  - FU-4a: clean stub `unused` warnings in `api/*.rs`, add
+    `cargo clippy -- -D warnings` job to `.github/workflows/ci.yml`.
+  - FU-4b: add a `mosh-probe` job (likely nightly, two-process, with a
+    relay bootstrap) — separate infra task, not per-PR.
 
 ## Slice 2 (current): deep-link mosh:// desktop
 
