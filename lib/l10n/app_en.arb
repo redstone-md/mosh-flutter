@@ -1199,5 +1199,38 @@
   "callPeerFallback": "Peer",
   "@callPeerFallback": {
     "description": "Fallback peer label for a call modal/overlay when the session's peerDisplayName is empty (React `peer_display_name || 'Peer'`)"
+  },
+  "vpnConsentTitle": "A VPN is carrying Mosh's traffic",
+  "@vpnConsentTitle": {
+    "description": "Title of the VPN-bypass consent modal (React VpnConsentModal.tsx h2#vpn-consent-title)"
+  },
+  "vpnConsentBody": "Everything Mosh sends goes through your VPN, which stops other people from finding you. Mosh can use {adapter} instead.",
+  "@vpnConsentBody": {
+    "description": "Body of the VPN-bypass consent modal; {adapter} is the suggested network adapter name (React VpnConsentModal.tsx p#vpn-consent-body with <code>{adapter}</code>)",
+    "placeholders": {
+      "adapter": {
+        "type": "String"
+      }
+    }
+  },
+  "vpnConsentCaveat": "Peers will see your real network address rather than the VPN's. Mosh restarts to apply this, and you can change it later under Advanced.",
+  "@vpnConsentCaveat": {
+    "description": "Caveat paragraph under the VPN-consent body (React VpnConsentModal.tsx .vpn-consent-caveat)"
+  },
+  "vpnConsentDecline": "Keep using the VPN",
+  "@vpnConsentDecline": {
+    "description": "Decline button label in the VPN-bypass consent modal (React VpnConsentModal.tsx btn-ghost)"
+  },
+  "vpnConsentAccept": "Route around the VPN",
+  "@vpnConsentAccept": {
+    "description": "Accept button label in the VPN-bypass consent modal (React VpnConsentModal.tsx btn-primary)"
+  },
+  "vpnConsentAcceptSaving": "Restarting...",
+  "@vpnConsentAcceptSaving": {
+    "description": "Accept button label while the VPN-bypass consent is being saved + the app is restarting (React VpnConsentModal.tsx phase saving)"
+  },
+  "vpnConsentErrorFallback": "Could not save your answer",
+  "@vpnConsentErrorFallback": {
+    "description": "Fallback error message when setVpnBypassConsent/restart throws a non-Error (React VpnConsentModal.tsx catch err fallback)"
   }
 }
