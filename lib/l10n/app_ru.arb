@@ -664,5 +664,7 @@
   "voiceDiscardLabel": "Отменить запись",
   "voiceStopLabel": "Остановить запись",
   "voicePlayLabel": "Воспроизвести запись",
-  "voiceSendLabel": "Отправить голосовое сообщение"
+  "voiceSendLabel": "Отправить голосовое сообщение",
+  "voiceMessagePlayLabel": "Воспроизвести голосовое сообщение",
+  "voiceMessagePauseLabel": "Поставить на паузу"
 }

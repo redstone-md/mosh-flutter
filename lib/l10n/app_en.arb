@@ -1131,5 +1131,13 @@
   "voiceSendLabel": "Send voice message",
   "@voiceSendLabel": {
     "description": "Tooltip for the send button in the review voice phase (React VoiceComposer.tsx review phase)"
+  },
+  "voiceMessagePlayLabel": "Play voice message",
+  "@voiceMessagePlayLabel": {
+    "description": "Tooltip/aria-label for the voice-message card play button (React VoiceMessage.tsx, idle)"
+  },
+  "voiceMessagePauseLabel": "Pause voice message",
+  "@voiceMessagePauseLabel": {
+    "description": "Tooltip/aria-label for the voice-message card pause button (React VoiceMessage.tsx, playing)"
   }
 }
