@@ -322,5 +322,17 @@
   "retryFailedMessage": "Повторить неудачное сообщение",
   "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" },
   "dialogCancel": "Отмена",
-  "@dialogCancel": { "description": "Универсальная подпись «Отмена» для кнопки-крестика и бледной кнопки отмены в общем ConfirmDialog (React: инлайн-значение 'Cancel'; close-flow и другие деструктивные сценарии передают локализованную подпись отмены из этого ключа)" }
+  "@dialogCancel": { "description": "Универсальная подпись «Отмена» для кнопки-крестика и бледной кнопки отмены в общем ConfirmDialog (React: инлайн-значение 'Cancel'; close-flow и другие деструктивные сценарии передают локализованную подпись отмены из этого ключа)" },
+  "leaveChannelTitle": "Покинуть #{name}?",
+  "@leaveChannelTitle": { "description": "Заголовок диалога подтверждения покинания канала (React useChatCloseFlow, ветка channel, `Leave #${label}?`) с именем канала", "placeholders": { "name": { "type": "String" } } },
+  "leaveChannelBody": "Вы перестанете получать новые сообщения из этого публичного канала, пока не присоединитесь к нему снова.",
+  "@leaveChannelBody": { "description": "Тело диалога подтверждения покинания канала (React useChatCloseFlow, ветка channel, статичная строка)" },
+  "leaveChannelConfirm": "Покинуть канал",
+  "@leaveChannelConfirm": { "description": "Подпись кнопки подтверждения диалога покинания канала (React useChatCloseFlow, ветка channel, `confirmLabel`)" },
+  "leaveGroupTitle": "Покинуть {label}?",
+  "@leaveGroupTitle": { "description": "Заголовок диалога подтверждения покинания группы (React useChatCloseFlow, ветка group, `Leave ${label}?`) с подписью группы (group.label ?? shorten(groupId, 6))", "placeholders": { "label": { "type": "String" } } },
+  "leaveGroupBody": "Сохранённая история группы будет удалена с этого устройства. Для повторного присоединения потребуется новое приглашение.",
+  "@leaveGroupBody": { "description": "Тело диалога подтверждения покинания группы (React useChatCloseFlow, ветка group, статичная строка)" },
+  "leaveGroupConfirm": "Покинуть группу",
+  "@leaveGroupConfirm": { "description": "Подпись кнопки подтверждения диалога покинания группы (React useChatCloseFlow, ветка group, `confirmLabel`)" }
 }

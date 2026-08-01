@@ -46,6 +46,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/channel/channel_message_row.dart';
+import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -106,6 +107,24 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     context.go(AppRoutes.sessions);
   }
 
+  // Close-flow confirmation -- 1-в-1 with React `useChatCloseFlow` channel
+  // branch (use-chat-close-flow.ts L57-65): the leave IconButton opens a
+  // ConfirmDialog with `Leave #${label}?` / body / `Leave channel` before
+  // the real `_leave` runs. `showConfirmDialog` returns true on confirm,
+  // false on cancel/barrier/Esc, so `_leave` only runs on an explicit
+  // confirm (mirrors `closeFlow.confirmCloseActive` gating the real close).
+  Future<void> _requestLeave() async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: l.leaveChannelTitle(widget.name),
+      body: l.leaveChannelBody,
+      confirmLabel: l.leaveChannelConfirm,
+      cancelLabel: l.dialogCancel,
+    );
+    if (confirmed) await _leave();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -121,11 +140,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
             tooltip: l.openPeerStatus,
             onPressed: () => setState(() => _showPeerStatus = true),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: l.channelLeaveLabel,
-            onPressed: _leave,
-          ),
+         IconButton(
+           icon: const Icon(Icons.logout),
+           tooltip: l.channelLeaveLabel,
+           onPressed: _requestLeave,
+         ),
         ],
       ),
       body: SafeArea(

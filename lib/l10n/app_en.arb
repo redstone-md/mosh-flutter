@@ -465,5 +465,17 @@
   "retryFailedMessage": "Retry failed message",
   "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" },
   "dialogCancel": "Cancel",
-  "@dialogCancel": { "description": "Generic Cancel label for the shared ConfirmDialog close-X and ghost cancel button (React inline default 'Cancel'; the close-flow and other destructive flows pass a localized cancel label from this key)" }
+  "@dialogCancel": { "description": "Generic Cancel label for the shared ConfirmDialog close-X and ghost cancel button (React inline default 'Cancel'; the close-flow and other destructive flows pass a localized cancel label from this key)" },
+  "leaveChannelTitle": "Leave #{name}?",
+  "@leaveChannelTitle": { "description": "Title of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch `Leave #${label}?`), with the channel name", "placeholders": { "name": { "type": "String" } } },
+  "leaveChannelBody": "You will stop receiving new messages from this public channel until you join it again.",
+  "@leaveChannelBody": { "description": "Body of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch body, static)" },
+  "leaveChannelConfirm": "Leave channel",
+  "@leaveChannelConfirm": { "description": "Confirm button label of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch `confirmLabel`)" },
+  "leaveGroupTitle": "Leave {label}?",
+  "@leaveGroupTitle": { "description": "Title of the leave-group ConfirmDialog (React useChatCloseFlow group branch `Leave ${label}?`), with the group label (group.label ?? shorten(groupId, 6))", "placeholders": { "label": { "type": "String" } } },
+  "leaveGroupBody": "Saved group history will be removed from this device. You will need a new invite to rejoin.",
+  "@leaveGroupBody": { "description": "Body of the leave-group ConfirmDialog (React useChatCloseFlow group branch body, static)" },
+  "leaveGroupConfirm": "Leave group",
+  "@leaveGroupConfirm": { "description": "Confirm button label of the leave-group ConfirmDialog (React useChatCloseFlow group branch `confirmLabel`)" }
 }
