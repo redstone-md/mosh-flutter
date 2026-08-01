@@ -236,5 +236,13 @@
  "diagNoEventsTitle": "Событий пока нет",
  "@diagNoEventsTitle": { "description": "Title of the empty state shown when the event log has no events in the diagnostics drawer" },
  "diagNoEventsBody": "Moss будет показывать здесь подключения пиров, обновления трекеров и изменения ретрансляции по мере их возникновения.",
- "@diagNoEventsBody": { "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer" }
+ "@diagNoEventsBody": { "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer" },
+ "peerStatusTitle": "Статус пиров",
+ "@peerStatusTitle": { "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen" },
+ "refreshStatus": "Обновить статус",
+ "@refreshStatus": { "description": "Tooltip/aria-label of the refresh button in the Peer status drawer" },
+ "closePeerStatus": "Закрыть статус пиров",
+ "@closePeerStatus": { "description": "Tooltip/aria-label of the close button in the Peer status drawer" },
+ "openPeerStatus": "Открыть статус пиров",
+ "@openPeerStatus": { "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen" }
  }

@@ -48,6 +48,7 @@ import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 
 /// Grouping window ported 1-1 from React `GROUP_WINDOW_MS`
 /// (src/features/private-dm/MessageLists.tsx): 5 minutes.
@@ -141,6 +142,11 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
 
+  // Ephemeral widget-local client state for the Peer-status drawer overlay
+  // (React `showDiagnostics`). ADR 0010 allows widget-local UI state; this
+  // bool drives the modal `PeerStatusDrawer` rendered as a `Stack` overlay.
+  bool _showPeerStatus = false;
+
   @override
   void dispose() {
     _composer.dispose();
@@ -174,56 +180,88 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       data: (s) => s.peerDisplayName.isEmpty ? s.sessionId : s.peerDisplayName,
       orElse: () => widget.sessionId,
     );
+    // The drawer overlays the body as a `Stack` last child so the composer +
+    // message list stay in the tree (interactive when the drawer is closed).
+    // The live session for the drawer comes from the same `activeSessionProvider`
+    // watch above: `async.value` is `s` on data, the error string on error, else
+    // null. The React `refresh(false)` poll loop is a later slice -- for now
+    // onRefresh re-reads the family entry and `refreshing` stays false.
+    final sessionForDrawer = async.value;
+    final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.electrical_services, size: 18),
+            tooltip: l.openPeerStatus,
+            onPressed: () => setState(() => _showPeerStatus = true),
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            ConversationTools(
-              search: _search,
-              filter: _filter,
-              onSearch: (value) => setState(() => _search = value),
-              onFilter: (value) => setState(() => _filter = value),
-              l: l,
+            Column(
+              children: [
+                ConversationTools(
+                  search: _search,
+                  filter: _filter,
+                  onSearch: (value) => setState(() => _search = value),
+                  onFilter: (value) => setState(() => _filter = value),
+                  l: l,
+                ),
+                Expanded(
+                  child: async.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text(e.toString())),
+                    data: (s) {
+                      // Filter BEFORE group (React DmChatList order):
+                      // `visibleMessages = filterMessages(...)` then
+                      // `messageItems(visibleMessages, ...)`. Grouping operates
+                      // on the FILTERED chronological list so the window
+                      // comparison stays correct on the visible set.
+                      if (s.messages.isEmpty) return _Empty(l: l);
+                      final filtered =
+                          filterDmMessages(s.messages, _search, _filter);
+                      if (filtered.isEmpty) {
+                        return DmSearchEmpty(filter: _filter, l: l);
+                      }
+                      return _MessageListView(
+                        ownDeviceName: s.displayName,
+                        grouped: groupDmMessages(filtered).reversed.toList(),
+                        attachments: s.attachments,
+                      );
+                    },
+                  ),
+                ),
+                _Composer(
+                  controller: _composer,
+                  sending: _sending,
+                  placeholder: l.chatComposerPlaceholder,
+                  sendLabel: l.chatSendLabel,
+                  onSend: _send,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: Text(
+                    l.chatCryptoFooter,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: async.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text(e.toString())),
-                data: (s) {
-                  // Filter BEFORE group (React DmChatList order):
-                  // `visibleMessages = filterMessages(...)` then
-                  // `messageItems(visibleMessages, ...)`. Grouping operates
-                  // on the FILTERED chronological list so the window
-                  // comparison stays correct on the visible set.
-                  if (s.messages.isEmpty) return _Empty(l: l);
-                  final filtered =
-                      filterDmMessages(s.messages, _search, _filter);
-                  if (filtered.isEmpty) {
-                    return DmSearchEmpty(filter: _filter, l: l);
-                  }
-                  return _MessageListView(
-                    ownDeviceName: s.displayName,
-                    grouped: groupDmMessages(filtered).reversed.toList(),
-                    attachments: s.attachments,
-                  );
-                },
+            if (_showPeerStatus)
+              Positioned.fill(
+                child: PeerStatusDrawer(
+                  session: sessionForDrawer,
+                  error: errorForDrawer,
+                  refreshing: false,
+                  onRefresh: () => ref
+                      .invalidate(activeSessionProvider(widget.sessionId)),
+                  onClose: () => setState(() => _showPeerStatus = false),
+                ),
               ),
-            ),
-            _Composer(
-              controller: _composer,
-              sending: _sending,
-              placeholder: l.chatComposerPlaceholder,
-              sendLabel: l.chatSendLabel,
-              onSend: _send,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text(
-                l.chatCryptoFooter,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
           ],
         ),
       ),
