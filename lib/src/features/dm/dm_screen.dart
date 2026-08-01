@@ -7,26 +7,34 @@
 // for `from_device === ownDeviceName`), a composer (TextField + Send), and
 // a crypto footer line.
 //
-// Grouping + sender meta (this atomic): the message list now ports the
-// React `DmMessageRow` grouping rule from MessageLists.tsx -- within a
-// 5-minute window, consecutive messages from the same `fromDevice` are
-// "grouped": only the first message in a group renders an avatar plus a
-// sender-meta row (raw `fromDevice` name + HH:mm timestamp); grouped rows
-// render an avatar-width spacer and omit the meta row. The grouping is
-// computed in CHRONOLOGICAL order (oldest -> newest) so the window
-// comparison is correct, then the list is reversed for display
-// (reverse=true keeps the newest at the bottom). Deferred to later
-// atomics (in-scope surface only): attachments (AttachmentCard), call
-// events (CallLogEntry), the MLS badge (MlsBadge), and the failed-message
-// retry row.
+// Grouping + sender meta: the message list ports the React `DmMessageRow`
+// grouping rule from MessageLists.tsx -- within a 5-minute window,
+// consecutive messages from the same `fromDevice` are "grouped": only the
+// first message in a group renders an avatar plus a sender-meta row (raw
+// `fromDevice` name + HH:mm timestamp); grouped rows render an
+// avatar-width spacer and omit the meta row. The grouping is computed in
+// CHRONOLOGICAL order (oldest -> newest) so the window comparison is
+// correct, then the list is reversed for display (reverse=true keeps the
+// newest at the bottom). Deferred to later atomics (in-scope surface
+// only): attachments (AttachmentCard), call events (CallLogEntry), the
+// MLS badge (MlsBadge), and the failed-message retry row.
+// Search + filter (this atomic): applies the React `filterMessages(messages,
+// search, filter)` BEFORE grouping, then groups the filtered list, then
+// reverses for display -- matching the React `DmChatList`/`MessageLists`
+// order (`visibleMessages = filterMessages(...)` then
+// `messageItems(visibleMessages, keyFn)`). The ConversationTools row
+// (search input + All/Files segmented filter) sits above the message
+// list; a `DmSearchEmpty` branch renders when the session has messages
+// but the current search/filter hid every row.
 //
 // Server/async state lives behind activeSessionProvider (FutureProvider.family
 // of SessionSnapshot, ADR 0010). On send we call gateway.sendMessage via the
 // gatewayProvider seam (ADR 0013) and invalidate the family entry so the new
-// message re-renders. Only the text controller + send-in-flight flag are
-// widget-local client state - hence ConsumerStatefulWidget. Polling choice
-// for slice-one: refresh on init + after each send (no Timer.periodic loop);
-// the React app polled every 1000ms, a full poll loop is a nice-to-have.
+// message re-renders. The text controller + send-in-flight flag + the
+// ephemeral search/filter controls are widget-local client state - hence
+// ConsumerStatefulWidget. Slice-one: refresh on init + after each send (no
+// Timer.periodic loop); the React app polled every 1000ms, a full poll loop
+// is a nice-to-have.
 library;
 
 import 'package:flutter/material.dart';
@@ -34,6 +42,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -125,6 +134,11 @@ class DmScreen extends ConsumerStatefulWidget {
 class _DmScreenState extends ConsumerState<DmScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
+  // Ephemeral UI controls for the message search + filter (React
+  // ConversationTools). ADR 0010 allows widget-local state for UI
+  // controls; these two fields drive `filterDmMessages` before grouping.
+  String _search = '';
+  ConversationFilter _filter = ConversationFilter.all;
 
   @override
   void dispose() {
@@ -164,17 +178,35 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            ConversationTools(
+              search: _search,
+              filter: _filter,
+              onSearch: (value) => setState(() => _search = value),
+              onFilter: (value) => setState(() => _filter = value),
+              l: l,
+            ),
             Expanded(
               child: async.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text(e.toString())),
-                data: (s) => s.messages.isEmpty
-                    ? _Empty(l: l)
-                    : _MessageListView(
-                        ownDeviceName: s.displayName,
-                        grouped: groupDmMessages(s.messages).reversed.toList(),
-                        attachments: s.attachments,
-                      ),
+                data: (s) {
+                  // Filter BEFORE group (React DmChatList order):
+                  // `visibleMessages = filterMessages(...)` then
+                  // `messageItems(visibleMessages, ...)`. Grouping operates
+                  // on the FILTERED chronological list so the window
+                  // comparison stays correct on the visible set.
+                  if (s.messages.isEmpty) return _Empty(l: l);
+                  final filtered =
+                      filterDmMessages(s.messages, _search, _filter);
+                  if (filtered.isEmpty) {
+                    return DmSearchEmpty(filter: _filter, l: l);
+                  }
+                  return _MessageListView(
+                    ownDeviceName: s.displayName,
+                    grouped: groupDmMessages(filtered).reversed.toList(),
+                    attachments: s.attachments,
+                  );
+                },
               ),
             ),
             _Composer(
