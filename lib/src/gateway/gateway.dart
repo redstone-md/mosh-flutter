@@ -16,6 +16,7 @@
 // atomics -- the frb functions for them already exist in `lib/src/rust/api/`;
 // only the Gateway seam + UI wiring is missing.
 
+import 'dart:typed_data' show Uint8List;
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -216,4 +217,33 @@ abstract interface class Gateway {
   Future<String?> getBindInterface();
   Future<VpnBypassConsent?> getVpnBypassConsent();
   Future<void> setVpnBypassConsent({String? interfaceName});
+  // Voice-call surface (1:1 port of the private_dm_call_* Tauri commands).
+  // DM-only -- channels/groups have no call path. callStart mints the call id
+  // + key + nonce prefix and moves the session to outgoing-ringing;
+  // callAccept/callDecline/callEnd drive the control state; callSendFrame/
+  // callDrainFrames are the 20ms audio-frame transport the Dart capture/
+  // playback loops drive. Surfaced for the IncomingCallModal/OutgoingCall
+  // Modal/CallOverlay UI (ADR 0013).
+  Future<CallStarted> callStart({required String sessionId});
+  Future<void> callAccept({required String sessionId, required String callId});
+  Future<void> callDecline({
+    required String sessionId,
+    required String callId,
+    required String reason,
+  });
+  Future<void> callEnd({
+    required String sessionId,
+    required String callId,
+    required String reason,
+  });
+  Future<void> callSendFrame({
+    required String sessionId,
+    required String callId,
+    required Uint8List frame,
+  });
+  Future<List<Uint8List>> callDrainFrames({
+    required String sessionId,
+    required String callId,
+  });
+
 }
