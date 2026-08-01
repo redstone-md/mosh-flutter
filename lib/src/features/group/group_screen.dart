@@ -35,13 +35,21 @@
 // gateway.sendGroup via gatewayProvider (ADR 0013) then invalidates the
 // family entry; leave calls gateway.closeGroup then navigates back to the
 // sessions list. The composer is widget-local (ConsumerStatefulWidget).
-library;
+// Peer-status drawer: mirrors DmScreen wiring. The drawer (PeerStatusDrawer,
+// shared with the DM + Channel screens) branches internally -- session ->
+// channel -> group -> NoActiveSession -- and is rendered here with
+// group: set so it shows GroupDiagnostics. An AppBar action toggles
+// _showPeerStatus; the body is a Stack whose last child is a
+// Positioned.fill(PeerStatusDrawer(...)) overlay.
+//
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
@@ -65,6 +73,7 @@ class GroupScreen extends ConsumerStatefulWidget {
 class _GroupScreenState extends ConsumerState<GroupScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
+  bool _showPeerStatus = false;
 
   @override
   void dispose() {
@@ -99,6 +108,8 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(groupSnapshotProvider(widget.groupId));
+    final groupForDrawer = async.value;
+    final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: AppBar(
         title: Text(async.maybeWhen(
@@ -107,6 +118,11 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         )),
         actions: [
           IconButton(
+            icon: const Icon(Icons.electrical_services, size: 18),
+            tooltip: l.openPeerStatus,
+            onPressed: () => setState(() => _showPeerStatus = true),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: l.groupLeaveLabel,
             onPressed: _leave,
@@ -114,31 +130,46 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
-              child: async.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text(e.toString())),
-                data: (group) {
-                  if (group.messages.isEmpty) {
-                    return const _Empty();
-                  }
-                  return _GroupMessageListView(
-                    messages: group.messages,
-                    ownFingerprint: group.deviceFingerprint,
-                  );
-                },
+            Column(
+              children: [
+                Expanded(
+                  child: async.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text(e.toString())),
+                    data: (group) {
+                      if (group.messages.isEmpty) {
+                        return const _Empty();
+                      }
+                      return _GroupMessageListView(
+                        messages: group.messages,
+                        ownFingerprint: group.deviceFingerprint,
+                      );
+                    },
+                  ),
+                ),
+                _Composer(
+                  controller: _composer,
+                  sending: _sending,
+                  placeholder: l.chatComposerPlaceholder,
+                  sendLabel: l.chatSendLabel,
+                  onSend: _send,
+                ),
+              ],
+            ),
+            if (_showPeerStatus)
+              Positioned.fill(
+                child: PeerStatusDrawer(
+                  group: groupForDrawer,
+                  error: errorForDrawer,
+                  refreshing: false,
+                  onRefresh: () =>
+                      ref.invalidate(groupSnapshotProvider(widget.groupId)),
+                  onClose: () => setState(() => _showPeerStatus = false),
+                ),
               ),
-            ),
-            _Composer(
-              controller: _composer,
-              sending: _sending,
-              placeholder: l.chatComposerPlaceholder,
-              sendLabel: l.chatSendLabel,
-              onSend: _send,
-            ),
           ],
         ),
       ),
