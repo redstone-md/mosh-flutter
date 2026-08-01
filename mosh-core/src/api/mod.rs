@@ -19,6 +19,11 @@
 /// Facade for the `app_diagnostics` / `native_runtime_status` Tauri commands.
 pub mod diagnostics;
 
+/// Shared process-global runtime resources (Moss node + attachment store +
+/// persistence) + the two mobile-inject knobs (`set_history_dek`,
+/// `set_app_data_dir`). Borrowed by every runtime facade.
+pub mod shared_runtime;
+
 /// Facade for the `private_dm_*` family of Tauri commands.
 pub mod private_dm;
 

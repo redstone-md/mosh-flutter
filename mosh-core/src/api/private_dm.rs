@@ -60,18 +60,13 @@
 //! identity + a history blob survive a drop-and-reopen -- cleaning its DEK
 //! out of the keychain in teardown so the host keychain is not polluted.
 
-use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use crate::attachment_store::AttachmentStore;
-use crate::moss_ffi::{set_moss_keystore, MossFfiRuntime};
-use crate::persistence::Persistence;
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CloseSessionResult, InviteCreated, PrivateDmRuntime,
     PrivateDmRuntimeError, SendMessageResult, SessionListSnapshot, SessionSnapshot,
     StartSessionRequest,
 };
-use crate::shared_node::SharedMossNode;
 use crate::private_dm_runtime::{AttachmentSendResult, VoiceMeta};
 
 // Mirrors the Tauri shell's `PRIVATE_DM_UNAVAILABLE` constant so the error
@@ -93,49 +88,34 @@ static RUNTIME: OnceLock<Mutex<Option<PrivateDmRuntime>>> = OnceLock::new();
 /// every later call (the Tauri shell kept this in
 /// `PrivateDmState::load_error`).
 static LOAD_ERROR: OnceLock<String> = OnceLock::new();
+// The two mobile-inject knobs (`set_history_dek`, `set_app_data_dir`) +
+// the shared Moss node / attachment store / persistence are owned by
+// `api::shared_runtime` (ADR 0016 shared-runtime refactor). This facade
+// keeps the frb-bound `set_history_dek` / `set_app_data_dir` wrappers so
+// the Dart bridge paths (`package:.../rust/api/private_dm.dart`) stay
+// stable; the bodies delegate one line each.
 
-/// The at-rest DEK injected by the mobile platform channel (ADR 0011).
-///
-/// On Android, Dart owns both the load AND the first-run mint of the
-/// history DEK (Shape A1): it reads/mints 32 raw bytes from the Android
-/// Keystore via `flutter_secure_storage` (namespace `app.mosh.mobile`,
-/// mirroring the desktop `app.mosh.desktop` SERVICE_NAME) and hands them to
-/// Rust through `set_history_dek` BEFORE the private-DM runtime constructs.
-/// `construct_runtime` then opens the DB with `Persistence::open_with_dek`
-/// instead of the keychain-backed `Persistence::open`, so the live runtime
-/// uses the Keystore DEK rather than the OS keychain on a device. The DEK
-/// is loaded ONCE at construction time (not per-call), so a process-global
-/// `OnceLock` matches the "set once, read at construct" lifetime exactly.
-///
-/// Desktop/iOS do NOT call `set_history_dek`; the cell stays `None` and
-/// `construct_runtime` falls back to `Persistence::open` (the unchanged
-/// desktop path backed by `OsSecureSecretStore`). This is the single
-/// construction site that swaps the at-rest backend.
-static INJECTED_DEK: OnceLock<[u8; 32]> = OnceLock::new();
+/// Inject the at-rest history DEK from the mobile platform channel (ADR
+/// 0011). See `api::shared_runtime::set_history_dek` for the full
+/// contract. This wrapper is frb-bound so the Dart startup path keeps
+/// the stable `crate::api::private_dm::set_history_dek` symbol.
+pub fn set_history_dek(dek: Vec<u8>) -> Result<(), String> {
+    crate::api::shared_runtime::set_history_dek(dek)
+}
 
-/// The app-private data directory bridged from the platform channel (ADR
-/// 0010, M-5). Dart resolves it ONCE at startup via
-/// `getApplicationSupportDirectory()` (iOS NSApplicationSupportDirectory,
-/// Android files dir, Windows %APPDATA%, macOS ~/Library/Application
-/// Support, Linux ~/.local/share) and hands it to Rust through
-/// `set_app_data_dir` BEFORE the private-DM runtime constructs. When set,
-/// `construct_runtime` opens `history.redb` and the AttachmentStore under
-/// `<app_data_dir>/mosh` instead of `std::env::temp_dir().join("mosh")` --
-/// production-correct on a device, where temp is cleared by the OS.
-///
-/// Desktop ALSO injects (path_provider works on Windows/macOS/Linux), so
-/// desktop now gets a real app-support dir too -- strictly better than
-/// temp. Tests that don't inject (the existing 218) keep the temp arm, so
-/// they stay green and keep their `unique_test_dir`-based isolation. The
-/// dir is read ONCE at construction time, so a process-global `OnceLock`
-/// matches the "set once, read at construct" lifetime exactly -- mirrors
-/// `INJECTED_DEK`.
-static APP_DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
+/// Inject the app-private data directory from the platform channel (ADR
+/// 0010, M-5). See `api::shared_runtime::set_app_data_dir` for the full
+/// contract. This wrapper is frb-bound so the Dart startup path keeps
+/// the stable `crate::api::private_dm::set_app_data_dir` symbol.
+pub fn set_app_data_dir(path: String) -> Result<(), String> {
+    crate::api::shared_runtime::set_app_data_dir(path)
+}
 
 /// Lazily construct the singleton on first call, then lock it.
 ///
-/// On the first call: load Moss, build the attachment store, construct the
-/// runtime, rehydrate saved conversations, and store it. On every later
+/// On the first call: load the shared resources (Moss node + attachment
+/// store + persistence via `api::shared_runtime`), build the DM runtime
+/// off them, rehydrate saved conversations, and store it. On every later
 /// call: just lock. Returns a guard the public functions can drive the
 /// `&mut self` runtime through, or an error string matching the Tauri
 /// shell's `unavailable_message` shape.
@@ -155,8 +135,7 @@ fn ensure_runtime() -> Result<MutexGuard<'static, Option<PrivateDmRuntime>>, Str
 
 /// Build the singleton value once. Returns `Some(runtime)` on success, or
 /// `None` + caches the cause in `LOAD_ERROR` on failure. Split out from
-/// `ensure_runtime` to keep that function's nesting shallow and its body
-/// under 50 LOC (AGENTS.md function_max_loc).
+/// `ensure_runtime` to keep that function's nesting shallow.
 fn build_runtime() -> Option<PrivateDmRuntime> {
     match construct_runtime() {
         Ok(runtime) => Some(runtime),
@@ -167,152 +146,26 @@ fn build_runtime() -> Option<PrivateDmRuntime> {
     }
 }
 
-/// Resolve the data dir `construct_runtime` opens the DB + AttachmentStore
-/// under. Pure helper extracted so the path-selection logic is unit-testable
-/// without touching the process-global `APP_DATA_DIR` `OnceLock` (which, once
-/// set, stays set for the whole binary and would contaminate other tests).
-/// When the bridge has injected an app_data_dir (ADR 0010, M-5), open under
-/// `<app_data_dir>/mosh`; otherwise fall back to the temp-dir `mosh` dir the
-/// Tauri shell used -- the unchanged arm tests and any caller without a
-/// bridged dir rely on.
-fn resolve_data_dir(app_data_dir: Option<&std::path::Path>) -> std::path::PathBuf {
-    match app_data_dir {
-        Some(dir) => dir.join("mosh"),
-        None => std::env::temp_dir().join("mosh"),
-    }
-}
-
-/// The construction recipe -- the api-facade analogue of the Tauri shell's
-/// `PrivateDmState::ready`. Opens the encrypted at-rest store, wires the
-/// Moss transport-identity keystore, then builds the runtime so conversations
-/// AND the device identity survive restart (ADR 0011 SecureSecretStore).
+/// The DM-runtime construction recipe: borrow the shared resources (Moss
+/// node + attachment store + persistence) from `api::shared_runtime`,
+/// build a `PrivateDmRuntime::from_shared_node` off them, then rehydrate
+/// saved conversations from the encrypted store. The shared setup (Moss
+/// load, keystore install, persistence open, attachment store) lives in
+/// `shared_runtime::construct_resources` -- DM/channel/group all share
+/// it.
 fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
-    // `load_default` internally calls
-    // `MossDynamicRuntime::from_default_candidates` (same path the Tauri
-    // shell's `tauri_moss::load_moss_runtime_from_app_handle` took). Failure
-    // here is the "missing moss.dll" case the Tauri shell surfaced as
-    // `PrivateDmState::missing(message)`.
-    let moss = MossFfiRuntime::load_default()
-        .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
-
-    // Open the encrypted at-rest store BEFORE the Moss node starts. Moss
-    // resolves its transport identity inside `Moss_Init` (probe-then-load on
-    // the registered keystore): an existing identity is reused, a missing
-    // one is minted and saved back. So the keystore must be registered + the
-    // C callbacks installed on the loaded runtime before any `init_node`
-    // runs -- the shared node is initialized lazily on the first session, so
-    // installing here (right after load) is before every node start.
-    //
-    // Path (ADR 0010, M-5): when Dart has bridged a real app_data_dir via
-    // `set_app_data_dir`, open under `<app_data_dir>/mosh` -- app-private,
-    // not OS-cleared, so the encrypted history DB + attachments survive
-    // restart on a device. Otherwise fall back to the temp-dir `mosh` dir
-    // the Tauri shell used; this keeps tests that don't inject (the
-    // existing 218) and any caller without a bridged dir working unchanged.
-    // Fail closed: `Persistence::open` refuses to mint a fresh DEK when a
-    // DB already exists (it would orphan all persisted history), and a
-    // keychain failure is surfaced as `PrivateDmRuntimeError::Persistence`
-    // rather than silently degrading to ephemeral -- a desktop app that
-    // silently drops every conversation on restart is worse than a visible
-    // error.
-    let data_dir = resolve_data_dir(APP_DATA_DIR.get().map(std::path::PathBuf::as_path));
-    std::fs::create_dir_all(&data_dir)
-        .map_err(|error| PrivateDmRuntimeError::Persistence(format!("mkdir data dir: {error}")))?;
-    let db_path = data_dir.join("history.redb");
-    // ADR 0011 mobile-inject path: when Dart has injected a Keystore-minted
-    // DEK via `set_history_dek`, open the DB with that DEK instead of the OS
-    // keychain. Desktop/iOS never inject, so the cell is `None` and the
-    // desktop `Persistence::open` path (OsSecureSecretStore) is unchanged.
-    // This is the single construction site that swaps the at-rest backend.
-    let persistence = std::sync::Arc::new(match INJECTED_DEK.get() {
-        Some(dek) => Persistence::open_with_dek(&db_path, *dek)?,
-        None => Persistence::open(&db_path)?,
-    });
-
-    // Register the persistence store as the host keystore, then install the
-    // C callbacks on the loaded Moss runtime. `set_moss_keystore` is the
-    // process global the callbacks read; `install_keystore` hands the
-    // callbacks to Moss. Both BEFORE `init_node` (which the shared node runs
-    // lazily) so Moss loads the existing identity instead of minting a fresh
-    // one. This closes the gap at `moss_ffi.rs` set_moss_keystore/
-    // install_keystore, which were only exercised by the MemStore test.
-    set_moss_keystore(persistence.clone());
-    moss.install_keystore()
-        .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
-
-    // One holder for the whole process: DMs, channels, groups and orgs share
-    // a single Moss node (see `shared_node`). The api facade owns its own
-    // holder today; when other api slices land, they should take a
-    // reference to THIS shared node rather than minting their own.
-    let shared_node = SharedMossNode::new(std::sync::Arc::new(moss));
-    // Same `mosh` temp dir as the persistence DB (mirrors the Tauri shell's
-    // `app_data_dir`-then-temp fallback for attachments).
-    let attachment_store = std::sync::Arc::new(
-        AttachmentStore::new(data_dir)
-            .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?,
+    let resources = crate::api::shared_runtime::ensure_shared_resources()
+        .map_err(|error| PrivateDmRuntimeError::Moss(error))?;
+    let mut runtime = PrivateDmRuntime::from_shared_node(
+        resources.shared_node,
+        resources.attachment_store,
+        resources.persistence,
     );
-    let mut runtime =
-        PrivateDmRuntime::from_shared_node(shared_node, attachment_store, Some(persistence));
     // Rehydrate saved conversations from the encrypted store; with
     // persistence wired it now rebuilds sessions + history instead of the
     // slice-one no-op.
     runtime.rehydrate();
     Ok(runtime)
-}
-
-/// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
-///
-/// Dart calls this ONCE at startup on Android, AFTER reading/minting 32 raw
-/// bytes from the Android Keystore via `flutter_secure_storage`, and BEFORE
-/// the first private-DM runtime construct. `construct_runtime` then opens
-/// the DB with `Persistence::open_with_dek(path, *injected)` instead of the
-/// keychain-backed `Persistence::open`, so the live runtime uses the
-/// Keystore DEK on a device. Desktop/iOS never call this and keep the
-/// desktop `OsSecureSecretStore` path.
-///
-/// Idempotent-once: the first call wins; a second call returns `Err` (the
-/// DEK cannot be swapped after the DB is already open under it -- a
-/// different DEK would fail to decrypt existing rows). Returns `Err` for a
-/// wrong-length DEK (must be exactly 32 bytes). The frb-exposed surface for
-/// mobile injection is THIS fn only; `Persistence::open_with_dek` is public
-/// but internal and not bridged.
-pub fn set_history_dek(dek: Vec<u8>) -> Result<(), String> {
-    if dek.len() != 32 {
-        return Err(format!(
-            "set_history_dek: DEK must be exactly 32 bytes, got {}",
-            dek.len()
-        ));
-    }
-    let mut fixed = [0u8; 32];
-    fixed.copy_from_slice(&dek);
-    INJECTED_DEK.set(fixed).map_err(|_| {
-        "set_history_dek: DEK already injected; re-injection is not allowed".to_string()
-    })
-}
-
-/// Inject the app-private data directory from the platform channel (ADR
-/// 0010, M-5). Dart calls this ONCE at startup on EVERY platform (Android,
-/// iOS, Windows, macOS, Linux) BEFORE the first private-DM runtime
-/// construct, after resolving the dir via `getApplicationSupportDirectory()`.
-/// `construct_runtime` then opens `history.redb` + the AttachmentStore under
-/// `<app_data_dir>/mosh` instead of `std::env::temp_dir().join("mosh")`, so
-/// the encrypted history DB + attachments survive OS temp clearing on a
-/// device and live in the platform's app-private support dir on desktop.
-///
-/// Idempotent-once: the first call wins; a second call returns `Err` (the
-/// dir cannot be moved after the DB is already open under it -- a different
-/// dir would point at a different DB and orphan all persisted history).
-/// Returns `Err` for an empty path. Mirrors `set_history_dek`'s shape so the
-/// bridge surface for the two mobile-inject knobs is symmetric. The
-/// frb-exposed surface is THIS fn only; `construct_runtime` reads the
-/// `OnceLock` directly.
-pub fn set_app_data_dir(path: String) -> Result<(), String> {
-    if path.trim().is_empty() {
-        return Err("set_app_data_dir: path must be a non-empty directory".to_string());
-    }
-    APP_DATA_DIR.set(PathBuf::from(path)).map_err(|_| {
-        "set_app_data_dir: app_data_dir already set; re-setting is not allowed".to_string()
-    })
 }
 
 /// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
@@ -436,7 +289,7 @@ fn decode_base64(value: &str) -> Result<Vec<u8>, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_data_dir;
+use crate::api::shared_runtime::resolve_data_dir;
     use crate::moss_ffi::{
         clear_moss_keystore, set_moss_keystore, MossFfiRuntime, MossNodeConfig, MOSS_TEST_LOCK,
     };
