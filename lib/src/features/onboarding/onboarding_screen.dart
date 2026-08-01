@@ -25,7 +25,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/state/persistence_warning_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -78,6 +80,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final warning = ref.watch(persistenceWarningProvider);
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -96,6 +99,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (warning case AsyncData(:final value)
+                    when value != null) ...[
+                  PersistenceWarningBanner(warning: value),
+                  const SizedBox(height: 12),
+                ],
                 _IdentityChip(
                   controller: _nameController,
                   label: l.setupDisplayNameLabel,
