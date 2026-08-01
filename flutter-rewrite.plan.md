@@ -759,3 +759,54 @@ download/cancel/open_attachment + frb codegen + RealBridge/Fake), the
 channels/groups contract slice (port ChannelSnapshot/GroupSnapshot to Rust api +
 frb before any channels/groups UI), and FingerprintBadge (needs Gateway
 confirm-fingerprint method).
+
+## Slices landed since (commits 94724be..9231a71, not all individually journaled)
+
+Between the early diagnostics wiring above and the sender-meta atomic below, the
+following slices shipped (HEAD progression): a11y (liveRegion + scopedRoute),
+attachment seam + AttachmentCard (4-state machine), channels/groups read + write
+seams (poll/list/send/leave/close), ChannelDiagnostics + GroupDiagnostics,
+FingerprintBadge (local confirm Set), AGP 9 migration (apk builds), emulator +
+device integration pass (biometric prompt + Keystore DEK persist verified),
+sessions list combined rail (DMs + channels + groups with unread badges), and
+ChannelScreen/GroupScreen route shells. PeerStatusDrawer branching (9231a71)
+closed drawer parity: session→channel→group→NoActiveSession, wired into all
+three screens. `session` made optional so one drawer serves all three.
+
+## Channel/group screen polish — sender-meta + grouping (DONE, commit 815da01)
+
+First of the surface-by-surface channel/group polish atomics (mirrors how DmScreen
+was built up). Ports React `messageItems`/`shouldGroup` (src/features/private-dm/
+MessageLists.tsx) to channels + groups.
+
+Grouping (new `channel_message_row.dart` / `group_message_row.dart`):
+key = `fromFingerprint` (not `fromDevice` -- multi-party), window = 5 min
+(GROUP_WINDOW_MS), null sentAtMs breaks grouping, first message never grouped.
+Only the first row of a group renders the sender meta; grouped rows use a
+tighter vertical margin. Per-feature modules keep the helper + row local for
+orthogonality (channel/group don't depend on the DM feature for core row logic).
+
+Sender meta: new `MultiPartySenderMeta` in `dm_helpers.dart` (shared UI-primitives
+home), parameterized on primitives (fromDevice/fromFingerprint/sentAtMs) so it
+stays decoupled from the distinct ChannelMessage/GroupMessage types. Renders
+fromDevice (bold) + monospace shorten(fingerprint, 6) + optional MLS badge +
+timestamp. A `showMlsBadge` flag (default true) expresses the React difference:
+group rows render the badge, channel rows don't (MessageLists.tsx 273-279 vs
+378-383). Channel passes false, group uses the default.
+
+Two parity fixes caught by review (Banach, FAIL then fixed): (1) channel rows
+were rendering an MLS badge React omits — added the flag; (2) both rows gated
+meta with `!own && !grouped`, suppressing own-row meta — React (and the DM port)
+render meta on every non-grouped row including own, so changed to `if (!grouped)`.
+Three regression widget tests pin both fixes (own-row meta renders; channel
+omits MLS badge, group keeps it).
+
+Verify: `flutter analyze` 0 issues; `flutter test` 211/211 pass; all 5 touched
+files < 500 lines (dm_helpers 323, channel_message_row 141, group_message_row
+147, channel test 327, group test 302); tree clean at 815da01.
+
+Next atomics (recorded): ConversationTools (search/filter for channels/groups,
+fingerprint-based comparison, mirroring DmScreen's filterDmMessages); then
+attachments in channel/group screens, public-channel notice banner (channels) +
+encryption notice (groups), admin badge + member-count subtitle (groups),
+copy-invite (groups), retry row.

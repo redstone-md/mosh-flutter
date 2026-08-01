@@ -1,0 +1,11 @@
+docs(plan): journal sender-meta atomic + interim slice summary
+
+Record the channel/group sender-meta + grouping slice (815da01) and add a
+short interim summary of the slices landed between the early diagnostics
+wiring and now (94724be..9231a71) that weren't individually journaled:
+a11y, attachment seam + AttachmentCard, channels/groups read+write seams,
+Channel/Group diagnostics, FingerprintBadge, AGP 9 migration, device
+integration pass, sessions combined rail, Channel/Group screen shells,
+PeerStatusDrawer branching. Keeps the plan a living doc and records the
+next atomics (ConversationTools, channel/group attachments/notice banners,
+admin badge, copy-invite, retry row).
