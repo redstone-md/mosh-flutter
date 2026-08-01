@@ -1,48 +1,38 @@
-// S4.7: DM (direct message) screen for slice-one. Shows a session's
-// message list + composer, mirroring the React ActiveDmChat
-// (src/features/private-dm/ActiveChatPanes.tsx + MessageLists.tsx +
-// ChatComposer.tsx): an app bar with the peer display name, a scrolling
-// message list (own vs peer by alignment/color, distinguishing own via
-// `fromDevice == snapshot.displayName`, the same rule the React app uses
-// for `from_device === ownDeviceName`), a composer (TextField + Send), and
-// a crypto footer line.
+// S4.7: DM screen for slice-one. App bar (peer display name) + scrolling
+// message list (own vs peer by alignment/color; own = `fromDevice ==
+// snapshot.displayName`, the React `from_device === ownDeviceName` rule) +
+// composer + crypto footer. Mirrors the React ActiveDmChat
+// (ActiveChatPanes.tsx + MessageLists.tsx + ChatComposer.tsx).
 //
-// Grouping + sender meta: the message list ports the React `DmMessageRow`
-// grouping rule from MessageLists.tsx -- within a 5-minute window,
-// consecutive messages from the same `fromDevice` are "grouped": only the
-// first message in a group renders an avatar plus a sender-meta row (raw
-// `fromDevice` name + HH:mm timestamp); grouped rows render an
-// avatar-width spacer and omit the meta row. The grouping is computed in
-// CHRONOLOGICAL order (oldest -> newest) so the window comparison is
-// correct, then the list is reversed for display (reverse=true keeps the
-// newest at the bottom). Deferred to later atomics (in-scope surface
-// only): attachments (AttachmentCard), call events (CallLogEntry), and
-// the failed-message retry row. The MLS badge (MlsBadge) now renders in
-// the sender meta (see [SenderMeta] in dm_helpers.dart).
-// Search + filter (this atomic): applies the React `filterMessages(messages,
-// search, filter)` BEFORE grouping, then groups the filtered list, then
-// reverses for display -- matching the React `DmChatList`/`MessageLists`
-// order (`visibleMessages = filterMessages(...)` then
-// `messageItems(visibleMessages, keyFn)`). The ConversationTools row
-// (search input + All/Files segmented filter) sits above the message
-// list; a `DmSearchEmpty` branch renders when the session has messages
-// but the current search/filter hid every row.
+// Grouping: React `DmMessageRow` rule -- a 5-min window groups consecutive
+// same-`fromDevice` rows (only the first renders an avatar + sender-meta;
+// grouped rows render a spacer). Chronological, then reversed (newest at
+// bottom). MLS badge in the sender meta ([SenderMeta]).
 //
-// Server/async state lives behind activeSessionProvider (FutureProvider.family
-// of SessionSnapshot, ADR 0010). On send we call gateway.sendMessage via the
-// gatewayProvider seam (ADR 0013) and invalidate the family entry so the new
-// message re-renders. The text controller + send-in-flight flag + the
-// ephemeral search/filter controls are widget-local client state - hence
-// ConsumerStatefulWidget. Slice-one: refresh on init + after each send (no
-// Timer.periodic loop); the React app polled every 1000ms, a full poll loop
-// is a nice-to-have.
+// Search + filter: React `filterMessages` BEFORE grouping, then reverses
+// (matching `DmChatList`/`MessageLists`). ConversationTools sits above the
+// list; `DmSearchEmpty` renders when the filter hid every row.
+//
+// Attachments (this atomic): each row wires an `AttachmentCard` via
+// `_attachmentCallbacks` -- download/cancel hit the Gateway seam (99bc9d9),
+// open runs the dart:io launcher (no Rust fn). Deferred: call events, the
+// failed-message retry row, the full poll loop.
+//
+// Server state: activeSessionProvider (ADR 0010); send calls
+// gateway.sendMessage via gatewayProvider (ADR 0013) and invalidates the
+// family entry. Composer + search/filter + peer-status drawer are widget-
+// local (ConsumerStatefulWidget). Slice-one: refresh on init + after send.
 library;
+
+import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -60,9 +50,8 @@ const Duration _groupWindow = Duration(minutes: 5);
 /// `avatar avatar-spacer` element).
 const double _avatarSize = 32;
 
-/// One row of the grouping result: the underlying message plus whether it
-/// was grouped under the previous visible message (per the React rule in
-/// `messageItems`/`shouldGroup`).
+/// One grouping row: the message plus whether it was grouped under the
+/// previous visible message (React `messageItems`/`shouldGroup`).
 @visibleForTesting
 class GroupedMessage {
   const GroupedMessage({required this.message, required this.grouped});
@@ -82,21 +71,13 @@ class GroupedMessage {
   int get hashCode => Object.hash(message, grouped);
 }
 
-/// Computes the per-message `grouped` flag for a DM message list, ported
-/// 1-1 from the React `messageItems` + `shouldGroup` helpers in
-/// `src/features/private-dm/MessageLists.tsx`.
-///
-/// Rule (chronological, oldest -> newest):
-///   - the first message is never grouped;
-///   - a message is grouped when its `fromDevice` equals the previous
-///     message's `fromDevice` AND both `sentAtMs` are non-null AND
-///     `current.sentAtMs >= previous.sentAtMs` AND the delta is within
-///     [_groupWindow] (5 minutes).
-///
-/// A null `sentAtMs` always breaks grouping (a message with no timestamp
-/// starts a new group), matching React's `!previous.sent_at_ms ||
-/// !current.sent_at_ms` guard. The input order is treated as chronological;
-/// the DM screen reverses the result for display (reverse=true).
+/// Computes the per-message `grouped` flag (React `messageItems` /
+/// `shouldGroup` in MessageLists.tsx). Chronological, oldest -> newest: the
+/// first message is never grouped; a row groups when its `fromDevice`
+/// equals the previous one AND both `sentAtMs` are non-null AND `current >=
+/// previous` AND the delta is within [_groupWindow] (5 min). A null
+/// `sentAtMs` breaks grouping (React's `!prev || !cur` guard); the screen
+/// reverses the result for display (reverse=true).
 @visibleForTesting
 List<GroupedMessage> groupDmMessages(List<ChatMessage> messages) {
   final result = <GroupedMessage>[];
@@ -113,17 +94,13 @@ bool _shouldGroup(ChatMessage previous, ChatMessage current) {
   final curMs = current.sentAtMs;
   if (prevMs == null || curMs == null) return false;
   if (previous.fromDevice != current.fromDevice) return false;
-  // BigInt is unsigned-only here; guard against a non-monotonic source by
-  // comparing on the subtracted side exactly as React does
-  // (`current.sent_at_ms >= previous.sent_at_ms`).
   if (curMs < prevMs) return false;
   return curMs - prevMs <= BigInt.from(_groupWindow.inMilliseconds);
 }
 
-/// Direct-message screen for one session. Slice-one surface: message list +
-/// composer. Own vs peer is inferred from `ChatMessage.fromDevice` vs the
-/// session's own `displayName` (the same rule the React DmChatList applies
-/// via `from_device === ownDeviceName`).
+/// Direct-message screen for one session. Own vs peer is inferred from
+/// `ChatMessage.fromDevice` vs the session's `displayName` (React's
+/// `from_device === ownDeviceName` rule).
 class DmScreen extends ConsumerStatefulWidget {
   const DmScreen({super.key, required this.sessionId});
 
@@ -136,15 +113,10 @@ class DmScreen extends ConsumerStatefulWidget {
 class _DmScreenState extends ConsumerState<DmScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
-  // Ephemeral UI controls for the message search + filter (React
-  // ConversationTools). ADR 0010 allows widget-local state for UI
-  // controls; these two fields drive `filterDmMessages` before grouping.
+  // Ephemeral search + filter (React ConversationTools); widget-local per
+  // ADR 0010; drive `filterDmMessages` before grouping.
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
-
-  // Ephemeral widget-local client state for the Peer-status drawer overlay
-  // (React `showDiagnostics`). ADR 0010 allows widget-local UI state; this
-  // bool drives the modal `PeerStatusDrawer` rendered as a `Stack` overlay.
   bool _showPeerStatus = false;
 
   @override
@@ -163,14 +135,40 @@ class _DmScreenState extends ConsumerState<DmScreen> {
             body: body,
           );
       _composer.clear();
-      // Re-fetch the session snapshot so the new message renders, and
-      // refresh the list screen's cache so its row reflects the activity.
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
   }
+
+  /// Builds the per-row transfer-action callbacks for [AttachmentCard]:
+  /// download/cancel fire the Gateway seam (99bc9d9) then invalidate the
+  /// session provider so the next poll re-renders state + progress
+  /// (fire-and-forget via `unawaited`).
+  AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
+      AttachmentCallbacks(
+        onDownload: (id) => unawaited(_gateway
+            .downloadAttachment(sessionId: _sessionId, attachmentId: id)
+            .then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
+        onCancel: (id) => unawaited(_gateway
+            .cancelAttachment(sessionId: _sessionId, attachmentId: id)
+            .then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
+        onOpen: (descriptor) => _openAttachment(view),
+      );
+
+  /// Opens the attachment's local file (React `openPath(local_path)` via
+  /// the Tauri opener plugin -- here client-side, no Rust fn). Windows:
+  /// `cmd /c start ""`; non-Windows is a TODO no-op (the card disables Open
+  /// when `view.localPath` is null; React `disabled={!view?.local_path}`).
+  void _openAttachment(AttachmentView? view) {
+    final localPath = view?.localPath;
+    if (localPath == null || localPath.isEmpty || !Platform.isWindows) return;
+    unawaited(Process.run('cmd', ['/c', 'start', '', '', localPath]));
+  }
+
+  String get _sessionId => widget.sessionId;
+  Gateway get _gateway => ref.read(gatewayProvider);
 
   @override
   Widget build(BuildContext context) {
@@ -180,12 +178,6 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       data: (s) => s.peerDisplayName.isEmpty ? s.sessionId : s.peerDisplayName,
       orElse: () => widget.sessionId,
     );
-    // The drawer overlays the body as a `Stack` last child so the composer +
-    // message list stay in the tree (interactive when the drawer is closed).
-    // The live session for the drawer comes from the same `activeSessionProvider`
-    // watch above: `async.value` is `s` on data, the error string on error, else
-    // null. The React `refresh(false)` poll loop is a later slice -- for now
-    // onRefresh re-reads the family entry and `refreshing` stays false.
     final sessionForDrawer = async.value;
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
@@ -216,11 +208,6 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                     loading: () => const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(child: Text(e.toString())),
                     data: (s) {
-                      // Filter BEFORE group (React DmChatList order):
-                      // `visibleMessages = filterMessages(...)` then
-                      // `messageItems(visibleMessages, ...)`. Grouping operates
-                      // on the FILTERED chronological list so the window
-                      // comparison stays correct on the visible set.
                       if (s.messages.isEmpty) return _Empty(l: l);
                       final filtered =
                           filterDmMessages(s.messages, _search, _filter);
@@ -231,6 +218,7 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                         ownDeviceName: s.displayName,
                         grouped: groupDmMessages(filtered).reversed.toList(),
                         attachments: s.attachments,
+                        attachmentCallbacks: _attachmentCallbacks,
                       );
                     },
                   ),
@@ -269,20 +257,21 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   }
 }
 
-/// Message list view extracted from the build body. `grouped` is already in
-/// DISPLAY order (newest -> oldest, ready for reverse=true) -- the screen
-/// computes it chronologically via [groupDmMessages] then reverses it
-/// before passing it here so the window comparison stays correct.
+/// Message list view. `grouped` is in DISPLAY order (newest -> oldest);
+/// the screen computes it chronologically via [groupDmMessages] then
+/// reverses it.
 class _MessageListView extends StatelessWidget {
   const _MessageListView({
     required this.grouped,
     required this.ownDeviceName,
     required this.attachments,
+    required this.attachmentCallbacks,
   });
 
   final List<GroupedMessage> grouped;
   final String ownDeviceName;
   final List<AttachmentView> attachments;
+  final AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
 
   @override
   Widget build(BuildContext context) {
@@ -294,25 +283,26 @@ class _MessageListView extends StatelessWidget {
         final item = grouped[i];
         final msg = item.message;
         final own = msg.fromDevice == ownDeviceName;
-        // Resolve the live transfer view for this message's attachment by
-        // `attachmentId` (the session's `attachments` list is the views).
         final attachmentView = msg.attachment == null
             ? null
             : _findAttachmentView(attachments, msg.attachment!.attachmentId);
+        final callbacks = attachmentCallbacks(attachmentView);
         return _DmMessageRow(
           message: msg,
           own: own,
           grouped: item.grouped,
           attachmentView: attachmentView,
+          onAttachmentDownload: callbacks.onDownload,
+          onAttachmentCancel: callbacks.onCancel,
+          onAttachmentOpen: callbacks.onOpen,
         );
       },
     );
   }
 }
 
-/// Linear lookup for the attachment view matching `attachmentId`. Session
-/// attachment lists are small (one DM's worth of files), so a plain scan is
-/// the simplest and avoids pulling a Map into the widget tree.
+/// Linear lookup for the attachment view by id (session lists are small --
+/// one DM's files -- so a plain scan avoids a Map).
 AttachmentView? _findAttachmentView(
     List<AttachmentView> attachments, String attachmentId) {
   for (final v in attachments) {
@@ -321,8 +311,24 @@ AttachmentView? _findAttachmentView(
   return null;
 }
 
-/// Empty-state for a chat with no messages yet (chatEmptyTitle + chatEmptyBody),
-/// matching the React DmChatList's empty branch.
+/// Bundles the three transfer-action callbacks one card needs (React
+/// `attachments.onDownload`/`onCancel`/`onOpen`); a class keeps the
+/// `_MessageListView` field type short. Built per-row so Open resolves
+/// THIS row's `view.localPath`.
+class AttachmentCallbacks {
+  const AttachmentCallbacks({
+    required this.onDownload,
+    required this.onCancel,
+    required this.onOpen,
+  });
+
+  final void Function(String attachmentId) onDownload;
+  final void Function(String attachmentId) onCancel;
+  final void Function(AttachmentDescriptor descriptor) onOpen;
+}
+
+/// Empty-state for a chat with no messages yet (React DmChatList empty
+/// branch; chatEmptyTitle + chatEmptyBody).
 class _Empty extends StatelessWidget {
   const _Empty({required this.l});
   final AppLocalizations l;
@@ -408,31 +414,29 @@ class _Composer extends StatelessWidget {
   }
 }
 
-/// One DM message row, mirroring the React `DmMessageRow`. Layout matches the
-/// in-scope React surface: an avatar (or an avatar-width spacer when this
-/// row is grouped under the previous message) followed by a body column.
-/// For non-grouped rows the body column opens with a sender-meta row: the
-/// raw `fromDevice` name in bold + a locale-agnostic HH:mm timestamp in a
-/// muted style (React localizes the clock via `toLocaleTimeString`; HH:mm is
-/// the slice-one equivalent, no new ARB key -- the device name is raw per
-/// React). The bubble (own/peer color + alignment + maxWidth 360) and the
-/// delivery ticks on own rows are unchanged from the prior `_MessageBubble`.
-///
-/// Deferred to later atomics: AttachmentCard, CallLogEntry, and the
-/// failed-message retry row -- the React `DmMessageRow` composes all of
-/// them; the MlsBadge now renders in the sender meta (see [SenderMeta]).
+/// One DM message row (React `DmMessageRow`): avatar (or a spacer when
+/// grouped) + body column; non-grouped rows open with a sender-meta row.
+/// Bubble (own/peer color + maxWidth 360), delivery ticks on own rows, and
+/// the per-message AttachmentCard are in scope. Deferred: CallLogEntry, the
+/// failed-message retry row (MlsBadge in the sender meta, [SenderMeta]).
 class _DmMessageRow extends StatelessWidget {
   const _DmMessageRow({
     required this.message,
     required this.own,
     required this.grouped,
     this.attachmentView,
+    required this.onAttachmentDownload,
+    required this.onAttachmentCancel,
+    required this.onAttachmentOpen,
   });
 
   final ChatMessage message;
   final bool own;
   final bool grouped;
   final AttachmentView? attachmentView;
+  final void Function(String attachmentId) onAttachmentDownload;
+  final void Function(String attachmentId) onAttachmentCancel;
+  final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -441,10 +445,6 @@ class _DmMessageRow extends StatelessWidget {
     final align = own ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final mainAxisAlignment =
         own ? MainAxisAlignment.end : MainAxisAlignment.start;
-    // The avatar sits on the peer's side (start for peer, end for own). When
-    // grouped, the avatar slot becomes a width-only spacer so the body of
-    // a grouped row stays indented under its group's first row -- matching
-    // React's `avatar avatar-spacer`.
     final avatarSlot = grouped
         ? const SizedBox(width: _avatarSize)
        : CircleAvatar(
@@ -463,7 +463,6 @@ class _DmMessageRow extends StatelessWidget {
         mainAxisAlignment: mainAxisAlignment,
         crossAxisAlignment: align,
         children: [
-          // For peer rows the avatar leads; for own rows the avatar trails.
           if (!own) avatarSlot,
           Flexible(
             child: Container(
@@ -484,6 +483,9 @@ class _DmMessageRow extends StatelessWidget {
                       descriptor: message.attachment!,
                       view: attachmentView,
                       own: own,
+                      onDownload: onAttachmentDownload,
+                      onCancel: onAttachmentCancel,
+                      onOpen: onAttachmentOpen,
                     ),
                   if (own) DeliveryTicks(status: message.deliveryStatus),
                 ],

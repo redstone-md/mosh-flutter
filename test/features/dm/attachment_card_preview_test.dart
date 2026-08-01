@@ -24,6 +24,14 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 const _pngThumbB64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
+// No-op transfer-action callbacks for the card-only render tests. The
+// actions row (download/cancel/retry/open) is required by AttachmentCard
+// this atomic, but these tests assert the preview/bar/icon surface, not
+// the action wiring, so the callbacks are inert.
+void _onDownload(String _) {}
+void _onCancel(String _) {}
+void _onOpen(AttachmentDescriptor _) {}
+
 AttachmentDescriptor _descriptor({
   required String attachmentId,
   required String fileName,
@@ -81,16 +89,19 @@ void main() {
     );
     await _pump(
       tester,
-      AttachmentCard(
-        descriptor: descriptor,
-        view: _view(attachmentId: 'att-img'),
-        own: false,
-      ),
-    );
+     AttachmentCard(
+       descriptor: descriptor,
+       view: _view(attachmentId: 'att-img'),
+       own: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+     ),
+   );
 
-    // The media-preview branch mounts an Image.memory from the decoded
-    // thumbnail bytes.
-    expect(find.byType(Image), findsOneWidget);
+   // The media-preview branch mounts an Image.memory from the decoded
+   // thumbnail bytes.
+   expect(find.byType(Image), findsOneWidget);
     // The shared bar still renders the file name and the formatted size.
     expect(find.text('photo.png'), findsOneWidget);
     expect(find.textContaining('4.0 KB'), findsOneWidget);
@@ -107,15 +118,18 @@ void main() {
     );
     await _pump(
       tester,
-      AttachmentCard(
-        descriptor: descriptor,
-        view: _view(attachmentId: 'att-img-nothumb'),
-        own: false,
-      ),
-    );
+     AttachmentCard(
+       descriptor: descriptor,
+       view: _view(attachmentId: 'att-img-nothumb'),
+       own: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+     ),
+   );
 
-    // No preview: no Image.memory in the tree.
-    expect(find.byType(Image), findsNothing);
+   // No preview: no Image.memory in the tree.
+   expect(find.byType(Image), findsNothing);
     // The file-card file icon renders.
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
     // The file name still renders.
@@ -134,14 +148,17 @@ void main() {
     );
     await _pump(
       tester,
-      AttachmentCard(
-        descriptor: descriptor,
-        view: _view(attachmentId: 'att-vid'),
-        own: false,
-      ),
-    );
+     AttachmentCard(
+       descriptor: descriptor,
+       view: _view(attachmentId: 'att-vid'),
+       own: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+     ),
+   );
 
-    // The video-with-thumbnail branch takes the media path this atomic
+   // The video-with-thumbnail branch takes the media path this atomic
     // and renders Image.memory. The centered play overlay (in scope
     // this atomic) is asserted in the dedicated overlay test file.
     expect(find.byType(Image), findsOneWidget);
@@ -158,14 +175,17 @@ void main() {
     );
     await _pump(
       tester,
-      AttachmentCard(
-        descriptor: descriptor,
-        view: _view(attachmentId: 'att-audio'),
-        own: false,
-      ),
-    );
+     AttachmentCard(
+       descriptor: descriptor,
+       view: _view(attachmentId: 'att-audio'),
+       own: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+     ),
+   );
 
-    // Audio is not isImage/isVideo, so no preview.
+   // Audio is not isImage/isVideo, so no preview.
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
     expect(find.text('song.mp3'), findsOneWidget);
@@ -185,14 +205,17 @@ void main() {
     );
     await _pump(
       tester,
-      AttachmentCard(
-        descriptor: descriptor,
-        view: _view(attachmentId: 'att-pdf'),
-        own: false,
-      ),
-    );
+     AttachmentCard(
+       descriptor: descriptor,
+       view: _view(attachmentId: 'att-pdf'),
+       own: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+     ),
+   );
 
-    // Pins the `isImage || isVideo` guard: no Image.memory.
+   // Pins the `isImage || isVideo` guard: no Image.memory.
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
     expect(find.text('doc.pdf'), findsOneWidget);

@@ -386,6 +386,27 @@
  "@refreshStatus": { "description": "Tooltip/aria-label of the refresh button in the Peer status drawer" },
  "closePeerStatus": "Close peer status",
  "@closePeerStatus": { "description": "Tooltip/aria-label of the close button in the Peer status drawer" },
- "openPeerStatus": "Open peer status",
- "@openPeerStatus": { "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen" }
- }
+  "openPeerStatus": "Open peer status",
+  "@openPeerStatus": { "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen" }
+,
+  "attachmentOpen": "Open",
+  "@attachmentOpen": { "description": "Tooltip of the Open action button on an attachment card (state == available)" },
+  "attachmentDownload": "Download",
+  "@attachmentDownload": { "description": "Tooltip of the Download action button on an attachment card (incoming, offered)" },
+  "attachmentRetryDownload": "Retry download",
+  "@attachmentRetryDownload": { "description": "Tooltip of the Retry-download action button on an attachment card (incoming, cancelled)" },
+  "attachmentRetry": "Retry",
+  "@attachmentRetry": { "description": "Tooltip of the Retry action button on an attachment card (incoming, failed)" },
+  "attachmentCancelDownload": "Cancel download",
+  "@attachmentCancelDownload": { "description": "Tooltip of the Cancel action button on an attachment card (incoming, downloading)" },
+  "attachmentOpenAria": "Open {fileName}",
+  "@attachmentOpenAria": { "description": "Screen-reader label for the Open attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "attachmentDownloadAria": "Download {fileName}",
+  "@attachmentDownloadAria": { "description": "Screen-reader label for the Download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "attachmentRetryDownloadAria": "Retry download {fileName}",
+  "@attachmentRetryDownloadAria": { "description": "Screen-reader label for the Retry-download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "attachmentRetryAria": "Retry {fileName}",
+  "@attachmentRetryAria": { "description": "Screen-reader label for the Retry attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "attachmentCancelDownloadAria": "Cancel download for {fileName}",
+  "@attachmentCancelDownloadAria": { "description": "Screen-reader label for the Cancel-download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } }
+}

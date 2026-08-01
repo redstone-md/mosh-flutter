@@ -243,6 +243,27 @@
  "@refreshStatus": { "description": "Tooltip/aria-label of the refresh button in the Peer status drawer" },
  "closePeerStatus": "Закрыть статус пиров",
  "@closePeerStatus": { "description": "Tooltip/aria-label of the close button in the Peer status drawer" },
- "openPeerStatus": "Открыть статус пиров",
- "@openPeerStatus": { "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen" }
- }
+  "openPeerStatus": "Открыть статус пиров",
+  "@openPeerStatus": { "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen" }
+,
+  "attachmentOpen": "Открыть",
+  "@attachmentOpen": { "description": "Tooltip of the Open action button on an attachment card (state == available)" },
+  "attachmentDownload": "Скачать",
+  "@attachmentDownload": { "description": "Tooltip of the Download action button on an attachment card (incoming, offered)" },
+  "attachmentRetryDownload": "Повторить загрузку",
+  "@attachmentRetryDownload": { "description": "Tooltip of the Retry-download action button on an attachment card (incoming, cancelled)" },
+  "attachmentRetry": "Повторить",
+  "@attachmentRetry": { "description": "Tooltip of the Retry action button on an attachment card (incoming, failed)" },
+  "attachmentCancelDownload": "Отменить загрузку",
+  "@attachmentCancelDownload": { "description": "Tooltip of the Cancel action button on an attachment card (incoming, downloading)" },
+  "attachmentOpenAria": "Открыть {fileName}",
+  "@attachmentOpenAria": { "description": "Screen-reader label for the Open attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "attachmentDownloadAria": "Скачать {fileName}",
+  "@attachmentDownloadAria": { "description": "Screen-reader label for the Download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "attachmentRetryDownloadAria": "Повторить загрузку {fileName}",
+  "@attachmentRetryDownloadAria": { "description": "Screen-reader label for the Retry-download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "attachmentRetryAria": "Повторить {fileName}",
+  "@attachmentRetryAria": { "description": "Screen-reader label for the Retry attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "attachmentCancelDownloadAria": "Отменить загрузку {fileName}",
+  "@attachmentCancelDownloadAria": { "description": "Screen-reader label for the Cancel-download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } }
+}

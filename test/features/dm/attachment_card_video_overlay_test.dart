@@ -22,6 +22,12 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 const _pngThumbB64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
+// No-op transfer-action callbacks: these tests assert the video play-overlay
+// surface, not the action wiring, so the callbacks are inert.
+void _onDownload(String _) {}
+void _onCancel(String _) {}
+void _onOpen(AttachmentDescriptor _) {}
+
 AttachmentDescriptor _descriptor({
   required String attachmentId,
   required String fileName,
@@ -79,14 +85,17 @@ void main() {
     );
     await _pump(
       tester,
-      AttachmentCard(
-        descriptor: descriptor,
-        view: _view(attachmentId: 'att-vid'),
-        own: false,
-      ),
-    );
+     AttachmentCard(
+       descriptor: descriptor,
+       view: _view(attachmentId: 'att-vid'),
+       own: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+     ),
+   );
 
-    // The media-preview branch mounts the decoded thumbnail Image.memory.
+   // The media-preview branch mounts the decoded thumbnail Image.memory.
     expect(find.byType(Image), findsOneWidget);
     // The centered play overlay (React's IconPlayerPlayFilled) is present
     // for a video mime.
@@ -104,14 +113,17 @@ void main() {
     );
     await _pump(
       tester,
-      AttachmentCard(
-        descriptor: descriptor,
-        view: _view(attachmentId: 'att-img'),
-        own: false,
-      ),
-    );
+     AttachmentCard(
+       descriptor: descriptor,
+       view: _view(attachmentId: 'att-img'),
+       own: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+     ),
+   );
 
-    // Image still mounts on the media-preview branch.
+   // Image still mounts on the media-preview branch.
     expect(find.byType(Image), findsOneWidget);
     // No play overlay for an image mime (React renders the overlay only
     // when `isVideo`).
@@ -132,14 +144,17 @@ void main() {
     );
     await _pump(
       tester,
-      AttachmentCard(
-        descriptor: descriptor,
-        view: _view(attachmentId: 'att-vid-nothumb'),
-        own: false,
-      ),
-    );
+     AttachmentCard(
+       descriptor: descriptor,
+       view: _view(attachmentId: 'att-vid-nothumb'),
+       own: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+     ),
+   );
 
-    // Pins that the overlay only appears on the media branch (hasPreview
+   // Pins that the overlay only appears on the media branch (hasPreview
     // requires a thumbnail): no Image.memory and no play icon.
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(Icons.play_circle_filled), findsNothing);
