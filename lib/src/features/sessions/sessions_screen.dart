@@ -4,10 +4,10 @@
 // ListView of one row per SessionSnapshot, a FAB to start a new session, and
 // an empty state when no sessions exist.
 //
-// Scope (this atomic): the DM sessions list ONLY. Channels, groups, offers,
-// orgs, search, and filter are deferred to later atomics -- the React
-// SessionRail composes all of them into one rail, but the Flutter side is
-// being ported surface-by-surface to keep each change small and reviewable.
+// Scope (this atomic): the combined sessions rail (React SessionRail). DM
+// sessions, groups, channels, offers, and orgs are all wired now -- the
+// React SessionRail composes them into one rail, and the Flutter side ports
+// them surface-by-surface to keep each change small and reviewable.
 // The unread badge is wired for DM sessions via `unreadDmCountsProvider`
 // (counts not-own messages per session, keyed `'dm:<sessionId>'`, mirroring
 // React's `useUnreadNotifications`). The full poll-diff lifecycle
@@ -19,11 +19,18 @@
 // lays out DM sessions, then groups, then channels, with thin `rail-divider`
 // lines between two non-empty adjacent sections -- 1-в-1 with the React
 // `SessionRail` combined rail order (offers -> sessions -> groups -> channels
-// -> orgs; offers/orgs remain deferred, no providers/widgets yet). Channel
-// and group unread counts are now wired via `unreadChannelCountsProvider` /
+// -> orgs). Channel and group unread counts are wired via
+// `unreadChannelCountsProvider` /
 // `unreadGroupCountsProvider` (mirrors the DM provider, fingerprint
 // comparison; keyed `'channel:<name>'` / `'group:<groupId>'`). Channel/group
 // `onTap` stay no-ops (no channel/group screen route).
+// Org sections are wired in too (this atomic): each org renders via
+// `OrgSection` after the channels loop, separated by a `rail-divider` when
+// the prior slices are non-empty. `orgsProvider` (the polled joined-orgs
+// list) is watched the same way as channels/groups; the org action helpers
+// in `org_actions.dart` (gateway + refresh + navigation) back the 9
+// callbacks. `busy` is a parity-first `false` (no operation-bus yet, mirrors
+// React's single-run bus but kept simple for the first cut).
 //
 // State split (ADR 0010): server state lives in `sessionListProvider`
 // (AsyncNotifierProvider<SessionListSnapshot>) -- the TanStack-Query
@@ -42,16 +49,20 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/features/org/org_section.dart';
+import 'package:mosh/src/features/sessions/org_actions.dart';
 import 'package:mosh/src/features/sessions/channel_rail_item.dart';
 import 'package:mosh/src/features/sessions/group_rail_item.dart';
 import 'package:mosh/src/features/sessions/offer_rail_item.dart';
 import 'package:mosh/src/features/sessions/state_dot.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/dm_offer_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/gateway/gateway.dart';
+import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
@@ -71,6 +82,10 @@ class SessionsScreen extends ConsumerWidget {
     // (ADR 0010 server state, mirrors `sessionListProvider` 1:1).
     final channelsAsync = ref.watch(channelListProvider);
     final groupsAsync = ref.watch(groupListProvider);
+    // Orgs provider -- the React SessionRail section after channels. Watched
+    // the same way as channels/groups so an org-roster update re-renders the
+    // rail (ADR 0010 server state; mirrors `orgsProvider` 1:1).
+    final orgsAsync = ref.watch(orgsProvider);
     // Pending DM offers (channel/group dmOffers flattened) -- the React
     // `useDmOffers pendingOffers`. Derived from channelsAsync + groupsAsync,
     // so it auto-refreshes when either invalidates (a dismiss/join/leave
@@ -112,17 +127,19 @@ class SessionsScreen extends ConsumerWidget {
           // refreshes the DM list (kept minimal).
           final channels = channelsAsync.value?.channels ?? const [];
           final groups = groupsAsync.value?.groups ?? const [];
+          final orgs = orgsAsync.value ?? const <OrgSnapshot>[];
           final sessions = snapshot.sessions;
-          // Empty only when ALL four slices are empty (offers + sessions +
-          // groups + channels; orgs still deferred).
+          // Empty only when ALL five slices are empty (offers + sessions +
+          // groups + channels + orgs).
           if (pendingOffers.isEmpty &&
               sessions.isEmpty &&
               channels.isEmpty &&
-              groups.isEmpty) {
+              groups.isEmpty &&
+              orgs.isEmpty) {
             return _EmptyState(onStart: () => _startChat(context, ref));
           }
           // React SessionRail order: sessions, [divider if groups && sessions],
-          // groups, [divider if channels && (sessions || groups)], channels.
+         // groups, [divider if channels && (sessions || groups)], channels.
           // A `Divider` renders only between two non-empty adjacent sections,
           // mirroring React's conditional `rail-divider` rendering.
           final children = <Widget>[
@@ -158,6 +175,31 @@ class SessionsScreen extends ConsumerWidget {
               ChannelRailItem(
                 channel: channel,
                 unreadCount: unreadChannels['channel:${channel.name}'] ?? 0,
+              ),
+            if (orgs.isNotEmpty &&
+                (sessions.isNotEmpty || groups.isNotEmpty || channels.isNotEmpty))
+              const Divider(height: 1, thickness: 1),
+            for (final org in orgs)
+              // React SessionRail renders each org wrapped in a
+              // `rail-divider` + `OrgSection`. The 9 callbacks pass through
+              // to the org action helpers (gateway + refresh + navigation);
+              // `busy` is a parity-first `false` (no operation-bus yet).
+              OrgSection(
+                org: org,
+                busy: false,
+                onMember: (o, m) => openMemberDmAction(context, ref, o, m),
+                onAcceptDmOffer: (pubkey, id) =>
+                    acceptOrgDmOfferAction(context, ref, pubkey, id),
+                onDismissDmOffer: (pubkey, id) =>
+                    dismissOrgDmOfferAction(context, ref, pubkey, id),
+                onAcceptGroupOffer: (pubkey, id) =>
+                    acceptOrgGroupOfferAction(context, ref, pubkey, id),
+                onDismissGroupOffer: (pubkey, id) =>
+                    dismissOrgGroupOfferAction(context, ref, pubkey, id),
+                onCreateGroup: (o, label) =>
+                    createOrgGroupAction(context, ref, o, label),
+                onLeave: (o) => leaveOrgAction(context, ref, o),
+                l: l,
               ),
           ];
           return RefreshIndicator(
