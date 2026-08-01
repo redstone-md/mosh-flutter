@@ -11,10 +11,10 @@
 // drawer overlay. The admin badge / member-count subtitle / MLS-state
 // subtitle render in [GroupScreenHeader] (group_screen_header.dart).
 //
-// Deferred (slice-3 Rust Gateway seam): attachment/voice SENDING
-// (AttachmentPicker + ChatComposer ChatDropZone/onSendVoice) and the
-// attachment download/cancel transfer seam. AttachmentCard DISPLAY of an
-// already-received attachment is ported (group_message_row.dart).
+// Deferred (slice-3): voice sending (VoiceComposer onSendVoice) + drag-drop
+// (ChatComposer ChatDropZone). Attachment sending (picker -> sendGroupAttachment)
+// + download/cancel transfer seam are ported; AttachmentCard display is ported
+// (group_message_row.dart).
 //
 // Own-vs-others rule (React MessageLists.tsx GroupChatList, same as
 // ChannelScreen): own = message.fromFingerprint == group.deviceFingerprint.
