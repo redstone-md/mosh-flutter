@@ -125,11 +125,52 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: AppBar(
-        title: Text(async.maybeWhen(
-          data: (group) => group.label ?? l.groupUntitled,
-          orElse: () => widget.groupId,
-        )),
+        // React ActiveChatHeader `title` + `subtitle` (ActiveChatPanes.tsx
+        // ~L305-313): title = the group label (or "Private group" fallback);
+        // subtitle = is_admin ? `${adminBadge} · ` : ""
+        //   + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`.
+        // This Flutter `AppBar` (3.44) has no `subtitle:` slot, so the
+        // subtitle renders as the second line of a two-line `title:` Column
+        // (the idiomatic Flutter AppBar-with-subtitle pattern). Admin prefix
+        // (with the " · " separator) only when admin; member count with
+        // English plural ("1 member" vs "N members", selected by
+        // `memberCount == BigInt.one` to mirror React's `member_count === 1`);
+        // then the " · MLS {state}" suffix via groupScreenMlsStateSuffix.
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(async.maybeWhen(
+              data: (group) => group.label ?? l.groupUntitled,
+              orElse: () => widget.groupId,
+            )),
+            Text(
+              async.maybeWhen(
+                data: (group) => _groupSubtitle(group, l),
+                orElse: () => '',
+              ),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
         actions: [
+          // React `beforeSearchActions` slot (ActiveChatPanes.tsx ~L315-324):
+          // the admin-pill badge (<span className="admin-pill
+          // chat-desktop-only" title={adminBadge}><IconCrown size=14/>
+          // <span>{adminBadge}</span></span>) shown only if is_admin. Placed
+          // FIRST in `actions:` so it sits left of the peer-status + leave
+          // IconButtons, mirroring React's beforeSearchActions position
+          // (left of the search). `Icons.workspace_premium` is the closest
+          // Material equivalent to lucide `IconCrown` (a crown medal) -- the
+          // rail already uses the same icon for its admin crown
+          // (group_rail_item.dart). TODO(group-copy-invite): port the
+          // copy-invite button (lucide IconCopy + clipboard logic) as a
+          // SEPARATE atomic -- NOT done here.
+          if (async.maybeWhen(
+            data: (group) => group.isAdmin,
+            orElse: () => false,
+          ))
+            _AdminPill(label: l.groupAdminBadge),
           IconButton(
             icon: const Icon(Icons.electrical_services, size: 18),
             tooltip: l.openPeerStatus,
@@ -368,6 +409,60 @@ class _Composer extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Builds the GroupScreen AppBar subtitle, 1-в-1 with React
+/// `ActiveChatHeader.subtitle` (ActiveChatPanes.tsx ~L308-313):
+///   is_admin ? `${adminBadge} · ` : ""
+///   + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`
+/// Admin prefix (with the " · " separator) only when admin; the member
+/// count with English plural ("1 member" vs "N members", selected by
+/// `memberCount == BigInt.one` to mirror React's `member_count === 1`);
+/// then the " · MLS {state}" suffix from
+/// [AppLocalizations.groupScreenMlsStateSuffix].
+String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
+  final n = group.memberCount.toInt();
+  final memberPart = group.memberCount == BigInt.one
+      ? l.membersCountSingular(n)
+      : l.membersCount(n);
+  final adminPrefix = group.isAdmin ? '${l.groupAdminBadge} · ' : '';
+  return '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
+}
+
+/// Admin-pill badge for the GroupScreen AppBar `actions:` slot, 1-в-1 with
+/// React's `beforeSearchActions` admin-pill (ActiveChatPanes.tsx ~L315-324):
+/// `<span className="admin-pill chat-desktop-only" title={adminBadge}>
+/// `<IconCrown size=14/><span>{adminBadge}</span></span>`. A small pill with
+/// a crown icon + the "admin" label, wrapped in a [Tooltip] that mirrors
+/// React's `title` attribute. `Icons.workspace_premium` is the closest
+/// Material equivalent to lucide `IconCrown` (a crown medal) -- the rail
+/// already uses the same icon for its admin crown (group_rail_item.dart).
+class _AdminPill extends StatelessWidget {
+  const _AdminPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.workspace_premium, size: 14),
+            const SizedBox(width: 4),
+            Text(label),
+          ],
+        ),
       ),
     );
   }
