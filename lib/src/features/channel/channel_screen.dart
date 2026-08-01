@@ -50,6 +50,7 @@ import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/channel/channel_message_row.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
+import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -270,7 +271,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                     },
                   ),
                 ),
-                _Composer(
+                ConversationComposer(
                   controller: _composer,
                   sending: _sending,
                   placeholder: l.chatComposerPlaceholder,
@@ -394,81 +395,5 @@ class _Empty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(child: Text(''));
-  }
-}
-
-/// Composer: a TextField + a Send button, disabled while empty or sending.
-/// Mirrors DmScreen's `_Composer` (shell form, inlined here).
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.sending,
-    required this.placeholder,
-    required this.sendLabel,
-    required this.onSend,
-    required this.attachLabel,
-    required this.onAttach,
-    required this.onAttachmentPickError,
-  });
-
-  final TextEditingController controller;
-  final bool sending;
-  final String placeholder;
-  final String sendLabel;
-  final VoidCallback onSend;
-  final String attachLabel;
-  final AttachmentPickedCallback onAttach;
-  final AttachmentPickErrorCallback onAttachmentPickError;
-
-  @override
-  Widget build(BuildContext context) {
-    final canSend = !sending && controller.text.trim().isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: ValueListenableBuilder<TextEditingValue>(
-        valueListenable: controller,
-        builder: (context, value, _) {
-          final enabled = !sending && value.text.trim().isNotEmpty;
-          return Row(
-            children: [
-              // React Composer renders AttachmentPicker before the input
-              // (ChatComposer.tsx L86-90). The picker is disabled while a
-              // send is in flight (mirrors React's `disabled` prop).
-              AttachmentPicker(
-                disabled: sending,
-                ariaLabel: attachLabel,
-                onPick: onAttach,
-                onError: onAttachmentPickError,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  enabled: !sending,
-                  onSubmitted: (_) {
-                    if (canSend) onSend();
-                  },
-                  decoration: InputDecoration(
-                    hintText: placeholder,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: enabled ? onSend : null,
-                child: sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(sendLabel),
-              ),
-            ],
-          );
-        },
-      ),
-    );
   }
 }
