@@ -805,8 +805,85 @@ Verify: `flutter analyze` 0 issues; `flutter test` 211/211 pass; all 5 touched
 files < 500 lines (dm_helpers 323, channel_message_row 141, group_message_row
 147, channel test 327, group test 302); tree clean at 815da01.
 
+## Channel/group ConversationTools — search+filter (DONE, commit 855d233)
+
+Port the message search + filter row (React ConversationTools.tsx) to channels
+and groups. DmScreen already had this; channel/group screens had no search/filter.
+
+Generalized the existing DM `filterDmMessages` into a faithful generic instead of
+duplicating per feature (React's `filterMessages<T extends SearchableMessage>` is
+one generic reused by all three *ChatList components). `conversation_tools.dart`
+now exposes `SearchableMessage` interface + generic `filterMessages<T>` + public
+`messageSearchText`; `filterDmMessages` is a one-line typed wrapper (observable DM
+behavior unchanged -- 8 existing DM unit tests stay green, no migration).
+`filterChannelMessages`/`filterGroupMessages` are thin typed wrappers in their
+`*_message_row.dart` modules, delegating to the generic via per-kind
+`_ChannelSearchable`/`_GroupSearchable` (reading fromDevice/body/attachment, NOT
+fromFingerprint -- React's messageSearchText has no per-kind fingerprint override).
+
+Screens (channel_screen.dart / group_screen.dart): `_search`/`_filter`
+widget-local state; `ConversationTools` rendered as first body Column child
+(same position as DmScreen); filter-then-group order (filter on the raw list
+BEFORE group*Messages, matching React's `filterMessages(...) -> messageItems
+(visibleMessages, ...)` so the grouping window stays correct on the visible
+set); `DmSearchEmpty` rendered when filtered-empty-but-raw-non-empty, with the
+no-messages-at-all branch kept separate. ARB unchanged (chatSearchPlaceholder
+etc. are generic chatText.* in React, reused).
+
+Tests: +20 (9 pure-function + 1 widget per screen), including a regression that
+asserts fromFingerprint is NOT searchable. 231/231 green, analyze clean, all
+files < 500 lines. The shared trio (ConversationFilter/ConversationTools/
+DmSearchEmpty) living in the DM folder while channel/group import it is the same
+mild cross-feature-import the prior review accepted for MultiPartySenderMeta;
+a future rename to ConversationSearchEmpty + relocation to features/shared/
+conversation is a tidy refactor, not a defect.
+
+## Channel/group AttachmentCard render (display-only) (DONE, commit b879a02)
+
+Port the React ChannelMessageRow/GroupMessageRow AttachmentCard conditional
+(MessageLists.tsx) into the Flutter channel/group rows. The card renders IN
+ADDITION to the body text, below it, when `message.attachment != null` --
+matching DmMessageRow and React's placement exactly.
+
+Row changes (channel_message_row.dart / group_message_row.dart): ctor gains
+attachmentView (AttachmentView?) + onAttachmentDownload/onAttachmentCancel/
+onAttachmentOpen, typed to match attachment_card.dart (download/cancel:
+`void Function(String)`, open: `void Function(AttachmentDescriptor)`). Renders
+`AttachmentCard(descriptor: message.attachment!, view: attachmentView, own: own,
+onDownload/onCancel/onOpen: ...)` under `Text(message.body)` when
+`message.attachment != null`, mirroring DmMessageRow's structure + prop order.
+
+Screen changes (channel_screen.dart / group_screen.dart): per-message
+AttachmentView looked up from the snapshot's attachments list by attachmentId
+via `_findChannelAttachmentView`/`_findGroupAttachmentView` (linear scan,
+byte-identical to DmScreen's `_findAttachmentView` -- the React
+`attachments.views.get(attachment_id)` Map.get idiom ported as a scan per the
+existing DM convention). The three transfer callbacks are NO-OP STUBS with a
+`TODO(channel-group-attachment-transfer)` comment -- render-only stage, same
+as the DM port's display-only `b7660f8` which preceded its gateway transfer
+seam `99bc9d9`. Wiring to a channel/group attachment-transfer Gateway seam is
+a later atomic (needs Rust + frb codegen).
+
+Scope discipline: Rust, frb-generated, and Gateway files untouched (verified by
+review via Select-String scan for Gateway/frb/transfer symbols -- zero matches).
+Only the 4 lib files + 2 new test files changed.
+
+Tests: +4 widget tests (2 per screen): positive case seeds an offered attachment
++ matching AttachmentView and asserts the card's file name + the offered state
+label render (proves the per-message lookup wires the view in); regression case
+asserts the card still renders with no matching view (pins the null-fallback
+path). 235/235 green, analyze clean, all files < 500 lines.
+
 Next atomics (recorded): ConversationTools (search/filter for channels/groups,
 fingerprint-based comparison, mirroring DmScreen's filterDmMessages); then
 attachments in channel/group screens, public-channel notice banner (channels) +
 encryption notice (groups), admin badge + member-count subtitle (groups),
 copy-invite (groups), retry row.
+See the three sections above (855d233, b879a02) for the ConversationTools +
+AttachmentCard-render atomics that already closed those entries; the remaining
+work is the notice banners, admin badge, copy-invite, retry row, and the
+channel/group attachment-transfer Gateway seam (Rust + frb, deferred).
+See the three sections above (855d233, b879a02) for the ConversationTools +
+AttachmentCard-render atomics that already closed those entries; the remaining
+work is the notice banners, admin badge, copy-invite, retry row, and the
+channel/group attachment-transfer Gateway seam (Rust + frb, deferred).
