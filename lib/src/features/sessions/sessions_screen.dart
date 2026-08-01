@@ -167,8 +167,9 @@ class SessionsScreen extends ConsumerWidget {
 ///   - leading: Avatar (CircleAvatar with the label's initials via
 ///     [avatarInitials] -- React's split-on-whitespace/underscore/dash +
 ///     first-char-of-each + take-2 + uppercase algorithm; the background
-///     color is a stable hash of the session id so different sessions get
-///     distinct avatar colors, matching React's per-`name` Avatar styling).
+///     color is a stable hash of the LABEL (React `<Avatar name={label} />`
+///     hashes the name), so two sessions with the same peer get the same
+///     color -- matching React's per-`name` Avatar styling).
 ///   - title: the label, falling back peer -> own display -> raw session id
 ///     (the same chain `dm_screen` uses for its title).
 ///   - subtitle: the localized state label (`stateIdle|stateWaiting|stateReady`
@@ -194,7 +195,10 @@ class _SessionRow extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final label = _label();
     final stateText = stateLabel(l, session.state);
-    final bg = avatarColor(session.sessionId);
+    // React `<Avatar name={label} />` hashes the LABEL (peer display name),
+    // not the session id -- so two sessions with the same peer get the same
+    // color. Hashing sessionId here would diverge (same peer, different colors).
+    final bg = avatarColor(label);
     return Semantics(
       label: 'Open session with $label',
       button: true,
