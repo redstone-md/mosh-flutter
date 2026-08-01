@@ -1055,6 +1055,88 @@ pinning the condition). 256/256 green, analyze clean, all files < 500 lines.
    Flutter yet. Deferred from the needs_rejoin atomic (af59430) -- a
    TODO(group-org-add-prompt) marks it. The needs_rejoin inline-error (the
    sibling afterHeader fragment) IS now ported (af59430).
+6. DmScreen close-session UI: React DmScreen has onClose={closeFlow.closeActive}
+   in the header (a leave/delete-chat button) + the ConfirmDialog close-flow.
+   Flutter DmScreen has NEITHER -- explicit TODO at dm_screen.dart L118-120
+   ("no close-session UI in DmScreen yet"). This is a larger atomic than the
+   channel/group close-flow (b56aa93) because the leave button itself must be
+   added (the channel/group screens already had it). Confirmed UI-only gap
+   surfaced by the parity audit.
+7. MediaViewer (MediaViewer.tsx): fullscreen media view, triggered by
+   attachment onOpen (which is currently a no-op stub deferred to slice-3).
+   The widget itself is UI-only and could be ported ahead of the attachment
+   transfer seam, but its trigger (onOpen) is slice-3 -- deferred until the
+   seam or until needed.
+
+## ConfirmDialog reusable widget (DONE, commit 14244ac)
+
+Port React's ConfirmDialog (ConfirmDialog.tsx) as a shared reusable modal-
+confirmation primitive in lib/src/features/shared/confirm_dialog.dart, plus a
+showConfirmDialog helper. Flutter had no dialog widget before this. Structure
+1-в-1 with React: showDialog barrier (backdrop role=presentation) -> Semantics
+(container: true, label: title) (role=dialog aria-modal aria-labelledby) ->
+Dialog card -> top-right close-X IconButton (Icons.close, tooltip=cancelLabel)
+-> alert icon (Icons.warning in a 38x38 tinted rounded square, excludeSemantics=
+aria-hidden, 12% tint of the danger color) -> copy (title titleMedium/bold +
+body bodyMedium/muted height 1.55) -> actions Row/Wrap (ghost TextButton cancel
++ danger FilledButton confirm). Props mirror React: title, body, confirmLabel
+(required), cancelLabel (nullable, defaults to "Cancel"), onCancel, onConfirm,
+plus an overridable dangerColor (defaults to React --danger #e86a5a ->
+Color(0xFFE86A5A)). showConfirmDialog returns Future<bool> (true on confirm,
+false on cancel/barrier/Esc, coerces null-dismiss to false). showDialog natively
+supplies the modal barrier + focus trap (React's manual useModalFocus).
+
+Initial focus (React-parity fix per review): React's useModalFocus focuses
+focusableElements(root)[0] -- the close-X (first focusable, dismisses on Enter --
+the SAFE default for a destructive-action dialog). The initial port had
+autofocus: true on the confirm FilledButton (inverted React + a safety delta
+for destructive actions); review caught it, fix removed the autofocus so the
+Dialog's FocusScope autofocuses the first focusable (close-X), and the comment
+documents the safe-default rationale. i18n: dialogCancel ("Cancel"/"Отмена")
+generic ARB key. Tests: +11 (render, taps, showConfirmDialog contract, danger
+color, icon). 269/269 green, analyze clean, 295 lines.
+
+## Channel/group close-flow confirmation (DONE, commit b56aa93)
+
+Port React's useChatCloseFlow close-confirmation for the channel + group
+screens. Wraps the leave/close action in a ConfirmDialog, 1-в-1 with React's
+closeActive -> pendingClose -> confirmCloseActive gating. Channel + group only
+-- DmScreen has no close-session UI yet (separate atomic, #6 above).
+
+Both screens gained _requestLeave() async: builds the kind-specific title/body/
+confirm from AppLocalizations, awaits showConfirmDialog(...), only calls the
+unchanged _leave() (gateway.leaveChannel / gateway.closeGroup + context.go
+(sessions)) when confirmed. The leave IconButton's onPressed (channel) /
+GroupScreenHeader's onLeave (group) changed from _leave to _requestLeave -- the
+destructive close now requires an explicit confirm. Group label fallback
+mirrors React's group.label ?? shorten(group.group_id, 6) (the "this group" arm
+is unreachable since the group screen always has a resolved group); defensive
+fallback to shorten(widget.groupId, 6) during the pending-snapshot window.
+
+i18n: 6 new ARB keys (en + ru, @ metadata + placeholders). Channel:
+leaveChannelTitle ("Leave #{name}?", name: String), leaveChannelBody,
+leaveChannelConfirm ("Leave channel"). Group: leaveGroupTitle ("Leave {label}?",
+label: String), leaveGroupBody, leaveGroupConfirm ("Leave group"). en values
+match React's closeConfirmationFor byte-for-byte; ru faithful. Both pass
+cancelLabel: l.dialogCancel. Trailing LF preserved.
+
+Scope-adjacent hardening (confirm_dialog.dart): the actions Row -> Wrap. The
+close-flow's longer button pairs ("Cancel" + "Leave channel"/"Leave group")
+overflow the dialog's 380px cap under the Ahem test font (fixed-width, wider
+than the proportional fonts the cap was tuned against) -- a hard flex-overflow
+test failure. Wrap(alignment: end, spacing: 8) reproduces the exact right-
+aligned single-line layout when buttons fit (identical to Row for the short
+labels the 11 existing tests use) and degrades to a wrapped stack when they
+don't -- mirroring React's @media (max-width:480px) column-reverse fallback.
+The 11 existing confirm_dialog tests stay green.
+
+Tests: +7 widget tests (3 channel + 4 group) via _RecordingGateway extends
+FakeGateway (records the real-close arg): tapping leave opens the dialog (title
+renders, gateway not yet called); confirming calls the real close (arg matches);
+cancelling does NOT call close (arg stays null, screen still mounted). The
+group suite adds a 4th case pinning the shorten(groupId, 6) title fallback when
+label is null. 276/276 green, analyze clean, channel_screen.dart 350 +
+group_screen.dart 470 lines (< 500).
 
 ## Member-count ICU plural (DONE, commit e972715)
 
