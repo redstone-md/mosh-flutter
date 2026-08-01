@@ -26,7 +26,8 @@ import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/org_runtime.dart'
     show OrgSnapshot, OrgMemberView;
 import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/state/org_providers.dart' show orgsProvider;
+import 'package:mosh/src/state/org_providers.dart' show orgsProvider,
+    orgOperationBusProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show inviteFlowProvider, sessionListProvider;
 import 'package:mosh/src/state/channel_group_providers.dart'
@@ -53,12 +54,15 @@ Future<void> leaveOrgAction(
   OrgSnapshot org,
 ) async {
   final scaffold = ScaffoldMessenger.of(context);
+  ref.read(orgOperationBusProvider.notifier).start(org.orgPubkey);
   try {
     await ref.read(gatewayProvider).leaveOrg(orgPubkey: org.orgPubkey);
     await _refreshAll(ref);
   } catch (e) {
     if (!context.mounted) return;
     scaffold.showSnackBar(SnackBar(content: Text(e.toString())));
+  } finally {
+    ref.read(orgOperationBusProvider.notifier).finish(org.orgPubkey);
   }
 }
 
@@ -73,6 +77,7 @@ Future<void> openMemberDmAction(
   if (member.isSelf) return;
   final flow = ref.read(inviteFlowProvider);
   final gateway = ref.read(gatewayProvider);
+  ref.read(orgOperationBusProvider.notifier).start(org.orgPubkey);
   try {
     // Existing linked DM: jump straight to it.
     for (final link in org.dmLinks) {
@@ -96,6 +101,8 @@ Future<void> openMemberDmAction(
     context.go(AppRoutes.dmFor(invite.sessionId));
   } catch (e) {
     _error(context, e);
+  } finally {
+    ref.read(orgOperationBusProvider.notifier).finish(org.orgPubkey);
   }
 }
 
@@ -107,6 +114,7 @@ Future<void> acceptOrgDmOfferAction(
   String offerId,
 ) async {
   final flow = ref.read(inviteFlowProvider);
+  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
     final session = await ref.read(gatewayProvider).acceptOrgDmOffer(
           orgPubkey: orgPubkey,
@@ -120,6 +128,8 @@ Future<void> acceptOrgDmOfferAction(
     context.go(AppRoutes.dmFor(session.sessionId));
   } catch (e) {
     _error(context, e);
+  } finally {
+    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
   }
 }
 
@@ -130,6 +140,7 @@ Future<void> dismissOrgDmOfferAction(
   String orgPubkey,
   String offerId,
 ) async {
+  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
     await ref.read(gatewayProvider)
         .dismissOrgDmOffer(orgPubkey: orgPubkey, offerId: offerId);
@@ -137,6 +148,8 @@ Future<void> dismissOrgDmOfferAction(
   } catch (e) {
     if (!context.mounted) return;
     _error(context, e);
+  } finally {
+    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
   }
 }
 
@@ -148,6 +161,7 @@ Future<void> acceptOrgGroupOfferAction(
   String offerId,
 ) async {
   final flow = ref.read(inviteFlowProvider);
+  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
     final group = await ref.read(gatewayProvider).acceptOrgGroupOffer(
           orgPubkey: orgPubkey,
@@ -161,6 +175,8 @@ Future<void> acceptOrgGroupOfferAction(
     context.go(AppRoutes.groupFor(group.groupId));
   } catch (e) {
     _error(context, e);
+  } finally {
+    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
   }
 }
 
@@ -171,6 +187,7 @@ Future<void> dismissOrgGroupOfferAction(
   String orgPubkey,
   String offerId,
 ) async {
+  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
     await ref.read(gatewayProvider)
         .dismissOrgGroupOffer(orgPubkey: orgPubkey, offerId: offerId);
@@ -178,6 +195,8 @@ Future<void> dismissOrgGroupOfferAction(
   } catch (e) {
     if (!context.mounted) return;
     _error(context, e);
+  } finally {
+    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
   }
 }
 
@@ -190,6 +209,7 @@ Future<void> createOrgGroupAction(
   String label,
 ) async {
   final flow = ref.read(inviteFlowProvider);
+  ref.read(orgOperationBusProvider.notifier).start(org.orgPubkey);
   try {
     final invited = org.members
         .where((m) => !m.isSelf)
@@ -208,5 +228,7 @@ Future<void> createOrgGroupAction(
     context.go(AppRoutes.groupFor(created.groupId));
   } catch (e) {
     _error(context, e);
+  } finally {
+    ref.read(orgOperationBusProvider.notifier).finish(org.orgPubkey);
   }
 }

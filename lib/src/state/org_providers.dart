@@ -99,6 +99,33 @@ class InvitingGroupsNotifier extends Notifier<Set<String>> {
   }
 }
 
+/// orgPubkeys with an in-flight org operation (leave/offer/member/group).
+/// Mirrors React's `org.busy = offerBusy || setupBusy`
+/// (use-operation-busy.ts global OperationKind counts +
+/// private-dm-screen.tsx L305) but with per-org granularity: the Set is
+/// keyed by orgPubkey, so only the org being operated on disables, not
+/// unrelated orgs. Simpler than React's global bus but achieves the same
+/// double-tap protection -- the 7 org_actions helpers wrap their gateway
+/// call in start/finish so an OrgSection's leave/offer/member/new-group
+/// affordances stay disabled until the await + refresh + navigation done.
+final orgOperationBusProvider =
+    NotifierProvider<OrgOperationBusNotifier, Set<String>>(
+  OrgOperationBusNotifier.new,
+);
+
+class OrgOperationBusNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const <String>{};
+
+  void start(String orgPubkey) {
+    state = Set<String>.from(state)..add(orgPubkey);
+  }
+
+  void finish(String orgPubkey) {
+    state = Set<String>.from(state)..remove(orgPubkey);
+  }
+}
+
 /// The computed orgAddPrompt for a group: null when the active user is not an
 /// org admin of the group's org, or no roster members are missing; otherwise
 /// {count, busy, missingPeerIds, orgPubkey} so the banner renders "+N not in
