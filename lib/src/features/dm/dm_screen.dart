@@ -32,9 +32,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/features/dm/conversation_tools.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/dm/fingerprint_badge.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -43,12 +44,6 @@ import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 /// Grouping window ported 1-1 from React `GROUP_WINDOW_MS`
 /// (src/features/private-dm/MessageLists.tsx): 5 minutes.
 const Duration _groupWindow = Duration(minutes: 5);
-
-/// Avatar diameter used by `_DmMessageRow` -- both the real `CircleAvatar`
-/// and the grouped-row spacer share this width so a grouped row stays
-/// visually indented under the first row's avatar (matching React's
-/// `avatar avatar-spacer` element).
-const double _avatarSize = 32;
 
 /// One grouping row: the message plus whether it was grouped under the
 /// previous visible message (React `messageItems`/`shouldGroup`).
@@ -119,6 +114,12 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   ConversationFilter _filter = ConversationFilter.all;
   bool _showPeerStatus = false;
 
+  // Ephemeral confirmed-fingerprint set (React `confirmedFingerprints`
+  // useState, use-chat-close-flow.ts). Widget-local per ADR 0010; purely
+  // client-side, NOT a Gateway call. TODO: removal-on-close is a later
+  // atomic (no close-session UI in DmScreen yet).
+  Set<String> _confirmedFingerprints = {};
+
   @override
   void dispose() {
     _composer.dispose();
@@ -170,6 +171,9 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   String get _sessionId => widget.sessionId;
   Gateway get _gateway => ref.read(gatewayProvider);
 
+  void _confirmFingerprint() => setState(() => _confirmedFingerprints =
+      {..._confirmedFingerprints, widget.sessionId});
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -178,12 +182,16 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       data: (s) => s.peerDisplayName.isEmpty ? s.sessionId : s.peerDisplayName,
       orElse: () => widget.sessionId,
     );
+    final fingerprint = async.value?.fingerprint ?? '';
+    final confirmed = fingerprint.isNotEmpty &&
+        _confirmedFingerprints.contains(widget.sessionId);
     final sessionForDrawer = async.value;
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: [
+          FingerprintBadge(fingerprint: fingerprint, confirmed: confirmed, onConfirm: _confirmFingerprint),
           IconButton(
             icon: const Icon(Icons.electrical_services, size: 18),
             tooltip: l.openPeerStatus,
@@ -287,7 +295,7 @@ class _MessageListView extends StatelessWidget {
             ? null
             : _findAttachmentView(attachments, msg.attachment!.attachmentId);
         final callbacks = attachmentCallbacks(attachmentView);
-        return _DmMessageRow(
+        return DmMessageRow(
           message: msg,
           own: own,
           grouped: item.grouped,
@@ -419,82 +427,3 @@ class _Composer extends StatelessWidget {
 /// Bubble (own/peer color + maxWidth 360), delivery ticks on own rows, and
 /// the per-message AttachmentCard are in scope. Deferred: CallLogEntry, the
 /// failed-message retry row (MlsBadge in the sender meta, [SenderMeta]).
-class _DmMessageRow extends StatelessWidget {
-  const _DmMessageRow({
-    required this.message,
-    required this.own,
-    required this.grouped,
-    this.attachmentView,
-    required this.onAttachmentDownload,
-    required this.onAttachmentCancel,
-    required this.onAttachmentOpen,
-  });
-
-  final ChatMessage message;
-  final bool own;
-  final bool grouped;
-  final AttachmentView? attachmentView;
-  final void Function(String attachmentId) onAttachmentDownload;
-  final void Function(String attachmentId) onAttachmentCancel;
-  final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bg = own ? scheme.primaryContainer : scheme.surfaceContainerHighest;
-    final align = own ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final mainAxisAlignment =
-        own ? MainAxisAlignment.end : MainAxisAlignment.start;
-    final avatarSlot = grouped
-        ? const SizedBox(width: _avatarSize)
-       : CircleAvatar(
-            backgroundColor: avatarColor(message.fromDevice),
-            maxRadius: _avatarSize / 2,
-            child: Text(
-              message.fromDevice.isEmpty
-                  ? '?'
-                  : message.fromDevice[0].toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: mainAxisAlignment,
-        crossAxisAlignment: align,
-        children: [
-          if (!own) avatarSlot,
-          Flexible(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 360),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: align,
-                children: [
-                  if (!grouped) SenderMeta(message: message),
-                  Text(message.body),
-                  if (message.attachment != null)
-                    AttachmentCard(
-                      descriptor: message.attachment!,
-                      view: attachmentView,
-                      own: own,
-                      onDownload: onAttachmentDownload,
-                      onCancel: onAttachmentCancel,
-                      onOpen: onAttachmentOpen,
-                    ),
-                  if (own) DeliveryTicks(status: message.deliveryStatus),
-                ],
-              ),
-            ),
-          ),
-          if (own) avatarSlot,
-        ],
-      ),
-    );
-  }
-}
