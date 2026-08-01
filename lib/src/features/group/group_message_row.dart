@@ -36,6 +36,7 @@ import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart'
     show dmMessageAvatarSize;
+import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
@@ -218,13 +219,9 @@ class GroupMessageRow extends StatelessWidget {
     // outside `message-body`.
     final avatarSlot = grouped
         ? const SizedBox(width: dmMessageAvatarSize)
-        : CircleAvatar(
-            backgroundColor: avatarColor(message.fromDevice),
-            maxRadius: dmMessageAvatarSize / 2,
-            child: Text(
-              avatarInitials(message.fromDevice),
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+        : Avatar(
+            name: message.fromDevice,
+            radius: dmMessageAvatarSize / 2,
           );
     // The avatar is OUTSIDE the bubble's 75%-width `ConstrainedBox`, as
     // a separate flex item (React `message-row { display:flex; gap:12px }`).

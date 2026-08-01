@@ -67,6 +67,7 @@ import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/shared/avatar.dart';
 
 /// The DM sessions-list screen. 1-в-1 with the React SessionRail sessions
 /// section: one row per `SessionSnapshot`, a FAB to start a new session,
@@ -331,16 +332,13 @@ class _SessionRow extends StatelessWidget {
       label: 'Open session with $label',
       button: true,
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: bg,
+        leading: Avatar(
+          name: label,
+          radius: 20,
           foregroundColor:
               ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
                   ? Colors.white
                   : Colors.black87,
-          child: Text(
-            avatarInitials(label),
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
         ),
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(stateText),

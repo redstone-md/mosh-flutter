@@ -12,8 +12,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart'
-    show avatarColor, avatarInitials;
+import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
@@ -171,7 +170,11 @@ class _DmOfferRow extends StatelessWidget {
               onTap: busy ? null : () => onAccept(orgPubkey, offer.offerId),
               child: Row(
                 children: [
-                  _Avatar(name: offer.fromName),
+                  Avatar(
+                    name: offer.fromName,
+                    radius: 12,
+                    fontSize: 10,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -352,7 +355,11 @@ class _MemberRow extends StatelessWidget {
         onTap: (busy || member.isSelf) ? null : () => onMember(org, member),
         child: Row(
           children: [
-            _Avatar(name: member.name),
+            Avatar(
+              name: member.name,
+              radius: 12,
+              fontSize: 10,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -375,26 +382,6 @@ class _MemberRow extends StatelessWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// The avatar circle used by the org rows -- a 24px CircleAvatar with the
-/// initials (React's `<Avatar name>` renders a text-only span; the Flutter
-/// rail renders avatars as colored circles, so this matches the rail's
-/// avatar idiom rather than React's text-only mark).
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name});
-  final String name;
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 12,
-      backgroundColor: avatarColor(name),
-      child: Text(
-        avatarInitials(name),
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
       ),
     );
   }
