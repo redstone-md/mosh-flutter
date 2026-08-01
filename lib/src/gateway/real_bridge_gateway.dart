@@ -28,8 +28,8 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, can
 // and group `close`), so the two imports MUST use distinct prefixes to avoid
 // collision; the snapshot/result types come in unqualified from their
 // *_runtime.dart modules.
-import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave, dismissDmOffer;
-import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, joinGroup, poll, list, send, close, dismissDmOffer;
+import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave, dismissDmOffer, downloadAttachment, cancelAttachment;
+import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, joinGroup, poll, list, send, close, dismissDmOffer, downloadAttachment, cancelAttachment;
 import 'package:mosh/src/rust/api/org.dart' as org_api show joinOrg;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -148,6 +148,23 @@ class RealBridgeGateway implements Gateway {
   @override
   Future<void> dismissGroupDmOffer({required String groupId, required String offerId}) =>
       group_api.dismissDmOffer(groupId: groupId, offerId: offerId);
+  // Channel/group attachment transfer seams (slice-3): channel_api/group_api
+  // both name the frb free functions `downloadAttachment`/`cancelAttachment`
+  // -- disambiguated by the prefixes. Both return Future<void> (no `await`
+  // needed). Drive the peer's inbound transfer; progress surfaces in the
+  // next pollChannel/pollGroup snapshot's attachments.
+  @override
+  Future<void> downloadChannelAttachment({required String name, required String attachmentId}) =>
+      channel_api.downloadAttachment(name: name, attachmentId: attachmentId);
+  @override
+  Future<void> cancelChannelAttachment({required String name, required String attachmentId}) =>
+      channel_api.cancelAttachment(name: name, attachmentId: attachmentId);
+  @override
+  Future<void> downloadGroupAttachment({required String groupId, required String attachmentId}) =>
+      group_api.downloadAttachment(groupId: groupId, attachmentId: attachmentId);
+  @override
+  Future<void> cancelGroupAttachment({required String groupId, required String attachmentId}) =>
+      group_api.cancelAttachment(groupId: groupId, attachmentId: attachmentId);
   // The `joinOrg` seam (slice-3) delegates to org_api.joinOrg; the request
   // carries bundleUri + displayName + listenPort + staticPeer? (a
   // `mosh://org` bundle URI, not an invite URI -- org joins use a different

@@ -4,15 +4,17 @@
 // widgets depend on `Gateway`, never on a concrete impl, so swapping the
 // wired runtime is one provider change (ADR 0013).
 //
-// The twenty-four methods below mirror the slice-one Rust `mosh_core::api`
+// The twenty-eight methods below mirror the slice-one Rust `mosh_core::api`
 // surface 1:1, poll-based (no streams). Signatures match the generated frb
 // functions. The channels/groups read seam adds pollChannel/listChannels/
 // pollGroup/listGroups; the channels/groups write seam adds joinChannel/
 // sendChannel/leaveChannel/sendGroup/closeGroup/createGroup/joinGroup/
-// dismissChannelDmOffer/dismissGroupDmOffer; the org write seam adds joinOrg.
-// The remaining write halves (sendAttachment/dm-offer SEND/listInterfaces/
-// VPN) land in later atomics -- the frb functions for them already exist in
-// `lib/src/rust/api/`; only the Gateway seam + UI wiring is missing.
+// dismissChannelDmOffer/dismissGroupDmOffer/downloadChannelAttachment/
+// cancelChannelAttachment/downloadGroupAttachment/cancelGroupAttachment; the
+// org write seam adds joinOrg. The remaining write halves (sendAttachment/
+// dm-offer SEND/listInterfaces/VPN) land in later atomics -- the frb
+// functions for them already exist in `lib/src/rust/api/`; only the Gateway
+// seam + UI wiring is missing.
 
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
@@ -73,6 +75,15 @@ abstract interface class Gateway {
   Future<GroupSnapshot> joinGroup({required JoinGroupRequest request});
   Future<void> dismissChannelDmOffer({required String name, required String offerId});
   Future<void> dismissGroupDmOffer({required String groupId, required String offerId});
+  // Channel/group attachment transfer control (1:1 port of channel +
+  // private_group download_attachment / cancel_attachment). Both drive the
+  // peer's inbound transfer; progress surfaces in the next pollChannel/
+  // pollGroup snapshot's attachments. The "open" action is client-side
+  // (opens localPath) and has no Rust fn -- the screen handles it.
+  Future<void> downloadChannelAttachment({required String name, required String attachmentId});
+  Future<void> cancelChannelAttachment({required String name, required String attachmentId});
+  Future<void> downloadGroupAttachment({required String groupId, required String attachmentId});
+  Future<void> cancelGroupAttachment({required String groupId, required String attachmentId});
 
   // Org write seam (1:1 port of `org_join`). `joinOrg` is the fourth slice-3
   // write seam -- joins an org from a `mosh://org` bundle URI. Unlike the
