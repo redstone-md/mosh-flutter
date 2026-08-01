@@ -29,8 +29,9 @@
 // the prior slices are non-empty. `orgsProvider` (the polled joined-orgs
 // list) is watched the same way as channels/groups; the org action helpers
 // in `org_actions.dart` (gateway + refresh + navigation) back the 9
-// callbacks. `busy` is a parity-first `false` (no operation-bus yet, mirrors
-// React's single-run bus but kept simple for the first cut).
+// callbacks. `busy` mirrors React's `org.busy = offerBusy || setupBusy` via
+// the per-org operation-bus `orgOperationBusProvider` (Set<orgPubkey>): only
+// the org being operated on disables, not unrelated orgs.
 //
 // State split (ADR 0010): server state lives in `sessionListProvider`
 // (AsyncNotifierProvider<SessionListSnapshot>) -- the TanStack-Query
@@ -179,15 +180,17 @@ class SessionsScreen extends ConsumerWidget {
             for (final org in orgs) ...[
               // React SessionRail renders each org wrapped in a
               // `rail-divider` + `OrgSection` (the divider is INSIDE the
-              // per-org map, unconditional, so N orgs render N dividers --
-              // one above each org header). The 7 callbacks pass through to
-              // the org action helpers (gateway + refresh + navigation);
-              // `busy` is a parity-first `false` (no operation-bus yet).
-              const Divider(height: 1, thickness: 1),
-              OrgSection(
-                org: org,
-                busy: false,
-                onMember: (o, m) => openMemberDmAction(context, ref, o, m),
+             // per-org map, unconditional, so N orgs render N dividers -- 
+             // one above each org header). The 7 callbacks pass through to
+             // the org action helpers (gateway + refresh + navigation);
+              // `busy` mirrors React's `org.busy = offerBusy || setupBusy`
+              // via the per-org operation-bus (only this org disables while
+              // its leave/offer/member/new-group action is in flight).
+             const Divider(height: 1, thickness: 1),
+             OrgSection(
+               org: org,
+                busy: ref.watch(orgOperationBusProvider).contains(org.orgPubkey),
+               onMember: (o, m) => openMemberDmAction(context, ref, o, m),
                 onAcceptDmOffer: (pubkey, id) =>
                     acceptOrgDmOfferAction(context, ref, pubkey, id),
                 onDismissDmOffer: (pubkey, id) =>
