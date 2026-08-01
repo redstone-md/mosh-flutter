@@ -498,6 +498,24 @@
       }
     }
   },
+  "dmSubtitleConfirmed": "MLS {state} · отпечаток подтверждён",
+  "@dmSubtitleConfirmed": {
+    "description": "DmScreen AppBar subtitle when the peer fingerprint is confirmed (mirrors React ActiveChatPanes.tsx subtitle `MLS ${state} · fingerprint confirmed`), with the MLS connection state",
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "dmSubtitleUnverified": "MLS {state} · отпечаток не подтверждён",
+  "@dmSubtitleUnverified": {
+    "description": "DmScreen AppBar subtitle when the peer fingerprint is NOT confirmed (mirrors React ActiveChatPanes.tsx subtitle `MLS ${state} · fingerprint unverified`), with the MLS connection state",
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
   "summaryChannelKicker": "Публичный канал",
   "@summaryChannelKicker": {
     "description": "Kicker label for the diagnostics summary card when a public channel is active"

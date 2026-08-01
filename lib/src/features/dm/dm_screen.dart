@@ -231,18 +231,19 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(activeSessionProvider(widget.sessionId));
-    final title = async.maybeWhen(
-      data: (s) => s.peerDisplayName.isEmpty ? s.sessionId : s.peerDisplayName,
-      orElse: () => widget.sessionId,
-    );
-    final fingerprint = async.value?.fingerprint ?? '';
+    final s = async.value;
+    final mlsState = s?.state ?? '';
+    final fingerprint = s?.fingerprint ?? '';
     final confirmed = fingerprint.isNotEmpty &&
         _confirmedFingerprints.contains(widget.sessionId);
-    final sessionForDrawer = async.value;
+    final sessionForDrawer = s;
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text(s == null || s.peerDisplayName.isEmpty ? widget.sessionId : s.peerDisplayName),
+          Text(confirmed ? l.dmSubtitleConfirmed(mlsState) : l.dmSubtitleUnverified(mlsState), style: Theme.of(context).textTheme.bodySmall),
+        ]),
         actions: [
           FingerprintBadge(fingerprint: fingerprint, confirmed: confirmed, onConfirm: _confirmFingerprint),
           IconButton(
