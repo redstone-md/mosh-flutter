@@ -6,19 +6,13 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+enum MessageDeliveryStatus {
+  pending,
+  sent,
 
-            
-
-            
-
-            enum MessageDeliveryStatus {
-                    pending,
-sent,
-/// The peer's runtime acknowledged receipt (private DM only). `Sent` means
-/// "handed to the transport"; only `Delivered` proves the frame arrived.
-delivered,
-failed,
-                    ;
-                    
-                }
-            
+  /// The peer's runtime acknowledged receipt (private DM only). `Sent` means
+  /// "handed to the transport"; only `Delivered` proves the frame arrived.
+  delivered,
+  failed,
+  ;
+}

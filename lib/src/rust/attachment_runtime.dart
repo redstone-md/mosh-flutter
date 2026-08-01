@@ -6,40 +6,32 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-
-            
-
-            
-
-            /// Carries the secret material and metadata for one attachment. Hosts send
+/// Carries the secret material and metadata for one attachment. Hosts send
 /// this over their confidential control path (MLS-encrypted for DM and
 /// groups, plaintext broadcast for public channels).
 /// Voice-message metadata carried alongside an audio attachment. Its presence
 /// is the sole marker that an attachment is a recorded voice message rather
 /// than a user-picked audio file.
-class VoiceMeta  {
-                /// Recording length in milliseconds.
-final int durationMs;
-/// 64 amplitude buckets (one byte each, 0-255), base64-encoded.
-final String peaksB64;
+class VoiceMeta {
+  /// Recording length in milliseconds.
+  final int durationMs;
 
-                const VoiceMeta({required this.durationMs ,required this.peaksB64 ,});
+  /// 64 amplitude buckets (one byte each, 0-255), base64-encoded.
+  final String peaksB64;
 
-                
-                
+  const VoiceMeta({
+    required this.durationMs,
+    required this.peaksB64,
+  });
 
-                
-        @override
-        int get hashCode => durationMs.hashCode^peaksB64.hashCode;
-        
+  @override
+  int get hashCode => durationMs.hashCode ^ peaksB64.hashCode;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is VoiceMeta &&
-                runtimeType == other.runtimeType
-                && durationMs == other.durationMs&& peaksB64 == other.peaksB64;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VoiceMeta &&
+          runtimeType == other.runtimeType &&
+          durationMs == other.durationMs &&
+          peaksB64 == other.peaksB64;
+}

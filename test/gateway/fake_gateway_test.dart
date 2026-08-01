@@ -49,8 +49,26 @@ void main() {
     expect(status.openmlsSmoke.ok, isNotNull);
     expect(status.openmlsSmoke.ok!.protectedMessageCreated, isTrue);
     expect(status.openmlsRoundtrip.error, isNull);
-    expect(status.openmlsRoundtrip.ok, isNotNull);
-    expect(status.openmlsRoundtrip.ok!.welcomeJoined, isTrue);
-    expect(status.openmlsRoundtrip.ok!.plaintextRoundtrip, isTrue);
+   expect(status.openmlsRoundtrip.ok, isNotNull);
+   expect(status.openmlsRoundtrip.ok!.welcomeJoined, isTrue);
+   expect(status.openmlsRoundtrip.ok!.plaintextRoundtrip, isTrue);
+ });
+
+  // DM attachment SEND seam: the fake returns a canned AttachmentSendResult
+  // with a deterministic attachmentId derived from the file name (so a
+  // screen-level test can invalidate a snapshot family by the returned id).
+  test('FakeGateway sendPrivateAttachment returns a canned result', () async {
+    final gateway = FakeGateway();
+    final result = await gateway.sendPrivateAttachment(
+      sessionId: 'fake-session-1',
+      fileName: 'photo.png',
+      mime: 'image/png',
+      dataBase64: 'iVBORw0KGgo=',
+      thumbnailBase64: 'thumb',
+    );
+    expect(result.sessionId, 'fake-dm:fake-session-1');
+    expect(result.attachmentId, contains('fake-dm-attachment:'));
+    // contentHash is the data-base64 hashCode -- stable + deterministic.
+    expect(result.contentHash, isNotEmpty);
   });
 }

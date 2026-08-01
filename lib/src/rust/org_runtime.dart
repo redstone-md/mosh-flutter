@@ -6,170 +6,207 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+class JoinOrgRequest {
+  final String bundleUri;
+  final String displayName;
+  final int listenPort;
+  final String? staticPeer;
 
-            
+  const JoinOrgRequest({
+    required this.bundleUri,
+    required this.displayName,
+    required this.listenPort,
+    this.staticPeer,
+  });
 
-            
+  @override
+  int get hashCode =>
+      bundleUri.hashCode ^
+      displayName.hashCode ^
+      listenPort.hashCode ^
+      staticPeer.hashCode;
 
-            class JoinOrgRequest  {
-                final String bundleUri;
-final String displayName;
-final int listenPort;
-final String? staticPeer;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is JoinOrgRequest &&
+          runtimeType == other.runtimeType &&
+          bundleUri == other.bundleUri &&
+          displayName == other.displayName &&
+          listenPort == other.listenPort &&
+          staticPeer == other.staticPeer;
+}
 
-                const JoinOrgRequest({required this.bundleUri ,required this.displayName ,required this.listenPort ,this.staticPeer ,});
+class OrgDmLink {
+  final String peerId;
+  final String? sessionId;
 
-                
-                
+  const OrgDmLink({
+    required this.peerId,
+    this.sessionId,
+  });
 
-                
-        @override
-        int get hashCode => bundleUri.hashCode^displayName.hashCode^listenPort.hashCode^staticPeer.hashCode;
-        
+  @override
+  int get hashCode => peerId.hashCode ^ sessionId.hashCode;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is JoinOrgRequest &&
-                runtimeType == other.runtimeType
-                && bundleUri == other.bundleUri&& displayName == other.displayName&& listenPort == other.listenPort&& staticPeer == other.staticPeer;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OrgDmLink &&
+          runtimeType == other.runtimeType &&
+          peerId == other.peerId &&
+          sessionId == other.sessionId;
+}
 
-class OrgDmLink  {
-                final String peerId;
-final String? sessionId;
+class OrgDmOfferView {
+  final String offerId;
+  final String fromPeerId;
+  final String fromName;
+  final String inviteUri;
 
-                const OrgDmLink({required this.peerId ,this.sessionId ,});
+  const OrgDmOfferView({
+    required this.offerId,
+    required this.fromPeerId,
+    required this.fromName,
+    required this.inviteUri,
+  });
 
-                
-                
+  @override
+  int get hashCode =>
+      offerId.hashCode ^
+      fromPeerId.hashCode ^
+      fromName.hashCode ^
+      inviteUri.hashCode;
 
-                
-        @override
-        int get hashCode => peerId.hashCode^sessionId.hashCode;
-        
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OrgDmOfferView &&
+          runtimeType == other.runtimeType &&
+          offerId == other.offerId &&
+          fromPeerId == other.fromPeerId &&
+          fromName == other.fromName &&
+          inviteUri == other.inviteUri;
+}
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OrgDmLink &&
-                runtimeType == other.runtimeType
-                && peerId == other.peerId&& sessionId == other.sessionId;
-        
-            }
+class OrgGroupOfferView {
+  final String offerId;
+  final String fromPeerId;
+  final String fromName;
+  final String? groupLabel;
+  final String groupInviteUri;
 
-class OrgDmOfferView  {
-                final String offerId;
-final String fromPeerId;
-final String fromName;
-final String inviteUri;
+  const OrgGroupOfferView({
+    required this.offerId,
+    required this.fromPeerId,
+    required this.fromName,
+    this.groupLabel,
+    required this.groupInviteUri,
+  });
 
-                const OrgDmOfferView({required this.offerId ,required this.fromPeerId ,required this.fromName ,required this.inviteUri ,});
+  @override
+  int get hashCode =>
+      offerId.hashCode ^
+      fromPeerId.hashCode ^
+      fromName.hashCode ^
+      groupLabel.hashCode ^
+      groupInviteUri.hashCode;
 
-                
-                
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OrgGroupOfferView &&
+          runtimeType == other.runtimeType &&
+          offerId == other.offerId &&
+          fromPeerId == other.fromPeerId &&
+          fromName == other.fromName &&
+          groupLabel == other.groupLabel &&
+          groupInviteUri == other.groupInviteUri;
+}
 
-                
-        @override
-        int get hashCode => offerId.hashCode^fromPeerId.hashCode^fromName.hashCode^inviteUri.hashCode;
-        
+class OrgMemberView {
+  final String mossPeerId;
+  final String name;
+  final String role;
+  final bool isSelf;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OrgDmOfferView &&
-                runtimeType == other.runtimeType
-                && offerId == other.offerId&& fromPeerId == other.fromPeerId&& fromName == other.fromName&& inviteUri == other.inviteUri;
-        
-            }
+  const OrgMemberView({
+    required this.mossPeerId,
+    required this.name,
+    required this.role,
+    required this.isSelf,
+  });
 
-class OrgGroupOfferView  {
-                final String offerId;
-final String fromPeerId;
-final String fromName;
-final String? groupLabel;
-final String groupInviteUri;
+  @override
+  int get hashCode =>
+      mossPeerId.hashCode ^ name.hashCode ^ role.hashCode ^ isSelf.hashCode;
 
-                const OrgGroupOfferView({required this.offerId ,required this.fromPeerId ,required this.fromName ,this.groupLabel ,required this.groupInviteUri ,});
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OrgMemberView &&
+          runtimeType == other.runtimeType &&
+          mossPeerId == other.mossPeerId &&
+          name == other.name &&
+          role == other.role &&
+          isSelf == other.isSelf;
+}
 
-                
-                
+class OrgSnapshot {
+  final String orgPubkey;
+  final String orgName;
+  final String meshId;
+  final String ownPeerId;
+  final String confirmationCode;
+  final bool inRoster;
+  final BigInt? rosterVersion;
+  final List<OrgMemberView> members;
+  final List<OrgDmOfferView> dmOffers;
+  final List<OrgGroupOfferView> groupOffers;
+  final List<OrgDmLink> dmLinks;
 
-                
-        @override
-        int get hashCode => offerId.hashCode^fromPeerId.hashCode^fromName.hashCode^groupLabel.hashCode^groupInviteUri.hashCode;
-        
+  const OrgSnapshot({
+    required this.orgPubkey,
+    required this.orgName,
+    required this.meshId,
+    required this.ownPeerId,
+    required this.confirmationCode,
+    required this.inRoster,
+    this.rosterVersion,
+    required this.members,
+    required this.dmOffers,
+    required this.groupOffers,
+    required this.dmLinks,
+  });
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OrgGroupOfferView &&
-                runtimeType == other.runtimeType
-                && offerId == other.offerId&& fromPeerId == other.fromPeerId&& fromName == other.fromName&& groupLabel == other.groupLabel&& groupInviteUri == other.groupInviteUri;
-        
-            }
+  @override
+  int get hashCode =>
+      orgPubkey.hashCode ^
+      orgName.hashCode ^
+      meshId.hashCode ^
+      ownPeerId.hashCode ^
+      confirmationCode.hashCode ^
+      inRoster.hashCode ^
+      rosterVersion.hashCode ^
+      members.hashCode ^
+      dmOffers.hashCode ^
+      groupOffers.hashCode ^
+      dmLinks.hashCode;
 
-class OrgMemberView  {
-                final String mossPeerId;
-final String name;
-final String role;
-final bool isSelf;
-
-                const OrgMemberView({required this.mossPeerId ,required this.name ,required this.role ,required this.isSelf ,});
-
-                
-                
-
-                
-        @override
-        int get hashCode => mossPeerId.hashCode^name.hashCode^role.hashCode^isSelf.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OrgMemberView &&
-                runtimeType == other.runtimeType
-                && mossPeerId == other.mossPeerId&& name == other.name&& role == other.role&& isSelf == other.isSelf;
-        
-            }
-
-class OrgSnapshot  {
-                final String orgPubkey;
-final String orgName;
-final String meshId;
-final String ownPeerId;
-final String confirmationCode;
-final bool inRoster;
-final BigInt? rosterVersion;
-final List<OrgMemberView> members;
-final List<OrgDmOfferView> dmOffers;
-final List<OrgGroupOfferView> groupOffers;
-final List<OrgDmLink> dmLinks;
-
-                const OrgSnapshot({required this.orgPubkey ,required this.orgName ,required this.meshId ,required this.ownPeerId ,required this.confirmationCode ,required this.inRoster ,this.rosterVersion ,required this.members ,required this.dmOffers ,required this.groupOffers ,required this.dmLinks ,});
-
-                
-                
-
-                
-        @override
-        int get hashCode => orgPubkey.hashCode^orgName.hashCode^meshId.hashCode^ownPeerId.hashCode^confirmationCode.hashCode^inRoster.hashCode^rosterVersion.hashCode^members.hashCode^dmOffers.hashCode^groupOffers.hashCode^dmLinks.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OrgSnapshot &&
-                runtimeType == other.runtimeType
-                && orgPubkey == other.orgPubkey&& orgName == other.orgName&& meshId == other.meshId&& ownPeerId == other.ownPeerId&& confirmationCode == other.confirmationCode&& inRoster == other.inRoster&& rosterVersion == other.rosterVersion&& members == other.members&& dmOffers == other.dmOffers&& groupOffers == other.groupOffers&& dmLinks == other.dmLinks;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OrgSnapshot &&
+          runtimeType == other.runtimeType &&
+          orgPubkey == other.orgPubkey &&
+          orgName == other.orgName &&
+          meshId == other.meshId &&
+          ownPeerId == other.ownPeerId &&
+          confirmationCode == other.confirmationCode &&
+          inRoster == other.inRoster &&
+          rosterVersion == other.rosterVersion &&
+          members == other.members &&
+          dmOffers == other.dmOffers &&
+          groupOffers == other.groupOffers &&
+          dmLinks == other.dmLinks;
+}
