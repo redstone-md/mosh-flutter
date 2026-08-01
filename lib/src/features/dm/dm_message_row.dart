@@ -53,14 +53,12 @@ class DmMessageRow extends StatelessWidget {
         ? const SizedBox(width: dmMessageAvatarSize)
        : CircleAvatar(
             backgroundColor: avatarColor(message.fromDevice),
-            maxRadius: dmMessageAvatarSize / 2,
-            child: Text(
-              message.fromDevice.isEmpty
-                  ? '?'
-                  : message.fromDevice[0].toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          );
+          maxRadius: dmMessageAvatarSize / 2,
+          child: Text(
+            avatarInitials(message.fromDevice),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

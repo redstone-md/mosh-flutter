@@ -164,10 +164,11 @@ class SessionsScreen extends ConsumerWidget {
 }
 
 /// One DM session row. Mirrors the React `SessionRailItem`:
-///   - leading: Avatar (CircleAvatar with the label's first letter; the
-///     background color is a stable hash of the session id so different
-///     sessions get distinct avatar colors, matching React's per-`name` Avatar
-///     styling).
+///   - leading: Avatar (CircleAvatar with the label's initials via
+///     [avatarInitials] -- React's split-on-whitespace/underscore/dash +
+///     first-char-of-each + take-2 + uppercase algorithm; the background
+///     color is a stable hash of the session id so different sessions get
+///     distinct avatar colors, matching React's per-`name` Avatar styling).
 ///   - title: the label, falling back peer -> own display -> raw session id
 ///     (the same chain `dm_screen` uses for its title).
 ///   - subtitle: the localized state label (`stateIdle|stateWaiting|stateReady`
@@ -204,8 +205,8 @@ class _SessionRow extends StatelessWidget {
               ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
                   ? Colors.white
                   : Colors.black87,
-          child: Text(
-            label.isEmpty ? '?' : label[0].toUpperCase(),
+         child: Text(
+            avatarInitials(label),
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
