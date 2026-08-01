@@ -61,6 +61,9 @@ import 'package:go_router/go_router.dart';
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert' show base64Encode;
+import 'package:mosh/src/features/shared/voice_composer.dart';
+import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
@@ -149,6 +152,44 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Group voice SEND -- 1-в-1 with React `sendVoice` (use-chat-
+  /// orchestration.ts L191-210), the group branch. Reads the recorded
+  /// file (path from the VoiceComposer), base64-encodes the bytes, derives
+  /// `voice-message.<ext>` from the mime, and calls the Gateway group
+  /// send seam with `voice: VoiceMeta(durationMs, peaksBase64)`.
+  Future<void> _sendVoice(VoiceSend voice) async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      final file = File(voice.path);
+      final bytes = await file.readAsBytes();
+      final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
+      final fileName = 'voice-message.$ext';
+      await ref.read(gatewayProvider).sendGroupAttachment(
+            groupId: widget.groupId,
+            fileName: fileName,
+            mime: voice.mime,
+            dataBase64: base64Encode(bytes),
+            voice: VoiceMeta(
+              durationMs: voice.durationMs,
+              peaksB64: voice.peaksBase64,
+            ),
+          );
+      ref.invalidate(groupSnapshotProvider(widget.groupId));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Surfaces mic-permission / start failures from the VoiceComposer
+  /// (mirrors React `onVoiceError` -> the screen error SnackBar).
+  void _onVoiceError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   /// Surfaces the localized 50 MB limit message when the picker rejects an
@@ -338,6 +379,13 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                   attachLabel: l.chatAttachLabel,
                   onAttach: _sendAttachment,
                   onAttachmentPickError: _onAttachmentPickError,
+                  voiceRecordLabel: l.voiceRecordLabel,
+                  voiceDiscardLabel: l.voiceDiscardLabel,
+                  voiceStopLabel: l.voiceStopLabel,
+                  voicePlayLabel: l.voicePlayLabel,
+                  voiceSendLabel: l.voiceSendLabel,
+                  onSendVoice: _sendVoice,
+                  onVoiceError: _onVoiceError,
                 ),
               ],
             ),

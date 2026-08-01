@@ -26,6 +26,10 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert' show base64Encode;
+
+import 'package:mosh/src/features/shared/voice_composer.dart';
+import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -122,6 +126,47 @@ class _DmScreenState extends ConsumerState<DmScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// DM voice SEND -- 1-в-1 with React `sendVoice` (use-chat-orchestration
+  /// L191-210), the dm branch. Reads the recorded file (path from the
+  /// VoiceComposer), base64-encodes the bytes, derives a deterministic
+  /// `voice-message.<ext>` file name from the mime, and calls the Gateway
+  /// DM send seam with `voice: VoiceMeta(durationMs, peaksBase64)` so the
+  /// row renders as a voice message. Mirrors React `sendVoice` which builds
+  /// `new File([voice.blob], fileName, {type: voice.mime})` + the VoiceMeta.
+  Future<void> _sendVoice(VoiceSend voice) async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      final file = File(voice.path);
+      final bytes = await file.readAsBytes();
+      final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
+      final fileName = 'voice-message.$ext';
+      await ref.read(gatewayProvider).sendPrivateAttachment(
+            sessionId: widget.sessionId,
+            fileName: fileName,
+            mime: voice.mime,
+            dataBase64: base64Encode(bytes),
+            voice: VoiceMeta(
+              durationMs: voice.durationMs,
+              peaksB64: voice.peaksBase64,
+            ),
+          );
+      ref.invalidate(activeSessionProvider(widget.sessionId));
+      ref.invalidate(sessionListProvider);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Surfaces mic-permission / start failures from the VoiceComposer
+  /// (mirrors React `onVoiceError` -> the screen error SnackBar).
+  void _onVoiceError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   /// Surfaces the localized 50 MB limit message when the picker rejects an
@@ -320,6 +365,13 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                   attachLabel: l.chatAttachLabel,
                   onAttach: _sendAttachment,
                   onAttachmentPickError: _onAttachmentPickError,
+                  voiceRecordLabel: l.voiceRecordLabel,
+                  voiceDiscardLabel: l.voiceDiscardLabel,
+                  voiceStopLabel: l.voiceStopLabel,
+                  voicePlayLabel: l.voicePlayLabel,
+                  voiceSendLabel: l.voiceSendLabel,
+                  onSendVoice: _sendVoice,
+                  onVoiceError: _onVoiceError,
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
