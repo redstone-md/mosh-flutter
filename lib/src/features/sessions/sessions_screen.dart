@@ -44,10 +44,14 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/features/sessions/channel_rail_item.dart';
 import 'package:mosh/src/features/sessions/group_rail_item.dart';
+import 'package:mosh/src/features/sessions/offer_rail_item.dart';
 import 'package:mosh/src/features/sessions/state_dot.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/dm_offer_providers.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
@@ -67,6 +71,12 @@ class SessionsScreen extends ConsumerWidget {
     // (ADR 0010 server state, mirrors `sessionListProvider` 1:1).
     final channelsAsync = ref.watch(channelListProvider);
     final groupsAsync = ref.watch(groupListProvider);
+    // Pending DM offers (channel/group dmOffers flattened) -- the React
+    // `useDmOffers pendingOffers`. Derived from channelsAsync + groupsAsync,
+    // so it auto-refreshes when either invalidates (a dismiss/join/leave
+    // re-polls and the offer row disappears). Rendered at the TOP of the
+    // rail (React SessionRail order: offers -> sessions -> groups -> channels).
+    final pendingOffers = ref.watch(pendingDmOffersProvider);
     // Unread map is data-only; AsyncValue guards leave it {} while loading
     // or on error so the badge simply stays absent (mirrors React clearing
     // to 0 visually during a refresh).
@@ -103,8 +113,12 @@ class SessionsScreen extends ConsumerWidget {
           final channels = channelsAsync.value?.channels ?? const [];
           final groups = groupsAsync.value?.groups ?? const [];
           final sessions = snapshot.sessions;
-          // Empty only when ALL three slices are empty (offers/orgs deferred).
-          if (sessions.isEmpty && channels.isEmpty && groups.isEmpty) {
+          // Empty only when ALL four slices are empty (offers + sessions +
+          // groups + channels; orgs still deferred).
+          if (pendingOffers.isEmpty &&
+              sessions.isEmpty &&
+              channels.isEmpty &&
+              groups.isEmpty) {
             return _EmptyState(onStart: () => _startChat(context, ref));
           }
           // React SessionRail order: sessions, [divider if groups && sessions],
@@ -112,6 +126,14 @@ class SessionsScreen extends ConsumerWidget {
           // A `Divider` renders only between two non-empty adjacent sections,
           // mirroring React's conditional `rail-divider` rendering.
           final children = <Widget>[
+            for (final pending in pendingOffers)
+              OfferRailItem(
+                pending: pending,
+                onAccept: () => _acceptOffer(context, ref, pending),
+                onDismiss: () => _dismissOffer(ref, pending),
+              ),
+            if (pendingOffers.isNotEmpty && sessions.isNotEmpty)
+              const Divider(height: 1, thickness: 1),
             for (final session in sessions)
               _SessionRow(
                 session: session,
@@ -160,6 +182,65 @@ class SessionsScreen extends ConsumerWidget {
     final scaffold = ScaffoldMessenger.of(context);
     final invite = await ref.read(inviteFlowProvider.notifier).create();
     scaffold.showSnackBar(SnackBar(content: Text(invite.inviteUri)));
+  }
+
+  // Accept a pending DM offer, 1-в-1 with React `useDmOffers.acceptDmOffer`:
+  // gateway.acceptInvite with the offer's inviteUri (the existing DM accept
+  // path -- top-level offers reuse acceptInvite, NOT org's acceptDmOffer),
+  // then auto-dismiss the offer (React dismisses after accept so it leaves
+  // the channel/group's offer list), then navigate to the new DM session.
+  // The displayName/listenPort/staticPeer come from inviteFlowProvider (the
+  // same settings source onboarding uses, ADR 0010 DRY).
+  Future<void> _acceptOffer(
+    BuildContext context,
+    WidgetRef ref,
+    PendingDmOffer pending,
+  ) async {
+    final scaffold = ScaffoldMessenger.of(context);
+    final flow = ref.read(inviteFlowProvider);
+    final gateway = ref.read(gatewayProvider);
+    try {
+      final session = await gateway.acceptInvite(
+        request: AcceptInviteRequest(
+          inviteUri: pending.offer.inviteUri,
+          displayName:
+              flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
+          listenPort: flow.listenPort,
+          staticPeer: flow.staticPeer,
+        ),
+      );
+      // Auto-dismiss the offer after accept (React's acceptDmOffer calls
+      // dismissChannelDmOffer/dismissGroupDmOffer after acceptPrivateInvite).
+      await _dismissOffer(ref, pending, gateway: gateway);
+      if (!context.mounted) return;
+      context.go(AppRoutes.dmFor(session.sessionId));
+    } catch (e) {
+      scaffold.showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  // Dismiss a pending DM offer, 1-в-1 with React `useDmOffers.dismissDmOffer`:
+  // dismissChannelDmOffer (kind == channel, host = name) or
+  // dismissGroupDmOffer (kind == group, host = groupId), then refresh the
+  // channel/group list so the offer row disappears. The accept path passes
+  // its already-acquired gateway to avoid a second read.
+  Future<void> _dismissOffer(
+    WidgetRef ref,
+    PendingDmOffer pending, {
+    Gateway? gateway,
+  }) async {
+    final Gateway gw = gateway ?? ref.read(gatewayProvider);
+    if (pending.kind == PendingDmOfferKind.channel) {
+      await gw.dismissChannelDmOffer(
+          name: pending.host, offerId: pending.offer.offerId);
+    } else {
+      await gw.dismissGroupDmOffer(
+          groupId: pending.host, offerId: pending.offer.offerId);
+    }
+    // Refresh both lists so the offer row leaves the rail (the derived
+    // pendingDmOffersProvider re-reads on invalidation).
+    await ref.read(channelListProvider.notifier).refresh();
+    await ref.read(groupListProvider.notifier).refresh();
   }
 }
 
