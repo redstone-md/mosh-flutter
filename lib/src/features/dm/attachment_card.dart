@@ -1,37 +1,34 @@
 // Attachment card rendered inside a DM message bubble, ported from the
 // React `AttachmentCard` (src/features/private-dm/AttachmentCard.tsx).
-// This atomic ports the in-scope display surface of the FILE branch and
-// the IMAGE branch of the media-preview branch.
 //
-// FILE branch (in scope): file name, formatted size, transfer-state
-// label, file icon (normal vs alert-on-failed), progress bar while
-// downloading.
+// FILE branch (in scope): file name, formatted size, transfer-state label,
+// file icon (normal vs alert-on-failed), progress bar while downloading.
 //
-// IMAGE preview branch (in scope): when the descriptor carries a
-// non-empty `thumbnailB64` AND the mime is image/* or video/*, render
-// the decoded thumbnail as a non-interactive `Image.memory` preview
-// above the SAME bar the file card uses (name + meta + progress). This
-// mirrors React's `hasPreview = Boolean(thumbnail_b64) && (isImage ||
-// isVideo)` and the `attachment-card-media` JSX.
+// IMAGE preview branch (in scope): when the descriptor carries a non-empty
+// `thumbnailB64` AND the mime is image/* or video/*, render the decoded
+// thumbnail as a tappable `Image.memory` preview above the SAME bar the
+// file card uses (name + meta + progress + actions). Mirrors React's
+// `hasPreview = Boolean(thumbnail_b64) && (isImage || isVideo)` and the
+// `attachment-card-media` JSX.
 //
-// OUT OF SCOPE (deferred to later atomics -- the Gateway seam does not
-// yet have download/cancel/open transfer methods):
-//   - voice messages (descriptor.voice -> VoiceMessage branch in React);
-//   - the onOpen tap handler on the preview (<button onClick={onOpen}>
-//     in React) -- the preview is non-interactive here;
-//   - the `actions` block (download/cancel/retry/open buttons);
-//   - the media viewer / streaming playback.
-// React's flow is: `if (voice) return VoiceMessage;` (deferred), then
-// `if (hasPreview) return media-card;` (this atomic, image-only surface),
-// then `return file-card;` (the existing branch). Each deferred piece is
-// noted inline where it would slot in.
+// OUT OF SCOPE (deferred): voice messages (descriptor.voice -> React
+// VoiceMessage), the media viewer / streaming playback, and the cross-
+// platform open launcher (this atomic ships Windows `cmd /c start`; non-
+// Windows is a TODO no-op, a later atomic wires open_filex). React's flow:
+// `if (voice) return VoiceMessage;` (deferred), then `if (hasPreview)
+// return media-card;` (this atomic), then `return file-card;`.
 //
-// VIDEO play-overlay is IN SCOPE this atomic: a centered
-// `Icons.play_circle_filled` overlays the thumbnail image when the mime
-// is a video (matching React's `<IconPlayerPlayFilled>`); the overlay is
-// decorative (`Semantics(excludeSemantics: true)`), the wrapper's image
-// semantics carries the accessibility label, and the preview stays
-// non-interactive (no onOpen tap).
+// VIDEO play-overlay is IN SCOPE: a centered `Icons.play_circle_filled`
+// overlays the thumbnail when the mime is a video (React's
+// `<IconPlayerPlayFilled>`); decorative (`Semantics(excludeSemantics: true)`),
+// the wrapper's image semantics carries the label.
+//
+// ACTIONS ROW + onOpen tap (IN SCOPE): ported 1:1 from React's `<div
+// className="attachment-actions">` state machine (see [AttachmentActions]
+// for the 4-state table -- now in attachment_actions.dart as AttachmentActions).
+// The preview
+// tap opens the local file via
+// `onOpen(descriptor)`.
 //
 // State derivation mirrors React exactly: `outgoing = view?.direction ===
 // "outgoing"`, `state = view?.state ?? (outgoing ? "available" : "offered")`,
@@ -48,47 +45,62 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart';
 
+import 'package:mosh/src/features/dm/attachment_actions.dart';
+
 /// Renders the in-scope file or image-preview attachment card for a DM
-/// message bubble. See the file doc comment for what is in scope and
-/// what is deferred.
+/// message bubble (see the file doc for scope). `own` is the row's own-
+/// message flag; when a view is present `outgoing` is derived from
+/// `view.direction == "outgoing"`, otherwise we fall back to `own` so an own
+/// message with no transfer state renders as `available` (React's
+/// `view?.state ?? (outgoing ? "available" : "offered")`).
 ///
-/// `own` is the row's own-message flag (from `fromDevice == ownDeviceName`).
-/// When a view is present we mirror React and derive `outgoing` from
-/// `view.direction == "outgoing"`; otherwise we fall back to `own` so an
-/// own message with no transfer state renders as `available` (not
-/// `offered`), matching React's `view?.state ?? (outgoing ? "available"
-/// : "offered")`.
+/// Transfer-action callbacks (React `onDownload` / `onCancel` / `onOpen`):
+/// all three are REQUIRED -- the DM screen always wires them. The Open
+/// button is disabled by [AttachmentActions] when `view.localPath == null`
+/// (React's `disabled={!view?.local_path}`).
 class AttachmentCard extends StatelessWidget {
   const AttachmentCard({
     super.key,
     required this.descriptor,
     required this.view,
     required this.own,
+    required this.onDownload,
+    required this.onCancel,
+    required this.onOpen,
   });
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
   final bool own;
 
+  /// React `onDownload`: fires `Gateway.downloadAttachment`; the screen
+  /// invalidates the session provider so the downloading state re-renders.
+  final void Function(String attachmentId) onDownload;
+
+  /// React `onCancel`: fires `Gateway.cancelAttachment` (same pattern).
+  final void Function(String attachmentId) onCancel;
+
+  /// React `onOpen`: opens `view.localPath` via a dart:io launcher (Windows
+  /// `cmd /c start`; non-Windows is a TODO no-op). Carries the descriptor
+  /// so a later viewer refactor can route to it.
+  final void Function(AttachmentDescriptor descriptor) onOpen;
+
   @override
   Widget build(BuildContext context) {
-    // React: `if (descriptor.voice) return VoiceMessage;`. The voice
-    // message branch is DEFERRED (no VoiceMessage widget yet); the
-    // file/media branches below render for now. When the voice branch
-    // lands it slots in here as an early return.
-
-    // React: `if (hasPreview) return <attachment-card-media>`. The
-    // media-preview branch (image + video-with-thumbnail) is in scope
-    // for the image surface this atomic.
+    // React: `if (descriptor.voice) return VoiceMessage;` -- DEFERRED.
+    // React: `if (hasPreview) return <attachment-card-media>`.
     if (_hasPreview) {
       return _MediaPreviewCard(
         descriptor: descriptor,
         view: view,
         own: own,
+        onDownload: onDownload,
+        onCancel: onCancel,
+        onOpen: onOpen,
       );
     }
 
-    // React: `return <attachment-card>` (the file branch).
+    // React: `return <attachment-card>` (file branch).
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final outgoing = view?.direction == 'outgoing' || (view == null && own);
@@ -116,15 +128,28 @@ class AttachmentCard extends StatelessWidget {
           Icon(icon, size: 22, color: iconColor),
           const SizedBox(width: 8),
           Expanded(child: bar),
+          // React `attachment-bar`: `attachment-info` (flex-1) + actions
+          // row to the right of name+meta+progress.
+          const SizedBox(width: 4),
+          AttachmentActions(
+            descriptor: descriptor,
+            view: view,
+            state: state,
+            outgoing: outgoing,
+            busy: false,
+            onDownload: onDownload,
+            onCancel: onCancel,
+            onOpen: onOpen,
+            l: l,
+          ),
         ],
       ),
     );
   }
 
   /// React: `hasPreview = Boolean(thumbnail_b64) && (isImage || isVideo)`.
-  /// Image-with-thumbnail and video-with-thumbnail both take the media
-  /// branch; everything else (audio, pdf, etc.) falls back to the file
-  /// card. The video play-overlay is deferred (see _MediaPreviewCard).
+  /// Image/video-with-thumbnail take the media branch; everything else
+  /// (audio, pdf, ...) falls back to the file card.
   bool get _hasPreview {
     final thumb = descriptor.thumbnailB64;
     if (thumb == null || thumb.isEmpty) return false;
@@ -133,9 +158,8 @@ class AttachmentCard extends StatelessWidget {
   }
 }
 
-/// Card chrome shared by the file and media branches: the rounded,
-/// tinted container matching React's `attachment-card` shell. The
-/// failed state tints the surface with `errorContainer`.
+/// Card chrome shared by both branches: the rounded, tinted container
+/// matching React's `attachment-card` shell (failed tints `errorContainer`).
 class _FileCardShell extends StatelessWidget {
   const _FileCardShell({
     required this.failed,
@@ -150,8 +174,6 @@ class _FileCardShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // Kept compact so it fits inside the bubble width (maxWidth 360 in
-      // `_DmMessageRow`). Mirrors React's `attachment-card` styling.
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: failed
@@ -165,12 +187,11 @@ class _FileCardShell extends StatelessWidget {
   }
 }
 
-/// Shared name + meta + progress bar (DRY) used by both the file card and
-/// the media preview card. Mirrors React's `meta` line + `progressBar`:
-/// `formatBytes(total_size)` plus (" \u00b7 " + stateLabel) when state !=
-/// "available", and a `LinearProgressIndicator` while downloading.
-/// Returns a tight `Column` (no leading icon) so the file card wraps it
-/// in an icon `Row` and the media card stacks it under the preview.
+/// Shared name + meta + progress bar (DRY) used by both branches. Mirrors
+/// React's `meta` + `progressBar`: `formatBytes(total_size)` plus
+/// (" \u00b7 " + stateLabel) when state != "available", and a
+/// `LinearProgressIndicator` while downloading. A tight `Column` (no icon)
+/// so the file card wraps it in an icon `Row` and the media card stacks it.
 Widget _buildBar({
   required ThemeData theme,
   required AppLocalizations l,
@@ -181,8 +202,8 @@ Widget _buildBar({
 }) {
   final size = formatBytes(totalSize);
   final stateLabel = _attachmentStateLabel(l, state, percent);
-  // React omits the state label entirely when state == "available"
-  // (only the size renders); every other state appends " \u00b7 {label}".
+  // React omits the state label when state == "available" (size only);
+  // every other state appends " \u00b7 {label}".
   final meta =
       state == AttachmentState.available ? size : '$size \u00b7 $stateLabel';
   return Column(
@@ -219,33 +240,33 @@ Widget _buildBar({
 }
 
 /// Renders the in-scope IMAGE media preview: the decoded base64 thumbnail
-/// as a non-interactive `Image.memory` (rounded, height-constrained)
-/// above the shared name+meta+progress bar. Mirrors React's
+/// as a tappable `Image.memory` (rounded, height-constrained) above the
+/// shared name+meta+progress bar + actions row. Mirrors React's
 /// `attachment-card-media` shell with the `<img src=data:image/jpeg;base64,
 /// thumbnail_b64>` payload.
 ///
-/// DEFERRED (later atomics, noted for 1:1 review):
-///   - the onOpen tap (`<button onClick={onOpen}>`): the preview is
-///     non-interactive (no Gateway `open` method yet);
-///   - the actions row (download/cancel/retry/open buttons).
-///
-/// IN SCOPE this atomic: for a video mime, a centered
-/// `Icons.play_circle_filled` overlays the thumbnail image (React's
-/// `<IconPlayerPlayFilled>`). The overlay is decorative -- wrapped in
-/// `Semantics(excludeSemantics: true)` so it does not double the
-/// wrapper's image-label -- and the wrapper semantics label reflects
-/// the actual content ("Image preview: ..." for images, "Video preview:
-/// ..." for videos). The preview stays non-interactive (no onTap).
+/// IN SCOPE (ported 1:1 from React): the onOpen tap (`<button
+/// onClick={onOpen}>` -> `GestureDetector` opens the local file) and the
+/// actions row ([AttachmentActions] to the right of the bar, React's
+/// `attachment-bar` flex row). The video play-overlay is decorative
+/// (`Semantics(excludeSemantics: true)`); the wrapper semantics label
+/// reflects the content ("Image preview: ..." / "Video preview: ...").
 class _MediaPreviewCard extends StatelessWidget {
   const _MediaPreviewCard({
     required this.descriptor,
     required this.view,
     required this.own,
+    required this.onDownload,
+    required this.onCancel,
+    required this.onOpen,
   });
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
   final bool own;
+  final void Function(String attachmentId) onDownload;
+  final void Function(String attachmentId) onCancel;
+  final void Function(AttachmentDescriptor descriptor) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -272,71 +293,91 @@ class _MediaPreviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Non-interactive preview (no onOpen tap this atomic). React
-          // wraps the img in `<button onClick={onOpen}>`; that tap stays
-          // deferred. The video play-overlay IS in scope this atomic
-          // (centered `Icons.play_circle_filled` over the image when
-          // `isVideo`), matching React's `<IconPlayerPlayFilled>`.
-          // Constrained so the preview does not blow up the bubble.
+          // React wraps the thumbnail in `<button onClick={onOpen}>`; the
+          // preview is tappable via `GestureDetector` (opens the local
+          // file). The video play-overlay is decorative and stays on top.
           Semantics(
             label: previewLabel,
             image: true,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: SizedBox(
-                height: 160,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.memory(
-                      bytes,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                      errorBuilder: (context, _, __) => SizedBox(
-                        height: 160,
-                        width: double.infinity,
-                        child: ColoredBox(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            size: 32,
-                            color: theme.hintColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (isVideo)
-                      // Decorative play overlay (React's
-                      // `<span className="attachment-play"
-                      // aria-hidden="true"><IconPlayerPlayFilled/>`).
-                      // Excluded from semantics so the wrapper's image
-                      // label carries accessibility.
-                      Positioned.fill(
-                        child: Center(
-                          child: Semantics(
-                            excludeSemantics: true,
+            button: true,
+            child: GestureDetector(
+              onTap: () => onOpen(descriptor),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  height: 160,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.memory(
+                        bytes,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        errorBuilder: (context, _, __) => SizedBox(
+                          height: 160,
+                          width: double.infinity,
+                          child: ColoredBox(
+                            color: theme.colorScheme.surfaceContainerHighest,
                             child: Icon(
-                              Icons.play_circle_filled,
-                              size: 40,
-                              color: Colors.white70,
+                              Icons.broken_image_outlined,
+                              size: 32,
+                              color: theme.hintColor,
                             ),
                           ),
                         ),
                       ),
-                  ],
+                      if (isVideo)
+                        // Decorative play overlay (React's
+                        // `attachment-play` span); excluded from semantics.
+                        Positioned.fill(
+                          child: Center(
+                            child: Semantics(
+                              excludeSemantics: true,
+                              child: Icon(
+                                Icons.play_circle_filled,
+                                size: 40,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 6),
-          _buildBar(
-            theme: theme,
-            l: l,
-            fileName: descriptor.fileName,
-            totalSize: descriptor.totalSize,
-            state: state,
-            percent: percent,
+          // React `attachment-bar` (flex row): `attachment-info` (flex-1)
+          // + `attachment-actions`. The bar takes the expanding slot; the
+          // actions row sits to its right.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: _buildBar(
+                  theme: theme,
+                  l: l,
+                  fileName: descriptor.fileName,
+                  totalSize: descriptor.totalSize,
+                  state: state,
+                  percent: percent,
+                ),
+             ),
+             const SizedBox(width: 4),
+              AttachmentActions(
+                descriptor: descriptor,
+                view: view,
+                state: state,
+                outgoing: outgoing,
+                busy: false,
+                onDownload: onDownload,
+                onCancel: onCancel,
+                onOpen: onOpen,
+                l: l,
+              ),
+            ],
           ),
         ],
       ),
@@ -344,10 +385,9 @@ class _MediaPreviewCard extends StatelessWidget {
   }
 }
 
-/// `progressPercent(view)` ported 1:1 from React: 0 when there is no view or
-/// `chunk_count == 0`, else `min(100, round(completed / total * 100))`.
-/// BigInt math then `.toInt()` for the int return (percent fits 0..100 so
-/// the narrowing is safe).
+/// `progressPercent(view)` ported 1:1 from React: 0 when no view or
+/// `chunkCount == 0`, else `min(100, round(completed / total * 100))`. BigInt
+/// math then `.toInt()` (percent fits 0..100 so the narrowing is safe).
 int _progressPercent(AttachmentView? view) {
   if (view == null || view.chunkCount == BigInt.zero) return 0;
   final raw = (view.completedChunks * BigInt.from(100)) ~/ view.chunkCount;
@@ -356,8 +396,7 @@ int _progressPercent(AttachmentView? view) {
 }
 
 /// `transferStateLabel(state, percent)` ported 1:1 from React, routed
-/// through AppLocalizations so the labels are localized. The downloading
-/// label interpolates the integer percent.
+/// through AppLocalizations. The downloading label interpolates the percent.
 String _attachmentStateLabel(
     AppLocalizations l, AttachmentState state, int percent) {
   switch (state) {
