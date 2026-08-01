@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/dm/dm_message_row.dart' show dmMessageAvatarSize;
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -150,7 +151,9 @@ class _ChannelSearchable implements SearchableMessage {
 /// with a surfaceContainerHighest bubble. The [AttachmentCard] renders
 /// under the body when `message.attachment != null` (display-only: the
 /// transfer callbacks are no-op stubs until the channel attachment-transfer
-/// seam arrives). No avatar or retry row yet (deferred to later atomics).
+/// seam arrives). The avatar slot mirrors `DmMessageRow` (React `.avatar` +
+/// `avatar avatar-spacer`): real `CircleAvatar` on the first row of a group,
+/// a same-width `SizedBox` spacer on grouped rows; own = right, peer = left.
 class ChannelMessageRow extends StatelessWidget {
   const ChannelMessageRow({
     super.key,
@@ -190,72 +193,102 @@ class ChannelMessageRow extends StatelessWidget {
     final bubble = own
         ? theme.colorScheme.primaryContainer
         : theme.colorScheme.surfaceContainerHighest;
-    final alignment = own ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    return Align(
-      alignment: own ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        child: Container(
-          margin: EdgeInsets.symmetric(vertical: grouped ? 1 : 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: bubble,
-            borderRadius: BorderRadius.circular(8),
+      final alignment = own ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+      // Avatar slot mirrors `DmMessageRow`: a real `CircleAvatar` on the
+      // first row of a group, an invisible same-width `SizedBox` spacer on
+      // grouped rows (preserves the indent). Own rows put the avatar on the
+      // right (after the bubble), peer rows on the left (before it),
+      // matching React's `message-row` flex layout where the avatar sits
+      // outside `message-body`.
+      final avatarSlot = grouped
+          ? const SizedBox(width: dmMessageAvatarSize)
+          : CircleAvatar(
+              backgroundColor: avatarColor(message.fromDevice),
+              maxRadius: dmMessageAvatarSize / 2,
+              child: Text(
+                avatarInitials(message.fromDevice),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            );
+      // The avatar is OUTSIDE the bubble's 75%-width `ConstrainedBox`, as
+      // a separate flex item (React `message-row { display:flex; gap:12px }`).
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!own) ...[avatarSlot, const SizedBox(width: 12)],
+          Flexible(
+            child: Align(
+              alignment: own ? Alignment.centerRight : Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                ),
+                child: Container(
+                  margin: EdgeInsets.symmetric(vertical: grouped ? 1 : 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: bubble,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: alignment,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!grouped)
+                        MultiPartySenderMeta(
+                          fromDevice: message.fromDevice,
+                          fromFingerprint: message.fromFingerprint,
+                          sentAtMs: message.sentAtMs,
+                          showMlsBadge: false,
+                        ),
+                      Text(message.body),
+                      if (message.attachment != null)
+                        AttachmentCard(
+                          descriptor: message.attachment!,
+                          view: attachmentView,
+                          own: own,
+                          onDownload: onAttachmentDownload,
+                          onCancel: onAttachmentCancel,
+                          onOpen: onAttachmentOpen,
+                        ),
+                      // FailedMessageRetry row (React `FailedMessageRetry`,
+                      // MessageLists.tsx L434-468) -- renders BELOW the body +
+                      // AttachmentCard, inside the message bubble's Column,
+                      // mirroring React's `<div className="message-body"> ...
+                      // <FailedMessageRetry/></div>` order. Gate is the 1-в-1
+                      // port of React's render condition: `outbound &&
+                      // delivery_status === "failed" && retryable &&
+                      // message_id` (outbound == own == fromFingerprint ==
+                      // ownFingerprint). RENDER-ONLY: the `onRetry` callback
+                      // is a NO-OP STUB; the Gateway retry seam (Rust
+                      // `channel_retry_message` + frb codegen + Gateway
+                      // method) is a LATER atomic.
+                      if (own &&
+                          message.deliveryStatus ==
+                              MessageDeliveryStatus.failed &&
+                          message.retryable == true &&
+                          message.messageId != null)
+                        // TODO(channel-group-retry-seam): wire onRetry to the
+                        // Gateway retry method (React `retryChannelMessage`,
+                        // native-messaging-gateway.ts L494 + Rust
+                        // `channel_retry_message`, src-tauri/src/lib.rs L780)
+                        // once the Flutter Gateway ports it. No-op stub for
+                        // the display-only stage (mirrors the AttachmentCard
+                        // atomic's `b879a02` no-op stub pattern).
+                        FailedMessageRetry(
+                          deliveryError: message.deliveryError,
+                          onRetry: () {},
+                          l: l.toFailedMessageRetryL10n(),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: alignment,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!grouped)
-                MultiPartySenderMeta(
-                  fromDevice: message.fromDevice,
-                  fromFingerprint: message.fromFingerprint,
-                  sentAtMs: message.sentAtMs,
-                  showMlsBadge: false,
-                ),
-              Text(message.body),
-              if (message.attachment != null)
-                AttachmentCard(
-                  descriptor: message.attachment!,
-                  view: attachmentView,
-                  own: own,
-                  onDownload: onAttachmentDownload,
-                  onCancel: onAttachmentCancel,
-                  onOpen: onAttachmentOpen,
-                ),
-              // FailedMessageRetry row (React `FailedMessageRetry`,
-              // MessageLists.tsx L434-468) -- renders BELOW the body +
-              // AttachmentCard, inside the message bubble's Column,
-              // mirroring React's `<div className="message-body"> ...
-              // <FailedMessageRetry/></div>` order. Gate is the 1-в-1 port
-              // of React's render condition: `outbound && delivery_status
-              // === "failed" && retryable && message_id` (outbound == own
-              // == fromFingerprint == ownFingerprint). RENDER-ONLY: the
-              // `onRetry` callback is a NO-OP STUB; the Gateway retry seam
-              // (Rust `channel_retry_message` + frb codegen + Gateway
-              // method) is a LATER atomic.
-              if (own &&
-                  message.deliveryStatus == MessageDeliveryStatus.failed &&
-                  message.retryable == true &&
-                  message.messageId != null)
-                // TODO(channel-group-retry-seam): wire onRetry to the
-                // Gateway retry method (React `retryChannelMessage`,
-                // native-messaging-gateway.ts L494 + Rust
-                // `channel_retry_message`, src-tauri/src/lib.rs L780) once
-                // the Flutter Gateway ports it. No-op stub for the
-                // display-only stage (mirrors the AttachmentCard atomic's
-                // `b879a02` no-op stub pattern).
-                FailedMessageRetry(
-                  deliveryError: message.deliveryError,
-                  onRetry: () {},
-                  l: l.toFailedMessageRetryL10n(),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
+          if (own) ...[const SizedBox(width: 12), avatarSlot],
+        ],
+      );
+    }
   }
-}
