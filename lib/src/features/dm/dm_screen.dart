@@ -29,17 +29,20 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
+import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/fingerprint_badge.dart';
+import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 
 /// Grouping window ported 1-1 from React `GROUP_WINDOW_MS`
 /// (src/features/private-dm/MessageLists.tsx): 5 minutes.
@@ -114,10 +117,11 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   ConversationFilter _filter = ConversationFilter.all;
   bool _showPeerStatus = false;
 
-  // Ephemeral confirmed-fingerprint set (React `confirmedFingerprints`
-  // useState, use-chat-close-flow.ts). Widget-local per ADR 0010; purely
-  // client-side, NOT a Gateway call. TODO: removal-on-close is a later
-  // atomic (no close-session UI in DmScreen yet).
+ // Ephemeral confirmed-fingerprint set (React `confirmedFingerprints`
+ // useState, use-chat-close-flow.ts). Widget-local per ADR 0010; purely
+  // client-side, NOT a Gateway call. `_leave` removes the sessionId from
+  // this set on close (mirrors React `confirmCloseActive`'s
+  // `confirmedFingerprints.delete(target.id)` cleanup).
   Set<String> _confirmedFingerprints = {};
 
   @override
@@ -174,6 +178,55 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   void _confirmFingerprint() => setState(() => _confirmedFingerprints =
       {..._confirmedFingerprints, widget.sessionId});
 
+  /// Closes the active DM session -- the real half of the close-flow
+  /// (React `confirmCloseActive` for the `dm` branch, use-chat-close-flow.ts
+  /// L113-119). Calls `gateway.closeSession`, then mirrors React's
+  /// `confirmedFingerprints.delete(target.id)` cleanup (the confirmed
+  /// fingerprint for this session is no longer relevant once the session
+  /// is gone), invalidates the session family entry so the sessions list
+  /// refreshes, and navigates back to the sessions list. Matches the
+  /// channel/group `_leave` invalidation + `context.go(AppRoutes.sessions)`
+  /// pattern.
+  Future<void> _leave() async {
+    await ref
+        .read(gatewayProvider)
+        .closeSession(sessionId: widget.sessionId);
+    if (!mounted) return;
+    setState(() => _confirmedFingerprints =
+        _confirmedFingerprints..remove(widget.sessionId));
+    ref.invalidate(activeSessionProvider(widget.sessionId));
+    ref.invalidate(sessionListProvider);
+    context.go(AppRoutes.sessions);
+  }
+
+  /// Close-flow confirmation -- 1-в-1 with React `useChatCloseFlow` dm branch
+  /// (use-chat-close-flow.ts L46-56): the leave IconButton opens a
+  /// ConfirmDialog with `Delete chat with {label}?` / body / `Delete chat`
+  /// before the real `_leave` runs. The `label` is the peer display name,
+  /// falling back to the sessionId when `peerDisplayName` is empty (the
+  /// existing `title` rule; React's `session ? sessionLabel(session) :
+  /// "this private chat"` fallback is unreachable here -- the DM screen
+  /// always has a session -- but the sessionId fallback mirrors its shape
+  /// defensively). `showConfirmDialog` returns true on confirm, false on
+  /// cancel/barrier/Esc, so `_leave` only runs on an explicit confirm
+  /// (mirrors `closeFlow.confirmCloseActive` gating the real close).
+  Future<void> _requestLeave() async {
+    final l = AppLocalizations.of(context)!;
+    final async = ref.read(activeSessionProvider(widget.sessionId));
+    final label = async.maybeWhen(
+      data: (s) => s.peerDisplayName.isEmpty ? s.sessionId : s.peerDisplayName,
+      orElse: () => widget.sessionId,
+    );
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: l.deleteChatTitle(label),
+      body: l.deleteChatBody,
+      confirmLabel: l.deleteChatConfirm,
+      cancelLabel: l.dialogCancel,
+    );
+    if (confirmed) await _leave();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -196,6 +249,20 @@ class _DmScreenState extends ConsumerState<DmScreen> {
             icon: const Icon(Icons.electrical_services, size: 18),
             tooltip: l.openPeerStatus,
             onPressed: () => setState(() => _showPeerStatus = true),
+          ),
+          // Leave/close-session button -- 1-в-1 with React's DM leave button
+          // in ActiveChatHeader `afterSearchActions` (ActiveChatPanes.tsx
+          // L122-130: IconX, aria-label/title = `shellText.closeSession`,
+          // onClick = closeFlow.closeActive -> _requestLeave). Placed LAST in
+          // AppBar `actions` so it sits rightmost (React's
+          // afterSearchActions is right-of-search, so the leave button is
+          // the rightmost header button). Icons.close mirrors React's IconX;
+          // size 18 matches the peer-status IconButton for header
+          // consistency (React uses 16, but the sibling button is 18 here).
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: l.shellCloseSession,
+            onPressed: _requestLeave,
           ),
         ],
       ),

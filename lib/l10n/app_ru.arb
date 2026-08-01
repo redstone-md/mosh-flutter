@@ -46,11 +46,11 @@
   "chatStartCta": "Новый приватный чат",
   "stateIdle": "Простой",
   "stateWaiting": "Ожидание",
- "stateReady": "Подключено",
- "sessionsListTitle": "Диалоги",
- "sessionsError": "Не удалось загрузить сессии.",
- "sessionsRetry": "Повторить",
- "cryptoNoticeTitle": "Сквозное шифрование",
+  "stateReady": "Подключено",
+  "sessionsListTitle": "Диалоги",
+  "sessionsError": "Не удалось загрузить сессии.",
+  "sessionsRetry": "Повторить",
+  "cryptoNoticeTitle": "Сквозное шифрование",
   "cryptoNoticeBody": "OpenMLS защищает содержимое сообщений. Moss переносит ciphertext через публичные трекеры и суперузы для NAT punching — метаданные обнаружения peer-ов НЕ скрываются.",
   "groupCreateCardTitle": "Создать приватную группу",
   "groupCreateHint": "MLS-зашифрованная группа на N участников со случайным mesh id. Присоединиться могут только те, с кем вы поделитесь приглашением. Вы остаётесь админом, пока не будет добавлен контроль участников.",
@@ -143,196 +143,468 @@
   "attachmentStateFailed": "Передача не удалась",
   "attachmentStateCancelled": "Передача отменена",
   "attachmentStateOffered": "Готово к загрузке",
-  "attachmentStateDownloading": "Загрузка {percent}%"
-,
- "unreadBadge": "{count} непрочитанных",
-  "@unreadBadge": { "description": "Accessibility label for the unread-message count badge on a DM session row", "placeholders": { "count": { "type": "int" } } },
+  "attachmentStateDownloading": "Загрузка {percent}%",
+  "unreadBadge": "{count} непрочитанных",
+  "@unreadBadge": {
+    "description": "Accessibility label for the unread-message count badge on a DM session row",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "mlsBadgeLabel": "Защищено OpenMLS",
-  "@mlsBadgeLabel": { "description": "Screen-reader label for the MLS badge shown next to a message sender name, indicating OpenMLS end-to-end encryption" },
+  "@mlsBadgeLabel": {
+    "description": "Screen-reader label for the MLS badge shown next to a message sender name, indicating OpenMLS end-to-end encryption"
+  },
   "mlsBadgeTooltip": "Содержание сообщения защищено OpenMLS",
-  "@mlsBadgeTooltip": { "description": "Tooltip shown when hovering the MLS badge next to a message sender name" },
+  "@mlsBadgeTooltip": {
+    "description": "Tooltip shown when hovering the MLS badge next to a message sender name"
+  },
   "summaryDmKicker": "Личный диалог",
-  "@summaryDmKicker": { "description": "Kicker label for the diagnostics summary card when a private DM session is active" },
+  "@summaryDmKicker": {
+    "description": "Kicker label for the diagnostics summary card when a private DM session is active"
+  },
   "summaryIdleKicker": "Диагностика неактивна",
-  "@summaryIdleKicker": { "description": "Kicker label for the diagnostics summary card when no session is active" },
+  "@summaryIdleKicker": {
+    "description": "Kicker label for the diagnostics summary card when no session is active"
+  },
   "summaryNoSessionTitle": "Нет активной сессии",
-  "@summaryNoSessionTitle": { "description": "Title of the diagnostics summary card when no session is active" },
+  "@summaryNoSessionTitle": {
+    "description": "Title of the diagnostics summary card when no session is active"
+  },
   "summaryNoSessionDescription": "Откройте диалог, чтобы проверить состояние соединения, число пиров, NAT, ретрансляцию и события.",
-  "@summaryNoSessionDescription": { "description": "Description of the diagnostics summary card when no session is active" },
+  "@summaryNoSessionDescription": {
+    "description": "Description of the diagnostics summary card when no session is active"
+  },
   "summaryReadyWithPeers": "MLS готов, и Moss видит хотя бы один пир в этой сети.",
-  "@summaryReadyWithPeers": { "description": "DM summary description shown when the session is ready and the mesh reports at least one peer" },
+  "@summaryReadyWithPeers": {
+    "description": "DM summary description shown when the session is ready and the mesh reports at least one peer"
+  },
   "summaryReadyNoPeers": "MLS готов; телеметрия пиров Moss ещё догоняет.",
-  "@summaryReadyNoPeers": { "description": "DM summary description shown when the session is ready but the mesh reports zero peers" },
+  "@summaryReadyNoPeers": {
+    "description": "DM summary description shown when the session is ready but the mesh reports zero peers"
+  },
   "summaryWaiting": "Инвайт создан. Ожидание пира и сети Moss для завершения обнаружения.",
-  "@summaryWaiting": { "description": "DM summary description shown when the session is in the waiting state" },
+  "@summaryWaiting": {
+    "description": "DM summary description shown when the session is in the waiting state"
+  },
   "summaryIdle": "Сессия есть, но защищённое соединение ещё не установлено.",
-  "@summaryIdle": { "description": "DM summary description shown when the session is in an unknown/idle state" },
+  "@summaryIdle": {
+    "description": "DM summary description shown when the session is in an unknown/idle state"
+  },
   "summaryFactPeers": "Пиры",
-  "@summaryFactPeers": { "description": "Fact label for the peer count row of the diagnostics summary card" },
+  "@summaryFactPeers": {
+    "description": "Fact label for the peer count row of the diagnostics summary card"
+  },
   "summaryFactNat": "NAT",
-  "@summaryFactNat": { "description": "Fact label for the NAT type row of the diagnostics summary card" },
+  "@summaryFactNat": {
+    "description": "Fact label for the NAT type row of the diagnostics summary card"
+  },
   "summaryFactRelay": "Ретрансляция",
-  "@summaryFactRelay": { "description": "Fact label for the relay status row of the diagnostics summary card" },
+  "@summaryFactRelay": {
+    "description": "Fact label for the relay status row of the diagnostics summary card"
+  },
   "summaryFactSession": "Сессия",
-  "@summaryFactSession": { "description": "Fact label for the session row of the idle diagnostics summary card" },
+  "@summaryFactSession": {
+    "description": "Fact label for the session row of the idle diagnostics summary card"
+  },
   "summaryFactMesh": "Сеть",
-  "@summaryFactMesh": { "description": "Fact label for the mesh row of the idle diagnostics summary card" },
+  "@summaryFactMesh": {
+    "description": "Fact label for the mesh row of the idle diagnostics summary card"
+  },
   "summaryFactEvents": "События",
-  "@summaryFactEvents": { "description": "Fact label for the events row of the idle diagnostics summary card" },
+  "@summaryFactEvents": {
+    "description": "Fact label for the events row of the idle diagnostics summary card"
+  },
   "summaryStateWaiting": "Ожидание",
-  "@summaryStateWaiting": { "description": "State badge text for the idle diagnostics summary card when there is no error" },
+  "@summaryStateWaiting": {
+    "description": "State badge text for the idle diagnostics summary card when there is no error"
+  },
   "summaryStateError": "Ошибка",
-  "@summaryStateError": { "description": "State badge text for the diagnostics summary card when a runtime error is present" },
+  "@summaryStateError": {
+    "description": "State badge text for the diagnostics summary card when a runtime error is present"
+  },
   "runtimeError": "Ошибка среды выполнения",
-  "@runtimeError": { "description": "Label of the runtime-error alert shown in the diagnostics drawer" },
+  "@runtimeError": {
+    "description": "Label of the runtime-error alert shown in the diagnostics drawer"
+  },
   "diagConversationDetails": "Детали диалога",
-  "@diagConversationDetails": { "description": "Group label of the Conversation details section in the diagnostics drawer" },
+  "@diagConversationDetails": {
+    "description": "Group label of the Conversation details section in the diagnostics drawer"
+  },
   "diagSessionLabel": "Сессия",
-  "@diagSessionLabel": { "description": "The 'Session' label, used both as the NoActiveSession group label and as the row key for the session id" },
+  "@diagSessionLabel": {
+    "description": "The 'Session' label, used both as the NoActiveSession group label and as the row key for the session id"
+  },
   "diagRowPeer": "Пир",
-  "@diagRowPeer": { "description": "Row key for the peer display name in the Conversation details group" },
+  "@diagRowPeer": {
+    "description": "Row key for the peer display name in the Conversation details group"
+  },
   "diagRowMlsState": "Состояние MLS",
-  "@diagRowMlsState": { "description": "Row key for the MLS connection state in the Conversation details group" },
+  "@diagRowMlsState": {
+    "description": "Row key for the MLS connection state in the Conversation details group"
+  },
   "diagRowPath": "Путь",
-  "@diagRowPath": { "description": "Row key for the transport path in the Conversation details group" },
+  "@diagRowPath": {
+    "description": "Row key for the transport path in the Conversation details group"
+  },
   "diagRowEncryption": "Шифрование",
-  "@diagRowEncryption": { "description": "Row key for the encryption note shown when the path is relayed" },
+  "@diagRowEncryption": {
+    "description": "Row key for the encryption note shown when the path is relayed"
+  },
   "diagRowRole": "Роль",
-  "@diagRowRole": { "description": "Row key for the local device role in the Conversation details group" },
+  "@diagRowRole": {
+    "description": "Row key for the local device role in the Conversation details group"
+  },
   "diagRowDisplay": "Отображаемое имя",
-  "@diagRowDisplay": { "description": "Row key for the local display name in the Conversation details group" },
+  "@diagRowDisplay": {
+    "description": "Row key for the local display name in the Conversation details group"
+  },
   "diagPeerUnknown": "неизвестно",
-  "@diagPeerUnknown": { "description": "Fallback value for the Peer row when the peer display name is empty" },
+  "@diagPeerUnknown": {
+    "description": "Fallback value for the Peer row when the peer display name is empty"
+  },
   "diagEncryptionRelayed": "E2E — суперкод видит только шифртекст",
-  "@diagEncryptionRelayed": { "description": "Value of the Encryption row when the path is relayed; the em dash matches the React literal" },
+  "@diagEncryptionRelayed": {
+    "description": "Value of the Encryption row when the path is relayed; the em dash matches the React literal"
+  },
   "diagNoActiveTitle": "Нет активной сессии",
-  "@diagNoActiveTitle": { "description": "Title of the empty state shown when no session is active in the diagnostics drawer" },
+  "@diagNoActiveTitle": {
+    "description": "Title of the empty state shown when no session is active in the diagnostics drawer"
+  },
   "diagNoActiveBody": "Выберите диалог, канал или группу, чтобы проверить сеть Moss и недавние события.",
-  "@diagNoActiveBody": { "description": "Description of the empty state shown when no session is active in the diagnostics drawer" },
+  "@diagNoActiveBody": {
+    "description": "Description of the empty state shown when no session is active in the diagnostics drawer"
+  },
   "diagGroupMossNetwork": "Сеть Moss",
-  "@diagGroupMossNetwork": { "description": "Group label of the Moss network section in the diagnostics drawer" },
+  "@diagGroupMossNetwork": {
+    "description": "Group label of the Moss network section in the diagnostics drawer"
+  },
   "diagMetricSupernode": "Суперузел",
-  "@diagMetricSupernode": { "description": "Metric label for the supernode readiness cell in the Moss network group" },
+  "@diagMetricSupernode": {
+    "description": "Metric label for the supernode readiness cell in the Moss network group"
+  },
   "diagRowAdvertised": "Адрес",
-  "@diagRowAdvertised": { "description": "Row key for the advertised mesh address in the Moss network group" },
+  "@diagRowAdvertised": {
+    "description": "Row key for the advertised mesh address in the Moss network group"
+  },
   "diagRowListenPort": "Порт прослушки",
-  "@diagRowListenPort": { "description": "Row key for the mesh listen port in the Moss network group" },
+  "@diagRowListenPort": {
+    "description": "Row key for the mesh listen port in the Moss network group"
+  },
   "diagRowKnownPeers": "Известные пиры",
-  "@diagRowKnownPeers": { "description": "Row key for the known peer count in the Moss network group" },
+  "@diagRowKnownPeers": {
+    "description": "Row key for the known peer count in the Moss network group"
+  },
   "diagRowRelayRoutes": "Маршруты ретрансляции",
-  "@diagRowRelayRoutes": { "description": "Row key for the relay route count in the Moss network group" },
+  "@diagRowRelayRoutes": {
+    "description": "Row key for the relay route count in the Moss network group"
+  },
   "diagRowChannels": "Каналы",
-  "@diagRowChannels": { "description": "Row key for the channel count in the Moss network group" },
+  "@diagRowChannels": {
+    "description": "Row key for the channel count in the Moss network group"
+  },
   "diagRowMeshId": "ID сети",
-  "@diagRowMeshId": { "description": "Row key for the mesh id in the Moss network group" },
+  "@diagRowMeshId": {
+    "description": "Row key for the mesh id in the Moss network group"
+  },
   "diagRowPublicKey": "Публичный ключ",
-  "@diagRowPublicKey": { "description": "Row key for the mesh public key in the Moss network group" },
+  "@diagRowPublicKey": {
+    "description": "Row key for the mesh public key in the Moss network group"
+  },
   "diagMeshBootingTitle": "Сеть запускается",
-  "@diagMeshBootingTitle": { "description": "Title of the empty state shown when the mesh is still booting in the diagnostics drawer" },
- "diagMeshBootingBody": "Сетевые данные появятся после того, как Moss привяжет порт и получит первый опрос среды.",
- "@diagMeshBootingBody": { "description": "Description of the empty state shown when the mesh is still booting in the diagnostics drawer" },
- "diagGroupMossEvents": "События Moss",
- "@diagGroupMossEvents": { "description": "Group label of the Moss events section (the event log) in the diagnostics drawer" },
- "diagNoEventsTitle": "Событий пока нет",
- "@diagNoEventsTitle": { "description": "Title of the empty state shown when the event log has no events in the diagnostics drawer" },
- "diagNoEventsBody": "Moss будет показывать здесь подключения пиров, обновления трекеров и изменения ретрансляции по мере их возникновения.",
- "@diagNoEventsBody": { "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer" },
- "peerStatusTitle": "Статус пиров",
- "@peerStatusTitle": { "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen" },
- "refreshStatus": "Обновить статус",
- "@refreshStatus": { "description": "Tooltip/aria-label of the refresh button in the Peer status drawer" },
- "closePeerStatus": "Закрыть статус пиров",
- "@closePeerStatus": { "description": "Tooltip/aria-label of the close button in the Peer status drawer" },
+  "@diagMeshBootingTitle": {
+    "description": "Title of the empty state shown when the mesh is still booting in the diagnostics drawer"
+  },
+  "diagMeshBootingBody": "Сетевые данные появятся после того, как Moss привяжет порт и получит первый опрос среды.",
+  "@diagMeshBootingBody": {
+    "description": "Description of the empty state shown when the mesh is still booting in the diagnostics drawer"
+  },
+  "diagGroupMossEvents": "События Moss",
+  "@diagGroupMossEvents": {
+    "description": "Group label of the Moss events section (the event log) in the diagnostics drawer"
+  },
+  "diagNoEventsTitle": "Событий пока нет",
+  "@diagNoEventsTitle": {
+    "description": "Title of the empty state shown when the event log has no events in the diagnostics drawer"
+  },
+  "diagNoEventsBody": "Moss будет показывать здесь подключения пиров, обновления трекеров и изменения ретрансляции по мере их возникновения.",
+  "@diagNoEventsBody": {
+    "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer"
+  },
+  "peerStatusTitle": "Статус пиров",
+  "@peerStatusTitle": {
+    "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen"
+  },
+  "refreshStatus": "Обновить статус",
+  "@refreshStatus": {
+    "description": "Tooltip/aria-label of the refresh button in the Peer status drawer"
+  },
+  "closePeerStatus": "Закрыть статус пиров",
+  "@closePeerStatus": {
+    "description": "Tooltip/aria-label of the close button in the Peer status drawer"
+  },
   "openPeerStatus": "Открыть статус пиров",
-  "@openPeerStatus": { "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen" }
-,
+  "@openPeerStatus": {
+    "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen"
+  },
   "attachmentOpen": "Открыть",
-  "@attachmentOpen": { "description": "Tooltip of the Open action button on an attachment card (state == available)" },
+  "@attachmentOpen": {
+    "description": "Tooltip of the Open action button on an attachment card (state == available)"
+  },
   "attachmentDownload": "Скачать",
-  "@attachmentDownload": { "description": "Tooltip of the Download action button on an attachment card (incoming, offered)" },
+  "@attachmentDownload": {
+    "description": "Tooltip of the Download action button on an attachment card (incoming, offered)"
+  },
   "attachmentRetryDownload": "Повторить загрузку",
-  "@attachmentRetryDownload": { "description": "Tooltip of the Retry-download action button on an attachment card (incoming, cancelled)" },
+  "@attachmentRetryDownload": {
+    "description": "Tooltip of the Retry-download action button on an attachment card (incoming, cancelled)"
+  },
   "attachmentRetry": "Повторить",
-  "@attachmentRetry": { "description": "Tooltip of the Retry action button on an attachment card (incoming, failed)" },
+  "@attachmentRetry": {
+    "description": "Tooltip of the Retry action button on an attachment card (incoming, failed)"
+  },
   "attachmentCancelDownload": "Отменить загрузку",
-  "@attachmentCancelDownload": { "description": "Tooltip of the Cancel action button on an attachment card (incoming, downloading)" },
+  "@attachmentCancelDownload": {
+    "description": "Tooltip of the Cancel action button on an attachment card (incoming, downloading)"
+  },
   "attachmentOpenAria": "Открыть {fileName}",
-  "@attachmentOpenAria": { "description": "Screen-reader label for the Open attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentOpenAria": {
+    "description": "Screen-reader label for the Open attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentDownloadAria": "Скачать {fileName}",
-  "@attachmentDownloadAria": { "description": "Screen-reader label for the Download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentDownloadAria": {
+    "description": "Screen-reader label for the Download attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentRetryDownloadAria": "Повторить загрузку {fileName}",
-  "@attachmentRetryDownloadAria": { "description": "Screen-reader label for the Retry-download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentRetryDownloadAria": {
+    "description": "Screen-reader label for the Retry-download attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentRetryAria": "Повторить {fileName}",
-  "@attachmentRetryAria": { "description": "Screen-reader label for the Retry attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentRetryAria": {
+    "description": "Screen-reader label for the Retry attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentCancelDownloadAria": "Отменить загрузку {fileName}",
-  "@attachmentCancelDownloadAria": { "description": "Screen-reader label for the Cancel-download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentCancelDownloadAria": {
+    "description": "Screen-reader label for the Cancel-download attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "diagGroupChannelDetails": "Детали канала",
-  "@diagGroupChannelDetails": { "description": "Group label of the Channel details section in the diagnostics drawer (mirrors React's ChannelDiagnostics)" },
+  "@diagGroupChannelDetails": {
+    "description": "Group label of the Channel details section in the diagnostics drawer (mirrors React's ChannelDiagnostics)"
+  },
   "diagGroupGroupDetails": "Детали группы",
-  "@diagGroupGroupDetails": { "description": "Group label of the Group details section in the diagnostics drawer (mirrors React's GroupDiagnostics)" },
+  "@diagGroupGroupDetails": {
+    "description": "Group label of the Group details section in the diagnostics drawer (mirrors React's GroupDiagnostics)"
+  },
   "diagRowName": "Имя",
-  "@diagRowName": { "description": "Row key for the channel name in the Channel details group" },
+  "@diagRowName": {
+    "description": "Row key for the channel name in the Channel details group"
+  },
   "diagRowTopic": "Тема",
-  "@diagRowTopic": { "description": "Row key for the channel topic in the Channel details group" },
+  "@diagRowTopic": {
+    "description": "Row key for the channel topic in the Channel details group"
+  },
   "diagRowDevice": "Устройство",
-  "@diagRowDevice": { "description": "Row key for the device fingerprint in the Channel details and Group details groups" },
+  "@diagRowDevice": {
+    "description": "Row key for the device fingerprint in the Channel details and Group details groups"
+  },
   "diagRowLabel": "Метка",
-  "@diagRowLabel": { "description": "Row key for the group label in the Group details group" },
+  "@diagRowLabel": {
+    "description": "Row key for the group label in the Group details group"
+  },
   "diagRowMembers": "Участники",
-  "@diagRowMembers": { "description": "Row key for the member count in the Group details group" },
+  "@diagRowMembers": {
+    "description": "Row key for the member count in the Group details group"
+  },
   "diagRowGroupId": "ID группы",
-  "@diagRowGroupId": { "description": "Row key for the group id in the Group details group" },
+  "@diagRowGroupId": {
+    "description": "Row key for the group id in the Group details group"
+  },
   "diagRowCreator": "Создатель",
-  "@diagRowCreator": { "description": "Row key for the creator fingerprint in the Group details group" },
+  "@diagRowCreator": {
+    "description": "Row key for the creator fingerprint in the Group details group"
+  },
   "diagRoleAdmin": "админ",
-  "@diagRoleAdmin": { "description": "Role value for the local device when it is the group admin" },
+  "@diagRoleAdmin": {
+    "description": "Role value for the local device when it is the group admin"
+  },
   "diagRoleMember": "участник",
-  "@diagRoleMember": { "description": "Role value for the local device when it is a non-admin group member" },
+  "@diagRoleMember": {
+    "description": "Role value for the local device when it is a non-admin group member"
+  },
   "diagDash": "-",
-  "@diagDash": { "description": "Fallback value for the group Label row when the group has no label (mirrors React's null dash fallback)" },
+  "@diagDash": {
+    "description": "Fallback value for the group Label row when the group has no label (mirrors React's null dash fallback)"
+  },
   "openChannelAria": "Открыть канал {name}",
-  "@openChannelAria": { "description": "Screen-reader label for the Open-channel rail-item row, with the channel name", "placeholders": { "name": { "type": "String" } } },
+  "@openChannelAria": {
+    "description": "Screen-reader label for the Open-channel rail-item row, with the channel name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "openGroupAria": "Открыть группу {label}",
-  "@openGroupAria": { "description": "Screen-reader label for the Open-group rail-item row, with the group label", "placeholders": { "label": { "type": "String" } } },
+  "@openGroupAria": {
+    "description": "Screen-reader label for the Open-group rail-item row, with the group label",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "membersCount": "{count, plural, one {{count} участник} few {{count} участника} many {{count} участников} other {{count} участников}}",
-  "@membersCount": { "description": "Subtitle for the GroupScreen AppBar subtitle and the group rail-item showing the member count. ICU MessageFormat plural (Russian: one '1 участник' / few '2 участника' / many '5 участников'); corrects the prior naive binary plural that rendered '2 участников' instead of '2 участника'. The 'count' placeholder is int.", "placeholders": { "count": { "type": "int" } } },
+  "@membersCount": {
+    "description": "Subtitle for the GroupScreen AppBar subtitle and the group rail-item showing the member count. ICU MessageFormat plural (Russian: one '1 участник' / few '2 участника' / many '5 участников'); corrects the prior naive binary plural that rendered '2 участников' instead of '2 участника'. The 'count' placeholder is int.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "groupScreenMlsStateSuffix": " · MLS {state}",
-  "@groupScreenMlsStateSuffix": { "description": "MLS-state suffix appended to the GroupScreen AppBar subtitle (mirrors React ' · MLS {state}'), with the MLS connection state", "placeholders": { "state": { "type": "String" } } },
+  "@groupScreenMlsStateSuffix": {
+    "description": "MLS-state suffix appended to the GroupScreen AppBar subtitle (mirrors React ' · MLS {state}'), with the MLS connection state",
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
   "summaryChannelKicker": "Публичный канал",
-  "@summaryChannelKicker": { "description": "Kicker label for the diagnostics summary card when a public channel is active" },
+  "@summaryChannelKicker": {
+    "description": "Kicker label for the diagnostics summary card when a public channel is active"
+  },
   "summaryChannelState": "Трансляция",
-  "@summaryChannelState": { "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)" },
+  "@summaryChannelState": {
+    "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)"
+  },
   "summaryChannelDescription": "Трафик открытого канала идёт поверх текущей сети Moss.",
-  "@summaryChannelDescription": { "description": "Description of the diagnostics summary card when a public channel is active" },
+  "@summaryChannelDescription": {
+    "description": "Description of the diagnostics summary card when a public channel is active"
+  },
   "summaryGroupKicker": "Приватная группа",
-  "@summaryGroupKicker": { "description": "Kicker label for the diagnostics summary card when a private group is active" },
+  "@summaryGroupKicker": {
+    "description": "Kicker label for the diagnostics summary card when a private group is active"
+  },
   "summaryGroupFallbackTitle": "Зашифрованная группа",
-  "@summaryGroupFallbackTitle": { "description": "Title fallback for the diagnostics summary card when a private group has no label" },
+  "@summaryGroupFallbackTitle": {
+    "description": "Title fallback for the diagnostics summary card when a private group has no label"
+  },
   "summaryGroupDescription": "{memberCount} участников в группе под защитой MLS.",
-  "@summaryGroupDescription": { "description": "Description of the diagnostics summary card when a private group is active, with the member count", "placeholders": { "memberCount": { "type": "String" } } },
+  "@summaryGroupDescription": {
+    "description": "Description of the diagnostics summary card when a private group is active, with the member count",
+    "placeholders": {
+      "memberCount": {
+        "type": "String"
+      }
+    }
+  },
   "summaryFactMembers": "Участники",
-  "@summaryFactMembers": { "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active" }
-  ,
+  "@summaryFactMembers": {
+    "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active"
+  },
   "messageFailedToSend": "Не удалось отправить",
-  "@messageFailedToSend": { "description": "Fallback error text shown in the FailedMessageRetry row below a failed outbound message when deliveryError is null/empty (React inline literal in MessageLists.tsx FailedMessageRetry, the <span> fallback)" },
+  "@messageFailedToSend": {
+    "description": "Fallback error text shown in the FailedMessageRetry row below a failed outbound message when deliveryError is null/empty (React inline literal in MessageLists.tsx FailedMessageRetry, the <span> fallback)"
+  },
   "messageFailedWithError": "Сбой: {error}",
-  "@messageFailedWithError": { "description": "Screen-reader status label for the FailedMessageRetry row when deliveryError is present (React aria-label `Failed: ${deliveryError}`), with the trimmed delivery error", "placeholders": { "error": { "type": "String" } } },
+  "@messageFailedWithError": {
+    "description": "Screen-reader status label for the FailedMessageRetry row when deliveryError is present (React aria-label `Failed: ${deliveryError}`), with the trimmed delivery error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "messageRetry": "Повторить",
-  "@messageRetry": { "description": "Retry button text in the FailedMessageRetry row below a failed outbound message (React inline literal 'Retry' button text)" },
+  "@messageRetry": {
+    "description": "Retry button text in the FailedMessageRetry row below a failed outbound message (React inline literal 'Retry' button text)"
+  },
   "retryFailedMessage": "Повторить неудачное сообщение",
-  "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" },
+  "@retryFailedMessage": {
+    "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')"
+  },
   "dialogCancel": "Отмена",
-  "@dialogCancel": { "description": "Универсальная подпись «Отмена» для кнопки-крестика и бледной кнопки отмены в общем ConfirmDialog (React: инлайн-значение 'Cancel'; close-flow и другие деструктивные сценарии передают локализованную подпись отмены из этого ключа)" },
+  "@dialogCancel": {
+    "description": "Универсальная подпись «Отмена» для кнопки-крестика и бледной кнопки отмены в общем ConfirmDialog (React: инлайн-значение 'Cancel'; close-flow и другие деструктивные сценарии передают локализованную подпись отмены из этого ключа)"
+  },
   "leaveChannelTitle": "Покинуть #{name}?",
-  "@leaveChannelTitle": { "description": "Заголовок диалога подтверждения покинания канала (React useChatCloseFlow, ветка channel, `Leave #${label}?`) с именем канала", "placeholders": { "name": { "type": "String" } } },
+  "@leaveChannelTitle": {
+    "description": "Заголовок диалога подтверждения покинания канала (React useChatCloseFlow, ветка channel, `Leave #${label}?`) с именем канала",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "leaveChannelBody": "Вы перестанете получать новые сообщения из этого публичного канала, пока не присоединитесь к нему снова.",
-  "@leaveChannelBody": { "description": "Тело диалога подтверждения покинания канала (React useChatCloseFlow, ветка channel, статичная строка)" },
+  "@leaveChannelBody": {
+    "description": "Тело диалога подтверждения покинания канала (React useChatCloseFlow, ветка channel, статичная строка)"
+  },
   "leaveChannelConfirm": "Покинуть канал",
-  "@leaveChannelConfirm": { "description": "Подпись кнопки подтверждения диалога покинания канала (React useChatCloseFlow, ветка channel, `confirmLabel`)" },
+  "@leaveChannelConfirm": {
+    "description": "Подпись кнопки подтверждения диалога покинания канала (React useChatCloseFlow, ветка channel, `confirmLabel`)"
+  },
   "leaveGroupTitle": "Покинуть {label}?",
-  "@leaveGroupTitle": { "description": "Заголовок диалога подтверждения покинания группы (React useChatCloseFlow, ветка group, `Leave ${label}?`) с подписью группы (group.label ?? shorten(groupId, 6))", "placeholders": { "label": { "type": "String" } } },
+  "@leaveGroupTitle": {
+    "description": "Заголовок диалога подтверждения покинания группы (React useChatCloseFlow, ветка group, `Leave ${label}?`) с подписью группы (group.label ?? shorten(groupId, 6))",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "leaveGroupBody": "Сохранённая история группы будет удалена с этого устройства. Для повторного присоединения потребуется новое приглашение.",
-  "@leaveGroupBody": { "description": "Тело диалога подтверждения покинания группы (React useChatCloseFlow, ветка group, статичная строка)" },
+  "@leaveGroupBody": {
+    "description": "Тело диалога подтверждения покинания группы (React useChatCloseFlow, ветка group, статичная строка)"
+  },
   "leaveGroupConfirm": "Покинуть группу",
-  "@leaveGroupConfirm": { "description": "Подпись кнопки подтверждения диалога покинания группы (React useChatCloseFlow, ветка group, `confirmLabel`)" }
+  "@leaveGroupConfirm": {
+    "description": "Подпись кнопки подтверждения диалога покинания группы (React useChatCloseFlow, ветка group, `confirmLabel`)"
+  },
+  "deleteChatTitle": "Удалить чат с {label}?",
+  "@deleteChatTitle": {
+    "description": "Заголовок диалога подтверждения удаления DM (React useChatCloseFlow, ветка dm: Delete chat with the label) с отображаемым именем peer (session.peerDisplayName ?? session.sessionId; в dm-экране сессия всегда есть, поэтому ветка React 'this private chat' недостижима, но отражена оборонительно)",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteChatBody": "Сохранённая история этого приватного чата будет удалена с этого устройства. Это действие нельзя отменить.",
+  "@deleteChatBody": {
+    "description": "Тело диалога подтверждения удаления DM (React useChatCloseFlow, ветка dm, статичная строка)"
+  },
+  "deleteChatConfirm": "Удалить чат",
+  "@deleteChatConfirm": {
+    "description": "Подпись кнопки подтверждения диалога удаления DM (React useChatCloseFlow, ветка dm, `confirmLabel`)"
+  }
 }
