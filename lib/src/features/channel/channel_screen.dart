@@ -6,7 +6,6 @@
 //
 // Deferred to later atomics (matching how DmScreen layered polish later):
 //   - sender-meta grouping (the 5-min window) -- DmScreen's groupDmMessages.
-//   - ConversationTools search/filter -- DmScreen's filterDmMessages.
 //   - attachments (AttachmentCard + download/cancel seam).
 //   - peer-status drawer (PeerStatusDrawer) -- WIRED in this atomic.
 //   - fingerprint badge (FingerprintBadge).
@@ -14,6 +13,12 @@
 //     plaintext channels; the shell has NO footer at all, unlike DmScreen's
 //     chatCryptoFooter).
 //   - the failed-message retry row.
+//
+// ConversationTools search/filter -- WIRED in this atomic: the screen owns
+// `_search` / `_filter` widget-local state, renders `ConversationTools`
+// above the list, and applies `filterChannelMessages` BEFORE
+// `groupChannelMessages` (React's filter-then-group order), with the
+// shared `DmSearchEmpty` branch when the filter hides every row.
 //
 // Own-vs-others rule (ported from React MessageLists.tsx ChannelChatList):
 //   own = message.fromFingerprint == channel.deviceFingerprint
@@ -38,6 +43,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/channel/channel_message_row.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -62,6 +68,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
   bool _showPeerStatus = false;
+  // Ephemeral search + filter (React ConversationTools); widget-local per
+  // ADR 0010; drive [filterChannelMessages] before grouping, mirroring
+  // DmScreen's `_search` / `_filter` (filter-then-group order).
+  String _search = '';
+  ConversationFilter _filter = ConversationFilter.all;
 
   @override
   void dispose() {
@@ -119,6 +130,13 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
           children: [
             Column(
               children: [
+                ConversationTools(
+                  search: _search,
+                  filter: _filter,
+                  onSearch: (value) => setState(() => _search = value),
+                  onFilter: (value) => setState(() => _filter = value),
+                  l: l,
+                ),
                 Expanded(
                   child: async.when(
                     loading: () =>
@@ -128,8 +146,22 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                       if (snapshot.messages.isEmpty) {
                         return const _Empty();
                       }
+                      // React's filter-THEN-group order (MessageLists.tsx
+                      // `ChannelChatList`): filter the raw list, THEN group
+                      // the visible set so the 5-min window is computed
+                      // across what the user actually sees. Empty-after-
+                      // filter renders the shared `DmSearchEmpty` (the
+                      // React `SearchEmpty` branch), mirroring DmScreen.
+                      final filtered = filterChannelMessages(
+                        snapshot.messages,
+                        _search,
+                        _filter,
+                      );
+                      if (filtered.isEmpty) {
+                        return DmSearchEmpty(filter: _filter, l: l);
+                      }
                       return _ChannelMessageListView(
-                        messages: snapshot.messages,
+                        messages: filtered,
                         ownFingerprint: snapshot.deviceFingerprint,
                       );
                     },

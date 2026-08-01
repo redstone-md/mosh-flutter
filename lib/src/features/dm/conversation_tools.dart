@@ -6,6 +6,22 @@
 // are deferred to a later atomic -- this file ports only the desktop
 // in-scope surface.
 //
+// SHARED across all three conversation kinds (DM / channel / group).
+// React has ONE generic `filterMessages<T extends SearchableMessage>` reused
+// by `DmChatList`, `ChannelChatList`, and `GroupChatList` (MessageLists.tsx);
+// this file mirrors that with a generic [filterMessages] + a small
+// [SearchableMessage] interface the three message types satisfy. The
+// channel / group feature folders add thin typed wrappers
+// ([filterChannelMessages], [filterGroupMessages]) that delegate to the
+// generic. This is option A (generalize) -- the faithful 1-1 of the React
+// generic; the alternative (per-feature duplicated filters) would copy the
+// ~15-line filter logic three times and violate DRY.
+//
+// Keeping the shared widgets + enum here (rather than a neutral
+// `features/shared/`) is the same mild smell the prior `MultiPartySenderMeta`
+// review accepted -- the channel / group features import this DM file,
+// mirroring how they already import `dm_helpers.dart`.
+//
 // Architecture mirrors React's ordering: `DmChatList`/`MessageLists` first
 // apply `filterMessages(messages, search, filter)` to the message list and
 // THEN group the filtered list (`messageItems(visibleMessages, keyFn)`).
@@ -30,7 +46,42 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 /// Mirrors the React `ConversationFilter` type
 /// (`"all" | "attachments"` in ConversationTools.tsx). `all` shows every
 /// message; `attachments` keeps only messages that carry an attachment.
+/// Shared across all three conversation kinds (DM / channel / group) -- the
+/// React type is one definition reused by all three `*ChatList` components.
 enum ConversationFilter { all, attachments }
+
+/// The searchable surface React's generic `filterMessages<T>` requires
+/// (`SearchableMessage` in ConversationTools.tsx): a message exposes its
+/// `fromDevice` name, its `body`, and an optional `AttachmentDescriptor`.
+/// The three Flutter message types (`ChatMessage`, `ChannelMessage`,
+/// `GroupMessage`) all satisfy this shape, but they share no generated
+/// base class -- so this is a small abstract interface the screens adapt
+/// their typed messages into. Keeping the interface here (rather than in
+/// each feature) makes the generic filter one definition, matching
+/// React's single `filterMessages<T>` (DRY -- option A, the faithful 1-1
+/// of the React generic).
+abstract interface class SearchableMessage {
+  String get fromDevice;
+  String get body;
+  AttachmentDescriptor? get attachment;
+}
+
+/// Adapts any of the three message types into a [SearchableMessage] view.
+/// Implemented as a tiny value class so the generic [filterMessages] can
+/// call the getters without each message type implementing the interface
+/// (the generated types are not under our control). The three concrete
+/// types all expose `fromDevice`, `body`, and `attachment?` with identical
+/// names, so one ctor serves all three.
+class _SearchableView implements SearchableMessage {
+  const _SearchableView(this.fromDevice, this.body, this.attachment);
+
+  @override
+  final String fromDevice;
+  @override
+  final String body;
+  @override
+  final AttachmentDescriptor? attachment;
+}
 
 /// Pure port of the React `filterMessages` (ConversationTools.tsx):
 /// keep a message iff (filter != attachments OR attachment != null) AND
@@ -39,32 +90,37 @@ enum ConversationFilter { all, attachments }
 /// BEFORE grouping, and the Flutter screen does the same so the
 /// grouping window stays correct on the visible set.
 ///
-/// Returns a new list; the input is not mutated. Public so the DM screen
-/// (a sibling library in the same package) and the unit tests can both
-/// reach it -- `@visibleForTesting` would block the production caller.
-List<ChatMessage> filterDmMessages(
-  List<ChatMessage> messages,
+/// Returns a new list; the input is not mutated. Generic over [T] so the
+/// channel / group / DM screens all share ONE implementation (1-1 with
+/// React's single generic `filterMessages<T>`). Public so the three
+/// feature screens and the unit tests can all reach it.
+List<T> filterMessages<T>(
+  List<T> messages,
   String search,
   ConversationFilter filter,
+  SearchableMessage Function(T message) asSearchable,
 ) {
   final query = search.trim().toLowerCase();
   return messages.where((message) {
-    if (filter == ConversationFilter.attachments &&
-        message.attachment == null) {
+    final view = asSearchable(message);
+    if (filter == ConversationFilter.attachments && view.attachment == null) {
       return false;
     }
     if (query.isEmpty) return true;
-    return _messageSearchText(message).contains(query);
+    return messageSearchText(view).contains(query);
   }).toList(growable: false);
 }
 
 /// Pure port of the React `messageSearchText`: join
 /// `[from_device, body, attachment?.file_name, attachment?.mime]`,
-/// drop null/empty pieces, lowercase. Kept private -- the searchable
-/// text shape is an implementation detail of [filterDmMessages] and is
-/// exercised through that seam. The pieces are typed `String?` because
-/// the attachment fields are nullable; the `.where` then drops nulls.
-String _messageSearchText(ChatMessage message) {
+/// drop null/empty pieces, lowercase. Kept public so the generic
+/// [filterMessages] and the typed wrappers share one implementation. The
+/// pieces are typed `String?` because the attachment fields are nullable;
+/// the `.where` then drops nulls. This is the GENERIC search text -- it
+/// does NOT include `fromFingerprint` for channel/group, matching React
+/// (MessageLists.tsx channel/group `*ChatList` call the SAME `filterMessages`
+/// with no fingerprint in the searchable text).
+String messageSearchText(SearchableMessage message) {
   final pieces = <String?>[
     message.fromDevice,
     message.body,
@@ -73,6 +129,23 @@ String _messageSearchText(ChatMessage message) {
   ].where((s) => s != null && s.isNotEmpty);
   return pieces.join(' ').toLowerCase();
 }
+
+/// DM-typed wrapper over the generic [filterMessages]. Kept as a named
+/// seam so the DM unit tests (`conversation_tools_test.dart`) drive the
+/// same name they always have -- generalizing [filterMessages] to a
+/// generic does not break them. Mirrors React's `DmChatList` passing its
+/// `ChatMessage[]` to the generic `filterMessages`.
+List<ChatMessage> filterDmMessages(
+  List<ChatMessage> messages,
+  String search,
+  ConversationFilter filter,
+) =>
+    filterMessages(
+      messages,
+      search,
+      filter,
+      (m) => _SearchableView(m.fromDevice, m.body, m.attachment),
+    );
 
 /// Desktop message search + filter row, ported from the React
 /// `ConversationTools` component. Two parts: a search `TextField` (search

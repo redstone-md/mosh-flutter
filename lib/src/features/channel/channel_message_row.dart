@@ -23,8 +23,10 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// Grouping window ported 1-1 from React `GROUP_WINDOW_MS`
 /// (src/features/private-dm/MessageLists.tsx): 5 minutes. Shared with the
@@ -86,6 +88,50 @@ bool _channelShouldGroup(ChannelMessage previous, ChannelMessage current) {
   return curMs - prevMs <= BigInt.from(channelGroupWindow.inMilliseconds);
 }
 
+/// Channel-typed wrapper over the shared generic [filterMessages]
+/// (lib/src/features/dm/conversation_tools.dart). Mirrors React's
+/// `ChannelChatList` passing its `ChannelMessage[]` to the generic
+/// `filterMessages<T>` (MessageLists.tsx). The search text is the GENERIC
+/// one -- `fromDevice`, `body`, `attachment.fileName`, `attachment.mime` --
+/// and does NOT include `fromFingerprint`, matching React (the channel
+/// `*ChatList` calls the SAME generic `filterMessages` with no fingerprint
+/// in the searchable text).
+///
+/// The screen applies this BEFORE [groupChannelMessages] (React's
+/// filter-then-group order), so the grouping window is computed across the
+/// visible set. Public (NOT `@visibleForTesting`) because the screen's
+/// `_ChannelMessageListView` calls it in production; unit tests exercise it
+/// via the same public seam.
+List<ChannelMessage> filterChannelMessages(
+  List<ChannelMessage> messages,
+  String search,
+  ConversationFilter filter,
+) =>
+    filterMessages(
+      messages,
+      search,
+      filter,
+      (m) => _ChannelSearchable(m),
+    );
+
+/// [SearchableMessage] view over a [ChannelMessage] (the generated type
+/// shares no base with `ChatMessage` / `GroupMessage`, so a tiny adapter
+/// exposes the searchable fields to the generic [filterMessages]).
+class _ChannelSearchable implements SearchableMessage {
+  const _ChannelSearchable(this._m);
+
+  final ChannelMessage _m;
+
+  @override
+  String get fromDevice => _m.fromDevice;
+
+  @override
+  String get body => _m.body;
+
+  @override
+  AttachmentDescriptor? get attachment => _m.attachment;
+}
+
 /// One channel message row (React `ChannelMessageRow`). Own =
 /// `fromFingerprint == ownFingerprint` (fingerprint comparison, NOT display
 /// name -- channels are multi-party). The first row of a group renders the
@@ -137,13 +183,13 @@ class ChannelMessageRow extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (!grouped)
-               MultiPartySenderMeta(
-                 fromDevice: message.fromDevice,
-                 fromFingerprint: message.fromFingerprint,
-                 sentAtMs: message.sentAtMs,
+                MultiPartySenderMeta(
+                  fromDevice: message.fromDevice,
+                  fromFingerprint: message.fromFingerprint,
+                  sentAtMs: message.sentAtMs,
                   showMlsBadge: false,
-               ),
-             Text(message.body),
+                ),
+              Text(message.body),
             ],
           ),
         ),
