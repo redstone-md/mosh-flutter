@@ -10,6 +10,8 @@ import '../private_dm_runtime/contracts.dart';
 import '../private_group_runtime.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `decode_base64`, `ensure_runtime`
+
 /// Create a private MLS group (1:1 port of `private_group_create`).
 Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>
     RustLib.instance.api.crateApiPrivateGroupCreateGroup(request: request);
@@ -44,7 +46,14 @@ Future<GroupLeaveResult> close({required String groupId}) =>
     RustLib.instance.api.crateApiPrivateGroupClose(groupId: groupId);
 
 /// Send an attachment into a private group (1:1 port of
-/// `private_group_send_attachment`).
+/// `private_group_send_attachment`). The bytes arrive base64-encoded (the
+/// bridge contract for all send_attachment facades); decoded here before
+/// handing the raw `Vec<u8>` to the runtime, matching the Tauri shell's
+/// `private_group_send_attachment` (lib.rs). `thumbnail_base64` is
+/// forwarded verbatim (the runtime stores it as-is for the receiver's
+/// preview); `voice` is the optional `VoiceMeta` for voice clips (None for
+/// plain files). Returns the new attachment's id + content hash so the
+/// bridge caller can invalidate its snapshot.
 Future<AttachmentSendResult> sendAttachment(
         {required String groupId,
         required String fileName,

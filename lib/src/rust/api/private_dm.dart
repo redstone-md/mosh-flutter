@@ -9,43 +9,19 @@ import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `decode_base64`, `ensure_runtime`, `resolve_data_dir`
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `decode_base64`, `ensure_runtime`
 
-/// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
-///
-/// Dart calls this ONCE at startup on Android, AFTER reading/minting 32 raw
-/// bytes from the Android Keystore via `flutter_secure_storage`, and BEFORE
-/// the first private-DM runtime construct. `construct_runtime` then opens
-/// the DB with `Persistence::open_with_dek(path, *injected)` instead of the
-/// keychain-backed `Persistence::open`, so the live runtime uses the
-/// Keystore DEK on a device. Desktop/iOS never call this and keep the
-/// desktop `OsSecureSecretStore` path.
-///
-/// Idempotent-once: the first call wins; a second call returns `Err` (the
-/// DEK cannot be swapped after the DB is already open under it -- a
-/// different DEK would fail to decrypt existing rows). Returns `Err` for a
-/// wrong-length DEK (must be exactly 32 bytes). The frb-exposed surface for
-/// mobile injection is THIS fn only; `Persistence::open_with_dek` is public
-/// but internal and not bridged.
+/// Inject the at-rest history DEK from the mobile platform channel (ADR
+/// 0011). See `api::shared_runtime::set_history_dek` for the full
+/// contract. This wrapper is frb-bound so the Dart startup path keeps
+/// the stable `crate::api::private_dm::set_history_dek` symbol.
 Future<void> setHistoryDek({required List<int> dek}) =>
     RustLib.instance.api.crateApiPrivateDmSetHistoryDek(dek: dek);
 
 /// Inject the app-private data directory from the platform channel (ADR
-/// 0010, M-5). Dart calls this ONCE at startup on EVERY platform (Android,
-/// iOS, Windows, macOS, Linux) BEFORE the first private-DM runtime
-/// construct, after resolving the dir via `getApplicationSupportDirectory()`.
-/// `construct_runtime` then opens `history.redb` + the AttachmentStore under
-/// `<app_data_dir>/mosh` instead of `std::env::temp_dir().join("mosh")`, so
-/// the encrypted history DB + attachments survive OS temp clearing on a
-/// device and live in the platform's app-private support dir on desktop.
-///
-/// Idempotent-once: the first call wins; a second call returns `Err` (the
-/// dir cannot be moved after the DB is already open under it -- a different
-/// dir would point at a different DB and orphan all persisted history).
-/// Returns `Err` for an empty path. Mirrors `set_history_dek`'s shape so the
-/// bridge surface for the two mobile-inject knobs is symmetric. The
-/// frb-exposed surface is THIS fn only; `construct_runtime` reads the
-/// `OnceLock` directly.
+/// 0010, M-5). See `api::shared_runtime::set_app_data_dir` for the full
+/// contract. This wrapper is frb-bound so the Dart startup path keeps
+/// the stable `crate::api::private_dm::set_app_data_dir` symbol.
 Future<void> setAppDataDir({required String path}) =>
     RustLib.instance.api.crateApiPrivateDmSetAppDataDir(path: path);
 
