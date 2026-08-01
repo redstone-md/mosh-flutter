@@ -141,16 +141,18 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
             Column(
               children: [
                 // React wires the group pane's `afterHeader` (ActiveChatPanes.tsx
-                // L352-360) as `<><GroupNotice />{needs_rejoin ? <RejoinNeeded/>
+                // L352-380) as `<><GroupNotice />{needs_rejoin ? <RejoinNeeded/>
                 // : null}{orgAddPrompt ? <OrgAddMissing/> : null}</>`. This atomic
-                // ports ONLY the `<GroupNotice />` banner itself; the `needs_rejoin`
-                // error fragment (orgRejoinNeededTitle/Body) and the `orgAddPrompt`
-                // admin-add fragment are separate features and live in the SAME
-                // slot -- they must stack BELOW the banner here in a later atomic.
-                // TODO(group-rejoin-fragment): render the needs_rejoin inline-error
-                //   (orgRejoinNeededTitle + orgRejoinNeededBody) here when set.
-                // TODO(group-org-add-fragment): render the orgAddPrompt admin-add
+                // ports the `<GroupNotice />` banner (crypto_notice_banner.dart)
+                // AND the `needs_rejoin` inline-error fragment; the `orgAddPrompt`
+                // admin-add fragment stays deferred (separate atomic -- needs an
+                // org-roster Gateway seam that does not exist in Flutter yet).
+                // TODO(group-org-add-prompt): render the orgAddPrompt admin-add
                 //   row (orgAddMissing + orgMissingOne/Many) here when present.
+                //   Deferred: requires `count`/`busy`/`onAdd` props sourced from
+                //   an org-roster Gateway provider that does not exist in Flutter
+                //   yet (needs Rust + Gateway work in a later atomic). The
+                //   needs_rejoin inline-error below is DONE (this atomic).
                 CryptoNoticeBanner(
                   // React `GroupNotice` (ActiveChatPanes.tsx ~L420-432):
                   // `crypto-banner crypto-banner-group` with `IconLock`.
@@ -163,6 +165,18 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                   body: l.groupNoticeBody,
                   accent: const Color(0xFFB7D84A),
                 ),
+                // React `needs_rejoin` fragment (ActiveChatPanes.tsx L355-360):
+                // `<div className="inline-error" role="alert"><strong>
+                // {rejoinNeededTitle}.</strong> {" "}{rejoinNeededBody}</div>`.
+                // Reads `group.needsRejoin` off the snapshot; renders ONLY when
+                // the snapshot is resolved AND the flag is true (loading/error
+                // => no banner). Stacks BELOW the GroupNotice, ABOVE
+                // ConversationTools -- matching React's afterHeader order.
+                if (_needsRejoin(async))
+                  _RejoinNeededError(
+                    title: l.orgRejoinNeededTitle,
+                    body: l.orgRejoinNeededBody,
+                  ),
                 ConversationTools(
                   search: _search,
                   filter: _filter,
@@ -294,6 +308,92 @@ AttachmentView? _findGroupAttachmentView(
     if (v.attachmentId == attachmentId) return v;
   }
   return null;
+}
+
+/// Reads `group.needsRejoin` off the resolved [GroupSnapshot] for the
+/// inline-error gate. Returns `false` while the snapshot is loading or in
+/// error (no data) so the banner does not render until the group is known.
+/// Mirrors React's `props.group.needs_rejoin` guard in ActiveChatPanes.tsx
+/// (the snapshot is always resolved on the React side by the time the pane
+/// renders; here the async path can still be pending).
+bool _needsRejoin(AsyncValue<GroupSnapshot?> async) {
+  final group = async.maybeWhen(data: (g) => g, orElse: () => null);
+  return group != null && group.needsRejoin;
+}
+
+/// The `needs_rejoin` inline-error -- 1-в-1 with React's
+/// `<div className="inline-error" role="alert">` fragment
+/// (ActiveChatPanes.tsx L355-360). Structure: a red-tinted alert box holding
+/// `<strong>{rejoinNeededTitle}.</strong>` (bold, with the period React
+/// appends via `<strong>{title}.</strong>`) + a space + the body. The tint
+/// mirrors React's `.inline-error` CSS (desktop-shell.css L1066-1073):
+/// `padding: 10px 14px`, `border-radius: 10px`,
+/// `background: rgba(232,106,90,0.08)`, `border: 1px solid rgba(232,106,90,0.35)`,
+/// `color: var(--danger)`, `font-size: 12px`. Material's `colorScheme.error`
+/// is the idiomatic Flutter equivalent of `--danger`, so the tint is derived
+/// from it (8% bg, 35% border) to match React's rgba alphas.
+///
+/// Accessibility: React sets `role="alert"`. Flutter has no direct `alert`
+/// role; `Semantics(liveRegion: true, container: true)` is the closest
+/// equivalent -- a live region announces updates to assistive tech, which
+/// is what an inline alert does. The whole box is one semantic node labeled
+/// by the title + body so it reads as a single alert, not three nodes.
+class _RejoinNeededError extends StatelessWidget {
+  const _RejoinNeededError({required this.title, required this.body});
+
+  /// The bold title line. React renders `<strong>{title}.</strong>` -- the
+  /// period is appended by React, NOT in the ARB value ("Group out of sync"
+  /// has no trailing period). We append `.` here in the bold span to match.
+  final String title;
+
+  /// The body paragraph (React `{rejoinNeededBody}`).
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final error = theme.colorScheme.error;
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      label: '$title. $body',
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          // React `.inline-error`: rgba(232,106,90,0.08) bg +
+          // 1px rgba(232,106,90,0.35) border + 10px radius.
+          color: error.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: error.withValues(alpha: 0.35), width: 1),
+        ),
+        child: Text.rich(
+          // React: `<strong>{title}.</strong>{" "}{body}` -- bold title
+          // (with appended period) + a literal space + the body, inline.
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$title.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: error,
+                  fontSize: 12,
+                ),
+              ),
+              const TextSpan(text: ' '),
+              TextSpan(
+                text: body,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: error,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Empty-state for a group with no messages yet. Shell form: no localized
