@@ -29,7 +29,7 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, can
 // collision; the snapshot/result types come in unqualified from their
 // *_runtime.dart modules.
 import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave;
-import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, poll, list, send, close;
+import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, joinGroup, poll, list, send, close;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -129,4 +129,11 @@ class RealBridgeGateway implements Gateway {
   @override
   Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>
       group_api.createGroup(request: request);
+  // The `joinGroup` seam (slice-3) delegates to group_api.joinGroup; the
+  // request carries inviteUri + displayName + listenPort + staticPeer? +
+  // orgPubkey? (null for direct paste/deep-link join; only set when the
+  // invite arrived as an org group-offer).
+  @override
+  Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) =>
+      group_api.joinGroup(request: request);
 }

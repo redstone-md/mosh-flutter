@@ -11,19 +11,18 @@
 // SafeArea + theming; the AppBar is gone (the frame's Back button
 // replaces it).
 //
-// Known temporary divergence from React: the React `connect` dispatches by
-// kind (dm -> onAccept, group -> onJoinGroup, org -> onJoinOrg). The
-// Flutter Gateway has ONLY `acceptInvite` (DM). So in this atomic Connect
-// is DM-only: it calls `acceptInvite` when `kind === dm`, and the Connect
-// button is DISABLED for group/org detections. Group/org join needs
-// Gateway `joinGroup`/`joinOrg` methods that do not exist yet (deferred).
-// The detection badge itself is 1-в-1 with React (ok for any detected
-// kind, bad for unknown, neutral for empty).
+// Mirrors the React `connect` dispatch by kind: dm -> acceptInvite, group
+// -> joinGroup (slice-3 seam now wired), org -> onJoinOrg (still deferred:
+// the Gateway has no joinOrg method yet). Connect is enabled for dm + group
+// detections and DISABLED for org. The detection badge itself is 1-в-1
+// with React (ok for any detected kind, bad for unknown, neutral for empty).
 //
 // Server/async state lives behind the gatewayProvider seam (ADR 0013);
 // cross-screen form state (displayName/listenPort/staticPeer) comes from
-// inviteFlowProvider (ADR 0010). Only the text controller + live detection
-// value are widget-local, which is why this is a ConsumerStatefulWidget.
+// inviteFlowProvider (ADR 0010). joinGroup passes the invite URI verbatim
+// (the runtime parses it), like React's `joinPrivateGroup({invite_uri})`.
+// Only the text controller + live detection value are widget-local, which
+// is why this is a ConsumerStatefulWidget.
 library;
 
 import 'package:flutter/material.dart';
@@ -37,6 +36,7 @@ import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/invite/invite_detection.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
@@ -44,9 +44,11 @@ import 'package:mosh/src/state/session_providers.dart';
 ///
 /// Live detection re-runs [detectInvite] on every keystroke (the ported pure
 /// function; detection is NOT re-implemented here). The Connect button calls
-/// gateway.acceptInvite with the trimmed URI plus the cross-screen form
-/// fields from [inviteFlowProvider]. For slice-one the accepted session id
-/// is shown inline; full navigation to the DM screen is S4.7's wiring.
+/// the kind-appropriate Gateway method: `gateway.acceptInvite` for a DM
+/// (the accepted session id is shown inline), `gateway.joinGroup` for a
+/// group (navigates to the group screen, 1-в-1 with React's
+/// `setActive({type:"group", id})`), both with the trimmed URI plus the
+/// cross-screen form fields from [inviteFlowProvider].
 ///
 /// S2-3: an optional [initialInviteUri] seeds the field on first build so a
 /// `mosh://` deep link that landed on /join arrives pre-pasted (and live
@@ -125,28 +127,52 @@ class _InvitePasteScreenState extends ConsumerState<InvitePasteScreen> {
   }
 
   Future<void> _connect() async {
-    // DM-only this atomic (see file header): group/org join needs Gateway
-    // joinGroup/joinOrg methods that do not exist yet (deferred). The
-    // Connect button is gated to dm below, so this guard is a backstop.
-    if (_detection.kind != InviteDetectionKind.dm || _busy) return;
+    // Dispatch by kind (mirrors React `connect`): dm -> acceptInvite,
+    // group -> joinGroup (slice-3). org is still deferred (no joinOrg
+    // method on the Gateway yet), so the Connect button stays gated to
+    // dm+group below.
+    if (_busy) return;
+    final kind = _detection.kind;
+    if (kind != InviteDetectionKind.dm && kind != InviteDetectionKind.group) {
+      return;
+    }
     final uri = _controller.text.trim();
     final flow = ref.read(inviteFlowProvider);
+    final displayName =
+        flow.displayName.isEmpty ? 'anonymous' : flow.displayName;
     setState(() {
       _busy = true;
       _error = null;
       _acceptedSessionId = null;
     });
     try {
-      final snapshot = await ref.read(gatewayProvider).acceptInvite(
-            request: AcceptInviteRequest(
-              inviteUri: uri,
-              displayName:
-                  flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
-              listenPort: flow.listenPort,
-              staticPeer: flow.staticPeer,
-            ),
-          );
-      if (mounted) setState(() => _acceptedSessionId = snapshot.sessionId);
+      if (kind == InviteDetectionKind.dm) {
+        final snapshot = await ref.read(gatewayProvider).acceptInvite(
+              request: AcceptInviteRequest(
+                inviteUri: uri,
+                displayName: displayName,
+                listenPort: flow.listenPort,
+                staticPeer: flow.staticPeer,
+              ),
+            );
+        if (mounted) setState(() => _acceptedSessionId = snapshot.sessionId);
+      } else {
+        // Group: join via the Gateway, then navigate to the group screen
+        // (1-в-1 with React `setActive({type:"group", id})` +
+        // `setShowSetup(false)`). orgPubkey is null -- a paste/deep-link
+        // join is a direct group invite, not an org group-offer.
+        final snapshot = await ref.read(gatewayProvider).joinGroup(
+              request: JoinGroupRequest(
+                inviteUri: uri,
+                displayName: displayName,
+                orgPubkey: null,
+                listenPort: flow.listenPort,
+                staticPeer: flow.staticPeer,
+              ),
+            );
+        if (!mounted) return;
+        context.go(AppRoutes.groupFor(snapshot.groupId));
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -160,11 +186,11 @@ class _InvitePasteScreenState extends ConsumerState<InvitePasteScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    // DM-only ready (see file header): group/org join is deferred until the
-    // Gateway grows joinGroup/joinOrg. React enables Connect for every
-    // detected kind; Flutter enables it for DM only for now.
+    // Connect is enabled for dm + group detections (both have a wired
+    // Gateway seam: acceptInvite for dm, joinGroup for group). org is
+    // still deferred (no joinOrg on the Gateway yet), so it stays disabled.
     final ready = _detected &&
-        _detection.kind == InviteDetectionKind.dm &&
+        _detection.kind != InviteDetectionKind.org &&
         !_busy;
     return Scaffold(
       body: SafeArea(

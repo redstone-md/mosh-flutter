@@ -3,16 +3,19 @@
 // drives live detection, and asserts:
 //   - the OnboardStepFrame title + body render (no AppBar),
 //   - the 3-state detection badge (neutral / ok / bad) flips with input,
-//   - the Connect button is DM-only: enabled for a DM detection, DISABLED
-//     for a group detection (group/org join needs Gateway methods that do
-//     not exist yet -- deferred),
-//   - tapping Connect on a DM invite calls gateway.acceptInvite.
+//   - the Connect button is enabled for dm + group detections (both have a
+//     wired Gateway seam: acceptInvite for dm, joinGroup for group) and
+//     DISABLED for org (joinOrg not on the Gateway yet),
+//   - tapping Connect on a DM invite calls gateway.acceptInvite,
+//   - tapping Connect on a group invite calls gateway.joinGroup and
+//     navigates to the group screen.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
@@ -90,7 +93,7 @@ void main() {
   });
 
   testWidgets(
-      'group detection shows the ok badge but DISABLES Connect (join deferred)',
+      'group detection shows the ok badge and ENABLES Connect; tapping navigates to the group screen',
       (tester) async {
     await pumpScreen(tester, FakeGateway());
 
@@ -103,10 +106,16 @@ void main() {
     // detected kind, so the badge is green/ok 1-в-1 with React).
     expect(find.text('Group invite detected'), findsOneWidget);
     expect(find.byIcon(Icons.check), findsOneWidget);
-    // DM-only Connect (see file header): group join is deferred, so the
-    // Connect button is DISABLED even though the badge is ok.
+    // group join is wired (slice-3 seam): Connect is ENABLED.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNull);
+        isNotNull);
+    // Tapping Connect calls FakeGateway.joinGroup (canned GroupSnapshot with
+    // groupId parsed from the invite URI's `group=` param) and navigates to
+    // the group screen (1-в-1 with React setActive({type:"group", id})).
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+    expect(find.byType(GroupScreen), findsOneWidget);
+    expect(find.byType(InvitePasteScreen), findsNothing);
   });
 
   testWidgets('tapping Connect on a DM invite calls gateway.acceptInvite',
@@ -135,11 +144,11 @@ void main() {
     expect(find.byType(InvitePasteScreen), findsNothing);
   });
 
-  testWidgets('group detection badge stays ok and Connect stays disabled across edits',
+  testWidgets('group detection badge stays ok and Connect stays enabled across edits',
       (tester) async {
     await pumpScreen(tester, FakeGateway());
 
-    // Start empty (neutral), enter a group (ok badge, disabled Connect),
+    // Start empty (neutral), enter a group (ok badge, ENABLED Connect),
     // then garbage (bad badge, disabled Connect).
     expect(find.text('Waiting for a mosh:// link…'), findsOneWidget);
     expect(find.byIcon(Icons.check), findsNothing);
@@ -149,8 +158,9 @@ void main() {
         'mosh://group?mesh=7x9v&group=drift-team#fp=91A4D2C877B091A4D2C877B091A4D2C8');
     await tester.pump();
     expect(find.text('Group invite detected'), findsOneWidget);
+    // group join is wired (slice-3): Connect is ENABLED for group.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNull);
+        isNotNull);
 
     await tester.enterText(find.byType(TextField), 'garbage');
     await tester.pump();
