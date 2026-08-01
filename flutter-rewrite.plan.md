@@ -1068,6 +1068,64 @@ pinning the condition). 256/256 green, analyze clean, all files < 500 lines.
    transfer seam, but its trigger (onOpen) is slice-3 -- deferred until the
    seam or until needed.
 
+## MediaViewer reusable widget (DONE, commit 0a892a8)
+
+Port React's MediaViewer (MediaViewer.tsx) as a shared reusable fullscreen
+in-app media viewer in lib/src/features/shared/media_viewer.dart, plus a
+showMediaViewer helper. JUST the widget + helper -- the onOpen wiring to the
+attachment card is slice-3 (the attachment-transfer seam resolves the URL);
+the primitive waits for a caller like ConfirmDialog waited for the close-flow.
+Flutter had no media viewer before this.
+
+Structure 1-в-1 with React: showDialog + Dialog(insetPadding: EdgeInsets.zero)
+for fullscreen + modal barrier (click-outside = React onClick=onClose) +
+Flutter focus trap (better than React's manual useModalFocus). 0.16s fade-in
+via TweenAnimationBuilder (StatelessWidget). Outer GestureDetector(onClose) =
+click-anywhere-closes; inner stage GestureDetector() = stopPropagation so
+tapping media does NOT close. Close button (Positioned top16/right18, 36x36,
+Icons.close 18, tooltip closeViewer). Caption (maxWidth 80vw, 12.5px, fg2,
+centered). Root Semantics(container, label: fileName). scopesRoute dropped
+(framework assert + showDialog ModalRoute carries aria-modal) -- same
+precedent as ConfirmDialog.
+
+Mime branching (React prefix checks): image/ -> Image.network (real,
+BoxFit.contain, ClipRRect radius8, bg0, errorBuilder, semanticLabel). video/ +
+audio/ + other -> placeholder cards (Icons.play_circle_filled /
+Icons.insert_drive_file_outlined + bold filename) with a TODO(slice-3) for the
+video_player/audioplayers packages -- real players would be dead weight until
+the transfer seam makes the src real; the placeholder mirrors React's
+.media-viewer-audio chrome. backdrop-filter blur(6px) deferred (nicety; the
+0.92 scrim -- Color(0xEB08090A) = rgba(8,9,10,0.92) -- carries the overlay).
+
+i18n: surgical add of closeViewer ("Close viewer"/"Закрыть просмотрщик") to
+both ARBs via apply_patch (+7 lines each, NOT a full regen). Trailing LF
+preserved. flutter gen-l10n regen'd the gitignored localizations.
+
+Tests: +10 widget tests via the real showDialog path (caption+close render;
+image branch mounts Image.network with throwing HttpOverrides for hermetic
+no-fetch; video/audio/other placeholder icons; close+backdrop tap close;
+stage tap does NOT close; Semantics label == file_name; showMediaViewer
+opens+pops). 289/289 green, analyze clean, media_viewer.dart 463 lines (< 500,
+file-header doc trimmed per AGENTS.md "use sparingly"; per-widget /// retain
+the specific .media-viewer-* CSS rule citations).
+
+## UI-port parity status (after ConfirmDialog + close-flow + MediaViewer)
+
+The mosh-wide shared primitives (ConfirmDialog 14244ac, CryptoNoticeBanner
+3f9ae22, FailedMessageRetry 353e9d6, MediaViewer 0a892a8) are all ported. All
+three conversation kinds (DM/channel/group) have: sender-meta + grouping,
+ConversationTools (search/filter), AttachmentCard (display-only), FailedMessage
+Retry (display-only), notice banners, close-flow confirmation (leave/delete
+via ConfirmDialog). Group additionally has admin-pill + member-count subtitle +
+copy-invite + needs_rejoin. This covers the entire React `private-dm` UI-surface
+that does NOT depend on slice-3 (the Rust channel/group runtime + attachment-
+transfer/voice/call seams). Remaining work is slice-3 (Rust runtime for
+channel/group send/poll/list/retry/download/cancel -- currently todo! stubs),
+which unblocks: real attachment onOpen -> MediaViewer wiring, retry onRetry
+wiring, voice calls (IncomingCallModal + startCall), ChatDropZone attachment
+sending, and the group orgAddPrompt banner (needs an org-roster Gateway
+provider). UI-port objective achieved in the available scope.
+
 ## ConfirmDialog reusable widget (DONE, commit 14244ac)
 
 Port React's ConfirmDialog (ConfirmDialog.tsx) as a shared reusable modal-
