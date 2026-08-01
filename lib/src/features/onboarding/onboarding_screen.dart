@@ -1,8 +1,9 @@
 // S4.4: slice-one onboarding screen - display-name entry + chat/group/join tiles.
 // Matches React OnboardMenu (NewSessionPanelMenu.tsx): identity chip -> head
 // (title + subtitle) -> "Start" tiles -> "Join" tile. Only the Chat tile is
-// functional here (inviteFlowProvider.create() -> invite URI SnackBar; no router
-// yet). Group/Join show a "later slice" SnackBar. State split per ADR 0010:
+// functional here (navigates to the chat-create step -> ChatCreateScreen,
+// 1-в-1 with React's NewSessionPanel onPick("chat")). Group shows a "later
+// slice" SnackBar; Join navigates to /join. State split per ADR 0010:
 // cross-screen displayName lives in inviteFlowProvider; the TextEditingController
 // is local State. All strings resolve through AppLocalizations.
 //
@@ -12,6 +13,13 @@
 // /diagnostics), not by repurposing a tile, so the four React tiles stay 1:1
 // with the upstream design. Only existing ARB keys are reused
 // (diagnosticsDiagnostics for the action tooltip).
+//
+// Chat tile (this atomic): taps now route to AppRoutes.chatCreate, replacing
+// the old inviteFlowProvider.create() + SnackBar placeholder with the full
+// ChatCreateStep flow (frame, body, Create/Recreate button, InviteResult).
+// The SessionsScreen FAB/empty-state create flow is a separate concern and
+// stays SnackBar-based for now (a later atomic can route it through the step
+// too, or keep the SnackBar since the sessions list is a different context).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,18 +55,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _onNameChanged(String value) =>
       ref.read(inviteFlowProvider.notifier).setDisplayName(value);
 
-  Future<void> _startChat() async {
-    final scaffold = ScaffoldMessenger.of(context);
-    final invite = await ref.read(inviteFlowProvider.notifier).create();
-    if (!mounted) return;
-    scaffold.showSnackBar(SnackBar(content: Text(invite.inviteUri)));
-  }
-
   // S2-1: navigate via go_router. The home route is '/', so these are
   // push-style destinations (back returns here). go_router resolves the
   // declarative route table in app_router.dart; no Navigator.pushNamed hand-
   // rolling, and S2-3 deep-link intake reuses the same paths.
   void _goJoin() => context.go(AppRoutes.join);
+  void _goChatCreate() => context.go(AppRoutes.chatCreate);
   void _goDiagnostics() => context.go(AppRoutes.diagnostics);
 
   void _showLaterSlice() {
@@ -113,7 +115,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   icon: Icons.chat_bubble_outline,
                   title: l.onboardTileChatTitle,
                   desc: l.onboardTileChatDesc,
-                  onTap: _startChat,
+                  onTap: _goChatCreate,
                 ),
                 const SizedBox(height: 8),
                 _OnboardTile(
