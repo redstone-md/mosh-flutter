@@ -76,7 +76,6 @@ class OfferRailItem extends StatelessWidget {
                 name: fromDevice,
                 radius: 20,
                 fontSize: 13,
-                fontWeight: FontWeight.normal,
                 foregroundColor:
                     ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
                         ? Colors.white

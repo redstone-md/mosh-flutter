@@ -42,8 +42,10 @@ class Avatar extends StatelessWidget {
   final double? fontSize;
 
   // Defaults to w600 (the message-row + org + sessions look). The offer rail
-  // historically had no explicit weight, so it passes `FontWeight.normal`.
-  final FontWeight? fontWeight;
+  // passes no weight so it inherits `CircleAvatar`'s `titleMedium` (w500),
+  // matching the pre-refactor inline `Text(initials, style: TextStyle(
+  // fontSize: 13))` which merged over the avatar's w500 default.
+ final FontWeight? fontWeight;
 
   @override
   Widget build(BuildContext context) {
