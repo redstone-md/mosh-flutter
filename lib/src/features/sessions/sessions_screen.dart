@@ -31,6 +31,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/features/dm/dm_helpers.dart';
 
 /// The DM sessions-list screen. 1-в-1 with the React SessionRail sessions
 /// section: one row per `SessionSnapshot`, a FAB to start a new session,
@@ -119,7 +120,7 @@ class _SessionRow extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final label = _label();
     final stateLabel = _stateLabel(l, session.state);
-    final bg = _avatarColor(session.sessionId);
+    final bg = avatarColor(session.sessionId);
     return Semantics(
       label: 'Open session with $label',
       button: true,
@@ -255,30 +256,6 @@ String _stateLabel(AppLocalizations l, String state) {
     default:
       return state;
   }
-}
-
-/// Stable per-session avatar color: a hash of the session id picks one of a
-/// small fixed palette, so the same session always gets the same color and
-/// different sessions usually get different colors (matching React's
-/// Avatar behavior of giving each label a distinct tint).
-Color _avatarColor(String sessionId) {
-  const palette = [
-    Colors.deepPurple,
-    Colors.indigo,
-    Colors.blue,
-    Colors.teal,
-    Colors.green,
-    Colors.orange,
-    Colors.brown,
-    Colors.pink,
-    Colors.cyan,
-    Colors.amber,
-  ];
-  var hash = 0;
-  for (final code in sessionId.codeUnits) {
-    hash = (hash * 31 + code) & 0x7fffffff;
-  }
-  return palette[hash % palette.length];
 }
 
 /// State dot color: idle = grey, waiting/connecting = amber, ready = teal,

@@ -138,5 +138,10 @@
   "orgNewGroupPlaceholder": "имя новой группы",
   "orgRejoinNeededTitle": "Группа рассинхронизирована",
   "orgRejoinNeededBody": "Эта группа пропустила изменения состава участников, которые не удалось воспроизвести. Попросите админа заново пригласить вас из ростера.",
-  "diagnosticsDiagnostics": "Диагностика"
+  "diagnosticsDiagnostics": "Диагностика",
+  "attachmentStateAvailable": "Доступно",
+  "attachmentStateFailed": "Передача не удалась",
+  "attachmentStateCancelled": "Передача отменена",
+  "attachmentStateOffered": "Готово к загрузке",
+  "attachmentStateDownloading": "Загрузка {percent}%"
 }
