@@ -15,6 +15,8 @@ import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
+import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Load intl date symbols once so non-en locales (e.g. ru) format dates
@@ -93,13 +95,19 @@ class MoshApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       theme:
           ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
-      // S2-1: route shell. Home is OnboardingScreen; tiles reach invite-paste,
-      // diagnostics, and dm (via path param). The static diagnostics smoke
-      // screen (MoshHome + its FutureBuilder) is gone; the bridge smoke proof
-      // lives in integration_test/slice_one_test.dart and the diagnostics
-      // screen. MaterialApp.router preserves title/locale/localization/theme
-      // while handing navigation to appRouter.
-      routerConfig: appRouter,
+     // S2-1: route shell. Home is OnboardingScreen; tiles reach invite-paste,
+     // diagnostics, and dm (via path param). The static diagnostics smoke
+     // screen (MoshHome + its FutureBuilder) is gone; the bridge smoke proof
+     // lives in integration_test/slice_one_test.dart and the diagnostics
+     // screen. MaterialApp.router preserves title/locale/localization/theme
+     // while handing navigation to appRouter.
+     routerConfig: appRouter,
+     // Top-level VPN-bypass consent overlay: wraps every route so the one
+ // question Mosh asks about the VPN can show above any screen (React
+ // mounts <VpnConsentModal gateway={gateway} /> near the root of
+ // private-dm-screen.tsx). The modal self-gates: it renders
+ // SizedBox.shrink() when there is nothing to ask.
+     builder: (context, child) => VpnConsentOverlay(child: child ?? const SizedBox()),
     );
   }
 }
