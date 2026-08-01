@@ -1163,5 +1163,17 @@
   "callIncomingDecline": "Decline call",
   "@callIncomingDecline": {
     "description": "aria-label/tooltip for the decline button in the incoming-call modal (React IncomingCallModal.tsx)"
+  },
+  "callOutgoingAriaLabel": "Outgoing call",
+  "@callOutgoingAriaLabel": {
+    "description": "aria-label for the outgoing-call modal (React OutgoingCallModal.tsx aria-label)"
+  },
+  "callOutgoingStatus": "Calling...",
+  "@callOutgoingStatus": {
+    "description": "Status text under the peer label in the outgoing-call modal while the peer has not answered (React OutgoingCallModal.tsx .call-modal-status)"
+  },
+  "callOutgoingCancel": "Cancel call",
+  "@callOutgoingCancel": {
+    "description": "aria-label/tooltip for the cancel button in the outgoing-call modal (React OutgoingCallModal.tsx)"
   }
 }
