@@ -1232,5 +1232,59 @@
   "vpnConsentErrorFallback": "Could not save your answer",
   "@vpnConsentErrorFallback": {
     "description": "Fallback error message when setVpnBypassConsent/restart throws a non-Error (React VpnConsentModal.tsx catch err fallback)"
+  },
+  "bindAdapterTitle": "Network adapter",
+  "@bindAdapterTitle": {
+    "description": "Title of the bind-interface field in the Advanced disclosure (React BindInterfaceField.tsx .bind-interface-head strong)"
+  },
+  "bindAdapterBoundBody": "Mosh is bound to {adapter}.",
+  "@bindAdapterBoundBody": {
+    "description": "Head body when Moss is currently bound to an adapter; {adapter} is the bound interface name (React BindInterfaceField.tsx `Moss is bound to ${current}.`)",
+    "placeholders": {
+      "adapter": { "type": "String" }
+    }
+  },
+  "bindAdapterUnboundBody": "Use a physical NIC when a VPN blocks peer discovery.",
+  "@bindAdapterUnboundBody": {
+    "description": "Head body when Moss is not bound (React BindInterfaceField.tsx default body)"
+  },
+  "bindAdapterNoNic": "No connected physical NIC detected.",
+  "@bindAdapterNoNic": {
+ "description": "Hint shown when no physical NIC is available (React BindInterfaceField.tsx .bind-interface-hint)"
+  },
+  "bindAdapterSelectAria": "Physical network adapter",
+  "@bindAdapterSelectAria": {
+    "description": "aria-label for the adapter DropdownButton (React BindInterfaceField.tsx select aria-label)"
+  },
+  "bindAdapterRelease": "Release",
+  "@bindAdapterRelease": {
+    "description": "Button label when bound; releasing clears the override (React BindInterfaceField.tsx btn-ghost when enabled)"
+  },
+  "bindAdapterBind": "Bind",
+  "@bindAdapterBind": {
+    "description": "Button label when unbound; binds to the picked adapter (React BindInterfaceField.tsx btn-primary when !enabled)"
+  },
+  "bindAdapterSaving": "Restarting...",
+  "@bindAdapterSaving": {
+    "description": "Button label while applying the bind/release + restarting (React BindInterfaceField.tsx busy)"
+  },
+  "bindAdapterActive": "Every conversation uses {adapter}.",
+  "@bindAdapterActive": {
+    "description": "Active line shown when bound; {adapter} is the bound interface (React BindInterfaceField.tsx .bind-interface-active)",
+    "placeholders": {
+      "adapter": { "type": "String" }
+    }
+  },
+  "bindAdapterHint": "Binding can expose your LAN IP to peers, trackers, and STUN. Mosh restarts to apply either choice.",
+  "@bindAdapterHint": {
+    "description": "Hint under the controls (React BindInterfaceField.tsx .bind-interface-hint)"
+  },
+  "bindAdapterReadError": "Could not read network state",
+  "@bindAdapterReadError": {
+    "description": "Fallback error when listing interfaces / reading bind fails (React BindInterfaceField.tsx refresh catch fallback)"
+  },
+  "bindAdapterApplyError": "Could not apply override",
+  "@bindAdapterApplyError": {
+    "description": "Fallback error when setVpnBypassConsent/restart throws a non-Error (React BindInterfaceField.tsx apply catch fallback)"
   }
 }

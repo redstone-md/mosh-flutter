@@ -695,4 +695,17 @@
   "vpnConsentAccept": "Обходить VPN",
   "vpnConsentAcceptSaving": "Перезапуск...",
   "vpnConsentErrorFallback": "Не удалось сохранить ответ"
+  ,
+  "bindAdapterTitle": "Сетевой адаптер",
+  "bindAdapterBoundBody": "Mosh привязан к {adapter}.",
+  "bindAdapterUnboundBody": "Используйте физический NIC, если VPN блокирует обнаружение пиров.",
+  "bindAdapterNoNic": "Подключённый физический NIC не обнаружен.",
+  "bindAdapterSelectAria": "Физический сетевой адаптер",
+  "bindAdapterRelease": "Отвязать",
+  "bindAdapterBind": "Привязать",
+  "bindAdapterSaving": "Перезапуск...",
+  "bindAdapterActive": "Каждый диалог использует {adapter}.",
+  "bindAdapterHint": "Привязка может раскрыть ваш LAN-IP пирам, трекерам и STUN. Mosh перезапускается для применения любого выбора.",
+  "bindAdapterReadError": "Не удалось прочитать состояние сети",
+  "bindAdapterApplyError": "Не удалось применить переопределение"
 }
