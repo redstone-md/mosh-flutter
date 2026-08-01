@@ -164,6 +164,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   desc: l.onboardTileJoinDesc,
                   onTap: _goJoin,
                 ),
+                const SizedBox(height: 8),
+                _OnboardTile(
+                  icon: Icons.tag,
+                  title: l.onboardTileChannelTitle,
+                  desc: l.onboardTileChannelDesc,
+                  onTap: _showLaterSlice,
+                ),
                 const SizedBox(height: 18),
                 Disclosure(
                   icon: Icons.settings,
