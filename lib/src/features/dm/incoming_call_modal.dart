@@ -42,12 +42,17 @@ import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/call_button.dart';
+import 'package:mosh/src/features/dm/call_state.dart' show kNoAnswerTimeoutMs;
 import 'package:mosh/src/features/dm/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
-/// React's `NO_ANSWER_TIMEOUT_MS` (call-state.ts). The incoming-call
-/// modal auto-declines with `'no_answer'` after this long.
-const Duration kIncomingNoAnswerTimeout = Duration(seconds: 30);
+/// Mirrors `kNoAnswerTimeoutMs` (call-state.dart) so the modal and the
+/// state machine share ONE source of truth -- the milliseconds come
+/// from the shared const (no behavior change; the Timer still uses
+/// 30 s). The incoming-call modal auto-declines with `'no_answer'`
+/// after this long.
+const Duration kIncomingNoAnswerTimeout =
+    Duration(milliseconds: kNoAnswerTimeoutMs);
 
 /// The decline reasons the modal emits -- mirror React's
 /// `onDecline('declined')` / `onDecline('no_answer')` literals so the
