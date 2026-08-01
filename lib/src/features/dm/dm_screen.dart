@@ -16,8 +16,9 @@
 // CHRONOLOGICAL order (oldest -> newest) so the window comparison is
 // correct, then the list is reversed for display (reverse=true keeps the
 // newest at the bottom). Deferred to later atomics (in-scope surface
-// only): attachments (AttachmentCard), call events (CallLogEntry), the
-// MLS badge (MlsBadge), and the failed-message retry row.
+// only): attachments (AttachmentCard), call events (CallLogEntry), and
+// the failed-message retry row. The MLS badge (MlsBadge) now renders in
+// the sender meta (see [SenderMeta] in dm_helpers.dart).
 // Search + filter (this atomic): applies the React `filterMessages(messages,
 // search, filter)` BEFORE grouping, then groups the filtered list, then
 // reverses for display -- matching the React `DmChatList`/`MessageLists`
@@ -379,9 +380,9 @@ class _Composer extends StatelessWidget {
 /// React). The bubble (own/peer color + alignment + maxWidth 360) and the
 /// delivery ticks on own rows are unchanged from the prior `_MessageBubble`.
 ///
-/// Deferred to later atomics: AttachmentCard, CallLogEntry, MlsBadge, and the
-/// failed-message retry row -- the React `DmMessageRow` composes all of them,
-/// but this atomic ports the grouping + sender meta only.
+/// Deferred to later atomics: AttachmentCard, CallLogEntry, and the
+/// failed-message retry row -- the React `DmMessageRow` composes all of
+/// them; the MlsBadge now renders in the sender meta (see [SenderMeta]).
 class _DmMessageRow extends StatelessWidget {
   const _DmMessageRow({
     required this.message,
@@ -438,7 +439,7 @@ class _DmMessageRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: align,
                 children: [
-                  if (!grouped) _SenderMeta(message: message),
+                  if (!grouped) SenderMeta(message: message),
                   Text(message.body),
                   if (message.attachment != null)
                     AttachmentCard(
@@ -452,46 +453,6 @@ class _DmMessageRow extends StatelessWidget {
             ),
           ),
           if (own) avatarSlot,
-        ],
-      ),
-    );
-  }
-}
-
-/// Sender-meta row for the first message of a group: the raw `fromDevice`
-/// name in bold + a muted locale-agnostic HH:mm timestamp. Mirrors the
-/// non-grouped branch of React `DmMessageRow`'s `message-meta` row minus the
-/// `MlsBadge` (deferred). The MLS badge is intentionally omitted here.
-class _SenderMeta extends StatelessWidget {
-  const _SenderMeta({required this.message});
-
-  final ChatMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final clock = formatClock(message.sentAtMs);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: Text(
-              message.fromDevice,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (clock != null) ...[
-            const SizedBox(width: 6),
-            Text(
-              clock,
-              style:
-                  theme.textTheme.labelSmall?.copyWith(color: theme.hintColor),
-            ),
-          ],
         ],
       ),
     );

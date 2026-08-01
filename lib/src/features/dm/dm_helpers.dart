@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 
 import 'package:mosh/src/rust/outbound_delivery.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// Delivery-tick glyph row for an own-message row. Renders nothing for
 /// `failed` or null status (matches React's per-state tick rendering),
@@ -119,6 +120,95 @@ class UnreadBadge extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// OpenMLS-protection badge shown in the sender-meta row of a message,
+/// 1-в-1 with React's `MlsBadge`
+/// (src/features/private-dm/MessageLists.tsx). Renders the literal acronym
+/// `MLS` in a monospace style (the visible text is NOT localized -- it is
+/// the protocol acronym, matching React's literal `MLS`). The tooltip
+/// (the `message-protocol` `<code>`'s `title`) and the screen-reader label
+/// (React's `aria-label="OpenMLS protected"`) are localized via the
+/// `mlsBadgeTooltip` and `mlsBadgeLabel` ARB strings so the hint and the
+/// a11y label follow the device locale.
+///
+/// Reusable: the same badge renders next to the sender name in the DM
+/// `DmMessageRow` meta and (in later atomics) channel / group message
+/// rows -- those React rows also embed `<MlsBadge />` in their meta.
+class MlsBadge extends StatelessWidget {
+  const MlsBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    // Monospace + small to mirror React's `<code className="message-protocol">`
+    // which CSS styles as a small monospace code badge.
+    final base = theme.textTheme.labelSmall ?? const TextStyle();
+    final style = base.copyWith(
+      fontFamily: 'monospace',
+      fontSize: 11,
+    );
+    return Semantics(
+      label: l.mlsBadgeLabel,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: l.mlsBadgeTooltip,
+        child: Text('MLS', style: style),
+      ),
+    );
+  }
+}
+
+/// Sender-meta row for the first message of a DM group: the raw
+/// `fromDevice` name in bold + an [MlsBadge] + a muted locale-agnostic
+/// HH:mm timestamp. 1-в-1 with the non-grouped branch of React
+/// `DmMessageRow`'s `message-meta` row order
+/// (`<strong>{from_device}</strong> <MlsBadge /> <MessageTimestamp/>`):
+/// name, badge, timestamp. Extracted from `dm_screen.dart` to keep that
+/// screen under the 500-line file-size discipline; reusable so later
+/// atomics (channel / group message rows, which also embed
+/// `<MlsBadge />` in their React meta) can compose the same row.
+///
+/// The badge renders only on non-grouped rows: callers gate this widget
+/// behind their `!grouped` branch (grouped rows omit the whole meta, so
+/// the badge is naturally absent there -- matching React).
+class SenderMeta extends StatelessWidget {
+  const SenderMeta({super.key, required this.message});
+
+  final ChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final clock = formatClock(message.sentAtMs);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              message.fromDevice,
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const MlsBadge(),
+          if (clock != null) ...[
+            const SizedBox(width: 6),
+            Text(
+              clock,
+              style:
+                  theme.textTheme.labelSmall?.copyWith(color: theme.hintColor),
+            ),
+          ],
+        ],
       ),
     );
   }

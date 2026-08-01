@@ -288,6 +288,10 @@
   "@attachmentStateCancelled": { "description": "Attachment transfer state label: either side cancelled the transfer" },
   "attachmentStateOffered": "Ready to download",
   "@attachmentStateOffered": { "description": "Attachment transfer state label: manifest known, download not started yet" },
-  "unreadBadge": "{count} unread",
-  "@unreadBadge": { "description": "Accessibility label for the unread-message count badge on a DM session row", "placeholders": { "count": { "type": "int" } } }
+ "unreadBadge": "{count} unread",
+  "@unreadBadge": { "description": "Accessibility label for the unread-message count badge on a DM session row", "placeholders": { "count": { "type": "int" } } },
+  "mlsBadgeLabel": "OpenMLS protected",
+  "@mlsBadgeLabel": { "description": "Screen-reader label for the MLS badge shown next to a message sender name, indicating OpenMLS end-to-end encryption" },
+  "mlsBadgeTooltip": "Message content is protected by OpenMLS",
+  "@mlsBadgeTooltip": { "description": "Tooltip shown when hovering the MLS badge next to a message sender name" }
 }

@@ -145,6 +145,10 @@
   "attachmentStateOffered": "Готово к загрузке",
   "attachmentStateDownloading": "Загрузка {percent}%"
 ,
-  "unreadBadge": "{count} непрочитанных",
-  "@unreadBadge": { "description": "Accessibility label for the unread-message count badge on a DM session row", "placeholders": { "count": { "type": "int" } } }
+ "unreadBadge": "{count} непрочитанных",
+  "@unreadBadge": { "description": "Accessibility label for the unread-message count badge on a DM session row", "placeholders": { "count": { "type": "int" } } },
+  "mlsBadgeLabel": "Защищено OpenMLS",
+  "@mlsBadgeLabel": { "description": "Screen-reader label for the MLS badge shown next to a message sender name, indicating OpenMLS end-to-end encryption" },
+  "mlsBadgeTooltip": "Содержание сообщения защищено OpenMLS",
+  "@mlsBadgeTooltip": { "description": "Tooltip shown when hovering the MLS badge next to a message sender name" }
 }
