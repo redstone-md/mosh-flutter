@@ -667,4 +667,7 @@
   "voiceSendLabel": "Отправить голосовое сообщение",
   "voiceMessagePlayLabel": "Воспроизвести голосовое сообщение",
   "voiceMessagePauseLabel": "Поставить на паузу"
+  ,
+  "callLogMissedLabel": "Пропущенный звонок",
+  "callLogEndedLabel": "Звонок завершён"
 }
