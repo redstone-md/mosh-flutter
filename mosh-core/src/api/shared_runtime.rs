@@ -96,6 +96,16 @@ pub(crate) fn resolve_data_dir(app_data_dir: Option<&std::path::Path>) -> PathBu
     }
 }
 
+/// The resolved data dir with the injected `APP_DATA_DIR` applied. Use
+/// for non-runtime state that lives next to the encrypted history store
+/// (e.g. VPN-bypass consent). Mirrors the Tauri shell`s
+/// `app.path().app_data_dir().unwrap_or_else(|_| temp_dir().join("mosh"))`
+/// fallback (lib.rs L1338-1340): when no platform channel injected a dir,
+/// the temp `mosh` dir is used (tests, hosts without path_provider).
+pub(crate) fn resolved_data_dir() -> PathBuf {
+    resolve_data_dir(APP_DATA_DIR.get().map(PathBuf::as_path))
+}
+
 /// Build the shared resources once (the api-facade analogue of the Tauri
 /// shell's `*State::ready` shared setup). Loads Moss, opens the encrypted
 /// at-rest store under the resolved data dir, wires the keystore, and
