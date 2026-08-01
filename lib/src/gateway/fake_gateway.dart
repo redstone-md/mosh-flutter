@@ -349,6 +349,18 @@ class FakeGateway implements Gateway {
     ));
   }
 
+  // DM-offer dismiss seams (slice-3): the fake has no real offer store, so
+  // both are no-ops that complete synchronously (the screen refreshes its
+  // channel/group snapshot after the call, which still has the offer until
+  // a real runtime is wired; the accept path's auto-dismiss is also a
+  // no-op here). Mirrors the Future<void> shape of the real impls.
+  @override
+  Future<void> dismissChannelDmOffer({required String name, required String offerId}) =>
+      Future.value();
+  @override
+  Future<void> dismissGroupDmOffer({required String groupId, required String offerId}) =>
+      Future.value();
+
   // The `joinOrg` seam (slice-3) mirrors the React happy path: a canned
   // OrgSnapshot with empty-but-valid members/offers/links (the org has no
   // other members in the fake) + a deterministic orgPubkey derived from the

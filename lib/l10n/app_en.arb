@@ -388,6 +388,21 @@
   "@onboardGroupInviteReady": {
     "description": "Status shown when a group invite is ready"
   },
+  "onboardGroupInvite": "group invite",
+  "@onboardGroupInvite": {
+    "description": "Subtitle for a DM offer originating from a private group (the channel-offer subtitle is `#host`, this is the group-offer subtitle)"
+  },
+  "railOfferAccept": "Accept chat invite from {name}",
+  "@railOfferAccept": {
+    "description": "Semantics label for a pending DM-offer row (the whole row is an accept affordance)",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "railOfferDismiss": "Dismiss invite",
+  "@railOfferDismiss": {
+    "description": "Tooltip for the trailing dismiss X on a pending DM-offer row"
+  },
   "onboardJoinStepBody": "Paste a mosh:// invite link. Mosh detects whether it opens a private chat or a group.",
   "@onboardJoinStepBody": {
     "description": "Body of the join step in onboarding"

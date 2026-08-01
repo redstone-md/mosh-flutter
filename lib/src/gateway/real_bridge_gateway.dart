@@ -28,8 +28,8 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, can
 // and group `close`), so the two imports MUST use distinct prefixes to avoid
 // collision; the snapshot/result types come in unqualified from their
 // *_runtime.dart modules.
-import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave;
-import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, joinGroup, poll, list, send, close;
+import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave, dismissDmOffer;
+import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, joinGroup, poll, list, send, close, dismissDmOffer;
 import 'package:mosh/src/rust/api/org.dart' as org_api show joinOrg;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -138,6 +138,16 @@ class RealBridgeGateway implements Gateway {
   @override
   Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) =>
       group_api.joinGroup(request: request);
+  // DM-offer dismiss seams (slice-3): channel_api/group_api both name the
+  // frb free function `dismissDmOffer` -- disambiguated by the prefixes. The
+  // accept path auto-dismisses after acceptInvite; the dismiss path calls
+  // these directly. Both return Future<void> (no `await` needed).
+  @override
+  Future<void> dismissChannelDmOffer({required String name, required String offerId}) =>
+      channel_api.dismissDmOffer(name: name, offerId: offerId);
+  @override
+  Future<void> dismissGroupDmOffer({required String groupId, required String offerId}) =>
+      group_api.dismissDmOffer(groupId: groupId, offerId: offerId);
   // The `joinOrg` seam (slice-3) delegates to org_api.joinOrg; the request
   // carries bundleUri + displayName + listenPort + staticPeer? (a
   // `mosh://org` bundle URI, not an invite URI -- org joins use a different
