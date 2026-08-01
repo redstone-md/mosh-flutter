@@ -75,11 +75,13 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
+import 'package:mosh/src/features/group/org_add_missing_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView, AttachmentDescriptor;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
@@ -266,6 +268,36 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         .then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
   }
 
+  /// Org admin one-click add (React `inviteMembersToGroup`, use-orgs.ts
+  /// L197-205). Calls the Gateway org-group-invite seam with the missing
+  /// roster peer-ids, marks them offered so the banner does not re-count
+  /// them, toggles the busy flag, and refreshes orgs + the group snapshot
+  /// so the next render re-evaluates the prompt. Fire-and-forget via
+  /// `unawaited` (the busy flag + invalidation drive the UI).
+  void _inviteMembers(OrgAddPrompt prompt) {
+    final peerIds = prompt.missingPeerIds;
+    if (peerIds.isEmpty) return;
+    ref.read(invitingGroupsProvider.notifier).start(widget.groupId);
+    unawaited(ref
+        .read(gatewayProvider)
+        .orgGroupInviteMembers(
+          orgPubkey: prompt.orgPubkey,
+          groupId: widget.groupId,
+          memberPeerIds: peerIds,
+        )
+        .then((_) {
+          ref
+              .read(offeredGroupInvitesProvider.notifier)
+              .markInvited(widget.groupId, peerIds);
+        })
+        .catchError((_) {})
+        .whenComplete(() {
+          ref.read(invitingGroupsProvider.notifier).finish(widget.groupId);
+          ref.invalidate(orgsProvider);
+          ref.invalidate(groupSnapshotProvider(widget.groupId));
+        }));
+  }
+
   /// Opens the attachment's local file (React `openPath(local_path)` via the
   /// Tauri opener plugin -- here client-side, no Rust fn). Windows:
   /// `cmd /c start ""`; non-Windows is a no-op (the card disables Open when
@@ -281,6 +313,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(groupSnapshotProvider(widget.groupId));
     final groupForDrawer = async.value;
+    final orgAddPrompt = ref.watch(orgAddPromptProvider(widget.groupId));
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: GroupScreenHeader(
@@ -293,19 +326,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
           children: [
             Column(
               children: [
-                // React wires the group pane's `afterHeader` (ActiveChatPanes.tsx
-                // L352-380) as `<><GroupNotice />{needs_rejoin ? <RejoinNeeded/>
-                // : null}{orgAddPrompt ? <OrgAddMissing/> : null}</>`. This atomic
-                // ports the `<GroupNotice />` banner (crypto_notice_banner.dart)
-                // AND the `needs_rejoin` inline-error fragment; the `orgAddPrompt`
-                // admin-add fragment stays deferred (separate atomic -- needs an
-                // org-roster Gateway seam that does not exist in Flutter yet).
-                // TODO(group-org-add-prompt): render the orgAddPrompt admin-add
-                //   row (orgAddMissing + orgMissingOne/Many) here when present.
-                //   Deferred: requires `count`/`busy`/`onAdd` props sourced from
-                //   an org-roster Gateway provider that does not exist in Flutter
-                //   yet (needs Rust + Gateway work in a later atomic). The
-                //   needs_rejoin inline-error below is DONE (this atomic).
+// React wires the group pane afterHeader (ActiveChatPanes.tsx L352-380)
+// as GroupNotice -> needs_rejoin -> orgAddPrompt. This port follows that
+// order: CryptoNoticeBanner, then RejoinNeeded, then OrgAddMissingBanner.
                 CryptoNoticeBanner(
                   // React `GroupNotice` (ActiveChatPanes.tsx ~L420-432):
                   // `crypto-banner crypto-banner-group` with `IconLock`.
@@ -329,6 +352,15 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                   GroupRejoinNeededError(
                     title: l.orgRejoinNeededTitle,
                     body: l.orgRejoinNeededBody,
+                  ),
+                if (orgAddPrompt != null && orgAddPrompt.count > 0)
+                  OrgAddMissingBanner(
+                    count: orgAddPrompt.count,
+                    busy: orgAddPrompt.busy,
+                    onAdd: () => _inviteMembers(orgAddPrompt),
+                    missingOne: l.orgMissingOne,
+                    missingMany: l.orgMissingMany,
+                    addLabel: l.orgAddMissing,
                   ),
                 ConversationTools(
                   search: _search,
