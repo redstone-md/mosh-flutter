@@ -5,12 +5,15 @@
 // an empty state when no sessions exist.
 //
 // Scope (this atomic): the DM sessions list ONLY. Channels, groups, offers,
-// orgs, search, filter, and the unread badge are deferred to later atomics --
-// the React SessionRail composes all of them into one rail, but the Flutter
-// side is being ported surface-by-surface to keep each change small and
-// reviewable. UnreadBadge is intentionally omitted: the React app computes it
-// via useUnreadNotifications, which has no Flutter provider yet; the trailing
-// slot renders only the state dot for now (see _SessionRow).
+// orgs, search, and filter are deferred to later atomics -- the React
+// SessionRail composes all of them into one rail, but the Flutter side is
+// being ported surface-by-surface to keep each change small and reviewable.
+// The unread badge is wired for DM sessions via `unreadDmCountsProvider`
+// (counts not-own messages per session, keyed `'dm:<sessionId>'`, mirroring
+// React's `useUnreadNotifications`). The full poll-diff lifecycle
+// (notifications, window-focus, clearOnActive, `diffConversations`,
+// `lastSeen` persistence) is a later atomic -- here the count shown is the
+// number of not-own messages currently in the session.
 //
 // State split (ADR 0010): server state lives in `sessionListProvider`
 // (AsyncNotifierProvider<SessionListSnapshot>) -- the TanStack-Query
@@ -30,6 +33,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 
@@ -43,6 +47,10 @@ class SessionsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(sessionListProvider);
+    // Unread map is data-only; AsyncValue guards leave it {} while loading
+    // or on error so the badge simply stays absent (mirrors React clearing
+    // to 0 visually during a refresh).
+    final unread = ref.watch(unreadDmCountsProvider).value ?? const {};
     return Scaffold(
       appBar: AppBar(
         title: Text(l.sessionsListTitle),
@@ -67,7 +75,10 @@ class SessionsScreen extends ConsumerWidget {
                   itemCount: snapshot.sessions.length,
                   itemBuilder: (context, i) {
                     final session = snapshot.sessions[i];
-                    return _SessionRow(session: session);
+                    return _SessionRow(
+                      session: session,
+                      unreadCount: unread['dm:${session.sessionId}'] ?? 0,
+                    );
                   },
                 ),
               ),
@@ -99,15 +110,15 @@ class SessionsScreen extends ConsumerWidget {
 ///     (the same chain `dm_screen` uses for its title).
 ///   - subtitle: the localized state label (`stateIdle|stateWaiting|stateReady`
 ///     or the raw state string for unknown states).
-///   - trailing: a colored state dot only. Unread badge is deferred -- the
-///     React app computes it via `useUnreadNotifications`, which has no
-///     Flutter provider yet; revisit once that provider lands.
+///   - trailing: a colored state dot plus an `UnreadBadge` (count > 0)
+///     mirroring React's `SessionRailItem` trailing slot.
 ///   - onTap: navigate to the DM screen for this session id.
 ///   - Semantics mirrors React's `aria-label="Open session with ${label}"`.
 class _SessionRow extends StatelessWidget {
-  const _SessionRow({required this.session});
+  const _SessionRow({required this.session, this.unreadCount = 0});
 
   final SessionSnapshot session;
+  final int unreadCount;
 
   String _label() {
     if (session.peerDisplayName.isNotEmpty) return session.peerDisplayName;
@@ -138,7 +149,14 @@ class _SessionRow extends StatelessWidget {
         ),
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(stateLabel),
-        trailing: _StateDot(state: session.state),
+       trailing: Row(
+         mainAxisSize: MainAxisSize.min,
+         children: [
+           _StateDot(state: session.state),
+           const SizedBox(width: 8),
+           UnreadBadge(count: unreadCount),
+         ],
+       ),
         onTap: () => context.go(AppRoutes.dmFor(session.sessionId)),
       ),
     );

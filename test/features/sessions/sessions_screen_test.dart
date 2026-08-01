@@ -12,11 +12,13 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
+import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/unread_providers.dart';
 
 /// A FakeGateway subclass whose `listSessions` returns a fixed snapshot so
 /// the screen renders a deterministic non-empty list (test 2 + label/state
@@ -161,8 +163,59 @@ void main() {
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
-    // refresh() re-ran the gateway query (the count must increase, even if
-    // Riverpod re-executed build() during settling -- we only assert growth).
-    expect(gateway.listCalls, greaterThan(callsBefore));
-  });
+  // refresh() re-ran the gateway query (the count must increase, even if
+  // Riverpod re-executed build() during settling -- we only assert growth).
+  expect(gateway.listCalls, greaterThan(callsBefore));
+});
+
+// Unread-badge rendering. Mirrors React's `UnreadBadge`: a row whose
+// unread count > 0 shows the numeral; a row with count 0 shows no badge.
+// Both `sessionListProvider` (via a seeded gateway) and
+// `unreadDmCountsProvider` are overridden so the rendered counts are
+// deterministic and do not depend on the seeded messages.
+testWidgets('renders an unread badge for sessions with count > 0 and none for 0',
+    (tester) async {
+  const aliceId = 'alice-unread';
+  const bobId = 'bob-read';
+  final gateway = _SeededSessionsGateway([
+    _session(
+        sessionId: aliceId,
+        displayName: 'me',
+        peerDisplayName: 'Alice',
+        state: 'ready'),
+    _session(
+        sessionId: bobId,
+        displayName: 'me',
+        peerDisplayName: 'Bob',
+        state: 'ready'),
+  ]);
+
+  // Only Alice has unread messages; Bob's count is 0.
+  final unread = {'dm:$aliceId': 3};
+
+  await tester.pumpWidget(ProviderScope(
+    overrides: [
+      gatewayProvider.overrideWithValue(gateway),
+      unreadDmCountsProvider.overrideWith((ref) async => unread),
+    ],
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: const SessionsScreen(),
+    ),
+  ));
+  await tester.pumpAndSettle();
+
+  // One UnreadBadge renders with count 3, and the numeral '3' is visible.
+  expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 3),
+      findsOneWidget);
+  expect(find.text('3'), findsOneWidget);
+
+  // The 0-count row still mounts an UnreadBadge(count: 0) but it renders
+  // nothing (SizedBox.shrink) -- so no extra numeral is present and no
+  // '99+' ever appears.
+  expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 0),
+      findsOneWidget);
+  expect(find.text('99+'), findsNothing);
+});
 }

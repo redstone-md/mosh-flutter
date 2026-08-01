@@ -144,4 +144,7 @@
   "attachmentStateCancelled": "Передача отменена",
   "attachmentStateOffered": "Готово к загрузке",
   "attachmentStateDownloading": "Загрузка {percent}%"
+,
+  "unreadBadge": "{count} непрочитанных",
+  "@unreadBadge": { "description": "Accessibility label for the unread-message count badge on a DM session row", "placeholders": { "count": { "type": "int" } } }
 }

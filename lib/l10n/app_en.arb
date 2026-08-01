@@ -287,5 +287,7 @@
   "attachmentStateCancelled": "Transfer cancelled",
   "@attachmentStateCancelled": { "description": "Attachment transfer state label: either side cancelled the transfer" },
   "attachmentStateOffered": "Ready to download",
-  "@attachmentStateOffered": { "description": "Attachment transfer state label: manifest known, download not started yet" }
+  "@attachmentStateOffered": { "description": "Attachment transfer state label: manifest known, download not started yet" },
+  "unreadBadge": "{count} unread",
+  "@unreadBadge": { "description": "Accessibility label for the unread-message count badge on a DM session row", "placeholders": { "count": { "type": "int" } } }
 }

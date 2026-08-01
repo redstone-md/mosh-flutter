@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/l10n/app_localizations.dart';
 
 import 'package:mosh/src/rust/outbound_delivery.dart';
 
@@ -78,4 +79,47 @@ Color avatarColor(String deviceName) {
     hash = (hash * 31 + code) & 0x7fffffff;
   }
   return palette[hash % palette.length];
+}
+
+/// Unread-message count badge for a DM session row. 1-в-1 with React's
+/// `UnreadBadge` (src/features/private-dm/SessionRail.tsx): renders nothing
+/// when `count <= 0`, the literal count otherwise, and `99+` past 99. The
+/// visible text is the numeral / `99+` (not localized); the `Semantics`
+/// label uses the localized `unreadBadge(count)` ARB string so screen
+/// readers announce `{count} unread` (en) / `{count} непрочитанных` (ru).
+///
+/// Styled as a small circular badge in the theme's primary color so it
+/// reads as a notification indicator (mirrors React's `.unread-badge`).
+class UnreadBadge extends StatelessWidget {
+  const UnreadBadge({super.key, required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 0) return const SizedBox.shrink();
+    final l = AppLocalizations.of(context)!;
+    final text = count > 99 ? '99+' : '$count';
+    return Semantics(
+      label: l.unreadBadge(count),
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        constraints: const BoxConstraints(minWidth: 18),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
 }
