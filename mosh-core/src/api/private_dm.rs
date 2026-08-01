@@ -371,6 +371,27 @@ pub fn close_session(session_id: String) -> Result<CloseSessionResult, String> {
         .map_err(|error| error.to_string())
 }
 
+/// Begin (or retry) downloading a peer's attachment (1:1 port of
+/// `private_dm_download_attachment`). Triggers the transfer; progress is
+/// reported in the next `SessionSnapshot.attachments` poll.
+pub fn download_attachment(session_id: String, attachment_id: String) -> Result<(), String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .download_attachment(&session_id, &attachment_id)
+        .map_err(|error| error.to_string())
+}
+
+/// Cancel an in-flight attachment transfer (1:1 port of
+/// `private_dm_cancel_attachment`).
+pub fn cancel_attachment(session_id: String, attachment_id: String) -> Result<(), String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .cancel_attachment(&session_id, &attachment_id)
+        .map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::resolve_data_dir;

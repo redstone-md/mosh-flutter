@@ -176,6 +176,22 @@ class FakeGateway implements Gateway {
     );
   }
 
+  // Attachment transfer control is a no-op in the fake: the real runtime
+  // drives progress through pump_attachment_requests + relay jobs, and this
+  // fake has no transfer machinery, so pollSession keeps returning its canned
+  // snapshot. Both methods complete with Future.value (no state change).
+  @override
+  Future<void> downloadAttachment({
+    required String sessionId,
+    required String attachmentId,
+  }) => Future.value();
+
+  @override
+  Future<void> cancelAttachment({
+    required String sessionId,
+    required String attachmentId,
+  }) => Future.value();
+
   SessionSnapshot _fakeSession({
     required String sessionId,
     required String displayName,
