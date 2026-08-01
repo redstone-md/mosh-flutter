@@ -24,8 +24,8 @@
  /// `MeshDiagnostics` and `EventLog` live in their own files
  /// (`mesh_diagnostics.dart` and `event_log.dart`) so this file stays
  /// under 500 lines. The `ChannelDiagnostics` / `GroupDiagnostics`
- /// sections need `ChannelSnapshot` / `GroupSnapshot` contracts that do
- /// not exist in the Flutter fork yet, so they are DEFERRED. Wiring
+ /// sections now exist in `channel_group_diagnostics.dart` (their
+ /// `ChannelSnapshot` / `GroupSnapshot` contracts landed in b750a87).
  /// `SessionDiagnostics` into `DiagnosticsScreen` is also a later atomic.
  library;
 
