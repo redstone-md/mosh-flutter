@@ -67,7 +67,9 @@ import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/features/group/group_screen_header.dart';
+import 'package:mosh/src/features/group/group_rejoin_needed_error.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
+import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -269,7 +271,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                 // => no banner). Stacks BELOW the GroupNotice, ABOVE
                 // ConversationTools -- matching React's afterHeader order.
                 if (_needsRejoin(async))
-                  _RejoinNeededError(
+                  GroupRejoinNeededError(
                     title: l.orgRejoinNeededTitle,
                     body: l.orgRejoinNeededBody,
                   ),
@@ -312,7 +314,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                     },
                   ),
                 ),
-                _Composer(
+                ConversationComposer(
                   controller: _composer,
                   sending: _sending,
                   placeholder: l.chatComposerPlaceholder,
@@ -438,81 +440,6 @@ bool _needsRejoin(AsyncValue<GroupSnapshot?> async) {
   return group != null && group.needsRejoin;
 }
 
-/// The `needs_rejoin` inline-error -- 1-в-1 with React's
-/// `<div className="inline-error" role="alert">` fragment
-/// (ActiveChatPanes.tsx L355-360). Structure: a red-tinted alert box holding
-/// `<strong>{rejoinNeededTitle}.</strong>` (bold, with the period React
-/// appends via `<strong>{title}.</strong>`) + a space + the body. The tint
-/// mirrors React's `.inline-error` CSS (desktop-shell.css L1066-1073):
-/// `padding: 10px 14px`, `border-radius: 10px`,
-/// `background: rgba(232,106,90,0.08)`, `border: 1px solid rgba(232,106,90,0.35)`,
-/// `color: var(--danger)`, `font-size: 12px`. Material's `colorScheme.error`
-/// is the idiomatic Flutter equivalent of `--danger`, so the tint is derived
-/// from it (8% bg, 35% border) to match React's rgba alphas.
-///
-/// Accessibility: React sets `role="alert"`. Flutter has no direct `alert`
-/// role; `Semantics(liveRegion: true, container: true)` is the closest
-/// equivalent -- a live region announces updates to assistive tech, which
-/// is what an inline alert does. The whole box is one semantic node labeled
-/// by the title + body so it reads as a single alert, not three nodes.
-class _RejoinNeededError extends StatelessWidget {
-  const _RejoinNeededError({required this.title, required this.body});
-
-  /// The bold title line. React renders `<strong>{title}.</strong>` -- the
-  /// period is appended by React, NOT in the ARB value ("Group out of sync"
-  /// has no trailing period). We append `.` here in the bold span to match.
-  final String title;
-
-  /// The body paragraph (React `{rejoinNeededBody}`).
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final error = theme.colorScheme.error;
-    return Semantics(
-      liveRegion: true,
-      container: true,
-      label: '$title. $body',
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          // React `.inline-error`: rgba(232,106,90,0.08) bg +
-          // 1px rgba(232,106,90,0.35) border + 10px radius.
-          color: error.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: error.withValues(alpha: 0.35), width: 1),
-        ),
-        child: Text.rich(
-          // React: `<strong>{title}.</strong>{" "}{body}` -- bold title
-          // (with appended period) + a literal space + the body, inline.
-          TextSpan(
-            children: [
-              TextSpan(
-                text: '$title.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: error,
-                  fontSize: 12,
-                ),
-              ),
-              const TextSpan(text: ' '),
-              TextSpan(
-                text: body,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: error,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Empty-state for a group with no messages yet. Shell form: no localized
 /// title/body yet (deferred with the notice banner atomic); a plain hint so
 /// the layout is not bare.
@@ -525,78 +452,3 @@ class _Empty extends StatelessWidget {
   }
 }
 
-/// Composer: a TextField + a Send button, disabled while empty or sending.
-/// Mirrors ChannelScreen's `_Composer` (shell form, inlined here).
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.sending,
-    required this.placeholder,
-    required this.sendLabel,
-    required this.onSend,
-    required this.attachLabel,
-    required this.onAttach,
-    required this.onAttachmentPickError,
-  });
-
-  final TextEditingController controller;
-  final bool sending;
-  final String placeholder;
-  final String sendLabel;
-  final VoidCallback onSend;
-  final String attachLabel;
-  final AttachmentPickedCallback onAttach;
-  final AttachmentPickErrorCallback onAttachmentPickError;
-
-  @override
-  Widget build(BuildContext context) {
-    final canSend = !sending && controller.text.trim().isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: ValueListenableBuilder<TextEditingValue>(
-        valueListenable: controller,
-        builder: (context, value, _) {
-          final enabled = !sending && value.text.trim().isNotEmpty;
-          return Row(
-            children: [
-              // React Composer renders AttachmentPicker before the input
-              // (ChatComposer.tsx L86-90). The picker is disabled while a
-              // send is in flight (mirrors React's `disabled` prop).
-              AttachmentPicker(
-                disabled: sending,
-                ariaLabel: attachLabel,
-                onPick: onAttach,
-                onError: onAttachmentPickError,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  enabled: !sending,
-                  onSubmitted: (_) {
-                    if (canSend) onSend();
-                  },
-                  decoration: InputDecoration(
-                    hintText: placeholder,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: enabled ? onSend : null,
-                child: sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(sendLabel),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
