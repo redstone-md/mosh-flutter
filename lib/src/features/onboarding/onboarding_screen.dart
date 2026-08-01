@@ -28,6 +28,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
 import 'package:mosh/src/features/shared/disclosure.dart';
 import 'package:mosh/src/features/shared/field.dart';
+import 'package:mosh/src/features/vpn/bind_interface_field.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -193,26 +195,38 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Field(
-                        label: l.setupListenPortLabel,
-                        hint: l.setupListenPortHint,
-                        child: TextField(
-                          controller: _listenPortController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 11, vertical: 9),
-                          ),
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(fontSize: 12.5),
-                          onChanged: _onListenPortChanged,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                     Field(
+                       label: l.setupListenPortLabel,
+                       hint: l.setupListenPortHint,
+                       child: TextField(
+                         controller: _listenPortController,
+                         keyboardType: TextInputType.number,
+                         decoration: InputDecoration(
+                           border: const OutlineInputBorder(),
+                           isDense: true,
+                           contentPadding: const EdgeInsets.symmetric(
+                               horizontal: 11, vertical: 9),
+                         ),
+                         style: theme.textTheme.bodyMedium
+                             ?.copyWith(fontSize: 12.5),
+                         onChanged: _onListenPortChanged,
+                       ),
+                     ),
+                     const SizedBox(height: 12),
+                     // Bind-interface override -- 1-в-1 with React's
+                     // NewSessionPanelMenu.tsx Advanced disclosure child
+                     // (L93 <BindInterfaceField gateway={props.gateway} />).
+                     // Writes the same stored VPN-bypass answer the
+                     // startup question does + relaunches via onAccept
+                     // (no-op until the native restart lands in slice-3).
+                     BindInterfaceField(
+                       gateway: ref.read(gatewayProvider),
+                       l: l,
+                       onAccept: () async {},
+                     ),
+                   ],
+                 ),
+               ),
                 const SizedBox(height: 6),
                 Disclosure(
                   icon: Icons.verified_user,
