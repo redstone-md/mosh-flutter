@@ -372,6 +372,12 @@
   "@diagRowPublicKey": { "description": "Row key for the mesh public key in the Moss network group" },
   "diagMeshBootingTitle": "Mesh booting",
   "@diagMeshBootingTitle": { "description": "Title of the empty state shown when the mesh is still booting in the diagnostics drawer" },
-  "diagMeshBootingBody": "Network facts appear after Moss binds a port and receives its first runtime poll.",
-  "@diagMeshBootingBody": { "description": "Description of the empty state shown when the mesh is still booting in the diagnostics drawer" }
-}
+ "diagMeshBootingBody": "Network facts appear after Moss binds a port and receives its first runtime poll.",
+ "@diagMeshBootingBody": { "description": "Description of the empty state shown when the mesh is still booting in the diagnostics drawer" },
+ "diagGroupMossEvents": "Moss events",
+ "@diagGroupMossEvents": { "description": "Group label of the Moss events section (the event log) in the diagnostics drawer" },
+ "diagNoEventsTitle": "No events yet",
+ "@diagNoEventsTitle": { "description": "Title of the empty state shown when the event log has no events in the diagnostics drawer" },
+ "diagNoEventsBody": "Moss will list peer joins, tracker updates, and relay changes here as they happen.",
+ "@diagNoEventsBody": { "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer" }
+ }
