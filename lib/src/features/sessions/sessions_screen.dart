@@ -20,9 +20,10 @@
 // lines between two non-empty adjacent sections -- 1-в-1 with the React
 // `SessionRail` combined rail order (offers -> sessions -> groups -> channels
 // -> orgs; offers/orgs remain deferred, no providers/widgets yet). Channel
-// and group unread counts are passed as 0 for now: no channel/group unread
-// provider exists yet, so computing them from the snapshots is a later
-// atomic. Channel/group `onTap` stay no-ops (no channel/group screen route).
+// and group unread counts are now wired via `unreadChannelCountsProvider` /
+// `unreadGroupCountsProvider` (mirrors the DM provider, fingerprint
+// comparison; keyed `'channel:<name>'` / `'group:<groupId>'`). Channel/group
+// `onTap` stay no-ops (no channel/group screen route).
 //
 // State split (ADR 0010): server state lives in `sessionListProvider`
 // (AsyncNotifierProvider<SessionListSnapshot>) -- the TanStack-Query
@@ -70,6 +71,11 @@ class SessionsScreen extends ConsumerWidget {
     // or on error so the badge simply stays absent (mirrors React clearing
     // to 0 visually during a refresh).
     final unread = ref.watch(unreadDmCountsProvider).value ?? const {};
+    // Channels/groups unread maps -- same `.value ?? const {}` degrade as
+    // the DM map: loading/error leaves them empty so the rail badges stay
+    // absent (mirrors React clearing to 0 during a refresh).
+    final unreadChannels = ref.watch(unreadChannelCountsProvider).value ?? const {};
+    final unreadGroups = ref.watch(unreadGroupCountsProvider).value ?? const {};
     return Scaffold(
       appBar: AppBar(
         title: Text(l.sessionsListTitle),
@@ -114,15 +120,23 @@ class SessionsScreen extends ConsumerWidget {
             if (groups.isNotEmpty && sessions.isNotEmpty)
               const Divider(height: 1, thickness: 1),
             for (final group in groups)
-              // TODO(channel-group-unread): channel/group unread counts are a
-              // later atomic (no channel/group unread provider yet); pass 0.
-              GroupRailItem(group: group, unreadCount: 0),
+              // Count comes from `unreadGroupCountsProvider`, keyed
+              // `'group:<groupId>'` (fingerprint comparison) -- mirrors the
+              // DM row's `unread['dm:<sessionId>']` lookup.
+              GroupRailItem(
+                group: group,
+                unreadCount: unreadGroups['group:${group.groupId}'] ?? 0,
+              ),
             if (channels.isNotEmpty &&
                 (sessions.isNotEmpty || groups.isNotEmpty))
               const Divider(height: 1, thickness: 1),
             for (final channel in channels)
-              // TODO(channel-group-unread): see the groups loop above.
-              ChannelRailItem(channel: channel, unreadCount: 0),
+              // Count comes from `unreadChannelCountsProvider`, keyed
+              // `'channel:<name>'` (fingerprint comparison).
+              ChannelRailItem(
+                channel: channel,
+                unreadCount: unreadChannels['channel:${channel.name}'] ?? 0,
+              ),
           ];
           return RefreshIndicator(
             onRefresh: () =>
