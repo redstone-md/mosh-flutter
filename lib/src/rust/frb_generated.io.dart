@@ -145,6 +145,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CallEvent dco_decode_call_event(dynamic raw);
 
   @protected
+  CallStarted dco_decode_call_started(dynamic raw);
+
+  @protected
   ChannelLeaveResult dco_decode_channel_leave_result(dynamic raw);
 
   @protected
@@ -227,6 +230,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GroupSnapshot> dco_decode_list_group_snapshot(dynamic raw);
+
+  @protected
+  List<Uint8List> dco_decode_list_list_prim_u_8_strict(dynamic raw);
 
   @protected
   List<NetworkInterfaceInfo> dco_decode_list_network_interface_info(
@@ -528,6 +534,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CallEvent sse_decode_call_event(SseDeserializer deserializer);
 
   @protected
+  CallStarted sse_decode_call_started(SseDeserializer deserializer);
+
+  @protected
   ChannelLeaveResult sse_decode_channel_leave_result(
       SseDeserializer deserializer);
 
@@ -621,6 +630,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GroupSnapshot> sse_decode_list_group_snapshot(
+      SseDeserializer deserializer);
+
+  @protected
+  List<Uint8List> sse_decode_list_list_prim_u_8_strict(
       SseDeserializer deserializer);
 
   @protected
@@ -954,6 +967,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_call_event(CallEvent self, SseSerializer serializer);
 
   @protected
+  void sse_encode_call_started(CallStarted self, SseSerializer serializer);
+
+  @protected
   void sse_encode_channel_leave_result(
       ChannelLeaveResult self, SseSerializer serializer);
 
@@ -1055,6 +1071,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_group_snapshot(
       List<GroupSnapshot> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_list_prim_u_8_strict(
+      List<Uint8List> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_network_interface_info(

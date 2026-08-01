@@ -232,6 +232,37 @@ class CallEvent {
           callId == other.callId;
 }
 
+class CallStarted {
+  final String sessionId;
+  final String callId;
+  final String keyB64;
+  final String noncePrefixB64;
+
+  const CallStarted({
+    required this.sessionId,
+    required this.callId,
+    required this.keyB64,
+    required this.noncePrefixB64,
+  });
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^
+      callId.hashCode ^
+      keyB64.hashCode ^
+      noncePrefixB64.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CallStarted &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          callId == other.callId &&
+          keyB64 == other.keyB64 &&
+          noncePrefixB64 == other.noncePrefixB64;
+}
+
 class ChatMessage {
   final String fromDevice;
   final String body;
