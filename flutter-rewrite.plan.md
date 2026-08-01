@@ -883,7 +883,105 @@ See the three sections above (855d233, b879a02) for the ConversationTools +
 AttachmentCard-render atomics that already closed those entries; the remaining
 work is the notice banners, admin badge, copy-invite, retry row, and the
 channel/group attachment-transfer Gateway seam (Rust + frb, deferred).
-See the three sections above (855d233, b879a02) for the ConversationTools +
-AttachmentCard-render atomics that already closed those entries; the remaining
-work is the notice banners, admin badge, copy-invite, retry row, and the
-channel/group attachment-transfer Gateway seam (Rust + frb, deferred).
+See the sections above (855d233, b879a02, 3f9ae22, e93cb5d, 9cc0a93) for the
+ConversationTools, AttachmentCard-render, notice-banners, admin/member-subtitle,
+and copy-invite atomics that already closed those entries; the remaining work
+is the retry row, the channel/group attachment-transfer Gateway seam (Rust +
+frb, deferred), and two recorded non-blocking follow-ups.
+
+## Crypto notice banners (DONE, commit 3f9ae22)
+
+Port the React GroupNotice / PublicNotice (ActiveChatPanes.tsx L420-445) wired
+as the active-chat afterHeader into the Flutter channel/group screens. New
+shared CryptoNoticeBanner(icon, title, body, accent) widget in a neutral
+lib/src/features/shared/crypto_notice_banner.dart (channel/group-specific -- DMs
+have no notice, so a neutral home is MORE correct than the prior
+dm_helpers.dart pattern; sound structural improvement, not a divergence).
+Banner at the TOP of each screen's body Column, ABOVE ConversationTools
+(matching React's header -> afterHeader -> ConversationTools order; Flutter's
+AppBar is the header). Channel: Icons.tag (lucide IconHash -> closest Material
+hash glyph), channelNoticeTitle/Body, accent Color(0xFF6CB7E8) (React --info
+#6cb7e8). Group: Icons.lock (lucide IconLock), groupNoticeTitle/Body, accent
+Color(0xFFB7D84A) (React --moss #b7d84a) -- exact hex translations of React's
+CSS vars; border/icon-bg alphas track React's crypto-banner-{public,group}
+rules. Semantics(label: title, container: true, excludeSemantics: true) mirrors
+React's aria-label={noticeTitle}. The 4 ARB keys were already pre-staged (en
+values byte-for-byte = React's private-dm.content.ts strings). Group's
+needs_rejoin + orgAddPrompt fragments are separate features and NOT ported
+(TODO marks them deferred). Tests: +2 (assert exact en title+body render);
+237/237 green, analyze clean, all files < 500.
+
+## Admin badge + member-count subtitle (DONE, commit e93cb5d)
+
+Port the React ActiveGroupChat header subtitle + admin-pill
+(ActiveChatPanes.tsx L311-326) into the Flutter GroupScreen AppBar. Flutter
+3.44 AppBar has NO subtitle: parameter (verified against the SDK source), so
+the title is a two-line Column (title Text + subtitle Text styled bodySmall --
+the idiomatic equivalent). _groupSubtitle = isAdmin ? "${groupAdminBadge} · " :
+"" + (memberCount == BigInt.one ? membersCountSingular(n) : membersCount(n)) +
+groupScreenMlsStateSuffix(state) -> e.g. "admin · 2 members · MLS Active"
+(admin), "2 members · MLS Active" (non-admin), "admin · 1 member · MLS Active"
+(1-member). Matches React's exact template; memberCount (BigInt) -> int via
+.toInt() before the ARB placeholder call. Admin-pill (_AdminPill, FIRST in
+actions, mirroring React beforeSearchActions): only if isAdmin; Tooltip +
+Icons.workspace_premium size 14 (closest Material to lucide IconCrown;
+consistent with the group rail which uses the same icon) + "admin" label; no
+space when !isAdmin. 2 new ARB keys (en + ru): membersCountSingular
+("{count} member" / "{count} участник") + groupScreenMlsStateSuffix
+(" · MLS {state}"). Existing membersCount + groupAdminBadge reused. Copy-invite
+deferred (TODO). Tests: +4 (admin pill+prefix, non-admin neither, singular,
+plural); 241/241 green, analyze clean, group_screen.dart 446 lines.
+
+NOTE (non-blocking): the Russian member-count plural is grammatically naive
+("2 участников" instead of "2 участника"), inherited from the pre-existing
+membersCount ru value (not introduced here). A future i18n-polish atomic
+should convert membersCount/membersCountSingular to a single ICU MessageFormat
+plural key with the three Russian forms (one/few/many) and drop the
+memberCount == BigInt.one branch.
+
+## Copy-invite button (DONE, commit 9cc0a93)
+
+Port the React ActiveGroupChat beforeSearchActions copy-invite button
+(ActiveChatPanes.tsx L327-337) into the Flutter GroupScreen AppBar actions,
+immediately after the admin-pill. Copies group.invite_uri to the clipboard and
+shows a check icon for 1600ms before reverting. State: bool _inviteCopied +
+Timer? _inviteCopyTimer on _GroupScreenState (widget-local, ADR 0010).
+_copyInvite: null guard -> await Clipboard.setData(ClipboardData(text: uri))
+(the repo's existing idiom from chat_create_screen.dart, no external package)
+-> mounted guard -> setState(true) -> cancel prior timer -> Timer(1600ms) to
+revert, mounted-guarded; dispose() cancels the timer. IconButton after
+admin-pill: Icon(_inviteCopied ? Icons.check : Icons.copy, size: 14), tooltip
+switches groupCopyInviteDone/groupCopyInvite, onPressed. size 14 matches
+React's button (the menu action uses 15 -- not ported). Existing ARB keys
+reused. Documented simplification: React's useEffect([inviteUri]) reset is
+omitted -- harmless because GroupScreen remounts per groupId (go_router builds
+a fresh GroupScreen per /group/:groupId), so _inviteCopied resets on
+cross-group navigation. Tests: +3 (invite present renders button; tap writes
+exact URI via flutter/services channel interception idiom from
+chat_create_screen_test, flips to check + "Invite copied", reverts after
+pump(1600ms); invite null renders no button); test surface widened via
+setSurfaceSize(1600x1200) so the 4-icon actions row fits. 244/244 green,
+analyze clean.
+
+NOTE (non-blocking, HIGH PRIORITY before the next group header atomic):
+group_screen.dart is at 499 lines -- exactly 1 under the 500 ceiling. The next
+group header work (retry row, etc.) WILL overflow it. A refactor extracting
+_AdminPill + the subtitle builder + the copy-invite IconButton + _copyInvite
+into a dedicated lib/src/features/group/group_screen_header.dart widget should
+land as the NEXT atomic before any more group header UI is added, to restore
+headroom.
+
+## Recorded non-blocking follow-ups (for future atomics)
+
+1. group_screen.dart 499-line ceiling: extract header widgets into
+   group_screen_header.dart (HIGH PRIORITY -- blocks the retry-row atomic).
+2. Russian member-count plural grammar (membersCount/membersCountSingular):
+   convert to a single ICU MessageFormat plural key with one/few/many forms;
+   drop the memberCount == BigInt.one branch.
+3. channel/group attachment-transfer Gateway seam: Rust + frb codegen for
+   download/cancel/open_attachment parameterized by conversation kind (currently
+   no-op stubs in the channel/group screens, deferred from b879a02).
+4. Device integration pass -- history.redb persist: needs a full create_invite
+   UI flow on the emulator (displayName entry + invite creation) to create the
+   DB, then verify it survives restart. Not blocking -- basic integration
+   (apk + biometric + Keystore DEK + onboarding) is already verified.
