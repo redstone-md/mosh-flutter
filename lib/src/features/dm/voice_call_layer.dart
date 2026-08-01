@@ -37,6 +37,7 @@ import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 
 /// Renders the voice-call modals/overlay for one DM session based on the
 /// live `SessionSnapshot`. Place inside a `ProviderScope` + `Stack`.
@@ -204,6 +205,11 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 
     // --- Active (active_call) ---
     final active = s?.activeCall;
+    // Watch the orchestrator's mute flag so the layer rebuilds when the
+    // notifier flips it; the dialog's `muted:` is captured at open time,
+    // so a live icon swap while the overlay is open waits on a follow-up
+    // that makes `CallOverlay` itself a `Consumer` over this provider.
+    final callMuted = ref.watch(voiceCallOrchestratorProvider(widget.sessionId)).muted;
     if (active != null && _openOverlayFor != active.callId) {
       _openOverlayFor = active.callId;
       _activeCallEnded = false;
@@ -215,10 +221,13 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
           builder: (dialogContext) => CallOverlay(
             active: active,
             peerLabel: _peerLabel(s),
-            muted: false,
+            muted: callMuted,
             onToggleMute: () {
-              // Mute is a local-only toggle until the audio transport
-              // lands (slice-3); the overlay mirrors React's affordance.
+              // The orchestrator is the real mute owner (slice-3 landed);
+              // toggleMute flips its flag + bumps state for the rebuild.
+              ref
+                  .read(voiceCallOrchestratorProvider(widget.sessionId).notifier)
+                  .toggleMute();
             },
             onHangUp: () {
               Navigator.of(dialogContext).pop();

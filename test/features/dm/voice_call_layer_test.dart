@@ -11,6 +11,7 @@ import 'package:mosh/src/features/dm/voice_call_layer.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 
 /// A minimal recording Gateway: only `callStart` + `pollSession` are
 /// exercised here; the rest throw UnimplementedError so any other call
@@ -18,6 +19,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 class _RecordingGateway implements Gateway {
   int callStartCount = 0;
   String? lastCallStartSession;
+  int callEndCount = 0;
   SessionSnapshot? pollSnapshot;
 
   @override
@@ -40,6 +42,15 @@ class _RecordingGateway implements Gateway {
   }
 
   @override
+  Future<void> callEnd({
+    required String sessionId,
+    required String callId,
+    required String reason,
+  }) async {
+    callEndCount++;
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(' ${invocation.memberName}');
 }
@@ -57,6 +68,29 @@ SessionSnapshot _outgoingSnapshot(String sessionId) => SessionSnapshot(
       attachments: const [],
       events: const [],
       outgoingCall: const OutgoingCall(callId: 'call-1'),
+    );
+
+SessionSnapshot _activeSnapshot(String sessionId) => SessionSnapshot(
+      sessionId: sessionId,
+      meshId: 'm',
+      role: 'caller',
+      displayName: 'me',
+      peerDisplayName: 'Alice',
+      state: 'connected',
+      path: 'direct',
+      fingerprint: 'fp',
+      messages: const [],
+      attachments: const [],
+      events: const [],
+      activeCall: ActiveCall(
+        callId: 'call-1',
+        direction: 'caller',
+        // Valid 32-byte base64 key + 8-byte nonce prefix so the
+        // orchestrator's importCallKey succeeds when it auto-attaches.
+        keyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+        noncePrefixB64: 'AAAAAAAAAAA=',
+        startedAtMs: BigInt.zero,
+      ),
     );
 
 void main() {
@@ -105,6 +139,52 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.text('Alice'), findsOneWidget);
       expect(find.text('Calling...'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'toggling mute in the active-call overlay flips the orchestrator mute flag',
+    (tester) async {
+      final gateway = _RecordingGateway();
+      gateway.pollSnapshot = _activeSnapshot('sess-1');
+      final l = await AppLocalizations.delegate.load(const Locale('en'));
+      late WidgetRef ref;
+      await tester.pumpWidget(ProviderScope(
+        overrides: [gatewayProvider.overrideWithValue(gateway as Gateway)],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Column(
+              children: [
+                VoiceCallLayer(sessionId: 'sess-1', l: l),
+                Consumer(
+                  builder: (context, r, _) {
+                    ref = r;
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ));
+      // Let the active-call overlay open (post-frame showDialog).
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      // The overlay opens with the mic (unmuted) affordance.
+      expect(find.byIcon(Icons.mic), findsOneWidget);
+      expect(
+        ref.read(voiceCallOrchestratorProvider('sess-1')).muted,
+        isFalse,
+      );
+      await tester.tap(find.byIcon(Icons.mic));
+      await tester.pump();
+      // The toggle hit the orchestrator notifier; the provider state flipped.
+      expect(
+        ref.read(voiceCallOrchestratorProvider('sess-1')).muted,
+        isTrue,
+      );
     },
   );
 }
