@@ -66,7 +66,19 @@ import 'package:mosh/src/rust/api/private_group.dart' as group_api
         cancelAttachment,
         sendAttachment,
         retryMessage;
-import 'package:mosh/src/rust/api/org.dart' as org_api show joinOrg;
+import 'package:mosh/src/rust/api/org.dart' as org_api
+    show
+        acceptDmOffer,
+        acceptGroupOffer,
+        createGroup,
+        dismissDmOffer,
+        dismissGroupOffer,
+        groupInviteMembers,
+        joinOrg,
+        leaveOrg,
+        list,
+        poll,
+        sendDmOffer;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
@@ -288,11 +300,112 @@ class RealBridgeGateway implements Gateway {
         thumbnailBase64: thumbnailBase64,
         voice: voice,
       );
-  // The `joinOrg` seam (slice-3) delegates to org_api.joinOrg; the request
-  // carries bundleUri + displayName + listenPort + staticPeer? (a
-  // `mosh://org` bundle URI, not an invite URI -- org joins use a different
-  // field name than group joins).
+  // Org surface (1:1 port of the org_* Tauri commands). Each delegates to
+  // org_api (the frb bindings for mosh_core::api::org). The cross-runtime
+  // methods (sendOrgDmOffer/acceptOrgDmOffer/createOrgGroup/
+  // acceptOrgGroupOffer/orgGroupInviteMembers/leaveOrg) drive the DM/group
+  // singletons from inside the org facade on the Rust side, so the Dart
+  // call is one method per command (ADR 0010 1:1 rule).
   @override
   Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
       org_api.joinOrg(request: request);
+
+  @override
+  Future<void> leaveOrg({required String orgPubkey}) =>
+      org_api.leaveOrg(orgPubkey: orgPubkey);
+
+  @override
+  Future<List<OrgSnapshot>> listOrgs() => org_api.list();
+
+  @override
+  Future<OrgSnapshot> pollOrg({required String orgPubkey}) =>
+      org_api.poll(orgPubkey: orgPubkey);
+
+  @override
+  Future<InviteCreated> sendOrgDmOffer({
+    required String orgPubkey,
+    required String targetPeerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  }) =>
+      org_api.sendDmOffer(
+        orgPubkey: orgPubkey,
+        targetPeerId: targetPeerId,
+        displayName: displayName,
+        listenPort: listenPort,
+        staticPeer: staticPeer,
+      );
+
+  @override
+  Future<SessionSnapshot> acceptOrgDmOffer({
+    required String orgPubkey,
+    required String offerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  }) =>
+      org_api.acceptDmOffer(
+        orgPubkey: orgPubkey,
+        offerId: offerId,
+        displayName: displayName,
+        listenPort: listenPort,
+        staticPeer: staticPeer,
+      );
+
+  @override
+  Future<void> dismissOrgDmOffer(
+          {required String orgPubkey, required String offerId}) =>
+      org_api.dismissDmOffer(orgPubkey: orgPubkey, offerId: offerId);
+
+  @override
+  Future<GroupCreated> createOrgGroup({
+    required String orgPubkey,
+    String? label,
+    required List<String> memberPeerIds,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  }) =>
+      org_api.createGroup(
+        orgPubkey: orgPubkey,
+        label: label,
+        memberPeerIds: memberPeerIds,
+        displayName: displayName,
+        listenPort: listenPort,
+        staticPeer: staticPeer,
+      );
+
+  @override
+  Future<GroupSnapshot> acceptOrgGroupOffer({
+    required String orgPubkey,
+    required String offerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  }) =>
+      org_api.acceptGroupOffer(
+        orgPubkey: orgPubkey,
+        offerId: offerId,
+        displayName: displayName,
+        listenPort: listenPort,
+        staticPeer: staticPeer,
+      );
+
+  @override
+  Future<void> dismissOrgGroupOffer(
+          {required String orgPubkey, required String offerId}) =>
+      org_api.dismissGroupOffer(orgPubkey: orgPubkey, offerId: offerId);
+
+  @override
+  Future<void> orgGroupInviteMembers({
+    required String orgPubkey,
+    required String groupId,
+    required List<String> memberPeerIds,
+  }) =>
+      org_api.groupInviteMembers(
+        orgPubkey: orgPubkey,
+        groupId: groupId,
+        memberPeerIds: memberPeerIds,
+      );
 }

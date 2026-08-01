@@ -497,6 +497,137 @@ class FakeGateway implements Gateway {
     ));
   }
 
+  // Org surface (the rest). The fake has no real org runtime, so each
+  // method returns a canned minimal-but-valid result: read methods
+  // (listOrgs/pollOrg) return empty/canned snapshots; write methods
+  // (leaveOrg/dismiss*) return void; the cross-runtime offer methods
+  // (sendOrgDmOffer/acceptOrgDmOffer/createOrgGroup/acceptOrgGroupOffer/
+  // orgGroupInviteMembers) return canned InviteCreated/SessionSnapshot/
+  // GroupCreated/GroupSnapshot. No state is mutated except acceptOrgDmOffer
+  // (inserts the accepted session into the in-memory session map so a
+  // subsequent pollSession/listSessions sees it, mirroring acceptInvite).
+  @override
+  Future<void> leaveOrg({required String orgPubkey}) => Future.value();
+
+  @override
+  Future<List<OrgSnapshot>> listOrgs() => Future.value(const []);
+
+  @override
+  Future<OrgSnapshot> pollOrg({required String orgPubkey}) =>
+      Future.value(OrgSnapshot(
+        orgPubkey: orgPubkey,
+        orgName: '',
+        meshId: '',
+        ownPeerId: '',
+        confirmationCode: '',
+        inRoster: false,
+        rosterVersion: null,
+        members: const [],
+        dmOffers: const [],
+        groupOffers: const [],
+        dmLinks: const [],
+      ));
+
+  @override
+  Future<InviteCreated> sendOrgDmOffer({
+    required String orgPubkey,
+    required String targetPeerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  }) =>
+      Future.value(InviteCreated(
+        inviteUri: 'mosh://invite?session=fake-org-dm&fp=00#fp=00',
+        sessionId: 'fake-org-dm-${DateTime.now().millisecondsSinceEpoch}',
+        meshId: '',
+        fingerprint: '00',
+        listenAddress: '',
+      ));
+
+  @override
+  Future<SessionSnapshot> acceptOrgDmOffer({
+    required String orgPubkey,
+    required String offerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  }) {
+    final sessionId = 'fake-org-accept-${_sessions.length + 1}';
+    final snapshot = _fakeSession(
+      sessionId: sessionId,
+      displayName: displayName,
+      role: 'invitee',
+      inviteUri: 'mosh://invite?session=$sessionId&fp=00#fp=00',
+      fingerprint: '00',
+    );
+    _sessions[sessionId] = snapshot;
+    return Future.value(snapshot);
+  }
+
+  @override
+  Future<void> dismissOrgDmOffer(
+          {required String orgPubkey, required String offerId}) =>
+      Future.value();
+
+  @override
+  Future<GroupCreated> createOrgGroup({
+    required String orgPubkey,
+    String? label,
+    required List<String> memberPeerIds,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  }) =>
+      Future.value(GroupCreated(
+        groupId: 'fake-org-group-${DateTime.now().millisecondsSinceEpoch}',
+        meshId: '',
+        inviteUri: 'mosh://group?session=fake-org-group&fp=00#fp=00',
+        fingerprint: '00',
+        label: label,
+      ));
+
+  @override
+  Future<GroupSnapshot> acceptOrgGroupOffer({
+    required String orgPubkey,
+    required String offerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  }) =>
+      Future.value(GroupSnapshot(
+        groupId: 'fake-org-group-accept',
+        meshId: '',
+        label: null,
+        displayName: displayName,
+        deviceFingerprint: '00',
+        creatorFingerprint: '00',
+        isAdmin: false,
+        state: 'ready',
+        memberCount: BigInt.one,
+        inviteUri: 'mosh://group?session=fake-org-group-accept&fp=00#fp=00',
+        messages: const [],
+        attachments: const [],
+        dmOffers: const [],
+        mesh: null,
+        events: const [],
+        needsRejoin: false,
+        orgPubkey: orgPubkey,
+        memberPeerIds: const [],
+      ));
+
+  @override
+  Future<void> dismissOrgGroupOffer(
+          {required String orgPubkey, required String offerId}) =>
+      Future.value();
+
+  @override
+  Future<void> orgGroupInviteMembers({
+    required String orgPubkey,
+    required String groupId,
+    required List<String> memberPeerIds,
+  }) =>
+      Future.value();
+
   SessionSnapshot _fakeSession({
     required String sessionId,
     required String displayName,

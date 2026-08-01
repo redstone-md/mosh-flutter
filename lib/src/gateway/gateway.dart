@@ -152,10 +152,56 @@ abstract interface class Gateway {
     VoiceMeta? voice,
   });
 
-  // Org write seam (1:1 port of `org_join`). `joinOrg` is the fourth slice-3
-  // write seam -- joins an org from a `mosh://org` bundle URI. Unlike the
-  // channel/group flows, the org runtime is a container (members + DM/group
-  // offers), not a chat, so the result is an OrgSnapshot the caller uses to
-  // refresh the orgs list (no dedicated org screen yet).
+  // Org surface (1:1 port of the org_* Tauri commands). The org runtime
+  // is a container (members + DM/group offers), not a chat. joinOrg is the
+  // only method a UI calls directly today (the invite-paste onboarding);
+  // the rest are surfaced so a future org screen can drive the real runtime
+  // through the Gateway seam (ADR 0013 -- widgets depend on Gateway, never
+  // on a concrete impl). leaveOrg closes the org + its bound private groups;
+  // listOrgs/pollOrg read; sendOrgDmOffer/acceptOrgDmOffer/dismissOrgDmOffer
+  // drive the DM-offer flow (mint/accept via the private-DM runtime,
+  // record/link in the org runtime); createOrgGroup/acceptOrgGroupOffer/
+  // dismissOrgGroupOffer/orgGroupInviteMembers drive the group-offer flow.
   Future<OrgSnapshot> joinOrg({required JoinOrgRequest request});
+  Future<void> leaveOrg({required String orgPubkey});
+  Future<List<OrgSnapshot>> listOrgs();
+  Future<OrgSnapshot> pollOrg({required String orgPubkey});
+  Future<InviteCreated> sendOrgDmOffer({
+    required String orgPubkey,
+    required String targetPeerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  });
+  Future<SessionSnapshot> acceptOrgDmOffer({
+    required String orgPubkey,
+    required String offerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  });
+  Future<void> dismissOrgDmOffer(
+      {required String orgPubkey, required String offerId});
+  Future<GroupCreated> createOrgGroup({
+    required String orgPubkey,
+    String? label,
+    required List<String> memberPeerIds,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  });
+  Future<GroupSnapshot> acceptOrgGroupOffer({
+    required String orgPubkey,
+    required String offerId,
+    required String displayName,
+    required int listenPort,
+    String? staticPeer,
+  });
+  Future<void> dismissOrgGroupOffer(
+      {required String orgPubkey, required String offerId});
+  Future<void> orgGroupInviteMembers({
+    required String orgPubkey,
+    required String groupId,
+    required List<String> memberPeerIds,
+  });
 }
