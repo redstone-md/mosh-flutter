@@ -438,5 +438,19 @@
   "openGroupAria": "Open group {label}",
   "@openGroupAria": { "description": "Screen-reader label for the Open-group rail-item row, with the group label", "placeholders": { "label": { "type": "String" } } },
   "membersCount": "{count} members",
-  "@membersCount": { "description": "Subtitle for a group rail-item row showing the member count (mirrors React String(group.member_count) members)", "placeholders": { "count": { "type": "int" } } }
+  "@membersCount": { "description": "Subtitle for a group rail-item row showing the member count (mirrors React String(group.member_count) members)", "placeholders": { "count": { "type": "int" } } },
+  "summaryChannelKicker": "Public channel",
+  "@summaryChannelKicker": { "description": "Kicker label for the diagnostics summary card when a public channel is active" },
+  "summaryChannelState": "Broadcast",
+  "@summaryChannelState": { "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)" },
+  "summaryChannelDescription": "Plaintext channel traffic is riding over the current Moss mesh.",
+  "@summaryChannelDescription": { "description": "Description of the diagnostics summary card when a public channel is active" },
+  "summaryGroupKicker": "Private group",
+  "@summaryGroupKicker": { "description": "Kicker label for the diagnostics summary card when a private group is active" },
+  "summaryGroupFallbackTitle": "Encrypted group",
+  "@summaryGroupFallbackTitle": { "description": "Title fallback for the diagnostics summary card when a private group has no label" },
+  "summaryGroupDescription": "{memberCount} members on an MLS-protected group mesh.",
+  "@summaryGroupDescription": { "description": "Description of the diagnostics summary card when a private group is active, with the member count", "placeholders": { "memberCount": { "type": "String" } } },
+  "summaryFactMembers": "Members",
+  "@summaryFactMembers": { "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active" }
 }

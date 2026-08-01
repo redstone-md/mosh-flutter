@@ -295,5 +295,19 @@
   "openGroupAria": "Открыть группу {label}",
   "@openGroupAria": { "description": "Screen-reader label for the Open-group rail-item row, with the group label", "placeholders": { "label": { "type": "String" } } },
   "membersCount": "{count} участников",
-  "@membersCount": { "description": "Subtitle for a group rail-item row showing the member count (mirrors React String(group.member_count) members)", "placeholders": { "count": { "type": "int" } } }
+  "@membersCount": { "description": "Subtitle for a group rail-item row showing the member count (mirrors React String(group.member_count) members)", "placeholders": { "count": { "type": "int" } } },
+  "summaryChannelKicker": "Публичный канал",
+  "@summaryChannelKicker": { "description": "Kicker label for the diagnostics summary card when a public channel is active" },
+  "summaryChannelState": "Трансляция",
+  "@summaryChannelState": { "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)" },
+  "summaryChannelDescription": "Трафик открытого канала идёт поверх текущей сети Moss.",
+  "@summaryChannelDescription": { "description": "Description of the diagnostics summary card when a public channel is active" },
+  "summaryGroupKicker": "Приватная группа",
+  "@summaryGroupKicker": { "description": "Kicker label for the diagnostics summary card when a private group is active" },
+  "summaryGroupFallbackTitle": "Зашифрованная группа",
+  "@summaryGroupFallbackTitle": { "description": "Title fallback for the diagnostics summary card when a private group has no label" },
+  "summaryGroupDescription": "{memberCount} участников в группе под защитой MLS.",
+  "@summaryGroupDescription": { "description": "Description of the diagnostics summary card when a private group is active, with the member count", "placeholders": { "memberCount": { "type": "String" } } },
+  "summaryFactMembers": "Участники",
+  "@summaryFactMembers": { "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active" }
 }

@@ -1,16 +1,16 @@
 /// Pure diagnostics-summary builder for the Diagnostics drawer, 1-в-1 with
-/// React's `src/features/private-dm/DiagnosticsDrawerSummary.tsx` for the
-/// **DM branch** and the **idle/error (no-active-session) branch** only.
+/// React's `src/features/private-dm/DiagnosticsDrawerSummary.tsx`.
 ///
-/// The React `diagnosticsSummary(session, channel, group, error)` also has
-/// `channel` and `group` branches. Those contracts (`ChannelSnapshot`,
-/// `GroupSnapshot`) DO NOT EXIST in the Flutter fork yet -- only
-/// `SessionSnapshot` and `MeshInfo` are frb-generated. So the channel/group
-/// branches are DEFERRED to a later atomic: until those contracts land, the
-/// Flutter `diagnosticsSummary` accepts only `SessionSnapshot? session` and
-/// `String? error` (no channel/group params), and falls straight through to
-/// the idle/error branch when `session` is null -- matching the React
-/// fallback when all three of session/channel/group are null.
+/// The React `diagnosticsSummary(session, channel, group, error)` has four
+/// branches: `session` (private DM), `channel` (public channel), `group`
+/// (private group), and the idle/error fallback. The channel and group
+/// branches are now implemented (1-в-1 with React), now that the
+/// `ChannelSnapshot` / `GroupSnapshot` contracts exist in the Flutter fork
+/// (they landed earlier in `lib/src/rust/channel_runtime.dart` and
+/// `lib/src/rust/private_group_runtime.dart`). The Flutter
+/// `diagnosticsSummary` accepts the same four optional inputs
+/// (`session?`, `channel?`, `group?`, `error?`) and resolves them in the
+/// same branch order: session -> channel -> group -> idle/error.
 ///
 /// Pureness: the function takes `AppLocalizations l` (the localized copy
 /// seam) plus the runtime inputs and returns a fully-resolved
@@ -25,7 +25,9 @@ library;
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
 
 /// Tone of a `DiagnosticSummary`, mirroring React's `SummaryTone`. Drives
 /// the `diagnostic-summary-${tone}` color: ready = green, waiting = amber,
@@ -87,8 +89,8 @@ class DiagnosticSummary {
           _listEquals(facts, other.facts);
 
   @override
-  int get hashCode => Object.hash(tone, kicker, title, state, description,
-      Object.hashAll(facts));
+  int get hashCode => Object.hash(
+      tone, kicker, title, state, description, Object.hashAll(facts));
 
   @override
   String toString() => 'DiagnosticSummary($tone, $kicker, $title, $state)';
@@ -102,28 +104,33 @@ bool _listEquals(List<DiagnosticSummaryFact> a, List<DiagnosticSummaryFact> b) {
   return true;
 }
 
-/// Builds the diagnostics summary for the DM branch + the idle/error
-/// branch, 1-в-1 with React `diagnosticsSummary(session, channel, group,
-/// error)` for those two branches. Channel/group branches are deferred
-/// (no contracts yet) -- callers that would have passed a channel/group in
-/// React simply pass `session: null` here and get the idle/error fallback,
-/// matching the React no-active-session path.
+/// Builds the diagnostics summary, 1-в-1 with React
+/// `diagnosticsSummary(session, channel, group, error)`. Resolves the four
+/// branches in React order: `session` (private DM), `channel` (public
+/// channel), `group` (private group), then the idle/error fallback when
+/// all three are null.
 ///
 /// `l` is the localized copy seam: the function is pure (deterministic
-/// given `l`). The DM-branch state badge uses the existing `stateReady` /
-/// `stateWaiting` / `stateIdle` keys via the shared `stateLabel` mapper
-/// (mirrors React's `stateLabels[session.state] ?? session.state` with the
-/// raw-state fallback used by `sessions_screen.dart`). The idle/error state
-/// badges use the new `summaryStateWaiting` / `summaryStateError` keys.
+/// given `l`). The DM- and group-branch state badges use the existing
+/// `stateReady` / `stateWaiting` / `stateIdle` keys via the shared
+/// `stateLabel` mapper (mirrors React's `stateLabels[session.state] ??
+/// session.state` with the raw-state fallback used by
+/// `sessions_screen.dart`). The channel state badge ("Broadcast") and
+/// the idle/error state badges use the `summaryChannelState` /
+/// `summaryStateWaiting` / `summaryStateError` keys.
 DiagnosticSummary diagnosticsSummary({
   required AppLocalizations l,
   SessionSnapshot? session,
+  ChannelSnapshot? channel,
+  GroupSnapshot? group,
   String? error,
 }) {
   if (session != null) {
     final mesh = session.mesh;
     return DiagnosticSummary(
-      tone: error != null ? DiagnosticSummaryTone.error : _summaryTone(session.state),
+      tone: error != null
+          ? DiagnosticSummaryTone.error
+          : _summaryTone(session.state),
       kicker: l.summaryDmKicker,
       title: session.peerDisplayName.isNotEmpty
           ? session.peerDisplayName
@@ -133,7 +140,8 @@ DiagnosticSummary diagnosticsSummary({
       state: stateLabel(l, session.state),
       description: _sessionDescription(l, session.state, mesh),
       facts: [
-        DiagnosticSummaryFact(label: l.summaryFactPeers, value: peerCount(mesh)),
+        DiagnosticSummaryFact(
+            label: l.summaryFactPeers, value: peerCount(mesh)),
         DiagnosticSummaryFact(label: l.summaryFactNat, value: natType(mesh)),
         DiagnosticSummaryFact(
             label: l.summaryFactRelay,
@@ -141,12 +149,64 @@ DiagnosticSummary diagnosticsSummary({
       ],
     );
   }
-  // channel / group branches -- DEFERRED (no ChannelSnapshot / GroupSnapshot
-  // contracts in the Flutter fork yet). React falls through to the idle/error
-  // fallback when all three of session/channel/group are null, which is
-  // exactly what this branch implements.
+  // Channel branch -- mirrors React `if (channel)`. Channels are always
+  // "ready" tone (no state-driven tone): tone is error -> error, else ready.
+  // The title `#${channel.name}` is a literal (NOT localized), matching React.
+  // The state badge ("Broadcast") and the description ARE localized via ARB.
+  if (channel != null) {
+    final mesh = channel.mesh;
+    return DiagnosticSummary(
+      tone: error != null
+          ? DiagnosticSummaryTone.error
+          : DiagnosticSummaryTone.ready,
+      kicker: l.summaryChannelKicker,
+      title: '#${channel.name}',
+      state: l.summaryChannelState,
+      description: l.summaryChannelDescription,
+      facts: [
+        DiagnosticSummaryFact(
+            label: l.summaryFactPeers, value: peerCount(mesh)),
+        DiagnosticSummaryFact(label: l.summaryFactNat, value: natType(mesh)),
+        DiagnosticSummaryFact(
+            label: l.summaryFactRelay,
+            value: mesh != null ? relayStatus(mesh) : 'booting'),
+      ],
+    );
+  }
+  // Group branch -- mirrors React `if (group)`. Tone is error -> error, else
+  // `summaryTone(group.state)` (the same state->tone mapping the DM branch
+  // uses). The title falls back to the localized "Encrypted group" when the
+  // group has no label; the state badge uses the shared `stateLabel` mapper
+  // (like the DM branch); the description interpolates the member count. The
+  // Members fact value is `group.memberCount.toString()` (BigInt -> decimal
+  // string), matching React's `String(group.member_count)`.
+  if (group != null) {
+    final mesh = group.mesh;
+    return DiagnosticSummary(
+      tone: error != null
+          ? DiagnosticSummaryTone.error
+          : _summaryTone(group.state),
+      kicker: l.summaryGroupKicker,
+      title: group.label ?? l.summaryGroupFallbackTitle,
+      state: stateLabel(l, group.state),
+      description: l.summaryGroupDescription(group.memberCount.toString()),
+      facts: [
+        DiagnosticSummaryFact(
+            label: l.summaryFactMembers, value: group.memberCount.toString()),
+        DiagnosticSummaryFact(
+            label: l.summaryFactPeers, value: peerCount(mesh)),
+        DiagnosticSummaryFact(
+            label: l.summaryFactRelay,
+            value: mesh != null ? relayStatus(mesh) : 'booting'),
+      ],
+    );
+  }
+  // Idle/error fallback -- mirrors React's final `return` when all three of
+  // session/channel/group are null. Tone is error -> error, else idle.
   return DiagnosticSummary(
-    tone: error != null ? DiagnosticSummaryTone.error : DiagnosticSummaryTone.idle,
+    tone: error != null
+        ? DiagnosticSummaryTone.error
+        : DiagnosticSummaryTone.idle,
     kicker: l.summaryIdleKicker,
     title: l.summaryNoSessionTitle,
     state: error != null ? l.summaryStateError : l.summaryStateWaiting,
