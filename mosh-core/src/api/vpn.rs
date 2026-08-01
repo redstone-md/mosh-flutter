@@ -41,7 +41,25 @@ pub struct VpnDetection {
 /// Detect whether a VPN appears to own the default route (1:1 port of the
 /// `detect_vpn` Tauri command).
 pub fn detect_vpn() -> Result<VpnDetection, String> {
-    todo!("slice-2: implement detect_vpn")
+    let interfaces = crate::network_inventory::list_interfaces()?;
+    let mut suspect = Vec::new();
+    let mut owns_default = false;
+    for iface in &interfaces {
+        if iface.is_loopback {
+            continue;
+        }
+        if iface.is_vpn {
+            suspect.push(iface.name.clone());
+            if iface.is_default_route {
+                owns_default = true;
+            }
+        }
+    }
+    Ok(VpnDetection {
+        vpn_likely: !suspect.is_empty(),
+        suspect_interfaces: suspect,
+        vpn_owns_default_route: owns_default,
+    })
 }
 
 /// Report the interface the live Moss node is currently bound to (1:1 port
@@ -49,7 +67,7 @@ pub fn detect_vpn() -> Result<VpnDetection, String> {
 /// Tauri command's `Option<String>` return shape directly (no Result wrap —
 /// the Tauri command returned `Option<String>`, not `Result`).
 pub fn get_bind_interface() -> Option<String> {
-    todo!("slice-2: implement get_bind_interface")
+    crate::moss_ffi::current_bind_interface()
 }
 
 /// Read the stored VPN-bypass consent (1:1 port of
@@ -57,7 +75,7 @@ pub fn get_bind_interface() -> Option<String> {
 /// again next launch. Matches the Tauri command's
 /// `Option<VpnBypassConsent>` return shape directly (no Result wrap).
 pub fn get_vpn_bypass_consent() -> Option<VpnBypassConsent> {
-    todo!("slice-2: implement get_vpn_bypass_consent")
+    crate::vpn_consent::load(&crate::api::shared_runtime::resolved_data_dir())
 }
 
 /// Record the VPN-bypass consent (1:1 port of `set_vpn_bypass_consent`).
@@ -66,5 +84,21 @@ pub fn get_vpn_bypass_consent() -> Option<VpnBypassConsent> {
 /// the interface against `network_inventory::list_interfaces` before
 /// saving, exactly as the Tauri command did.
 pub fn set_vpn_bypass_consent(interface: Option<String>) -> Result<(), String> {
-    todo!("slice-2: implement set_vpn_bypass_consent")
+    let dir = crate::api::shared_runtime::resolved_data_dir();
+    let Some(name) = interface.filter(|name| !name.is_empty()) else {
+        return crate::vpn_consent::clear(&dir).map_err(|error| error.to_string());
+    };
+    let interfaces = crate::network_inventory::list_interfaces()?;
+    let iface = interfaces
+        .iter()
+        .find(|iface| iface.name == name && iface.is_up && !iface.is_loopback && !iface.is_virtual)
+        .ok_or_else(|| format!("interface {name:?} is not a usable physical adapter"))?;
+    crate::vpn_consent::save(
+        &dir,
+        &crate::vpn_consent::VpnBypassConsent {
+            interface: iface.name.clone(),
+            index: iface.index,
+        },
+    )
+    .map_err(|error| error.to_string())
 }

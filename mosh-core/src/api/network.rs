@@ -23,5 +23,5 @@ use crate::network_inventory::NetworkInterfaceInfo;
 /// `network_inventory::list_interfaces` name so the api surface matches the
 /// runtime method it delegates to.
 pub fn list_interfaces() -> Result<Vec<NetworkInterfaceInfo>, String> {
-    todo!("slice-2: implement list_network_interfaces")
+    crate::network_inventory::list_interfaces()
 }
