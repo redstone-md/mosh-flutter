@@ -679,4 +679,9 @@
   "callOutgoingAriaLabel": "Исходящий звонок",
   "callOutgoingStatus": "Звоним...",
   "callOutgoingCancel": "Отменить звонок"
+  ,
+  "callActiveAriaLabel": "Активный звонок",
+  "callActiveMute": "Выключить микрофон",
+  "callActiveUnmute": "Включить микрофон",
+  "callActiveHangUp": "Завершить звонок"
 }

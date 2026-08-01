@@ -1175,5 +1175,21 @@
   "callOutgoingCancel": "Cancel call",
   "@callOutgoingCancel": {
     "description": "aria-label/tooltip for the cancel button in the outgoing-call modal (React OutgoingCallModal.tsx)"
+  },
+  "callActiveAriaLabel": "Active call",
+  "@callActiveAriaLabel": {
+    "description": "aria-label for the active-call overlay (React CallOverlay.tsx aria-label)"
+  },
+  "callActiveMute": "Mute",
+  "@callActiveMute": {
+    "description": "aria-label/tooltip for the mute button in the active-call overlay when not muted (React CallOverlay.tsx)"
+  },
+  "callActiveUnmute": "Unmute",
+  "@callActiveUnmute": {
+    "description": "aria-label/tooltip for the mute button in the active-call overlay when muted (React CallOverlay.tsx)"
+  },
+  "callActiveHangUp": "Hang up",
+  "@callActiveHangUp": {
+    "description": "aria-label/tooltip for the hang-up button in the active-call overlay (React CallOverlay.tsx)"
   }
 }
