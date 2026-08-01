@@ -28,7 +28,7 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, can
 // and group `close`), so the two imports MUST use distinct prefixes to avoid
 // collision; the snapshot/result types come in unqualified from their
 // *_runtime.dart modules.
-import 'package:mosh/src/rust/api/channel.dart' as channel_api show poll, list, send, leave;
+import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave;
 import 'package:mosh/src/rust/api/private_group.dart' as group_api show poll, list, send, close;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -100,6 +100,13 @@ class RealBridgeGateway implements Gateway {
   // Channels/groups write seam delegates straight to the frb free functions.
   // The two `send` calls are disambiguated by the channel_api/group_api
   // prefixes; channel teardown is `leave`, group teardown is `close`.
+  // The `joinChannel` seam (slice-3) delegates to channel_api.join; the
+  // request carries name + displayName + listenPort + staticPeer (the same
+  // fields InviteFlowState already sources for createInvite, ADR 0010).
+  @override
+  Future<ChannelSnapshot> joinChannel({required JoinChannelRequest request}) =>
+      channel_api.join(request: request);
+
   @override
   Future<ChannelSendResult> sendChannel({required String name, required String body}) =>
       channel_api.send(name: name, body: body);

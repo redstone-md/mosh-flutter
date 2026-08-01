@@ -253,6 +253,25 @@ class FakeGateway implements Gateway {
   // for leave/close). No state is mutated -- this fake has no message store for
   // channels/groups, so pollChannel/pollGroup keep returning their canned
   // snapshots. Mirrors the SendMessageResult shape used by sendMessage above.
+  // The `joinChannel` seam (slice-3) mirrors pollChannel's canned snapshot --
+  // joining in the fake is a no-op that returns a minimal-but-valid
+  // ChannelSnapshot for the requested name (the real impl returns the post-join
+  // snapshot from the runtime).
+  @override
+  Future<ChannelSnapshot> joinChannel({required JoinChannelRequest request}) =>
+      Future.value(ChannelSnapshot(
+        name: request.name,
+        topic: '',
+        meshId: '',
+        displayName: request.displayName,
+        deviceFingerprint: '',
+        messages: const [],
+        attachments: const [],
+        dmOffers: const [],
+        mesh: null,
+        events: const [],
+      ));
+
   @override
   Future<ChannelSendResult> sendChannel({required String name, required String body}) =>
       Future.value(ChannelSendResult(
