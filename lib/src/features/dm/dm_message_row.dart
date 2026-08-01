@@ -11,7 +11,9 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/dm/call_log_entry.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
@@ -46,7 +48,7 @@ class DmMessageRow extends StatelessWidget {
   final void Function(String attachmentId) onAttachmentCancel;
   final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
   final void Function(String messageId) onRetry;
-  final FailedMessageRetryL10n l;
+  final AppLocalizations l;
 
   @override
   Widget build(BuildContext context) {
@@ -85,34 +87,40 @@ class DmMessageRow extends StatelessWidget {
                 children: [
                   if (!grouped) SenderMeta(message: message),
                   Text(message.body),
-                  if (message.attachment != null)
-                    AttachmentCard(
-                      descriptor: message.attachment!,
-                      view: attachmentView,
-                      own: own,
-                      onDownload: onAttachmentDownload,
-                      onCancel: onAttachmentCancel,
-                      onOpen: onAttachmentOpen,
-                    ),
-                  if (own) DeliveryTicks(status: message.deliveryStatus),
-                  // FailedMessageRetry row (React FailedMessageRetry,
-                  // MessageLists.tsx L354-357) -- renders BELOW the body + AttachmentCard +
-                  // DeliveryTicks, mirroring React's message-body order (FailedMessageRetry
-                  // last child). Gate is the 1-1 port of React's render condition:
-                  // outbound && delivery_status === 'failed' && retryable && message_id
-                  // (outbound == own == from_device == ownDeviceName). The onRetry
-                  // callback fires the Gateway retry seam (retryDmMessage -> frb
-                  // private_dm_retry_message); the gate guarantees message.messageId is
-                  // non-null, so the bang (!) is safe.
-                  if (own &&
-                      message.deliveryStatus == MessageDeliveryStatus.failed &&
-                      message.retryable == true &&
-                      message.messageId != null)
-                    FailedMessageRetry(
-                      deliveryError: message.deliveryError,
-                      onRetry: () => onRetry(message.messageId!),
-                      l: l,
-                    ),
+                 if (message.attachment != null)
+                   AttachmentCard(
+                     descriptor: message.attachment!,
+                     view: attachmentView,
+                     own: own,
+                     onDownload: onAttachmentDownload,
+                     onCancel: onAttachmentCancel,
+                     onOpen: onAttachmentOpen,
+                   ),
+                 // React MessageLists.tsx L342:
+                 //   {message.call_event ? <CallLogEntry event={...} /> : null}
+                 // Renders BELOW the AttachmentCard + ABOVE DeliveryTicks,
+                 // mirroring React's child order.
+                 if (message.callEvent != null)
+                   CallLogEntry(event: message.callEvent!, l: l),
+                 if (own) DeliveryTicks(status: message.deliveryStatus),
+                 // FailedMessageRetry row (React FailedMessageRetry,
+                 // MessageLists.tsx L354-357) -- renders BELOW the body + AttachmentCard +
+                 // DeliveryTicks, mirroring React's message-body order (FailedMessageRetry
+                 // last child). Gate is the 1-1 port of React's render condition:
+                 // outbound && delivery_status === 'failed' && retryable && message_id
+                 // (outbound == own == from_device == ownDeviceName). The onRetry
+                 // callback fires the Gateway retry seam (retryDmMessage -> frb
+                 // private_dm_retry_message); the gate guarantees message.messageId is
+                 // non-null, so the bang (!) is safe.
+                 if (own &&
+                     message.deliveryStatus == MessageDeliveryStatus.failed &&
+                     message.retryable == true &&
+                     message.messageId != null)
+                   FailedMessageRetry(
+                     deliveryError: message.deliveryError,
+                     onRetry: () => onRetry(message.messageId!),
+                     l: l.toFailedMessageRetryL10n(),
+                   ),
                 ],
               ),
             ),
