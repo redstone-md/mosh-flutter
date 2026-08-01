@@ -13,7 +13,6 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
-import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// Grouping window ported 1-1 from React `GROUP_WINDOW_MS`
@@ -140,9 +139,9 @@ class DmMessageListView extends StatelessWidget {
           onAttachmentDownload: callbacks.onDownload,
           onAttachmentCancel: callbacks.onCancel,
           onAttachmentOpen: callbacks.onOpen,
-          onRetry: onRetryMessage,
-          l: AppLocalizations.of(context)!.toFailedMessageRetryL10n(),
-        );
+         onRetry: onRetryMessage,
+         l: AppLocalizations.of(context)!,
+       );
       },
     );
   }
