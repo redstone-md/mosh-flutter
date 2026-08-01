@@ -2,30 +2,41 @@
 /// `src/features/private-dm/DiagnosticsDrawerSections.tsx`.
 ///
 /// In scope (this atomic): the `SessionDiagnostics` "Conversation details"
-/// group ONLY (the first `<div className="diagnostic-group">` inside
-/// `SessionDiagnostics`), plus the shared primitives it needs:
+/// group (the first group) AND the `MeshDiagnostics` "Moss network" group
+/// (the second group), plus the shared primitives they need:
 ///   - `DiagnosticsGroup`  -- the `diagnostic-group` + `diagnostic-group-label`
 ///     shell (reused by `NoActiveSession` here, and by the later
-///     `MeshDiagnostics` / `EventLog` atomics).
+///     `EventLog` atomic).
 ///   - `DiagnosticsRow`     -- the `Row({ k, v })` primitive (a label span +
 ///     a strong value). Named `DiagnosticsRow` to avoid clashing with
 ///     Flutter's `Row`.
+///   - `DiagnosticsEmptyState` -- the `.diagnostic-empty-state` body (a
+///     bold title + a description span). Exposed (public) so both
+///     `NoActiveSession` and `MeshDiagnostics`' "Mesh booting" state reuse
+///     it (small DRY win).
+///   - `MeshDiagnostics`     -- the React `MeshDiagnostics` (the "Moss
+///     network" group: a 2x2 `Metric` grid of Peers/NAT/Relay/Supernode,
+///     then 7 rows). Reuses `peerCount`/`natType`/`relayStatus`/
+///     `peerBreakdown`/`relayBreakdown` from `diagnostics_helpers.dart`
+///     and `shorten` from `lib/src/util/format.dart`.
+///   - `Metric`             -- the React `Metric` (label span + strong
+///     value + small detail) that fills a 2x2 grid cell.
 ///   - `NoActiveSession`    -- the React `NoActiveSession` (a `Session`
 ///     group with an empty-state).
 ///
-/// DEFERRED (separate atomics -- they need more helpers + the event
-/// rendering, and `MeshDiagnostics` reuses helpers already ported but its
-/// `Metric` grid + event rows are a larger surface): `MeshDiagnostics`,
-/// `EventLog`, and the `ChannelDiagnostics` / `GroupDiagnostics` sections
-/// (the latter two need `ChannelSnapshot` / `GroupSnapshot` contracts that
-/// do not exist in the Flutter fork yet). Wiring `SessionDiagnostics` into
-/// `DiagnosticsScreen` is also a later atomic.
+/// DEFERRED (separate atomic -- it needs the `compactDetail`/`formatTime`
+/// helpers + the event-rendering surface): `EventLog` (the third
+/// `SessionDiagnostics` group). The `ChannelDiagnostics` /
+/// `GroupDiagnostics` sections need `ChannelSnapshot` / `GroupSnapshot`
+/// contracts that do not exist in the Flutter fork yet. Wiring
+/// `SessionDiagnostics` into `DiagnosticsScreen` is also a later atomic.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
+import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart';
@@ -180,20 +191,36 @@ class NoActiveSession extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     return DiagnosticsGroup(
       label: l.diagSessionLabel,
-      children: const [_EmptyState()],
+      children: [
+        DiagnosticsEmptyState(
+          title: l.diagNoActiveTitle,
+          description: l.diagNoActiveBody,
+        ),
+      ],
     );
   }
 }
 
 /// The `.diagnostic-empty-state` body: a bold title + a description span.
 /// Mirrors React's `.diagnostic-empty-state` (used by `NoActiveSession`
-/// here, and by the later `MeshDiagnostics` / `EventLog` empty states).
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+/// here, and by `MeshDiagnostics`' "Mesh booting" state; `EventLog`'s empty
+/// state will reuse it when ported). Public so the booting empty-state
+/// shares the exact layout with the no-session empty-state (DRY).
+class DiagnosticsEmptyState extends StatelessWidget {
+  const DiagnosticsEmptyState({
+    super.key,
+    required this.title,
+    required this.description,
+  });
+
+  /// The bold `strong` title (React: `fg-2`, 11.5px, weight 700).
+  final String title;
+
+  /// The description span (React: `fg-3`, 11px, 1.4 line-height).
+  final String description;
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
@@ -202,7 +229,7 @@ class _EmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            l.diagNoActiveTitle,
+            title,
             style: theme.textTheme.bodySmall?.copyWith(
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
@@ -211,7 +238,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            l.diagNoActiveBody,
+            description,
             style: theme.textTheme.bodySmall?.copyWith(
               fontSize: 11,
               height: 1.4,
@@ -224,7 +251,11 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-/// The React `SessionDiagnostics`, Conversation-details group ONLY.
+/// The React `SessionDiagnostics`: the "Conversation details" group (the
+/// first group) followed by the `MeshDiagnostics` "Moss network" group
+/// (the second group). Mirrors React's `SessionDiagnostics`, which renders
+/// three `.diagnostic-group`s: Conversation details, Moss network, and
+/// EventLog. `EventLog` (the third group) is DEFERRED to a later atomic.
 ///
 /// Renders the first `.diagnostic-group` from React's `SessionDiagnostics`:
 /// the "Conversation details" label, then the Peer / MLS state / Path /
@@ -235,12 +266,12 @@ class _EmptyState extends StatelessWidget {
 /// localized). The Session value uses `shorten(session.sessionId, 14)` from
 /// `lib/src/util/format.dart`.
 ///
-/// `MeshDiagnostics` and `EventLog` (the second and third groups in the
-/// React `SessionDiagnostics`) are DEFERRED to separate atomics -- this
-/// widget returns only the Conversation-details group for now. The later
-/// atomic will compose all three groups into one `SessionDiagnostics`
-/// column; until then the drawer wiring (also a later atomic) renders this
-/// group directly.
+/// The second `.diagnostic-group` is the `MeshDiagnostics` "Moss network"
+/// group (rendered below the Conversation-details group). `EventLog` (the
+/// third group) is DEFERRED to a later atomic that ports the event rows.
+/// The session's `mesh` may be `null` (mesh still booting); that case is
+/// handled by `MeshDiagnostics` itself (it renders the "Mesh booting"
+/// empty-state).
 class SessionDiagnostics extends StatelessWidget {
   const SessionDiagnostics({super.key, required this.session});
 
@@ -271,14 +302,22 @@ class SessionDiagnostics extends StatelessWidget {
         ),
       DiagnosticsRow(label: l.diagRowRole, value: session.role),
       DiagnosticsRow(label: l.diagRowDisplay, value: session.displayName),
-      DiagnosticsRow(
-        label: l.diagSessionLabel,
-        value: shorten(session.sessionId, 14),
-      ),
-    ];
-    return DiagnosticsGroup(
-      label: l.diagConversationDetails,
-      children: rows,
-    );
-  }
+     DiagnosticsRow(
+       label: l.diagSessionLabel,
+       value: shorten(session.sessionId, 14),
+     ),
+   ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DiagnosticsGroup(
+          label: l.diagConversationDetails,
+          children: rows,
+        ),
+       MeshDiagnostics(mesh: session.mesh),
+       // EventLog deferred -- ported in a later atomic.
+     ],
+   );
+ }
 }

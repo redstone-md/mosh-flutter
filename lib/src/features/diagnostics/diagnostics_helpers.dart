@@ -1,14 +1,15 @@
 /// Pure mesh-summary helpers for the Diagnostics drawer, 1-в-1 with React's
 /// `src/features/private-dm/DiagnosticsDrawerHelpers.ts`. This atomic ports
-/// the FOUR helpers that the Diagnostics drawer needs so far: `peerCount`,
-/// `natType`, `relayStatus`, and `pathLabel`.
+/// the SIX helpers that the Diagnostics drawer needs so far: `peerCount`,
+/// `natType`, `relayStatus`, `pathLabel`, `peerBreakdown`, and
+/// `relayBreakdown` (the last two are the `MeshDiagnostics` metric
+/// details).
 ///
-/// The other helpers from the React file (`peerBreakdown`, `relayBreakdown`,
-/// `compactDetail`, `formatTime`) are used by the full DiagnosticsDrawer
-/// sections (peer/mesh/event breakdowns), not by the summary card or the
-/// Conversation-details group. They are DEFERRED to a later atomic that ports
-/// the rest of the drawer once the channel/group contracts land in the
-/// Flutter fork. `shorten` is reused from `lib/src/util/format.dart`.
+/// The remaining helpers from the React file (`compactDetail`, `formatTime`)
+/// are used by the `EventLog` section (the third `SessionDiagnostics`
+/// group), which is DEFERRED to a later atomic that ports `EventLog` once
+/// its event-rendering surface is ported. `shorten` is reused from
+/// `lib/src/util/format.dart`.
 library;
 
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -72,4 +73,24 @@ String pathLabel(String path, bool? relayReady) {
     default:
       return path.isEmpty ? 'unknown' : path;
   }
+}
+
+/// Peer-connectivity breakdown for the `Peers` metric detail, 1-в-1 with
+/// React `peerBreakdown(mesh)`:
+/// `"${mesh.direct_peer_count} direct / ${mesh.relayed_peer_count} relayed"`.
+/// Pure (no Flutter deps) so it is unit-testable. The "direct" / "relayed"
+/// words are tight status tokens (matching React literally), so they are
+/// NOT localized.
+String peerBreakdown(MeshInfo mesh) {
+  return '${mesh.directPeerCount} direct / ${mesh.relayedPeerCount} relayed';
+}
+
+/// Relay-capability breakdown for the `Relay` metric detail, 1-в-1 with
+/// React `relayBreakdown(mesh)`:
+/// `"${mesh.relay_capable_peer_count} capable / ${mesh.relay_route_count} routes"`.
+/// Pure (no Flutter deps) so it is unit-testable. The "capable" / "routes"
+/// words are tight status tokens (matching React literally), so they are
+/// NOT localized.
+String relayBreakdown(MeshInfo mesh) {
+  return '${mesh.relayCapablePeerCount} capable / ${mesh.relayRouteCount} routes';
 }
