@@ -277,5 +277,15 @@
   "orgRejoinNeededBody": "This group missed membership changes that could not be replayed. Ask an admin to re-invite you from the roster.",
   "@orgRejoinNeededBody": { "description": "Body of the rejoin-needed notice" },
   "diagnosticsDiagnostics": "Diagnostics",
-  "@diagnosticsDiagnostics": { "description": "AppBar title of the diagnostics screen" }
+  "@diagnosticsDiagnostics": { "description": "AppBar title of the diagnostics screen" },
+  "attachmentStateAvailable": "Available",
+  "@attachmentStateAvailable": { "description": "Attachment transfer state label: file bytes are on disk locally" },
+  "attachmentStateDownloading": "Downloading {percent}%",
+  "@attachmentStateDownloading": { "description": "Attachment transfer state label: chunks are in flight, {percent} of chunks completed", "placeholders": { "percent": { "type": "int" } } },
+  "attachmentStateFailed": "Transfer failed",
+  "@attachmentStateFailed": { "description": "Attachment transfer state label: transfer or verification failed, retry is possible" },
+  "attachmentStateCancelled": "Transfer cancelled",
+  "@attachmentStateCancelled": { "description": "Attachment transfer state label: either side cancelled the transfer" },
+  "attachmentStateOffered": "Ready to download",
+  "@attachmentStateOffered": { "description": "Attachment transfer state label: manifest known, download not started yet" }
 }

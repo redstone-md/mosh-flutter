@@ -33,7 +33,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/rust/outbound_delivery.dart';
+import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -172,6 +173,7 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                     : _MessageListView(
                         ownDeviceName: s.displayName,
                         grouped: groupDmMessages(s.messages).reversed.toList(),
+                        attachments: s.attachments,
                       ),
               ),
             ),
@@ -201,10 +203,15 @@ class _DmScreenState extends ConsumerState<DmScreen> {
 /// computes it chronologically via [groupDmMessages] then reverses it
 /// before passing it here so the window comparison stays correct.
 class _MessageListView extends StatelessWidget {
-  const _MessageListView({required this.grouped, required this.ownDeviceName});
+  const _MessageListView({
+    required this.grouped,
+    required this.ownDeviceName,
+    required this.attachments,
+  });
 
   final List<GroupedMessage> grouped;
   final String ownDeviceName;
+  final List<AttachmentView> attachments;
 
   @override
   Widget build(BuildContext context) {
@@ -216,14 +223,31 @@ class _MessageListView extends StatelessWidget {
         final item = grouped[i];
         final msg = item.message;
         final own = msg.fromDevice == ownDeviceName;
+        // Resolve the live transfer view for this message's attachment by
+        // `attachmentId` (the session's `attachments` list is the views).
+        final attachmentView = msg.attachment == null
+            ? null
+            : _findAttachmentView(attachments, msg.attachment!.attachmentId);
         return _DmMessageRow(
           message: msg,
           own: own,
           grouped: item.grouped,
+          attachmentView: attachmentView,
         );
       },
     );
   }
+}
+
+/// Linear lookup for the attachment view matching `attachmentId`. Session
+/// attachment lists are small (one DM's worth of files), so a plain scan is
+/// the simplest and avoids pulling a Map into the widget tree.
+AttachmentView? _findAttachmentView(
+    List<AttachmentView> attachments, String attachmentId) {
+  for (final v in attachments) {
+    if (v.attachmentId == attachmentId) return v;
+  }
+  return null;
 }
 
 /// Empty-state for a chat with no messages yet (chatEmptyTitle + chatEmptyBody),
@@ -331,11 +355,13 @@ class _DmMessageRow extends StatelessWidget {
     required this.message,
     required this.own,
     required this.grouped,
+    this.attachmentView,
   });
 
   final ChatMessage message;
   final bool own;
   final bool grouped;
+  final AttachmentView? attachmentView;
 
   @override
   Widget build(BuildContext context) {
@@ -350,8 +376,8 @@ class _DmMessageRow extends StatelessWidget {
     // React's `avatar avatar-spacer`.
     final avatarSlot = grouped
         ? const SizedBox(width: _avatarSize)
-        : CircleAvatar(
-            backgroundColor: _avatarColor(message.fromDevice),
+       : CircleAvatar(
+            backgroundColor: avatarColor(message.fromDevice),
             maxRadius: _avatarSize / 2,
             child: Text(
               message.fromDevice.isEmpty
@@ -382,7 +408,13 @@ class _DmMessageRow extends StatelessWidget {
                 children: [
                   if (!grouped) _SenderMeta(message: message),
                   Text(message.body),
-                  if (own) _DeliveryTicks(status: message.deliveryStatus),
+                  if (message.attachment != null)
+                    AttachmentCard(
+                      descriptor: message.attachment!,
+                      view: attachmentView,
+                      own: own,
+                    ),
+                  if (own) DeliveryTicks(status: message.deliveryStatus),
                 ],
               ),
             ),
@@ -406,7 +438,7 @@ class _SenderMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final clock = _formatClock(message.sentAtMs);
+    final clock = formatClock(message.sentAtMs);
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
@@ -432,66 +464,4 @@ class _SenderMeta extends StatelessWidget {
       ),
     );
   }
-}
-
-class _DeliveryTicks extends StatelessWidget {
-  const _DeliveryTicks({required this.status});
-  final MessageDeliveryStatus? status;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = switch (status) {
-      MessageDeliveryStatus.delivered => '\u2713\u2713',
-      MessageDeliveryStatus.sent => '\u2713',
-      MessageDeliveryStatus.pending => '\u2026',
-      MessageDeliveryStatus.failed || null => null,
-    };
-    if (label == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Text(label,
-          style:
-              TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
-    );
-  }
-}
-
-/// Locale-agnostic HH:mm clock for the sender-meta row. Returns null when
-/// the message has no `sentAtMs` (matches React's `MessageTimestamp` early
-/// return on a falsy epoch). Kept local + dep-free so this atomic does not
-/// pull `intl` into the widget tree -- a later atomic can swap this for
-/// `DateFormat.Hm()` once a locale-aware timestamp is wanted.
-String? _formatClock(BigInt? sentAtMs) {
-  if (sentAtMs == null) return null;
-  final ms = sentAtMs.toInt();
-  final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-  final hh = dt.hour.toString().padLeft(2, '0');
-  final mm = dt.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
-}
-
-/// Stable per-device avatar color: a hash of the device name picks one of a
-/// small fixed palette so the same sender always gets the same tint and
-/// different senders usually get different tints (matching React's `Avatar`
-/// behavior). Mirrors the `_avatarColor` helper in sessions_screen.dart;
-/// duplicated here (not imported) so this atomic does not touch
-/// sessions_screen.dart's surface, per the task scope.
-Color _avatarColor(String deviceName) {
-  const palette = [
-    Colors.deepPurple,
-    Colors.indigo,
-    Colors.blue,
-    Colors.teal,
-    Colors.green,
-    Colors.orange,
-    Colors.brown,
-    Colors.pink,
-    Colors.cyan,
-    Colors.amber,
-  ];
-  var hash = 0;
-  for (final code in deviceName.codeUnits) {
-    hash = (hash * 31 + code) & 0x7fffffff;
-  }
-  return palette[hash % palette.length];
 }
