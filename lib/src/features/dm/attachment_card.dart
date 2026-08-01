@@ -11,12 +11,13 @@
 // `hasPreview = Boolean(thumbnail_b64) && (isImage || isVideo)` and the
 // `attachment-card-media` JSX.
 //
-// OUT OF SCOPE (deferred): voice messages (descriptor.voice -> React
-// VoiceMessage), the media viewer / streaming playback, and the cross-
-// platform open launcher (this atomic ships Windows `cmd /c start`; non-
-// Windows is a TODO no-op, a later atomic wires open_filex). React's flow:
-// `if (voice) return VoiceMessage;` (deferred), then `if (hasPreview)
-// return media-card;` (this atomic), then `return file-card;`.
+// OUT OF SCOPE (deferred): the media viewer / streaming playback, and
+// the cross-platform open launcher (this atomic ships Windows cmd /c
+// start; non-Windows is a TODO no-op, a later atomic wires open_filex).
+// Voice messages ARE in scope: descriptor.voice -> VoiceMessageCard
+// (voice_message_card.dart, a separate file to keep this one focused).
+// React flow: if (voice) return VoiceMessage; then if (hasPreview)
+// return media-card; then return file-card.
 //
 // VIDEO play-overlay is IN SCOPE: a centered `Icons.play_circle_filled`
 // overlays the thumbnail when the mime is a video (React's
@@ -46,6 +47,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart';
 
 import 'package:mosh/src/features/dm/attachment_actions.dart';
+import 'package:mosh/src/features/dm/voice_message_card.dart';
 
 /// Renders the in-scope file or image-preview attachment card for a DM
 /// message bubble (see the file doc for scope). `own` is the row's own-
@@ -87,7 +89,18 @@ class AttachmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // React: `if (descriptor.voice) return VoiceMessage;` -- DEFERRED.
+    // React: if (descriptor.voice) return VoiceMessage; (ported).
+    if (descriptor.voice != null) {
+      final l = AppLocalizations.of(context)!;
+      return VoiceMessageCard(
+        descriptor: descriptor,
+        view: view,
+        onDownload: onDownload,
+        playLabel: l.voiceMessagePlayLabel,
+        pauseLabel: l.voiceMessagePauseLabel,
+      );
+    }
+    // React: if (hasPreview) return <attachment-card-media>.
     // React: `if (hasPreview) return <attachment-card-media>`.
     if (_hasPreview) {
       return _MediaPreviewCard(
@@ -178,8 +191,7 @@ class _FileCardShell extends StatelessWidget {
       decoration: BoxDecoration(
         color: failed
             ? theme.colorScheme.errorContainer.withValues(alpha: 0.35)
-            : theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.5),
+            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
       ),
       child: child,
@@ -364,8 +376,8 @@ class _MediaPreviewCard extends StatelessWidget {
                   state: state,
                   percent: percent,
                 ),
-             ),
-             const SizedBox(width: 4),
+              ),
+              const SizedBox(width: 4),
               AttachmentActions(
                 descriptor: descriptor,
                 view: view,
