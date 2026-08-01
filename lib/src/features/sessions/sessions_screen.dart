@@ -15,6 +15,15 @@
 // `lastSeen` persistence) is a later atomic -- here the count shown is the
 // number of not-own messages currently in the session.
 //
+// Channel/group rail items are now wired in too (this atomic): the screen
+// lays out DM sessions, then groups, then channels, with thin `rail-divider`
+// lines between two non-empty adjacent sections -- 1-в-1 with the React
+// `SessionRail` combined rail order (offers -> sessions -> groups -> channels
+// -> orgs; offers/orgs remain deferred, no providers/widgets yet). Channel
+// and group unread counts are passed as 0 for now: no channel/group unread
+// provider exists yet, so computing them from the snapshots is a later
+// atomic. Channel/group `onTap` stay no-ops (no channel/group screen route).
+//
 // State split (ADR 0010): server state lives in `sessionListProvider`
 // (AsyncNotifierProvider<SessionListSnapshot>) -- the TanStack-Query
 // analogue; loading/data/error flows through AsyncValue. The new-session
@@ -32,9 +41,12 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/features/sessions/channel_rail_item.dart';
+import 'package:mosh/src/features/sessions/group_rail_item.dart';
 import 'package:mosh/src/features/sessions/state_dot.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
@@ -45,10 +57,15 @@ import 'package:mosh/src/features/dm/dm_helpers.dart';
 class SessionsScreen extends ConsumerWidget {
   const SessionsScreen({super.key});
 
-  @override
+ @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(sessionListProvider);
+    // Channels/groups providers -- the React SessionRail sections after DMs.
+    // Watched here so a channel/group list update re-renders the combined rail
+    // (ADR 0010 server state, mirrors `sessionListProvider` 1:1).
+    final channelsAsync = ref.watch(channelListProvider);
+    final groupsAsync = ref.watch(groupListProvider);
     // Unread map is data-only; AsyncValue guards leave it {} while loading
     // or on error so the badge simply stays absent (mirrors React clearing
     // to 0 visually during a refresh).
@@ -68,22 +85,51 @@ class SessionsScreen extends ConsumerWidget {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorState(error: e, ref: ref),
-        data: (snapshot) => snapshot.sessions.isEmpty
-            ? _EmptyState(onStart: () => _startChat(context, ref))
-            : RefreshIndicator(
-                onRefresh: () =>
-                    ref.read(sessionListProvider.notifier).refresh(),
-                child: ListView.builder(
-                  itemCount: snapshot.sessions.length,
-                  itemBuilder: (context, i) {
-                    final session = snapshot.sessions[i];
-                    return _SessionRow(
-                      session: session,
-                      unreadCount: unread['dm:${session.sessionId}'] ?? 0,
-                    );
-                  },
-                ),
+        data: (snapshot) {
+          // Channels/groups augment the DM list (React's combined SessionRail).
+          // They resolve independently via their own providers; while loading
+          // or on error they degrade to an empty list (`.value` returns the
+          // nullable snapshot, so `.value?.X ?? const []` contributes nothing)
+          // so the DM rows still render -- the sessions screen is primarily
+          // DMs and channels/groups are additive. Channels/groups auto-refresh
+          // on their own provider invalidation, so the RefreshIndicator only
+          // refreshes the DM list (kept minimal).
+          final channels = channelsAsync.value?.channels ?? const [];
+          final groups = groupsAsync.value?.groups ?? const [];
+          final sessions = snapshot.sessions;
+          // Empty only when ALL three slices are empty (offers/orgs deferred).
+          if (sessions.isEmpty && channels.isEmpty && groups.isEmpty) {
+            return _EmptyState(onStart: () => _startChat(context, ref));
+          }
+          // React SessionRail order: sessions, [divider if groups && sessions],
+          // groups, [divider if channels && (sessions || groups)], channels.
+          // A `Divider` renders only between two non-empty adjacent sections,
+          // mirroring React's conditional `rail-divider` rendering.
+          final children = <Widget>[
+            for (final session in sessions)
+              _SessionRow(
+                session: session,
+                unreadCount: unread['dm:${session.sessionId}'] ?? 0,
               ),
+            if (groups.isNotEmpty && sessions.isNotEmpty)
+              const Divider(height: 1, thickness: 1),
+            for (final group in groups)
+              // TODO(channel-group-unread): channel/group unread counts are a
+              // later atomic (no channel/group unread provider yet); pass 0.
+              GroupRailItem(group: group, unreadCount: 0),
+            if (channels.isNotEmpty &&
+                (sessions.isNotEmpty || groups.isNotEmpty))
+              const Divider(height: 1, thickness: 1),
+            for (final channel in channels)
+              // TODO(channel-group-unread): see the groups loop above.
+              ChannelRailItem(channel: channel, unreadCount: 0),
+          ];
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(sessionListProvider.notifier).refresh(),
+            child: ListView(children: children),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
