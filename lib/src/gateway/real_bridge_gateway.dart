@@ -24,10 +24,12 @@ import 'package:mosh/src/rust/api/diagnostics.dart' as api show appDiagnostics, 
 // they don't shadow the interface method names.
 import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, cancelAttachment, closeSession, createInvite, downloadAttachment, listSessions, pollSession, sendMessage;
 // channel.dart and private_group.dart each define a `poll` and a `list` free
-// function, so the two imports MUST use distinct prefixes to avoid collision;
-// the snapshot types come in unqualified from their *_runtime.dart modules.
-import 'package:mosh/src/rust/api/channel.dart' as channel_api show poll, list;
-import 'package:mosh/src/rust/api/private_group.dart' as group_api show poll, list;
+// function, and each also defines a `send` free function (plus channel `leave`
+// and group `close`), so the two imports MUST use distinct prefixes to avoid
+// collision; the snapshot/result types come in unqualified from their
+// *_runtime.dart modules.
+import 'package:mosh/src/rust/api/channel.dart' as channel_api show poll, list, send, leave;
+import 'package:mosh/src/rust/api/private_group.dart' as group_api show poll, list, send, close;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -94,4 +96,23 @@ class RealBridgeGateway implements Gateway {
 
   @override
   Future<GroupListSnapshot> listGroups() => group_api.list();
+
+  // Channels/groups write seam delegates straight to the frb free functions.
+  // The two `send` calls are disambiguated by the channel_api/group_api
+  // prefixes; channel teardown is `leave`, group teardown is `close`.
+  @override
+  Future<ChannelSendResult> sendChannel({required String name, required String body}) =>
+      channel_api.send(name: name, body: body);
+
+  @override
+  Future<ChannelLeaveResult> leaveChannel({required String name}) =>
+      channel_api.leave(name: name);
+
+  @override
+  Future<GroupSendResult> sendGroup({required String groupId, required String body}) =>
+      group_api.send(groupId: groupId, body: body);
+
+  @override
+  Future<GroupLeaveResult> closeGroup({required String groupId}) =>
+      group_api.close(groupId: groupId);
 }

@@ -24,6 +24,8 @@ import 'package:mosh/src/rust/secure_storage.dart';
 /// All methods complete synchronously via Future.value.
 class FakeGateway implements Gateway {
   final Map<String, SessionSnapshot> _sessions = {};
+  int _channelSendCount = 0;
+  int _groupSendCount = 0;
 
   @override
   Future<AppDiagnostics> appDiagnostics() => Future.value(const AppDiagnostics(
@@ -244,6 +246,42 @@ class FakeGateway implements Gateway {
   @override
   Future<GroupListSnapshot> listGroups() =>
       Future.value(const GroupListSnapshot(groups: []));
+
+  // Channels/groups write seam: the fake has no real channel/group runtime, so
+  // each method returns a canned minimal-but-valid result (zero bytes, a
+  // placeholder messageId, `sent` delivery status for sends; `closed: true`
+  // for leave/close). No state is mutated -- this fake has no message store for
+  // channels/groups, so pollChannel/pollGroup keep returning their canned
+  // snapshots. Mirrors the SendMessageResult shape used by sendMessage above.
+  @override
+  Future<ChannelSendResult> sendChannel({required String name, required String body}) =>
+      Future.value(ChannelSendResult(
+        name: name,
+        bytes: BigInt.from(body.codeUnits.length),
+        messageId: 'fake-channel-${_channelSendCount++}',
+        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
+        deliveryStatus: MessageDeliveryStatus.sent,
+        deliveryError: null,
+      ));
+
+  @override
+  Future<ChannelLeaveResult> leaveChannel({required String name}) =>
+      Future.value(ChannelLeaveResult(name: name, closed: true));
+
+  @override
+  Future<GroupSendResult> sendGroup({required String groupId, required String body}) =>
+      Future.value(GroupSendResult(
+        groupId: groupId,
+        bytes: BigInt.from(body.codeUnits.length),
+        messageId: 'fake-group-${_groupSendCount++}',
+        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
+        deliveryStatus: MessageDeliveryStatus.sent,
+        deliveryError: null,
+      ));
+
+  @override
+  Future<GroupLeaveResult> closeGroup({required String groupId}) =>
+      Future.value(GroupLeaveResult(groupId: groupId, closed: true));
 
   SessionSnapshot _fakeSession({
     required String sessionId,
