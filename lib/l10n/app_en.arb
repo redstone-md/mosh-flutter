@@ -379,5 +379,13 @@
  "diagNoEventsTitle": "No events yet",
  "@diagNoEventsTitle": { "description": "Title of the empty state shown when the event log has no events in the diagnostics drawer" },
  "diagNoEventsBody": "Moss will list peer joins, tracker updates, and relay changes here as they happen.",
- "@diagNoEventsBody": { "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer" }
+ "@diagNoEventsBody": { "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer" },
+ "peerStatusTitle": "Peer status",
+ "@peerStatusTitle": { "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen" },
+ "refreshStatus": "Refresh status",
+ "@refreshStatus": { "description": "Tooltip/aria-label of the refresh button in the Peer status drawer" },
+ "closePeerStatus": "Close peer status",
+ "@closePeerStatus": { "description": "Tooltip/aria-label of the close button in the Peer status drawer" },
+ "openPeerStatus": "Open peer status",
+ "@openPeerStatus": { "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen" }
  }
