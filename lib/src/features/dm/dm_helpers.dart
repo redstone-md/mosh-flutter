@@ -101,6 +101,30 @@ Color avatarColor(String deviceName) {
   return palette[hash % palette.length];
 }
 
+/// React `Avatar` initials (src/features/private-dm/Avatar.tsx): split the
+/// name on whitespace/underscore/dash, take the first char of each part,
+/// drop empties (leading/trailing separators yield empty parts), join,
+/// keep at most 2 chars, uppercase; return `"?"` when the result is empty
+/// (mirrors React's `initials || "?"` fallback). Sibling of [avatarColor]:
+/// the DM message row and the sessions list row both render an avatar with
+/// initials, so the algorithm lives here once (DRY) and both screens call
+/// this -- previously each call site rendered only the first char
+/// (`label[0].toUpperCase()`), a parity gap that lost the second initial of
+/// compound names (e.g. `juno-phone` rendered `J` instead of `JP`).
+String avatarInitials(String name) {
+  final parts = name.split(RegExp(r'[\s_-]+'));
+  // `.where((p) => p.isNotEmpty)` drops the empty strings that a
+  // leading/trailing/multiple separator produces (React's `.filter(Boolean)`),
+  // then take the first char of each surviving part (React's `.map(p => p[0])`).
+  final initials = parts.where((p) => p.isNotEmpty).map((p) => p[0]).join();
+  // `.substring(0, min(2, len))` mirrors React's `.slice(0, 2)` (max 2
+  // initials) without the `characters` package for grapheme splitting -- the
+  // initials are first chars of ASCII-ish device/label strings, so a UTF-16
+  // code-unit slice matches React's JS string slice.
+  final capped = initials.length >= 2 ? initials.substring(0, 2) : initials;
+  return capped.isEmpty ? '?' : capped.toUpperCase();
+}
+
 /// Unread-message count badge for a DM session row. 1-в-1 with React's
 /// `UnreadBadge` (src/features/private-dm/SessionRail.tsx): renders nothing
 /// when `count <= 0`, the literal count otherwise, and `99+` past 99. The
