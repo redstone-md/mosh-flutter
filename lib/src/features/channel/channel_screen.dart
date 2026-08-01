@@ -9,10 +9,10 @@
 // ConversationTools (search/filter) + message list (own vs others by
 // FINGERPRINT) + composer + peer-status drawer overlay.
 //
-// Deferred (slice-3 Rust Gateway seam): attachment/voice SENDING
-// (AttachmentPicker + ChatComposer ChatDropZone/onSendVoice) and the
-// attachment download/cancel transfer seam. AttachmentCard DISPLAY of an
-// already-received attachment is ported (channel_message_row.dart).
+// Deferred (slice-3): voice sending (VoiceComposer onSendVoice) + drag-drop
+// (ChatComposer ChatDropZone). Attachment sending (picker -> sendChannelAttachment)
+// + download/cancel transfer seam are ported; AttachmentCard display is ported
+// (channel_message_row.dart).
 //
 // Own-vs-others rule (React MessageLists.tsx ChannelChatList):
 // own = message.fromFingerprint == channel.deviceFingerprint. Fingerprint

@@ -1,21 +1,18 @@
-/// Shared conversation composer for the channel + group screens -- the
-/// 1-в-1 port of React's `ChatComposer.tsx` `Composer` (the DM screen keeps
-/// its own `_Composer` because DM attachment-SEND is blocked on the Rust
-/// side -- there is no `send_private_attachment` frb binding in this fork,
-/// so the DM composer has no paperclip).
+/// Shared conversation composer for the DM + channel + group screens --
+/// the 1-в-1 port of React ChatComposer.tsx Composer. All three screens
+/// wire AttachmentPicker (paperclip) + TextField + send button through this
+/// widget; the screen owns the controller + sending flag + the per-kind
+/// send*Attachment Gateway seam.
 //
-// React Composer (ChatComposer.tsx): `<form>` -> `.composer-box` ->
-// AttachmentPicker (paperclip, when `onAttach` set) -> VoiceComposer (when
-// `onSendVoice` set) -> `<input>` (message) -> `.send-button`. This Flutter
-// port renders: AttachmentPicker (always wired -- both callers pass it) ->
-// TextField -> FilledButton. Voice is a later slice (VoiceComposer widget);
-// the `onSendVoice`/`voice` params are not part of this widget's surface
-// yet (added when voice lands).
+// React Composer (ChatComposer.tsx): form -> .composer-box -> AttachmentPicker
+// (when onAttach) -> VoiceComposer (when onSendVoice) -> input -> send-button.
+// This Flutter port renders AttachmentPicker -> TextField -> FilledButton.
+// Voice + drag-drop (ChatDropZone) are later slices -- the onSendVoice /
+// onDrop params are not part of this widget surface yet.
 //
-// Disabled semantics mirror React: `disabled` gates the picker + the input
-// + the send button. `sending` (a separate flag -- React `sending` prop)
-// swaps the Send button's icon for a spinner and forces `enabled` false.
-// `onSend` fires on the button OR on submit (Enter) when `canSend`.
+// Disabled semantics mirror React: disabled gates the picker + input + send
+// button; sending (separate flag, React sending prop) swaps the send icon
+// for a spinner and forces enabled false. onSend fires on button or submit.
 library;
 
 import 'package:flutter/material.dart';
