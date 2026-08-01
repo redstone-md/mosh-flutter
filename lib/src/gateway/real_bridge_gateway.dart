@@ -13,6 +13,7 @@
 // -- which is exactly the behaviour the Fake could not reproduce.
 
 import 'package:mosh/src/gateway/gateway.dart';
+import 'package:mosh/src/rust/channel_runtime.dart';
 // diagnostics.dart defines both the AppDiagnostics/NativeRuntimeStatus types
 // and the appDiagnostics()/nativeRuntimeStatus() free functions. The function
 // names collide with this class's own method names, so import the functions
@@ -22,6 +23,12 @@ import 'package:mosh/src/rust/api/diagnostics.dart' as api show appDiagnostics, 
 // private_dm.dart defines only free functions (no types); prefix them so
 // they don't shadow the interface method names.
 import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, cancelAttachment, closeSession, createInvite, downloadAttachment, listSessions, pollSession, sendMessage;
+// channel.dart and private_group.dart each define a `poll` and a `list` free
+// function, so the two imports MUST use distinct prefixes to avoid collision;
+// the snapshot types come in unqualified from their *_runtime.dart modules.
+import 'package:mosh/src/rust/api/channel.dart' as channel_api show poll, list;
+import 'package:mosh/src/rust/api/private_group.dart' as group_api show poll, list;
+import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// Real `mosh_core`-backed Gateway. See file doc for the lifecycle contract.
@@ -71,4 +78,20 @@ class RealBridgeGateway implements Gateway {
     required String sessionId,
     required String attachmentId,
   }) => api.cancelAttachment(sessionId: sessionId, attachmentId: attachmentId);
+
+  // Channels/groups read seam delegates straight to the frb free functions.
+  // channel_api / group_api keep the colliding `poll`/`list` names apart.
+  @override
+  Future<ChannelSnapshot> pollChannel({required String name}) =>
+      channel_api.poll(name: name);
+
+  @override
+  Future<ChannelListSnapshot> listChannels() => channel_api.list();
+
+  @override
+  Future<GroupSnapshot> pollGroup({required String groupId}) =>
+      group_api.poll(groupId: groupId);
+
+  @override
+  Future<GroupListSnapshot> listGroups() => group_api.list();
 }
