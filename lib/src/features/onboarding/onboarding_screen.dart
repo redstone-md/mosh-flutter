@@ -27,6 +27,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
 import 'package:mosh/src/features/shared/disclosure.dart';
+import 'package:mosh/src/features/shared/field.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -40,6 +41,8 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final TextEditingController _nameController;
+  late final TextEditingController _staticPeerController;
+  late final TextEditingController _listenPortController;
 
   @override
   void initState() {
@@ -47,16 +50,35 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     // Seed from the provider so a rebuild does not clobber an entered name.
     _nameController =
         TextEditingController(text: ref.read(inviteFlowProvider).displayName);
+    // Advanced disclosure fields -- seeded from inviteFlow (staticPeer is
+    // nullable String, listenPort defaults to 8765) so they survive rebuilds.
+    _staticPeerController =
+        TextEditingController(text: ref.read(inviteFlowProvider).staticPeer ?? '');
+    _listenPortController = TextEditingController(
+        text: ref.read(inviteFlowProvider).listenPort.toString());
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _staticPeerController.dispose();
+    _listenPortController.dispose();
     super.dispose();
   }
 
   void _onNameChanged(String value) =>
       ref.read(inviteFlowProvider.notifier).setDisplayName(value);
+
+  // Advanced disclosure handlers (1-в-1 with React's NewSessionPanelMenu.tsx):
+  // staticPeer mirrors `props.onStaticPeer(e.target.value)` (null when empty to
+  // match the String? state); listenPort mirrors `Number(e.target.value) || 0`
+  // via tryParse with a 0 fallback on non-numeric input.
+  void _onStaticPeerChanged(String value) =>
+      ref.read(inviteFlowProvider.notifier).setStaticPeer(value.isEmpty ? null : value);
+  void _onListenPortChanged(String value) {
+    final n = int.tryParse(value) ?? 0;
+    ref.read(inviteFlowProvider.notifier).setListenPort(n);
+  }
 
   // S2-1: navigate via go_router. The home route is '/', so these are
   // push-style destinations (back returns here). go_router resolves the
@@ -143,6 +165,52 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   onTap: _goJoin,
                 ),
                 const SizedBox(height: 18),
+                Disclosure(
+                  icon: Icons.settings,
+                  label: l.onboardAdvancedToggle,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Field(
+                        label: l.setupStaticPeerLabel,
+                        hint: l.setupStaticPeerHint,
+                        child: TextField(
+                          controller: _staticPeerController,
+                          decoration: InputDecoration(
+                            hintText: l.setupStaticPeerPlaceholder,
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 11, vertical: 9),
+                          ),
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(fontSize: 12.5),
+                          onChanged: _onStaticPeerChanged,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Field(
+                        label: l.setupListenPortLabel,
+                        hint: l.setupListenPortHint,
+                        child: TextField(
+                          controller: _listenPortController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 11, vertical: 9),
+                          ),
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(fontSize: 12.5),
+                          onChanged: _onListenPortChanged,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
                 Disclosure(
                   icon: Icons.verified_user,
                   label: l.onboardAboutToggle,
