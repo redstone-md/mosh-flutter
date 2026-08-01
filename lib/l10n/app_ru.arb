@@ -314,4 +314,13 @@
   "@summaryGroupDescription": { "description": "Description of the diagnostics summary card when a private group is active, with the member count", "placeholders": { "memberCount": { "type": "String" } } },
   "summaryFactMembers": "Участники",
   "@summaryFactMembers": { "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active" }
+  ,
+  "messageFailedToSend": "Не удалось отправить",
+  "@messageFailedToSend": { "description": "Fallback error text shown in the FailedMessageRetry row below a failed outbound message when deliveryError is null/empty (React inline literal in MessageLists.tsx FailedMessageRetry, the <span> fallback)" },
+  "messageFailedWithError": "Сбой: {error}",
+  "@messageFailedWithError": { "description": "Screen-reader status label for the FailedMessageRetry row when deliveryError is present (React aria-label `Failed: ${deliveryError}`), with the trimmed delivery error", "placeholders": { "error": { "type": "String" } } },
+  "messageRetry": "Повторить",
+  "@messageRetry": { "description": "Retry button text in the FailedMessageRetry row below a failed outbound message (React inline literal 'Retry' button text)" },
+  "retryFailedMessage": "Повторить неудачное сообщение",
+  "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" }
 }

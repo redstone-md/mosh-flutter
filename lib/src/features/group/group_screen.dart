@@ -250,6 +250,7 @@ class _GroupMessageListView extends StatelessWidget {
     // Chronological grouping (oldest -> newest), then reversed for the
     // reverse=true ListView (newest at the bottom). Mirrors ChannelScreen.
     final grouped = groupGroupMessages(messages).reversed.toList();
+    final l = AppLocalizations.of(context)!;
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       reverse: true,
@@ -270,6 +271,7 @@ class _GroupMessageListView extends StatelessWidget {
           ownFingerprint: ownFingerprint,
           grouped: item.grouped,
           attachmentView: attachmentView,
+          l: l,
           // TODO(channel-group-attachment-transfer): wire to Gateway
           // download/cancel/open once the channel/group attachment-
           // transfer seam exists. No-op stubs for the display-only stage

@@ -26,8 +26,11 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/outbound_delivery.dart';
+import 'package:mosh/l10n/app_localizations.dart';
 
 /// Grouping window ported 1-1 from React `GROUP_WINDOW_MS`
 /// (src/features/private-dm/MessageLists.tsx): 5 minutes. Shared with the
@@ -158,6 +161,7 @@ class ChannelMessageRow extends StatelessWidget {
     required this.onAttachmentDownload,
     required this.onAttachmentCancel,
     required this.onAttachmentOpen,
+    required this.l,
   });
 
   final ChannelMessage message;
@@ -173,6 +177,11 @@ class ChannelMessageRow extends StatelessWidget {
   final void Function(String attachmentId) onAttachmentDownload;
   final void Function(String attachmentId) onAttachmentCancel;
   final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
+
+  /// Localized strings for the [FailedMessageRetry] row (the React
+  /// component inlined "Failed to send" / "Retry" / "Retry failed message";
+  /// the Flutter port localizes them via ARB).
+  final AppLocalizations l;
 
   @override
   Widget build(BuildContext context) {
@@ -215,6 +224,33 @@ class ChannelMessageRow extends StatelessWidget {
                   onDownload: onAttachmentDownload,
                   onCancel: onAttachmentCancel,
                   onOpen: onAttachmentOpen,
+                ),
+              // FailedMessageRetry row (React `FailedMessageRetry`,
+              // MessageLists.tsx L434-468) -- renders BELOW the body +
+              // AttachmentCard, inside the message bubble's Column,
+              // mirroring React's `<div className="message-body"> ...
+              // <FailedMessageRetry/></div>` order. Gate is the 1-в-1 port
+              // of React's render condition: `outbound && delivery_status
+              // === "failed" && retryable && message_id` (outbound == own
+              // == fromFingerprint == ownFingerprint). RENDER-ONLY: the
+              // `onRetry` callback is a NO-OP STUB; the Gateway retry seam
+              // (Rust `channel_retry_message` + frb codegen + Gateway
+              // method) is a LATER atomic.
+              if (own &&
+                  message.deliveryStatus == MessageDeliveryStatus.failed &&
+                  message.retryable == true &&
+                  message.messageId != null)
+                // TODO(channel-group-retry-seam): wire onRetry to the
+                // Gateway retry method (React `retryChannelMessage`,
+                // native-messaging-gateway.ts L494 + Rust
+                // `channel_retry_message`, src-tauri/src/lib.rs L780) once
+                // the Flutter Gateway ports it. No-op stub for the
+                // display-only stage (mirrors the AttachmentCard atomic's
+                // `b879a02` no-op stub pattern).
+                FailedMessageRetry(
+                  deliveryError: message.deliveryError,
+                  onRetry: () {},
+                  l: l.toFailedMessageRetryL10n(),
                 ),
             ],
           ),
