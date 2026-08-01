@@ -3,6 +3,7 @@
 // methods with canned data + an in-memory session map. Canned snapshots
 // live in fake_gateway_snapshots.dart (extracted to keep this under 500 lines).
 
+import 'dart:typed_data' show Uint8List;
 import 'package:mosh/src/gateway/fake_gateway_snapshots.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart'
@@ -12,16 +13,15 @@ import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
-import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
 /// Slice-one fake runtime: canned diagnostics + an in-memory session map.
 ///
-/// Stateful by design (ADR 0013): each createInvite/acceptInvite inserts a
+/// Stateful by design (ADR 0013): createInvite/acceptInvite insert a
 /// SessionSnapshot; sendMessage/pollSession/closeSession mutate or read it.
-/// All canned snapshots come from fake_gateway_snapshots.dart (pure helpers).
+/// Canned snapshots come from fake_gateway_snapshots.dart (pure helpers).
 class FakeGateway implements Gateway {
   final Map<String, SessionSnapshot> _sessions = {};
   int _channelSendCount = 0;
@@ -87,14 +87,10 @@ class FakeGateway implements Gateway {
     final sentAtMs = BigInt.from(DateTime.now().millisecondsSinceEpoch);
     final messageId = 'msg-${existing.messages.length + 1}';
     _sessions[sessionId] = withMessage(existing, body, messageId, sentAtMs);
-    return Future.value(SendMessageResult(
+    return Future.value(cannedSendMessageResult(
       sessionId: sessionId,
-      state: 'connecting',
-      ciphertextBytes: BigInt.from(body.codeUnits.length),
       messageId: messageId,
-      sentAtMs: sentAtMs,
-      deliveryStatus: MessageDeliveryStatus.sent,
-      deliveryError: null,
+      ciphertextBytes: BigInt.from(body.codeUnits.length),
     ));
   }
 
@@ -103,14 +99,10 @@ class FakeGateway implements Gateway {
     required String sessionId,
     required String messageId,
   }) =>
-      Future.value(SendMessageResult(
+      Future.value(cannedSendMessageResult(
         sessionId: sessionId,
-        state: 'connecting',
-        ciphertextBytes: BigInt.zero,
         messageId: messageId,
-        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-        deliveryStatus: MessageDeliveryStatus.sent,
-        deliveryError: null,
+        ciphertextBytes: BigInt.zero,
       ));
 
   @override
@@ -136,10 +128,8 @@ class FakeGateway implements Gateway {
     );
   }
 
-  // Attachment transfer control is a no-op in the fake: the real runtime
-  // drives progress through pump_attachment_requests + relay jobs, and this
-  // fake has no transfer machinery, so pollSession keeps returning its canned
-  // snapshot. Both methods complete with Future.value (no state change).
+  // Attachment transfer control: no-op in the fake (no transfer machinery);
+  // both methods complete with Future.value (no state change).
   @override
   Future<void> downloadAttachment({
     required String sessionId,
@@ -181,63 +171,48 @@ class FakeGateway implements Gateway {
   @override
   Future<ChannelSendResult> sendChannel(
           {required String name, required String body}) =>
-      Future.value(ChannelSendResult(
+      Future.value(cannedChannelSendResult(
         name: name,
-        bytes: BigInt.from(body.codeUnits.length),
         messageId: 'fake-channel-${_channelSendCount++}',
-        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-        deliveryStatus: MessageDeliveryStatus.sent,
-        deliveryError: null,
+        bytes: BigInt.from(body.codeUnits.length),
       ));
-
   @override
   Future<ChannelSendResult> retryChannelMessage(
           {required String name, required String messageId}) =>
-      Future.value(ChannelSendResult(
+      Future.value(cannedChannelSendResult(
         name: name,
-        bytes: BigInt.zero,
         messageId: 'fake-channel-${_channelSendCount++}',
-        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-        deliveryStatus: MessageDeliveryStatus.sent,
-        deliveryError: null,
+        bytes: BigInt.zero,
       ));
 
   @override
   Future<ChannelLeaveResult> leaveChannel({required String name}) =>
       Future.value(ChannelLeaveResult(name: name, closed: true));
 
-  @override
-  Future<GroupSendResult> sendGroup(
-          {required String groupId, required String body}) =>
-      Future.value(GroupSendResult(
-        groupId: groupId,
-        bytes: BigInt.from(body.codeUnits.length),
-        messageId: 'fake-group-${_groupSendCount++}',
-        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-        deliveryStatus: MessageDeliveryStatus.sent,
-        deliveryError: null,
-      ));
+ @override
+ Future<GroupSendResult> sendGroup(
+         {required String groupId, required String body}) =>
+     Future.value(cannedGroupSendResult(
+       groupId: groupId,
+       messageId: 'fake-group-${_groupSendCount++}',
+       bytes: BigInt.from(body.codeUnits.length),
+     ));
 
-  @override
-  Future<GroupSendResult> retryGroupMessage(
-          {required String groupId, required String messageId}) =>
-      Future.value(GroupSendResult(
-        groupId: groupId,
-        bytes: BigInt.zero,
-        messageId: 'fake-group-${_groupSendCount++}',
-        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-        deliveryStatus: MessageDeliveryStatus.sent,
-        deliveryError: null,
-      ));
+ @override
+ Future<GroupSendResult> retryGroupMessage(
+         {required String groupId, required String messageId}) =>
+     Future.value(cannedGroupSendResult(
+       groupId: groupId,
+       messageId: 'fake-group-${_groupSendCount++}',
+       bytes: BigInt.zero,
+     ));
 
   @override
   Future<GroupLeaveResult> closeGroup({required String groupId}) =>
       Future.value(GroupLeaveResult(groupId: groupId, closed: true));
 
-  // The `createGroup` seam (slice-3) mirrors the React happy path: a canned
-  // GroupCreated with a deterministic invite URI derived from the requested
-  // label so the GroupCreateScreen InviteResult branch has something to
-  // render + copy (the real impl returns the runtime-minted invite URI).
+  // createGroup: canned GroupCreated with a deterministic invite URI derived
+  // from the label (GroupCreateScreen InviteResult branch has something to copy).
   @override
   Future<GroupCreated> createGroup({required CreateGroupRequest request}) {
     final label = request.label ?? '';
@@ -251,10 +226,8 @@ class FakeGateway implements Gateway {
     ));
   }
 
-  // The `joinGroup` seam (slice-3) mirrors pollGroup's canned snapshot shape;
-  // the groupId is parsed from the invite URI's `group=` query param (the
-  // same param `detectInvite` reads) so the screen navigates to
-  // `groupFor(groupId)` with a deterministic value the test can assert.
+  // joinGroup: canned snapshot; groupId parsed from the invite URI `group=`
+  // param (same param detectInvite reads) so navigation is deterministic.
   @override
   Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) {
     final groupId = groupIdFromInviteUri(request.inviteUri);
@@ -267,10 +240,8 @@ class FakeGateway implements Gateway {
     ));
   }
 
-  // DM-offer dismiss seams (slice-3): the fake has no real offer store, so
-  // both are no-ops that complete synchronously (the screen refreshes its
-  // channel/group snapshot after the call, which still has the offer until
-  // a real runtime is wired). Mirrors the Future<void> shape of the real impls.
+  // DM-offer dismiss seams: no-ops (no offer store); the screen refreshes its
+  // snapshot after the call.
   @override
   Future<void> dismissChannelDmOffer(
           {required String name, required String offerId}) =>
@@ -310,10 +281,11 @@ class FakeGateway implements Gateway {
     String? thumbnailBase64,
     VoiceMeta? voice,
   }) =>
-      Future.value(AttachmentSendResult(
-        sessionId: 'fake-channel:$name',
-        attachmentId: 'fake-channel-attachment:${fileName.hashCode}',
-        contentHash: 'fake-hash:${dataBase64.hashCode}',
+      Future.value(cannedAttachmentSendResult(
+        sessionPrefix: 'fake-channel',
+        id: name,
+        fileName: fileName,
+        dataBase64: dataBase64,
       ));
   @override
   Future<AttachmentSendResult> sendPrivateAttachment({
@@ -324,10 +296,11 @@ class FakeGateway implements Gateway {
     String? thumbnailBase64,
     VoiceMeta? voice,
   }) =>
-      Future.value(AttachmentSendResult(
-        sessionId: 'fake-dm:$sessionId',
-        attachmentId: 'fake-dm-attachment:${fileName.hashCode}',
-        contentHash: 'fake-hash:${dataBase64.hashCode}',
+      Future.value(cannedAttachmentSendResult(
+        sessionPrefix: 'fake-dm',
+        id: sessionId,
+        fileName: fileName,
+        dataBase64: dataBase64,
       ));
   @override
   Future<AttachmentSendResult> sendGroupAttachment({
@@ -338,29 +311,23 @@ class FakeGateway implements Gateway {
     String? thumbnailBase64,
     VoiceMeta? voice,
   }) =>
-      Future.value(AttachmentSendResult(
-        sessionId: 'fake-group:$groupId',
-        attachmentId: 'fake-group-attachment:${fileName.hashCode}',
-        contentHash: 'fake-hash:${dataBase64.hashCode}',
+      Future.value(cannedAttachmentSendResult(
+        sessionPrefix: 'fake-group',
+        id: groupId,
+        fileName: fileName,
+        dataBase64: dataBase64,
       ));
 
-  // The `joinOrg` seam (slice-3) mirrors the React happy path: a canned
-  // OrgSnapshot with empty-but-valid members/offers/links. React's joinOrg
-  // does NOT navigate to a dedicated screen -- it just leaves setup +
-  // refreshes the orgs list -- so the caller navigates to the sessions list,
-  // where the org appears after refresh.
+  // joinOrg: canned OrgSnapshot (empty-but-valid). React does NOT navigate to
+  // a dedicated screen -- the caller leaves setup + the org appears on refresh.
   @override
   Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
       Future.value(cannedOrgSnapshot(
           orgPubkey: orgPubkeyFromBundleUri(request.bundleUri)));
 
-  // Org surface (the rest). The fake has no real org runtime, so each
-  // method returns a canned minimal-but-valid result: read methods
-  // (listOrgs/pollOrg) return empty/canned snapshots; write methods
-  // (leaveOrg/dismiss*) return void; the cross-runtime offer methods return
-  // canned InviteCreated/SessionSnapshot/GroupCreated/GroupSnapshot. No
-  // state is mutated except acceptOrgDmOffer (inserts the accepted session
-  // into the in-memory session map, mirroring acceptInvite).
+  // Org surface (the rest): canned minimal-but-valid results (no real org
+  // runtime). acceptOrgDmOffer inserts into the session map (mirrors
+  // acceptInvite); the rest mutate no state.
   @override
   Future<void> leaveOrg({required String orgPubkey}) => Future.value();
 
@@ -491,4 +458,42 @@ class FakeGateway implements Gateway {
     );
     return Future.value();
   }
+  // Voice-call surface (DM-only). The fake has no call runtime, so the control
+  // methods are no-ops; callStart returns a canned CallStarted (from
+  // fake_gateway_snapshots) so a call-UI test can drive the modal.
+  @override
+  Future<CallStarted> callStart({required String sessionId}) =>
+      Future.value(cannedCallStarted(sessionId));
+
+  @override
+  Future<void> callAccept({required String sessionId, required String callId}) =>
+      Future.value();
+  @override
+  Future<void> callDecline({
+    required String sessionId,
+    required String callId,
+    required String reason,
+  }) =>
+      Future.value();
+  @override
+  Future<void> callEnd({
+    required String sessionId,
+    required String callId,
+    required String reason,
+  }) =>
+      Future.value();
+  @override
+  Future<void> callSendFrame({
+    required String sessionId,
+    required String callId,
+    required Uint8List frame,
+  }) =>
+      Future.value();
+
+  @override
+  Future<List<Uint8List>> callDrainFrames({
+    required String sessionId,
+    required String callId,
+  }) =>
+      Future.value(const <Uint8List>[]);
 }

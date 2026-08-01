@@ -12,6 +12,7 @@
 // before init throws via the frb generated `RustLib.instance.api` indirection
 // -- which is exactly the behaviour the Fake could not reproduce.
 
+import 'dart:typed_data' show Uint8List;
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 // diagnostics.dart defines both the AppDiagnostics/NativeRuntimeStatus types
@@ -35,7 +36,13 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api
         pollSession,
         sendAttachment,
         sendMessage,
-        retryMessage;
+        retryMessage,
+        callStart,
+        callAccept,
+        callDecline,
+        callEnd,
+        callSendFrame,
+        callDrainFrames;
 // channel.dart and private_group.dart each define a `poll` and a `list` free
 // function, and each also defines a `send` free function (plus channel `leave`
 // and group `close`), so the two imports MUST use distinct prefixes to avoid
@@ -435,4 +442,47 @@ class RealBridgeGateway implements Gateway {
   @override
   Future<void> setVpnBypassConsent({String? interfaceName}) =>
       vpn_api.setVpnBypassConsent(interface_: interfaceName);
+  // Voice-call surface: delegates to api (frb bindings for api::private_dm
+  // call_*, implemented in c86b712). DM-only.
+  @override
+  Future<CallStarted> callStart({required String sessionId}) =>
+      api.callStart(sessionId: sessionId);
+
+  @override
+  Future<void> callAccept({
+    required String sessionId,
+    required String callId,
+  }) =>
+      api.callAccept(sessionId: sessionId, callId: callId);
+
+  @override
+  Future<void> callDecline({
+    required String sessionId,
+    required String callId,
+    required String reason,
+  }) =>
+      api.callDecline(sessionId: sessionId, callId: callId, reason: reason);
+
+  @override
+  Future<void> callEnd({
+    required String sessionId,
+    required String callId,
+    required String reason,
+  }) =>
+      api.callEnd(sessionId: sessionId, callId: callId, reason: reason);
+
+  @override
+  Future<void> callSendFrame({
+    required String sessionId,
+    required String callId,
+    required Uint8List frame,
+  }) =>
+      api.callSendFrame(sessionId: sessionId, callId: callId, frame: frame);
+
+  @override
+  Future<List<Uint8List>> callDrainFrames({
+    required String sessionId,
+    required String callId,
+  }) =>
+      api.callDrainFrames(sessionId: sessionId, callId: callId);
 }

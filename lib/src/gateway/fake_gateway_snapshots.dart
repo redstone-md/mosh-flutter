@@ -10,7 +10,8 @@ import 'package:mosh/src/rust/api/diagnostics.dart'
         OpenMlsRoundTripRuntimeStatus,
         OpenMlsSmokeRuntimeStatus;
 import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
-import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
+import 'package:mosh/src/rust/channel_runtime.dart'
+    show ChannelSendResult, ChannelSnapshot;
 import 'package:mosh/src/rust/moss_runtime.dart' show MossRuntimeStatus;
 import 'package:mosh/src/rust/openmls_crypto.dart'
     show OpenMlsRoundTripStatus, OpenMlsSmokeStatus;
@@ -19,8 +20,10 @@ import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/persistence.dart' show PersistenceRuntimeStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show ChatMessage, SessionSnapshot;
-import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
+    show AttachmentSendResult, CallStarted, ChatMessage, SendMessageResult,
+        SessionSnapshot;
+import 'package:mosh/src/rust/private_group_runtime.dart'
+    show GroupSendResult, GroupSnapshot;
 import 'package:mosh/src/rust/secure_storage.dart' show SecureStorageStatus;
 
 /// Canned [AppDiagnostics] for FakeGateway.appDiagnostics().
@@ -257,3 +260,78 @@ String orgPubkeyFromBundleUri(String bundleUri) {
   final org = parsed?.queryParameters['org'];
   return (org == null || org.isEmpty) ? 'fake-org-joined' : org;
 }
+
+/// Canned [CallStarted] for FakeGateway.callStart (1:1 with React demo
+/// gateway). Deterministic call id + dummy key/nonce so a future call-UI
+/// test can assert against the canned value without the runtime.
+CallStarted cannedCallStarted(String sessionId) => CallStarted(
+      sessionId: sessionId,
+      callId: 'fake-call',
+      keyB64: 'fake-key',
+      noncePrefixB64: 'fake-nonce',
+    );
+
+/// Canned [AttachmentSendResult] for the three send*Attachment seams
+/// (channel/DM/group). The id prefix + the id value differ per kind; the
+/// attachmentId/contentHash derive from the file name + payload hash so the
+/// screen can invalidate + the next poll renders a distinct row.
+AttachmentSendResult cannedAttachmentSendResult({
+  required String sessionPrefix,
+  required String id,
+  required String fileName,
+  required String dataBase64,
+}) =>
+    AttachmentSendResult(
+      sessionId: '$sessionPrefix:$id',
+      attachmentId: 'fake-$sessionPrefix-attachment:${fileName.hashCode}',
+      contentHash: 'fake-hash:${dataBase64.hashCode}',
+    );
+
+/// Canned [SendMessageResult] for FakeGateway.sendMessage + retryDmMessage.
+/// `state` is `connecting`, `deliveryStatus.sent`, `deliveryError` null;
+/// `ciphertextBytes` is the caller-supplied payload length (or zero for a
+/// retry), `sentAtMs` is now.
+SendMessageResult cannedSendMessageResult({
+  required String sessionId,
+  required String messageId,
+  required BigInt ciphertextBytes,
+}) =>
+    SendMessageResult(
+      sessionId: sessionId,
+      state: 'connecting',
+      ciphertextBytes: ciphertextBytes,
+      messageId: messageId,
+      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
+      deliveryStatus: MessageDeliveryStatus.sent,
+      deliveryError: null,
+    );
+
+/// Canned [ChannelSendResult] for FakeGateway.sendChannel + retryChannelMessage.
+ChannelSendResult cannedChannelSendResult({
+  required String name,
+  required String messageId,
+  required BigInt bytes,
+}) =>
+    ChannelSendResult(
+      name: name,
+      bytes: bytes,
+      messageId: messageId,
+      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
+      deliveryStatus: MessageDeliveryStatus.sent,
+      deliveryError: null,
+    );
+
+/// Canned [GroupSendResult] for FakeGateway.sendGroup + retryGroupMessage.
+GroupSendResult cannedGroupSendResult({
+  required String groupId,
+  required String messageId,
+  required BigInt bytes,
+}) =>
+    GroupSendResult(
+      groupId: groupId,
+      bytes: bytes,
+      messageId: messageId,
+      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
+      deliveryStatus: MessageDeliveryStatus.sent,
+      deliveryError: null,
+    );
