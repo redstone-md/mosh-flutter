@@ -23,6 +23,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:record/record.dart';
+import 'package:media_kit/media_kit.dart';
 
 /// A finished voice clip ready to send (1-в-1 with React `VoiceSend`). `path`
 /// points at the recorded file; `mime` is the container; `durationMs` + the
@@ -98,6 +99,12 @@ class _VoiceComposerState extends State<VoiceComposer> {
   String? _path;
   String _mime = '';
   int _durationMs = 0;
+  // Review-phase preview player (media_kit). Lazy + nullable: created on the
+  // first _togglePreview and disposed on discard / send / widget dispose.
+  // Null (test env without the native lib) -> the play button is a no-op,
+  // matching the previous inert placeholder so existing tests stay green.
+  Player? _previewPlayer;
+  bool _previewPlaying = false;
 
   @override
   void initState() {
@@ -118,6 +125,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
   void dispose() {
     _stopTimers();
     _amplitudeSub?.cancel();
+    _disposePreview();
     _recorder.dispose();
     super.dispose();
   }
@@ -127,6 +135,38 @@ class _VoiceComposerState extends State<VoiceComposer> {
     _elapsedTimer = null;
     _autoStopTimer?.cancel();
     _autoStopTimer = null;
+  }
+
+  /// Toggle the review-phase preview (React `playPreview`). Lazily creates
+  /// a media_kit Player on first tap, opens the recorded file, and
+  /// playOrPauses. The playing stream drives the play/pause icon. Defensive:
+  /// if Player() throws (test env), the button is a no-op so the review row
+  /// still renders 1-в-1 with React minus live preview.
+  Future<void> _togglePreview() async {
+    final path = _path;
+    if (path == null) return;
+    var player = _previewPlayer;
+    try {
+      if (player == null) {
+        player = Player();
+        _previewPlayer = player;
+        player.stream.playing.listen((playing) {
+          if (mounted) setState(() => _previewPlaying = playing);
+        });
+        await player.open(Media(path));
+      } else {
+        await player.playOrPause();
+      }
+    } catch (_) {
+      _previewPlayer = null;
+      _previewPlaying = false;
+    }
+  }
+
+  void _disposePreview() {
+    _previewPlayer?.dispose();
+    _previewPlayer = null;
+    _previewPlaying = false;
   }
 
   Future<void> _startRecording() async {
@@ -199,6 +239,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
     _amplitudeSub?.cancel();
     _amplitudeSub = null;
     await _cleanupRecorder();
+    _disposePreview();
     if (mounted) setState(() => _phase = _Phase.idle);
   }
 
@@ -221,6 +262,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
 
   void _send() {
     if (_path == null) return;
+    _disposePreview();
     final peaks = Uint8List.fromList(_peaks);
     widget.onSend(VoiceSend(
       path: _path!,
@@ -273,14 +315,12 @@ class _VoiceComposerState extends State<VoiceComposer> {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.play_arrow),
+              // React playPreview toggles the <audio> play state. The icon
+              // swaps play_arrow <-> pause on the playing stream (set in
+              // _togglePreview).
+              icon: Icon(_previewPlaying ? Icons.pause : Icons.play_arrow),
               tooltip: widget.playLabel,
-              onPressed: () {
-                // Play preview is a later atomic (needs audioplayers + the
-                // recorded file path). Disabled here so the review row still
-                // renders with duration + discard + send (1-в-1 with React
-                // except the play button stays inert until that lands).
-              },
+              onPressed: _togglePreview,
             ),
             const SizedBox(width: 8),
             Text(_formatElapsed(Duration(milliseconds: _durationMs))),
