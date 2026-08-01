@@ -6,9 +6,15 @@
 // `construct_runtime` then opens the DB with `Persistence::open_with_dek`
 // instead of the OS keychain, so the live runtime uses the Keystore DEK on a
 // device. The DEK round-trips through the Keystore as base64 (the plugin's
-// API is String-only). No biometrics yet (deferred); `AndroidOptions` is set
-// to `storageNamespace: "app.mosh.mobile"`, mirroring the desktop
-// `OsSecureSecretStore` SERVICE_NAME `app.mosh.desktop`.
+// API is String-only). M-7 (ADR 0011): user-presence gating is DEFAULT-ON
+// via `AndroidOptions.biometric(enforceBiometrics: true, ...)`, which
+// selects the KeyStore-backed AES-GCM/NoPadding key+storage ciphers (the
+// only combination that supports `setUserAuthenticationRequired`) and
+// requires the device to have a biometric OR device credential (PIN,
+// pattern, password) enrolled, failing closed on an insecure device rather
+// than storing the DEK unauthenticated. The namespace
+// `storageNamespace: "app.mosh.mobile"` is preserved from M-3, mirroring
+// the desktop `OsSecureSecretStore` SERVICE_NAME `app.mosh.desktop`.
 //
 // DESIGN (testability): the real Keystore read + the Rust call are device-only
 // and host-untestable, so the decision logic is split from the platform
@@ -41,7 +47,7 @@ import 'dart:math' show Random;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:mosh/src/rust/api/private_dm.dart' as api show setHistoryDek;
 import 'package:mosh/src/platform/app_data_dir.dart' show appDataDir;
 
@@ -56,6 +62,26 @@ const String _dekKey = 'history-dek-v1';
 /// desktop backends occupy symmetric namespaces (`app.mosh.mobile` /
 /// `app.mosh.desktop`) under the same `app.mosh.*` scheme.
 const String _storageNamespace = 'app.mosh.mobile';
+
+/// Builds the Android Keystore options for the at-rest history DEK.
+///
+/// M-7 (ADR 0011): user-presence gating is DEFAULT-ON. We use the
+/// `AndroidOptions.biometric(...)` constructor which selects the
+/// KeyStore-backed `AES_GCM_NoPadding` key+storage ciphers (the only
+/// combination that supports `setUserAuthenticationRequired`) and
+/// requires the device to have a biometric OR device credential
+/// (PIN/pattern/password) enrolled, failing closed on an insecure
+/// device rather than storing the DEK unauthenticated. The namespace
+/// `app.mosh.mobile` is preserved from M-3.
+@visibleForTesting
+AndroidOptions buildDekAndroidOptions() => const AndroidOptions.biometric(
+      storageNamespace: _storageNamespace,
+      enforceBiometrics: true,
+      biometricType: AndroidBiometricType.biometricOrDeviceCredential,
+      biometricPromptTitle: 'Unlock Mosh',
+      biometricPromptSubtitle: 'Authenticate to access your conversations',
+      biometricPromptNegativeButton: 'Cancel',
+    );
 
 /// The DEK length in bytes (AES-256-GCM key). Must match the Rust
 /// `set_history_dek` validation (`dek.len() == 32`).
@@ -87,8 +113,8 @@ abstract class MobileDekStorage {
 /// Android (the inject path is gated `Platform.isAndroid` upstream).
 class _FlutterSecureStorageDek implements MobileDekStorage {
   _FlutterSecureStorageDek()
-      : _storage = const FlutterSecureStorage(
-          aOptions: AndroidOptions(storageNamespace: _storageNamespace),
+      : _storage = FlutterSecureStorage(
+          aOptions: buildDekAndroidOptions(),
         );
 
   final FlutterSecureStorage _storage;
