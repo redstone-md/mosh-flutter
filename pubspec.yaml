@@ -57,6 +57,16 @@ dependencies:
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
+  # Voice-call real-runtime slice: AES-GCM frame seal/open for 1:1 calls
+  # (1-в-1 port of React frame-crypto.ts). pure-Dart AesGcm with a
+  # cryptography_flutter native backend (Android/iOS/macOS) and background
+  # impl on Windows/Linux. One package covers desktop + mobile + web.
+  cryptography: ^2.9.0
+  # Native AES-GCM acceleration: FlutterAesGcm is up to 50x faster than the
+  # pure-Dart impl on Android/iOS/macOS; BackgroundAesGcm handles large
+  # inputs on Windows/Linux. Pure-Dart fallback works in `flutter test`
+  # without initialization, so frame_crypto tests stay host-agnostic.
+  cryptography_flutter: ^2.3.4
 
 dev_dependencies:
   flutter_test:
