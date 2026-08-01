@@ -1034,9 +1034,12 @@ pinning the condition). 256/256 green, analyze clean, all files < 500 lines.
 
 1. ~~group_screen.dart 499-line ceiling~~ DONE (f619c1f refactor extracted the
    header into group_screen_header.dart; 151 lines of headroom restored).
-2. Russian member-count plural grammar (membersCount/membersCountSingular):
-   convert to a single ICU MessageFormat plural key with one/few/many forms;
-   drop the memberCount == BigInt.one branch.
+2. ~~Russian member-count plural grammar~~ DONE (e972715): converted membersCount
+   to an ICU MessageFormat plural (en one/other; ru one/few/many/other),
+   removed membersCountSingular, simplified _groupSubtitle to a single
+   l.membersCount(n) call. English byte-identical (1 member / 2 members tests
+   pass unchanged); Russian now correct (2 участника via ICU few). The rail
+   count=1 also improved ("1 member" instead of "1 members").
 3. channel/group attachment-transfer Gateway seam: Rust + frb codegen for
    download/cancel/open_attachment parameterized by conversation kind (currently
    no-op stubs in the channel/group screens, deferred from b879a02). NOTE: this
@@ -1047,6 +1050,51 @@ pinning the condition). 256/256 green, analyze clean, all files < 500 lines.
    UI flow on the emulator (displayName entry + invite creation) to create the
    DB, then verify it survives restart. Not blocking -- basic integration
    (apk + biometric + Keystore DEK + onboarding) is already verified.
+5. Group orgAddPrompt banner (ActiveChatPanes.tsx L361-378): needs count/busy/
+   onAdd props from an org-roster Gateway provider which doesn't exist in
+   Flutter yet. Deferred from the needs_rejoin atomic (af59430) -- a
+   TODO(group-org-add-prompt) marks it. The needs_rejoin inline-error (the
+   sibling afterHeader fragment) IS now ported (af59430).
+
+## Member-count ICU plural (DONE, commit e972715)
+
+i18n-polish fixing Russian grammar. Converted the membersCount ARB key from a
+flat string to an ICU MessageFormat plural so the locale selects the correct
+form from the count value. en: "{count, plural, one {{count} member} other
+{{count} members}}" (English ICU needs one + other only). ru: "{count, plural,
+one {{count} участник} few {{count} участника} many {{count} участников} other
+{{count} участников}}" (ICU pluralLogic selects: one for 1/21/31, few for 2-4,
+many for 5-20/11-14; verified against the generated app_localizations_ru.dart --
+few: '$count участника' for count=2). Removed the redundant membersCountSingular
+key + metadata from both ARB files (the ICU one form covers the singular).
+Simplified group_screen_header.dart _groupSubtitle from the
+memberCount == BigInt.one ? membersCountSingular(n) : membersCount(n) ternary
+to a single l.membersCount(n) call. The generated membersCount(int count)
+accessor signature is unchanged, so the second caller (group_rail_item.dart
+subtitle) inherits the fix and now renders "1 member" instead of "1 members"
+for count=1. English rendering byte-identical (the 2 header plural tests pass
+unchanged: 1 member / 2 members). 256/256 green, analyze clean.
+
+## Group needs_rejoin inline-error (DONE, commit af59430)
+
+Port the React ActiveGroupChat afterHeader needs_rejoin fragment
+(ActiveChatPanes.tsx L355-360) into the Flutter GroupScreen body Column between
+the GroupNotice banner and ConversationTools (matching React's afterHeader
+order). New _RejoinNeededError widget (inlined in group_screen.dart) renders
+ONLY when the snapshot is resolved AND group.needsRejoin is true (loading/error
+-> no banner). Structure mirrors React's <div className="inline-error"
+role=alert>: a Container with the .inline-error CSS values (10x14 padding,
+10px radius, 8% bg + 35% border at the danger alpha) derived from Material
+colorScheme.error, holding a Text.rich with a bold title span (period appended
+-- React's <strong>{title}.</strong> puts the . outside the title string) + a
+space + the body span. Accessibility: Semantics(liveRegion: true, container:
+true) (Flutter has no alert role; liveRegion is the announce-able equivalent).
+Existing orgRejoinNeededTitle/orgRejoinNeededBody ARB keys reused (en values
+match React content.ts exactly); no new ARB keys. The orgAddPrompt banner (the
+sibling afterHeader fragment) is NOT ported -- needs an org-roster Gateway
+provider; a TODO(group-org-add-prompt) marks it deferred. Tests: +2 (rejoin
+renders / doesn't render). 258/258 green, analyze clean, group_screen.dart 469
+lines (< 500; dart format normalized the edited Column indentation).
 
 ## Channel/group UI-parity status
 
