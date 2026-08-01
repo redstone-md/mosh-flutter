@@ -30,8 +30,10 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, can
 // *_runtime.dart modules.
 import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave;
 import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, joinGroup, poll, list, send, close;
+import 'package:mosh/src/rust/api/org.dart' as org_api show joinOrg;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/org_runtime.dart';
 
 /// Real `mosh_core`-backed Gateway. See file doc for the lifecycle contract.
 class RealBridgeGateway implements Gateway {
@@ -136,4 +138,11 @@ class RealBridgeGateway implements Gateway {
   @override
   Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) =>
       group_api.joinGroup(request: request);
+  // The `joinOrg` seam (slice-3) delegates to org_api.joinOrg; the request
+  // carries bundleUri + displayName + listenPort + staticPeer? (a
+  // `mosh://org` bundle URI, not an invite URI -- org joins use a different
+  // field name than group joins).
+  @override
+  Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
+      org_api.joinOrg(request: request);
 }

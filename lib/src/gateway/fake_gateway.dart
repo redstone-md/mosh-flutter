@@ -10,6 +10,7 @@ import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
+import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/moss_runtime.dart';
@@ -348,6 +349,30 @@ class FakeGateway implements Gateway {
     ));
   }
 
+  // The `joinOrg` seam (slice-3) mirrors the React happy path: a canned
+  // OrgSnapshot with empty-but-valid members/offers/links (the org has no
+  // other members in the fake) + a deterministic orgPubkey derived from the
+  // bundle URI. React's joinOrg does NOT navigate to a dedicated screen --
+  // it just leaves setup + refreshes the orgs list -- so the caller
+  // navigates to the sessions list, where the org appears after refresh.
+  @override
+  Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) {
+    final orgPubkey = _orgPubkeyFromBundleUri(request.bundleUri);
+    return Future.value(OrgSnapshot(
+      orgPubkey: orgPubkey,
+      orgName: '',
+      meshId: '',
+      ownPeerId: '',
+      confirmationCode: '',
+      inRoster: false,
+      rosterVersion: null,
+      members: const [],
+      dmOffers: const [],
+      groupOffers: const [],
+      dmLinks: const [],
+    ));
+  }
+
   SessionSnapshot _fakeSession({
     required String sessionId,
     required String displayName,
@@ -431,4 +456,14 @@ String _groupIdFromInviteUri(String inviteUri) {
   final parsed = Uri.tryParse(inviteUri);
   final group = parsed?.queryParameters['group'];
   return (group == null || group.isEmpty) ? 'fake-group-joined' : group;
+}
+
+/// Derives a deterministic orgPubkey from a `mosh://org?...` bundle URI so
+/// [FakeGateway.joinOrg] returns a non-empty pubkey the caller can use to
+/// refresh the orgs list. Uses the `org=` query param when present (mirrors
+/// `detectInvite`'s org classification); falls back to `fake-org-joined`.
+String _orgPubkeyFromBundleUri(String bundleUri) {
+  final parsed = Uri.tryParse(bundleUri);
+  final org = parsed?.queryParameters['org'];
+  return (org == null || org.isEmpty) ? 'fake-org-joined' : org;
 }

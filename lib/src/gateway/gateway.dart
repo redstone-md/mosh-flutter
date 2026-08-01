@@ -4,19 +4,21 @@
 // widgets depend on `Gateway`, never on a concrete impl, so swapping the
 // wired runtime is one provider change (ADR 0013).
 //
-// The twenty-one methods below mirror the slice-one Rust `mosh_core::api`
+// The twenty-two methods below mirror the slice-one Rust `mosh_core::api`
 // surface 1:1, poll-based (no streams). Signatures match the generated frb
 // functions. The channels/groups read seam adds pollChannel/listChannels/
 // pollGroup/listGroups; the channels/groups write seam adds joinChannel/
-// sendChannel/leaveChannel/sendGroup/closeGroup/createGroup/joinGroup. The
-// remaining write halves (sendAttachment/dm offers/listInterfaces/VPN) land
-// in later atomics -- the frb functions for them already exist in
-// `lib/src/rust/api/`; only the Gateway seam + UI wiring is missing.
+// sendChannel/leaveChannel/sendGroup/closeGroup/createGroup/joinGroup; the
+// org write seam adds joinOrg. The remaining write halves (sendAttachment/
+// dm offers/listInterfaces/VPN) land in later atomics -- the frb functions
+// for them already exist in `lib/src/rust/api/`; only the Gateway seam + UI
+// wiring is missing.
 
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
+import 'package:mosh/src/rust/org_runtime.dart';
 
 /// Abstraction over the slice-one private-DM + diagnostics API.
 ///
@@ -66,4 +68,11 @@ abstract interface class Gateway {
   Future<GroupLeaveResult> closeGroup({required String groupId});
   Future<GroupCreated> createGroup({required CreateGroupRequest request});
   Future<GroupSnapshot> joinGroup({required JoinGroupRequest request});
+
+  // Org write seam (1:1 port of `org_join`). `joinOrg` is the fourth slice-3
+  // write seam -- joins an org from a `mosh://org` bundle URI. Unlike the
+  // channel/group flows, the org runtime is a container (members + DM/group
+  // offers), not a chat, so the result is an OrgSnapshot the caller uses to
+  // refresh the orgs list (no dedicated org screen yet).
+  Future<OrgSnapshot> joinOrg({required JoinOrgRequest request});
 }
