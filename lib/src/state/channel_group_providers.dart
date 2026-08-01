@@ -57,9 +57,18 @@ class GroupListNotifier extends AsyncNotifier<GroupListSnapshot> {
   Future<GroupListSnapshot> build() =>
       ref.watch(gatewayProvider).listGroups();
 
-  /// Re-run the server query after a mutation (create/join/send/leave,
-  /// later atomic).
+/// Re-run the server query after a mutation (create/join/send/leave,
+/// later atomic).
   Future<void> refresh() async => state = await AsyncValue.guard(
         () => ref.read(gatewayProvider).listGroups(),
       );
 }
+
+/// Server state: one channel's snapshot, parameterized by name (channel
+/// screen, S5-1). A one-shot read per watch, mirroring `activeSessionProvider`
+/// 1:1 but against `Gateway.pollChannel`. The ChannelScreen re-polls by
+/// invalidating the family entry after a send/leave (ADR 0010 family idiom).
+final channelSnapshotProvider =
+    FutureProvider.family<ChannelSnapshot, String>(
+  (ref, name) => ref.watch(gatewayProvider).pollChannel(name: name),
+);
