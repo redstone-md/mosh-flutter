@@ -176,14 +176,14 @@ class SessionsScreen extends ConsumerWidget {
                 channel: channel,
                 unreadCount: unreadChannels['channel:${channel.name}'] ?? 0,
               ),
-            if (orgs.isNotEmpty &&
-                (sessions.isNotEmpty || groups.isNotEmpty || channels.isNotEmpty))
-              const Divider(height: 1, thickness: 1),
-            for (final org in orgs)
+            for (final org in orgs) ...[
               // React SessionRail renders each org wrapped in a
-              // `rail-divider` + `OrgSection`. The 9 callbacks pass through
-              // to the org action helpers (gateway + refresh + navigation);
+              // `rail-divider` + `OrgSection` (the divider is INSIDE the
+              // per-org map, unconditional, so N orgs render N dividers --
+              // one above each org header). The 7 callbacks pass through to
+              // the org action helpers (gateway + refresh + navigation);
               // `busy` is a parity-first `false` (no operation-bus yet).
+              const Divider(height: 1, thickness: 1),
               OrgSection(
                 org: org,
                 busy: false,
@@ -201,6 +201,7 @@ class SessionsScreen extends ConsumerWidget {
                 onLeave: (o) => leaveOrgAction(context, ref, o),
                 l: l,
               ),
+            ],
           ];
           return RefreshIndicator(
             onRefresh: () =>
