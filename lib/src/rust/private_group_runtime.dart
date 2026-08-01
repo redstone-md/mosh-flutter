@@ -9,243 +9,339 @@ import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'private_dm_runtime/contracts.dart';
 
+class CreateGroupRequest {
+  final String? label;
+  final String displayName;
+  final int listenPort;
+  final String? staticPeer;
 
-            
+  /// Set = org-bound group (ADR 0008): peer-id credentials, enveloped
+  /// control traffic, roster-derived authority and revocation.
+  final String? orgPubkey;
 
-            
+  const CreateGroupRequest({
+    this.label,
+    required this.displayName,
+    required this.listenPort,
+    this.staticPeer,
+    this.orgPubkey,
+  });
 
-            class CreateGroupRequest  {
-                final String? label;
-final String displayName;
-final int listenPort;
-final String? staticPeer;
-/// Set = org-bound group (ADR 0008): peer-id credentials, enveloped
-/// control traffic, roster-derived authority and revocation.
-final String? orgPubkey;
+  @override
+  int get hashCode =>
+      label.hashCode ^
+      displayName.hashCode ^
+      listenPort.hashCode ^
+      staticPeer.hashCode ^
+      orgPubkey.hashCode;
 
-                const CreateGroupRequest({this.label ,required this.displayName ,required this.listenPort ,this.staticPeer ,this.orgPubkey ,});
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CreateGroupRequest &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          displayName == other.displayName &&
+          listenPort == other.listenPort &&
+          staticPeer == other.staticPeer &&
+          orgPubkey == other.orgPubkey;
+}
 
-                
-                
+class GroupCreated {
+  final String groupId;
+  final String meshId;
+  final String inviteUri;
+  final String fingerprint;
+  final String? label;
 
-                
-        @override
-        int get hashCode => label.hashCode^displayName.hashCode^listenPort.hashCode^staticPeer.hashCode^orgPubkey.hashCode;
-        
+  const GroupCreated({
+    required this.groupId,
+    required this.meshId,
+    required this.inviteUri,
+    required this.fingerprint,
+    this.label,
+  });
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is CreateGroupRequest &&
-                runtimeType == other.runtimeType
-                && label == other.label&& displayName == other.displayName&& listenPort == other.listenPort&& staticPeer == other.staticPeer&& orgPubkey == other.orgPubkey;
-        
-            }
+  @override
+  int get hashCode =>
+      groupId.hashCode ^
+      meshId.hashCode ^
+      inviteUri.hashCode ^
+      fingerprint.hashCode ^
+      label.hashCode;
 
-class GroupCreated  {
-                final String groupId;
-final String meshId;
-final String inviteUri;
-final String fingerprint;
-final String? label;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupCreated &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          meshId == other.meshId &&
+          inviteUri == other.inviteUri &&
+          fingerprint == other.fingerprint &&
+          label == other.label;
+}
 
-                const GroupCreated({required this.groupId ,required this.meshId ,required this.inviteUri ,required this.fingerprint ,this.label ,});
+class GroupLeaveResult {
+  final String groupId;
+  final bool closed;
 
-                
-                
+  const GroupLeaveResult({
+    required this.groupId,
+    required this.closed,
+  });
 
-                
-        @override
-        int get hashCode => groupId.hashCode^meshId.hashCode^inviteUri.hashCode^fingerprint.hashCode^label.hashCode;
-        
+  @override
+  int get hashCode => groupId.hashCode ^ closed.hashCode;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is GroupCreated &&
-                runtimeType == other.runtimeType
-                && groupId == other.groupId&& meshId == other.meshId&& inviteUri == other.inviteUri&& fingerprint == other.fingerprint&& label == other.label;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupLeaveResult &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          closed == other.closed;
+}
 
-class GroupLeaveResult  {
-                final String groupId;
-final bool closed;
+class GroupListSnapshot {
+  final List<GroupSnapshot> groups;
 
-                const GroupLeaveResult({required this.groupId ,required this.closed ,});
+  const GroupListSnapshot({
+    required this.groups,
+  });
 
-                
-                
+  @override
+  int get hashCode => groups.hashCode;
 
-                
-        @override
-        int get hashCode => groupId.hashCode^closed.hashCode;
-        
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupListSnapshot &&
+          runtimeType == other.runtimeType &&
+          groups == other.groups;
+}
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is GroupLeaveResult &&
-                runtimeType == other.runtimeType
-                && groupId == other.groupId&& closed == other.closed;
-        
-            }
+class GroupMessage {
+  final String fromDevice;
+  final String fromFingerprint;
+  final String body;
+  final String? messageId;
+  final BigInt? sentAtMs;
+  final AttachmentDescriptor? attachment;
+  final MessageDeliveryStatus? deliveryStatus;
+  final String? deliveryError;
+  final bool? retryable;
+  final int? retryCount;
 
-class GroupListSnapshot  {
-                final List<GroupSnapshot> groups;
+  const GroupMessage({
+    required this.fromDevice,
+    required this.fromFingerprint,
+    required this.body,
+    this.messageId,
+    this.sentAtMs,
+    this.attachment,
+    this.deliveryStatus,
+    this.deliveryError,
+    this.retryable,
+    this.retryCount,
+  });
 
-                const GroupListSnapshot({required this.groups ,});
+  @override
+  int get hashCode =>
+      fromDevice.hashCode ^
+      fromFingerprint.hashCode ^
+      body.hashCode ^
+      messageId.hashCode ^
+      sentAtMs.hashCode ^
+      attachment.hashCode ^
+      deliveryStatus.hashCode ^
+      deliveryError.hashCode ^
+      retryable.hashCode ^
+      retryCount.hashCode;
 
-                
-                
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupMessage &&
+          runtimeType == other.runtimeType &&
+          fromDevice == other.fromDevice &&
+          fromFingerprint == other.fromFingerprint &&
+          body == other.body &&
+          messageId == other.messageId &&
+          sentAtMs == other.sentAtMs &&
+          attachment == other.attachment &&
+          deliveryStatus == other.deliveryStatus &&
+          deliveryError == other.deliveryError &&
+          retryable == other.retryable &&
+          retryCount == other.retryCount;
+}
 
-                
-        @override
-        int get hashCode => groups.hashCode;
-        
+class GroupSendResult {
+  final String groupId;
+  final BigInt bytes;
+  final String messageId;
+  final BigInt sentAtMs;
+  final MessageDeliveryStatus deliveryStatus;
+  final String? deliveryError;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is GroupListSnapshot &&
-                runtimeType == other.runtimeType
-                && groups == other.groups;
-        
-            }
+  const GroupSendResult({
+    required this.groupId,
+    required this.bytes,
+    required this.messageId,
+    required this.sentAtMs,
+    required this.deliveryStatus,
+    this.deliveryError,
+  });
 
-class GroupMessage  {
-                final String fromDevice;
-final String fromFingerprint;
-final String body;
-final String? messageId;
-final BigInt? sentAtMs;
-final AttachmentDescriptor? attachment;
-final MessageDeliveryStatus? deliveryStatus;
-final String? deliveryError;
-final bool? retryable;
-final int? retryCount;
+  @override
+  int get hashCode =>
+      groupId.hashCode ^
+      bytes.hashCode ^
+      messageId.hashCode ^
+      sentAtMs.hashCode ^
+      deliveryStatus.hashCode ^
+      deliveryError.hashCode;
 
-                const GroupMessage({required this.fromDevice ,required this.fromFingerprint ,required this.body ,this.messageId ,this.sentAtMs ,this.attachment ,this.deliveryStatus ,this.deliveryError ,this.retryable ,this.retryCount ,});
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupSendResult &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          bytes == other.bytes &&
+          messageId == other.messageId &&
+          sentAtMs == other.sentAtMs &&
+          deliveryStatus == other.deliveryStatus &&
+          deliveryError == other.deliveryError;
+}
 
-                
-                
+class GroupSnapshot {
+  final String groupId;
+  final String meshId;
+  final String? label;
+  final String displayName;
+  final String deviceFingerprint;
+  final String creatorFingerprint;
+  final bool isAdmin;
+  final String state;
+  final BigInt memberCount;
+  final String? inviteUri;
+  final List<GroupMessage> messages;
+  final List<AttachmentView> attachments;
+  final List<DmOffer> dmOffers;
+  final MeshInfo? mesh;
+  final List<SnapshotEvent> events;
 
-                
-        @override
-        int get hashCode => fromDevice.hashCode^fromFingerprint.hashCode^body.hashCode^messageId.hashCode^sentAtMs.hashCode^attachment.hashCode^deliveryStatus.hashCode^deliveryError.hashCode^retryable.hashCode^retryCount.hashCode;
-        
+  /// A commit gap could not be bridged by resync; the member must rejoin.
+  final bool needsRejoin;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is GroupMessage &&
-                runtimeType == other.runtimeType
-                && fromDevice == other.fromDevice&& fromFingerprint == other.fromFingerprint&& body == other.body&& messageId == other.messageId&& sentAtMs == other.sentAtMs&& attachment == other.attachment&& deliveryStatus == other.deliveryStatus&& deliveryError == other.deliveryError&& retryable == other.retryable&& retryCount == other.retryCount;
-        
-            }
+  /// Some = org-bound group (ADR 0008).
+  final String? orgPubkey;
 
-class GroupSendResult  {
-                final String groupId;
-final BigInt bytes;
-final String messageId;
-final BigInt sentAtMs;
-final MessageDeliveryStatus deliveryStatus;
-final String? deliveryError;
+  /// Leaf credential identities; on org groups these are moss peer-ids,
+  /// letting the UI diff the roster against group membership.
+  final List<String> memberPeerIds;
 
-                const GroupSendResult({required this.groupId ,required this.bytes ,required this.messageId ,required this.sentAtMs ,required this.deliveryStatus ,this.deliveryError ,});
+  const GroupSnapshot({
+    required this.groupId,
+    required this.meshId,
+    this.label,
+    required this.displayName,
+    required this.deviceFingerprint,
+    required this.creatorFingerprint,
+    required this.isAdmin,
+    required this.state,
+    required this.memberCount,
+    this.inviteUri,
+    required this.messages,
+    required this.attachments,
+    required this.dmOffers,
+    this.mesh,
+    required this.events,
+    required this.needsRejoin,
+    this.orgPubkey,
+    required this.memberPeerIds,
+  });
 
-                
-                
+  @override
+  int get hashCode =>
+      groupId.hashCode ^
+      meshId.hashCode ^
+      label.hashCode ^
+      displayName.hashCode ^
+      deviceFingerprint.hashCode ^
+      creatorFingerprint.hashCode ^
+      isAdmin.hashCode ^
+      state.hashCode ^
+      memberCount.hashCode ^
+      inviteUri.hashCode ^
+      messages.hashCode ^
+      attachments.hashCode ^
+      dmOffers.hashCode ^
+      mesh.hashCode ^
+      events.hashCode ^
+      needsRejoin.hashCode ^
+      orgPubkey.hashCode ^
+      memberPeerIds.hashCode;
 
-                
-        @override
-        int get hashCode => groupId.hashCode^bytes.hashCode^messageId.hashCode^sentAtMs.hashCode^deliveryStatus.hashCode^deliveryError.hashCode;
-        
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupSnapshot &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          meshId == other.meshId &&
+          label == other.label &&
+          displayName == other.displayName &&
+          deviceFingerprint == other.deviceFingerprint &&
+          creatorFingerprint == other.creatorFingerprint &&
+          isAdmin == other.isAdmin &&
+          state == other.state &&
+          memberCount == other.memberCount &&
+          inviteUri == other.inviteUri &&
+          messages == other.messages &&
+          attachments == other.attachments &&
+          dmOffers == other.dmOffers &&
+          mesh == other.mesh &&
+          events == other.events &&
+          needsRejoin == other.needsRejoin &&
+          orgPubkey == other.orgPubkey &&
+          memberPeerIds == other.memberPeerIds;
+}
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is GroupSendResult &&
-                runtimeType == other.runtimeType
-                && groupId == other.groupId&& bytes == other.bytes&& messageId == other.messageId&& sentAtMs == other.sentAtMs&& deliveryStatus == other.deliveryStatus&& deliveryError == other.deliveryError;
-        
-            }
+class JoinGroupRequest {
+  final String inviteUri;
+  final String displayName;
 
-class GroupSnapshot  {
-                final String groupId;
-final String meshId;
-final String? label;
-final String displayName;
-final String deviceFingerprint;
-final String creatorFingerprint;
-final bool isAdmin;
-final String state;
-final BigInt memberCount;
-final String? inviteUri;
-final List<GroupMessage> messages;
-final List<AttachmentView> attachments;
-final List<DmOffer> dmOffers;
-final MeshInfo? mesh;
-final List<SnapshotEvent> events;
-/// A commit gap could not be bridged by resync; the member must rejoin.
-final bool needsRejoin;
-/// Some = org-bound group (ADR 0008).
-final String? orgPubkey;
-/// Leaf credential identities; on org groups these are moss peer-ids,
-/// letting the UI diff the roster against group membership.
-final List<String> memberPeerIds;
+  /// Conveyed by the OrgGroupOffer that carried the invite (spec §5).
+  final String? orgPubkey;
+  final int listenPort;
+  final String? staticPeer;
 
-                const GroupSnapshot({required this.groupId ,required this.meshId ,this.label ,required this.displayName ,required this.deviceFingerprint ,required this.creatorFingerprint ,required this.isAdmin ,required this.state ,required this.memberCount ,this.inviteUri ,required this.messages ,required this.attachments ,required this.dmOffers ,this.mesh ,required this.events ,required this.needsRejoin ,this.orgPubkey ,required this.memberPeerIds ,});
+  const JoinGroupRequest({
+    required this.inviteUri,
+    required this.displayName,
+    this.orgPubkey,
+    required this.listenPort,
+    this.staticPeer,
+  });
 
-                
-                
+  @override
+  int get hashCode =>
+      inviteUri.hashCode ^
+      displayName.hashCode ^
+      orgPubkey.hashCode ^
+      listenPort.hashCode ^
+      staticPeer.hashCode;
 
-                
-        @override
-        int get hashCode => groupId.hashCode^meshId.hashCode^label.hashCode^displayName.hashCode^deviceFingerprint.hashCode^creatorFingerprint.hashCode^isAdmin.hashCode^state.hashCode^memberCount.hashCode^inviteUri.hashCode^messages.hashCode^attachments.hashCode^dmOffers.hashCode^mesh.hashCode^events.hashCode^needsRejoin.hashCode^orgPubkey.hashCode^memberPeerIds.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is GroupSnapshot &&
-                runtimeType == other.runtimeType
-                && groupId == other.groupId&& meshId == other.meshId&& label == other.label&& displayName == other.displayName&& deviceFingerprint == other.deviceFingerprint&& creatorFingerprint == other.creatorFingerprint&& isAdmin == other.isAdmin&& state == other.state&& memberCount == other.memberCount&& inviteUri == other.inviteUri&& messages == other.messages&& attachments == other.attachments&& dmOffers == other.dmOffers&& mesh == other.mesh&& events == other.events&& needsRejoin == other.needsRejoin&& orgPubkey == other.orgPubkey&& memberPeerIds == other.memberPeerIds;
-        
-            }
-
-class JoinGroupRequest  {
-                final String inviteUri;
-final String displayName;
-/// Conveyed by the OrgGroupOffer that carried the invite (spec §5).
-final String? orgPubkey;
-final int listenPort;
-final String? staticPeer;
-
-                const JoinGroupRequest({required this.inviteUri ,required this.displayName ,this.orgPubkey ,required this.listenPort ,this.staticPeer ,});
-
-                
-                
-
-                
-        @override
-        int get hashCode => inviteUri.hashCode^displayName.hashCode^orgPubkey.hashCode^listenPort.hashCode^staticPeer.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is JoinGroupRequest &&
-                runtimeType == other.runtimeType
-                && inviteUri == other.inviteUri&& displayName == other.displayName&& orgPubkey == other.orgPubkey&& listenPort == other.listenPort&& staticPeer == other.staticPeer;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is JoinGroupRequest &&
+          runtimeType == other.runtimeType &&
+          inviteUri == other.inviteUri &&
+          displayName == other.displayName &&
+          orgPubkey == other.orgPubkey &&
+          listenPort == other.listenPort &&
+          staticPeer == other.staticPeer;
+}

@@ -6,36 +6,27 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-
-            
-
-            
-
-            /// A stored "yes": route Moss around the tunnel, using this adapter.
+/// A stored "yes": route Moss around the tunnel, using this adapter.
 ///
 /// The index is kept alongside the name because the two fail differently —
 /// a renamed NIC keeps its index, a re-seated one keeps its name.
-class VpnBypassConsent  {
-                final String interface_;
-final int index;
+class VpnBypassConsent {
+  final String interface_;
+  final int index;
 
-                const VpnBypassConsent({required this.interface_ ,required this.index ,});
+  const VpnBypassConsent({
+    required this.interface_,
+    required this.index,
+  });
 
-                
-                
+  @override
+  int get hashCode => interface_.hashCode ^ index.hashCode;
 
-                
-        @override
-        int get hashCode => interface_.hashCode^index.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is VpnBypassConsent &&
-                runtimeType == other.runtimeType
-                && interface_ == other.interface_&& index == other.index;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VpnBypassConsent &&
+          runtimeType == other.runtimeType &&
+          interface_ == other.interface_ &&
+          index == other.index;
+}

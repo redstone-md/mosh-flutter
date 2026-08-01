@@ -72,6 +72,7 @@ use crate::private_dm_runtime::{
     StartSessionRequest,
 };
 use crate::shared_node::SharedMossNode;
+use crate::private_dm_runtime::{AttachmentSendResult, VoiceMeta};
 
 // Mirrors the Tauri shell's `PRIVATE_DM_UNAVAILABLE` constant so the error
 // string is byte-identical across the old and new shells.
@@ -389,6 +390,47 @@ pub fn cancel_attachment(session_id: String, attachment_id: String) -> Result<()
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .cancel_attachment(&session_id, &attachment_id)
+        .map_err(|error| error.to_string())
+}
+
+/// Send an attachment into a session (1:1 port of `private_dm_send_attachment`).
+/// The bytes arrive base64-encoded (the bridge contract for all send_attachment
+/// facades); decoded here before handing the raw `Vec<u8>` to the runtime,
+/// matching the Tauri shell's `private_dm_send_attachment` (lib.rs L403-423).
+/// `thumbnail_base64` is forwarded verbatim (the runtime stores it as-is for
+/// the receiver's preview); `voice` is the optional `VoiceMeta` for voice
+/// clips (None for plain files). Returns the new attachment's id + content
+/// hash so the bridge caller can invalidate its snapshot.
+pub fn send_attachment(
+    session_id: String,
+    file_name: String,
+    mime: String,
+    data_base64: String,
+    thumbnail_base64: Option<String>,
+    voice: Option<VoiceMeta>,
+) -> Result<AttachmentSendResult, String> {
+    let bytes = decode_base64(&data_base64)?;
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .send_attachment(
+            &session_id,
+            file_name,
+            mime,
+            bytes,
+            thumbnail_base64,
+            voice,
+        )
+        .map_err(|error| error.to_string())
+}
+
+/// Decode a base64 string to raw bytes (1:1 port of the Tauri shell's
+/// `decode_base64`, lib.rs L539-541). Uses the standard alphabet (the same
+/// alphabet the React/Dart sides encode with -- `base64Encode`/`btoa`).
+fn decode_base64(value: &str) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(value)
         .map_err(|error| error.to_string())
 }
 

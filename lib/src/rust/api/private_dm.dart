@@ -9,11 +9,9 @@ import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `decode_base64`, `ensure_runtime`, `resolve_data_dir`
 
-            // These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`, `resolve_data_dir`
-
-
-            /// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
+/// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
 ///
 /// Dart calls this ONCE at startup on Android, AFTER reading/minting 32 raw
 /// bytes from the Android Keystore via `flutter_secure_storage`, and BEFORE
@@ -29,7 +27,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// wrong-length DEK (must be exactly 32 bytes). The frb-exposed surface for
 /// mobile injection is THIS fn only; `Persistence::open_with_dek` is public
 /// but internal and not bridged.
-Future<void>  setHistoryDek({required List<int> dek }) => RustLib.instance.api.crateApiPrivateDmSetHistoryDek(dek: dek);
+Future<void> setHistoryDek({required List<int> dek}) =>
+    RustLib.instance.api.crateApiPrivateDmSetHistoryDek(dek: dek);
 
 /// Inject the app-private data directory from the platform channel (ADR
 /// 0010, M-5). Dart calls this ONCE at startup on EVERY platform (Android,
@@ -47,39 +46,74 @@ Future<void>  setHistoryDek({required List<int> dek }) => RustLib.instance.api.c
 /// bridge surface for the two mobile-inject knobs is symmetric. The
 /// frb-exposed surface is THIS fn only; `construct_runtime` reads the
 /// `OnceLock` directly.
-Future<void>  setAppDataDir({required String path }) => RustLib.instance.api.crateApiPrivateDmSetAppDataDir(path: path);
+Future<void> setAppDataDir({required String path}) =>
+    RustLib.instance.api.crateApiPrivateDmSetAppDataDir(path: path);
 
 /// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
 /// Tauri command). The inviter publishes a KeyPackage and an invite URI.
-Future<InviteCreated>  createInvite({required StartSessionRequest request }) => RustLib.instance.api.crateApiPrivateDmCreateInvite(request: request);
+Future<InviteCreated> createInvite({required StartSessionRequest request}) =>
+    RustLib.instance.api.crateApiPrivateDmCreateInvite(request: request);
 
 /// Accept a private-DM invite (1:1 port of `private_dm_accept_invite`). The
 /// joiner parses the invite URI and processes the inviter's Welcome.
-Future<SessionSnapshot>  acceptInvite({required AcceptInviteRequest request }) => RustLib.instance.api.crateApiPrivateDmAcceptInvite(request: request);
+Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request}) =>
+    RustLib.instance.api.crateApiPrivateDmAcceptInvite(request: request);
 
 /// Send a message into a session (1:1 port of `private_dm_send_message`).
-Future<SendMessageResult>  sendMessage({required String sessionId , required String body }) => RustLib.instance.api.crateApiPrivateDmSendMessage(sessionId: sessionId, body: body);
+Future<SendMessageResult> sendMessage(
+        {required String sessionId, required String body}) =>
+    RustLib.instance.api
+        .crateApiPrivateDmSendMessage(sessionId: sessionId, body: body);
 
 /// Poll a session for its current snapshot (1:1 port of
 /// `private_dm_poll_session`). The React frontend called this every
 /// AUTO_POLL_MS; no push, no StreamSink.
-Future<SessionSnapshot>  pollSession({required String sessionId }) => RustLib.instance.api.crateApiPrivateDmPollSession(sessionId: sessionId);
+Future<SessionSnapshot> pollSession({required String sessionId}) =>
+    RustLib.instance.api.crateApiPrivateDmPollSession(sessionId: sessionId);
 
 /// List all sessions and their snapshots (1:1 port of
 /// `private_dm_list_sessions`).
-Future<SessionListSnapshot>  listSessions() => RustLib.instance.api.crateApiPrivateDmListSessions();
+Future<SessionListSnapshot> listSessions() =>
+    RustLib.instance.api.crateApiPrivateDmListSessions();
 
 /// Close and tear down a session (1:1 port of `private_dm_close_session`).
-Future<CloseSessionResult>  closeSession({required String sessionId }) => RustLib.instance.api.crateApiPrivateDmCloseSession(sessionId: sessionId);
+Future<CloseSessionResult> closeSession({required String sessionId}) =>
+    RustLib.instance.api.crateApiPrivateDmCloseSession(sessionId: sessionId);
 
 /// Begin (or retry) downloading a peer's attachment (1:1 port of
 /// `private_dm_download_attachment`). Triggers the transfer; progress is
 /// reported in the next `SessionSnapshot.attachments` poll.
-Future<void>  downloadAttachment({required String sessionId , required String attachmentId }) => RustLib.instance.api.crateApiPrivateDmDownloadAttachment(sessionId: sessionId, attachmentId: attachmentId);
+Future<void> downloadAttachment(
+        {required String sessionId, required String attachmentId}) =>
+    RustLib.instance.api.crateApiPrivateDmDownloadAttachment(
+        sessionId: sessionId, attachmentId: attachmentId);
 
 /// Cancel an in-flight attachment transfer (1:1 port of
 /// `private_dm_cancel_attachment`).
-Future<void>  cancelAttachment({required String sessionId , required String attachmentId }) => RustLib.instance.api.crateApiPrivateDmCancelAttachment(sessionId: sessionId, attachmentId: attachmentId);
+Future<void> cancelAttachment(
+        {required String sessionId, required String attachmentId}) =>
+    RustLib.instance.api.crateApiPrivateDmCancelAttachment(
+        sessionId: sessionId, attachmentId: attachmentId);
 
-            
-            
+/// Send an attachment into a session (1:1 port of `private_dm_send_attachment`).
+/// The bytes arrive base64-encoded (the bridge contract for all send_attachment
+/// facades); decoded here before handing the raw `Vec<u8>` to the runtime,
+/// matching the Tauri shell's `private_dm_send_attachment` (lib.rs L403-423).
+/// `thumbnail_base64` is forwarded verbatim (the runtime stores it as-is for
+/// the receiver's preview); `voice` is the optional `VoiceMeta` for voice
+/// clips (None for plain files). Returns the new attachment's id + content
+/// hash so the bridge caller can invalidate its snapshot.
+Future<AttachmentSendResult> sendAttachment(
+        {required String sessionId,
+        required String fileName,
+        required String mime,
+        required String dataBase64,
+        String? thumbnailBase64,
+        VoiceMeta? voice}) =>
+    RustLib.instance.api.crateApiPrivateDmSendAttachment(
+        sessionId: sessionId,
+        fileName: fileName,
+        mime: mime,
+        dataBase64: dataBase64,
+        thumbnailBase64: thumbnailBase64,
+        voice: voice);

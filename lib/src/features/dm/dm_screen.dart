@@ -35,6 +35,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/features/dm/conversation_composer.dart';
+import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/features/dm/conversation_tools.dart';
@@ -139,18 +141,57 @@ class _DmScreenState extends ConsumerState<DmScreen> {
             sessionId: widget.sessionId,
             body: body,
           );
-      _composer.clear();
-      ref.invalidate(activeSessionProvider(widget.sessionId));
-      ref.invalidate(sessionListProvider);
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
+     _composer.clear();
+     ref.invalidate(activeSessionProvider(widget.sessionId));
+     ref.invalidate(sessionListProvider);
+   } finally {
+     if (mounted) setState(() => _sending = false);
+   }
+ }
 
-  /// Builds the per-row transfer-action callbacks for [AttachmentCard]:
-  /// download/cancel fire the Gateway seam (99bc9d9) then invalidate the
-  /// session provider so the next poll re-renders state + progress
-  /// (fire-and-forget via `unawaited`).
+ /// DM attachment SEND -- 1-в-1 with React's `sendAttachment`
+ /// (use-chat-orchestration.ts L165), the dm branch. Reads the picked
+ /// file's bytes (already base64-encoded by AttachmentPicker), calls the
+ /// Gateway DM send seam, then invalidates the session provider so the
+ /// next poll renders the new row. `thumbnailBase64`/`voice` come from the
+ /// picker (thumbnail is the 320px JPEG for image picks; voice stays null
+ /// for this atomic -- the voice composer is a later slice). The 50 MB
+ /// ceiling is enforced in the picker BEFORE bytes are read; an oversized
+ /// pick routes to `_onAttachmentPickError`.
+ Future<void> _sendAttachment(PickedAttachment attachment) async {
+   if (_sending) return;
+   setState(() => _sending = true);
+   try {
+     await ref.read(gatewayProvider).sendPrivateAttachment(
+           sessionId: widget.sessionId,
+           fileName: attachment.fileName,
+           mime: attachment.mime,
+           dataBase64: attachment.dataBase64,
+           thumbnailBase64: attachment.thumbnailBase64,
+         );
+     ref.invalidate(activeSessionProvider(widget.sessionId));
+     ref.invalidate(sessionListProvider);
+   } finally {
+     if (mounted) setState(() => _sending = false);
+   }
+ }
+
+ /// Surfaces the localized 50 MB limit message when the picker rejects an
+ /// oversized file (mirrors React's `onError("Attachment exceeds the 50 MB
+ /// limit")`). A SnackBar is the Material idiom for a transient, non-modal
+ /// error that does not steal focus from the composer.
+ void _onAttachmentPickError(AttachmentPickError error) {
+   if (!mounted) return;
+   final l = AppLocalizations.of(context)!;
+   ScaffoldMessenger.of(context).showSnackBar(
+     SnackBar(content: Text(l.attachmentTooLargeMessage)),
+   );
+ }
+
+ /// Builds the per-row transfer-action callbacks for [AttachmentCard]:
+ /// download/cancel fire the Gateway seam (99bc9d9) then invalidate the
+ /// session provider so the next poll re-renders state + progress
+ /// (fire-and-forget via `unawaited`).
   AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
       AttachmentCallbacks(
         onDownload: (id) => unawaited(_gateway
@@ -299,14 +340,17 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                     },
                   ),
                 ),
-                _Composer(
-                  controller: _composer,
-                  sending: _sending,
-                  placeholder: l.chatComposerPlaceholder,
-                  sendLabel: l.chatSendLabel,
-                  onSend: _send,
-                ),
-                Padding(
+               ConversationComposer(
+                 controller: _composer,
+                 sending: _sending,
+                 placeholder: l.chatComposerPlaceholder,
+                 sendLabel: l.chatSendLabel,
+                 onSend: _send,
+                 attachLabel: l.chatAttachLabel,
+                 onAttach: _sendAttachment,
+                 onAttachmentPickError: _onAttachmentPickError,
+               ),
+               Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                   child: Text(
                     l.chatCryptoFooter,
@@ -425,66 +469,6 @@ class _Empty extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Composer: a TextField + a Send button, disabled while empty or sending.
-/// Mirrors the React Composer (disabled on `!value.trim() || sending`).
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.sending,
-    required this.placeholder,
-    required this.sendLabel,
-    required this.onSend,
-  });
-
-  final TextEditingController controller;
-  final bool sending;
-  final String placeholder;
-  final String sendLabel;
-  final VoidCallback onSend;
-
-  @override
-  Widget build(BuildContext context) {
-    final canSend = !sending && controller.text.trim().isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: ValueListenableBuilder<TextEditingValue>(
-        valueListenable: controller,
-        builder: (context, value, _) {
-          final enabled = !sending && value.text.trim().isNotEmpty;
-          return Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  enabled: !sending,
-                  onSubmitted: (_) {
-                    if (canSend) onSend();
-                  },
-                  decoration: InputDecoration(
-                    hintText: placeholder,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: enabled ? onSend : null,
-                child: sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(sendLabel),
-              ),
-            ],
-          );
-        },
       ),
     );
   }

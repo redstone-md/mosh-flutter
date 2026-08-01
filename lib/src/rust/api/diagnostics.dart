@@ -10,102 +10,112 @@ import '../persistence.dart';
 import '../secure_storage.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `persistence_status_without_instance`
+// These functions are ignored because they are not marked as `pub`: `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `persistence_status_without_instance`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
-
-            /// App-level identity diagnostics. One-shot query; owned `String` fields so
+/// App-level identity diagnostics. One-shot query; owned `String` fields so
 /// the non-opaque bridge translation serializes them cleanly (see struct).
-Future<AppDiagnostics>  appDiagnostics() => RustLib.instance.api.crateApiDiagnosticsAppDiagnostics();
+Future<AppDiagnostics> appDiagnostics() =>
+    RustLib.instance.api.crateApiDiagnosticsAppDiagnostics();
 
 /// Per-runtime readiness diagnostics. Delegates to the mosh-core runtimes;
 /// persistence reports not-available because the api facade owns no DB handle.
-Future<NativeRuntimeStatus>  nativeRuntimeStatus() => RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatus();
+Future<NativeRuntimeStatus> nativeRuntimeStatus() =>
+    RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatus();
 
-            /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
-class AppDiagnostics  {
-                final String appName;
-final String privacyModel;
-final String discoveryModel;
-final String mossLinkMode;
+/// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
+class AppDiagnostics {
+  final String appName;
+  final String privacyModel;
+  final String discoveryModel;
+  final String mossLinkMode;
 
-                const AppDiagnostics({required this.appName ,required this.privacyModel ,required this.discoveryModel ,required this.mossLinkMode ,});
+  const AppDiagnostics({
+    required this.appName,
+    required this.privacyModel,
+    required this.discoveryModel,
+    required this.mossLinkMode,
+  });
 
-                
-                
+  @override
+  int get hashCode =>
+      appName.hashCode ^
+      privacyModel.hashCode ^
+      discoveryModel.hashCode ^
+      mossLinkMode.hashCode;
 
-                
-        @override
-        int get hashCode => appName.hashCode^privacyModel.hashCode^discoveryModel.hashCode^mossLinkMode.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is AppDiagnostics &&
-                runtimeType == other.runtimeType
-                && appName == other.appName&& privacyModel == other.privacyModel&& discoveryModel == other.discoveryModel&& mossLinkMode == other.mossLinkMode;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppDiagnostics &&
+          runtimeType == other.runtimeType &&
+          appName == other.appName &&
+          privacyModel == other.privacyModel &&
+          discoveryModel == other.discoveryModel &&
+          mossLinkMode == other.mossLinkMode;
+}
 
 /// Per-runtime readiness report, one row of `native_runtime_status`. Carries
 /// statuses produced by the mosh-core runtimes; persistence is a not-available
 /// marker when no host owns a running instance (see module doc).
-class NativeRuntimeStatus  {
-                final MossRuntimeStatus moss;
-final SecureStorageStatus secureStorage;
-final PersistenceRuntimeStatus persistence;
-final OpenMlsSmokeRuntimeStatus openmlsSmoke;
-final OpenMlsRoundTripRuntimeStatus openmlsRoundtrip;
+class NativeRuntimeStatus {
+  final MossRuntimeStatus moss;
+  final SecureStorageStatus secureStorage;
+  final PersistenceRuntimeStatus persistence;
+  final OpenMlsSmokeRuntimeStatus openmlsSmoke;
+  final OpenMlsRoundTripRuntimeStatus openmlsRoundtrip;
 
-                const NativeRuntimeStatus({required this.moss ,required this.secureStorage ,required this.persistence ,required this.openmlsSmoke ,required this.openmlsRoundtrip ,});
+  const NativeRuntimeStatus({
+    required this.moss,
+    required this.secureStorage,
+    required this.persistence,
+    required this.openmlsSmoke,
+    required this.openmlsRoundtrip,
+  });
 
-                
-                
+  @override
+  int get hashCode =>
+      moss.hashCode ^
+      secureStorage.hashCode ^
+      persistence.hashCode ^
+      openmlsSmoke.hashCode ^
+      openmlsRoundtrip.hashCode;
 
-                
-        @override
-        int get hashCode => moss.hashCode^secureStorage.hashCode^persistence.hashCode^openmlsSmoke.hashCode^openmlsRoundtrip.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is NativeRuntimeStatus &&
-                runtimeType == other.runtimeType
-                && moss == other.moss&& secureStorage == other.secureStorage&& persistence == other.persistence&& openmlsSmoke == other.openmlsSmoke&& openmlsRoundtrip == other.openmlsRoundtrip;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NativeRuntimeStatus &&
+          runtimeType == other.runtimeType &&
+          moss == other.moss &&
+          secureStorage == other.secureStorage &&
+          persistence == other.persistence &&
+          openmlsSmoke == other.openmlsSmoke &&
+          openmlsRoundtrip == other.openmlsRoundtrip;
+}
 
 /// Bridge-friendly view of the OpenMLS Alice/Bob roundtrip outcome; see
 /// `OpenMlsSmokeRuntimeStatus` for why the result is flattened rather than
 /// carried as a `Result<OpenMlsRoundTripStatus, String>`.
-class OpenMlsRoundTripRuntimeStatus  {
-                final OpenMlsRoundTripStatus? ok;
-final String? error;
+class OpenMlsRoundTripRuntimeStatus {
+  final OpenMlsRoundTripStatus? ok;
+  final String? error;
 
-                const OpenMlsRoundTripRuntimeStatus({this.ok ,this.error ,});
+  const OpenMlsRoundTripRuntimeStatus({
+    this.ok,
+    this.error,
+  });
 
-                
-                
+  @override
+  int get hashCode => ok.hashCode ^ error.hashCode;
 
-                
-        @override
-        int get hashCode => ok.hashCode^error.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OpenMlsRoundTripRuntimeStatus &&
-                runtimeType == other.runtimeType
-                && ok == other.ok&& error == other.error;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OpenMlsRoundTripRuntimeStatus &&
+          runtimeType == other.runtimeType &&
+          ok == other.ok &&
+          error == other.error;
+}
 
 /// Bridge-friendly view of the OpenMLS smoke-test outcome. `flutter_rust_bridge`
 /// 2.x auto-opaques `Result<T, E>` fields of non-opaque structs (the wrapper has
@@ -114,27 +124,23 @@ final String? error;
 /// when the test passed, `error` carries the failure message when it did not.
 /// This keeps the field constructible from pure Dart (FakeGateway, tests) and
 /// readable by the Diagnostics screen.
-class OpenMlsSmokeRuntimeStatus  {
-                final OpenMlsSmokeStatus? ok;
-final String? error;
+class OpenMlsSmokeRuntimeStatus {
+  final OpenMlsSmokeStatus? ok;
+  final String? error;
 
-                const OpenMlsSmokeRuntimeStatus({this.ok ,this.error ,});
+  const OpenMlsSmokeRuntimeStatus({
+    this.ok,
+    this.error,
+  });
 
-                
-                
+  @override
+  int get hashCode => ok.hashCode ^ error.hashCode;
 
-                
-        @override
-        int get hashCode => ok.hashCode^error.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OpenMlsSmokeRuntimeStatus &&
-                runtimeType == other.runtimeType
-                && ok == other.ok&& error == other.error;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OpenMlsSmokeRuntimeStatus &&
+          runtimeType == other.runtimeType &&
+          ok == other.ok &&
+          error == other.error;
+}

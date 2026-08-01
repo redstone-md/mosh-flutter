@@ -6,35 +6,37 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+class MossRuntimeStatus {
+  final String linkMode;
+  final String libraryName;
+  final List<String> requiredSymbols;
+  final bool available;
+  final List<String> checkedPaths;
 
-            
+  const MossRuntimeStatus({
+    required this.linkMode,
+    required this.libraryName,
+    required this.requiredSymbols,
+    required this.available,
+    required this.checkedPaths,
+  });
 
-            
+  @override
+  int get hashCode =>
+      linkMode.hashCode ^
+      libraryName.hashCode ^
+      requiredSymbols.hashCode ^
+      available.hashCode ^
+      checkedPaths.hashCode;
 
-            class MossRuntimeStatus  {
-                final String linkMode;
-final String libraryName;
-final List<String> requiredSymbols;
-final bool available;
-final List<String> checkedPaths;
-
-                const MossRuntimeStatus({required this.linkMode ,required this.libraryName ,required this.requiredSymbols ,required this.available ,required this.checkedPaths ,});
-
-                
-                
-
-                
-        @override
-        int get hashCode => linkMode.hashCode^libraryName.hashCode^requiredSymbols.hashCode^available.hashCode^checkedPaths.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is MossRuntimeStatus &&
-                runtimeType == other.runtimeType
-                && linkMode == other.linkMode&& libraryName == other.libraryName&& requiredSymbols == other.requiredSymbols&& available == other.available&& checkedPaths == other.checkedPaths;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MossRuntimeStatus &&
+          runtimeType == other.runtimeType &&
+          linkMode == other.linkMode &&
+          libraryName == other.libraryName &&
+          requiredSymbols == other.requiredSymbols &&
+          available == other.available &&
+          checkedPaths == other.checkedPaths;
+}

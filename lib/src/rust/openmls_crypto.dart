@@ -6,59 +6,60 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+class OpenMlsRoundTripStatus {
+  final String provider;
+  final String ciphersuite;
+  final bool welcomeJoined;
+  final bool plaintextRoundtrip;
 
-            
+  const OpenMlsRoundTripStatus({
+    required this.provider,
+    required this.ciphersuite,
+    required this.welcomeJoined,
+    required this.plaintextRoundtrip,
+  });
 
-            
+  @override
+  int get hashCode =>
+      provider.hashCode ^
+      ciphersuite.hashCode ^
+      welcomeJoined.hashCode ^
+      plaintextRoundtrip.hashCode;
 
-            class OpenMlsRoundTripStatus  {
-                final String provider;
-final String ciphersuite;
-final bool welcomeJoined;
-final bool plaintextRoundtrip;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OpenMlsRoundTripStatus &&
+          runtimeType == other.runtimeType &&
+          provider == other.provider &&
+          ciphersuite == other.ciphersuite &&
+          welcomeJoined == other.welcomeJoined &&
+          plaintextRoundtrip == other.plaintextRoundtrip;
+}
 
-                const OpenMlsRoundTripStatus({required this.provider ,required this.ciphersuite ,required this.welcomeJoined ,required this.plaintextRoundtrip ,});
+class OpenMlsSmokeStatus {
+  final String provider;
+  final String ciphersuite;
+  final bool protectedMessageCreated;
 
-                
-                
+  const OpenMlsSmokeStatus({
+    required this.provider,
+    required this.ciphersuite,
+    required this.protectedMessageCreated,
+  });
 
-                
-        @override
-        int get hashCode => provider.hashCode^ciphersuite.hashCode^welcomeJoined.hashCode^plaintextRoundtrip.hashCode;
-        
+  @override
+  int get hashCode =>
+      provider.hashCode ^
+      ciphersuite.hashCode ^
+      protectedMessageCreated.hashCode;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OpenMlsRoundTripStatus &&
-                runtimeType == other.runtimeType
-                && provider == other.provider&& ciphersuite == other.ciphersuite&& welcomeJoined == other.welcomeJoined&& plaintextRoundtrip == other.plaintextRoundtrip;
-        
-            }
-
-class OpenMlsSmokeStatus  {
-                final String provider;
-final String ciphersuite;
-final bool protectedMessageCreated;
-
-                const OpenMlsSmokeStatus({required this.provider ,required this.ciphersuite ,required this.protectedMessageCreated ,});
-
-                
-                
-
-                
-        @override
-        int get hashCode => provider.hashCode^ciphersuite.hashCode^protectedMessageCreated.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is OpenMlsSmokeStatus &&
-                runtimeType == other.runtimeType
-                && provider == other.provider&& ciphersuite == other.ciphersuite&& protectedMessageCreated == other.protectedMessageCreated;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OpenMlsSmokeStatus &&
+          runtimeType == other.runtimeType &&
+          provider == other.provider &&
+          ciphersuite == other.ciphersuite &&
+          protectedMessageCreated == other.protectedMessageCreated;
+}

@@ -85,29 +85,41 @@ abstract interface class Gateway {
   Future<void> cancelChannelAttachment({required String name, required String attachmentId});
   Future<void> downloadGroupAttachment({required String groupId, required String attachmentId});
   Future<void> cancelGroupAttachment({required String groupId, required String attachmentId});
-  // Channel/group attachment SEND (1:1 port of channel_send_attachment +
-  // private_group_send_attachment). The composer reads a picked file into
-  // base64 (+ optional thumbnailBase64 / VoiceMeta for voice) and sends.
-  // Returns an AttachmentSendResult (attachmentId + contentHash) the screen
-  // uses to invalidate the snapshot so the next poll renders the new row.
-  // Note: DM send is NOT frb-bound in this fork (no send_private_attachment),
-  // so DM attachment-send stays deferred on Rust; channel/group are wired.
-  Future<AttachmentSendResult> sendChannelAttachment({
-    required String name,
-    required String fileName,
-    required String mime,
-    required String dataBase64,
-    String? thumbnailBase64,
-    VoiceMeta? voice,
-  });
-  Future<AttachmentSendResult> sendGroupAttachment({
-    required String groupId,
-    required String fileName,
-    required String mime,
-    required String dataBase64,
-    String? thumbnailBase64,
-    VoiceMeta? voice,
-  });
+ // Channel/group attachment SEND (1:1 port of channel_send_attachment +
+ // private_group_send_attachment). The composer reads a picked file into
+ // base64 (+ optional thumbnailBase64 / VoiceMeta for voice) and sends.
+ // Returns an AttachmentSendResult (attachmentId + contentHash) the screen
+ // uses to invalidate the snapshot so the next poll renders the new row.
+ // All three conversation kinds (DM, channel, group) are wired -- the DM
+ // seam (sendPrivateAttachment) frb-binds to private_dm_send_attachment,
+ // which the slice-2 atomic added to mosh-core::api::private_dm.
+ Future<AttachmentSendResult> sendChannelAttachment({
+   required String name,
+   required String fileName,
+   required String mime,
+   required String dataBase64,
+   String? thumbnailBase64,
+   VoiceMeta? voice,
+ });
+ /// DM attachment SEND (1:1 port of private_dm_send_attachment). Same shape
+ /// as sendChannelAttachment/sendGroupAttachment; the only delta is the
+ /// session id (the DM identity) instead of a channel name / group id.
+ Future<AttachmentSendResult> sendPrivateAttachment({
+   required String sessionId,
+   required String fileName,
+   required String mime,
+   required String dataBase64,
+   String? thumbnailBase64,
+   VoiceMeta? voice,
+ });
+ Future<AttachmentSendResult> sendGroupAttachment({
+   required String groupId,
+   required String fileName,
+   required String mime,
+   required String dataBase64,
+   String? thumbnailBase64,
+   VoiceMeta? voice,
+ });
 
   // Org write seam (1:1 port of `org_join`). `joinOrg` is the fourth slice-3
   // write seam -- joins an org from a `mosh://org` bundle URI. Unlike the

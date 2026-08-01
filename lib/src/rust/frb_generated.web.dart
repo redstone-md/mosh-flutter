@@ -3,7 +3,6 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
@@ -31,734 +30,1224 @@ import 'private_group_runtime.dart';
 import 'secure_storage.dart';
 import 'vpn_consent.dart';
 
+abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
+  RustLibApiImplPlatform({
+    required super.handler,
+    required super.wire,
+    required super.generalizedFrbRustBinding,
+    required super.portManager,
+  });
 
+  @protected
+  String dco_decode_String(dynamic raw);
 
+  @protected
+  AcceptInviteRequest dco_decode_accept_invite_request(dynamic raw);
 
-                abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
-                  RustLibApiImplPlatform({
-                    required super.handler,
-                    required super.wire,
-                    required super.generalizedFrbRustBinding,
-                    required super.portManager,
-                  });
+  @protected
+  ActiveCall dco_decode_active_call(dynamic raw);
 
-                  
+  @protected
+  AppDiagnostics dco_decode_app_diagnostics(dynamic raw);
 
-                  @protected String dco_decode_String(dynamic raw);
+  @protected
+  AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw);
 
-@protected AcceptInviteRequest dco_decode_accept_invite_request(dynamic raw);
+  @protected
+  AttachmentSendResult dco_decode_attachment_send_result(dynamic raw);
 
-@protected ActiveCall dco_decode_active_call(dynamic raw);
+  @protected
+  AttachmentState dco_decode_attachment_state(dynamic raw);
 
-@protected AppDiagnostics dco_decode_app_diagnostics(dynamic raw);
+  @protected
+  AttachmentView dco_decode_attachment_view(dynamic raw);
 
-@protected AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw);
+  @protected
+  bool dco_decode_bool(dynamic raw);
 
-@protected AttachmentSendResult dco_decode_attachment_send_result(dynamic raw);
+  @protected
+  AcceptInviteRequest dco_decode_box_autoadd_accept_invite_request(dynamic raw);
 
-@protected AttachmentState dco_decode_attachment_state(dynamic raw);
+  @protected
+  ActiveCall dco_decode_box_autoadd_active_call(dynamic raw);
 
-@protected AttachmentView dco_decode_attachment_view(dynamic raw);
+  @protected
+  AttachmentDescriptor dco_decode_box_autoadd_attachment_descriptor(
+      dynamic raw);
 
-@protected bool dco_decode_bool(dynamic raw);
+  @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw);
 
-@protected AcceptInviteRequest dco_decode_box_autoadd_accept_invite_request(dynamic raw);
+  @protected
+  CallEvent dco_decode_box_autoadd_call_event(dynamic raw);
 
-@protected ActiveCall dco_decode_box_autoadd_active_call(dynamic raw);
+  @protected
+  CreateGroupRequest dco_decode_box_autoadd_create_group_request(dynamic raw);
 
-@protected AttachmentDescriptor dco_decode_box_autoadd_attachment_descriptor(dynamic raw);
+  @protected
+  JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw);
 
-@protected bool dco_decode_box_autoadd_bool(dynamic raw);
+  @protected
+  JoinGroupRequest dco_decode_box_autoadd_join_group_request(dynamic raw);
 
-@protected CallEvent dco_decode_box_autoadd_call_event(dynamic raw);
+  @protected
+  JoinOrgRequest dco_decode_box_autoadd_join_org_request(dynamic raw);
 
-@protected CreateGroupRequest dco_decode_box_autoadd_create_group_request(dynamic raw);
+  @protected
+  MeshInfo dco_decode_box_autoadd_mesh_info(dynamic raw);
 
-@protected JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw);
+  @protected
+  MessageDeliveryStatus dco_decode_box_autoadd_message_delivery_status(
+      dynamic raw);
 
-@protected JoinGroupRequest dco_decode_box_autoadd_join_group_request(dynamic raw);
+  @protected
+  OpenMlsRoundTripStatus dco_decode_box_autoadd_open_mls_round_trip_status(
+      dynamic raw);
 
-@protected JoinOrgRequest dco_decode_box_autoadd_join_org_request(dynamic raw);
+  @protected
+  OpenMlsSmokeStatus dco_decode_box_autoadd_open_mls_smoke_status(dynamic raw);
 
-@protected MeshInfo dco_decode_box_autoadd_mesh_info(dynamic raw);
+  @protected
+  OutgoingCall dco_decode_box_autoadd_outgoing_call(dynamic raw);
 
-@protected MessageDeliveryStatus dco_decode_box_autoadd_message_delivery_status(dynamic raw);
+  @protected
+  PendingCall dco_decode_box_autoadd_pending_call(dynamic raw);
 
-@protected OpenMlsRoundTripStatus dco_decode_box_autoadd_open_mls_round_trip_status(dynamic raw);
+  @protected
+  StartSessionRequest dco_decode_box_autoadd_start_session_request(dynamic raw);
 
-@protected OpenMlsSmokeStatus dco_decode_box_autoadd_open_mls_smoke_status(dynamic raw);
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
 
-@protected OutgoingCall dco_decode_box_autoadd_outgoing_call(dynamic raw);
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
-@protected PendingCall dco_decode_box_autoadd_pending_call(dynamic raw);
+  @protected
+  VoiceMeta dco_decode_box_autoadd_voice_meta(dynamic raw);
 
-@protected StartSessionRequest dco_decode_box_autoadd_start_session_request(dynamic raw);
+  @protected
+  VpnBypassConsent dco_decode_box_autoadd_vpn_bypass_consent(dynamic raw);
 
-@protected int dco_decode_box_autoadd_u_32(dynamic raw);
+  @protected
+  CallEvent dco_decode_call_event(dynamic raw);
 
-@protected BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+  @protected
+  ChannelLeaveResult dco_decode_channel_leave_result(dynamic raw);
 
-@protected VoiceMeta dco_decode_box_autoadd_voice_meta(dynamic raw);
+  @protected
+  ChannelListSnapshot dco_decode_channel_list_snapshot(dynamic raw);
 
-@protected VpnBypassConsent dco_decode_box_autoadd_vpn_bypass_consent(dynamic raw);
+  @protected
+  ChannelMessage dco_decode_channel_message(dynamic raw);
 
-@protected CallEvent dco_decode_call_event(dynamic raw);
+  @protected
+  ChannelSendResult dco_decode_channel_send_result(dynamic raw);
 
-@protected ChannelLeaveResult dco_decode_channel_leave_result(dynamic raw);
+  @protected
+  ChannelSnapshot dco_decode_channel_snapshot(dynamic raw);
 
-@protected ChannelListSnapshot dco_decode_channel_list_snapshot(dynamic raw);
+  @protected
+  ChatMessage dco_decode_chat_message(dynamic raw);
 
-@protected ChannelMessage dco_decode_channel_message(dynamic raw);
+  @protected
+  CloseSessionResult dco_decode_close_session_result(dynamic raw);
 
-@protected ChannelSendResult dco_decode_channel_send_result(dynamic raw);
+  @protected
+  CreateGroupRequest dco_decode_create_group_request(dynamic raw);
 
-@protected ChannelSnapshot dco_decode_channel_snapshot(dynamic raw);
+  @protected
+  DmOffer dco_decode_dm_offer(dynamic raw);
 
-@protected ChatMessage dco_decode_chat_message(dynamic raw);
+  @protected
+  GroupCreated dco_decode_group_created(dynamic raw);
 
-@protected CloseSessionResult dco_decode_close_session_result(dynamic raw);
+  @protected
+  GroupLeaveResult dco_decode_group_leave_result(dynamic raw);
 
-@protected CreateGroupRequest dco_decode_create_group_request(dynamic raw);
+  @protected
+  GroupListSnapshot dco_decode_group_list_snapshot(dynamic raw);
 
-@protected DmOffer dco_decode_dm_offer(dynamic raw);
+  @protected
+  GroupMessage dco_decode_group_message(dynamic raw);
 
-@protected GroupCreated dco_decode_group_created(dynamic raw);
+  @protected
+  GroupSendResult dco_decode_group_send_result(dynamic raw);
 
-@protected GroupLeaveResult dco_decode_group_leave_result(dynamic raw);
+  @protected
+  GroupSnapshot dco_decode_group_snapshot(dynamic raw);
 
-@protected GroupListSnapshot dco_decode_group_list_snapshot(dynamic raw);
+  @protected
+  int dco_decode_i_32(dynamic raw);
 
-@protected GroupMessage dco_decode_group_message(dynamic raw);
+  @protected
+  InviteCreated dco_decode_invite_created(dynamic raw);
 
-@protected GroupSendResult dco_decode_group_send_result(dynamic raw);
+  @protected
+  JoinChannelRequest dco_decode_join_channel_request(dynamic raw);
 
-@protected GroupSnapshot dco_decode_group_snapshot(dynamic raw);
+  @protected
+  JoinGroupRequest dco_decode_join_group_request(dynamic raw);
 
-@protected int dco_decode_i_32(dynamic raw);
+  @protected
+  JoinOrgRequest dco_decode_join_org_request(dynamic raw);
 
-@protected InviteCreated dco_decode_invite_created(dynamic raw);
+  @protected
+  List<String> dco_decode_list_String(dynamic raw);
 
-@protected JoinChannelRequest dco_decode_join_channel_request(dynamic raw);
+  @protected
+  List<AttachmentView> dco_decode_list_attachment_view(dynamic raw);
 
-@protected JoinGroupRequest dco_decode_join_group_request(dynamic raw);
+  @protected
+  List<ChannelMessage> dco_decode_list_channel_message(dynamic raw);
 
-@protected JoinOrgRequest dco_decode_join_org_request(dynamic raw);
+  @protected
+  List<ChannelSnapshot> dco_decode_list_channel_snapshot(dynamic raw);
 
-@protected List<String> dco_decode_list_String(dynamic raw);
+  @protected
+  List<ChatMessage> dco_decode_list_chat_message(dynamic raw);
 
-@protected List<AttachmentView> dco_decode_list_attachment_view(dynamic raw);
+  @protected
+  List<DmOffer> dco_decode_list_dm_offer(dynamic raw);
 
-@protected List<ChannelMessage> dco_decode_list_channel_message(dynamic raw);
+  @protected
+  List<GroupMessage> dco_decode_list_group_message(dynamic raw);
 
-@protected List<ChannelSnapshot> dco_decode_list_channel_snapshot(dynamic raw);
+  @protected
+  List<GroupSnapshot> dco_decode_list_group_snapshot(dynamic raw);
 
-@protected List<ChatMessage> dco_decode_list_chat_message(dynamic raw);
+  @protected
+  List<NetworkInterfaceInfo> dco_decode_list_network_interface_info(
+      dynamic raw);
 
-@protected List<DmOffer> dco_decode_list_dm_offer(dynamic raw);
+  @protected
+  List<OrgDmLink> dco_decode_list_org_dm_link(dynamic raw);
 
-@protected List<GroupMessage> dco_decode_list_group_message(dynamic raw);
+  @protected
+  List<OrgDmOfferView> dco_decode_list_org_dm_offer_view(dynamic raw);
 
-@protected List<GroupSnapshot> dco_decode_list_group_snapshot(dynamic raw);
+  @protected
+  List<OrgGroupOfferView> dco_decode_list_org_group_offer_view(dynamic raw);
 
-@protected List<NetworkInterfaceInfo> dco_decode_list_network_interface_info(dynamic raw);
+  @protected
+  List<OrgMemberView> dco_decode_list_org_member_view(dynamic raw);
 
-@protected List<OrgDmLink> dco_decode_list_org_dm_link(dynamic raw);
+  @protected
+  List<OrgSnapshot> dco_decode_list_org_snapshot(dynamic raw);
 
-@protected List<OrgDmOfferView> dco_decode_list_org_dm_offer_view(dynamic raw);
+  @protected
+  List<PeerDetail> dco_decode_list_peer_detail(dynamic raw);
 
-@protected List<OrgGroupOfferView> dco_decode_list_org_group_offer_view(dynamic raw);
+  @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
 
-@protected List<OrgMemberView> dco_decode_list_org_member_view(dynamic raw);
+  @protected
+  Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
-@protected List<OrgSnapshot> dco_decode_list_org_snapshot(dynamic raw);
+  @protected
+  List<SessionSnapshot> dco_decode_list_session_snapshot(dynamic raw);
 
-@protected List<PeerDetail> dco_decode_list_peer_detail(dynamic raw);
+  @protected
+  List<SnapshotEvent> dco_decode_list_snapshot_event(dynamic raw);
 
-@protected List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+  @protected
+  MeshInfo dco_decode_mesh_info(dynamic raw);
 
-@protected Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+  @protected
+  MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw);
 
-@protected List<SessionSnapshot> dco_decode_list_session_snapshot(dynamic raw);
+  @protected
+  MossRuntimeStatus dco_decode_moss_runtime_status(dynamic raw);
 
-@protected List<SnapshotEvent> dco_decode_list_snapshot_event(dynamic raw);
+  @protected
+  NativeRuntimeStatus dco_decode_native_runtime_status(dynamic raw);
 
-@protected MeshInfo dco_decode_mesh_info(dynamic raw);
+  @protected
+  NetworkInterfaceInfo dco_decode_network_interface_info(dynamic raw);
 
-@protected MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw);
+  @protected
+  OpenMlsRoundTripRuntimeStatus dco_decode_open_mls_round_trip_runtime_status(
+      dynamic raw);
 
-@protected MossRuntimeStatus dco_decode_moss_runtime_status(dynamic raw);
+  @protected
+  OpenMlsRoundTripStatus dco_decode_open_mls_round_trip_status(dynamic raw);
 
-@protected NativeRuntimeStatus dco_decode_native_runtime_status(dynamic raw);
+  @protected
+  OpenMlsSmokeRuntimeStatus dco_decode_open_mls_smoke_runtime_status(
+      dynamic raw);
 
-@protected NetworkInterfaceInfo dco_decode_network_interface_info(dynamic raw);
+  @protected
+  OpenMlsSmokeStatus dco_decode_open_mls_smoke_status(dynamic raw);
 
-@protected OpenMlsRoundTripRuntimeStatus dco_decode_open_mls_round_trip_runtime_status(dynamic raw);
+  @protected
+  String? dco_decode_opt_String(dynamic raw);
 
-@protected OpenMlsRoundTripStatus dco_decode_open_mls_round_trip_status(dynamic raw);
+  @protected
+  ActiveCall? dco_decode_opt_box_autoadd_active_call(dynamic raw);
 
-@protected OpenMlsSmokeRuntimeStatus dco_decode_open_mls_smoke_runtime_status(dynamic raw);
+  @protected
+  AttachmentDescriptor? dco_decode_opt_box_autoadd_attachment_descriptor(
+      dynamic raw);
 
-@protected OpenMlsSmokeStatus dco_decode_open_mls_smoke_status(dynamic raw);
+  @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
 
-@protected String? dco_decode_opt_String(dynamic raw);
+  @protected
+  CallEvent? dco_decode_opt_box_autoadd_call_event(dynamic raw);
 
-@protected ActiveCall? dco_decode_opt_box_autoadd_active_call(dynamic raw);
+  @protected
+  MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw);
 
-@protected AttachmentDescriptor? dco_decode_opt_box_autoadd_attachment_descriptor(dynamic raw);
+  @protected
+  MessageDeliveryStatus? dco_decode_opt_box_autoadd_message_delivery_status(
+      dynamic raw);
 
-@protected bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+  @protected
+  OpenMlsRoundTripStatus? dco_decode_opt_box_autoadd_open_mls_round_trip_status(
+      dynamic raw);
 
-@protected CallEvent? dco_decode_opt_box_autoadd_call_event(dynamic raw);
+  @protected
+  OpenMlsSmokeStatus? dco_decode_opt_box_autoadd_open_mls_smoke_status(
+      dynamic raw);
 
-@protected MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw);
+  @protected
+  OutgoingCall? dco_decode_opt_box_autoadd_outgoing_call(dynamic raw);
 
-@protected MessageDeliveryStatus? dco_decode_opt_box_autoadd_message_delivery_status(dynamic raw);
+  @protected
+  PendingCall? dco_decode_opt_box_autoadd_pending_call(dynamic raw);
 
-@protected OpenMlsRoundTripStatus? dco_decode_opt_box_autoadd_open_mls_round_trip_status(dynamic raw);
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
-@protected OpenMlsSmokeStatus? dco_decode_opt_box_autoadd_open_mls_smoke_status(dynamic raw);
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
 
-@protected OutgoingCall? dco_decode_opt_box_autoadd_outgoing_call(dynamic raw);
+  @protected
+  VoiceMeta? dco_decode_opt_box_autoadd_voice_meta(dynamic raw);
 
-@protected PendingCall? dco_decode_opt_box_autoadd_pending_call(dynamic raw);
+  @protected
+  VpnBypassConsent? dco_decode_opt_box_autoadd_vpn_bypass_consent(dynamic raw);
 
-@protected int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+  @protected
+  OrgDmLink dco_decode_org_dm_link(dynamic raw);
 
-@protected BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+  @protected
+  OrgDmOfferView dco_decode_org_dm_offer_view(dynamic raw);
 
-@protected VoiceMeta? dco_decode_opt_box_autoadd_voice_meta(dynamic raw);
+  @protected
+  OrgGroupOfferView dco_decode_org_group_offer_view(dynamic raw);
 
-@protected VpnBypassConsent? dco_decode_opt_box_autoadd_vpn_bypass_consent(dynamic raw);
+  @protected
+  OrgMemberView dco_decode_org_member_view(dynamic raw);
 
-@protected OrgDmLink dco_decode_org_dm_link(dynamic raw);
+  @protected
+  OrgSnapshot dco_decode_org_snapshot(dynamic raw);
 
-@protected OrgDmOfferView dco_decode_org_dm_offer_view(dynamic raw);
+  @protected
+  OutgoingCall dco_decode_outgoing_call(dynamic raw);
 
-@protected OrgGroupOfferView dco_decode_org_group_offer_view(dynamic raw);
+  @protected
+  PeerDetail dco_decode_peer_detail(dynamic raw);
 
-@protected OrgMemberView dco_decode_org_member_view(dynamic raw);
+  @protected
+  PendingCall dco_decode_pending_call(dynamic raw);
 
-@protected OrgSnapshot dco_decode_org_snapshot(dynamic raw);
+  @protected
+  PersistenceRuntimeStatus dco_decode_persistence_runtime_status(dynamic raw);
 
-@protected OutgoingCall dco_decode_outgoing_call(dynamic raw);
+  @protected
+  SecureStorageStatus dco_decode_secure_storage_status(dynamic raw);
 
-@protected PeerDetail dco_decode_peer_detail(dynamic raw);
+  @protected
+  SendMessageResult dco_decode_send_message_result(dynamic raw);
 
-@protected PendingCall dco_decode_pending_call(dynamic raw);
+  @protected
+  SessionListSnapshot dco_decode_session_list_snapshot(dynamic raw);
 
-@protected PersistenceRuntimeStatus dco_decode_persistence_runtime_status(dynamic raw);
+  @protected
+  SessionSnapshot dco_decode_session_snapshot(dynamic raw);
 
-@protected SecureStorageStatus dco_decode_secure_storage_status(dynamic raw);
+  @protected
+  SnapshotEvent dco_decode_snapshot_event(dynamic raw);
 
-@protected SendMessageResult dco_decode_send_message_result(dynamic raw);
+  @protected
+  StartSessionRequest dco_decode_start_session_request(dynamic raw);
 
-@protected SessionListSnapshot dco_decode_session_list_snapshot(dynamic raw);
+  @protected
+  int dco_decode_u_16(dynamic raw);
 
-@protected SessionSnapshot dco_decode_session_snapshot(dynamic raw);
+  @protected
+  int dco_decode_u_32(dynamic raw);
 
-@protected SnapshotEvent dco_decode_snapshot_event(dynamic raw);
+  @protected
+  BigInt dco_decode_u_64(dynamic raw);
 
-@protected StartSessionRequest dco_decode_start_session_request(dynamic raw);
+  @protected
+  int dco_decode_u_8(dynamic raw);
 
-@protected int dco_decode_u_16(dynamic raw);
+  @protected
+  void dco_decode_unit(dynamic raw);
 
-@protected int dco_decode_u_32(dynamic raw);
+  @protected
+  BigInt dco_decode_usize(dynamic raw);
 
-@protected BigInt dco_decode_u_64(dynamic raw);
+  @protected
+  VoiceMeta dco_decode_voice_meta(dynamic raw);
 
-@protected int dco_decode_u_8(dynamic raw);
+  @protected
+  VpnBypassConsent dco_decode_vpn_bypass_consent(dynamic raw);
 
-@protected void dco_decode_unit(dynamic raw);
+  @protected
+  VpnDetection dco_decode_vpn_detection(dynamic raw);
 
-@protected BigInt dco_decode_usize(dynamic raw);
+  @protected
+  String sse_decode_String(SseDeserializer deserializer);
 
-@protected VoiceMeta dco_decode_voice_meta(dynamic raw);
+  @protected
+  AcceptInviteRequest sse_decode_accept_invite_request(
+      SseDeserializer deserializer);
 
-@protected VpnBypassConsent dco_decode_vpn_bypass_consent(dynamic raw);
+  @protected
+  ActiveCall sse_decode_active_call(SseDeserializer deserializer);
 
-@protected VpnDetection dco_decode_vpn_detection(dynamic raw);
+  @protected
+  AppDiagnostics sse_decode_app_diagnostics(SseDeserializer deserializer);
 
-@protected String sse_decode_String(SseDeserializer deserializer);
+  @protected
+  AttachmentDescriptor sse_decode_attachment_descriptor(
+      SseDeserializer deserializer);
 
-@protected AcceptInviteRequest sse_decode_accept_invite_request(SseDeserializer deserializer);
+  @protected
+  AttachmentSendResult sse_decode_attachment_send_result(
+      SseDeserializer deserializer);
 
-@protected ActiveCall sse_decode_active_call(SseDeserializer deserializer);
+  @protected
+  AttachmentState sse_decode_attachment_state(SseDeserializer deserializer);
 
-@protected AppDiagnostics sse_decode_app_diagnostics(SseDeserializer deserializer);
+  @protected
+  AttachmentView sse_decode_attachment_view(SseDeserializer deserializer);
 
-@protected AttachmentDescriptor sse_decode_attachment_descriptor(SseDeserializer deserializer);
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
 
-@protected AttachmentSendResult sse_decode_attachment_send_result(SseDeserializer deserializer);
+  @protected
+  AcceptInviteRequest sse_decode_box_autoadd_accept_invite_request(
+      SseDeserializer deserializer);
 
-@protected AttachmentState sse_decode_attachment_state(SseDeserializer deserializer);
+  @protected
+  ActiveCall sse_decode_box_autoadd_active_call(SseDeserializer deserializer);
 
-@protected AttachmentView sse_decode_attachment_view(SseDeserializer deserializer);
+  @protected
+  AttachmentDescriptor sse_decode_box_autoadd_attachment_descriptor(
+      SseDeserializer deserializer);
 
-@protected bool sse_decode_bool(SseDeserializer deserializer);
+  @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
-@protected AcceptInviteRequest sse_decode_box_autoadd_accept_invite_request(SseDeserializer deserializer);
+  @protected
+  CallEvent sse_decode_box_autoadd_call_event(SseDeserializer deserializer);
 
-@protected ActiveCall sse_decode_box_autoadd_active_call(SseDeserializer deserializer);
+  @protected
+  CreateGroupRequest sse_decode_box_autoadd_create_group_request(
+      SseDeserializer deserializer);
 
-@protected AttachmentDescriptor sse_decode_box_autoadd_attachment_descriptor(SseDeserializer deserializer);
+  @protected
+  JoinChannelRequest sse_decode_box_autoadd_join_channel_request(
+      SseDeserializer deserializer);
 
-@protected bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+  @protected
+  JoinGroupRequest sse_decode_box_autoadd_join_group_request(
+      SseDeserializer deserializer);
 
-@protected CallEvent sse_decode_box_autoadd_call_event(SseDeserializer deserializer);
+  @protected
+  JoinOrgRequest sse_decode_box_autoadd_join_org_request(
+      SseDeserializer deserializer);
 
-@protected CreateGroupRequest sse_decode_box_autoadd_create_group_request(SseDeserializer deserializer);
+  @protected
+  MeshInfo sse_decode_box_autoadd_mesh_info(SseDeserializer deserializer);
 
-@protected JoinChannelRequest sse_decode_box_autoadd_join_channel_request(SseDeserializer deserializer);
+  @protected
+  MessageDeliveryStatus sse_decode_box_autoadd_message_delivery_status(
+      SseDeserializer deserializer);
 
-@protected JoinGroupRequest sse_decode_box_autoadd_join_group_request(SseDeserializer deserializer);
+  @protected
+  OpenMlsRoundTripStatus sse_decode_box_autoadd_open_mls_round_trip_status(
+      SseDeserializer deserializer);
 
-@protected JoinOrgRequest sse_decode_box_autoadd_join_org_request(SseDeserializer deserializer);
+  @protected
+  OpenMlsSmokeStatus sse_decode_box_autoadd_open_mls_smoke_status(
+      SseDeserializer deserializer);
 
-@protected MeshInfo sse_decode_box_autoadd_mesh_info(SseDeserializer deserializer);
+  @protected
+  OutgoingCall sse_decode_box_autoadd_outgoing_call(
+      SseDeserializer deserializer);
 
-@protected MessageDeliveryStatus sse_decode_box_autoadd_message_delivery_status(SseDeserializer deserializer);
+  @protected
+  PendingCall sse_decode_box_autoadd_pending_call(SseDeserializer deserializer);
 
-@protected OpenMlsRoundTripStatus sse_decode_box_autoadd_open_mls_round_trip_status(SseDeserializer deserializer);
+  @protected
+  StartSessionRequest sse_decode_box_autoadd_start_session_request(
+      SseDeserializer deserializer);
 
-@protected OpenMlsSmokeStatus sse_decode_box_autoadd_open_mls_smoke_status(SseDeserializer deserializer);
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
-@protected OutgoingCall sse_decode_box_autoadd_outgoing_call(SseDeserializer deserializer);
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
 
-@protected PendingCall sse_decode_box_autoadd_pending_call(SseDeserializer deserializer);
+  @protected
+  VoiceMeta sse_decode_box_autoadd_voice_meta(SseDeserializer deserializer);
 
-@protected StartSessionRequest sse_decode_box_autoadd_start_session_request(SseDeserializer deserializer);
+  @protected
+  VpnBypassConsent sse_decode_box_autoadd_vpn_bypass_consent(
+      SseDeserializer deserializer);
 
-@protected int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+  @protected
+  CallEvent sse_decode_call_event(SseDeserializer deserializer);
 
-@protected BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+  @protected
+  ChannelLeaveResult sse_decode_channel_leave_result(
+      SseDeserializer deserializer);
 
-@protected VoiceMeta sse_decode_box_autoadd_voice_meta(SseDeserializer deserializer);
+  @protected
+  ChannelListSnapshot sse_decode_channel_list_snapshot(
+      SseDeserializer deserializer);
 
-@protected VpnBypassConsent sse_decode_box_autoadd_vpn_bypass_consent(SseDeserializer deserializer);
+  @protected
+  ChannelMessage sse_decode_channel_message(SseDeserializer deserializer);
 
-@protected CallEvent sse_decode_call_event(SseDeserializer deserializer);
+  @protected
+  ChannelSendResult sse_decode_channel_send_result(
+      SseDeserializer deserializer);
 
-@protected ChannelLeaveResult sse_decode_channel_leave_result(SseDeserializer deserializer);
+  @protected
+  ChannelSnapshot sse_decode_channel_snapshot(SseDeserializer deserializer);
 
-@protected ChannelListSnapshot sse_decode_channel_list_snapshot(SseDeserializer deserializer);
+  @protected
+  ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
 
-@protected ChannelMessage sse_decode_channel_message(SseDeserializer deserializer);
+  @protected
+  CloseSessionResult sse_decode_close_session_result(
+      SseDeserializer deserializer);
 
-@protected ChannelSendResult sse_decode_channel_send_result(SseDeserializer deserializer);
+  @protected
+  CreateGroupRequest sse_decode_create_group_request(
+      SseDeserializer deserializer);
 
-@protected ChannelSnapshot sse_decode_channel_snapshot(SseDeserializer deserializer);
+  @protected
+  DmOffer sse_decode_dm_offer(SseDeserializer deserializer);
 
-@protected ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
+  @protected
+  GroupCreated sse_decode_group_created(SseDeserializer deserializer);
 
-@protected CloseSessionResult sse_decode_close_session_result(SseDeserializer deserializer);
+  @protected
+  GroupLeaveResult sse_decode_group_leave_result(SseDeserializer deserializer);
 
-@protected CreateGroupRequest sse_decode_create_group_request(SseDeserializer deserializer);
+  @protected
+  GroupListSnapshot sse_decode_group_list_snapshot(
+      SseDeserializer deserializer);
 
-@protected DmOffer sse_decode_dm_offer(SseDeserializer deserializer);
+  @protected
+  GroupMessage sse_decode_group_message(SseDeserializer deserializer);
 
-@protected GroupCreated sse_decode_group_created(SseDeserializer deserializer);
+  @protected
+  GroupSendResult sse_decode_group_send_result(SseDeserializer deserializer);
 
-@protected GroupLeaveResult sse_decode_group_leave_result(SseDeserializer deserializer);
+  @protected
+  GroupSnapshot sse_decode_group_snapshot(SseDeserializer deserializer);
 
-@protected GroupListSnapshot sse_decode_group_list_snapshot(SseDeserializer deserializer);
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
 
-@protected GroupMessage sse_decode_group_message(SseDeserializer deserializer);
+  @protected
+  InviteCreated sse_decode_invite_created(SseDeserializer deserializer);
 
-@protected GroupSendResult sse_decode_group_send_result(SseDeserializer deserializer);
+  @protected
+  JoinChannelRequest sse_decode_join_channel_request(
+      SseDeserializer deserializer);
 
-@protected GroupSnapshot sse_decode_group_snapshot(SseDeserializer deserializer);
+  @protected
+  JoinGroupRequest sse_decode_join_group_request(SseDeserializer deserializer);
 
-@protected int sse_decode_i_32(SseDeserializer deserializer);
+  @protected
+  JoinOrgRequest sse_decode_join_org_request(SseDeserializer deserializer);
 
-@protected InviteCreated sse_decode_invite_created(SseDeserializer deserializer);
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer);
 
-@protected JoinChannelRequest sse_decode_join_channel_request(SseDeserializer deserializer);
+  @protected
+  List<AttachmentView> sse_decode_list_attachment_view(
+      SseDeserializer deserializer);
 
-@protected JoinGroupRequest sse_decode_join_group_request(SseDeserializer deserializer);
+  @protected
+  List<ChannelMessage> sse_decode_list_channel_message(
+      SseDeserializer deserializer);
 
-@protected JoinOrgRequest sse_decode_join_org_request(SseDeserializer deserializer);
+  @protected
+  List<ChannelSnapshot> sse_decode_list_channel_snapshot(
+      SseDeserializer deserializer);
 
-@protected List<String> sse_decode_list_String(SseDeserializer deserializer);
+  @protected
+  List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer);
 
-@protected List<AttachmentView> sse_decode_list_attachment_view(SseDeserializer deserializer);
+  @protected
+  List<DmOffer> sse_decode_list_dm_offer(SseDeserializer deserializer);
 
-@protected List<ChannelMessage> sse_decode_list_channel_message(SseDeserializer deserializer);
+  @protected
+  List<GroupMessage> sse_decode_list_group_message(
+      SseDeserializer deserializer);
 
-@protected List<ChannelSnapshot> sse_decode_list_channel_snapshot(SseDeserializer deserializer);
+  @protected
+  List<GroupSnapshot> sse_decode_list_group_snapshot(
+      SseDeserializer deserializer);
 
-@protected List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer);
+  @protected
+  List<NetworkInterfaceInfo> sse_decode_list_network_interface_info(
+      SseDeserializer deserializer);
 
-@protected List<DmOffer> sse_decode_list_dm_offer(SseDeserializer deserializer);
+  @protected
+  List<OrgDmLink> sse_decode_list_org_dm_link(SseDeserializer deserializer);
 
-@protected List<GroupMessage> sse_decode_list_group_message(SseDeserializer deserializer);
+  @protected
+  List<OrgDmOfferView> sse_decode_list_org_dm_offer_view(
+      SseDeserializer deserializer);
 
-@protected List<GroupSnapshot> sse_decode_list_group_snapshot(SseDeserializer deserializer);
+  @protected
+  List<OrgGroupOfferView> sse_decode_list_org_group_offer_view(
+      SseDeserializer deserializer);
 
-@protected List<NetworkInterfaceInfo> sse_decode_list_network_interface_info(SseDeserializer deserializer);
+  @protected
+  List<OrgMemberView> sse_decode_list_org_member_view(
+      SseDeserializer deserializer);
 
-@protected List<OrgDmLink> sse_decode_list_org_dm_link(SseDeserializer deserializer);
+  @protected
+  List<OrgSnapshot> sse_decode_list_org_snapshot(SseDeserializer deserializer);
 
-@protected List<OrgDmOfferView> sse_decode_list_org_dm_offer_view(SseDeserializer deserializer);
+  @protected
+  List<PeerDetail> sse_decode_list_peer_detail(SseDeserializer deserializer);
 
-@protected List<OrgGroupOfferView> sse_decode_list_org_group_offer_view(SseDeserializer deserializer);
+  @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
-@protected List<OrgMemberView> sse_decode_list_org_member_view(SseDeserializer deserializer);
+  @protected
+  Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
-@protected List<OrgSnapshot> sse_decode_list_org_snapshot(SseDeserializer deserializer);
+  @protected
+  List<SessionSnapshot> sse_decode_list_session_snapshot(
+      SseDeserializer deserializer);
 
-@protected List<PeerDetail> sse_decode_list_peer_detail(SseDeserializer deserializer);
+  @protected
+  List<SnapshotEvent> sse_decode_list_snapshot_event(
+      SseDeserializer deserializer);
 
-@protected List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+  @protected
+  MeshInfo sse_decode_mesh_info(SseDeserializer deserializer);
 
-@protected Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+  @protected
+  MessageDeliveryStatus sse_decode_message_delivery_status(
+      SseDeserializer deserializer);
 
-@protected List<SessionSnapshot> sse_decode_list_session_snapshot(SseDeserializer deserializer);
+  @protected
+  MossRuntimeStatus sse_decode_moss_runtime_status(
+      SseDeserializer deserializer);
 
-@protected List<SnapshotEvent> sse_decode_list_snapshot_event(SseDeserializer deserializer);
+  @protected
+  NativeRuntimeStatus sse_decode_native_runtime_status(
+      SseDeserializer deserializer);
 
-@protected MeshInfo sse_decode_mesh_info(SseDeserializer deserializer);
+  @protected
+  NetworkInterfaceInfo sse_decode_network_interface_info(
+      SseDeserializer deserializer);
 
-@protected MessageDeliveryStatus sse_decode_message_delivery_status(SseDeserializer deserializer);
+  @protected
+  OpenMlsRoundTripRuntimeStatus sse_decode_open_mls_round_trip_runtime_status(
+      SseDeserializer deserializer);
 
-@protected MossRuntimeStatus sse_decode_moss_runtime_status(SseDeserializer deserializer);
+  @protected
+  OpenMlsRoundTripStatus sse_decode_open_mls_round_trip_status(
+      SseDeserializer deserializer);
 
-@protected NativeRuntimeStatus sse_decode_native_runtime_status(SseDeserializer deserializer);
+  @protected
+  OpenMlsSmokeRuntimeStatus sse_decode_open_mls_smoke_runtime_status(
+      SseDeserializer deserializer);
 
-@protected NetworkInterfaceInfo sse_decode_network_interface_info(SseDeserializer deserializer);
+  @protected
+  OpenMlsSmokeStatus sse_decode_open_mls_smoke_status(
+      SseDeserializer deserializer);
 
-@protected OpenMlsRoundTripRuntimeStatus sse_decode_open_mls_round_trip_runtime_status(SseDeserializer deserializer);
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
 
-@protected OpenMlsRoundTripStatus sse_decode_open_mls_round_trip_status(SseDeserializer deserializer);
+  @protected
+  ActiveCall? sse_decode_opt_box_autoadd_active_call(
+      SseDeserializer deserializer);
 
-@protected OpenMlsSmokeRuntimeStatus sse_decode_open_mls_smoke_runtime_status(SseDeserializer deserializer);
+  @protected
+  AttachmentDescriptor? sse_decode_opt_box_autoadd_attachment_descriptor(
+      SseDeserializer deserializer);
 
-@protected OpenMlsSmokeStatus sse_decode_open_mls_smoke_status(SseDeserializer deserializer);
+  @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
-@protected String? sse_decode_opt_String(SseDeserializer deserializer);
+  @protected
+  CallEvent? sse_decode_opt_box_autoadd_call_event(
+      SseDeserializer deserializer);
 
-@protected ActiveCall? sse_decode_opt_box_autoadd_active_call(SseDeserializer deserializer);
+  @protected
+  MeshInfo? sse_decode_opt_box_autoadd_mesh_info(SseDeserializer deserializer);
 
-@protected AttachmentDescriptor? sse_decode_opt_box_autoadd_attachment_descriptor(SseDeserializer deserializer);
+  @protected
+  MessageDeliveryStatus? sse_decode_opt_box_autoadd_message_delivery_status(
+      SseDeserializer deserializer);
 
-@protected bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+  @protected
+  OpenMlsRoundTripStatus? sse_decode_opt_box_autoadd_open_mls_round_trip_status(
+      SseDeserializer deserializer);
 
-@protected CallEvent? sse_decode_opt_box_autoadd_call_event(SseDeserializer deserializer);
+  @protected
+  OpenMlsSmokeStatus? sse_decode_opt_box_autoadd_open_mls_smoke_status(
+      SseDeserializer deserializer);
 
-@protected MeshInfo? sse_decode_opt_box_autoadd_mesh_info(SseDeserializer deserializer);
+  @protected
+  OutgoingCall? sse_decode_opt_box_autoadd_outgoing_call(
+      SseDeserializer deserializer);
 
-@protected MessageDeliveryStatus? sse_decode_opt_box_autoadd_message_delivery_status(SseDeserializer deserializer);
+  @protected
+  PendingCall? sse_decode_opt_box_autoadd_pending_call(
+      SseDeserializer deserializer);
 
-@protected OpenMlsRoundTripStatus? sse_decode_opt_box_autoadd_open_mls_round_trip_status(SseDeserializer deserializer);
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
-@protected OpenMlsSmokeStatus? sse_decode_opt_box_autoadd_open_mls_smoke_status(SseDeserializer deserializer);
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
 
-@protected OutgoingCall? sse_decode_opt_box_autoadd_outgoing_call(SseDeserializer deserializer);
+  @protected
+  VoiceMeta? sse_decode_opt_box_autoadd_voice_meta(
+      SseDeserializer deserializer);
 
-@protected PendingCall? sse_decode_opt_box_autoadd_pending_call(SseDeserializer deserializer);
+  @protected
+  VpnBypassConsent? sse_decode_opt_box_autoadd_vpn_bypass_consent(
+      SseDeserializer deserializer);
 
-@protected int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+  @protected
+  OrgDmLink sse_decode_org_dm_link(SseDeserializer deserializer);
 
-@protected BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+  @protected
+  OrgDmOfferView sse_decode_org_dm_offer_view(SseDeserializer deserializer);
 
-@protected VoiceMeta? sse_decode_opt_box_autoadd_voice_meta(SseDeserializer deserializer);
+  @protected
+  OrgGroupOfferView sse_decode_org_group_offer_view(
+      SseDeserializer deserializer);
 
-@protected VpnBypassConsent? sse_decode_opt_box_autoadd_vpn_bypass_consent(SseDeserializer deserializer);
+  @protected
+  OrgMemberView sse_decode_org_member_view(SseDeserializer deserializer);
 
-@protected OrgDmLink sse_decode_org_dm_link(SseDeserializer deserializer);
+  @protected
+  OrgSnapshot sse_decode_org_snapshot(SseDeserializer deserializer);
 
-@protected OrgDmOfferView sse_decode_org_dm_offer_view(SseDeserializer deserializer);
+  @protected
+  OutgoingCall sse_decode_outgoing_call(SseDeserializer deserializer);
 
-@protected OrgGroupOfferView sse_decode_org_group_offer_view(SseDeserializer deserializer);
+  @protected
+  PeerDetail sse_decode_peer_detail(SseDeserializer deserializer);
 
-@protected OrgMemberView sse_decode_org_member_view(SseDeserializer deserializer);
+  @protected
+  PendingCall sse_decode_pending_call(SseDeserializer deserializer);
 
-@protected OrgSnapshot sse_decode_org_snapshot(SseDeserializer deserializer);
+  @protected
+  PersistenceRuntimeStatus sse_decode_persistence_runtime_status(
+      SseDeserializer deserializer);
 
-@protected OutgoingCall sse_decode_outgoing_call(SseDeserializer deserializer);
+  @protected
+  SecureStorageStatus sse_decode_secure_storage_status(
+      SseDeserializer deserializer);
 
-@protected PeerDetail sse_decode_peer_detail(SseDeserializer deserializer);
+  @protected
+  SendMessageResult sse_decode_send_message_result(
+      SseDeserializer deserializer);
 
-@protected PendingCall sse_decode_pending_call(SseDeserializer deserializer);
+  @protected
+  SessionListSnapshot sse_decode_session_list_snapshot(
+      SseDeserializer deserializer);
 
-@protected PersistenceRuntimeStatus sse_decode_persistence_runtime_status(SseDeserializer deserializer);
+  @protected
+  SessionSnapshot sse_decode_session_snapshot(SseDeserializer deserializer);
 
-@protected SecureStorageStatus sse_decode_secure_storage_status(SseDeserializer deserializer);
+  @protected
+  SnapshotEvent sse_decode_snapshot_event(SseDeserializer deserializer);
 
-@protected SendMessageResult sse_decode_send_message_result(SseDeserializer deserializer);
+  @protected
+  StartSessionRequest sse_decode_start_session_request(
+      SseDeserializer deserializer);
 
-@protected SessionListSnapshot sse_decode_session_list_snapshot(SseDeserializer deserializer);
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer);
 
-@protected SessionSnapshot sse_decode_session_snapshot(SseDeserializer deserializer);
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer);
 
-@protected SnapshotEvent sse_decode_snapshot_event(SseDeserializer deserializer);
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
 
-@protected StartSessionRequest sse_decode_start_session_request(SseDeserializer deserializer);
+  @protected
+  int sse_decode_u_8(SseDeserializer deserializer);
 
-@protected int sse_decode_u_16(SseDeserializer deserializer);
+  @protected
+  void sse_decode_unit(SseDeserializer deserializer);
 
-@protected int sse_decode_u_32(SseDeserializer deserializer);
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
 
-@protected BigInt sse_decode_u_64(SseDeserializer deserializer);
+  @protected
+  VoiceMeta sse_decode_voice_meta(SseDeserializer deserializer);
 
-@protected int sse_decode_u_8(SseDeserializer deserializer);
+  @protected
+  VpnBypassConsent sse_decode_vpn_bypass_consent(SseDeserializer deserializer);
 
-@protected void sse_decode_unit(SseDeserializer deserializer);
+  @protected
+  VpnDetection sse_decode_vpn_detection(SseDeserializer deserializer);
 
-@protected BigInt sse_decode_usize(SseDeserializer deserializer);
+  @protected
+  void sse_encode_String(String self, SseSerializer serializer);
 
-@protected VoiceMeta sse_decode_voice_meta(SseDeserializer deserializer);
+  @protected
+  void sse_encode_accept_invite_request(
+      AcceptInviteRequest self, SseSerializer serializer);
 
-@protected VpnBypassConsent sse_decode_vpn_bypass_consent(SseDeserializer deserializer);
+  @protected
+  void sse_encode_active_call(ActiveCall self, SseSerializer serializer);
 
-@protected VpnDetection sse_decode_vpn_detection(SseDeserializer deserializer);
+  @protected
+  void sse_encode_app_diagnostics(
+      AppDiagnostics self, SseSerializer serializer);
 
-@protected void sse_encode_String(String self, SseSerializer serializer);
+  @protected
+  void sse_encode_attachment_descriptor(
+      AttachmentDescriptor self, SseSerializer serializer);
 
-@protected void sse_encode_accept_invite_request(AcceptInviteRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_attachment_send_result(
+      AttachmentSendResult self, SseSerializer serializer);
 
-@protected void sse_encode_active_call(ActiveCall self, SseSerializer serializer);
+  @protected
+  void sse_encode_attachment_state(
+      AttachmentState self, SseSerializer serializer);
 
-@protected void sse_encode_app_diagnostics(AppDiagnostics self, SseSerializer serializer);
+  @protected
+  void sse_encode_attachment_view(
+      AttachmentView self, SseSerializer serializer);
 
-@protected void sse_encode_attachment_descriptor(AttachmentDescriptor self, SseSerializer serializer);
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
 
-@protected void sse_encode_attachment_send_result(AttachmentSendResult self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_accept_invite_request(
+      AcceptInviteRequest self, SseSerializer serializer);
 
-@protected void sse_encode_attachment_state(AttachmentState self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_active_call(
+      ActiveCall self, SseSerializer serializer);
 
-@protected void sse_encode_attachment_view(AttachmentView self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_attachment_descriptor(
+      AttachmentDescriptor self, SseSerializer serializer);
 
-@protected void sse_encode_bool(bool self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_accept_invite_request(AcceptInviteRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_call_event(
+      CallEvent self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_active_call(ActiveCall self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_create_group_request(
+      CreateGroupRequest self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_attachment_descriptor(AttachmentDescriptor self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_join_channel_request(
+      JoinChannelRequest self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_join_group_request(
+      JoinGroupRequest self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_call_event(CallEvent self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_join_org_request(
+      JoinOrgRequest self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_create_group_request(CreateGroupRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_mesh_info(
+      MeshInfo self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_join_channel_request(JoinChannelRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_message_delivery_status(
+      MessageDeliveryStatus self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_join_group_request(JoinGroupRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_open_mls_round_trip_status(
+      OpenMlsRoundTripStatus self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_join_org_request(JoinOrgRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_open_mls_smoke_status(
+      OpenMlsSmokeStatus self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_mesh_info(MeshInfo self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_outgoing_call(
+      OutgoingCall self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_pending_call(
+      PendingCall self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_open_mls_round_trip_status(OpenMlsRoundTripStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_start_session_request(
+      StartSessionRequest self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_open_mls_smoke_status(OpenMlsSmokeStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_outgoing_call(OutgoingCall self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_pending_call(PendingCall self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_voice_meta(
+      VoiceMeta self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_start_session_request(StartSessionRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_box_autoadd_vpn_bypass_consent(
+      VpnBypassConsent self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+  @protected
+  void sse_encode_call_event(CallEvent self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+  @protected
+  void sse_encode_channel_leave_result(
+      ChannelLeaveResult self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_voice_meta(VoiceMeta self, SseSerializer serializer);
+  @protected
+  void sse_encode_channel_list_snapshot(
+      ChannelListSnapshot self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_vpn_bypass_consent(VpnBypassConsent self, SseSerializer serializer);
+  @protected
+  void sse_encode_channel_message(
+      ChannelMessage self, SseSerializer serializer);
 
-@protected void sse_encode_call_event(CallEvent self, SseSerializer serializer);
+  @protected
+  void sse_encode_channel_send_result(
+      ChannelSendResult self, SseSerializer serializer);
 
-@protected void sse_encode_channel_leave_result(ChannelLeaveResult self, SseSerializer serializer);
+  @protected
+  void sse_encode_channel_snapshot(
+      ChannelSnapshot self, SseSerializer serializer);
 
-@protected void sse_encode_channel_list_snapshot(ChannelListSnapshot self, SseSerializer serializer);
+  @protected
+  void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
 
-@protected void sse_encode_channel_message(ChannelMessage self, SseSerializer serializer);
+  @protected
+  void sse_encode_close_session_result(
+      CloseSessionResult self, SseSerializer serializer);
 
-@protected void sse_encode_channel_send_result(ChannelSendResult self, SseSerializer serializer);
+  @protected
+  void sse_encode_create_group_request(
+      CreateGroupRequest self, SseSerializer serializer);
 
-@protected void sse_encode_channel_snapshot(ChannelSnapshot self, SseSerializer serializer);
+  @protected
+  void sse_encode_dm_offer(DmOffer self, SseSerializer serializer);
 
-@protected void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
+  @protected
+  void sse_encode_group_created(GroupCreated self, SseSerializer serializer);
 
-@protected void sse_encode_close_session_result(CloseSessionResult self, SseSerializer serializer);
+  @protected
+  void sse_encode_group_leave_result(
+      GroupLeaveResult self, SseSerializer serializer);
 
-@protected void sse_encode_create_group_request(CreateGroupRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_group_list_snapshot(
+      GroupListSnapshot self, SseSerializer serializer);
 
-@protected void sse_encode_dm_offer(DmOffer self, SseSerializer serializer);
+  @protected
+  void sse_encode_group_message(GroupMessage self, SseSerializer serializer);
 
-@protected void sse_encode_group_created(GroupCreated self, SseSerializer serializer);
+  @protected
+  void sse_encode_group_send_result(
+      GroupSendResult self, SseSerializer serializer);
 
-@protected void sse_encode_group_leave_result(GroupLeaveResult self, SseSerializer serializer);
+  @protected
+  void sse_encode_group_snapshot(GroupSnapshot self, SseSerializer serializer);
 
-@protected void sse_encode_group_list_snapshot(GroupListSnapshot self, SseSerializer serializer);
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
 
-@protected void sse_encode_group_message(GroupMessage self, SseSerializer serializer);
+  @protected
+  void sse_encode_invite_created(InviteCreated self, SseSerializer serializer);
 
-@protected void sse_encode_group_send_result(GroupSendResult self, SseSerializer serializer);
+  @protected
+  void sse_encode_join_channel_request(
+      JoinChannelRequest self, SseSerializer serializer);
 
-@protected void sse_encode_group_snapshot(GroupSnapshot self, SseSerializer serializer);
+  @protected
+  void sse_encode_join_group_request(
+      JoinGroupRequest self, SseSerializer serializer);
 
-@protected void sse_encode_i_32(int self, SseSerializer serializer);
+  @protected
+  void sse_encode_join_org_request(
+      JoinOrgRequest self, SseSerializer serializer);
 
-@protected void sse_encode_invite_created(InviteCreated self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
-@protected void sse_encode_join_channel_request(JoinChannelRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_attachment_view(
+      List<AttachmentView> self, SseSerializer serializer);
 
-@protected void sse_encode_join_group_request(JoinGroupRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_channel_message(
+      List<ChannelMessage> self, SseSerializer serializer);
 
-@protected void sse_encode_join_org_request(JoinOrgRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_channel_snapshot(
+      List<ChannelSnapshot> self, SseSerializer serializer);
 
-@protected void sse_encode_list_String(List<String> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_chat_message(
+      List<ChatMessage> self, SseSerializer serializer);
 
-@protected void sse_encode_list_attachment_view(List<AttachmentView> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_dm_offer(List<DmOffer> self, SseSerializer serializer);
 
-@protected void sse_encode_list_channel_message(List<ChannelMessage> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_group_message(
+      List<GroupMessage> self, SseSerializer serializer);
 
-@protected void sse_encode_list_channel_snapshot(List<ChannelSnapshot> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_group_snapshot(
+      List<GroupSnapshot> self, SseSerializer serializer);
 
-@protected void sse_encode_list_chat_message(List<ChatMessage> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_network_interface_info(
+      List<NetworkInterfaceInfo> self, SseSerializer serializer);
 
-@protected void sse_encode_list_dm_offer(List<DmOffer> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_org_dm_link(
+      List<OrgDmLink> self, SseSerializer serializer);
 
-@protected void sse_encode_list_group_message(List<GroupMessage> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_org_dm_offer_view(
+      List<OrgDmOfferView> self, SseSerializer serializer);
 
-@protected void sse_encode_list_group_snapshot(List<GroupSnapshot> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_org_group_offer_view(
+      List<OrgGroupOfferView> self, SseSerializer serializer);
 
-@protected void sse_encode_list_network_interface_info(List<NetworkInterfaceInfo> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_org_member_view(
+      List<OrgMemberView> self, SseSerializer serializer);
 
-@protected void sse_encode_list_org_dm_link(List<OrgDmLink> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_org_snapshot(
+      List<OrgSnapshot> self, SseSerializer serializer);
 
-@protected void sse_encode_list_org_dm_offer_view(List<OrgDmOfferView> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_peer_detail(
+      List<PeerDetail> self, SseSerializer serializer);
 
-@protected void sse_encode_list_org_group_offer_view(List<OrgGroupOfferView> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
-@protected void sse_encode_list_org_member_view(List<OrgMemberView> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_prim_u_8_strict(
+      Uint8List self, SseSerializer serializer);
 
-@protected void sse_encode_list_org_snapshot(List<OrgSnapshot> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_session_snapshot(
+      List<SessionSnapshot> self, SseSerializer serializer);
 
-@protected void sse_encode_list_peer_detail(List<PeerDetail> self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_snapshot_event(
+      List<SnapshotEvent> self, SseSerializer serializer);
 
-@protected void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
+  @protected
+  void sse_encode_mesh_info(MeshInfo self, SseSerializer serializer);
 
-@protected void sse_encode_list_prim_u_8_strict(Uint8List self, SseSerializer serializer);
+  @protected
+  void sse_encode_message_delivery_status(
+      MessageDeliveryStatus self, SseSerializer serializer);
 
-@protected void sse_encode_list_session_snapshot(List<SessionSnapshot> self, SseSerializer serializer);
+  @protected
+  void sse_encode_moss_runtime_status(
+      MossRuntimeStatus self, SseSerializer serializer);
 
-@protected void sse_encode_list_snapshot_event(List<SnapshotEvent> self, SseSerializer serializer);
+  @protected
+  void sse_encode_native_runtime_status(
+      NativeRuntimeStatus self, SseSerializer serializer);
 
-@protected void sse_encode_mesh_info(MeshInfo self, SseSerializer serializer);
+  @protected
+  void sse_encode_network_interface_info(
+      NetworkInterfaceInfo self, SseSerializer serializer);
 
-@protected void sse_encode_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_open_mls_round_trip_runtime_status(
+      OpenMlsRoundTripRuntimeStatus self, SseSerializer serializer);
 
-@protected void sse_encode_moss_runtime_status(MossRuntimeStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_open_mls_round_trip_status(
+      OpenMlsRoundTripStatus self, SseSerializer serializer);
 
-@protected void sse_encode_native_runtime_status(NativeRuntimeStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_open_mls_smoke_runtime_status(
+      OpenMlsSmokeRuntimeStatus self, SseSerializer serializer);
 
-@protected void sse_encode_network_interface_info(NetworkInterfaceInfo self, SseSerializer serializer);
+  @protected
+  void sse_encode_open_mls_smoke_status(
+      OpenMlsSmokeStatus self, SseSerializer serializer);
 
-@protected void sse_encode_open_mls_round_trip_runtime_status(OpenMlsRoundTripRuntimeStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
 
-@protected void sse_encode_open_mls_round_trip_status(OpenMlsRoundTripStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_active_call(
+      ActiveCall? self, SseSerializer serializer);
 
-@protected void sse_encode_open_mls_smoke_runtime_status(OpenMlsSmokeRuntimeStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_attachment_descriptor(
+      AttachmentDescriptor? self, SseSerializer serializer);
 
-@protected void sse_encode_open_mls_smoke_status(OpenMlsSmokeStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_String(String? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_call_event(
+      CallEvent? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_active_call(ActiveCall? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_mesh_info(
+      MeshInfo? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_attachment_descriptor(AttachmentDescriptor? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_message_delivery_status(
+      MessageDeliveryStatus? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_open_mls_round_trip_status(
+      OpenMlsRoundTripStatus? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_call_event(CallEvent? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_open_mls_smoke_status(
+      OpenMlsSmokeStatus? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_mesh_info(MeshInfo? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_outgoing_call(
+      OutgoingCall? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_message_delivery_status(MessageDeliveryStatus? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_pending_call(
+      PendingCall? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_open_mls_round_trip_status(OpenMlsRoundTripStatus? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_open_mls_smoke_status(OpenMlsSmokeStatus? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_outgoing_call(OutgoingCall? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_voice_meta(
+      VoiceMeta? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_pending_call(PendingCall? self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_vpn_bypass_consent(
+      VpnBypassConsent? self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+  @protected
+  void sse_encode_org_dm_link(OrgDmLink self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+  @protected
+  void sse_encode_org_dm_offer_view(
+      OrgDmOfferView self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_voice_meta(VoiceMeta? self, SseSerializer serializer);
+  @protected
+  void sse_encode_org_group_offer_view(
+      OrgGroupOfferView self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_vpn_bypass_consent(VpnBypassConsent? self, SseSerializer serializer);
+  @protected
+  void sse_encode_org_member_view(OrgMemberView self, SseSerializer serializer);
 
-@protected void sse_encode_org_dm_link(OrgDmLink self, SseSerializer serializer);
+  @protected
+  void sse_encode_org_snapshot(OrgSnapshot self, SseSerializer serializer);
 
-@protected void sse_encode_org_dm_offer_view(OrgDmOfferView self, SseSerializer serializer);
+  @protected
+  void sse_encode_outgoing_call(OutgoingCall self, SseSerializer serializer);
 
-@protected void sse_encode_org_group_offer_view(OrgGroupOfferView self, SseSerializer serializer);
+  @protected
+  void sse_encode_peer_detail(PeerDetail self, SseSerializer serializer);
 
-@protected void sse_encode_org_member_view(OrgMemberView self, SseSerializer serializer);
+  @protected
+  void sse_encode_pending_call(PendingCall self, SseSerializer serializer);
 
-@protected void sse_encode_org_snapshot(OrgSnapshot self, SseSerializer serializer);
+  @protected
+  void sse_encode_persistence_runtime_status(
+      PersistenceRuntimeStatus self, SseSerializer serializer);
 
-@protected void sse_encode_outgoing_call(OutgoingCall self, SseSerializer serializer);
+  @protected
+  void sse_encode_secure_storage_status(
+      SecureStorageStatus self, SseSerializer serializer);
 
-@protected void sse_encode_peer_detail(PeerDetail self, SseSerializer serializer);
+  @protected
+  void sse_encode_send_message_result(
+      SendMessageResult self, SseSerializer serializer);
 
-@protected void sse_encode_pending_call(PendingCall self, SseSerializer serializer);
+  @protected
+  void sse_encode_session_list_snapshot(
+      SessionListSnapshot self, SseSerializer serializer);
 
-@protected void sse_encode_persistence_runtime_status(PersistenceRuntimeStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_session_snapshot(
+      SessionSnapshot self, SseSerializer serializer);
 
-@protected void sse_encode_secure_storage_status(SecureStorageStatus self, SseSerializer serializer);
+  @protected
+  void sse_encode_snapshot_event(SnapshotEvent self, SseSerializer serializer);
 
-@protected void sse_encode_send_message_result(SendMessageResult self, SseSerializer serializer);
+  @protected
+  void sse_encode_start_session_request(
+      StartSessionRequest self, SseSerializer serializer);
 
-@protected void sse_encode_session_list_snapshot(SessionListSnapshot self, SseSerializer serializer);
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer);
 
-@protected void sse_encode_session_snapshot(SessionSnapshot self, SseSerializer serializer);
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer);
 
-@protected void sse_encode_snapshot_event(SnapshotEvent self, SseSerializer serializer);
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
 
-@protected void sse_encode_start_session_request(StartSessionRequest self, SseSerializer serializer);
+  @protected
+  void sse_encode_u_8(int self, SseSerializer serializer);
 
-@protected void sse_encode_u_16(int self, SseSerializer serializer);
+  @protected
+  void sse_encode_unit(void self, SseSerializer serializer);
 
-@protected void sse_encode_u_32(int self, SseSerializer serializer);
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
 
-@protected void sse_encode_u_64(BigInt self, SseSerializer serializer);
+  @protected
+  void sse_encode_voice_meta(VoiceMeta self, SseSerializer serializer);
 
-@protected void sse_encode_u_8(int self, SseSerializer serializer);
+  @protected
+  void sse_encode_vpn_bypass_consent(
+      VpnBypassConsent self, SseSerializer serializer);
 
-@protected void sse_encode_unit(void self, SseSerializer serializer);
-
-@protected void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-@protected void sse_encode_voice_meta(VoiceMeta self, SseSerializer serializer);
-
-@protected void sse_encode_vpn_bypass_consent(VpnBypassConsent self, SseSerializer serializer);
-
-@protected void sse_encode_vpn_detection(VpnDetection self, SseSerializer serializer);
-                }
-                
-
+  @protected
+  void sse_encode_vpn_detection(VpnDetection self, SseSerializer serializer);
+}
 
 // Section: wire_class
 
 class RustLibWire implements BaseWire {
-            RustLibWire.fromExternalLibrary(ExternalLibrary lib);
+  RustLibWire.fromExternalLibrary(ExternalLibrary lib);
+}
 
-            
-        }
-        @JS('wasm_bindgen') external RustLibWasmModule get wasmModule;
+@JS('wasm_bindgen')
+external RustLibWasmModule get wasmModule;
 
-        @JS() @anonymous extension type RustLibWasmModule._(JSObject _) implements JSObject {
-            
-        }
-        
+@JS()
+@anonymous
+extension type RustLibWasmModule._(JSObject _) implements JSObject {}

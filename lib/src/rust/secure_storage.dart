@@ -6,33 +6,26 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+class SecureStorageStatus {
+  final String backend;
+  final String service;
+  final bool available;
 
-            
+  const SecureStorageStatus({
+    required this.backend,
+    required this.service,
+    required this.available,
+  });
 
-            
+  @override
+  int get hashCode => backend.hashCode ^ service.hashCode ^ available.hashCode;
 
-            class SecureStorageStatus  {
-                final String backend;
-final String service;
-final bool available;
-
-                const SecureStorageStatus({required this.backend ,required this.service ,required this.available ,});
-
-                
-                
-
-                
-        @override
-        int get hashCode => backend.hashCode^service.hashCode^available.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is SecureStorageStatus &&
-                runtimeType == other.runtimeType
-                && backend == other.backend&& service == other.service&& available == other.available;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SecureStorageStatus &&
+          runtimeType == other.runtimeType &&
+          backend == other.backend &&
+          service == other.service &&
+          available == other.available;
+}

@@ -9,173 +9,221 @@ import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'private_dm_runtime/contracts.dart';
 
+class ChannelLeaveResult {
+  final String name;
+  final bool closed;
 
-            
+  const ChannelLeaveResult({
+    required this.name,
+    required this.closed,
+  });
 
-            
+  @override
+  int get hashCode => name.hashCode ^ closed.hashCode;
 
-            class ChannelLeaveResult  {
-                final String name;
-final bool closed;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChannelLeaveResult &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          closed == other.closed;
+}
 
-                const ChannelLeaveResult({required this.name ,required this.closed ,});
+class ChannelListSnapshot {
+  final List<ChannelSnapshot> channels;
 
-                
-                
+  const ChannelListSnapshot({
+    required this.channels,
+  });
 
-                
-        @override
-        int get hashCode => name.hashCode^closed.hashCode;
-        
+  @override
+  int get hashCode => channels.hashCode;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is ChannelLeaveResult &&
-                runtimeType == other.runtimeType
-                && name == other.name&& closed == other.closed;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChannelListSnapshot &&
+          runtimeType == other.runtimeType &&
+          channels == other.channels;
+}
 
-class ChannelListSnapshot  {
-                final List<ChannelSnapshot> channels;
+class ChannelMessage {
+  final String fromDevice;
+  final String fromFingerprint;
+  final String body;
+  final String? messageId;
+  final BigInt? sentAtMs;
+  final AttachmentDescriptor? attachment;
+  final MessageDeliveryStatus? deliveryStatus;
+  final String? deliveryError;
+  final bool? retryable;
+  final int? retryCount;
 
-                const ChannelListSnapshot({required this.channels ,});
+  const ChannelMessage({
+    required this.fromDevice,
+    required this.fromFingerprint,
+    required this.body,
+    this.messageId,
+    this.sentAtMs,
+    this.attachment,
+    this.deliveryStatus,
+    this.deliveryError,
+    this.retryable,
+    this.retryCount,
+  });
 
-                
-                
+  @override
+  int get hashCode =>
+      fromDevice.hashCode ^
+      fromFingerprint.hashCode ^
+      body.hashCode ^
+      messageId.hashCode ^
+      sentAtMs.hashCode ^
+      attachment.hashCode ^
+      deliveryStatus.hashCode ^
+      deliveryError.hashCode ^
+      retryable.hashCode ^
+      retryCount.hashCode;
 
-                
-        @override
-        int get hashCode => channels.hashCode;
-        
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChannelMessage &&
+          runtimeType == other.runtimeType &&
+          fromDevice == other.fromDevice &&
+          fromFingerprint == other.fromFingerprint &&
+          body == other.body &&
+          messageId == other.messageId &&
+          sentAtMs == other.sentAtMs &&
+          attachment == other.attachment &&
+          deliveryStatus == other.deliveryStatus &&
+          deliveryError == other.deliveryError &&
+          retryable == other.retryable &&
+          retryCount == other.retryCount;
+}
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is ChannelListSnapshot &&
-                runtimeType == other.runtimeType
-                && channels == other.channels;
-        
-            }
+class ChannelSendResult {
+  final String name;
+  final BigInt bytes;
+  final String messageId;
+  final BigInt sentAtMs;
+  final MessageDeliveryStatus deliveryStatus;
+  final String? deliveryError;
 
-class ChannelMessage  {
-                final String fromDevice;
-final String fromFingerprint;
-final String body;
-final String? messageId;
-final BigInt? sentAtMs;
-final AttachmentDescriptor? attachment;
-final MessageDeliveryStatus? deliveryStatus;
-final String? deliveryError;
-final bool? retryable;
-final int? retryCount;
+  const ChannelSendResult({
+    required this.name,
+    required this.bytes,
+    required this.messageId,
+    required this.sentAtMs,
+    required this.deliveryStatus,
+    this.deliveryError,
+  });
 
-                const ChannelMessage({required this.fromDevice ,required this.fromFingerprint ,required this.body ,this.messageId ,this.sentAtMs ,this.attachment ,this.deliveryStatus ,this.deliveryError ,this.retryable ,this.retryCount ,});
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      bytes.hashCode ^
+      messageId.hashCode ^
+      sentAtMs.hashCode ^
+      deliveryStatus.hashCode ^
+      deliveryError.hashCode;
 
-                
-                
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChannelSendResult &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          bytes == other.bytes &&
+          messageId == other.messageId &&
+          sentAtMs == other.sentAtMs &&
+          deliveryStatus == other.deliveryStatus &&
+          deliveryError == other.deliveryError;
+}
 
-                
-        @override
-        int get hashCode => fromDevice.hashCode^fromFingerprint.hashCode^body.hashCode^messageId.hashCode^sentAtMs.hashCode^attachment.hashCode^deliveryStatus.hashCode^deliveryError.hashCode^retryable.hashCode^retryCount.hashCode;
-        
+class ChannelSnapshot {
+  final String name;
+  final String topic;
+  final String meshId;
+  final String displayName;
+  final String deviceFingerprint;
+  final List<ChannelMessage> messages;
+  final List<AttachmentView> attachments;
+  final List<DmOffer> dmOffers;
+  final MeshInfo? mesh;
+  final List<SnapshotEvent> events;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is ChannelMessage &&
-                runtimeType == other.runtimeType
-                && fromDevice == other.fromDevice&& fromFingerprint == other.fromFingerprint&& body == other.body&& messageId == other.messageId&& sentAtMs == other.sentAtMs&& attachment == other.attachment&& deliveryStatus == other.deliveryStatus&& deliveryError == other.deliveryError&& retryable == other.retryable&& retryCount == other.retryCount;
-        
-            }
+  const ChannelSnapshot({
+    required this.name,
+    required this.topic,
+    required this.meshId,
+    required this.displayName,
+    required this.deviceFingerprint,
+    required this.messages,
+    required this.attachments,
+    required this.dmOffers,
+    this.mesh,
+    required this.events,
+  });
 
-class ChannelSendResult  {
-                final String name;
-final BigInt bytes;
-final String messageId;
-final BigInt sentAtMs;
-final MessageDeliveryStatus deliveryStatus;
-final String? deliveryError;
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      topic.hashCode ^
+      meshId.hashCode ^
+      displayName.hashCode ^
+      deviceFingerprint.hashCode ^
+      messages.hashCode ^
+      attachments.hashCode ^
+      dmOffers.hashCode ^
+      mesh.hashCode ^
+      events.hashCode;
 
-                const ChannelSendResult({required this.name ,required this.bytes ,required this.messageId ,required this.sentAtMs ,required this.deliveryStatus ,this.deliveryError ,});
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChannelSnapshot &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          topic == other.topic &&
+          meshId == other.meshId &&
+          displayName == other.displayName &&
+          deviceFingerprint == other.deviceFingerprint &&
+          messages == other.messages &&
+          attachments == other.attachments &&
+          dmOffers == other.dmOffers &&
+          mesh == other.mesh &&
+          events == other.events;
+}
 
-                
-                
+class JoinChannelRequest {
+  final String name;
+  final String displayName;
+  final int listenPort;
+  final String? staticPeer;
 
-                
-        @override
-        int get hashCode => name.hashCode^bytes.hashCode^messageId.hashCode^sentAtMs.hashCode^deliveryStatus.hashCode^deliveryError.hashCode;
-        
+  const JoinChannelRequest({
+    required this.name,
+    required this.displayName,
+    required this.listenPort,
+    this.staticPeer,
+  });
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is ChannelSendResult &&
-                runtimeType == other.runtimeType
-                && name == other.name&& bytes == other.bytes&& messageId == other.messageId&& sentAtMs == other.sentAtMs&& deliveryStatus == other.deliveryStatus&& deliveryError == other.deliveryError;
-        
-            }
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      displayName.hashCode ^
+      listenPort.hashCode ^
+      staticPeer.hashCode;
 
-class ChannelSnapshot  {
-                final String name;
-final String topic;
-final String meshId;
-final String displayName;
-final String deviceFingerprint;
-final List<ChannelMessage> messages;
-final List<AttachmentView> attachments;
-final List<DmOffer> dmOffers;
-final MeshInfo? mesh;
-final List<SnapshotEvent> events;
-
-                const ChannelSnapshot({required this.name ,required this.topic ,required this.meshId ,required this.displayName ,required this.deviceFingerprint ,required this.messages ,required this.attachments ,required this.dmOffers ,this.mesh ,required this.events ,});
-
-                
-                
-
-                
-        @override
-        int get hashCode => name.hashCode^topic.hashCode^meshId.hashCode^displayName.hashCode^deviceFingerprint.hashCode^messages.hashCode^attachments.hashCode^dmOffers.hashCode^mesh.hashCode^events.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is ChannelSnapshot &&
-                runtimeType == other.runtimeType
-                && name == other.name&& topic == other.topic&& meshId == other.meshId&& displayName == other.displayName&& deviceFingerprint == other.deviceFingerprint&& messages == other.messages&& attachments == other.attachments&& dmOffers == other.dmOffers&& mesh == other.mesh&& events == other.events;
-        
-            }
-
-class JoinChannelRequest  {
-                final String name;
-final String displayName;
-final int listenPort;
-final String? staticPeer;
-
-                const JoinChannelRequest({required this.name ,required this.displayName ,required this.listenPort ,this.staticPeer ,});
-
-                
-                
-
-                
-        @override
-        int get hashCode => name.hashCode^displayName.hashCode^listenPort.hashCode^staticPeer.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is JoinChannelRequest &&
-                runtimeType == other.runtimeType
-                && name == other.name&& displayName == other.displayName&& listenPort == other.listenPort&& staticPeer == other.staticPeer;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is JoinChannelRequest &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          displayName == other.displayName &&
+          listenPort == other.listenPort &&
+          staticPeer == other.staticPeer;
+}

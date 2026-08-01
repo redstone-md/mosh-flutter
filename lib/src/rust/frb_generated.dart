@@ -15,7 +15,8 @@ import 'channel_runtime.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
-import 'frb_generated.io.dart' if (dart.library.js_interop) 'frb_generated.web.dart';
+import 'frb_generated.io.dart'
+    if (dart.library.js_interop) 'frb_generated.web.dart';
 import 'moss_runtime.dart';
 import 'network_inventory.dart';
 import 'openmls_crypto.dart';
@@ -28,3692 +29,5487 @@ import 'private_group_runtime.dart';
 import 'secure_storage.dart';
 import 'vpn_consent.dart';
 
+/// Main entrypoint of the Rust API
+class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
+  @internal
+  static final instance = RustLib._();
+
+  RustLib._();
+
+  /// Initialize flutter_rust_bridge
+  static Future<void> init({
+    RustLibApi? api,
+    BaseHandler? handler,
+    ExternalLibrary? externalLibrary,
+    bool forceSameCodegenVersion = true,
+  }) async {
+    await instance.initImpl(
+      api: api,
+      handler: handler,
+      externalLibrary: externalLibrary,
+      forceSameCodegenVersion: forceSameCodegenVersion,
+    );
+  }
+
+  /// Initialize flutter_rust_bridge in mock mode.
+  /// No libraries for FFI are loaded.
+  static void initMock({
+    required RustLibApi api,
+  }) {
+    instance.initMockImpl(
+      api: api,
+    );
+  }
+
+  /// Dispose flutter_rust_bridge
+  ///
+  /// The call to this function is optional, since flutter_rust_bridge (and everything else)
+  /// is automatically disposed when the app stops.
+  static void dispose() => instance.disposeImpl();
+
+  @override
+  ApiImplConstructor<RustLibApiImpl, RustLibWire> get apiImplConstructor =>
+      RustLibApiImpl.new;
+
+  @override
+  WireConstructor<RustLibWire> get wireConstructor =>
+      RustLibWire.fromExternalLibrary;
+
+  @override
+  Future<void> executeRustInitializers() async {}
+
+  @override
+  ExternalLibraryLoaderConfig get defaultExternalLibraryLoaderConfig =>
+      kDefaultExternalLibraryLoaderConfig;
+
+  @override
+  String get codegenVersion => '2.12.0';
+
+  @override
+  int get rustContentHash => -1988412395;
+
+  static const kDefaultExternalLibraryLoaderConfig =
+      ExternalLibraryLoaderConfig(
+    stem: 'mosh_core',
+    ioDirectory: 'mosh-core/target/release/',
+    webPrefix: 'pkg/',
+    wasmBindgenName: 'wasm_bindgen',
+  );
+}
 
-                /// Main entrypoint of the Rust API
-                class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
-                  @internal
-                  static final instance = RustLib._();
+abstract class RustLibApi extends BaseApi {
+  Future<SessionSnapshot> crateApiOrgAcceptDmOffer(
+      {required String orgPubkey,
+      required String offerId,
+      required String displayName,
+      required int listenPort,
+      String? staticPeer});
 
-                  RustLib._();
+  Future<GroupSnapshot> crateApiOrgAcceptGroupOffer(
+      {required String orgPubkey,
+      required String offerId,
+      required String displayName,
+      required int listenPort,
+      String? staticPeer});
 
-                  /// Initialize flutter_rust_bridge
-                  static Future<void> init({
-                    RustLibApi? api,
-                    BaseHandler? handler,
-                    ExternalLibrary? externalLibrary,
-                    bool forceSameCodegenVersion = true,
-                  }) async {
-                    await instance.initImpl(
-                      api: api,
-                      handler: handler,
-                      externalLibrary: externalLibrary,
-                      forceSameCodegenVersion: forceSameCodegenVersion,
-                    );
-                  }
+  Future<SessionSnapshot> crateApiPrivateDmAcceptInvite(
+      {required AcceptInviteRequest request});
 
-                  /// Initialize flutter_rust_bridge in mock mode.
-                  /// No libraries for FFI are loaded.
-                  static void initMock({
-                    required RustLibApi api,
-                  }) {
-                    instance.initMockImpl(
-                      api: api,
-                    );
-                  }
+  Future<AppDiagnostics> crateApiDiagnosticsAppDiagnostics();
 
-                  /// Dispose flutter_rust_bridge
-                  ///
-                  /// The call to this function is optional, since flutter_rust_bridge (and everything else)
-                  /// is automatically disposed when the app stops.
-                  static void dispose() => instance.disposeImpl();
+  Future<void> crateApiChannelCancelAttachment(
+      {required String name, required String attachmentId});
 
-                  @override
-                  ApiImplConstructor<RustLibApiImpl, RustLibWire> get apiImplConstructor => RustLibApiImpl.new;
+  Future<void> crateApiPrivateDmCancelAttachment(
+      {required String sessionId, required String attachmentId});
 
-                  @override
-                  WireConstructor<RustLibWire> get wireConstructor => RustLibWire.fromExternalLibrary;
+  Future<void> crateApiPrivateGroupCancelAttachment(
+      {required String groupId, required String attachmentId});
 
-                  @override
-                  Future<void> executeRustInitializers() async {
-                    
-                  }
+  Future<GroupLeaveResult> crateApiPrivateGroupClose({required String groupId});
 
-                  @override
-                  ExternalLibraryLoaderConfig get defaultExternalLibraryLoaderConfig => kDefaultExternalLibraryLoaderConfig;
+  Future<CloseSessionResult> crateApiPrivateDmCloseSession(
+      {required String sessionId});
 
-                  @override
-                  String get codegenVersion => '2.12.0';
+  Future<GroupCreated> crateApiOrgCreateGroup(
+      {required String orgPubkey,
+      String? label,
+      required List<String> memberPeerIds,
+      required String displayName,
+      required int listenPort,
+      String? staticPeer});
 
-                  @override
-                  int get rustContentHash => -557657121;
+  Future<GroupCreated> crateApiPrivateGroupCreateGroup(
+      {required CreateGroupRequest request});
 
-                  static const kDefaultExternalLibraryLoaderConfig = ExternalLibraryLoaderConfig(
-                    stem: 'mosh_core',
-                    ioDirectory: 'mosh-core/target/release/',
-                    webPrefix: 'pkg/',
-                    wasmBindgenName: 'wasm_bindgen',
-                  );
-                }
-                
+  Future<InviteCreated> crateApiPrivateDmCreateInvite(
+      {required StartSessionRequest request});
 
-                abstract class RustLibApi extends BaseApi {
-                  Future<SessionSnapshot> crateApiOrgAcceptDmOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer });
+  Future<VpnDetection> crateApiVpnDetectVpn();
 
-Future<GroupSnapshot> crateApiOrgAcceptGroupOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer });
+  Future<void> crateApiChannelDismissDmOffer(
+      {required String name, required String offerId});
 
-Future<SessionSnapshot> crateApiPrivateDmAcceptInvite({required AcceptInviteRequest request });
+  Future<void> crateApiOrgDismissDmOffer(
+      {required String orgPubkey, required String offerId});
 
-Future<AppDiagnostics> crateApiDiagnosticsAppDiagnostics();
+  Future<void> crateApiPrivateGroupDismissDmOffer(
+      {required String groupId, required String offerId});
 
-Future<void> crateApiChannelCancelAttachment({required String name , required String attachmentId });
+  Future<void> crateApiOrgDismissGroupOffer(
+      {required String orgPubkey, required String offerId});
 
-Future<void> crateApiPrivateDmCancelAttachment({required String sessionId , required String attachmentId });
+  Future<void> crateApiChannelDownloadAttachment(
+      {required String name, required String attachmentId});
 
-Future<void> crateApiPrivateGroupCancelAttachment({required String groupId , required String attachmentId });
+  Future<void> crateApiPrivateDmDownloadAttachment(
+      {required String sessionId, required String attachmentId});
 
-Future<GroupLeaveResult> crateApiPrivateGroupClose({required String groupId });
+  Future<void> crateApiPrivateGroupDownloadAttachment(
+      {required String groupId, required String attachmentId});
 
-Future<CloseSessionResult> crateApiPrivateDmCloseSession({required String sessionId });
+  Future<String?> crateApiVpnGetBindInterface();
 
-Future<GroupCreated> crateApiOrgCreateGroup({required String orgPubkey , String? label , required List<String> memberPeerIds , required String displayName , required int listenPort , String? staticPeer });
+  Future<VpnBypassConsent?> crateApiVpnGetVpnBypassConsent();
 
-Future<GroupCreated> crateApiPrivateGroupCreateGroup({required CreateGroupRequest request });
+  Future<void> crateApiOrgGroupInviteMembers(
+      {required String orgPubkey,
+      required String groupId,
+      required List<String> memberPeerIds});
 
-Future<InviteCreated> crateApiPrivateDmCreateInvite({required StartSessionRequest request });
+  Future<ChannelSnapshot> crateApiChannelJoin(
+      {required JoinChannelRequest request});
 
-Future<VpnDetection> crateApiVpnDetectVpn();
+  Future<GroupSnapshot> crateApiPrivateGroupJoinGroup(
+      {required JoinGroupRequest request});
 
-Future<void> crateApiChannelDismissDmOffer({required String name , required String offerId });
+  Future<OrgSnapshot> crateApiOrgJoinOrg({required JoinOrgRequest request});
 
-Future<void> crateApiOrgDismissDmOffer({required String orgPubkey , required String offerId });
+  Future<ChannelLeaveResult> crateApiChannelLeave({required String name});
 
-Future<void> crateApiPrivateGroupDismissDmOffer({required String groupId , required String offerId });
+  Future<void> crateApiOrgLeaveOrg({required String orgPubkey});
 
-Future<void> crateApiOrgDismissGroupOffer({required String orgPubkey , required String offerId });
+  Future<ChannelListSnapshot> crateApiChannelList();
 
-Future<void> crateApiChannelDownloadAttachment({required String name , required String attachmentId });
+  Future<List<OrgSnapshot>> crateApiOrgList();
 
-Future<void> crateApiPrivateDmDownloadAttachment({required String sessionId , required String attachmentId });
+  Future<GroupListSnapshot> crateApiPrivateGroupList();
 
-Future<void> crateApiPrivateGroupDownloadAttachment({required String groupId , required String attachmentId });
+  Future<List<NetworkInterfaceInfo>> crateApiNetworkListInterfaces();
 
-Future<String?> crateApiVpnGetBindInterface();
+  Future<SessionListSnapshot> crateApiPrivateDmListSessions();
 
-Future<VpnBypassConsent?> crateApiVpnGetVpnBypassConsent();
+  Future<NativeRuntimeStatus> crateApiDiagnosticsNativeRuntimeStatus();
 
-Future<void> crateApiOrgGroupInviteMembers({required String orgPubkey , required String groupId , required List<String> memberPeerIds });
+  Future<ChannelSnapshot> crateApiChannelPoll({required String name});
 
-Future<ChannelSnapshot> crateApiChannelJoin({required JoinChannelRequest request });
+  Future<OrgSnapshot> crateApiOrgPoll({required String orgPubkey});
 
-Future<GroupSnapshot> crateApiPrivateGroupJoinGroup({required JoinGroupRequest request });
+  Future<GroupSnapshot> crateApiPrivateGroupPoll({required String groupId});
 
-Future<OrgSnapshot> crateApiOrgJoinOrg({required JoinOrgRequest request });
+  Future<SessionSnapshot> crateApiPrivateDmPollSession(
+      {required String sessionId});
 
-Future<ChannelLeaveResult> crateApiChannelLeave({required String name });
+  Future<ChannelSendResult> crateApiChannelRetryMessage(
+      {required String name, required String messageId});
 
-Future<void> crateApiOrgLeaveOrg({required String orgPubkey });
-
-Future<ChannelListSnapshot> crateApiChannelList();
-
-Future<List<OrgSnapshot>> crateApiOrgList();
-
-Future<GroupListSnapshot> crateApiPrivateGroupList();
-
-Future<List<NetworkInterfaceInfo>> crateApiNetworkListInterfaces();
-
-Future<SessionListSnapshot> crateApiPrivateDmListSessions();
-
-Future<NativeRuntimeStatus> crateApiDiagnosticsNativeRuntimeStatus();
-
-Future<ChannelSnapshot> crateApiChannelPoll({required String name });
-
-Future<OrgSnapshot> crateApiOrgPoll({required String orgPubkey });
-
-Future<GroupSnapshot> crateApiPrivateGroupPoll({required String groupId });
-
-Future<SessionSnapshot> crateApiPrivateDmPollSession({required String sessionId });
-
-Future<ChannelSendResult> crateApiChannelRetryMessage({required String name , required String messageId });
-
-Future<GroupSendResult> crateApiPrivateGroupRetryMessage({required String groupId , required String messageId });
-
-Future<ChannelSendResult> crateApiChannelSend({required String name , required String body });
-
-Future<GroupSendResult> crateApiPrivateGroupSend({required String groupId , required String body });
-
-Future<AttachmentSendResult> crateApiChannelSendAttachment({required String name , required String fileName , required String mime , required String dataBase64 , String? thumbnailBase64 , VoiceMeta? voice });
-
-Future<AttachmentSendResult> crateApiPrivateGroupSendAttachment({required String groupId , required String fileName , required String mime , required String dataBase64 , String? thumbnailBase64 , VoiceMeta? voice });
-
-Future<void> crateApiChannelSendDmOffer({required String name , required String targetFingerprint , required String inviteUri });
-
-Future<InviteCreated> crateApiOrgSendDmOffer({required String orgPubkey , required String targetPeerId , required String displayName , required int listenPort , String? staticPeer });
-
-Future<void> crateApiPrivateGroupSendDmOffer({required String groupId , required String targetFingerprint , required String inviteUri });
-
-Future<SendMessageResult> crateApiPrivateDmSendMessage({required String sessionId , required String body });
-
-Future<void> crateApiPrivateDmSetAppDataDir({required String path });
-
-Future<void> crateApiPrivateDmSetHistoryDek({required List<int> dek });
-
-Future<void> crateApiVpnSetVpnBypassConsent({String? interface_ });
-
-
-                }
-                
-
-                class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
-                  RustLibApiImpl({
-                    required super.handler,
-                    required super.wire,
-                    required super.generalizedFrbRustBinding,
-                    required super.portManager,
-                  });
-
-                  @override Future<SessionSnapshot> crateApiOrgAcceptDmOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-sse_encode_String(offerId, serializer);
-sse_encode_String(displayName, serializer);
-sse_encode_u_16(listenPort, serializer);
-sse_encode_opt_String(staticPeer, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_session_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgAcceptDmOfferConstMeta,
-            argValues: [orgPubkey, offerId, displayName, listenPort, staticPeer],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgAcceptDmOfferConstMeta => const TaskConstMeta(
-            debugName: "accept_dm_offer",
-            argNames: ["orgPubkey", "offerId", "displayName", "listenPort", "staticPeer"],
-        );
-        
-
-@override Future<GroupSnapshot> crateApiOrgAcceptGroupOffer({required String orgPubkey , required String offerId , required String displayName , required int listenPort , String? staticPeer })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-sse_encode_String(offerId, serializer);
-sse_encode_String(displayName, serializer);
-sse_encode_u_16(listenPort, serializer);
-sse_encode_opt_String(staticPeer, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgAcceptGroupOfferConstMeta,
-            argValues: [orgPubkey, offerId, displayName, listenPort, staticPeer],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgAcceptGroupOfferConstMeta => const TaskConstMeta(
-            debugName: "accept_group_offer",
-            argNames: ["orgPubkey", "offerId", "displayName", "listenPort", "staticPeer"],
-        );
-        
-
-@override Future<SessionSnapshot> crateApiPrivateDmAcceptInvite({required AcceptInviteRequest request })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_accept_invite_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_session_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmAcceptInviteConstMeta,
-            argValues: [request],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmAcceptInviteConstMeta => const TaskConstMeta(
-            debugName: "accept_invite",
-            argNames: ["request"],
-        );
-        
-
-@override Future<AppDiagnostics> crateApiDiagnosticsAppDiagnostics()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_app_diagnostics,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsAppDiagnosticsConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsAppDiagnosticsConstMeta => const TaskConstMeta(
-            debugName: "app_diagnostics",
-            argNames: [],
-        );
-        
-
-@override Future<void> crateApiChannelCancelAttachment({required String name , required String attachmentId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelCancelAttachmentConstMeta,
-            argValues: [name, attachmentId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelCancelAttachmentConstMeta => const TaskConstMeta(
-            debugName: "cancel_attachment",
-            argNames: ["name", "attachmentId"],
-        );
-        
-
-@override Future<void> crateApiPrivateDmCancelAttachment({required String sessionId , required String attachmentId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(sessionId, serializer);
-sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmCancelAttachmentConstMeta,
-            argValues: [sessionId, attachmentId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmCancelAttachmentConstMeta => const TaskConstMeta(
-            debugName: "cancel_attachment",
-            argNames: ["sessionId", "attachmentId"],
-        );
-        
-
-@override Future<void> crateApiPrivateGroupCancelAttachment({required String groupId , required String attachmentId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupCancelAttachmentConstMeta,
-            argValues: [groupId, attachmentId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupCancelAttachmentConstMeta => const TaskConstMeta(
-            debugName: "cancel_attachment",
-            argNames: ["groupId", "attachmentId"],
-        );
-        
-
-@override Future<GroupLeaveResult> crateApiPrivateGroupClose({required String groupId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_leave_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupCloseConstMeta,
-            argValues: [groupId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupCloseConstMeta => const TaskConstMeta(
-            debugName: "close",
-            argNames: ["groupId"],
-        );
-        
-
-@override Future<CloseSessionResult> crateApiPrivateDmCloseSession({required String sessionId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(sessionId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_close_session_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmCloseSessionConstMeta,
-            argValues: [sessionId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmCloseSessionConstMeta => const TaskConstMeta(
-            debugName: "close_session",
-            argNames: ["sessionId"],
-        );
-        
-
-@override Future<GroupCreated> crateApiOrgCreateGroup({required String orgPubkey , String? label , required List<String> memberPeerIds , required String displayName , required int listenPort , String? staticPeer })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-sse_encode_opt_String(label, serializer);
-sse_encode_list_String(memberPeerIds, serializer);
-sse_encode_String(displayName, serializer);
-sse_encode_u_16(listenPort, serializer);
-sse_encode_opt_String(staticPeer, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_created,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgCreateGroupConstMeta,
-            argValues: [orgPubkey, label, memberPeerIds, displayName, listenPort, staticPeer],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgCreateGroupConstMeta => const TaskConstMeta(
-            debugName: "create_group",
-            argNames: ["orgPubkey", "label", "memberPeerIds", "displayName", "listenPort", "staticPeer"],
-        );
-        
-
-@override Future<GroupCreated> crateApiPrivateGroupCreateGroup({required CreateGroupRequest request })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_create_group_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_created,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupCreateGroupConstMeta,
-            argValues: [request],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupCreateGroupConstMeta => const TaskConstMeta(
-            debugName: "create_group",
-            argNames: ["request"],
-        );
-        
-
-@override Future<InviteCreated> crateApiPrivateDmCreateInvite({required StartSessionRequest request })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_start_session_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_invite_created,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmCreateInviteConstMeta,
-            argValues: [request],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmCreateInviteConstMeta => const TaskConstMeta(
-            debugName: "create_invite",
-            argNames: ["request"],
-        );
-        
-
-@override Future<VpnDetection> crateApiVpnDetectVpn()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_vpn_detection,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiVpnDetectVpnConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiVpnDetectVpnConstMeta => const TaskConstMeta(
-            debugName: "detect_vpn",
-            argNames: [],
-        );
-        
-
-@override Future<void> crateApiChannelDismissDmOffer({required String name , required String offerId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-sse_encode_String(offerId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelDismissDmOfferConstMeta,
-            argValues: [name, offerId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelDismissDmOfferConstMeta => const TaskConstMeta(
-            debugName: "dismiss_dm_offer",
-            argNames: ["name", "offerId"],
-        );
-        
-
-@override Future<void> crateApiOrgDismissDmOffer({required String orgPubkey , required String offerId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-sse_encode_String(offerId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgDismissDmOfferConstMeta,
-            argValues: [orgPubkey, offerId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgDismissDmOfferConstMeta => const TaskConstMeta(
-            debugName: "dismiss_dm_offer",
-            argNames: ["orgPubkey", "offerId"],
-        );
-        
-
-@override Future<void> crateApiPrivateGroupDismissDmOffer({required String groupId , required String offerId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-sse_encode_String(offerId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupDismissDmOfferConstMeta,
-            argValues: [groupId, offerId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupDismissDmOfferConstMeta => const TaskConstMeta(
-            debugName: "dismiss_dm_offer",
-            argNames: ["groupId", "offerId"],
-        );
-        
-
-@override Future<void> crateApiOrgDismissGroupOffer({required String orgPubkey , required String offerId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-sse_encode_String(offerId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgDismissGroupOfferConstMeta,
-            argValues: [orgPubkey, offerId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgDismissGroupOfferConstMeta => const TaskConstMeta(
-            debugName: "dismiss_group_offer",
-            argNames: ["orgPubkey", "offerId"],
-        );
-        
-
-@override Future<void> crateApiChannelDownloadAttachment({required String name , required String attachmentId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelDownloadAttachmentConstMeta,
-            argValues: [name, attachmentId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelDownloadAttachmentConstMeta => const TaskConstMeta(
-            debugName: "download_attachment",
-            argNames: ["name", "attachmentId"],
-        );
-        
-
-@override Future<void> crateApiPrivateDmDownloadAttachment({required String sessionId , required String attachmentId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(sessionId, serializer);
-sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmDownloadAttachmentConstMeta,
-            argValues: [sessionId, attachmentId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmDownloadAttachmentConstMeta => const TaskConstMeta(
-            debugName: "download_attachment",
-            argNames: ["sessionId", "attachmentId"],
-        );
-        
-
-@override Future<void> crateApiPrivateGroupDownloadAttachment({required String groupId , required String attachmentId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-sse_encode_String(attachmentId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupDownloadAttachmentConstMeta,
-            argValues: [groupId, attachmentId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupDownloadAttachmentConstMeta => const TaskConstMeta(
-            debugName: "download_attachment",
-            argNames: ["groupId", "attachmentId"],
-        );
-        
-
-@override Future<String?> crateApiVpnGetBindInterface()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_opt_String,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiVpnGetBindInterfaceConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiVpnGetBindInterfaceConstMeta => const TaskConstMeta(
-            debugName: "get_bind_interface",
-            argNames: [],
-        );
-        
-
-@override Future<VpnBypassConsent?> crateApiVpnGetVpnBypassConsent()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_opt_box_autoadd_vpn_bypass_consent,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiVpnGetVpnBypassConsentConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiVpnGetVpnBypassConsentConstMeta => const TaskConstMeta(
-            debugName: "get_vpn_bypass_consent",
-            argNames: [],
-        );
-        
-
-@override Future<void> crateApiOrgGroupInviteMembers({required String orgPubkey , required String groupId , required List<String> memberPeerIds })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-sse_encode_String(groupId, serializer);
-sse_encode_list_String(memberPeerIds, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgGroupInviteMembersConstMeta,
-            argValues: [orgPubkey, groupId, memberPeerIds],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgGroupInviteMembersConstMeta => const TaskConstMeta(
-            debugName: "group_invite_members",
-            argNames: ["orgPubkey", "groupId", "memberPeerIds"],
-        );
-        
-
-@override Future<ChannelSnapshot> crateApiChannelJoin({required JoinChannelRequest request })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_join_channel_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_channel_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelJoinConstMeta,
-            argValues: [request],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelJoinConstMeta => const TaskConstMeta(
-            debugName: "join",
-            argNames: ["request"],
-        );
-        
-
-@override Future<GroupSnapshot> crateApiPrivateGroupJoinGroup({required JoinGroupRequest request })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_join_group_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupJoinGroupConstMeta,
-            argValues: [request],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupJoinGroupConstMeta => const TaskConstMeta(
-            debugName: "join_group",
-            argNames: ["request"],
-        );
-        
-
-@override Future<OrgSnapshot> crateApiOrgJoinOrg({required JoinOrgRequest request })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_join_org_request(request, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_org_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgJoinOrgConstMeta,
-            argValues: [request],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgJoinOrgConstMeta => const TaskConstMeta(
-            debugName: "join_org",
-            argNames: ["request"],
-        );
-        
-
-@override Future<ChannelLeaveResult> crateApiChannelLeave({required String name })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_channel_leave_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelLeaveConstMeta,
-            argValues: [name],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelLeaveConstMeta => const TaskConstMeta(
-            debugName: "leave",
-            argNames: ["name"],
-        );
-        
-
-@override Future<void> crateApiOrgLeaveOrg({required String orgPubkey })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgLeaveOrgConstMeta,
-            argValues: [orgPubkey],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgLeaveOrgConstMeta => const TaskConstMeta(
-            debugName: "leave_org",
-            argNames: ["orgPubkey"],
-        );
-        
-
-@override Future<ChannelListSnapshot> crateApiChannelList()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_channel_list_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelListConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelListConstMeta => const TaskConstMeta(
-            debugName: "list",
-            argNames: [],
-        );
-        
-
-@override Future<List<OrgSnapshot>> crateApiOrgList()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_list_org_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgListConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgListConstMeta => const TaskConstMeta(
-            debugName: "list",
-            argNames: [],
-        );
-        
-
-@override Future<GroupListSnapshot> crateApiPrivateGroupList()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_list_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupListConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupListConstMeta => const TaskConstMeta(
-            debugName: "list",
-            argNames: [],
-        );
-        
-
-@override Future<List<NetworkInterfaceInfo>> crateApiNetworkListInterfaces()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_list_network_interface_info,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiNetworkListInterfacesConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiNetworkListInterfacesConstMeta => const TaskConstMeta(
-            debugName: "list_interfaces",
-            argNames: [],
-        );
-        
-
-@override Future<SessionListSnapshot> crateApiPrivateDmListSessions()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_session_list_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmListSessionsConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmListSessionsConstMeta => const TaskConstMeta(
-            debugName: "list_sessions",
-            argNames: [],
-        );
-        
-
-@override Future<NativeRuntimeStatus> crateApiDiagnosticsNativeRuntimeStatus()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_native_runtime_status,
-          decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiDiagnosticsNativeRuntimeStatusConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusConstMeta => const TaskConstMeta(
-            debugName: "native_runtime_status",
-            argNames: [],
-        );
-        
-
-@override Future<ChannelSnapshot> crateApiChannelPoll({required String name })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_channel_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelPollConstMeta,
-            argValues: [name],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelPollConstMeta => const TaskConstMeta(
-            debugName: "poll",
-            argNames: ["name"],
-        );
-        
-
-@override Future<OrgSnapshot> crateApiOrgPoll({required String orgPubkey })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_org_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgPollConstMeta,
-            argValues: [orgPubkey],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgPollConstMeta => const TaskConstMeta(
-            debugName: "poll",
-            argNames: ["orgPubkey"],
-        );
-        
-
-@override Future<GroupSnapshot> crateApiPrivateGroupPoll({required String groupId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupPollConstMeta,
-            argValues: [groupId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupPollConstMeta => const TaskConstMeta(
-            debugName: "poll",
-            argNames: ["groupId"],
-        );
-        
-
-@override Future<SessionSnapshot> crateApiPrivateDmPollSession({required String sessionId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(sessionId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_session_snapshot,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmPollSessionConstMeta,
-            argValues: [sessionId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmPollSessionConstMeta => const TaskConstMeta(
-            debugName: "poll_session",
-            argNames: ["sessionId"],
-        );
-        
-
-@override Future<ChannelSendResult> crateApiChannelRetryMessage({required String name , required String messageId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-sse_encode_String(messageId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_channel_send_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelRetryMessageConstMeta,
-            argValues: [name, messageId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelRetryMessageConstMeta => const TaskConstMeta(
-            debugName: "retry_message",
-            argNames: ["name", "messageId"],
-        );
-        
-
-@override Future<GroupSendResult> crateApiPrivateGroupRetryMessage({required String groupId , required String messageId })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-sse_encode_String(messageId, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_send_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupRetryMessageConstMeta,
-            argValues: [groupId, messageId],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupRetryMessageConstMeta => const TaskConstMeta(
-            debugName: "retry_message",
-            argNames: ["groupId", "messageId"],
-        );
-        
-
-@override Future<ChannelSendResult> crateApiChannelSend({required String name , required String body })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-sse_encode_String(body, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_channel_send_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelSendConstMeta,
-            argValues: [name, body],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelSendConstMeta => const TaskConstMeta(
-            debugName: "send",
-            argNames: ["name", "body"],
-        );
-        
-
-@override Future<GroupSendResult> crateApiPrivateGroupSend({required String groupId , required String body })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-sse_encode_String(body, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_group_send_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupSendConstMeta,
-            argValues: [groupId, body],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupSendConstMeta => const TaskConstMeta(
-            debugName: "send",
-            argNames: ["groupId", "body"],
-        );
-        
-
-@override Future<AttachmentSendResult> crateApiChannelSendAttachment({required String name , required String fileName , required String mime , required String dataBase64 , String? thumbnailBase64 , VoiceMeta? voice })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-sse_encode_String(fileName, serializer);
-sse_encode_String(mime, serializer);
-sse_encode_String(dataBase64, serializer);
-sse_encode_opt_String(thumbnailBase64, serializer);
-sse_encode_opt_box_autoadd_voice_meta(voice, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_attachment_send_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelSendAttachmentConstMeta,
-            argValues: [name, fileName, mime, dataBase64, thumbnailBase64, voice],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelSendAttachmentConstMeta => const TaskConstMeta(
-            debugName: "send_attachment",
-            argNames: ["name", "fileName", "mime", "dataBase64", "thumbnailBase64", "voice"],
-        );
-        
-
-@override Future<AttachmentSendResult> crateApiPrivateGroupSendAttachment({required String groupId , required String fileName , required String mime , required String dataBase64 , String? thumbnailBase64 , VoiceMeta? voice })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-sse_encode_String(fileName, serializer);
-sse_encode_String(mime, serializer);
-sse_encode_String(dataBase64, serializer);
-sse_encode_opt_String(thumbnailBase64, serializer);
-sse_encode_opt_box_autoadd_voice_meta(voice, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_attachment_send_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupSendAttachmentConstMeta,
-            argValues: [groupId, fileName, mime, dataBase64, thumbnailBase64, voice],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupSendAttachmentConstMeta => const TaskConstMeta(
-            debugName: "send_attachment",
-            argNames: ["groupId", "fileName", "mime", "dataBase64", "thumbnailBase64", "voice"],
-        );
-        
-
-@override Future<void> crateApiChannelSendDmOffer({required String name , required String targetFingerprint , required String inviteUri })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(name, serializer);
-sse_encode_String(targetFingerprint, serializer);
-sse_encode_String(inviteUri, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiChannelSendDmOfferConstMeta,
-            argValues: [name, targetFingerprint, inviteUri],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiChannelSendDmOfferConstMeta => const TaskConstMeta(
-            debugName: "send_dm_offer",
-            argNames: ["name", "targetFingerprint", "inviteUri"],
-        );
-        
-
-@override Future<InviteCreated> crateApiOrgSendDmOffer({required String orgPubkey , required String targetPeerId , required String displayName , required int listenPort , String? staticPeer })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(orgPubkey, serializer);
-sse_encode_String(targetPeerId, serializer);
-sse_encode_String(displayName, serializer);
-sse_encode_u_16(listenPort, serializer);
-sse_encode_opt_String(staticPeer, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 46, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_invite_created,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiOrgSendDmOfferConstMeta,
-            argValues: [orgPubkey, targetPeerId, displayName, listenPort, staticPeer],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiOrgSendDmOfferConstMeta => const TaskConstMeta(
-            debugName: "send_dm_offer",
-            argNames: ["orgPubkey", "targetPeerId", "displayName", "listenPort", "staticPeer"],
-        );
-        
-
-@override Future<void> crateApiPrivateGroupSendDmOffer({required String groupId , required String targetFingerprint , required String inviteUri })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(groupId, serializer);
-sse_encode_String(targetFingerprint, serializer);
-sse_encode_String(inviteUri, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateGroupSendDmOfferConstMeta,
-            argValues: [groupId, targetFingerprint, inviteUri],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateGroupSendDmOfferConstMeta => const TaskConstMeta(
-            debugName: "send_dm_offer",
-            argNames: ["groupId", "targetFingerprint", "inviteUri"],
-        );
-        
-
-@override Future<SendMessageResult> crateApiPrivateDmSendMessage({required String sessionId , required String body })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(sessionId, serializer);
-sse_encode_String(body, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_send_message_result,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmSendMessageConstMeta,
-            argValues: [sessionId, body],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmSendMessageConstMeta => const TaskConstMeta(
-            debugName: "send_message",
-            argNames: ["sessionId", "body"],
-        );
-        
-
-@override Future<void> crateApiPrivateDmSetAppDataDir({required String path })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_String(path, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmSetAppDataDirConstMeta,
-            argValues: [path],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmSetAppDataDirConstMeta => const TaskConstMeta(
-            debugName: "set_app_data_dir",
-            argNames: ["path"],
-        );
-        
-
-@override Future<void> crateApiPrivateDmSetHistoryDek({required List<int> dek })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_list_prim_u_8_loose(dek, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 50, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiPrivateDmSetHistoryDekConstMeta,
-            argValues: [dek],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiPrivateDmSetHistoryDekConstMeta => const TaskConstMeta(
-            debugName: "set_history_dek",
-            argNames: ["dek"],
-        );
-        
-
-@override Future<void> crateApiVpnSetVpnBypassConsent({String? interface_ })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_opt_String(interface_, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 51, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        )
-        ,
-            constMeta: kCrateApiVpnSetVpnBypassConsentConstMeta,
-            argValues: [interface_],
-            apiImpl: this,
-        )); }
-
-
-        TaskConstMeta get kCrateApiVpnSetVpnBypassConsentConstMeta => const TaskConstMeta(
-            debugName: "set_vpn_bypass_consent",
-            argNames: ["interface_"],
-        );
-        
-
-
-
-                  @protected String dco_decode_String(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as String; }
-
-@protected AcceptInviteRequest dco_decode_accept_invite_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-                return AcceptInviteRequest(inviteUri: dco_decode_String(arr[0]),
-displayName: dco_decode_String(arr[1]),
-listenPort: dco_decode_u_16(arr[2]),
-staticPeer: dco_decode_opt_String(arr[3]),); }
-
-@protected ActiveCall dco_decode_active_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return ActiveCall(callId: dco_decode_String(arr[0]),
-direction: dco_decode_String(arr[1]),
-keyB64: dco_decode_String(arr[2]),
-noncePrefixB64: dco_decode_String(arr[3]),
-startedAtMs: dco_decode_u_64(arr[4]),); }
-
-@protected AppDiagnostics dco_decode_app_diagnostics(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-                return AppDiagnostics(appName: dco_decode_String(arr[0]),
-privacyModel: dco_decode_String(arr[1]),
-discoveryModel: dco_decode_String(arr[2]),
-mossLinkMode: dco_decode_String(arr[3]),); }
-
-@protected AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 7) throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
-                return AttachmentDescriptor(attachmentId: dco_decode_String(arr[0]),
-contentHash: dco_decode_String(arr[1]),
-fileName: dco_decode_String(arr[2]),
-mime: dco_decode_String(arr[3]),
-totalSize: dco_decode_u_64(arr[4]),
-thumbnailB64: dco_decode_opt_String(arr[5]),
-voice: dco_decode_opt_box_autoadd_voice_meta(arr[6]),); }
-
-@protected AttachmentSendResult dco_decode_attachment_send_result(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-                return AttachmentSendResult(sessionId: dco_decode_String(arr[0]),
-attachmentId: dco_decode_String(arr[1]),
-contentHash: dco_decode_String(arr[2]),); }
-
-@protected AttachmentState dco_decode_attachment_state(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return AttachmentState.values[raw as int]; }
-
-@protected AttachmentView dco_decode_attachment_view(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 6) throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
-                return AttachmentView(attachmentId: dco_decode_String(arr[0]),
-direction: dco_decode_String(arr[1]),
-state: dco_decode_attachment_state(arr[2]),
-completedChunks: dco_decode_u_64(arr[3]),
-chunkCount: dco_decode_u_64(arr[4]),
-localPath: dco_decode_opt_String(arr[5]),); }
-
-@protected bool dco_decode_bool(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as bool; }
-
-@protected AcceptInviteRequest dco_decode_box_autoadd_accept_invite_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_accept_invite_request(raw); }
-
-@protected ActiveCall dco_decode_box_autoadd_active_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_active_call(raw); }
-
-@protected AttachmentDescriptor dco_decode_box_autoadd_attachment_descriptor(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_attachment_descriptor(raw); }
-
-@protected bool dco_decode_box_autoadd_bool(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as bool; }
-
-@protected CallEvent dco_decode_box_autoadd_call_event(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_call_event(raw); }
-
-@protected CreateGroupRequest dco_decode_box_autoadd_create_group_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_create_group_request(raw); }
-
-@protected JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_join_channel_request(raw); }
-
-@protected JoinGroupRequest dco_decode_box_autoadd_join_group_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_join_group_request(raw); }
-
-@protected JoinOrgRequest dco_decode_box_autoadd_join_org_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_join_org_request(raw); }
-
-@protected MeshInfo dco_decode_box_autoadd_mesh_info(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_mesh_info(raw); }
-
-@protected MessageDeliveryStatus dco_decode_box_autoadd_message_delivery_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_message_delivery_status(raw); }
-
-@protected OpenMlsRoundTripStatus dco_decode_box_autoadd_open_mls_round_trip_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_open_mls_round_trip_status(raw); }
-
-@protected OpenMlsSmokeStatus dco_decode_box_autoadd_open_mls_smoke_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_open_mls_smoke_status(raw); }
-
-@protected OutgoingCall dco_decode_box_autoadd_outgoing_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_outgoing_call(raw); }
-
-@protected PendingCall dco_decode_box_autoadd_pending_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_pending_call(raw); }
-
-@protected StartSessionRequest dco_decode_box_autoadd_start_session_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_start_session_request(raw); }
-
-@protected int dco_decode_box_autoadd_u_32(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as int; }
-
-@protected BigInt dco_decode_box_autoadd_u_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_u_64(raw); }
-
-@protected VoiceMeta dco_decode_box_autoadd_voice_meta(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_voice_meta(raw); }
-
-@protected VpnBypassConsent dco_decode_box_autoadd_vpn_bypass_consent(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_vpn_bypass_consent(raw); }
-
-@protected CallEvent dco_decode_call_event(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-                return CallEvent(kind: dco_decode_String(arr[0]),
-durationMs: dco_decode_u_64(arr[1]),
-callId: dco_decode_String(arr[2]),); }
-
-@protected ChannelLeaveResult dco_decode_channel_leave_result(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return ChannelLeaveResult(name: dco_decode_String(arr[0]),
-closed: dco_decode_bool(arr[1]),); }
-
-@protected ChannelListSnapshot dco_decode_channel_list_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 1) throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-                return ChannelListSnapshot(channels: dco_decode_list_channel_snapshot(arr[0]),); }
-
-@protected ChannelMessage dco_decode_channel_message(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 10) throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
-                return ChannelMessage(fromDevice: dco_decode_String(arr[0]),
-fromFingerprint: dco_decode_String(arr[1]),
-body: dco_decode_String(arr[2]),
-messageId: dco_decode_opt_String(arr[3]),
-sentAtMs: dco_decode_opt_box_autoadd_u_64(arr[4]),
-attachment: dco_decode_opt_box_autoadd_attachment_descriptor(arr[5]),
-deliveryStatus: dco_decode_opt_box_autoadd_message_delivery_status(arr[6]),
-deliveryError: dco_decode_opt_String(arr[7]),
-retryable: dco_decode_opt_box_autoadd_bool(arr[8]),
-retryCount: dco_decode_opt_box_autoadd_u_32(arr[9]),); }
-
-@protected ChannelSendResult dco_decode_channel_send_result(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 6) throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
-                return ChannelSendResult(name: dco_decode_String(arr[0]),
-bytes: dco_decode_usize(arr[1]),
-messageId: dco_decode_String(arr[2]),
-sentAtMs: dco_decode_u_64(arr[3]),
-deliveryStatus: dco_decode_message_delivery_status(arr[4]),
-deliveryError: dco_decode_opt_String(arr[5]),); }
-
-@protected ChannelSnapshot dco_decode_channel_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 10) throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
-                return ChannelSnapshot(name: dco_decode_String(arr[0]),
-topic: dco_decode_String(arr[1]),
-meshId: dco_decode_String(arr[2]),
-displayName: dco_decode_String(arr[3]),
-deviceFingerprint: dco_decode_String(arr[4]),
-messages: dco_decode_list_channel_message(arr[5]),
-attachments: dco_decode_list_attachment_view(arr[6]),
-dmOffers: dco_decode_list_dm_offer(arr[7]),
-mesh: dco_decode_opt_box_autoadd_mesh_info(arr[8]),
-events: dco_decode_list_snapshot_event(arr[9]),); }
-
-@protected ChatMessage dco_decode_chat_message(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 10) throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
-                return ChatMessage(fromDevice: dco_decode_String(arr[0]),
-body: dco_decode_String(arr[1]),
-messageId: dco_decode_opt_String(arr[2]),
-sentAtMs: dco_decode_opt_box_autoadd_u_64(arr[3]),
-attachment: dco_decode_opt_box_autoadd_attachment_descriptor(arr[4]),
-callEvent: dco_decode_opt_box_autoadd_call_event(arr[5]),
-deliveryStatus: dco_decode_opt_box_autoadd_message_delivery_status(arr[6]),
-deliveryError: dco_decode_opt_String(arr[7]),
-retryable: dco_decode_opt_box_autoadd_bool(arr[8]),
-retryCount: dco_decode_opt_box_autoadd_u_32(arr[9]),); }
-
-@protected CloseSessionResult dco_decode_close_session_result(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return CloseSessionResult(sessionId: dco_decode_String(arr[0]),
-closed: dco_decode_bool(arr[1]),); }
-
-@protected CreateGroupRequest dco_decode_create_group_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return CreateGroupRequest(label: dco_decode_opt_String(arr[0]),
-displayName: dco_decode_String(arr[1]),
-listenPort: dco_decode_u_16(arr[2]),
-staticPeer: dco_decode_opt_String(arr[3]),
-orgPubkey: dco_decode_opt_String(arr[4]),); }
-
-@protected DmOffer dco_decode_dm_offer(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return DmOffer(offerId: dco_decode_String(arr[0]),
-fromDevice: dco_decode_String(arr[1]),
-fromFingerprint: dco_decode_String(arr[2]),
-targetFingerprint: dco_decode_String(arr[3]),
-inviteUri: dco_decode_String(arr[4]),); }
-
-@protected GroupCreated dco_decode_group_created(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return GroupCreated(groupId: dco_decode_String(arr[0]),
-meshId: dco_decode_String(arr[1]),
-inviteUri: dco_decode_String(arr[2]),
-fingerprint: dco_decode_String(arr[3]),
-label: dco_decode_opt_String(arr[4]),); }
-
-@protected GroupLeaveResult dco_decode_group_leave_result(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return GroupLeaveResult(groupId: dco_decode_String(arr[0]),
-closed: dco_decode_bool(arr[1]),); }
-
-@protected GroupListSnapshot dco_decode_group_list_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 1) throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-                return GroupListSnapshot(groups: dco_decode_list_group_snapshot(arr[0]),); }
-
-@protected GroupMessage dco_decode_group_message(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 10) throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
-                return GroupMessage(fromDevice: dco_decode_String(arr[0]),
-fromFingerprint: dco_decode_String(arr[1]),
-body: dco_decode_String(arr[2]),
-messageId: dco_decode_opt_String(arr[3]),
-sentAtMs: dco_decode_opt_box_autoadd_u_64(arr[4]),
-attachment: dco_decode_opt_box_autoadd_attachment_descriptor(arr[5]),
-deliveryStatus: dco_decode_opt_box_autoadd_message_delivery_status(arr[6]),
-deliveryError: dco_decode_opt_String(arr[7]),
-retryable: dco_decode_opt_box_autoadd_bool(arr[8]),
-retryCount: dco_decode_opt_box_autoadd_u_32(arr[9]),); }
-
-@protected GroupSendResult dco_decode_group_send_result(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 6) throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
-                return GroupSendResult(groupId: dco_decode_String(arr[0]),
-bytes: dco_decode_usize(arr[1]),
-messageId: dco_decode_String(arr[2]),
-sentAtMs: dco_decode_u_64(arr[3]),
-deliveryStatus: dco_decode_message_delivery_status(arr[4]),
-deliveryError: dco_decode_opt_String(arr[5]),); }
-
-@protected GroupSnapshot dco_decode_group_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 18) throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
-                return GroupSnapshot(groupId: dco_decode_String(arr[0]),
-meshId: dco_decode_String(arr[1]),
-label: dco_decode_opt_String(arr[2]),
-displayName: dco_decode_String(arr[3]),
-deviceFingerprint: dco_decode_String(arr[4]),
-creatorFingerprint: dco_decode_String(arr[5]),
-isAdmin: dco_decode_bool(arr[6]),
-state: dco_decode_String(arr[7]),
-memberCount: dco_decode_usize(arr[8]),
-inviteUri: dco_decode_opt_String(arr[9]),
-messages: dco_decode_list_group_message(arr[10]),
-attachments: dco_decode_list_attachment_view(arr[11]),
-dmOffers: dco_decode_list_dm_offer(arr[12]),
-mesh: dco_decode_opt_box_autoadd_mesh_info(arr[13]),
-events: dco_decode_list_snapshot_event(arr[14]),
-needsRejoin: dco_decode_bool(arr[15]),
-orgPubkey: dco_decode_opt_String(arr[16]),
-memberPeerIds: dco_decode_list_String(arr[17]),); }
-
-@protected int dco_decode_i_32(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as int; }
-
-@protected InviteCreated dco_decode_invite_created(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return InviteCreated(inviteUri: dco_decode_String(arr[0]),
-sessionId: dco_decode_String(arr[1]),
-meshId: dco_decode_String(arr[2]),
-fingerprint: dco_decode_String(arr[3]),
-listenAddress: dco_decode_String(arr[4]),); }
-
-@protected JoinChannelRequest dco_decode_join_channel_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-                return JoinChannelRequest(name: dco_decode_String(arr[0]),
-displayName: dco_decode_String(arr[1]),
-listenPort: dco_decode_u_16(arr[2]),
-staticPeer: dco_decode_opt_String(arr[3]),); }
-
-@protected JoinGroupRequest dco_decode_join_group_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return JoinGroupRequest(inviteUri: dco_decode_String(arr[0]),
-displayName: dco_decode_String(arr[1]),
-orgPubkey: dco_decode_opt_String(arr[2]),
-listenPort: dco_decode_u_16(arr[3]),
-staticPeer: dco_decode_opt_String(arr[4]),); }
-
-@protected JoinOrgRequest dco_decode_join_org_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-                return JoinOrgRequest(bundleUri: dco_decode_String(arr[0]),
-displayName: dco_decode_String(arr[1]),
-listenPort: dco_decode_u_16(arr[2]),
-staticPeer: dco_decode_opt_String(arr[3]),); }
-
-@protected List<String> dco_decode_list_String(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_String).toList(); }
-
-@protected List<AttachmentView> dco_decode_list_attachment_view(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_attachment_view).toList(); }
-
-@protected List<ChannelMessage> dco_decode_list_channel_message(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_channel_message).toList(); }
-
-@protected List<ChannelSnapshot> dco_decode_list_channel_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_channel_snapshot).toList(); }
-
-@protected List<ChatMessage> dco_decode_list_chat_message(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_chat_message).toList(); }
-
-@protected List<DmOffer> dco_decode_list_dm_offer(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_dm_offer).toList(); }
-
-@protected List<GroupMessage> dco_decode_list_group_message(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_group_message).toList(); }
-
-@protected List<GroupSnapshot> dco_decode_list_group_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_group_snapshot).toList(); }
-
-@protected List<NetworkInterfaceInfo> dco_decode_list_network_interface_info(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_network_interface_info).toList(); }
-
-@protected List<OrgDmLink> dco_decode_list_org_dm_link(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_org_dm_link).toList(); }
-
-@protected List<OrgDmOfferView> dco_decode_list_org_dm_offer_view(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_org_dm_offer_view).toList(); }
-
-@protected List<OrgGroupOfferView> dco_decode_list_org_group_offer_view(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_org_group_offer_view).toList(); }
-
-@protected List<OrgMemberView> dco_decode_list_org_member_view(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_org_member_view).toList(); }
-
-@protected List<OrgSnapshot> dco_decode_list_org_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_org_snapshot).toList(); }
-
-@protected List<PeerDetail> dco_decode_list_peer_detail(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_peer_detail).toList(); }
-
-@protected List<int> dco_decode_list_prim_u_8_loose(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as List<int>; }
-
-@protected Uint8List dco_decode_list_prim_u_8_strict(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as Uint8List; }
-
-@protected List<SessionSnapshot> dco_decode_list_session_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_session_snapshot).toList(); }
-
-@protected List<SnapshotEvent> dco_decode_list_snapshot_event(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_snapshot_event).toList(); }
-
-@protected MeshInfo dco_decode_mesh_info(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 15) throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
-                return MeshInfo(meshId: dco_decode_String(arr[0]),
-listenPort: dco_decode_i_32(arr[1]),
-advertisedAddr: dco_decode_String(arr[2]),
-peerCount: dco_decode_i_32(arr[3]),
-directPeerCount: dco_decode_i_32(arr[4]),
-relayedPeerCount: dco_decode_i_32(arr[5]),
-relayCapablePeerCount: dco_decode_i_32(arr[6]),
-relaySessionCount: dco_decode_i_32(arr[7]),
-relayRouteCount: dco_decode_i_32(arr[8]),
-knownPeerCount: dco_decode_i_32(arr[9]),
-channels: dco_decode_list_String(arr[10]),
-natType: dco_decode_String(arr[11]),
-supernodeReady: dco_decode_bool(arr[12]),
-publicKey: dco_decode_String(arr[13]),
-peerDetails: dco_decode_list_peer_detail(arr[14]),); }
-
-@protected MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return MessageDeliveryStatus.values[raw as int]; }
-
-@protected MossRuntimeStatus dco_decode_moss_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return MossRuntimeStatus(linkMode: dco_decode_String(arr[0]),
-libraryName: dco_decode_String(arr[1]),
-requiredSymbols: dco_decode_list_String(arr[2]),
-available: dco_decode_bool(arr[3]),
-checkedPaths: dco_decode_list_String(arr[4]),); }
-
-@protected NativeRuntimeStatus dco_decode_native_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return NativeRuntimeStatus(moss: dco_decode_moss_runtime_status(arr[0]),
-secureStorage: dco_decode_secure_storage_status(arr[1]),
-persistence: dco_decode_persistence_runtime_status(arr[2]),
-openmlsSmoke: dco_decode_open_mls_smoke_runtime_status(arr[3]),
-openmlsRoundtrip: dco_decode_open_mls_round_trip_runtime_status(arr[4]),); }
-
-@protected NetworkInterfaceInfo dco_decode_network_interface_info(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 9) throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
-                return NetworkInterfaceInfo(name: dco_decode_String(arr[0]),
-description: dco_decode_String(arr[1]),
-index: dco_decode_u_32(arr[2]),
-ipv4: dco_decode_opt_String(arr[3]),
-isLoopback: dco_decode_bool(arr[4]),
-isUp: dco_decode_bool(arr[5]),
-isVirtual: dco_decode_bool(arr[6]),
-isVpn: dco_decode_bool(arr[7]),
-isDefaultRoute: dco_decode_bool(arr[8]),); }
-
-@protected OpenMlsRoundTripRuntimeStatus dco_decode_open_mls_round_trip_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return OpenMlsRoundTripRuntimeStatus(ok: dco_decode_opt_box_autoadd_open_mls_round_trip_status(arr[0]),
-error: dco_decode_opt_String(arr[1]),); }
-
-@protected OpenMlsRoundTripStatus dco_decode_open_mls_round_trip_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-                return OpenMlsRoundTripStatus(provider: dco_decode_String(arr[0]),
-ciphersuite: dco_decode_String(arr[1]),
-welcomeJoined: dco_decode_bool(arr[2]),
-plaintextRoundtrip: dco_decode_bool(arr[3]),); }
-
-@protected OpenMlsSmokeRuntimeStatus dco_decode_open_mls_smoke_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return OpenMlsSmokeRuntimeStatus(ok: dco_decode_opt_box_autoadd_open_mls_smoke_status(arr[0]),
-error: dco_decode_opt_String(arr[1]),); }
-
-@protected OpenMlsSmokeStatus dco_decode_open_mls_smoke_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-                return OpenMlsSmokeStatus(provider: dco_decode_String(arr[0]),
-ciphersuite: dco_decode_String(arr[1]),
-protectedMessageCreated: dco_decode_bool(arr[2]),); }
-
-@protected String? dco_decode_opt_String(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_String(raw); }
-
-@protected ActiveCall? dco_decode_opt_box_autoadd_active_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_active_call(raw); }
-
-@protected AttachmentDescriptor? dco_decode_opt_box_autoadd_attachment_descriptor(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_attachment_descriptor(raw); }
-
-@protected bool? dco_decode_opt_box_autoadd_bool(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_bool(raw); }
-
-@protected CallEvent? dco_decode_opt_box_autoadd_call_event(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_call_event(raw); }
-
-@protected MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_mesh_info(raw); }
-
-@protected MessageDeliveryStatus? dco_decode_opt_box_autoadd_message_delivery_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_message_delivery_status(raw); }
-
-@protected OpenMlsRoundTripStatus? dco_decode_opt_box_autoadd_open_mls_round_trip_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_open_mls_round_trip_status(raw); }
-
-@protected OpenMlsSmokeStatus? dco_decode_opt_box_autoadd_open_mls_smoke_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_open_mls_smoke_status(raw); }
-
-@protected OutgoingCall? dco_decode_opt_box_autoadd_outgoing_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_outgoing_call(raw); }
-
-@protected PendingCall? dco_decode_opt_box_autoadd_pending_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_pending_call(raw); }
-
-@protected int? dco_decode_opt_box_autoadd_u_32(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_u_32(raw); }
-
-@protected BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_u_64(raw); }
-
-@protected VoiceMeta? dco_decode_opt_box_autoadd_voice_meta(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_voice_meta(raw); }
-
-@protected VpnBypassConsent? dco_decode_opt_box_autoadd_vpn_bypass_consent(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_vpn_bypass_consent(raw); }
-
-@protected OrgDmLink dco_decode_org_dm_link(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return OrgDmLink(peerId: dco_decode_String(arr[0]),
-sessionId: dco_decode_opt_String(arr[1]),); }
-
-@protected OrgDmOfferView dco_decode_org_dm_offer_view(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-                return OrgDmOfferView(offerId: dco_decode_String(arr[0]),
-fromPeerId: dco_decode_String(arr[1]),
-fromName: dco_decode_String(arr[2]),
-inviteUri: dco_decode_String(arr[3]),); }
-
-@protected OrgGroupOfferView dco_decode_org_group_offer_view(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return OrgGroupOfferView(offerId: dco_decode_String(arr[0]),
-fromPeerId: dco_decode_String(arr[1]),
-fromName: dco_decode_String(arr[2]),
-groupLabel: dco_decode_opt_String(arr[3]),
-groupInviteUri: dco_decode_String(arr[4]),); }
-
-@protected OrgMemberView dco_decode_org_member_view(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-                return OrgMemberView(mossPeerId: dco_decode_String(arr[0]),
-name: dco_decode_String(arr[1]),
-role: dco_decode_String(arr[2]),
-isSelf: dco_decode_bool(arr[3]),); }
-
-@protected OrgSnapshot dco_decode_org_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 11) throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
-                return OrgSnapshot(orgPubkey: dco_decode_String(arr[0]),
-orgName: dco_decode_String(arr[1]),
-meshId: dco_decode_String(arr[2]),
-ownPeerId: dco_decode_String(arr[3]),
-confirmationCode: dco_decode_String(arr[4]),
-inRoster: dco_decode_bool(arr[5]),
-rosterVersion: dco_decode_opt_box_autoadd_u_64(arr[6]),
-members: dco_decode_list_org_member_view(arr[7]),
-dmOffers: dco_decode_list_org_dm_offer_view(arr[8]),
-groupOffers: dco_decode_list_org_group_offer_view(arr[9]),
-dmLinks: dco_decode_list_org_dm_link(arr[10]),); }
-
-@protected OutgoingCall dco_decode_outgoing_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 1) throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-                return OutgoingCall(callId: dco_decode_String(arr[0]),); }
-
-@protected PeerDetail dco_decode_peer_detail(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-                return PeerDetail(id: dco_decode_String(arr[0]),
-addr: dco_decode_String(arr[1]),
-relayed: dco_decode_bool(arr[2]),); }
-
-@protected PendingCall dco_decode_pending_call(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return PendingCall(callId: dco_decode_String(arr[0]),
-fromDevice: dco_decode_String(arr[1]),); }
-
-@protected PersistenceRuntimeStatus dco_decode_persistence_runtime_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 5) throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-                return PersistenceRuntimeStatus(backend: dco_decode_String(arr[0]),
-database: dco_decode_String(arr[1]),
-available: dco_decode_bool(arr[2]),
-encryptedAtRest: dco_decode_bool(arr[3]),
-error: dco_decode_opt_String(arr[4]),); }
-
-@protected SecureStorageStatus dco_decode_secure_storage_status(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-                return SecureStorageStatus(backend: dco_decode_String(arr[0]),
-service: dco_decode_String(arr[1]),
-available: dco_decode_bool(arr[2]),); }
-
-@protected SendMessageResult dco_decode_send_message_result(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 7) throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
-                return SendMessageResult(sessionId: dco_decode_String(arr[0]),
-state: dco_decode_String(arr[1]),
-ciphertextBytes: dco_decode_usize(arr[2]),
-messageId: dco_decode_String(arr[3]),
-sentAtMs: dco_decode_u_64(arr[4]),
-deliveryStatus: dco_decode_message_delivery_status(arr[5]),
-deliveryError: dco_decode_opt_String(arr[6]),); }
-
-@protected SessionListSnapshot dco_decode_session_list_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 1) throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-                return SessionListSnapshot(sessions: dco_decode_list_session_snapshot(arr[0]),); }
-
-@protected SessionSnapshot dco_decode_session_snapshot(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 17) throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
-                return SessionSnapshot(sessionId: dco_decode_String(arr[0]),
-meshId: dco_decode_String(arr[1]),
-role: dco_decode_String(arr[2]),
-displayName: dco_decode_String(arr[3]),
-peerDisplayName: dco_decode_String(arr[4]),
-state: dco_decode_String(arr[5]),
-path: dco_decode_String(arr[6]),
-relayReady: dco_decode_opt_box_autoadd_bool(arr[7]),
-inviteUri: dco_decode_opt_String(arr[8]),
-fingerprint: dco_decode_String(arr[9]),
-messages: dco_decode_list_chat_message(arr[10]),
-attachments: dco_decode_list_attachment_view(arr[11]),
-mesh: dco_decode_opt_box_autoadd_mesh_info(arr[12]),
-events: dco_decode_list_snapshot_event(arr[13]),
-pendingCall: dco_decode_opt_box_autoadd_pending_call(arr[14]),
-outgoingCall: dco_decode_opt_box_autoadd_outgoing_call(arr[15]),
-activeCall: dco_decode_opt_box_autoadd_active_call(arr[16]),); }
-
-@protected SnapshotEvent dco_decode_snapshot_event(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 4) throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-                return SnapshotEvent(eventType: dco_decode_i_32(arr[0]),
-eventName: dco_decode_String(arr[1]),
-detailJson: dco_decode_String(arr[2]),
-epochMillis: dco_decode_u_64(arr[3]),); }
-
-@protected StartSessionRequest dco_decode_start_session_request(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-                return StartSessionRequest(displayName: dco_decode_String(arr[0]),
-listenPort: dco_decode_u_16(arr[1]),
-staticPeer: dco_decode_opt_String(arr[2]),); }
-
-@protected int dco_decode_u_16(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as int; }
-
-@protected int dco_decode_u_32(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as int; }
-
-@protected BigInt dco_decode_u_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dcoDecodeU64(raw); }
-
-@protected int dco_decode_u_8(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as int; }
-
-@protected void dco_decode_unit(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return; }
-
-@protected BigInt dco_decode_usize(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dcoDecodeU64(raw); }
-
-@protected VoiceMeta dco_decode_voice_meta(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return VoiceMeta(durationMs: dco_decode_u_32(arr[0]),
-peaksB64: dco_decode_String(arr[1]),); }
-
-@protected VpnBypassConsent dco_decode_vpn_bypass_consent(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return VpnBypassConsent(interface_: dco_decode_String(arr[0]),
-index: dco_decode_u_32(arr[1]),); }
-
-@protected VpnDetection dco_decode_vpn_detection(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-                return VpnDetection(vpnLikely: dco_decode_bool(arr[0]),
-suspectInterfaces: dco_decode_list_String(arr[1]),
-vpnOwnsDefaultRoute: dco_decode_bool(arr[2]),); }
-
-@protected String sse_decode_String(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var inner = sse_decode_list_prim_u_8_strict(deserializer);
-        return utf8.decoder.convert(inner); }
-
-@protected AcceptInviteRequest sse_decode_accept_invite_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_inviteUri = sse_decode_String(deserializer);
-var var_displayName = sse_decode_String(deserializer);
-var var_listenPort = sse_decode_u_16(deserializer);
-var var_staticPeer = sse_decode_opt_String(deserializer);
-return AcceptInviteRequest(inviteUri: var_inviteUri, displayName: var_displayName, listenPort: var_listenPort, staticPeer: var_staticPeer); }
-
-@protected ActiveCall sse_decode_active_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_callId = sse_decode_String(deserializer);
-var var_direction = sse_decode_String(deserializer);
-var var_keyB64 = sse_decode_String(deserializer);
-var var_noncePrefixB64 = sse_decode_String(deserializer);
-var var_startedAtMs = sse_decode_u_64(deserializer);
-return ActiveCall(callId: var_callId, direction: var_direction, keyB64: var_keyB64, noncePrefixB64: var_noncePrefixB64, startedAtMs: var_startedAtMs); }
-
-@protected AppDiagnostics sse_decode_app_diagnostics(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_appName = sse_decode_String(deserializer);
-var var_privacyModel = sse_decode_String(deserializer);
-var var_discoveryModel = sse_decode_String(deserializer);
-var var_mossLinkMode = sse_decode_String(deserializer);
-return AppDiagnostics(appName: var_appName, privacyModel: var_privacyModel, discoveryModel: var_discoveryModel, mossLinkMode: var_mossLinkMode); }
-
-@protected AttachmentDescriptor sse_decode_attachment_descriptor(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_attachmentId = sse_decode_String(deserializer);
-var var_contentHash = sse_decode_String(deserializer);
-var var_fileName = sse_decode_String(deserializer);
-var var_mime = sse_decode_String(deserializer);
-var var_totalSize = sse_decode_u_64(deserializer);
-var var_thumbnailB64 = sse_decode_opt_String(deserializer);
-var var_voice = sse_decode_opt_box_autoadd_voice_meta(deserializer);
-return AttachmentDescriptor(attachmentId: var_attachmentId, contentHash: var_contentHash, fileName: var_fileName, mime: var_mime, totalSize: var_totalSize, thumbnailB64: var_thumbnailB64, voice: var_voice); }
-
-@protected AttachmentSendResult sse_decode_attachment_send_result(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_sessionId = sse_decode_String(deserializer);
-var var_attachmentId = sse_decode_String(deserializer);
-var var_contentHash = sse_decode_String(deserializer);
-return AttachmentSendResult(sessionId: var_sessionId, attachmentId: var_attachmentId, contentHash: var_contentHash); }
-
-@protected AttachmentState sse_decode_attachment_state(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var inner = sse_decode_i_32(deserializer);
-        return AttachmentState.values[inner]; }
-
-@protected AttachmentView sse_decode_attachment_view(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_attachmentId = sse_decode_String(deserializer);
-var var_direction = sse_decode_String(deserializer);
-var var_state = sse_decode_attachment_state(deserializer);
-var var_completedChunks = sse_decode_u_64(deserializer);
-var var_chunkCount = sse_decode_u_64(deserializer);
-var var_localPath = sse_decode_opt_String(deserializer);
-return AttachmentView(attachmentId: var_attachmentId, direction: var_direction, state: var_state, completedChunks: var_completedChunks, chunkCount: var_chunkCount, localPath: var_localPath); }
-
-@protected bool sse_decode_bool(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getUint8() != 0; }
-
-@protected AcceptInviteRequest sse_decode_box_autoadd_accept_invite_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_accept_invite_request(deserializer)); }
-
-@protected ActiveCall sse_decode_box_autoadd_active_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_active_call(deserializer)); }
-
-@protected AttachmentDescriptor sse_decode_box_autoadd_attachment_descriptor(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_attachment_descriptor(deserializer)); }
-
-@protected bool sse_decode_box_autoadd_bool(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_bool(deserializer)); }
-
-@protected CallEvent sse_decode_box_autoadd_call_event(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_call_event(deserializer)); }
-
-@protected CreateGroupRequest sse_decode_box_autoadd_create_group_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_create_group_request(deserializer)); }
-
-@protected JoinChannelRequest sse_decode_box_autoadd_join_channel_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_join_channel_request(deserializer)); }
-
-@protected JoinGroupRequest sse_decode_box_autoadd_join_group_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_join_group_request(deserializer)); }
-
-@protected JoinOrgRequest sse_decode_box_autoadd_join_org_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_join_org_request(deserializer)); }
-
-@protected MeshInfo sse_decode_box_autoadd_mesh_info(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_mesh_info(deserializer)); }
-
-@protected MessageDeliveryStatus sse_decode_box_autoadd_message_delivery_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_message_delivery_status(deserializer)); }
-
-@protected OpenMlsRoundTripStatus sse_decode_box_autoadd_open_mls_round_trip_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_open_mls_round_trip_status(deserializer)); }
-
-@protected OpenMlsSmokeStatus sse_decode_box_autoadd_open_mls_smoke_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_open_mls_smoke_status(deserializer)); }
-
-@protected OutgoingCall sse_decode_box_autoadd_outgoing_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_outgoing_call(deserializer)); }
-
-@protected PendingCall sse_decode_box_autoadd_pending_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_pending_call(deserializer)); }
-
-@protected StartSessionRequest sse_decode_box_autoadd_start_session_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_start_session_request(deserializer)); }
-
-@protected int sse_decode_box_autoadd_u_32(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_u_32(deserializer)); }
-
-@protected BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_u_64(deserializer)); }
-
-@protected VoiceMeta sse_decode_box_autoadd_voice_meta(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_voice_meta(deserializer)); }
-
-@protected VpnBypassConsent sse_decode_box_autoadd_vpn_bypass_consent(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_vpn_bypass_consent(deserializer)); }
-
-@protected CallEvent sse_decode_call_event(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_kind = sse_decode_String(deserializer);
-var var_durationMs = sse_decode_u_64(deserializer);
-var var_callId = sse_decode_String(deserializer);
-return CallEvent(kind: var_kind, durationMs: var_durationMs, callId: var_callId); }
-
-@protected ChannelLeaveResult sse_decode_channel_leave_result(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_name = sse_decode_String(deserializer);
-var var_closed = sse_decode_bool(deserializer);
-return ChannelLeaveResult(name: var_name, closed: var_closed); }
-
-@protected ChannelListSnapshot sse_decode_channel_list_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_channels = sse_decode_list_channel_snapshot(deserializer);
-return ChannelListSnapshot(channels: var_channels); }
-
-@protected ChannelMessage sse_decode_channel_message(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_fromDevice = sse_decode_String(deserializer);
-var var_fromFingerprint = sse_decode_String(deserializer);
-var var_body = sse_decode_String(deserializer);
-var var_messageId = sse_decode_opt_String(deserializer);
-var var_sentAtMs = sse_decode_opt_box_autoadd_u_64(deserializer);
-var var_attachment = sse_decode_opt_box_autoadd_attachment_descriptor(deserializer);
-var var_deliveryStatus = sse_decode_opt_box_autoadd_message_delivery_status(deserializer);
-var var_deliveryError = sse_decode_opt_String(deserializer);
-var var_retryable = sse_decode_opt_box_autoadd_bool(deserializer);
-var var_retryCount = sse_decode_opt_box_autoadd_u_32(deserializer);
-return ChannelMessage(fromDevice: var_fromDevice, fromFingerprint: var_fromFingerprint, body: var_body, messageId: var_messageId, sentAtMs: var_sentAtMs, attachment: var_attachment, deliveryStatus: var_deliveryStatus, deliveryError: var_deliveryError, retryable: var_retryable, retryCount: var_retryCount); }
-
-@protected ChannelSendResult sse_decode_channel_send_result(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_name = sse_decode_String(deserializer);
-var var_bytes = sse_decode_usize(deserializer);
-var var_messageId = sse_decode_String(deserializer);
-var var_sentAtMs = sse_decode_u_64(deserializer);
-var var_deliveryStatus = sse_decode_message_delivery_status(deserializer);
-var var_deliveryError = sse_decode_opt_String(deserializer);
-return ChannelSendResult(name: var_name, bytes: var_bytes, messageId: var_messageId, sentAtMs: var_sentAtMs, deliveryStatus: var_deliveryStatus, deliveryError: var_deliveryError); }
-
-@protected ChannelSnapshot sse_decode_channel_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_name = sse_decode_String(deserializer);
-var var_topic = sse_decode_String(deserializer);
-var var_meshId = sse_decode_String(deserializer);
-var var_displayName = sse_decode_String(deserializer);
-var var_deviceFingerprint = sse_decode_String(deserializer);
-var var_messages = sse_decode_list_channel_message(deserializer);
-var var_attachments = sse_decode_list_attachment_view(deserializer);
-var var_dmOffers = sse_decode_list_dm_offer(deserializer);
-var var_mesh = sse_decode_opt_box_autoadd_mesh_info(deserializer);
-var var_events = sse_decode_list_snapshot_event(deserializer);
-return ChannelSnapshot(name: var_name, topic: var_topic, meshId: var_meshId, displayName: var_displayName, deviceFingerprint: var_deviceFingerprint, messages: var_messages, attachments: var_attachments, dmOffers: var_dmOffers, mesh: var_mesh, events: var_events); }
-
-@protected ChatMessage sse_decode_chat_message(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_fromDevice = sse_decode_String(deserializer);
-var var_body = sse_decode_String(deserializer);
-var var_messageId = sse_decode_opt_String(deserializer);
-var var_sentAtMs = sse_decode_opt_box_autoadd_u_64(deserializer);
-var var_attachment = sse_decode_opt_box_autoadd_attachment_descriptor(deserializer);
-var var_callEvent = sse_decode_opt_box_autoadd_call_event(deserializer);
-var var_deliveryStatus = sse_decode_opt_box_autoadd_message_delivery_status(deserializer);
-var var_deliveryError = sse_decode_opt_String(deserializer);
-var var_retryable = sse_decode_opt_box_autoadd_bool(deserializer);
-var var_retryCount = sse_decode_opt_box_autoadd_u_32(deserializer);
-return ChatMessage(fromDevice: var_fromDevice, body: var_body, messageId: var_messageId, sentAtMs: var_sentAtMs, attachment: var_attachment, callEvent: var_callEvent, deliveryStatus: var_deliveryStatus, deliveryError: var_deliveryError, retryable: var_retryable, retryCount: var_retryCount); }
-
-@protected CloseSessionResult sse_decode_close_session_result(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_sessionId = sse_decode_String(deserializer);
-var var_closed = sse_decode_bool(deserializer);
-return CloseSessionResult(sessionId: var_sessionId, closed: var_closed); }
-
-@protected CreateGroupRequest sse_decode_create_group_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_label = sse_decode_opt_String(deserializer);
-var var_displayName = sse_decode_String(deserializer);
-var var_listenPort = sse_decode_u_16(deserializer);
-var var_staticPeer = sse_decode_opt_String(deserializer);
-var var_orgPubkey = sse_decode_opt_String(deserializer);
-return CreateGroupRequest(label: var_label, displayName: var_displayName, listenPort: var_listenPort, staticPeer: var_staticPeer, orgPubkey: var_orgPubkey); }
-
-@protected DmOffer sse_decode_dm_offer(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_offerId = sse_decode_String(deserializer);
-var var_fromDevice = sse_decode_String(deserializer);
-var var_fromFingerprint = sse_decode_String(deserializer);
-var var_targetFingerprint = sse_decode_String(deserializer);
-var var_inviteUri = sse_decode_String(deserializer);
-return DmOffer(offerId: var_offerId, fromDevice: var_fromDevice, fromFingerprint: var_fromFingerprint, targetFingerprint: var_targetFingerprint, inviteUri: var_inviteUri); }
-
-@protected GroupCreated sse_decode_group_created(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_groupId = sse_decode_String(deserializer);
-var var_meshId = sse_decode_String(deserializer);
-var var_inviteUri = sse_decode_String(deserializer);
-var var_fingerprint = sse_decode_String(deserializer);
-var var_label = sse_decode_opt_String(deserializer);
-return GroupCreated(groupId: var_groupId, meshId: var_meshId, inviteUri: var_inviteUri, fingerprint: var_fingerprint, label: var_label); }
-
-@protected GroupLeaveResult sse_decode_group_leave_result(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_groupId = sse_decode_String(deserializer);
-var var_closed = sse_decode_bool(deserializer);
-return GroupLeaveResult(groupId: var_groupId, closed: var_closed); }
-
-@protected GroupListSnapshot sse_decode_group_list_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_groups = sse_decode_list_group_snapshot(deserializer);
-return GroupListSnapshot(groups: var_groups); }
-
-@protected GroupMessage sse_decode_group_message(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_fromDevice = sse_decode_String(deserializer);
-var var_fromFingerprint = sse_decode_String(deserializer);
-var var_body = sse_decode_String(deserializer);
-var var_messageId = sse_decode_opt_String(deserializer);
-var var_sentAtMs = sse_decode_opt_box_autoadd_u_64(deserializer);
-var var_attachment = sse_decode_opt_box_autoadd_attachment_descriptor(deserializer);
-var var_deliveryStatus = sse_decode_opt_box_autoadd_message_delivery_status(deserializer);
-var var_deliveryError = sse_decode_opt_String(deserializer);
-var var_retryable = sse_decode_opt_box_autoadd_bool(deserializer);
-var var_retryCount = sse_decode_opt_box_autoadd_u_32(deserializer);
-return GroupMessage(fromDevice: var_fromDevice, fromFingerprint: var_fromFingerprint, body: var_body, messageId: var_messageId, sentAtMs: var_sentAtMs, attachment: var_attachment, deliveryStatus: var_deliveryStatus, deliveryError: var_deliveryError, retryable: var_retryable, retryCount: var_retryCount); }
-
-@protected GroupSendResult sse_decode_group_send_result(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_groupId = sse_decode_String(deserializer);
-var var_bytes = sse_decode_usize(deserializer);
-var var_messageId = sse_decode_String(deserializer);
-var var_sentAtMs = sse_decode_u_64(deserializer);
-var var_deliveryStatus = sse_decode_message_delivery_status(deserializer);
-var var_deliveryError = sse_decode_opt_String(deserializer);
-return GroupSendResult(groupId: var_groupId, bytes: var_bytes, messageId: var_messageId, sentAtMs: var_sentAtMs, deliveryStatus: var_deliveryStatus, deliveryError: var_deliveryError); }
-
-@protected GroupSnapshot sse_decode_group_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_groupId = sse_decode_String(deserializer);
-var var_meshId = sse_decode_String(deserializer);
-var var_label = sse_decode_opt_String(deserializer);
-var var_displayName = sse_decode_String(deserializer);
-var var_deviceFingerprint = sse_decode_String(deserializer);
-var var_creatorFingerprint = sse_decode_String(deserializer);
-var var_isAdmin = sse_decode_bool(deserializer);
-var var_state = sse_decode_String(deserializer);
-var var_memberCount = sse_decode_usize(deserializer);
-var var_inviteUri = sse_decode_opt_String(deserializer);
-var var_messages = sse_decode_list_group_message(deserializer);
-var var_attachments = sse_decode_list_attachment_view(deserializer);
-var var_dmOffers = sse_decode_list_dm_offer(deserializer);
-var var_mesh = sse_decode_opt_box_autoadd_mesh_info(deserializer);
-var var_events = sse_decode_list_snapshot_event(deserializer);
-var var_needsRejoin = sse_decode_bool(deserializer);
-var var_orgPubkey = sse_decode_opt_String(deserializer);
-var var_memberPeerIds = sse_decode_list_String(deserializer);
-return GroupSnapshot(groupId: var_groupId, meshId: var_meshId, label: var_label, displayName: var_displayName, deviceFingerprint: var_deviceFingerprint, creatorFingerprint: var_creatorFingerprint, isAdmin: var_isAdmin, state: var_state, memberCount: var_memberCount, inviteUri: var_inviteUri, messages: var_messages, attachments: var_attachments, dmOffers: var_dmOffers, mesh: var_mesh, events: var_events, needsRejoin: var_needsRejoin, orgPubkey: var_orgPubkey, memberPeerIds: var_memberPeerIds); }
-
-@protected int sse_decode_i_32(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getInt32(); }
-
-@protected InviteCreated sse_decode_invite_created(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_inviteUri = sse_decode_String(deserializer);
-var var_sessionId = sse_decode_String(deserializer);
-var var_meshId = sse_decode_String(deserializer);
-var var_fingerprint = sse_decode_String(deserializer);
-var var_listenAddress = sse_decode_String(deserializer);
-return InviteCreated(inviteUri: var_inviteUri, sessionId: var_sessionId, meshId: var_meshId, fingerprint: var_fingerprint, listenAddress: var_listenAddress); }
-
-@protected JoinChannelRequest sse_decode_join_channel_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_name = sse_decode_String(deserializer);
-var var_displayName = sse_decode_String(deserializer);
-var var_listenPort = sse_decode_u_16(deserializer);
-var var_staticPeer = sse_decode_opt_String(deserializer);
-return JoinChannelRequest(name: var_name, displayName: var_displayName, listenPort: var_listenPort, staticPeer: var_staticPeer); }
-
-@protected JoinGroupRequest sse_decode_join_group_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_inviteUri = sse_decode_String(deserializer);
-var var_displayName = sse_decode_String(deserializer);
-var var_orgPubkey = sse_decode_opt_String(deserializer);
-var var_listenPort = sse_decode_u_16(deserializer);
-var var_staticPeer = sse_decode_opt_String(deserializer);
-return JoinGroupRequest(inviteUri: var_inviteUri, displayName: var_displayName, orgPubkey: var_orgPubkey, listenPort: var_listenPort, staticPeer: var_staticPeer); }
-
-@protected JoinOrgRequest sse_decode_join_org_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_bundleUri = sse_decode_String(deserializer);
-var var_displayName = sse_decode_String(deserializer);
-var var_listenPort = sse_decode_u_16(deserializer);
-var var_staticPeer = sse_decode_opt_String(deserializer);
-return JoinOrgRequest(bundleUri: var_bundleUri, displayName: var_displayName, listenPort: var_listenPort, staticPeer: var_staticPeer); }
-
-@protected List<String> sse_decode_list_String(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <String>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_String(deserializer)); }
-        return ans_;
-         }
-
-@protected List<AttachmentView> sse_decode_list_attachment_view(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <AttachmentView>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_attachment_view(deserializer)); }
-        return ans_;
-         }
-
-@protected List<ChannelMessage> sse_decode_list_channel_message(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <ChannelMessage>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_channel_message(deserializer)); }
-        return ans_;
-         }
-
-@protected List<ChannelSnapshot> sse_decode_list_channel_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <ChannelSnapshot>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_channel_snapshot(deserializer)); }
-        return ans_;
-         }
-
-@protected List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <ChatMessage>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_chat_message(deserializer)); }
-        return ans_;
-         }
-
-@protected List<DmOffer> sse_decode_list_dm_offer(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <DmOffer>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_dm_offer(deserializer)); }
-        return ans_;
-         }
-
-@protected List<GroupMessage> sse_decode_list_group_message(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <GroupMessage>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_group_message(deserializer)); }
-        return ans_;
-         }
-
-@protected List<GroupSnapshot> sse_decode_list_group_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <GroupSnapshot>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_group_snapshot(deserializer)); }
-        return ans_;
-         }
-
-@protected List<NetworkInterfaceInfo> sse_decode_list_network_interface_info(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <NetworkInterfaceInfo>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_network_interface_info(deserializer)); }
-        return ans_;
-         }
-
-@protected List<OrgDmLink> sse_decode_list_org_dm_link(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <OrgDmLink>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_org_dm_link(deserializer)); }
-        return ans_;
-         }
-
-@protected List<OrgDmOfferView> sse_decode_list_org_dm_offer_view(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <OrgDmOfferView>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_org_dm_offer_view(deserializer)); }
-        return ans_;
-         }
-
-@protected List<OrgGroupOfferView> sse_decode_list_org_group_offer_view(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <OrgGroupOfferView>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_org_group_offer_view(deserializer)); }
-        return ans_;
-         }
-
-@protected List<OrgMemberView> sse_decode_list_org_member_view(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <OrgMemberView>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_org_member_view(deserializer)); }
-        return ans_;
-         }
-
-@protected List<OrgSnapshot> sse_decode_list_org_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <OrgSnapshot>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_org_snapshot(deserializer)); }
-        return ans_;
-         }
-
-@protected List<PeerDetail> sse_decode_list_peer_detail(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <PeerDetail>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_peer_detail(deserializer)); }
-        return ans_;
-         }
-
-@protected List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var len_ = sse_decode_i_32(deserializer);
-                return deserializer.buffer.getUint8List(len_); }
-
-@protected Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var len_ = sse_decode_i_32(deserializer);
-                return deserializer.buffer.getUint8List(len_); }
-
-@protected List<SessionSnapshot> sse_decode_list_session_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <SessionSnapshot>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_session_snapshot(deserializer)); }
-        return ans_;
-         }
-
-@protected List<SnapshotEvent> sse_decode_list_snapshot_event(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <SnapshotEvent>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_snapshot_event(deserializer)); }
-        return ans_;
-         }
-
-@protected MeshInfo sse_decode_mesh_info(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_meshId = sse_decode_String(deserializer);
-var var_listenPort = sse_decode_i_32(deserializer);
-var var_advertisedAddr = sse_decode_String(deserializer);
-var var_peerCount = sse_decode_i_32(deserializer);
-var var_directPeerCount = sse_decode_i_32(deserializer);
-var var_relayedPeerCount = sse_decode_i_32(deserializer);
-var var_relayCapablePeerCount = sse_decode_i_32(deserializer);
-var var_relaySessionCount = sse_decode_i_32(deserializer);
-var var_relayRouteCount = sse_decode_i_32(deserializer);
-var var_knownPeerCount = sse_decode_i_32(deserializer);
-var var_channels = sse_decode_list_String(deserializer);
-var var_natType = sse_decode_String(deserializer);
-var var_supernodeReady = sse_decode_bool(deserializer);
-var var_publicKey = sse_decode_String(deserializer);
-var var_peerDetails = sse_decode_list_peer_detail(deserializer);
-return MeshInfo(meshId: var_meshId, listenPort: var_listenPort, advertisedAddr: var_advertisedAddr, peerCount: var_peerCount, directPeerCount: var_directPeerCount, relayedPeerCount: var_relayedPeerCount, relayCapablePeerCount: var_relayCapablePeerCount, relaySessionCount: var_relaySessionCount, relayRouteCount: var_relayRouteCount, knownPeerCount: var_knownPeerCount, channels: var_channels, natType: var_natType, supernodeReady: var_supernodeReady, publicKey: var_publicKey, peerDetails: var_peerDetails); }
-
-@protected MessageDeliveryStatus sse_decode_message_delivery_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var inner = sse_decode_i_32(deserializer);
-        return MessageDeliveryStatus.values[inner]; }
-
-@protected MossRuntimeStatus sse_decode_moss_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_linkMode = sse_decode_String(deserializer);
-var var_libraryName = sse_decode_String(deserializer);
-var var_requiredSymbols = sse_decode_list_String(deserializer);
-var var_available = sse_decode_bool(deserializer);
-var var_checkedPaths = sse_decode_list_String(deserializer);
-return MossRuntimeStatus(linkMode: var_linkMode, libraryName: var_libraryName, requiredSymbols: var_requiredSymbols, available: var_available, checkedPaths: var_checkedPaths); }
-
-@protected NativeRuntimeStatus sse_decode_native_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_moss = sse_decode_moss_runtime_status(deserializer);
-var var_secureStorage = sse_decode_secure_storage_status(deserializer);
-var var_persistence = sse_decode_persistence_runtime_status(deserializer);
-var var_openmlsSmoke = sse_decode_open_mls_smoke_runtime_status(deserializer);
-var var_openmlsRoundtrip = sse_decode_open_mls_round_trip_runtime_status(deserializer);
-return NativeRuntimeStatus(moss: var_moss, secureStorage: var_secureStorage, persistence: var_persistence, openmlsSmoke: var_openmlsSmoke, openmlsRoundtrip: var_openmlsRoundtrip); }
-
-@protected NetworkInterfaceInfo sse_decode_network_interface_info(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_name = sse_decode_String(deserializer);
-var var_description = sse_decode_String(deserializer);
-var var_index = sse_decode_u_32(deserializer);
-var var_ipv4 = sse_decode_opt_String(deserializer);
-var var_isLoopback = sse_decode_bool(deserializer);
-var var_isUp = sse_decode_bool(deserializer);
-var var_isVirtual = sse_decode_bool(deserializer);
-var var_isVpn = sse_decode_bool(deserializer);
-var var_isDefaultRoute = sse_decode_bool(deserializer);
-return NetworkInterfaceInfo(name: var_name, description: var_description, index: var_index, ipv4: var_ipv4, isLoopback: var_isLoopback, isUp: var_isUp, isVirtual: var_isVirtual, isVpn: var_isVpn, isDefaultRoute: var_isDefaultRoute); }
-
-@protected OpenMlsRoundTripRuntimeStatus sse_decode_open_mls_round_trip_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_ok = sse_decode_opt_box_autoadd_open_mls_round_trip_status(deserializer);
-var var_error = sse_decode_opt_String(deserializer);
-return OpenMlsRoundTripRuntimeStatus(ok: var_ok, error: var_error); }
-
-@protected OpenMlsRoundTripStatus sse_decode_open_mls_round_trip_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_provider = sse_decode_String(deserializer);
-var var_ciphersuite = sse_decode_String(deserializer);
-var var_welcomeJoined = sse_decode_bool(deserializer);
-var var_plaintextRoundtrip = sse_decode_bool(deserializer);
-return OpenMlsRoundTripStatus(provider: var_provider, ciphersuite: var_ciphersuite, welcomeJoined: var_welcomeJoined, plaintextRoundtrip: var_plaintextRoundtrip); }
-
-@protected OpenMlsSmokeRuntimeStatus sse_decode_open_mls_smoke_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_ok = sse_decode_opt_box_autoadd_open_mls_smoke_status(deserializer);
-var var_error = sse_decode_opt_String(deserializer);
-return OpenMlsSmokeRuntimeStatus(ok: var_ok, error: var_error); }
-
-@protected OpenMlsSmokeStatus sse_decode_open_mls_smoke_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_provider = sse_decode_String(deserializer);
-var var_ciphersuite = sse_decode_String(deserializer);
-var var_protectedMessageCreated = sse_decode_bool(deserializer);
-return OpenMlsSmokeStatus(provider: var_provider, ciphersuite: var_ciphersuite, protectedMessageCreated: var_protectedMessageCreated); }
-
-@protected String? sse_decode_opt_String(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_String(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected ActiveCall? sse_decode_opt_box_autoadd_active_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_active_call(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected AttachmentDescriptor? sse_decode_opt_box_autoadd_attachment_descriptor(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_attachment_descriptor(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_bool(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected CallEvent? sse_decode_opt_box_autoadd_call_event(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_call_event(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected MeshInfo? sse_decode_opt_box_autoadd_mesh_info(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_mesh_info(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected MessageDeliveryStatus? sse_decode_opt_box_autoadd_message_delivery_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_message_delivery_status(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected OpenMlsRoundTripStatus? sse_decode_opt_box_autoadd_open_mls_round_trip_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_open_mls_round_trip_status(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected OpenMlsSmokeStatus? sse_decode_opt_box_autoadd_open_mls_smoke_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_open_mls_smoke_status(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected OutgoingCall? sse_decode_opt_box_autoadd_outgoing_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_outgoing_call(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected PendingCall? sse_decode_opt_box_autoadd_pending_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_pending_call(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_u_32(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_u_64(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected VoiceMeta? sse_decode_opt_box_autoadd_voice_meta(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_voice_meta(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected VpnBypassConsent? sse_decode_opt_box_autoadd_vpn_bypass_consent(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_vpn_bypass_consent(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected OrgDmLink sse_decode_org_dm_link(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_peerId = sse_decode_String(deserializer);
-var var_sessionId = sse_decode_opt_String(deserializer);
-return OrgDmLink(peerId: var_peerId, sessionId: var_sessionId); }
-
-@protected OrgDmOfferView sse_decode_org_dm_offer_view(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_offerId = sse_decode_String(deserializer);
-var var_fromPeerId = sse_decode_String(deserializer);
-var var_fromName = sse_decode_String(deserializer);
-var var_inviteUri = sse_decode_String(deserializer);
-return OrgDmOfferView(offerId: var_offerId, fromPeerId: var_fromPeerId, fromName: var_fromName, inviteUri: var_inviteUri); }
-
-@protected OrgGroupOfferView sse_decode_org_group_offer_view(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_offerId = sse_decode_String(deserializer);
-var var_fromPeerId = sse_decode_String(deserializer);
-var var_fromName = sse_decode_String(deserializer);
-var var_groupLabel = sse_decode_opt_String(deserializer);
-var var_groupInviteUri = sse_decode_String(deserializer);
-return OrgGroupOfferView(offerId: var_offerId, fromPeerId: var_fromPeerId, fromName: var_fromName, groupLabel: var_groupLabel, groupInviteUri: var_groupInviteUri); }
-
-@protected OrgMemberView sse_decode_org_member_view(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_mossPeerId = sse_decode_String(deserializer);
-var var_name = sse_decode_String(deserializer);
-var var_role = sse_decode_String(deserializer);
-var var_isSelf = sse_decode_bool(deserializer);
-return OrgMemberView(mossPeerId: var_mossPeerId, name: var_name, role: var_role, isSelf: var_isSelf); }
-
-@protected OrgSnapshot sse_decode_org_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_orgPubkey = sse_decode_String(deserializer);
-var var_orgName = sse_decode_String(deserializer);
-var var_meshId = sse_decode_String(deserializer);
-var var_ownPeerId = sse_decode_String(deserializer);
-var var_confirmationCode = sse_decode_String(deserializer);
-var var_inRoster = sse_decode_bool(deserializer);
-var var_rosterVersion = sse_decode_opt_box_autoadd_u_64(deserializer);
-var var_members = sse_decode_list_org_member_view(deserializer);
-var var_dmOffers = sse_decode_list_org_dm_offer_view(deserializer);
-var var_groupOffers = sse_decode_list_org_group_offer_view(deserializer);
-var var_dmLinks = sse_decode_list_org_dm_link(deserializer);
-return OrgSnapshot(orgPubkey: var_orgPubkey, orgName: var_orgName, meshId: var_meshId, ownPeerId: var_ownPeerId, confirmationCode: var_confirmationCode, inRoster: var_inRoster, rosterVersion: var_rosterVersion, members: var_members, dmOffers: var_dmOffers, groupOffers: var_groupOffers, dmLinks: var_dmLinks); }
-
-@protected OutgoingCall sse_decode_outgoing_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_callId = sse_decode_String(deserializer);
-return OutgoingCall(callId: var_callId); }
-
-@protected PeerDetail sse_decode_peer_detail(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_id = sse_decode_String(deserializer);
-var var_addr = sse_decode_String(deserializer);
-var var_relayed = sse_decode_bool(deserializer);
-return PeerDetail(id: var_id, addr: var_addr, relayed: var_relayed); }
-
-@protected PendingCall sse_decode_pending_call(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_callId = sse_decode_String(deserializer);
-var var_fromDevice = sse_decode_String(deserializer);
-return PendingCall(callId: var_callId, fromDevice: var_fromDevice); }
-
-@protected PersistenceRuntimeStatus sse_decode_persistence_runtime_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_backend = sse_decode_String(deserializer);
-var var_database = sse_decode_String(deserializer);
-var var_available = sse_decode_bool(deserializer);
-var var_encryptedAtRest = sse_decode_bool(deserializer);
-var var_error = sse_decode_opt_String(deserializer);
-return PersistenceRuntimeStatus(backend: var_backend, database: var_database, available: var_available, encryptedAtRest: var_encryptedAtRest, error: var_error); }
-
-@protected SecureStorageStatus sse_decode_secure_storage_status(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_backend = sse_decode_String(deserializer);
-var var_service = sse_decode_String(deserializer);
-var var_available = sse_decode_bool(deserializer);
-return SecureStorageStatus(backend: var_backend, service: var_service, available: var_available); }
-
-@protected SendMessageResult sse_decode_send_message_result(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_sessionId = sse_decode_String(deserializer);
-var var_state = sse_decode_String(deserializer);
-var var_ciphertextBytes = sse_decode_usize(deserializer);
-var var_messageId = sse_decode_String(deserializer);
-var var_sentAtMs = sse_decode_u_64(deserializer);
-var var_deliveryStatus = sse_decode_message_delivery_status(deserializer);
-var var_deliveryError = sse_decode_opt_String(deserializer);
-return SendMessageResult(sessionId: var_sessionId, state: var_state, ciphertextBytes: var_ciphertextBytes, messageId: var_messageId, sentAtMs: var_sentAtMs, deliveryStatus: var_deliveryStatus, deliveryError: var_deliveryError); }
-
-@protected SessionListSnapshot sse_decode_session_list_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_sessions = sse_decode_list_session_snapshot(deserializer);
-return SessionListSnapshot(sessions: var_sessions); }
-
-@protected SessionSnapshot sse_decode_session_snapshot(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_sessionId = sse_decode_String(deserializer);
-var var_meshId = sse_decode_String(deserializer);
-var var_role = sse_decode_String(deserializer);
-var var_displayName = sse_decode_String(deserializer);
-var var_peerDisplayName = sse_decode_String(deserializer);
-var var_state = sse_decode_String(deserializer);
-var var_path = sse_decode_String(deserializer);
-var var_relayReady = sse_decode_opt_box_autoadd_bool(deserializer);
-var var_inviteUri = sse_decode_opt_String(deserializer);
-var var_fingerprint = sse_decode_String(deserializer);
-var var_messages = sse_decode_list_chat_message(deserializer);
-var var_attachments = sse_decode_list_attachment_view(deserializer);
-var var_mesh = sse_decode_opt_box_autoadd_mesh_info(deserializer);
-var var_events = sse_decode_list_snapshot_event(deserializer);
-var var_pendingCall = sse_decode_opt_box_autoadd_pending_call(deserializer);
-var var_outgoingCall = sse_decode_opt_box_autoadd_outgoing_call(deserializer);
-var var_activeCall = sse_decode_opt_box_autoadd_active_call(deserializer);
-return SessionSnapshot(sessionId: var_sessionId, meshId: var_meshId, role: var_role, displayName: var_displayName, peerDisplayName: var_peerDisplayName, state: var_state, path: var_path, relayReady: var_relayReady, inviteUri: var_inviteUri, fingerprint: var_fingerprint, messages: var_messages, attachments: var_attachments, mesh: var_mesh, events: var_events, pendingCall: var_pendingCall, outgoingCall: var_outgoingCall, activeCall: var_activeCall); }
-
-@protected SnapshotEvent sse_decode_snapshot_event(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_eventType = sse_decode_i_32(deserializer);
-var var_eventName = sse_decode_String(deserializer);
-var var_detailJson = sse_decode_String(deserializer);
-var var_epochMillis = sse_decode_u_64(deserializer);
-return SnapshotEvent(eventType: var_eventType, eventName: var_eventName, detailJson: var_detailJson, epochMillis: var_epochMillis); }
-
-@protected StartSessionRequest sse_decode_start_session_request(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_displayName = sse_decode_String(deserializer);
-var var_listenPort = sse_decode_u_16(deserializer);
-var var_staticPeer = sse_decode_opt_String(deserializer);
-return StartSessionRequest(displayName: var_displayName, listenPort: var_listenPort, staticPeer: var_staticPeer); }
-
-@protected int sse_decode_u_16(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getUint16(); }
-
-@protected int sse_decode_u_32(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getUint32(); }
-
-@protected BigInt sse_decode_u_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getBigUint64(); }
-
-@protected int sse_decode_u_8(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getUint8(); }
-
-@protected void sse_decode_unit(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
- }
-
-@protected BigInt sse_decode_usize(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getBigUint64(); }
-
-@protected VoiceMeta sse_decode_voice_meta(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_durationMs = sse_decode_u_32(deserializer);
-var var_peaksB64 = sse_decode_String(deserializer);
-return VoiceMeta(durationMs: var_durationMs, peaksB64: var_peaksB64); }
-
-@protected VpnBypassConsent sse_decode_vpn_bypass_consent(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_interface_ = sse_decode_String(deserializer);
-var var_index = sse_decode_u_32(deserializer);
-return VpnBypassConsent(interface_: var_interface_, index: var_index); }
-
-@protected VpnDetection sse_decode_vpn_detection(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_vpnLikely = sse_decode_bool(deserializer);
-var var_suspectInterfaces = sse_decode_list_String(deserializer);
-var var_vpnOwnsDefaultRoute = sse_decode_bool(deserializer);
-return VpnDetection(vpnLikely: var_vpnLikely, suspectInterfaces: var_suspectInterfaces, vpnOwnsDefaultRoute: var_vpnOwnsDefaultRoute); }
-
-@protected void sse_encode_String(String self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer); }
-
-@protected void sse_encode_accept_invite_request(AcceptInviteRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.inviteUri, serializer);
-sse_encode_String(self.displayName, serializer);
-sse_encode_u_16(self.listenPort, serializer);
-sse_encode_opt_String(self.staticPeer, serializer);
- }
-
-@protected void sse_encode_active_call(ActiveCall self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.callId, serializer);
-sse_encode_String(self.direction, serializer);
-sse_encode_String(self.keyB64, serializer);
-sse_encode_String(self.noncePrefixB64, serializer);
-sse_encode_u_64(self.startedAtMs, serializer);
- }
-
-@protected void sse_encode_app_diagnostics(AppDiagnostics self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.appName, serializer);
-sse_encode_String(self.privacyModel, serializer);
-sse_encode_String(self.discoveryModel, serializer);
-sse_encode_String(self.mossLinkMode, serializer);
- }
-
-@protected void sse_encode_attachment_descriptor(AttachmentDescriptor self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.attachmentId, serializer);
-sse_encode_String(self.contentHash, serializer);
-sse_encode_String(self.fileName, serializer);
-sse_encode_String(self.mime, serializer);
-sse_encode_u_64(self.totalSize, serializer);
-sse_encode_opt_String(self.thumbnailB64, serializer);
-sse_encode_opt_box_autoadd_voice_meta(self.voice, serializer);
- }
-
-@protected void sse_encode_attachment_send_result(AttachmentSendResult self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.sessionId, serializer);
-sse_encode_String(self.attachmentId, serializer);
-sse_encode_String(self.contentHash, serializer);
- }
-
-@protected void sse_encode_attachment_state(AttachmentState self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.index, serializer); }
-
-@protected void sse_encode_attachment_view(AttachmentView self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.attachmentId, serializer);
-sse_encode_String(self.direction, serializer);
-sse_encode_attachment_state(self.state, serializer);
-sse_encode_u_64(self.completedChunks, serializer);
-sse_encode_u_64(self.chunkCount, serializer);
-sse_encode_opt_String(self.localPath, serializer);
- }
-
-@protected void sse_encode_bool(bool self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putUint8(self ? 1 : 0); }
-
-@protected void sse_encode_box_autoadd_accept_invite_request(AcceptInviteRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_accept_invite_request(self, serializer); }
-
-@protected void sse_encode_box_autoadd_active_call(ActiveCall self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_active_call(self, serializer); }
-
-@protected void sse_encode_box_autoadd_attachment_descriptor(AttachmentDescriptor self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_attachment_descriptor(self, serializer); }
-
-@protected void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_bool(self, serializer); }
-
-@protected void sse_encode_box_autoadd_call_event(CallEvent self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_call_event(self, serializer); }
-
-@protected void sse_encode_box_autoadd_create_group_request(CreateGroupRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_create_group_request(self, serializer); }
-
-@protected void sse_encode_box_autoadd_join_channel_request(JoinChannelRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_join_channel_request(self, serializer); }
-
-@protected void sse_encode_box_autoadd_join_group_request(JoinGroupRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_join_group_request(self, serializer); }
-
-@protected void sse_encode_box_autoadd_join_org_request(JoinOrgRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_join_org_request(self, serializer); }
-
-@protected void sse_encode_box_autoadd_mesh_info(MeshInfo self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_mesh_info(self, serializer); }
-
-@protected void sse_encode_box_autoadd_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_message_delivery_status(self, serializer); }
-
-@protected void sse_encode_box_autoadd_open_mls_round_trip_status(OpenMlsRoundTripStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_open_mls_round_trip_status(self, serializer); }
-
-@protected void sse_encode_box_autoadd_open_mls_smoke_status(OpenMlsSmokeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_open_mls_smoke_status(self, serializer); }
-
-@protected void sse_encode_box_autoadd_outgoing_call(OutgoingCall self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_outgoing_call(self, serializer); }
-
-@protected void sse_encode_box_autoadd_pending_call(PendingCall self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_pending_call(self, serializer); }
-
-@protected void sse_encode_box_autoadd_start_session_request(StartSessionRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_start_session_request(self, serializer); }
-
-@protected void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_u_32(self, serializer); }
-
-@protected void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_u_64(self, serializer); }
-
-@protected void sse_encode_box_autoadd_voice_meta(VoiceMeta self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_voice_meta(self, serializer); }
-
-@protected void sse_encode_box_autoadd_vpn_bypass_consent(VpnBypassConsent self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_vpn_bypass_consent(self, serializer); }
-
-@protected void sse_encode_call_event(CallEvent self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.kind, serializer);
-sse_encode_u_64(self.durationMs, serializer);
-sse_encode_String(self.callId, serializer);
- }
-
-@protected void sse_encode_channel_leave_result(ChannelLeaveResult self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.name, serializer);
-sse_encode_bool(self.closed, serializer);
- }
-
-@protected void sse_encode_channel_list_snapshot(ChannelListSnapshot self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_list_channel_snapshot(self.channels, serializer);
- }
-
-@protected void sse_encode_channel_message(ChannelMessage self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.fromDevice, serializer);
-sse_encode_String(self.fromFingerprint, serializer);
-sse_encode_String(self.body, serializer);
-sse_encode_opt_String(self.messageId, serializer);
-sse_encode_opt_box_autoadd_u_64(self.sentAtMs, serializer);
-sse_encode_opt_box_autoadd_attachment_descriptor(self.attachment, serializer);
-sse_encode_opt_box_autoadd_message_delivery_status(self.deliveryStatus, serializer);
-sse_encode_opt_String(self.deliveryError, serializer);
-sse_encode_opt_box_autoadd_bool(self.retryable, serializer);
-sse_encode_opt_box_autoadd_u_32(self.retryCount, serializer);
- }
-
-@protected void sse_encode_channel_send_result(ChannelSendResult self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.name, serializer);
-sse_encode_usize(self.bytes, serializer);
-sse_encode_String(self.messageId, serializer);
-sse_encode_u_64(self.sentAtMs, serializer);
-sse_encode_message_delivery_status(self.deliveryStatus, serializer);
-sse_encode_opt_String(self.deliveryError, serializer);
- }
-
-@protected void sse_encode_channel_snapshot(ChannelSnapshot self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.name, serializer);
-sse_encode_String(self.topic, serializer);
-sse_encode_String(self.meshId, serializer);
-sse_encode_String(self.displayName, serializer);
-sse_encode_String(self.deviceFingerprint, serializer);
-sse_encode_list_channel_message(self.messages, serializer);
-sse_encode_list_attachment_view(self.attachments, serializer);
-sse_encode_list_dm_offer(self.dmOffers, serializer);
-sse_encode_opt_box_autoadd_mesh_info(self.mesh, serializer);
-sse_encode_list_snapshot_event(self.events, serializer);
- }
-
-@protected void sse_encode_chat_message(ChatMessage self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.fromDevice, serializer);
-sse_encode_String(self.body, serializer);
-sse_encode_opt_String(self.messageId, serializer);
-sse_encode_opt_box_autoadd_u_64(self.sentAtMs, serializer);
-sse_encode_opt_box_autoadd_attachment_descriptor(self.attachment, serializer);
-sse_encode_opt_box_autoadd_call_event(self.callEvent, serializer);
-sse_encode_opt_box_autoadd_message_delivery_status(self.deliveryStatus, serializer);
-sse_encode_opt_String(self.deliveryError, serializer);
-sse_encode_opt_box_autoadd_bool(self.retryable, serializer);
-sse_encode_opt_box_autoadd_u_32(self.retryCount, serializer);
- }
-
-@protected void sse_encode_close_session_result(CloseSessionResult self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.sessionId, serializer);
-sse_encode_bool(self.closed, serializer);
- }
-
-@protected void sse_encode_create_group_request(CreateGroupRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_opt_String(self.label, serializer);
-sse_encode_String(self.displayName, serializer);
-sse_encode_u_16(self.listenPort, serializer);
-sse_encode_opt_String(self.staticPeer, serializer);
-sse_encode_opt_String(self.orgPubkey, serializer);
- }
-
-@protected void sse_encode_dm_offer(DmOffer self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.offerId, serializer);
-sse_encode_String(self.fromDevice, serializer);
-sse_encode_String(self.fromFingerprint, serializer);
-sse_encode_String(self.targetFingerprint, serializer);
-sse_encode_String(self.inviteUri, serializer);
- }
-
-@protected void sse_encode_group_created(GroupCreated self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.groupId, serializer);
-sse_encode_String(self.meshId, serializer);
-sse_encode_String(self.inviteUri, serializer);
-sse_encode_String(self.fingerprint, serializer);
-sse_encode_opt_String(self.label, serializer);
- }
-
-@protected void sse_encode_group_leave_result(GroupLeaveResult self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.groupId, serializer);
-sse_encode_bool(self.closed, serializer);
- }
-
-@protected void sse_encode_group_list_snapshot(GroupListSnapshot self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_list_group_snapshot(self.groups, serializer);
- }
-
-@protected void sse_encode_group_message(GroupMessage self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.fromDevice, serializer);
-sse_encode_String(self.fromFingerprint, serializer);
-sse_encode_String(self.body, serializer);
-sse_encode_opt_String(self.messageId, serializer);
-sse_encode_opt_box_autoadd_u_64(self.sentAtMs, serializer);
-sse_encode_opt_box_autoadd_attachment_descriptor(self.attachment, serializer);
-sse_encode_opt_box_autoadd_message_delivery_status(self.deliveryStatus, serializer);
-sse_encode_opt_String(self.deliveryError, serializer);
-sse_encode_opt_box_autoadd_bool(self.retryable, serializer);
-sse_encode_opt_box_autoadd_u_32(self.retryCount, serializer);
- }
-
-@protected void sse_encode_group_send_result(GroupSendResult self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.groupId, serializer);
-sse_encode_usize(self.bytes, serializer);
-sse_encode_String(self.messageId, serializer);
-sse_encode_u_64(self.sentAtMs, serializer);
-sse_encode_message_delivery_status(self.deliveryStatus, serializer);
-sse_encode_opt_String(self.deliveryError, serializer);
- }
-
-@protected void sse_encode_group_snapshot(GroupSnapshot self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.groupId, serializer);
-sse_encode_String(self.meshId, serializer);
-sse_encode_opt_String(self.label, serializer);
-sse_encode_String(self.displayName, serializer);
-sse_encode_String(self.deviceFingerprint, serializer);
-sse_encode_String(self.creatorFingerprint, serializer);
-sse_encode_bool(self.isAdmin, serializer);
-sse_encode_String(self.state, serializer);
-sse_encode_usize(self.memberCount, serializer);
-sse_encode_opt_String(self.inviteUri, serializer);
-sse_encode_list_group_message(self.messages, serializer);
-sse_encode_list_attachment_view(self.attachments, serializer);
-sse_encode_list_dm_offer(self.dmOffers, serializer);
-sse_encode_opt_box_autoadd_mesh_info(self.mesh, serializer);
-sse_encode_list_snapshot_event(self.events, serializer);
-sse_encode_bool(self.needsRejoin, serializer);
-sse_encode_opt_String(self.orgPubkey, serializer);
-sse_encode_list_String(self.memberPeerIds, serializer);
- }
-
-@protected void sse_encode_i_32(int self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putInt32(self); }
-
-@protected void sse_encode_invite_created(InviteCreated self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.inviteUri, serializer);
-sse_encode_String(self.sessionId, serializer);
-sse_encode_String(self.meshId, serializer);
-sse_encode_String(self.fingerprint, serializer);
-sse_encode_String(self.listenAddress, serializer);
- }
-
-@protected void sse_encode_join_channel_request(JoinChannelRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.name, serializer);
-sse_encode_String(self.displayName, serializer);
-sse_encode_u_16(self.listenPort, serializer);
-sse_encode_opt_String(self.staticPeer, serializer);
- }
-
-@protected void sse_encode_join_group_request(JoinGroupRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.inviteUri, serializer);
-sse_encode_String(self.displayName, serializer);
-sse_encode_opt_String(self.orgPubkey, serializer);
-sse_encode_u_16(self.listenPort, serializer);
-sse_encode_opt_String(self.staticPeer, serializer);
- }
-
-@protected void sse_encode_join_org_request(JoinOrgRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.bundleUri, serializer);
-sse_encode_String(self.displayName, serializer);
-sse_encode_u_16(self.listenPort, serializer);
-sse_encode_opt_String(self.staticPeer, serializer);
- }
-
-@protected void sse_encode_list_String(List<String> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_String(item, serializer); } }
-
-@protected void sse_encode_list_attachment_view(List<AttachmentView> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_attachment_view(item, serializer); } }
-
-@protected void sse_encode_list_channel_message(List<ChannelMessage> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_channel_message(item, serializer); } }
-
-@protected void sse_encode_list_channel_snapshot(List<ChannelSnapshot> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_channel_snapshot(item, serializer); } }
-
-@protected void sse_encode_list_chat_message(List<ChatMessage> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_chat_message(item, serializer); } }
-
-@protected void sse_encode_list_dm_offer(List<DmOffer> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_dm_offer(item, serializer); } }
-
-@protected void sse_encode_list_group_message(List<GroupMessage> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_group_message(item, serializer); } }
-
-@protected void sse_encode_list_group_snapshot(List<GroupSnapshot> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_group_snapshot(item, serializer); } }
-
-@protected void sse_encode_list_network_interface_info(List<NetworkInterfaceInfo> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_network_interface_info(item, serializer); } }
-
-@protected void sse_encode_list_org_dm_link(List<OrgDmLink> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_org_dm_link(item, serializer); } }
-
-@protected void sse_encode_list_org_dm_offer_view(List<OrgDmOfferView> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_org_dm_offer_view(item, serializer); } }
-
-@protected void sse_encode_list_org_group_offer_view(List<OrgGroupOfferView> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_org_group_offer_view(item, serializer); } }
-
-@protected void sse_encode_list_org_member_view(List<OrgMemberView> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_org_member_view(item, serializer); } }
-
-@protected void sse_encode_list_org_snapshot(List<OrgSnapshot> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_org_snapshot(item, serializer); } }
-
-@protected void sse_encode_list_peer_detail(List<PeerDetail> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_peer_detail(item, serializer); } }
-
-@protected void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-                    serializer.buffer.putUint8List(self is Uint8List ? self : Uint8List.fromList(self)); }
-
-@protected void sse_encode_list_prim_u_8_strict(Uint8List self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-                    serializer.buffer.putUint8List(self); }
-
-@protected void sse_encode_list_session_snapshot(List<SessionSnapshot> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_session_snapshot(item, serializer); } }
-
-@protected void sse_encode_list_snapshot_event(List<SnapshotEvent> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_snapshot_event(item, serializer); } }
-
-@protected void sse_encode_mesh_info(MeshInfo self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.meshId, serializer);
-sse_encode_i_32(self.listenPort, serializer);
-sse_encode_String(self.advertisedAddr, serializer);
-sse_encode_i_32(self.peerCount, serializer);
-sse_encode_i_32(self.directPeerCount, serializer);
-sse_encode_i_32(self.relayedPeerCount, serializer);
-sse_encode_i_32(self.relayCapablePeerCount, serializer);
-sse_encode_i_32(self.relaySessionCount, serializer);
-sse_encode_i_32(self.relayRouteCount, serializer);
-sse_encode_i_32(self.knownPeerCount, serializer);
-sse_encode_list_String(self.channels, serializer);
-sse_encode_String(self.natType, serializer);
-sse_encode_bool(self.supernodeReady, serializer);
-sse_encode_String(self.publicKey, serializer);
-sse_encode_list_peer_detail(self.peerDetails, serializer);
- }
-
-@protected void sse_encode_message_delivery_status(MessageDeliveryStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.index, serializer); }
-
-@protected void sse_encode_moss_runtime_status(MossRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.linkMode, serializer);
-sse_encode_String(self.libraryName, serializer);
-sse_encode_list_String(self.requiredSymbols, serializer);
-sse_encode_bool(self.available, serializer);
-sse_encode_list_String(self.checkedPaths, serializer);
- }
-
-@protected void sse_encode_native_runtime_status(NativeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_moss_runtime_status(self.moss, serializer);
-sse_encode_secure_storage_status(self.secureStorage, serializer);
-sse_encode_persistence_runtime_status(self.persistence, serializer);
-sse_encode_open_mls_smoke_runtime_status(self.openmlsSmoke, serializer);
-sse_encode_open_mls_round_trip_runtime_status(self.openmlsRoundtrip, serializer);
- }
-
-@protected void sse_encode_network_interface_info(NetworkInterfaceInfo self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.name, serializer);
-sse_encode_String(self.description, serializer);
-sse_encode_u_32(self.index, serializer);
-sse_encode_opt_String(self.ipv4, serializer);
-sse_encode_bool(self.isLoopback, serializer);
-sse_encode_bool(self.isUp, serializer);
-sse_encode_bool(self.isVirtual, serializer);
-sse_encode_bool(self.isVpn, serializer);
-sse_encode_bool(self.isDefaultRoute, serializer);
- }
-
-@protected void sse_encode_open_mls_round_trip_runtime_status(OpenMlsRoundTripRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_opt_box_autoadd_open_mls_round_trip_status(self.ok, serializer);
-sse_encode_opt_String(self.error, serializer);
- }
-
-@protected void sse_encode_open_mls_round_trip_status(OpenMlsRoundTripStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.provider, serializer);
-sse_encode_String(self.ciphersuite, serializer);
-sse_encode_bool(self.welcomeJoined, serializer);
-sse_encode_bool(self.plaintextRoundtrip, serializer);
- }
-
-@protected void sse_encode_open_mls_smoke_runtime_status(OpenMlsSmokeRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_opt_box_autoadd_open_mls_smoke_status(self.ok, serializer);
-sse_encode_opt_String(self.error, serializer);
- }
-
-@protected void sse_encode_open_mls_smoke_status(OpenMlsSmokeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.provider, serializer);
-sse_encode_String(self.ciphersuite, serializer);
-sse_encode_bool(self.protectedMessageCreated, serializer);
- }
-
-@protected void sse_encode_opt_String(String? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_String(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_active_call(ActiveCall? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_active_call(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_attachment_descriptor(AttachmentDescriptor? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_attachment_descriptor(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_bool(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_call_event(CallEvent? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_call_event(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_mesh_info(MeshInfo? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_mesh_info(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_message_delivery_status(MessageDeliveryStatus? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_message_delivery_status(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_open_mls_round_trip_status(OpenMlsRoundTripStatus? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_open_mls_round_trip_status(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_open_mls_smoke_status(OpenMlsSmokeStatus? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_open_mls_smoke_status(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_outgoing_call(OutgoingCall? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_outgoing_call(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_pending_call(PendingCall? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_pending_call(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_u_32(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_u_64(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_voice_meta(VoiceMeta? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_voice_meta(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_vpn_bypass_consent(VpnBypassConsent? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_vpn_bypass_consent(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_org_dm_link(OrgDmLink self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.peerId, serializer);
-sse_encode_opt_String(self.sessionId, serializer);
- }
-
-@protected void sse_encode_org_dm_offer_view(OrgDmOfferView self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.offerId, serializer);
-sse_encode_String(self.fromPeerId, serializer);
-sse_encode_String(self.fromName, serializer);
-sse_encode_String(self.inviteUri, serializer);
- }
-
-@protected void sse_encode_org_group_offer_view(OrgGroupOfferView self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.offerId, serializer);
-sse_encode_String(self.fromPeerId, serializer);
-sse_encode_String(self.fromName, serializer);
-sse_encode_opt_String(self.groupLabel, serializer);
-sse_encode_String(self.groupInviteUri, serializer);
- }
-
-@protected void sse_encode_org_member_view(OrgMemberView self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.mossPeerId, serializer);
-sse_encode_String(self.name, serializer);
-sse_encode_String(self.role, serializer);
-sse_encode_bool(self.isSelf, serializer);
- }
-
-@protected void sse_encode_org_snapshot(OrgSnapshot self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.orgPubkey, serializer);
-sse_encode_String(self.orgName, serializer);
-sse_encode_String(self.meshId, serializer);
-sse_encode_String(self.ownPeerId, serializer);
-sse_encode_String(self.confirmationCode, serializer);
-sse_encode_bool(self.inRoster, serializer);
-sse_encode_opt_box_autoadd_u_64(self.rosterVersion, serializer);
-sse_encode_list_org_member_view(self.members, serializer);
-sse_encode_list_org_dm_offer_view(self.dmOffers, serializer);
-sse_encode_list_org_group_offer_view(self.groupOffers, serializer);
-sse_encode_list_org_dm_link(self.dmLinks, serializer);
- }
-
-@protected void sse_encode_outgoing_call(OutgoingCall self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.callId, serializer);
- }
-
-@protected void sse_encode_peer_detail(PeerDetail self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.id, serializer);
-sse_encode_String(self.addr, serializer);
-sse_encode_bool(self.relayed, serializer);
- }
-
-@protected void sse_encode_pending_call(PendingCall self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.callId, serializer);
-sse_encode_String(self.fromDevice, serializer);
- }
-
-@protected void sse_encode_persistence_runtime_status(PersistenceRuntimeStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.backend, serializer);
-sse_encode_String(self.database, serializer);
-sse_encode_bool(self.available, serializer);
-sse_encode_bool(self.encryptedAtRest, serializer);
-sse_encode_opt_String(self.error, serializer);
- }
-
-@protected void sse_encode_secure_storage_status(SecureStorageStatus self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.backend, serializer);
-sse_encode_String(self.service, serializer);
-sse_encode_bool(self.available, serializer);
- }
-
-@protected void sse_encode_send_message_result(SendMessageResult self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.sessionId, serializer);
-sse_encode_String(self.state, serializer);
-sse_encode_usize(self.ciphertextBytes, serializer);
-sse_encode_String(self.messageId, serializer);
-sse_encode_u_64(self.sentAtMs, serializer);
-sse_encode_message_delivery_status(self.deliveryStatus, serializer);
-sse_encode_opt_String(self.deliveryError, serializer);
- }
-
-@protected void sse_encode_session_list_snapshot(SessionListSnapshot self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_list_session_snapshot(self.sessions, serializer);
- }
-
-@protected void sse_encode_session_snapshot(SessionSnapshot self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.sessionId, serializer);
-sse_encode_String(self.meshId, serializer);
-sse_encode_String(self.role, serializer);
-sse_encode_String(self.displayName, serializer);
-sse_encode_String(self.peerDisplayName, serializer);
-sse_encode_String(self.state, serializer);
-sse_encode_String(self.path, serializer);
-sse_encode_opt_box_autoadd_bool(self.relayReady, serializer);
-sse_encode_opt_String(self.inviteUri, serializer);
-sse_encode_String(self.fingerprint, serializer);
-sse_encode_list_chat_message(self.messages, serializer);
-sse_encode_list_attachment_view(self.attachments, serializer);
-sse_encode_opt_box_autoadd_mesh_info(self.mesh, serializer);
-sse_encode_list_snapshot_event(self.events, serializer);
-sse_encode_opt_box_autoadd_pending_call(self.pendingCall, serializer);
-sse_encode_opt_box_autoadd_outgoing_call(self.outgoingCall, serializer);
-sse_encode_opt_box_autoadd_active_call(self.activeCall, serializer);
- }
-
-@protected void sse_encode_snapshot_event(SnapshotEvent self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.eventType, serializer);
-sse_encode_String(self.eventName, serializer);
-sse_encode_String(self.detailJson, serializer);
-sse_encode_u_64(self.epochMillis, serializer);
- }
-
-@protected void sse_encode_start_session_request(StartSessionRequest self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.displayName, serializer);
-sse_encode_u_16(self.listenPort, serializer);
-sse_encode_opt_String(self.staticPeer, serializer);
- }
-
-@protected void sse_encode_u_16(int self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putUint16(self); }
-
-@protected void sse_encode_u_32(int self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putUint32(self); }
-
-@protected void sse_encode_u_64(BigInt self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putBigUint64(self); }
-
-@protected void sse_encode_u_8(int self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putUint8(self); }
-
-@protected void sse_encode_unit(void self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
- }
-
-@protected void sse_encode_usize(BigInt self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putBigUint64(self); }
-
-@protected void sse_encode_voice_meta(VoiceMeta self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_u_32(self.durationMs, serializer);
-sse_encode_String(self.peaksB64, serializer);
- }
-
-@protected void sse_encode_vpn_bypass_consent(VpnBypassConsent self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_String(self.interface_, serializer);
-sse_encode_u_32(self.index, serializer);
- }
-
-@protected void sse_encode_vpn_detection(VpnDetection self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_bool(self.vpnLikely, serializer);
-sse_encode_list_String(self.suspectInterfaces, serializer);
-sse_encode_bool(self.vpnOwnsDefaultRoute, serializer);
- }
-                }
-                
+  Future<GroupSendResult> crateApiPrivateGroupRetryMessage(
+      {required String groupId, required String messageId});
+
+  Future<ChannelSendResult> crateApiChannelSend(
+      {required String name, required String body});
+
+  Future<GroupSendResult> crateApiPrivateGroupSend(
+      {required String groupId, required String body});
+
+  Future<AttachmentSendResult> crateApiChannelSendAttachment(
+      {required String name,
+      required String fileName,
+      required String mime,
+      required String dataBase64,
+      String? thumbnailBase64,
+      VoiceMeta? voice});
+
+  Future<AttachmentSendResult> crateApiPrivateDmSendAttachment(
+      {required String sessionId,
+      required String fileName,
+      required String mime,
+      required String dataBase64,
+      String? thumbnailBase64,
+      VoiceMeta? voice});
+
+  Future<AttachmentSendResult> crateApiPrivateGroupSendAttachment(
+      {required String groupId,
+      required String fileName,
+      required String mime,
+      required String dataBase64,
+      String? thumbnailBase64,
+      VoiceMeta? voice});
+
+  Future<void> crateApiChannelSendDmOffer(
+      {required String name,
+      required String targetFingerprint,
+      required String inviteUri});
+
+  Future<InviteCreated> crateApiOrgSendDmOffer(
+      {required String orgPubkey,
+      required String targetPeerId,
+      required String displayName,
+      required int listenPort,
+      String? staticPeer});
+
+  Future<void> crateApiPrivateGroupSendDmOffer(
+      {required String groupId,
+      required String targetFingerprint,
+      required String inviteUri});
+
+  Future<SendMessageResult> crateApiPrivateDmSendMessage(
+      {required String sessionId, required String body});
+
+  Future<void> crateApiPrivateDmSetAppDataDir({required String path});
+
+  Future<void> crateApiPrivateDmSetHistoryDek({required List<int> dek});
+
+  Future<void> crateApiVpnSetVpnBypassConsent({String? interface_});
+}
+
+class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
+  RustLibApiImpl({
+    required super.handler,
+    required super.wire,
+    required super.generalizedFrbRustBinding,
+    required super.portManager,
+  });
+
+  @override
+  Future<SessionSnapshot> crateApiOrgAcceptDmOffer(
+      {required String orgPubkey,
+      required String offerId,
+      required String displayName,
+      required int listenPort,
+      String? staticPeer}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        sse_encode_String(offerId, serializer);
+        sse_encode_String(displayName, serializer);
+        sse_encode_u_16(listenPort, serializer);
+        sse_encode_opt_String(staticPeer, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 1, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_session_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgAcceptDmOfferConstMeta,
+      argValues: [orgPubkey, offerId, displayName, listenPort, staticPeer],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgAcceptDmOfferConstMeta => const TaskConstMeta(
+        debugName: "accept_dm_offer",
+        argNames: [
+          "orgPubkey",
+          "offerId",
+          "displayName",
+          "listenPort",
+          "staticPeer"
+        ],
+      );
+
+  @override
+  Future<GroupSnapshot> crateApiOrgAcceptGroupOffer(
+      {required String orgPubkey,
+      required String offerId,
+      required String displayName,
+      required int listenPort,
+      String? staticPeer}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        sse_encode_String(offerId, serializer);
+        sse_encode_String(displayName, serializer);
+        sse_encode_u_16(listenPort, serializer);
+        sse_encode_opt_String(staticPeer, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 2, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgAcceptGroupOfferConstMeta,
+      argValues: [orgPubkey, offerId, displayName, listenPort, staticPeer],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgAcceptGroupOfferConstMeta =>
+      const TaskConstMeta(
+        debugName: "accept_group_offer",
+        argNames: [
+          "orgPubkey",
+          "offerId",
+          "displayName",
+          "listenPort",
+          "staticPeer"
+        ],
+      );
+
+  @override
+  Future<SessionSnapshot> crateApiPrivateDmAcceptInvite(
+      {required AcceptInviteRequest request}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_accept_invite_request(request, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 3, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_session_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmAcceptInviteConstMeta,
+      argValues: [request],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmAcceptInviteConstMeta =>
+      const TaskConstMeta(
+        debugName: "accept_invite",
+        argNames: ["request"],
+      );
+
+  @override
+  Future<AppDiagnostics> crateApiDiagnosticsAppDiagnostics() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 4, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_app_diagnostics,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDiagnosticsAppDiagnosticsConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDiagnosticsAppDiagnosticsConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_diagnostics",
+        argNames: [],
+      );
+
+  @override
+  Future<void> crateApiChannelCancelAttachment(
+      {required String name, required String attachmentId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        sse_encode_String(attachmentId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 5, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelCancelAttachmentConstMeta,
+      argValues: [name, attachmentId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelCancelAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "cancel_attachment",
+        argNames: ["name", "attachmentId"],
+      );
+
+  @override
+  Future<void> crateApiPrivateDmCancelAttachment(
+      {required String sessionId, required String attachmentId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(sessionId, serializer);
+        sse_encode_String(attachmentId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 6, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmCancelAttachmentConstMeta,
+      argValues: [sessionId, attachmentId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmCancelAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "cancel_attachment",
+        argNames: ["sessionId", "attachmentId"],
+      );
+
+  @override
+  Future<void> crateApiPrivateGroupCancelAttachment(
+      {required String groupId, required String attachmentId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(attachmentId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 7, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupCancelAttachmentConstMeta,
+      argValues: [groupId, attachmentId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupCancelAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "cancel_attachment",
+        argNames: ["groupId", "attachmentId"],
+      );
+
+  @override
+  Future<GroupLeaveResult> crateApiPrivateGroupClose(
+      {required String groupId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 8, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_leave_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupCloseConstMeta,
+      argValues: [groupId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupCloseConstMeta => const TaskConstMeta(
+        debugName: "close",
+        argNames: ["groupId"],
+      );
+
+  @override
+  Future<CloseSessionResult> crateApiPrivateDmCloseSession(
+      {required String sessionId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(sessionId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 9, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_close_session_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmCloseSessionConstMeta,
+      argValues: [sessionId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmCloseSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "close_session",
+        argNames: ["sessionId"],
+      );
+
+  @override
+  Future<GroupCreated> crateApiOrgCreateGroup(
+      {required String orgPubkey,
+      String? label,
+      required List<String> memberPeerIds,
+      required String displayName,
+      required int listenPort,
+      String? staticPeer}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        sse_encode_opt_String(label, serializer);
+        sse_encode_list_String(memberPeerIds, serializer);
+        sse_encode_String(displayName, serializer);
+        sse_encode_u_16(listenPort, serializer);
+        sse_encode_opt_String(staticPeer, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 10, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_created,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgCreateGroupConstMeta,
+      argValues: [
+        orgPubkey,
+        label,
+        memberPeerIds,
+        displayName,
+        listenPort,
+        staticPeer
+      ],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgCreateGroupConstMeta => const TaskConstMeta(
+        debugName: "create_group",
+        argNames: [
+          "orgPubkey",
+          "label",
+          "memberPeerIds",
+          "displayName",
+          "listenPort",
+          "staticPeer"
+        ],
+      );
+
+  @override
+  Future<GroupCreated> crateApiPrivateGroupCreateGroup(
+      {required CreateGroupRequest request}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_create_group_request(request, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 11, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_created,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupCreateGroupConstMeta,
+      argValues: [request],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupCreateGroupConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_group",
+        argNames: ["request"],
+      );
+
+  @override
+  Future<InviteCreated> crateApiPrivateDmCreateInvite(
+      {required StartSessionRequest request}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_start_session_request(request, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 12, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_invite_created,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmCreateInviteConstMeta,
+      argValues: [request],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmCreateInviteConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_invite",
+        argNames: ["request"],
+      );
+
+  @override
+  Future<VpnDetection> crateApiVpnDetectVpn() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 13, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_vpn_detection,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiVpnDetectVpnConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiVpnDetectVpnConstMeta => const TaskConstMeta(
+        debugName: "detect_vpn",
+        argNames: [],
+      );
+
+  @override
+  Future<void> crateApiChannelDismissDmOffer(
+      {required String name, required String offerId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        sse_encode_String(offerId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 14, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelDismissDmOfferConstMeta,
+      argValues: [name, offerId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelDismissDmOfferConstMeta =>
+      const TaskConstMeta(
+        debugName: "dismiss_dm_offer",
+        argNames: ["name", "offerId"],
+      );
+
+  @override
+  Future<void> crateApiOrgDismissDmOffer(
+      {required String orgPubkey, required String offerId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        sse_encode_String(offerId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 15, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgDismissDmOfferConstMeta,
+      argValues: [orgPubkey, offerId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgDismissDmOfferConstMeta => const TaskConstMeta(
+        debugName: "dismiss_dm_offer",
+        argNames: ["orgPubkey", "offerId"],
+      );
+
+  @override
+  Future<void> crateApiPrivateGroupDismissDmOffer(
+      {required String groupId, required String offerId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(offerId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 16, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupDismissDmOfferConstMeta,
+      argValues: [groupId, offerId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupDismissDmOfferConstMeta =>
+      const TaskConstMeta(
+        debugName: "dismiss_dm_offer",
+        argNames: ["groupId", "offerId"],
+      );
+
+  @override
+  Future<void> crateApiOrgDismissGroupOffer(
+      {required String orgPubkey, required String offerId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        sse_encode_String(offerId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 17, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgDismissGroupOfferConstMeta,
+      argValues: [orgPubkey, offerId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgDismissGroupOfferConstMeta =>
+      const TaskConstMeta(
+        debugName: "dismiss_group_offer",
+        argNames: ["orgPubkey", "offerId"],
+      );
+
+  @override
+  Future<void> crateApiChannelDownloadAttachment(
+      {required String name, required String attachmentId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        sse_encode_String(attachmentId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 18, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelDownloadAttachmentConstMeta,
+      argValues: [name, attachmentId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelDownloadAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "download_attachment",
+        argNames: ["name", "attachmentId"],
+      );
+
+  @override
+  Future<void> crateApiPrivateDmDownloadAttachment(
+      {required String sessionId, required String attachmentId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(sessionId, serializer);
+        sse_encode_String(attachmentId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 19, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmDownloadAttachmentConstMeta,
+      argValues: [sessionId, attachmentId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmDownloadAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "download_attachment",
+        argNames: ["sessionId", "attachmentId"],
+      );
+
+  @override
+  Future<void> crateApiPrivateGroupDownloadAttachment(
+      {required String groupId, required String attachmentId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(attachmentId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 20, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupDownloadAttachmentConstMeta,
+      argValues: [groupId, attachmentId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupDownloadAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "download_attachment",
+        argNames: ["groupId", "attachmentId"],
+      );
+
+  @override
+  Future<String?> crateApiVpnGetBindInterface() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 21, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_opt_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiVpnGetBindInterfaceConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiVpnGetBindInterfaceConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_bind_interface",
+        argNames: [],
+      );
+
+  @override
+  Future<VpnBypassConsent?> crateApiVpnGetVpnBypassConsent() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 22, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_opt_box_autoadd_vpn_bypass_consent,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiVpnGetVpnBypassConsentConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiVpnGetVpnBypassConsentConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_vpn_bypass_consent",
+        argNames: [],
+      );
+
+  @override
+  Future<void> crateApiOrgGroupInviteMembers(
+      {required String orgPubkey,
+      required String groupId,
+      required List<String> memberPeerIds}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        sse_encode_String(groupId, serializer);
+        sse_encode_list_String(memberPeerIds, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 23, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgGroupInviteMembersConstMeta,
+      argValues: [orgPubkey, groupId, memberPeerIds],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgGroupInviteMembersConstMeta =>
+      const TaskConstMeta(
+        debugName: "group_invite_members",
+        argNames: ["orgPubkey", "groupId", "memberPeerIds"],
+      );
+
+  @override
+  Future<ChannelSnapshot> crateApiChannelJoin(
+      {required JoinChannelRequest request}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_join_channel_request(request, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 24, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_channel_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelJoinConstMeta,
+      argValues: [request],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelJoinConstMeta => const TaskConstMeta(
+        debugName: "join",
+        argNames: ["request"],
+      );
+
+  @override
+  Future<GroupSnapshot> crateApiPrivateGroupJoinGroup(
+      {required JoinGroupRequest request}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_join_group_request(request, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 25, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupJoinGroupConstMeta,
+      argValues: [request],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupJoinGroupConstMeta =>
+      const TaskConstMeta(
+        debugName: "join_group",
+        argNames: ["request"],
+      );
+
+  @override
+  Future<OrgSnapshot> crateApiOrgJoinOrg({required JoinOrgRequest request}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_join_org_request(request, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 26, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_org_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgJoinOrgConstMeta,
+      argValues: [request],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgJoinOrgConstMeta => const TaskConstMeta(
+        debugName: "join_org",
+        argNames: ["request"],
+      );
+
+  @override
+  Future<ChannelLeaveResult> crateApiChannelLeave({required String name}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 27, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_channel_leave_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelLeaveConstMeta,
+      argValues: [name],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelLeaveConstMeta => const TaskConstMeta(
+        debugName: "leave",
+        argNames: ["name"],
+      );
+
+  @override
+  Future<void> crateApiOrgLeaveOrg({required String orgPubkey}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 28, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgLeaveOrgConstMeta,
+      argValues: [orgPubkey],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgLeaveOrgConstMeta => const TaskConstMeta(
+        debugName: "leave_org",
+        argNames: ["orgPubkey"],
+      );
+
+  @override
+  Future<ChannelListSnapshot> crateApiChannelList() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 29, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_channel_list_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelListConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelListConstMeta => const TaskConstMeta(
+        debugName: "list",
+        argNames: [],
+      );
+
+  @override
+  Future<List<OrgSnapshot>> crateApiOrgList() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 30, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_org_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgListConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgListConstMeta => const TaskConstMeta(
+        debugName: "list",
+        argNames: [],
+      );
+
+  @override
+  Future<GroupListSnapshot> crateApiPrivateGroupList() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 31, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_list_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupListConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupListConstMeta => const TaskConstMeta(
+        debugName: "list",
+        argNames: [],
+      );
+
+  @override
+  Future<List<NetworkInterfaceInfo>> crateApiNetworkListInterfaces() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 32, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_network_interface_info,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiNetworkListInterfacesConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiNetworkListInterfacesConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_interfaces",
+        argNames: [],
+      );
+
+  @override
+  Future<SessionListSnapshot> crateApiPrivateDmListSessions() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 33, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_session_list_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmListSessionsConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmListSessionsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_sessions",
+        argNames: [],
+      );
+
+  @override
+  Future<NativeRuntimeStatus> crateApiDiagnosticsNativeRuntimeStatus() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 34, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_native_runtime_status,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDiagnosticsNativeRuntimeStatusConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDiagnosticsNativeRuntimeStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "native_runtime_status",
+        argNames: [],
+      );
+
+  @override
+  Future<ChannelSnapshot> crateApiChannelPoll({required String name}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 35, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_channel_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelPollConstMeta,
+      argValues: [name],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelPollConstMeta => const TaskConstMeta(
+        debugName: "poll",
+        argNames: ["name"],
+      );
+
+  @override
+  Future<OrgSnapshot> crateApiOrgPoll({required String orgPubkey}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 36, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_org_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgPollConstMeta,
+      argValues: [orgPubkey],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgPollConstMeta => const TaskConstMeta(
+        debugName: "poll",
+        argNames: ["orgPubkey"],
+      );
+
+  @override
+  Future<GroupSnapshot> crateApiPrivateGroupPoll({required String groupId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 37, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupPollConstMeta,
+      argValues: [groupId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupPollConstMeta => const TaskConstMeta(
+        debugName: "poll",
+        argNames: ["groupId"],
+      );
+
+  @override
+  Future<SessionSnapshot> crateApiPrivateDmPollSession(
+      {required String sessionId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(sessionId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 38, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_session_snapshot,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmPollSessionConstMeta,
+      argValues: [sessionId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmPollSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "poll_session",
+        argNames: ["sessionId"],
+      );
+
+  @override
+  Future<ChannelSendResult> crateApiChannelRetryMessage(
+      {required String name, required String messageId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        sse_encode_String(messageId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 39, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_channel_send_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelRetryMessageConstMeta,
+      argValues: [name, messageId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelRetryMessageConstMeta =>
+      const TaskConstMeta(
+        debugName: "retry_message",
+        argNames: ["name", "messageId"],
+      );
+
+  @override
+  Future<GroupSendResult> crateApiPrivateGroupRetryMessage(
+      {required String groupId, required String messageId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(messageId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 40, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_send_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupRetryMessageConstMeta,
+      argValues: [groupId, messageId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupRetryMessageConstMeta =>
+      const TaskConstMeta(
+        debugName: "retry_message",
+        argNames: ["groupId", "messageId"],
+      );
+
+  @override
+  Future<ChannelSendResult> crateApiChannelSend(
+      {required String name, required String body}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        sse_encode_String(body, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 41, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_channel_send_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelSendConstMeta,
+      argValues: [name, body],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelSendConstMeta => const TaskConstMeta(
+        debugName: "send",
+        argNames: ["name", "body"],
+      );
+
+  @override
+  Future<GroupSendResult> crateApiPrivateGroupSend(
+      {required String groupId, required String body}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(body, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 42, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_group_send_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupSendConstMeta,
+      argValues: [groupId, body],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupSendConstMeta => const TaskConstMeta(
+        debugName: "send",
+        argNames: ["groupId", "body"],
+      );
+
+  @override
+  Future<AttachmentSendResult> crateApiChannelSendAttachment(
+      {required String name,
+      required String fileName,
+      required String mime,
+      required String dataBase64,
+      String? thumbnailBase64,
+      VoiceMeta? voice}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        sse_encode_String(fileName, serializer);
+        sse_encode_String(mime, serializer);
+        sse_encode_String(dataBase64, serializer);
+        sse_encode_opt_String(thumbnailBase64, serializer);
+        sse_encode_opt_box_autoadd_voice_meta(voice, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 43, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_attachment_send_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelSendAttachmentConstMeta,
+      argValues: [name, fileName, mime, dataBase64, thumbnailBase64, voice],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelSendAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_attachment",
+        argNames: [
+          "name",
+          "fileName",
+          "mime",
+          "dataBase64",
+          "thumbnailBase64",
+          "voice"
+        ],
+      );
+
+  @override
+  Future<AttachmentSendResult> crateApiPrivateDmSendAttachment(
+      {required String sessionId,
+      required String fileName,
+      required String mime,
+      required String dataBase64,
+      String? thumbnailBase64,
+      VoiceMeta? voice}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(sessionId, serializer);
+        sse_encode_String(fileName, serializer);
+        sse_encode_String(mime, serializer);
+        sse_encode_String(dataBase64, serializer);
+        sse_encode_opt_String(thumbnailBase64, serializer);
+        sse_encode_opt_box_autoadd_voice_meta(voice, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 44, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_attachment_send_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmSendAttachmentConstMeta,
+      argValues: [
+        sessionId,
+        fileName,
+        mime,
+        dataBase64,
+        thumbnailBase64,
+        voice
+      ],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmSendAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_attachment",
+        argNames: [
+          "sessionId",
+          "fileName",
+          "mime",
+          "dataBase64",
+          "thumbnailBase64",
+          "voice"
+        ],
+      );
+
+  @override
+  Future<AttachmentSendResult> crateApiPrivateGroupSendAttachment(
+      {required String groupId,
+      required String fileName,
+      required String mime,
+      required String dataBase64,
+      String? thumbnailBase64,
+      VoiceMeta? voice}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(fileName, serializer);
+        sse_encode_String(mime, serializer);
+        sse_encode_String(dataBase64, serializer);
+        sse_encode_opt_String(thumbnailBase64, serializer);
+        sse_encode_opt_box_autoadd_voice_meta(voice, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 45, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_attachment_send_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupSendAttachmentConstMeta,
+      argValues: [groupId, fileName, mime, dataBase64, thumbnailBase64, voice],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupSendAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_attachment",
+        argNames: [
+          "groupId",
+          "fileName",
+          "mime",
+          "dataBase64",
+          "thumbnailBase64",
+          "voice"
+        ],
+      );
+
+  @override
+  Future<void> crateApiChannelSendDmOffer(
+      {required String name,
+      required String targetFingerprint,
+      required String inviteUri}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        sse_encode_String(targetFingerprint, serializer);
+        sse_encode_String(inviteUri, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 46, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiChannelSendDmOfferConstMeta,
+      argValues: [name, targetFingerprint, inviteUri],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiChannelSendDmOfferConstMeta => const TaskConstMeta(
+        debugName: "send_dm_offer",
+        argNames: ["name", "targetFingerprint", "inviteUri"],
+      );
+
+  @override
+  Future<InviteCreated> crateApiOrgSendDmOffer(
+      {required String orgPubkey,
+      required String targetPeerId,
+      required String displayName,
+      required int listenPort,
+      String? staticPeer}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(orgPubkey, serializer);
+        sse_encode_String(targetPeerId, serializer);
+        sse_encode_String(displayName, serializer);
+        sse_encode_u_16(listenPort, serializer);
+        sse_encode_opt_String(staticPeer, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 47, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_invite_created,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiOrgSendDmOfferConstMeta,
+      argValues: [orgPubkey, targetPeerId, displayName, listenPort, staticPeer],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiOrgSendDmOfferConstMeta => const TaskConstMeta(
+        debugName: "send_dm_offer",
+        argNames: [
+          "orgPubkey",
+          "targetPeerId",
+          "displayName",
+          "listenPort",
+          "staticPeer"
+        ],
+      );
+
+  @override
+  Future<void> crateApiPrivateGroupSendDmOffer(
+      {required String groupId,
+      required String targetFingerprint,
+      required String inviteUri}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(targetFingerprint, serializer);
+        sse_encode_String(inviteUri, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 48, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateGroupSendDmOfferConstMeta,
+      argValues: [groupId, targetFingerprint, inviteUri],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateGroupSendDmOfferConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_dm_offer",
+        argNames: ["groupId", "targetFingerprint", "inviteUri"],
+      );
+
+  @override
+  Future<SendMessageResult> crateApiPrivateDmSendMessage(
+      {required String sessionId, required String body}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(sessionId, serializer);
+        sse_encode_String(body, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 49, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_send_message_result,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmSendMessageConstMeta,
+      argValues: [sessionId, body],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmSendMessageConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_message",
+        argNames: ["sessionId", "body"],
+      );
+
+  @override
+  Future<void> crateApiPrivateDmSetAppDataDir({required String path}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(path, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 50, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmSetAppDataDirConstMeta,
+      argValues: [path],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmSetAppDataDirConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_app_data_dir",
+        argNames: ["path"],
+      );
+
+  @override
+  Future<void> crateApiPrivateDmSetHistoryDek({required List<int> dek}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_list_prim_u_8_loose(dek, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 51, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiPrivateDmSetHistoryDekConstMeta,
+      argValues: [dek],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiPrivateDmSetHistoryDekConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_history_dek",
+        argNames: ["dek"],
+      );
+
+  @override
+  Future<void> crateApiVpnSetVpnBypassConsent({String? interface_}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_opt_String(interface_, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 52, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiVpnSetVpnBypassConsentConstMeta,
+      argValues: [interface_],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiVpnSetVpnBypassConsentConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_vpn_bypass_consent",
+        argNames: ["interface_"],
+      );
+
+  @protected
+  String dco_decode_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as String;
+  }
+
+  @protected
+  AcceptInviteRequest dco_decode_accept_invite_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return AcceptInviteRequest(
+      inviteUri: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      listenPort: dco_decode_u_16(arr[2]),
+      staticPeer: dco_decode_opt_String(arr[3]),
+    );
+  }
+
+  @protected
+  ActiveCall dco_decode_active_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return ActiveCall(
+      callId: dco_decode_String(arr[0]),
+      direction: dco_decode_String(arr[1]),
+      keyB64: dco_decode_String(arr[2]),
+      noncePrefixB64: dco_decode_String(arr[3]),
+      startedAtMs: dco_decode_u_64(arr[4]),
+    );
+  }
+
+  @protected
+  AppDiagnostics dco_decode_app_diagnostics(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return AppDiagnostics(
+      appName: dco_decode_String(arr[0]),
+      privacyModel: dco_decode_String(arr[1]),
+      discoveryModel: dco_decode_String(arr[2]),
+      mossLinkMode: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return AttachmentDescriptor(
+      attachmentId: dco_decode_String(arr[0]),
+      contentHash: dco_decode_String(arr[1]),
+      fileName: dco_decode_String(arr[2]),
+      mime: dco_decode_String(arr[3]),
+      totalSize: dco_decode_u_64(arr[4]),
+      thumbnailB64: dco_decode_opt_String(arr[5]),
+      voice: dco_decode_opt_box_autoadd_voice_meta(arr[6]),
+    );
+  }
+
+  @protected
+  AttachmentSendResult dco_decode_attachment_send_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return AttachmentSendResult(
+      sessionId: dco_decode_String(arr[0]),
+      attachmentId: dco_decode_String(arr[1]),
+      contentHash: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  AttachmentState dco_decode_attachment_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AttachmentState.values[raw as int];
+  }
+
+  @protected
+  AttachmentView dco_decode_attachment_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return AttachmentView(
+      attachmentId: dco_decode_String(arr[0]),
+      direction: dco_decode_String(arr[1]),
+      state: dco_decode_attachment_state(arr[2]),
+      completedChunks: dco_decode_u_64(arr[3]),
+      chunkCount: dco_decode_u_64(arr[4]),
+      localPath: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
+  AcceptInviteRequest dco_decode_box_autoadd_accept_invite_request(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_accept_invite_request(raw);
+  }
+
+  @protected
+  ActiveCall dco_decode_box_autoadd_active_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_active_call(raw);
+  }
+
+  @protected
+  AttachmentDescriptor dco_decode_box_autoadd_attachment_descriptor(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_attachment_descriptor(raw);
+  }
+
+  @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
+  CallEvent dco_decode_box_autoadd_call_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_call_event(raw);
+  }
+
+  @protected
+  CreateGroupRequest dco_decode_box_autoadd_create_group_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_create_group_request(raw);
+  }
+
+  @protected
+  JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_join_channel_request(raw);
+  }
+
+  @protected
+  JoinGroupRequest dco_decode_box_autoadd_join_group_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_join_group_request(raw);
+  }
+
+  @protected
+  JoinOrgRequest dco_decode_box_autoadd_join_org_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_join_org_request(raw);
+  }
+
+  @protected
+  MeshInfo dco_decode_box_autoadd_mesh_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_mesh_info(raw);
+  }
+
+  @protected
+  MessageDeliveryStatus dco_decode_box_autoadd_message_delivery_status(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_message_delivery_status(raw);
+  }
+
+  @protected
+  OpenMlsRoundTripStatus dco_decode_box_autoadd_open_mls_round_trip_status(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_open_mls_round_trip_status(raw);
+  }
+
+  @protected
+  OpenMlsSmokeStatus dco_decode_box_autoadd_open_mls_smoke_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_open_mls_smoke_status(raw);
+  }
+
+  @protected
+  OutgoingCall dco_decode_box_autoadd_outgoing_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_outgoing_call(raw);
+  }
+
+  @protected
+  PendingCall dco_decode_box_autoadd_pending_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_pending_call(raw);
+  }
+
+  @protected
+  StartSessionRequest dco_decode_box_autoadd_start_session_request(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_start_session_request(raw);
+  }
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_u_64(raw);
+  }
+
+  @protected
+  VoiceMeta dco_decode_box_autoadd_voice_meta(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_voice_meta(raw);
+  }
+
+  @protected
+  VpnBypassConsent dco_decode_box_autoadd_vpn_bypass_consent(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_vpn_bypass_consent(raw);
+  }
+
+  @protected
+  CallEvent dco_decode_call_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return CallEvent(
+      kind: dco_decode_String(arr[0]),
+      durationMs: dco_decode_u_64(arr[1]),
+      callId: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  ChannelLeaveResult dco_decode_channel_leave_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ChannelLeaveResult(
+      name: dco_decode_String(arr[0]),
+      closed: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
+  ChannelListSnapshot dco_decode_channel_list_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return ChannelListSnapshot(
+      channels: dco_decode_list_channel_snapshot(arr[0]),
+    );
+  }
+
+  @protected
+  ChannelMessage dco_decode_channel_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return ChannelMessage(
+      fromDevice: dco_decode_String(arr[0]),
+      fromFingerprint: dco_decode_String(arr[1]),
+      body: dco_decode_String(arr[2]),
+      messageId: dco_decode_opt_String(arr[3]),
+      sentAtMs: dco_decode_opt_box_autoadd_u_64(arr[4]),
+      attachment: dco_decode_opt_box_autoadd_attachment_descriptor(arr[5]),
+      deliveryStatus:
+          dco_decode_opt_box_autoadd_message_delivery_status(arr[6]),
+      deliveryError: dco_decode_opt_String(arr[7]),
+      retryable: dco_decode_opt_box_autoadd_bool(arr[8]),
+      retryCount: dco_decode_opt_box_autoadd_u_32(arr[9]),
+    );
+  }
+
+  @protected
+  ChannelSendResult dco_decode_channel_send_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return ChannelSendResult(
+      name: dco_decode_String(arr[0]),
+      bytes: dco_decode_usize(arr[1]),
+      messageId: dco_decode_String(arr[2]),
+      sentAtMs: dco_decode_u_64(arr[3]),
+      deliveryStatus: dco_decode_message_delivery_status(arr[4]),
+      deliveryError: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
+  ChannelSnapshot dco_decode_channel_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return ChannelSnapshot(
+      name: dco_decode_String(arr[0]),
+      topic: dco_decode_String(arr[1]),
+      meshId: dco_decode_String(arr[2]),
+      displayName: dco_decode_String(arr[3]),
+      deviceFingerprint: dco_decode_String(arr[4]),
+      messages: dco_decode_list_channel_message(arr[5]),
+      attachments: dco_decode_list_attachment_view(arr[6]),
+      dmOffers: dco_decode_list_dm_offer(arr[7]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[8]),
+      events: dco_decode_list_snapshot_event(arr[9]),
+    );
+  }
+
+  @protected
+  ChatMessage dco_decode_chat_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return ChatMessage(
+      fromDevice: dco_decode_String(arr[0]),
+      body: dco_decode_String(arr[1]),
+      messageId: dco_decode_opt_String(arr[2]),
+      sentAtMs: dco_decode_opt_box_autoadd_u_64(arr[3]),
+      attachment: dco_decode_opt_box_autoadd_attachment_descriptor(arr[4]),
+      callEvent: dco_decode_opt_box_autoadd_call_event(arr[5]),
+      deliveryStatus:
+          dco_decode_opt_box_autoadd_message_delivery_status(arr[6]),
+      deliveryError: dco_decode_opt_String(arr[7]),
+      retryable: dco_decode_opt_box_autoadd_bool(arr[8]),
+      retryCount: dco_decode_opt_box_autoadd_u_32(arr[9]),
+    );
+  }
+
+  @protected
+  CloseSessionResult dco_decode_close_session_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CloseSessionResult(
+      sessionId: dco_decode_String(arr[0]),
+      closed: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
+  CreateGroupRequest dco_decode_create_group_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return CreateGroupRequest(
+      label: dco_decode_opt_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      listenPort: dco_decode_u_16(arr[2]),
+      staticPeer: dco_decode_opt_String(arr[3]),
+      orgPubkey: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
+  DmOffer dco_decode_dm_offer(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return DmOffer(
+      offerId: dco_decode_String(arr[0]),
+      fromDevice: dco_decode_String(arr[1]),
+      fromFingerprint: dco_decode_String(arr[2]),
+      targetFingerprint: dco_decode_String(arr[3]),
+      inviteUri: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
+  GroupCreated dco_decode_group_created(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return GroupCreated(
+      groupId: dco_decode_String(arr[0]),
+      meshId: dco_decode_String(arr[1]),
+      inviteUri: dco_decode_String(arr[2]),
+      fingerprint: dco_decode_String(arr[3]),
+      label: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
+  GroupLeaveResult dco_decode_group_leave_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return GroupLeaveResult(
+      groupId: dco_decode_String(arr[0]),
+      closed: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
+  GroupListSnapshot dco_decode_group_list_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return GroupListSnapshot(
+      groups: dco_decode_list_group_snapshot(arr[0]),
+    );
+  }
+
+  @protected
+  GroupMessage dco_decode_group_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return GroupMessage(
+      fromDevice: dco_decode_String(arr[0]),
+      fromFingerprint: dco_decode_String(arr[1]),
+      body: dco_decode_String(arr[2]),
+      messageId: dco_decode_opt_String(arr[3]),
+      sentAtMs: dco_decode_opt_box_autoadd_u_64(arr[4]),
+      attachment: dco_decode_opt_box_autoadd_attachment_descriptor(arr[5]),
+      deliveryStatus:
+          dco_decode_opt_box_autoadd_message_delivery_status(arr[6]),
+      deliveryError: dco_decode_opt_String(arr[7]),
+      retryable: dco_decode_opt_box_autoadd_bool(arr[8]),
+      retryCount: dco_decode_opt_box_autoadd_u_32(arr[9]),
+    );
+  }
+
+  @protected
+  GroupSendResult dco_decode_group_send_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return GroupSendResult(
+      groupId: dco_decode_String(arr[0]),
+      bytes: dco_decode_usize(arr[1]),
+      messageId: dco_decode_String(arr[2]),
+      sentAtMs: dco_decode_u_64(arr[3]),
+      deliveryStatus: dco_decode_message_delivery_status(arr[4]),
+      deliveryError: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
+  GroupSnapshot dco_decode_group_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 18)
+      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    return GroupSnapshot(
+      groupId: dco_decode_String(arr[0]),
+      meshId: dco_decode_String(arr[1]),
+      label: dco_decode_opt_String(arr[2]),
+      displayName: dco_decode_String(arr[3]),
+      deviceFingerprint: dco_decode_String(arr[4]),
+      creatorFingerprint: dco_decode_String(arr[5]),
+      isAdmin: dco_decode_bool(arr[6]),
+      state: dco_decode_String(arr[7]),
+      memberCount: dco_decode_usize(arr[8]),
+      inviteUri: dco_decode_opt_String(arr[9]),
+      messages: dco_decode_list_group_message(arr[10]),
+      attachments: dco_decode_list_attachment_view(arr[11]),
+      dmOffers: dco_decode_list_dm_offer(arr[12]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[13]),
+      events: dco_decode_list_snapshot_event(arr[14]),
+      needsRejoin: dco_decode_bool(arr[15]),
+      orgPubkey: dco_decode_opt_String(arr[16]),
+      memberPeerIds: dco_decode_list_String(arr[17]),
+    );
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  InviteCreated dco_decode_invite_created(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return InviteCreated(
+      inviteUri: dco_decode_String(arr[0]),
+      sessionId: dco_decode_String(arr[1]),
+      meshId: dco_decode_String(arr[2]),
+      fingerprint: dco_decode_String(arr[3]),
+      listenAddress: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
+  JoinChannelRequest dco_decode_join_channel_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return JoinChannelRequest(
+      name: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      listenPort: dco_decode_u_16(arr[2]),
+      staticPeer: dco_decode_opt_String(arr[3]),
+    );
+  }
+
+  @protected
+  JoinGroupRequest dco_decode_join_group_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return JoinGroupRequest(
+      inviteUri: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      orgPubkey: dco_decode_opt_String(arr[2]),
+      listenPort: dco_decode_u_16(arr[3]),
+      staticPeer: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
+  JoinOrgRequest dco_decode_join_org_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return JoinOrgRequest(
+      bundleUri: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      listenPort: dco_decode_u_16(arr[2]),
+      staticPeer: dco_decode_opt_String(arr[3]),
+    );
+  }
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<AttachmentView> dco_decode_list_attachment_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_attachment_view).toList();
+  }
+
+  @protected
+  List<ChannelMessage> dco_decode_list_channel_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_channel_message).toList();
+  }
+
+  @protected
+  List<ChannelSnapshot> dco_decode_list_channel_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_channel_snapshot).toList();
+  }
+
+  @protected
+  List<ChatMessage> dco_decode_list_chat_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_chat_message).toList();
+  }
+
+  @protected
+  List<DmOffer> dco_decode_list_dm_offer(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_dm_offer).toList();
+  }
+
+  @protected
+  List<GroupMessage> dco_decode_list_group_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_group_message).toList();
+  }
+
+  @protected
+  List<GroupSnapshot> dco_decode_list_group_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_group_snapshot).toList();
+  }
+
+  @protected
+  List<NetworkInterfaceInfo> dco_decode_list_network_interface_info(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_network_interface_info)
+        .toList();
+  }
+
+  @protected
+  List<OrgDmLink> dco_decode_list_org_dm_link(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_org_dm_link).toList();
+  }
+
+  @protected
+  List<OrgDmOfferView> dco_decode_list_org_dm_offer_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_org_dm_offer_view).toList();
+  }
+
+  @protected
+  List<OrgGroupOfferView> dco_decode_list_org_group_offer_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_org_group_offer_view).toList();
+  }
+
+  @protected
+  List<OrgMemberView> dco_decode_list_org_member_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_org_member_view).toList();
+  }
+
+  @protected
+  List<OrgSnapshot> dco_decode_list_org_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_org_snapshot).toList();
+  }
+
+  @protected
+  List<PeerDetail> dco_decode_list_peer_detail(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_peer_detail).toList();
+  }
+
+  @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as List<int>;
+  }
+
+  @protected
+  Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as Uint8List;
+  }
+
+  @protected
+  List<SessionSnapshot> dco_decode_list_session_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_session_snapshot).toList();
+  }
+
+  @protected
+  List<SnapshotEvent> dco_decode_list_snapshot_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_snapshot_event).toList();
+  }
+
+  @protected
+  MeshInfo dco_decode_mesh_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    return MeshInfo(
+      meshId: dco_decode_String(arr[0]),
+      listenPort: dco_decode_i_32(arr[1]),
+      advertisedAddr: dco_decode_String(arr[2]),
+      peerCount: dco_decode_i_32(arr[3]),
+      directPeerCount: dco_decode_i_32(arr[4]),
+      relayedPeerCount: dco_decode_i_32(arr[5]),
+      relayCapablePeerCount: dco_decode_i_32(arr[6]),
+      relaySessionCount: dco_decode_i_32(arr[7]),
+      relayRouteCount: dco_decode_i_32(arr[8]),
+      knownPeerCount: dco_decode_i_32(arr[9]),
+      channels: dco_decode_list_String(arr[10]),
+      natType: dco_decode_String(arr[11]),
+      supernodeReady: dco_decode_bool(arr[12]),
+      publicKey: dco_decode_String(arr[13]),
+      peerDetails: dco_decode_list_peer_detail(arr[14]),
+    );
+  }
+
+  @protected
+  MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return MessageDeliveryStatus.values[raw as int];
+  }
+
+  @protected
+  MossRuntimeStatus dco_decode_moss_runtime_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return MossRuntimeStatus(
+      linkMode: dco_decode_String(arr[0]),
+      libraryName: dco_decode_String(arr[1]),
+      requiredSymbols: dco_decode_list_String(arr[2]),
+      available: dco_decode_bool(arr[3]),
+      checkedPaths: dco_decode_list_String(arr[4]),
+    );
+  }
+
+  @protected
+  NativeRuntimeStatus dco_decode_native_runtime_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return NativeRuntimeStatus(
+      moss: dco_decode_moss_runtime_status(arr[0]),
+      secureStorage: dco_decode_secure_storage_status(arr[1]),
+      persistence: dco_decode_persistence_runtime_status(arr[2]),
+      openmlsSmoke: dco_decode_open_mls_smoke_runtime_status(arr[3]),
+      openmlsRoundtrip: dco_decode_open_mls_round_trip_runtime_status(arr[4]),
+    );
+  }
+
+  @protected
+  NetworkInterfaceInfo dco_decode_network_interface_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return NetworkInterfaceInfo(
+      name: dco_decode_String(arr[0]),
+      description: dco_decode_String(arr[1]),
+      index: dco_decode_u_32(arr[2]),
+      ipv4: dco_decode_opt_String(arr[3]),
+      isLoopback: dco_decode_bool(arr[4]),
+      isUp: dco_decode_bool(arr[5]),
+      isVirtual: dco_decode_bool(arr[6]),
+      isVpn: dco_decode_bool(arr[7]),
+      isDefaultRoute: dco_decode_bool(arr[8]),
+    );
+  }
+
+  @protected
+  OpenMlsRoundTripRuntimeStatus dco_decode_open_mls_round_trip_runtime_status(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return OpenMlsRoundTripRuntimeStatus(
+      ok: dco_decode_opt_box_autoadd_open_mls_round_trip_status(arr[0]),
+      error: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
+  OpenMlsRoundTripStatus dco_decode_open_mls_round_trip_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return OpenMlsRoundTripStatus(
+      provider: dco_decode_String(arr[0]),
+      ciphersuite: dco_decode_String(arr[1]),
+      welcomeJoined: dco_decode_bool(arr[2]),
+      plaintextRoundtrip: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  OpenMlsSmokeRuntimeStatus dco_decode_open_mls_smoke_runtime_status(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return OpenMlsSmokeRuntimeStatus(
+      ok: dco_decode_opt_box_autoadd_open_mls_smoke_status(arr[0]),
+      error: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
+  OpenMlsSmokeStatus dco_decode_open_mls_smoke_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return OpenMlsSmokeStatus(
+      provider: dco_decode_String(arr[0]),
+      ciphersuite: dco_decode_String(arr[1]),
+      protectedMessageCreated: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  ActiveCall? dco_decode_opt_box_autoadd_active_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_active_call(raw);
+  }
+
+  @protected
+  AttachmentDescriptor? dco_decode_opt_box_autoadd_attachment_descriptor(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_attachment_descriptor(raw);
+  }
+
+  @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_bool(raw);
+  }
+
+  @protected
+  CallEvent? dco_decode_opt_box_autoadd_call_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_call_event(raw);
+  }
+
+  @protected
+  MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_mesh_info(raw);
+  }
+
+  @protected
+  MessageDeliveryStatus? dco_decode_opt_box_autoadd_message_delivery_status(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_message_delivery_status(raw);
+  }
+
+  @protected
+  OpenMlsRoundTripStatus? dco_decode_opt_box_autoadd_open_mls_round_trip_status(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_open_mls_round_trip_status(raw);
+  }
+
+  @protected
+  OpenMlsSmokeStatus? dco_decode_opt_box_autoadd_open_mls_smoke_status(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_open_mls_smoke_status(raw);
+  }
+
+  @protected
+  OutgoingCall? dco_decode_opt_box_autoadd_outgoing_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_outgoing_call(raw);
+  }
+
+  @protected
+  PendingCall? dco_decode_opt_box_autoadd_pending_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_pending_call(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
+  }
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
+  }
+
+  @protected
+  VoiceMeta? dco_decode_opt_box_autoadd_voice_meta(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_voice_meta(raw);
+  }
+
+  @protected
+  VpnBypassConsent? dco_decode_opt_box_autoadd_vpn_bypass_consent(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_vpn_bypass_consent(raw);
+  }
+
+  @protected
+  OrgDmLink dco_decode_org_dm_link(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return OrgDmLink(
+      peerId: dco_decode_String(arr[0]),
+      sessionId: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
+  OrgDmOfferView dco_decode_org_dm_offer_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return OrgDmOfferView(
+      offerId: dco_decode_String(arr[0]),
+      fromPeerId: dco_decode_String(arr[1]),
+      fromName: dco_decode_String(arr[2]),
+      inviteUri: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  OrgGroupOfferView dco_decode_org_group_offer_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return OrgGroupOfferView(
+      offerId: dco_decode_String(arr[0]),
+      fromPeerId: dco_decode_String(arr[1]),
+      fromName: dco_decode_String(arr[2]),
+      groupLabel: dco_decode_opt_String(arr[3]),
+      groupInviteUri: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
+  OrgMemberView dco_decode_org_member_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return OrgMemberView(
+      mossPeerId: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      role: dco_decode_String(arr[2]),
+      isSelf: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  OrgSnapshot dco_decode_org_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return OrgSnapshot(
+      orgPubkey: dco_decode_String(arr[0]),
+      orgName: dco_decode_String(arr[1]),
+      meshId: dco_decode_String(arr[2]),
+      ownPeerId: dco_decode_String(arr[3]),
+      confirmationCode: dco_decode_String(arr[4]),
+      inRoster: dco_decode_bool(arr[5]),
+      rosterVersion: dco_decode_opt_box_autoadd_u_64(arr[6]),
+      members: dco_decode_list_org_member_view(arr[7]),
+      dmOffers: dco_decode_list_org_dm_offer_view(arr[8]),
+      groupOffers: dco_decode_list_org_group_offer_view(arr[9]),
+      dmLinks: dco_decode_list_org_dm_link(arr[10]),
+    );
+  }
+
+  @protected
+  OutgoingCall dco_decode_outgoing_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return OutgoingCall(
+      callId: dco_decode_String(arr[0]),
+    );
+  }
+
+  @protected
+  PeerDetail dco_decode_peer_detail(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return PeerDetail(
+      id: dco_decode_String(arr[0]),
+      addr: dco_decode_String(arr[1]),
+      relayed: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  PendingCall dco_decode_pending_call(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PendingCall(
+      callId: dco_decode_String(arr[0]),
+      fromDevice: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  PersistenceRuntimeStatus dco_decode_persistence_runtime_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return PersistenceRuntimeStatus(
+      backend: dco_decode_String(arr[0]),
+      database: dco_decode_String(arr[1]),
+      available: dco_decode_bool(arr[2]),
+      encryptedAtRest: dco_decode_bool(arr[3]),
+      error: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
+  SecureStorageStatus dco_decode_secure_storage_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return SecureStorageStatus(
+      backend: dco_decode_String(arr[0]),
+      service: dco_decode_String(arr[1]),
+      available: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  SendMessageResult dco_decode_send_message_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return SendMessageResult(
+      sessionId: dco_decode_String(arr[0]),
+      state: dco_decode_String(arr[1]),
+      ciphertextBytes: dco_decode_usize(arr[2]),
+      messageId: dco_decode_String(arr[3]),
+      sentAtMs: dco_decode_u_64(arr[4]),
+      deliveryStatus: dco_decode_message_delivery_status(arr[5]),
+      deliveryError: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
+  SessionListSnapshot dco_decode_session_list_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SessionListSnapshot(
+      sessions: dco_decode_list_session_snapshot(arr[0]),
+    );
+  }
+
+  @protected
+  SessionSnapshot dco_decode_session_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 17)
+      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
+    return SessionSnapshot(
+      sessionId: dco_decode_String(arr[0]),
+      meshId: dco_decode_String(arr[1]),
+      role: dco_decode_String(arr[2]),
+      displayName: dco_decode_String(arr[3]),
+      peerDisplayName: dco_decode_String(arr[4]),
+      state: dco_decode_String(arr[5]),
+      path: dco_decode_String(arr[6]),
+      relayReady: dco_decode_opt_box_autoadd_bool(arr[7]),
+      inviteUri: dco_decode_opt_String(arr[8]),
+      fingerprint: dco_decode_String(arr[9]),
+      messages: dco_decode_list_chat_message(arr[10]),
+      attachments: dco_decode_list_attachment_view(arr[11]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[12]),
+      events: dco_decode_list_snapshot_event(arr[13]),
+      pendingCall: dco_decode_opt_box_autoadd_pending_call(arr[14]),
+      outgoingCall: dco_decode_opt_box_autoadd_outgoing_call(arr[15]),
+      activeCall: dco_decode_opt_box_autoadd_active_call(arr[16]),
+    );
+  }
+
+  @protected
+  SnapshotEvent dco_decode_snapshot_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SnapshotEvent(
+      eventType: dco_decode_i_32(arr[0]),
+      eventName: dco_decode_String(arr[1]),
+      detailJson: dco_decode_String(arr[2]),
+      epochMillis: dco_decode_u_64(arr[3]),
+    );
+  }
+
+  @protected
+  StartSessionRequest dco_decode_start_session_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return StartSessionRequest(
+      displayName: dco_decode_String(arr[0]),
+      listenPort: dco_decode_u_16(arr[1]),
+      staticPeer: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
+  int dco_decode_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  int dco_decode_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
+  }
+
+  @protected
+  int dco_decode_u_8(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  void dco_decode_unit(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return;
+  }
+
+  @protected
+  BigInt dco_decode_usize(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
+  }
+
+  @protected
+  VoiceMeta dco_decode_voice_meta(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return VoiceMeta(
+      durationMs: dco_decode_u_32(arr[0]),
+      peaksB64: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  VpnBypassConsent dco_decode_vpn_bypass_consent(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return VpnBypassConsent(
+      interface_: dco_decode_String(arr[0]),
+      index: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  VpnDetection dco_decode_vpn_detection(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return VpnDetection(
+      vpnLikely: dco_decode_bool(arr[0]),
+      suspectInterfaces: dco_decode_list_String(arr[1]),
+      vpnOwnsDefaultRoute: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  String sse_decode_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_list_prim_u_8_strict(deserializer);
+    return utf8.decoder.convert(inner);
+  }
+
+  @protected
+  AcceptInviteRequest sse_decode_accept_invite_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_inviteUri = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_listenPort = sse_decode_u_16(deserializer);
+    var var_staticPeer = sse_decode_opt_String(deserializer);
+    return AcceptInviteRequest(
+        inviteUri: var_inviteUri,
+        displayName: var_displayName,
+        listenPort: var_listenPort,
+        staticPeer: var_staticPeer);
+  }
+
+  @protected
+  ActiveCall sse_decode_active_call(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_callId = sse_decode_String(deserializer);
+    var var_direction = sse_decode_String(deserializer);
+    var var_keyB64 = sse_decode_String(deserializer);
+    var var_noncePrefixB64 = sse_decode_String(deserializer);
+    var var_startedAtMs = sse_decode_u_64(deserializer);
+    return ActiveCall(
+        callId: var_callId,
+        direction: var_direction,
+        keyB64: var_keyB64,
+        noncePrefixB64: var_noncePrefixB64,
+        startedAtMs: var_startedAtMs);
+  }
+
+  @protected
+  AppDiagnostics sse_decode_app_diagnostics(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_appName = sse_decode_String(deserializer);
+    var var_privacyModel = sse_decode_String(deserializer);
+    var var_discoveryModel = sse_decode_String(deserializer);
+    var var_mossLinkMode = sse_decode_String(deserializer);
+    return AppDiagnostics(
+        appName: var_appName,
+        privacyModel: var_privacyModel,
+        discoveryModel: var_discoveryModel,
+        mossLinkMode: var_mossLinkMode);
+  }
+
+  @protected
+  AttachmentDescriptor sse_decode_attachment_descriptor(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_attachmentId = sse_decode_String(deserializer);
+    var var_contentHash = sse_decode_String(deserializer);
+    var var_fileName = sse_decode_String(deserializer);
+    var var_mime = sse_decode_String(deserializer);
+    var var_totalSize = sse_decode_u_64(deserializer);
+    var var_thumbnailB64 = sse_decode_opt_String(deserializer);
+    var var_voice = sse_decode_opt_box_autoadd_voice_meta(deserializer);
+    return AttachmentDescriptor(
+        attachmentId: var_attachmentId,
+        contentHash: var_contentHash,
+        fileName: var_fileName,
+        mime: var_mime,
+        totalSize: var_totalSize,
+        thumbnailB64: var_thumbnailB64,
+        voice: var_voice);
+  }
+
+  @protected
+  AttachmentSendResult sse_decode_attachment_send_result(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_attachmentId = sse_decode_String(deserializer);
+    var var_contentHash = sse_decode_String(deserializer);
+    return AttachmentSendResult(
+        sessionId: var_sessionId,
+        attachmentId: var_attachmentId,
+        contentHash: var_contentHash);
+  }
+
+  @protected
+  AttachmentState sse_decode_attachment_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return AttachmentState.values[inner];
+  }
+
+  @protected
+  AttachmentView sse_decode_attachment_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_attachmentId = sse_decode_String(deserializer);
+    var var_direction = sse_decode_String(deserializer);
+    var var_state = sse_decode_attachment_state(deserializer);
+    var var_completedChunks = sse_decode_u_64(deserializer);
+    var var_chunkCount = sse_decode_u_64(deserializer);
+    var var_localPath = sse_decode_opt_String(deserializer);
+    return AttachmentView(
+        attachmentId: var_attachmentId,
+        direction: var_direction,
+        state: var_state,
+        completedChunks: var_completedChunks,
+        chunkCount: var_chunkCount,
+        localPath: var_localPath);
+  }
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  AcceptInviteRequest sse_decode_box_autoadd_accept_invite_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_accept_invite_request(deserializer));
+  }
+
+  @protected
+  ActiveCall sse_decode_box_autoadd_active_call(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_active_call(deserializer));
+  }
+
+  @protected
+  AttachmentDescriptor sse_decode_box_autoadd_attachment_descriptor(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_attachment_descriptor(deserializer));
+  }
+
+  @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bool(deserializer));
+  }
+
+  @protected
+  CallEvent sse_decode_box_autoadd_call_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_call_event(deserializer));
+  }
+
+  @protected
+  CreateGroupRequest sse_decode_box_autoadd_create_group_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_create_group_request(deserializer));
+  }
+
+  @protected
+  JoinChannelRequest sse_decode_box_autoadd_join_channel_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_join_channel_request(deserializer));
+  }
+
+  @protected
+  JoinGroupRequest sse_decode_box_autoadd_join_group_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_join_group_request(deserializer));
+  }
+
+  @protected
+  JoinOrgRequest sse_decode_box_autoadd_join_org_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_join_org_request(deserializer));
+  }
+
+  @protected
+  MeshInfo sse_decode_box_autoadd_mesh_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_mesh_info(deserializer));
+  }
+
+  @protected
+  MessageDeliveryStatus sse_decode_box_autoadd_message_delivery_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_message_delivery_status(deserializer));
+  }
+
+  @protected
+  OpenMlsRoundTripStatus sse_decode_box_autoadd_open_mls_round_trip_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_open_mls_round_trip_status(deserializer));
+  }
+
+  @protected
+  OpenMlsSmokeStatus sse_decode_box_autoadd_open_mls_smoke_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_open_mls_smoke_status(deserializer));
+  }
+
+  @protected
+  OutgoingCall sse_decode_box_autoadd_outgoing_call(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_outgoing_call(deserializer));
+  }
+
+  @protected
+  PendingCall sse_decode_box_autoadd_pending_call(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_pending_call(deserializer));
+  }
+
+  @protected
+  StartSessionRequest sse_decode_box_autoadd_start_session_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_start_session_request(deserializer));
+  }
+
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_32(deserializer));
+  }
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
+  VoiceMeta sse_decode_box_autoadd_voice_meta(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_voice_meta(deserializer));
+  }
+
+  @protected
+  VpnBypassConsent sse_decode_box_autoadd_vpn_bypass_consent(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_vpn_bypass_consent(deserializer));
+  }
+
+  @protected
+  CallEvent sse_decode_call_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_String(deserializer);
+    var var_durationMs = sse_decode_u_64(deserializer);
+    var var_callId = sse_decode_String(deserializer);
+    return CallEvent(
+        kind: var_kind, durationMs: var_durationMs, callId: var_callId);
+  }
+
+  @protected
+  ChannelLeaveResult sse_decode_channel_leave_result(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_closed = sse_decode_bool(deserializer);
+    return ChannelLeaveResult(name: var_name, closed: var_closed);
+  }
+
+  @protected
+  ChannelListSnapshot sse_decode_channel_list_snapshot(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_channels = sse_decode_list_channel_snapshot(deserializer);
+    return ChannelListSnapshot(channels: var_channels);
+  }
+
+  @protected
+  ChannelMessage sse_decode_channel_message(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fromDevice = sse_decode_String(deserializer);
+    var var_fromFingerprint = sse_decode_String(deserializer);
+    var var_body = sse_decode_String(deserializer);
+    var var_messageId = sse_decode_opt_String(deserializer);
+    var var_sentAtMs = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_attachment =
+        sse_decode_opt_box_autoadd_attachment_descriptor(deserializer);
+    var var_deliveryStatus =
+        sse_decode_opt_box_autoadd_message_delivery_status(deserializer);
+    var var_deliveryError = sse_decode_opt_String(deserializer);
+    var var_retryable = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_retryCount = sse_decode_opt_box_autoadd_u_32(deserializer);
+    return ChannelMessage(
+        fromDevice: var_fromDevice,
+        fromFingerprint: var_fromFingerprint,
+        body: var_body,
+        messageId: var_messageId,
+        sentAtMs: var_sentAtMs,
+        attachment: var_attachment,
+        deliveryStatus: var_deliveryStatus,
+        deliveryError: var_deliveryError,
+        retryable: var_retryable,
+        retryCount: var_retryCount);
+  }
+
+  @protected
+  ChannelSendResult sse_decode_channel_send_result(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_bytes = sse_decode_usize(deserializer);
+    var var_messageId = sse_decode_String(deserializer);
+    var var_sentAtMs = sse_decode_u_64(deserializer);
+    var var_deliveryStatus = sse_decode_message_delivery_status(deserializer);
+    var var_deliveryError = sse_decode_opt_String(deserializer);
+    return ChannelSendResult(
+        name: var_name,
+        bytes: var_bytes,
+        messageId: var_messageId,
+        sentAtMs: var_sentAtMs,
+        deliveryStatus: var_deliveryStatus,
+        deliveryError: var_deliveryError);
+  }
+
+  @protected
+  ChannelSnapshot sse_decode_channel_snapshot(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_topic = sse_decode_String(deserializer);
+    var var_meshId = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_deviceFingerprint = sse_decode_String(deserializer);
+    var var_messages = sse_decode_list_channel_message(deserializer);
+    var var_attachments = sse_decode_list_attachment_view(deserializer);
+    var var_dmOffers = sse_decode_list_dm_offer(deserializer);
+    var var_mesh = sse_decode_opt_box_autoadd_mesh_info(deserializer);
+    var var_events = sse_decode_list_snapshot_event(deserializer);
+    return ChannelSnapshot(
+        name: var_name,
+        topic: var_topic,
+        meshId: var_meshId,
+        displayName: var_displayName,
+        deviceFingerprint: var_deviceFingerprint,
+        messages: var_messages,
+        attachments: var_attachments,
+        dmOffers: var_dmOffers,
+        mesh: var_mesh,
+        events: var_events);
+  }
+
+  @protected
+  ChatMessage sse_decode_chat_message(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fromDevice = sse_decode_String(deserializer);
+    var var_body = sse_decode_String(deserializer);
+    var var_messageId = sse_decode_opt_String(deserializer);
+    var var_sentAtMs = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_attachment =
+        sse_decode_opt_box_autoadd_attachment_descriptor(deserializer);
+    var var_callEvent = sse_decode_opt_box_autoadd_call_event(deserializer);
+    var var_deliveryStatus =
+        sse_decode_opt_box_autoadd_message_delivery_status(deserializer);
+    var var_deliveryError = sse_decode_opt_String(deserializer);
+    var var_retryable = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_retryCount = sse_decode_opt_box_autoadd_u_32(deserializer);
+    return ChatMessage(
+        fromDevice: var_fromDevice,
+        body: var_body,
+        messageId: var_messageId,
+        sentAtMs: var_sentAtMs,
+        attachment: var_attachment,
+        callEvent: var_callEvent,
+        deliveryStatus: var_deliveryStatus,
+        deliveryError: var_deliveryError,
+        retryable: var_retryable,
+        retryCount: var_retryCount);
+  }
+
+  @protected
+  CloseSessionResult sse_decode_close_session_result(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_closed = sse_decode_bool(deserializer);
+    return CloseSessionResult(sessionId: var_sessionId, closed: var_closed);
+  }
+
+  @protected
+  CreateGroupRequest sse_decode_create_group_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_label = sse_decode_opt_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_listenPort = sse_decode_u_16(deserializer);
+    var var_staticPeer = sse_decode_opt_String(deserializer);
+    var var_orgPubkey = sse_decode_opt_String(deserializer);
+    return CreateGroupRequest(
+        label: var_label,
+        displayName: var_displayName,
+        listenPort: var_listenPort,
+        staticPeer: var_staticPeer,
+        orgPubkey: var_orgPubkey);
+  }
+
+  @protected
+  DmOffer sse_decode_dm_offer(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_offerId = sse_decode_String(deserializer);
+    var var_fromDevice = sse_decode_String(deserializer);
+    var var_fromFingerprint = sse_decode_String(deserializer);
+    var var_targetFingerprint = sse_decode_String(deserializer);
+    var var_inviteUri = sse_decode_String(deserializer);
+    return DmOffer(
+        offerId: var_offerId,
+        fromDevice: var_fromDevice,
+        fromFingerprint: var_fromFingerprint,
+        targetFingerprint: var_targetFingerprint,
+        inviteUri: var_inviteUri);
+  }
+
+  @protected
+  GroupCreated sse_decode_group_created(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_groupId = sse_decode_String(deserializer);
+    var var_meshId = sse_decode_String(deserializer);
+    var var_inviteUri = sse_decode_String(deserializer);
+    var var_fingerprint = sse_decode_String(deserializer);
+    var var_label = sse_decode_opt_String(deserializer);
+    return GroupCreated(
+        groupId: var_groupId,
+        meshId: var_meshId,
+        inviteUri: var_inviteUri,
+        fingerprint: var_fingerprint,
+        label: var_label);
+  }
+
+  @protected
+  GroupLeaveResult sse_decode_group_leave_result(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_groupId = sse_decode_String(deserializer);
+    var var_closed = sse_decode_bool(deserializer);
+    return GroupLeaveResult(groupId: var_groupId, closed: var_closed);
+  }
+
+  @protected
+  GroupListSnapshot sse_decode_group_list_snapshot(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_groups = sse_decode_list_group_snapshot(deserializer);
+    return GroupListSnapshot(groups: var_groups);
+  }
+
+  @protected
+  GroupMessage sse_decode_group_message(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fromDevice = sse_decode_String(deserializer);
+    var var_fromFingerprint = sse_decode_String(deserializer);
+    var var_body = sse_decode_String(deserializer);
+    var var_messageId = sse_decode_opt_String(deserializer);
+    var var_sentAtMs = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_attachment =
+        sse_decode_opt_box_autoadd_attachment_descriptor(deserializer);
+    var var_deliveryStatus =
+        sse_decode_opt_box_autoadd_message_delivery_status(deserializer);
+    var var_deliveryError = sse_decode_opt_String(deserializer);
+    var var_retryable = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_retryCount = sse_decode_opt_box_autoadd_u_32(deserializer);
+    return GroupMessage(
+        fromDevice: var_fromDevice,
+        fromFingerprint: var_fromFingerprint,
+        body: var_body,
+        messageId: var_messageId,
+        sentAtMs: var_sentAtMs,
+        attachment: var_attachment,
+        deliveryStatus: var_deliveryStatus,
+        deliveryError: var_deliveryError,
+        retryable: var_retryable,
+        retryCount: var_retryCount);
+  }
+
+  @protected
+  GroupSendResult sse_decode_group_send_result(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_groupId = sse_decode_String(deserializer);
+    var var_bytes = sse_decode_usize(deserializer);
+    var var_messageId = sse_decode_String(deserializer);
+    var var_sentAtMs = sse_decode_u_64(deserializer);
+    var var_deliveryStatus = sse_decode_message_delivery_status(deserializer);
+    var var_deliveryError = sse_decode_opt_String(deserializer);
+    return GroupSendResult(
+        groupId: var_groupId,
+        bytes: var_bytes,
+        messageId: var_messageId,
+        sentAtMs: var_sentAtMs,
+        deliveryStatus: var_deliveryStatus,
+        deliveryError: var_deliveryError);
+  }
+
+  @protected
+  GroupSnapshot sse_decode_group_snapshot(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_groupId = sse_decode_String(deserializer);
+    var var_meshId = sse_decode_String(deserializer);
+    var var_label = sse_decode_opt_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_deviceFingerprint = sse_decode_String(deserializer);
+    var var_creatorFingerprint = sse_decode_String(deserializer);
+    var var_isAdmin = sse_decode_bool(deserializer);
+    var var_state = sse_decode_String(deserializer);
+    var var_memberCount = sse_decode_usize(deserializer);
+    var var_inviteUri = sse_decode_opt_String(deserializer);
+    var var_messages = sse_decode_list_group_message(deserializer);
+    var var_attachments = sse_decode_list_attachment_view(deserializer);
+    var var_dmOffers = sse_decode_list_dm_offer(deserializer);
+    var var_mesh = sse_decode_opt_box_autoadd_mesh_info(deserializer);
+    var var_events = sse_decode_list_snapshot_event(deserializer);
+    var var_needsRejoin = sse_decode_bool(deserializer);
+    var var_orgPubkey = sse_decode_opt_String(deserializer);
+    var var_memberPeerIds = sse_decode_list_String(deserializer);
+    return GroupSnapshot(
+        groupId: var_groupId,
+        meshId: var_meshId,
+        label: var_label,
+        displayName: var_displayName,
+        deviceFingerprint: var_deviceFingerprint,
+        creatorFingerprint: var_creatorFingerprint,
+        isAdmin: var_isAdmin,
+        state: var_state,
+        memberCount: var_memberCount,
+        inviteUri: var_inviteUri,
+        messages: var_messages,
+        attachments: var_attachments,
+        dmOffers: var_dmOffers,
+        mesh: var_mesh,
+        events: var_events,
+        needsRejoin: var_needsRejoin,
+        orgPubkey: var_orgPubkey,
+        memberPeerIds: var_memberPeerIds);
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  InviteCreated sse_decode_invite_created(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_inviteUri = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_meshId = sse_decode_String(deserializer);
+    var var_fingerprint = sse_decode_String(deserializer);
+    var var_listenAddress = sse_decode_String(deserializer);
+    return InviteCreated(
+        inviteUri: var_inviteUri,
+        sessionId: var_sessionId,
+        meshId: var_meshId,
+        fingerprint: var_fingerprint,
+        listenAddress: var_listenAddress);
+  }
+
+  @protected
+  JoinChannelRequest sse_decode_join_channel_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_listenPort = sse_decode_u_16(deserializer);
+    var var_staticPeer = sse_decode_opt_String(deserializer);
+    return JoinChannelRequest(
+        name: var_name,
+        displayName: var_displayName,
+        listenPort: var_listenPort,
+        staticPeer: var_staticPeer);
+  }
+
+  @protected
+  JoinGroupRequest sse_decode_join_group_request(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_inviteUri = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_orgPubkey = sse_decode_opt_String(deserializer);
+    var var_listenPort = sse_decode_u_16(deserializer);
+    var var_staticPeer = sse_decode_opt_String(deserializer);
+    return JoinGroupRequest(
+        inviteUri: var_inviteUri,
+        displayName: var_displayName,
+        orgPubkey: var_orgPubkey,
+        listenPort: var_listenPort,
+        staticPeer: var_staticPeer);
+  }
+
+  @protected
+  JoinOrgRequest sse_decode_join_org_request(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_bundleUri = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_listenPort = sse_decode_u_16(deserializer);
+    var var_staticPeer = sse_decode_opt_String(deserializer);
+    return JoinOrgRequest(
+        bundleUri: var_bundleUri,
+        displayName: var_displayName,
+        listenPort: var_listenPort,
+        staticPeer: var_staticPeer);
+  }
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<AttachmentView> sse_decode_list_attachment_view(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <AttachmentView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_attachment_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ChannelMessage> sse_decode_list_channel_message(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChannelMessage>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_channel_message(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ChannelSnapshot> sse_decode_list_channel_snapshot(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChannelSnapshot>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_channel_snapshot(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChatMessage>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_chat_message(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DmOffer> sse_decode_list_dm_offer(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DmOffer>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_dm_offer(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<GroupMessage> sse_decode_list_group_message(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GroupMessage>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_group_message(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<GroupSnapshot> sse_decode_list_group_snapshot(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GroupSnapshot>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_group_snapshot(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<NetworkInterfaceInfo> sse_decode_list_network_interface_info(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NetworkInterfaceInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_network_interface_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<OrgDmLink> sse_decode_list_org_dm_link(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <OrgDmLink>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_org_dm_link(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<OrgDmOfferView> sse_decode_list_org_dm_offer_view(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <OrgDmOfferView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_org_dm_offer_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<OrgGroupOfferView> sse_decode_list_org_group_offer_view(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <OrgGroupOfferView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_org_group_offer_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<OrgMemberView> sse_decode_list_org_member_view(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <OrgMemberView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_org_member_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<OrgSnapshot> sse_decode_list_org_snapshot(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <OrgSnapshot>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_org_snapshot(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<PeerDetail> sse_decode_list_peer_detail(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PeerDetail>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_peer_detail(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  List<SessionSnapshot> sse_decode_list_session_snapshot(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SessionSnapshot>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_session_snapshot(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<SnapshotEvent> sse_decode_list_snapshot_event(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SnapshotEvent>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_snapshot_event(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  MeshInfo sse_decode_mesh_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_meshId = sse_decode_String(deserializer);
+    var var_listenPort = sse_decode_i_32(deserializer);
+    var var_advertisedAddr = sse_decode_String(deserializer);
+    var var_peerCount = sse_decode_i_32(deserializer);
+    var var_directPeerCount = sse_decode_i_32(deserializer);
+    var var_relayedPeerCount = sse_decode_i_32(deserializer);
+    var var_relayCapablePeerCount = sse_decode_i_32(deserializer);
+    var var_relaySessionCount = sse_decode_i_32(deserializer);
+    var var_relayRouteCount = sse_decode_i_32(deserializer);
+    var var_knownPeerCount = sse_decode_i_32(deserializer);
+    var var_channels = sse_decode_list_String(deserializer);
+    var var_natType = sse_decode_String(deserializer);
+    var var_supernodeReady = sse_decode_bool(deserializer);
+    var var_publicKey = sse_decode_String(deserializer);
+    var var_peerDetails = sse_decode_list_peer_detail(deserializer);
+    return MeshInfo(
+        meshId: var_meshId,
+        listenPort: var_listenPort,
+        advertisedAddr: var_advertisedAddr,
+        peerCount: var_peerCount,
+        directPeerCount: var_directPeerCount,
+        relayedPeerCount: var_relayedPeerCount,
+        relayCapablePeerCount: var_relayCapablePeerCount,
+        relaySessionCount: var_relaySessionCount,
+        relayRouteCount: var_relayRouteCount,
+        knownPeerCount: var_knownPeerCount,
+        channels: var_channels,
+        natType: var_natType,
+        supernodeReady: var_supernodeReady,
+        publicKey: var_publicKey,
+        peerDetails: var_peerDetails);
+  }
+
+  @protected
+  MessageDeliveryStatus sse_decode_message_delivery_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return MessageDeliveryStatus.values[inner];
+  }
+
+  @protected
+  MossRuntimeStatus sse_decode_moss_runtime_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_linkMode = sse_decode_String(deserializer);
+    var var_libraryName = sse_decode_String(deserializer);
+    var var_requiredSymbols = sse_decode_list_String(deserializer);
+    var var_available = sse_decode_bool(deserializer);
+    var var_checkedPaths = sse_decode_list_String(deserializer);
+    return MossRuntimeStatus(
+        linkMode: var_linkMode,
+        libraryName: var_libraryName,
+        requiredSymbols: var_requiredSymbols,
+        available: var_available,
+        checkedPaths: var_checkedPaths);
+  }
+
+  @protected
+  NativeRuntimeStatus sse_decode_native_runtime_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_moss = sse_decode_moss_runtime_status(deserializer);
+    var var_secureStorage = sse_decode_secure_storage_status(deserializer);
+    var var_persistence = sse_decode_persistence_runtime_status(deserializer);
+    var var_openmlsSmoke =
+        sse_decode_open_mls_smoke_runtime_status(deserializer);
+    var var_openmlsRoundtrip =
+        sse_decode_open_mls_round_trip_runtime_status(deserializer);
+    return NativeRuntimeStatus(
+        moss: var_moss,
+        secureStorage: var_secureStorage,
+        persistence: var_persistence,
+        openmlsSmoke: var_openmlsSmoke,
+        openmlsRoundtrip: var_openmlsRoundtrip);
+  }
+
+  @protected
+  NetworkInterfaceInfo sse_decode_network_interface_info(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_description = sse_decode_String(deserializer);
+    var var_index = sse_decode_u_32(deserializer);
+    var var_ipv4 = sse_decode_opt_String(deserializer);
+    var var_isLoopback = sse_decode_bool(deserializer);
+    var var_isUp = sse_decode_bool(deserializer);
+    var var_isVirtual = sse_decode_bool(deserializer);
+    var var_isVpn = sse_decode_bool(deserializer);
+    var var_isDefaultRoute = sse_decode_bool(deserializer);
+    return NetworkInterfaceInfo(
+        name: var_name,
+        description: var_description,
+        index: var_index,
+        ipv4: var_ipv4,
+        isLoopback: var_isLoopback,
+        isUp: var_isUp,
+        isVirtual: var_isVirtual,
+        isVpn: var_isVpn,
+        isDefaultRoute: var_isDefaultRoute);
+  }
+
+  @protected
+  OpenMlsRoundTripRuntimeStatus sse_decode_open_mls_round_trip_runtime_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_ok =
+        sse_decode_opt_box_autoadd_open_mls_round_trip_status(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    return OpenMlsRoundTripRuntimeStatus(ok: var_ok, error: var_error);
+  }
+
+  @protected
+  OpenMlsRoundTripStatus sse_decode_open_mls_round_trip_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_provider = sse_decode_String(deserializer);
+    var var_ciphersuite = sse_decode_String(deserializer);
+    var var_welcomeJoined = sse_decode_bool(deserializer);
+    var var_plaintextRoundtrip = sse_decode_bool(deserializer);
+    return OpenMlsRoundTripStatus(
+        provider: var_provider,
+        ciphersuite: var_ciphersuite,
+        welcomeJoined: var_welcomeJoined,
+        plaintextRoundtrip: var_plaintextRoundtrip);
+  }
+
+  @protected
+  OpenMlsSmokeRuntimeStatus sse_decode_open_mls_smoke_runtime_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_ok = sse_decode_opt_box_autoadd_open_mls_smoke_status(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    return OpenMlsSmokeRuntimeStatus(ok: var_ok, error: var_error);
+  }
+
+  @protected
+  OpenMlsSmokeStatus sse_decode_open_mls_smoke_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_provider = sse_decode_String(deserializer);
+    var var_ciphersuite = sse_decode_String(deserializer);
+    var var_protectedMessageCreated = sse_decode_bool(deserializer);
+    return OpenMlsSmokeStatus(
+        provider: var_provider,
+        ciphersuite: var_ciphersuite,
+        protectedMessageCreated: var_protectedMessageCreated);
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ActiveCall? sse_decode_opt_box_autoadd_active_call(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_active_call(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  AttachmentDescriptor? sse_decode_opt_box_autoadd_attachment_descriptor(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_attachment_descriptor(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_bool(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  CallEvent? sse_decode_opt_box_autoadd_call_event(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_call_event(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MeshInfo? sse_decode_opt_box_autoadd_mesh_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_mesh_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MessageDeliveryStatus? sse_decode_opt_box_autoadd_message_delivery_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_message_delivery_status(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  OpenMlsRoundTripStatus? sse_decode_opt_box_autoadd_open_mls_round_trip_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_open_mls_round_trip_status(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  OpenMlsSmokeStatus? sse_decode_opt_box_autoadd_open_mls_smoke_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_open_mls_smoke_status(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  OutgoingCall? sse_decode_opt_box_autoadd_outgoing_call(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_outgoing_call(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PendingCall? sse_decode_opt_box_autoadd_pending_call(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_pending_call(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  VoiceMeta? sse_decode_opt_box_autoadd_voice_meta(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_voice_meta(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  VpnBypassConsent? sse_decode_opt_box_autoadd_vpn_bypass_consent(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_vpn_bypass_consent(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  OrgDmLink sse_decode_org_dm_link(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_peerId = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_opt_String(deserializer);
+    return OrgDmLink(peerId: var_peerId, sessionId: var_sessionId);
+  }
+
+  @protected
+  OrgDmOfferView sse_decode_org_dm_offer_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_offerId = sse_decode_String(deserializer);
+    var var_fromPeerId = sse_decode_String(deserializer);
+    var var_fromName = sse_decode_String(deserializer);
+    var var_inviteUri = sse_decode_String(deserializer);
+    return OrgDmOfferView(
+        offerId: var_offerId,
+        fromPeerId: var_fromPeerId,
+        fromName: var_fromName,
+        inviteUri: var_inviteUri);
+  }
+
+  @protected
+  OrgGroupOfferView sse_decode_org_group_offer_view(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_offerId = sse_decode_String(deserializer);
+    var var_fromPeerId = sse_decode_String(deserializer);
+    var var_fromName = sse_decode_String(deserializer);
+    var var_groupLabel = sse_decode_opt_String(deserializer);
+    var var_groupInviteUri = sse_decode_String(deserializer);
+    return OrgGroupOfferView(
+        offerId: var_offerId,
+        fromPeerId: var_fromPeerId,
+        fromName: var_fromName,
+        groupLabel: var_groupLabel,
+        groupInviteUri: var_groupInviteUri);
+  }
+
+  @protected
+  OrgMemberView sse_decode_org_member_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mossPeerId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_role = sse_decode_String(deserializer);
+    var var_isSelf = sse_decode_bool(deserializer);
+    return OrgMemberView(
+        mossPeerId: var_mossPeerId,
+        name: var_name,
+        role: var_role,
+        isSelf: var_isSelf);
+  }
+
+  @protected
+  OrgSnapshot sse_decode_org_snapshot(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_orgPubkey = sse_decode_String(deserializer);
+    var var_orgName = sse_decode_String(deserializer);
+    var var_meshId = sse_decode_String(deserializer);
+    var var_ownPeerId = sse_decode_String(deserializer);
+    var var_confirmationCode = sse_decode_String(deserializer);
+    var var_inRoster = sse_decode_bool(deserializer);
+    var var_rosterVersion = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_members = sse_decode_list_org_member_view(deserializer);
+    var var_dmOffers = sse_decode_list_org_dm_offer_view(deserializer);
+    var var_groupOffers = sse_decode_list_org_group_offer_view(deserializer);
+    var var_dmLinks = sse_decode_list_org_dm_link(deserializer);
+    return OrgSnapshot(
+        orgPubkey: var_orgPubkey,
+        orgName: var_orgName,
+        meshId: var_meshId,
+        ownPeerId: var_ownPeerId,
+        confirmationCode: var_confirmationCode,
+        inRoster: var_inRoster,
+        rosterVersion: var_rosterVersion,
+        members: var_members,
+        dmOffers: var_dmOffers,
+        groupOffers: var_groupOffers,
+        dmLinks: var_dmLinks);
+  }
+
+  @protected
+  OutgoingCall sse_decode_outgoing_call(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_callId = sse_decode_String(deserializer);
+    return OutgoingCall(callId: var_callId);
+  }
+
+  @protected
+  PeerDetail sse_decode_peer_detail(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_addr = sse_decode_String(deserializer);
+    var var_relayed = sse_decode_bool(deserializer);
+    return PeerDetail(id: var_id, addr: var_addr, relayed: var_relayed);
+  }
+
+  @protected
+  PendingCall sse_decode_pending_call(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_callId = sse_decode_String(deserializer);
+    var var_fromDevice = sse_decode_String(deserializer);
+    return PendingCall(callId: var_callId, fromDevice: var_fromDevice);
+  }
+
+  @protected
+  PersistenceRuntimeStatus sse_decode_persistence_runtime_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_backend = sse_decode_String(deserializer);
+    var var_database = sse_decode_String(deserializer);
+    var var_available = sse_decode_bool(deserializer);
+    var var_encryptedAtRest = sse_decode_bool(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    return PersistenceRuntimeStatus(
+        backend: var_backend,
+        database: var_database,
+        available: var_available,
+        encryptedAtRest: var_encryptedAtRest,
+        error: var_error);
+  }
+
+  @protected
+  SecureStorageStatus sse_decode_secure_storage_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_backend = sse_decode_String(deserializer);
+    var var_service = sse_decode_String(deserializer);
+    var var_available = sse_decode_bool(deserializer);
+    return SecureStorageStatus(
+        backend: var_backend, service: var_service, available: var_available);
+  }
+
+  @protected
+  SendMessageResult sse_decode_send_message_result(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_state = sse_decode_String(deserializer);
+    var var_ciphertextBytes = sse_decode_usize(deserializer);
+    var var_messageId = sse_decode_String(deserializer);
+    var var_sentAtMs = sse_decode_u_64(deserializer);
+    var var_deliveryStatus = sse_decode_message_delivery_status(deserializer);
+    var var_deliveryError = sse_decode_opt_String(deserializer);
+    return SendMessageResult(
+        sessionId: var_sessionId,
+        state: var_state,
+        ciphertextBytes: var_ciphertextBytes,
+        messageId: var_messageId,
+        sentAtMs: var_sentAtMs,
+        deliveryStatus: var_deliveryStatus,
+        deliveryError: var_deliveryError);
+  }
+
+  @protected
+  SessionListSnapshot sse_decode_session_list_snapshot(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sessions = sse_decode_list_session_snapshot(deserializer);
+    return SessionListSnapshot(sessions: var_sessions);
+  }
+
+  @protected
+  SessionSnapshot sse_decode_session_snapshot(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_meshId = sse_decode_String(deserializer);
+    var var_role = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_peerDisplayName = sse_decode_String(deserializer);
+    var var_state = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_relayReady = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_inviteUri = sse_decode_opt_String(deserializer);
+    var var_fingerprint = sse_decode_String(deserializer);
+    var var_messages = sse_decode_list_chat_message(deserializer);
+    var var_attachments = sse_decode_list_attachment_view(deserializer);
+    var var_mesh = sse_decode_opt_box_autoadd_mesh_info(deserializer);
+    var var_events = sse_decode_list_snapshot_event(deserializer);
+    var var_pendingCall = sse_decode_opt_box_autoadd_pending_call(deserializer);
+    var var_outgoingCall =
+        sse_decode_opt_box_autoadd_outgoing_call(deserializer);
+    var var_activeCall = sse_decode_opt_box_autoadd_active_call(deserializer);
+    return SessionSnapshot(
+        sessionId: var_sessionId,
+        meshId: var_meshId,
+        role: var_role,
+        displayName: var_displayName,
+        peerDisplayName: var_peerDisplayName,
+        state: var_state,
+        path: var_path,
+        relayReady: var_relayReady,
+        inviteUri: var_inviteUri,
+        fingerprint: var_fingerprint,
+        messages: var_messages,
+        attachments: var_attachments,
+        mesh: var_mesh,
+        events: var_events,
+        pendingCall: var_pendingCall,
+        outgoingCall: var_outgoingCall,
+        activeCall: var_activeCall);
+  }
+
+  @protected
+  SnapshotEvent sse_decode_snapshot_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventType = sse_decode_i_32(deserializer);
+    var var_eventName = sse_decode_String(deserializer);
+    var var_detailJson = sse_decode_String(deserializer);
+    var var_epochMillis = sse_decode_u_64(deserializer);
+    return SnapshotEvent(
+        eventType: var_eventType,
+        eventName: var_eventName,
+        detailJson: var_detailJson,
+        epochMillis: var_epochMillis);
+  }
+
+  @protected
+  StartSessionRequest sse_decode_start_session_request(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_displayName = sse_decode_String(deserializer);
+    var var_listenPort = sse_decode_u_16(deserializer);
+    var var_staticPeer = sse_decode_opt_String(deserializer);
+    return StartSessionRequest(
+        displayName: var_displayName,
+        listenPort: var_listenPort,
+        staticPeer: var_staticPeer);
+  }
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint16();
+  }
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint32();
+  }
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  int sse_decode_u_8(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8();
+  }
+
+  @protected
+  void sse_decode_unit(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  VoiceMeta sse_decode_voice_meta(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_durationMs = sse_decode_u_32(deserializer);
+    var var_peaksB64 = sse_decode_String(deserializer);
+    return VoiceMeta(durationMs: var_durationMs, peaksB64: var_peaksB64);
+  }
+
+  @protected
+  VpnBypassConsent sse_decode_vpn_bypass_consent(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_interface_ = sse_decode_String(deserializer);
+    var var_index = sse_decode_u_32(deserializer);
+    return VpnBypassConsent(interface_: var_interface_, index: var_index);
+  }
+
+  @protected
+  VpnDetection sse_decode_vpn_detection(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_vpnLikely = sse_decode_bool(deserializer);
+    var var_suspectInterfaces = sse_decode_list_String(deserializer);
+    var var_vpnOwnsDefaultRoute = sse_decode_bool(deserializer);
+    return VpnDetection(
+        vpnLikely: var_vpnLikely,
+        suspectInterfaces: var_suspectInterfaces,
+        vpnOwnsDefaultRoute: var_vpnOwnsDefaultRoute);
+  }
+
+  @protected
+  void sse_encode_String(String self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_accept_invite_request(
+      AcceptInviteRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.inviteUri, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_u_16(self.listenPort, serializer);
+    sse_encode_opt_String(self.staticPeer, serializer);
+  }
+
+  @protected
+  void sse_encode_active_call(ActiveCall self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.callId, serializer);
+    sse_encode_String(self.direction, serializer);
+    sse_encode_String(self.keyB64, serializer);
+    sse_encode_String(self.noncePrefixB64, serializer);
+    sse_encode_u_64(self.startedAtMs, serializer);
+  }
+
+  @protected
+  void sse_encode_app_diagnostics(
+      AppDiagnostics self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.appName, serializer);
+    sse_encode_String(self.privacyModel, serializer);
+    sse_encode_String(self.discoveryModel, serializer);
+    sse_encode_String(self.mossLinkMode, serializer);
+  }
+
+  @protected
+  void sse_encode_attachment_descriptor(
+      AttachmentDescriptor self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.attachmentId, serializer);
+    sse_encode_String(self.contentHash, serializer);
+    sse_encode_String(self.fileName, serializer);
+    sse_encode_String(self.mime, serializer);
+    sse_encode_u_64(self.totalSize, serializer);
+    sse_encode_opt_String(self.thumbnailB64, serializer);
+    sse_encode_opt_box_autoadd_voice_meta(self.voice, serializer);
+  }
+
+  @protected
+  void sse_encode_attachment_send_result(
+      AttachmentSendResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.sessionId, serializer);
+    sse_encode_String(self.attachmentId, serializer);
+    sse_encode_String(self.contentHash, serializer);
+  }
+
+  @protected
+  void sse_encode_attachment_state(
+      AttachmentState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_attachment_view(
+      AttachmentView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.attachmentId, serializer);
+    sse_encode_String(self.direction, serializer);
+    sse_encode_attachment_state(self.state, serializer);
+    sse_encode_u_64(self.completedChunks, serializer);
+    sse_encode_u_64(self.chunkCount, serializer);
+    sse_encode_opt_String(self.localPath, serializer);
+  }
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_accept_invite_request(
+      AcceptInviteRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_accept_invite_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_active_call(
+      ActiveCall self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_active_call(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_attachment_descriptor(
+      AttachmentDescriptor self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_attachment_descriptor(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_call_event(
+      CallEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_call_event(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_create_group_request(
+      CreateGroupRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_create_group_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_join_channel_request(
+      JoinChannelRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_join_channel_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_join_group_request(
+      JoinGroupRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_join_group_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_join_org_request(
+      JoinOrgRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_join_org_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_mesh_info(
+      MeshInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mesh_info(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_message_delivery_status(
+      MessageDeliveryStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_message_delivery_status(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_open_mls_round_trip_status(
+      OpenMlsRoundTripStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_open_mls_round_trip_status(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_open_mls_smoke_status(
+      OpenMlsSmokeStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_open_mls_smoke_status(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_outgoing_call(
+      OutgoingCall self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_outgoing_call(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_pending_call(
+      PendingCall self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_pending_call(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_start_session_request(
+      StartSessionRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_start_session_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_voice_meta(
+      VoiceMeta self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_voice_meta(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_vpn_bypass_consent(
+      VpnBypassConsent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_vpn_bypass_consent(self, serializer);
+  }
+
+  @protected
+  void sse_encode_call_event(CallEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.kind, serializer);
+    sse_encode_u_64(self.durationMs, serializer);
+    sse_encode_String(self.callId, serializer);
+  }
+
+  @protected
+  void sse_encode_channel_leave_result(
+      ChannelLeaveResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_bool(self.closed, serializer);
+  }
+
+  @protected
+  void sse_encode_channel_list_snapshot(
+      ChannelListSnapshot self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_channel_snapshot(self.channels, serializer);
+  }
+
+  @protected
+  void sse_encode_channel_message(
+      ChannelMessage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.fromDevice, serializer);
+    sse_encode_String(self.fromFingerprint, serializer);
+    sse_encode_String(self.body, serializer);
+    sse_encode_opt_String(self.messageId, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.sentAtMs, serializer);
+    sse_encode_opt_box_autoadd_attachment_descriptor(
+        self.attachment, serializer);
+    sse_encode_opt_box_autoadd_message_delivery_status(
+        self.deliveryStatus, serializer);
+    sse_encode_opt_String(self.deliveryError, serializer);
+    sse_encode_opt_box_autoadd_bool(self.retryable, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.retryCount, serializer);
+  }
+
+  @protected
+  void sse_encode_channel_send_result(
+      ChannelSendResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_usize(self.bytes, serializer);
+    sse_encode_String(self.messageId, serializer);
+    sse_encode_u_64(self.sentAtMs, serializer);
+    sse_encode_message_delivery_status(self.deliveryStatus, serializer);
+    sse_encode_opt_String(self.deliveryError, serializer);
+  }
+
+  @protected
+  void sse_encode_channel_snapshot(
+      ChannelSnapshot self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.topic, serializer);
+    sse_encode_String(self.meshId, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.deviceFingerprint, serializer);
+    sse_encode_list_channel_message(self.messages, serializer);
+    sse_encode_list_attachment_view(self.attachments, serializer);
+    sse_encode_list_dm_offer(self.dmOffers, serializer);
+    sse_encode_opt_box_autoadd_mesh_info(self.mesh, serializer);
+    sse_encode_list_snapshot_event(self.events, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_message(ChatMessage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.fromDevice, serializer);
+    sse_encode_String(self.body, serializer);
+    sse_encode_opt_String(self.messageId, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.sentAtMs, serializer);
+    sse_encode_opt_box_autoadd_attachment_descriptor(
+        self.attachment, serializer);
+    sse_encode_opt_box_autoadd_call_event(self.callEvent, serializer);
+    sse_encode_opt_box_autoadd_message_delivery_status(
+        self.deliveryStatus, serializer);
+    sse_encode_opt_String(self.deliveryError, serializer);
+    sse_encode_opt_box_autoadd_bool(self.retryable, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.retryCount, serializer);
+  }
+
+  @protected
+  void sse_encode_close_session_result(
+      CloseSessionResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.sessionId, serializer);
+    sse_encode_bool(self.closed, serializer);
+  }
+
+  @protected
+  void sse_encode_create_group_request(
+      CreateGroupRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.label, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_u_16(self.listenPort, serializer);
+    sse_encode_opt_String(self.staticPeer, serializer);
+    sse_encode_opt_String(self.orgPubkey, serializer);
+  }
+
+  @protected
+  void sse_encode_dm_offer(DmOffer self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.offerId, serializer);
+    sse_encode_String(self.fromDevice, serializer);
+    sse_encode_String(self.fromFingerprint, serializer);
+    sse_encode_String(self.targetFingerprint, serializer);
+    sse_encode_String(self.inviteUri, serializer);
+  }
+
+  @protected
+  void sse_encode_group_created(GroupCreated self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.groupId, serializer);
+    sse_encode_String(self.meshId, serializer);
+    sse_encode_String(self.inviteUri, serializer);
+    sse_encode_String(self.fingerprint, serializer);
+    sse_encode_opt_String(self.label, serializer);
+  }
+
+  @protected
+  void sse_encode_group_leave_result(
+      GroupLeaveResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.groupId, serializer);
+    sse_encode_bool(self.closed, serializer);
+  }
+
+  @protected
+  void sse_encode_group_list_snapshot(
+      GroupListSnapshot self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_group_snapshot(self.groups, serializer);
+  }
+
+  @protected
+  void sse_encode_group_message(GroupMessage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.fromDevice, serializer);
+    sse_encode_String(self.fromFingerprint, serializer);
+    sse_encode_String(self.body, serializer);
+    sse_encode_opt_String(self.messageId, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.sentAtMs, serializer);
+    sse_encode_opt_box_autoadd_attachment_descriptor(
+        self.attachment, serializer);
+    sse_encode_opt_box_autoadd_message_delivery_status(
+        self.deliveryStatus, serializer);
+    sse_encode_opt_String(self.deliveryError, serializer);
+    sse_encode_opt_box_autoadd_bool(self.retryable, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.retryCount, serializer);
+  }
+
+  @protected
+  void sse_encode_group_send_result(
+      GroupSendResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.groupId, serializer);
+    sse_encode_usize(self.bytes, serializer);
+    sse_encode_String(self.messageId, serializer);
+    sse_encode_u_64(self.sentAtMs, serializer);
+    sse_encode_message_delivery_status(self.deliveryStatus, serializer);
+    sse_encode_opt_String(self.deliveryError, serializer);
+  }
+
+  @protected
+  void sse_encode_group_snapshot(GroupSnapshot self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.groupId, serializer);
+    sse_encode_String(self.meshId, serializer);
+    sse_encode_opt_String(self.label, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.deviceFingerprint, serializer);
+    sse_encode_String(self.creatorFingerprint, serializer);
+    sse_encode_bool(self.isAdmin, serializer);
+    sse_encode_String(self.state, serializer);
+    sse_encode_usize(self.memberCount, serializer);
+    sse_encode_opt_String(self.inviteUri, serializer);
+    sse_encode_list_group_message(self.messages, serializer);
+    sse_encode_list_attachment_view(self.attachments, serializer);
+    sse_encode_list_dm_offer(self.dmOffers, serializer);
+    sse_encode_opt_box_autoadd_mesh_info(self.mesh, serializer);
+    sse_encode_list_snapshot_event(self.events, serializer);
+    sse_encode_bool(self.needsRejoin, serializer);
+    sse_encode_opt_String(self.orgPubkey, serializer);
+    sse_encode_list_String(self.memberPeerIds, serializer);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_invite_created(InviteCreated self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.inviteUri, serializer);
+    sse_encode_String(self.sessionId, serializer);
+    sse_encode_String(self.meshId, serializer);
+    sse_encode_String(self.fingerprint, serializer);
+    sse_encode_String(self.listenAddress, serializer);
+  }
+
+  @protected
+  void sse_encode_join_channel_request(
+      JoinChannelRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_u_16(self.listenPort, serializer);
+    sse_encode_opt_String(self.staticPeer, serializer);
+  }
+
+  @protected
+  void sse_encode_join_group_request(
+      JoinGroupRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.inviteUri, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_opt_String(self.orgPubkey, serializer);
+    sse_encode_u_16(self.listenPort, serializer);
+    sse_encode_opt_String(self.staticPeer, serializer);
+  }
+
+  @protected
+  void sse_encode_join_org_request(
+      JoinOrgRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.bundleUri, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_u_16(self.listenPort, serializer);
+    sse_encode_opt_String(self.staticPeer, serializer);
+  }
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_attachment_view(
+      List<AttachmentView> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_attachment_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_channel_message(
+      List<ChannelMessage> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_channel_message(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_channel_snapshot(
+      List<ChannelSnapshot> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_channel_snapshot(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_chat_message(
+      List<ChatMessage> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_chat_message(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_dm_offer(List<DmOffer> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_dm_offer(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_group_message(
+      List<GroupMessage> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_group_message(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_group_snapshot(
+      List<GroupSnapshot> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_group_snapshot(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_network_interface_info(
+      List<NetworkInterfaceInfo> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_network_interface_info(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_org_dm_link(
+      List<OrgDmLink> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_org_dm_link(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_org_dm_offer_view(
+      List<OrgDmOfferView> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_org_dm_offer_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_org_group_offer_view(
+      List<OrgGroupOfferView> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_org_group_offer_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_org_member_view(
+      List<OrgMemberView> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_org_member_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_org_snapshot(
+      List<OrgSnapshot> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_org_snapshot(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_peer_detail(
+      List<PeerDetail> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_peer_detail(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_prim_u_8_loose(
+      List<int> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer
+        .putUint8List(self is Uint8List ? self : Uint8List.fromList(self));
+  }
+
+  @protected
+  void sse_encode_list_prim_u_8_strict(
+      Uint8List self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_list_session_snapshot(
+      List<SessionSnapshot> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_session_snapshot(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_snapshot_event(
+      List<SnapshotEvent> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_snapshot_event(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_mesh_info(MeshInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.meshId, serializer);
+    sse_encode_i_32(self.listenPort, serializer);
+    sse_encode_String(self.advertisedAddr, serializer);
+    sse_encode_i_32(self.peerCount, serializer);
+    sse_encode_i_32(self.directPeerCount, serializer);
+    sse_encode_i_32(self.relayedPeerCount, serializer);
+    sse_encode_i_32(self.relayCapablePeerCount, serializer);
+    sse_encode_i_32(self.relaySessionCount, serializer);
+    sse_encode_i_32(self.relayRouteCount, serializer);
+    sse_encode_i_32(self.knownPeerCount, serializer);
+    sse_encode_list_String(self.channels, serializer);
+    sse_encode_String(self.natType, serializer);
+    sse_encode_bool(self.supernodeReady, serializer);
+    sse_encode_String(self.publicKey, serializer);
+    sse_encode_list_peer_detail(self.peerDetails, serializer);
+  }
+
+  @protected
+  void sse_encode_message_delivery_status(
+      MessageDeliveryStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_moss_runtime_status(
+      MossRuntimeStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.linkMode, serializer);
+    sse_encode_String(self.libraryName, serializer);
+    sse_encode_list_String(self.requiredSymbols, serializer);
+    sse_encode_bool(self.available, serializer);
+    sse_encode_list_String(self.checkedPaths, serializer);
+  }
+
+  @protected
+  void sse_encode_native_runtime_status(
+      NativeRuntimeStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_moss_runtime_status(self.moss, serializer);
+    sse_encode_secure_storage_status(self.secureStorage, serializer);
+    sse_encode_persistence_runtime_status(self.persistence, serializer);
+    sse_encode_open_mls_smoke_runtime_status(self.openmlsSmoke, serializer);
+    sse_encode_open_mls_round_trip_runtime_status(
+        self.openmlsRoundtrip, serializer);
+  }
+
+  @protected
+  void sse_encode_network_interface_info(
+      NetworkInterfaceInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.description, serializer);
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_opt_String(self.ipv4, serializer);
+    sse_encode_bool(self.isLoopback, serializer);
+    sse_encode_bool(self.isUp, serializer);
+    sse_encode_bool(self.isVirtual, serializer);
+    sse_encode_bool(self.isVpn, serializer);
+    sse_encode_bool(self.isDefaultRoute, serializer);
+  }
+
+  @protected
+  void sse_encode_open_mls_round_trip_runtime_status(
+      OpenMlsRoundTripRuntimeStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_open_mls_round_trip_status(self.ok, serializer);
+    sse_encode_opt_String(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_open_mls_round_trip_status(
+      OpenMlsRoundTripStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.provider, serializer);
+    sse_encode_String(self.ciphersuite, serializer);
+    sse_encode_bool(self.welcomeJoined, serializer);
+    sse_encode_bool(self.plaintextRoundtrip, serializer);
+  }
+
+  @protected
+  void sse_encode_open_mls_smoke_runtime_status(
+      OpenMlsSmokeRuntimeStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_open_mls_smoke_status(self.ok, serializer);
+    sse_encode_opt_String(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_open_mls_smoke_status(
+      OpenMlsSmokeStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.provider, serializer);
+    sse_encode_String(self.ciphersuite, serializer);
+    sse_encode_bool(self.protectedMessageCreated, serializer);
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_active_call(
+      ActiveCall? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_active_call(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_attachment_descriptor(
+      AttachmentDescriptor? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_attachment_descriptor(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_bool(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_call_event(
+      CallEvent? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_call_event(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_mesh_info(
+      MeshInfo? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_mesh_info(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_message_delivery_status(
+      MessageDeliveryStatus? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_message_delivery_status(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_open_mls_round_trip_status(
+      OpenMlsRoundTripStatus? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_open_mls_round_trip_status(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_open_mls_smoke_status(
+      OpenMlsSmokeStatus? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_open_mls_smoke_status(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_outgoing_call(
+      OutgoingCall? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_outgoing_call(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_pending_call(
+      PendingCall? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_pending_call(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_voice_meta(
+      VoiceMeta? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_voice_meta(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_vpn_bypass_consent(
+      VpnBypassConsent? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_vpn_bypass_consent(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_org_dm_link(OrgDmLink self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.peerId, serializer);
+    sse_encode_opt_String(self.sessionId, serializer);
+  }
+
+  @protected
+  void sse_encode_org_dm_offer_view(
+      OrgDmOfferView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.offerId, serializer);
+    sse_encode_String(self.fromPeerId, serializer);
+    sse_encode_String(self.fromName, serializer);
+    sse_encode_String(self.inviteUri, serializer);
+  }
+
+  @protected
+  void sse_encode_org_group_offer_view(
+      OrgGroupOfferView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.offerId, serializer);
+    sse_encode_String(self.fromPeerId, serializer);
+    sse_encode_String(self.fromName, serializer);
+    sse_encode_opt_String(self.groupLabel, serializer);
+    sse_encode_String(self.groupInviteUri, serializer);
+  }
+
+  @protected
+  void sse_encode_org_member_view(
+      OrgMemberView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.mossPeerId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.role, serializer);
+    sse_encode_bool(self.isSelf, serializer);
+  }
+
+  @protected
+  void sse_encode_org_snapshot(OrgSnapshot self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.orgPubkey, serializer);
+    sse_encode_String(self.orgName, serializer);
+    sse_encode_String(self.meshId, serializer);
+    sse_encode_String(self.ownPeerId, serializer);
+    sse_encode_String(self.confirmationCode, serializer);
+    sse_encode_bool(self.inRoster, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.rosterVersion, serializer);
+    sse_encode_list_org_member_view(self.members, serializer);
+    sse_encode_list_org_dm_offer_view(self.dmOffers, serializer);
+    sse_encode_list_org_group_offer_view(self.groupOffers, serializer);
+    sse_encode_list_org_dm_link(self.dmLinks, serializer);
+  }
+
+  @protected
+  void sse_encode_outgoing_call(OutgoingCall self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.callId, serializer);
+  }
+
+  @protected
+  void sse_encode_peer_detail(PeerDetail self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.addr, serializer);
+    sse_encode_bool(self.relayed, serializer);
+  }
+
+  @protected
+  void sse_encode_pending_call(PendingCall self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.callId, serializer);
+    sse_encode_String(self.fromDevice, serializer);
+  }
+
+  @protected
+  void sse_encode_persistence_runtime_status(
+      PersistenceRuntimeStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.backend, serializer);
+    sse_encode_String(self.database, serializer);
+    sse_encode_bool(self.available, serializer);
+    sse_encode_bool(self.encryptedAtRest, serializer);
+    sse_encode_opt_String(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_secure_storage_status(
+      SecureStorageStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.backend, serializer);
+    sse_encode_String(self.service, serializer);
+    sse_encode_bool(self.available, serializer);
+  }
+
+  @protected
+  void sse_encode_send_message_result(
+      SendMessageResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.sessionId, serializer);
+    sse_encode_String(self.state, serializer);
+    sse_encode_usize(self.ciphertextBytes, serializer);
+    sse_encode_String(self.messageId, serializer);
+    sse_encode_u_64(self.sentAtMs, serializer);
+    sse_encode_message_delivery_status(self.deliveryStatus, serializer);
+    sse_encode_opt_String(self.deliveryError, serializer);
+  }
+
+  @protected
+  void sse_encode_session_list_snapshot(
+      SessionListSnapshot self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_session_snapshot(self.sessions, serializer);
+  }
+
+  @protected
+  void sse_encode_session_snapshot(
+      SessionSnapshot self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.sessionId, serializer);
+    sse_encode_String(self.meshId, serializer);
+    sse_encode_String(self.role, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.peerDisplayName, serializer);
+    sse_encode_String(self.state, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_opt_box_autoadd_bool(self.relayReady, serializer);
+    sse_encode_opt_String(self.inviteUri, serializer);
+    sse_encode_String(self.fingerprint, serializer);
+    sse_encode_list_chat_message(self.messages, serializer);
+    sse_encode_list_attachment_view(self.attachments, serializer);
+    sse_encode_opt_box_autoadd_mesh_info(self.mesh, serializer);
+    sse_encode_list_snapshot_event(self.events, serializer);
+    sse_encode_opt_box_autoadd_pending_call(self.pendingCall, serializer);
+    sse_encode_opt_box_autoadd_outgoing_call(self.outgoingCall, serializer);
+    sse_encode_opt_box_autoadd_active_call(self.activeCall, serializer);
+  }
+
+  @protected
+  void sse_encode_snapshot_event(SnapshotEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.eventType, serializer);
+    sse_encode_String(self.eventName, serializer);
+    sse_encode_String(self.detailJson, serializer);
+    sse_encode_u_64(self.epochMillis, serializer);
+  }
+
+  @protected
+  void sse_encode_start_session_request(
+      StartSessionRequest self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_u_16(self.listenPort, serializer);
+    sse_encode_opt_String(self.staticPeer, serializer);
+  }
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint16(self);
+  }
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint32(self);
+  }
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_u_8(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self);
+  }
+
+  @protected
+  void sse_encode_unit(void self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_voice_meta(VoiceMeta self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.durationMs, serializer);
+    sse_encode_String(self.peaksB64, serializer);
+  }
+
+  @protected
+  void sse_encode_vpn_bypass_consent(
+      VpnBypassConsent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.interface_, serializer);
+    sse_encode_u_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_vpn_detection(VpnDetection self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.vpnLikely, serializer);
+    sse_encode_list_String(self.suspectInterfaces, serializer);
+    sse_encode_bool(self.vpnOwnsDefaultRoute, serializer);
+  }
+}

@@ -22,7 +22,7 @@ import 'package:mosh/src/rust/api/diagnostics.dart' show AppDiagnostics, NativeR
 import 'package:mosh/src/rust/api/diagnostics.dart' as api show appDiagnostics, nativeRuntimeStatus;
 // private_dm.dart defines only free functions (no types); prefix them so
 // they don't shadow the interface method names.
-import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, cancelAttachment, closeSession, createInvite, downloadAttachment, listSessions, pollSession, sendMessage;
+import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, cancelAttachment, closeSession, createInvite, downloadAttachment, listSessions, pollSession, sendAttachment, sendMessage;
 // channel.dart and private_group.dart each define a `poll` and a `list` free
 // function, and each also defines a `send` free function (plus channel `leave`
 // and group `close`), so the two imports MUST use distinct prefixes to avoid
@@ -179,17 +179,34 @@ class RealBridgeGateway implements Gateway {
     required String dataBase64,
     String? thumbnailBase64,
     VoiceMeta? voice,
-  }) =>
-      channel_api.sendAttachment(
-        name: name,
-        fileName: fileName,
-        mime: mime,
-        dataBase64: dataBase64,
-        thumbnailBase64: thumbnailBase64,
-        voice: voice,
-      );
-  @override
-  Future<AttachmentSendResult> sendGroupAttachment({
+ }) =>
+     channel_api.sendAttachment(
+       name: name,
+       fileName: fileName,
+       mime: mime,
+       dataBase64: dataBase64,
+       thumbnailBase64: thumbnailBase64,
+       voice: voice,
+     );
+ @override
+ Future<AttachmentSendResult> sendPrivateAttachment({
+   required String sessionId,
+   required String fileName,
+   required String mime,
+   required String dataBase64,
+   String? thumbnailBase64,
+   VoiceMeta? voice,
+ }) =>
+     api.sendAttachment(
+       sessionId: sessionId,
+       fileName: fileName,
+       mime: mime,
+       dataBase64: dataBase64,
+       thumbnailBase64: thumbnailBase64,
+       voice: voice,
+     );
+ @override
+ Future<AttachmentSendResult> sendGroupAttachment({
     required String groupId,
     required String fileName,
     required String mime,

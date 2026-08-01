@@ -391,14 +391,28 @@ class FakeGateway implements Gateway {
     required String dataBase64,
     String? thumbnailBase64,
     VoiceMeta? voice,
-  }) =>
-      Future.value(AttachmentSendResult(
-        sessionId: 'fake-channel:$name',
-        attachmentId: 'fake-channel-attachment:${fileName.hashCode}',
-        contentHash: 'fake-hash:${dataBase64.hashCode}',
-      ));
-  @override
-  Future<AttachmentSendResult> sendGroupAttachment({
+ }) =>
+     Future.value(AttachmentSendResult(
+       sessionId: 'fake-channel:$name',
+       attachmentId: 'fake-channel-attachment:${fileName.hashCode}',
+       contentHash: 'fake-hash:${dataBase64.hashCode}',
+     ));
+ @override
+ Future<AttachmentSendResult> sendPrivateAttachment({
+   required String sessionId,
+   required String fileName,
+   required String mime,
+   required String dataBase64,
+   String? thumbnailBase64,
+   VoiceMeta? voice,
+ }) =>
+     Future.value(AttachmentSendResult(
+       sessionId: 'fake-dm:$sessionId',
+       attachmentId: 'fake-dm-attachment:${fileName.hashCode}',
+       contentHash: 'fake-hash:${dataBase64.hashCode}',
+     ));
+ @override
+ Future<AttachmentSendResult> sendGroupAttachment({
     required String groupId,
     required String fileName,
     required String mime,

@@ -48,7 +48,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -557657121;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1988412395;
 
 // Section: executor
 
@@ -1547,6 +1547,52 @@ fn wire__crate__api__channel__send_attachment_impl(
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::channel::send_attachment(
                         api_name,
+                        api_file_name,
+                        api_mime,
+                        api_data_base64,
+                        api_thumbnail_base64,
+                        api_voice,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__private_dm__send_attachment_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "send_attachment",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_session_id = <String>::sse_decode(&mut deserializer);
+            let api_file_name = <String>::sse_decode(&mut deserializer);
+            let api_mime = <String>::sse_decode(&mut deserializer);
+            let api_data_base64 = <String>::sse_decode(&mut deserializer);
+            let api_thumbnail_base64 = <Option<String>>::sse_decode(&mut deserializer);
+            let api_voice =
+                <Option<crate::attachment_runtime::VoiceMeta>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::private_dm::send_attachment(
+                        api_session_id,
                         api_file_name,
                         api_mime,
                         api_data_base64,
@@ -3459,20 +3505,21 @@ fn pde_ffi_dispatcher_primary_impl(
         41 => wire__crate__api__channel__send_impl(port, ptr, rust_vec_len, data_len),
         42 => wire__crate__api__private_group__send_impl(port, ptr, rust_vec_len, data_len),
         43 => wire__crate__api__channel__send_attachment_impl(port, ptr, rust_vec_len, data_len),
-        44 => {
+        44 => wire__crate__api__private_dm__send_attachment_impl(port, ptr, rust_vec_len, data_len),
+        45 => {
             wire__crate__api__private_group__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        45 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        47 => {
+        46 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        48 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        48 => wire__crate__api__private_dm__send_message_impl(port, ptr, rust_vec_len, data_len),
-        49 => {
+        49 => wire__crate__api__private_dm__send_message_impl(port, ptr, rust_vec_len, data_len),
+        50 => {
             wire__crate__api__private_dm__set_app_data_dir_impl(port, ptr, rust_vec_len, data_len)
         }
-        50 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
