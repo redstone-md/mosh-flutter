@@ -247,45 +247,52 @@ class RuntimeError extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     const danger = Color(0xFFE86A5A);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: danger.withValues(alpha: 0.06),
-        border: Border.all(color: danger.withValues(alpha: 0.32)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.warning_amber, size: 18, color: danger),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  l.runtimeError.toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    fontSize: 9.5,
-                    color: danger,
+    // `Semantics(liveRegion: true)` mirrors React `role="alert"` -- screen
+    // readers announce the error when it appears in the drawer.
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      label: '${l.runtimeError.toUpperCase()}: $message',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: danger.withValues(alpha: 0.06),
+          border: Border.all(color: danger.withValues(alpha: 0.32)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.warning_amber, size: 18, color: danger),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l.runtimeError.toUpperCase(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      fontSize: 9.5,
+                      color: danger,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  message,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
-                    height: 1.45,
-                    color: theme.colorScheme.onSurface,
+                  const SizedBox(height: 3),
+                  Text(
+                    message,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 11,
+                      height: 1.45,
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -85,6 +85,10 @@ class PeerStatusDrawer extends StatelessWidget {
               child: Semantics(
                 label: l.peerStatusTitle,
                 container: true,
+                // `scopesRoute: true` mirrors React `aria-modal="true"`
+                // (it scopes the route so the drawer is announced as a
+                // modal boundary); `label` is the `aria-labelledby` title.
+                scopesRoute: true,
                 child: Material(
                   color: theme.scaffoldBackgroundColor,
                   elevation: 0,
