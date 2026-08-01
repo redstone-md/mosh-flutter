@@ -74,7 +74,7 @@ import 'package:mosh/src/features/dm/dm_helpers.dart';
 class SessionsScreen extends ConsumerWidget {
   const SessionsScreen({super.key});
 
- @override
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(sessionListProvider);
@@ -100,7 +100,8 @@ class SessionsScreen extends ConsumerWidget {
     // Channels/groups unread maps -- same `.value ?? const {}` degrade as
     // the DM map: loading/error leaves them empty so the rail badges stay
     // absent (mirrors React clearing to 0 during a refresh).
-    final unreadChannels = ref.watch(unreadChannelCountsProvider).value ?? const {};
+    final unreadChannels =
+        ref.watch(unreadChannelCountsProvider).value ?? const {};
     final unreadGroups = ref.watch(unreadGroupCountsProvider).value ?? const {};
     return Scaffold(
       appBar: AppBar(
@@ -140,7 +141,7 @@ class SessionsScreen extends ConsumerWidget {
             return _EmptyState(onStart: () => _startChat(context, ref));
           }
           // React SessionRail order: sessions, [divider if groups && sessions],
-         // groups, [divider if channels && (sessions || groups)], channels.
+          // groups, [divider if channels && (sessions || groups)], channels.
           // A `Divider` renders only between two non-empty adjacent sections,
           // mirroring React's conditional `rail-divider` rendering.
           final children = <Widget>[
@@ -180,17 +181,18 @@ class SessionsScreen extends ConsumerWidget {
             for (final org in orgs) ...[
               // React SessionRail renders each org wrapped in a
               // `rail-divider` + `OrgSection` (the divider is INSIDE the
-             // per-org map, unconditional, so N orgs render N dividers -- 
-             // one above each org header). The 7 callbacks pass through to
-             // the org action helpers (gateway + refresh + navigation);
+              // per-org map, unconditional, so N orgs render N dividers --
+              // one above each org header). The 7 callbacks pass through to
+              // the org action helpers (gateway + refresh + navigation);
               // `busy` mirrors React's `org.busy = offerBusy || setupBusy`
               // via the per-org operation-bus (only this org disables while
               // its leave/offer/member/new-group action is in flight).
-             const Divider(height: 1, thickness: 1),
-             OrgSection(
-               org: org,
-                busy: ref.watch(orgOperationBusProvider).contains(org.orgPubkey),
-               onMember: (o, m) => openMemberDmAction(context, ref, o, m),
+              const Divider(height: 1, thickness: 1),
+              OrgSection(
+                org: org,
+                busy:
+                    ref.watch(orgOperationBusProvider).contains(org.orgPubkey),
+                onMember: (o, m) => openMemberDmAction(context, ref, o, m),
                 onAcceptDmOffer: (pubkey, id) =>
                     acceptOrgDmOfferAction(context, ref, pubkey, id),
                 onDismissDmOffer: (pubkey, id) =>
@@ -207,8 +209,7 @@ class SessionsScreen extends ConsumerWidget {
             ],
           ];
           return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(sessionListProvider.notifier).refresh(),
+            onRefresh: () => ref.read(sessionListProvider.notifier).refresh(),
             child: ListView(children: children),
           );
         },
@@ -336,21 +337,21 @@ class _SessionRow extends StatelessWidget {
               ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
                   ? Colors.white
                   : Colors.black87,
-         child: Text(
+          child: Text(
             avatarInitials(label),
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(stateText),
-       trailing: Row(
-         mainAxisSize: MainAxisSize.min,
-        children: [
-          StateDot(state: session.state),
-          const SizedBox(width: 8),
-          UnreadBadge(count: unreadCount),
-        ],
-       ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            StateDot(state: session.state),
+            const SizedBox(width: 8),
+            UnreadBadge(count: unreadCount),
+          ],
+        ),
         onTap: () => context.go(AppRoutes.dmFor(session.sessionId)),
       ),
     );
@@ -381,8 +382,7 @@ class _EmptyState extends StatelessWidget {
                 textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(l.chatNoSessionBody,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium),
+                textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: onStart,
@@ -418,8 +418,7 @@ class _ErrorState extends StatelessWidget {
                 textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(error.toString(),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall),
+                textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
             const SizedBox(height: 18),
             FilledButton(
               onPressed: () => ref.read(sessionListProvider.notifier).refresh(),
