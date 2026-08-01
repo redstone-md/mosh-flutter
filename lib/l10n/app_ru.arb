@@ -34,6 +34,7 @@
   "chatSendLabel": "Отправить",
   "chatAttachLabel": "Прикрепить файл",
   "chatDropHint": "Перетащите файл, чтобы поделиться им",
+  "attachmentTooLargeMessage": "Размер вложения превышает 50 МБ",
   "chatSearchPlaceholder": "Поиск сообщений",
   "chatFilterAll": "Все",
   "chatFilterAttachments": "Файлы",
