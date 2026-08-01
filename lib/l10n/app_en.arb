@@ -1286,5 +1286,80 @@
   "bindAdapterApplyError": "Could not apply override",
   "@bindAdapterApplyError": {
     "description": "Fallback error when setVpnBypassConsent/restart throws a non-Error (React BindInterfaceField.tsx apply catch fallback)"
+  },
+  "orgLeave": "Leave organization",
+  "@orgLeave": {
+    "description": "Tooltip/aria-label for the leave-org button (React OrgSection.tsx orgText.leave)"
+  },
+  "orgPendingHint": "Your confirmation code — give it to your admin",
+  "@orgPendingHint": {
+    "description": "Hint under the confirmation code while not yet in roster (React OrgSection.tsx orgText.pendingHint)"
+  },
+  "orgDmOffer": "wants to chat",
+  "@orgDmOffer": {
+    "description": "DM-offer row secondary text (React OrgSection.tsx orgText.dmOffer)"
+  },
+  "orgGroupOffer": "Org group",
+  "@orgGroupOffer": {
+    "description": "Fallback label for a group offer without a group label (React OrgSection.tsx orgText.groupOffer)"
+  },
+  "orgGroupOfferFrom": "invited by",
+  "@orgGroupOfferFrom": {
+    "description": "Group-offer row secondary text prefix before the inviter name (React OrgSection.tsx orgText.groupOfferFrom)"
+  },
+  "orgMemberDmHint": "Message",
+  "@orgMemberDmHint": {
+    "description": "Tooltip prefix for a roster member row (React OrgSection.tsx orgText.memberDmHint)"
+  },
+  "orgYouBadge": "you",
+  "@orgYouBadge": {
+    "description": "Badge appended to the self member's name (React OrgSection.tsx orgText.youBadge)"
+  },
+  "orgAdminBadge": "Org admin",
+  "@orgAdminBadge": {
+    "description": "Tooltip for the admin crown on a roster member (React OrgSection.tsx orgText.adminBadge)"
+  },
+  "orgNewGroup": "New org group",
+  "@orgNewGroup": {
+    "description": "Tooltip for the new-group submit button (React OrgSection.tsx orgText.newGroup)"
+  },
+  "orgNewGroupPlaceholder": "new group name",
+  "@orgNewGroupPlaceholder": {
+    "description": "Placeholder for the new-group input (React OrgSection.tsx orgText.newGroupPlaceholder)"
+  },
+  "orgAcceptDmAria": "Accept chat invite from {name}",
+  "@orgAcceptDmAria": {
+ "description": "aria-label for the accept-DM-offer button; {name} is the inviter (React OrgSection.tsx)",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orgDismissDmAria": "Dismiss invite from {name}",
+  "@orgDismissDmAria": {
+ "description": "aria-label for the dismiss-DM-offer button; {name} is the inviter (React OrgSection.tsx)",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orgAcceptGroupAria": "Accept group invite from {name}",
+  "@orgAcceptGroupAria": {
+ "description": "aria-label for the accept-group-offer button; {name} is the inviter (React OrgSection.tsx)",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orgDismissGroupAria": "Dismiss group invite from {name}",
+  "@orgDismissGroupAria": {
+ "description": "aria-label for the dismiss-group-offer button; {name} is the inviter (React OrgSection.tsx)",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orgMemberAria": "Message {name}",
+  "@orgMemberAria": {
+ "description": "aria-label for a non-self roster member row; {name} is the member (React OrgSection.tsx)",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orgMemberYouAria": "{name} (you)",
+  "@orgMemberYouAria": {
+ "description": "aria-label for the self member row; {name} is the member (React OrgSection.tsx)",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orgNewGroupAria": "New org group in {name}",
+  "@orgNewGroupAria": {
+ "description": "aria-label for the new-group input + submit; {name} is the org name (React OrgSection.tsx)",
+    "placeholders": { "name": { "type": "String" } }
   }
 }
