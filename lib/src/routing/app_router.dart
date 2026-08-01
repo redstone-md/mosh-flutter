@@ -7,6 +7,7 @@
 // Route table (path -> screen):
 //   /                 OnboardingScreen (home; matches the React entry flow)
 //   /join             InvitePasteScreen
+//   /sessions         SessionsScreen (DM sessions list; React SessionRail sessions section)
 //   /dm/:sessionId    DmScreen(sessionId = state.pathParameters['sessionId'])
 //   /diagnostics      DiagnosticsScreen
 //
@@ -21,6 +22,7 @@ import 'package:mosh/src/features/diagnostics/diagnostics_screen.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
+import 'package:mosh/src/features/sessions/sessions_screen.dart';
 
 /// Canonical route paths. Kept as constants so S2-3 deep-link intake and any
 /// in-app `context.go(...)` callers reference one source of truth.
@@ -29,6 +31,7 @@ class AppRoutes {
 
   static const String onboarding = '/';
   static const String join = '/join';
+  static const String sessions = '/sessions';
   static const String diagnostics = '/diagnostics';
   static const String dm = '/dm';
 
@@ -65,6 +68,15 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.diagnostics,
       builder: (BuildContext context, GoRouterState state) =>
           const DiagnosticsScreen(),
+    ),
+    GoRoute(
+      // DM sessions list (React SessionRail sessions section). Wired as its
+      // own atomic; the onboarding Chat tile is NOT redirected here yet (a
+      // later atomic connects the home tile to /sessions). Initial location
+      // stays '/' (onboarding) so existing flows are unchanged.
+      path: AppRoutes.sessions,
+      builder: (BuildContext context, GoRouterState state) =>
+          const SessionsScreen(),
     ),
     GoRoute(
       // DmScreen takes sessionId as a required arg; carry it on the path so
