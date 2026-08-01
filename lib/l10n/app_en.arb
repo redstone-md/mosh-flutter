@@ -1139,5 +1139,13 @@
   "voiceMessagePauseLabel": "Pause voice message",
   "@voiceMessagePauseLabel": {
     "description": "Tooltip/aria-label for the voice-message card pause button (React VoiceMessage.tsx, playing)"
+  },
+  "callLogMissedLabel": "Missed call",
+  "@callLogMissedLabel": {
+    "description": "Label for the missed-call pill rendered inline in a DM message row when ChatMessage.callEvent.kind === 'missed' (React CallLogEntry.tsx)"
+  },
+  "callLogEndedLabel": "Call ended",
+  "@callLogEndedLabel": {
+    "description": "Label for the completed-call pill rendered inline in a DM message row when ChatMessage.callEvent.kind === 'completed' (React CallLogEntry.tsx)"
   }
 }
