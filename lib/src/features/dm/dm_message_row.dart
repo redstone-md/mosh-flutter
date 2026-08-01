@@ -17,6 +17,7 @@ import 'package:mosh/src/features/dm/call_log_entry.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
+import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
 
 /// Avatar diameter used by `DmMessageRow` -- both the real `CircleAvatar`
@@ -59,13 +60,9 @@ class DmMessageRow extends StatelessWidget {
         own ? MainAxisAlignment.end : MainAxisAlignment.start;
     final avatarSlot = grouped
         ? const SizedBox(width: dmMessageAvatarSize)
-        : CircleAvatar(
-            backgroundColor: avatarColor(message.fromDevice),
-            maxRadius: dmMessageAvatarSize / 2,
-            child: Text(
-              avatarInitials(message.fromDevice),
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+        : Avatar(
+            name: message.fromDevice,
+            radius: dmMessageAvatarSize / 2,
           );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
