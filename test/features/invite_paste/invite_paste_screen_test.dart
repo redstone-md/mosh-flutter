@@ -3,18 +3,20 @@
 // drives live detection, and asserts:
 //   - the OnboardStepFrame title + body render (no AppBar),
 //   - the 3-state detection badge (neutral / ok / bad) flips with input,
-//   - the Connect button is enabled for dm + group detections (both have a
-//     wired Gateway seam: acceptInvite for dm, joinGroup for group) and
-//     DISABLED for org (joinOrg not on the Gateway yet),
+//   - the Connect button is enabled for every detected kind (dm + group +
+//     org -- all three have a wired Gateway seam),
 //   - tapping Connect on a DM invite calls gateway.acceptInvite,
 //   - tapping Connect on a group invite calls gateway.joinGroup and
-//     navigates to the group screen.
+//     navigates to the group screen,
+//   - tapping Connect on an org bundle calls gateway.joinOrg and navigates
+//     to the sessions list (orgs are a container, not a chat).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
@@ -115,6 +117,33 @@ void main() {
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
     expect(find.byType(GroupScreen), findsOneWidget);
+    expect(find.byType(InvitePasteScreen), findsNothing);
+  });
+
+  testWidgets(
+      'org detection shows the ok badge and ENABLES Connect; tapping navigates to the sessions list',
+      (tester) async {
+    await pumpScreen(tester, FakeGateway());
+
+    // Valid org bundle: mosh://org + mesh= + name= + #org=<64 hex>.
+    await tester.enterText(
+        find.byType(TextField),
+        'mosh://org?mesh=7x9v&name=drift-collective#org='
+        '91a4d2c877b091a4d2c877b091a4d2c877b091a4d2c877b091a4d2c877b091a4');
+    await tester.pump();
+    // ok badge: the "organization bundle detected" label + a check icon.
+    expect(find.text('Organization bundle detected'), findsOneWidget);
+    expect(find.byIcon(Icons.check), findsOneWidget);
+    // org join is wired (slice-3 seam): Connect is ENABLED.
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNotNull);
+    // Tapping Connect calls FakeGateway.joinOrg (canned OrgSnapshot). React's
+    // joinOrg does NOT navigate to a dedicated org screen -- it leaves setup
+    // + refreshes the orgs list, landing the user back on the rail. Flutter
+    // has no org screen, so the faithful action is AppRoutes.sessions.
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+    expect(find.byType(SessionsScreen), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsNothing);
   });
 
