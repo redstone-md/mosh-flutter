@@ -46,6 +46,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/channel/channel_message_row.dart';
+import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView;
@@ -132,6 +133,18 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
           children: [
             Column(
               children: [
+                CryptoNoticeBanner(
+                  // React `PublicNotice` (ActiveChatPanes.tsx ~L434-445):
+                  // `crypto-banner crypto-banner-public` with `IconHash`.
+                  // Material `Icons.tag` is the closest hash glyph; the
+                  // info-blue accent mirrors React's
+                  // `.crypto-banner-public` border / `.crypto-icon` tint
+                  // (rgba(108,183,232,*)).
+                  icon: Icons.tag,
+                  title: l.channelNoticeTitle,
+                  body: l.channelNoticeBody,
+                  accent: const Color(0xFF6CB7E8),
+                ),
                 ConversationTools(
                   search: _search,
                   filter: _filter,

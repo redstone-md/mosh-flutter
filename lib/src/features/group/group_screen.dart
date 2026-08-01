@@ -56,6 +56,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
+import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView;
@@ -146,6 +147,29 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
           children: [
             Column(
               children: [
+                // React wires the group pane's `afterHeader` (ActiveChatPanes.tsx
+                // L352-360) as `<><GroupNotice />{needs_rejoin ? <RejoinNeeded/>
+                // : null}{orgAddPrompt ? <OrgAddMissing/> : null}</>`. This atomic
+                // ports ONLY the `<GroupNotice />` banner itself; the `needs_rejoin`
+                // error fragment (orgRejoinNeededTitle/Body) and the `orgAddPrompt`
+                // admin-add fragment are separate features and live in the SAME
+                // slot -- they must stack BELOW the banner here in a later atomic.
+                // TODO(group-rejoin-fragment): render the needs_rejoin inline-error
+                //   (orgRejoinNeededTitle + orgRejoinNeededBody) here when set.
+                // TODO(group-org-add-fragment): render the orgAddPrompt admin-add
+                //   row (orgAddMissing + orgMissingOne/Many) here when present.
+                CryptoNoticeBanner(
+                  // React `GroupNotice` (ActiveChatPanes.tsx ~L420-432):
+                  // `crypto-banner crypto-banner-group` with `IconLock`.
+                  // Material `Icons.lock` mirrors lucide `IconLock`; the
+                  // moss-green accent mirrors React's
+                  // `.crypto-banner-group` border / `.crypto-icon` tint
+                  // (rgba(183,216,74,*), var(--moss-glow)).
+                  icon: Icons.lock,
+                  title: l.groupNoticeTitle,
+                  body: l.groupNoticeBody,
+                  accent: const Color(0xFFB7D84A),
+                ),
                 ConversationTools(
                   search: _search,
                   filter: _filter,
