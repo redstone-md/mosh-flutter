@@ -9,39 +9,15 @@
 // + a `onRetry` callback; the DM row will reuse the same widget later
 // (deferred to a DM-side atomic).
 //
-// This atomic is RENDER-ONLY (display-only): the `onRetry` callback wired by
-// the row screens is a NO-OP STUB (`(_) {}`) with a
-// `TODO(channel-group-retry-seam)` marker. The Flutter Gateway has NOT
-// ported React's `retryChannelMessage` / `retryGroupMessage`
-// (native-messaging-gateway.ts L494/500) + Rust commands
-// (`channel_retry_message`, `private_group_retry_message` in
-// src-tauri/src/lib.rs L780/922) yet -- that Rust + frb codegen + Gateway
-// method is a LATER atomic. Mirrors the display-only stage of the
-// AttachmentCard atomic (`b879a02`): stage the render side first with
-// no-op stubs, wire the transfer seam in a follow-up.
-//
-// Structure (React):
-//   <div className="message-meta" role="status"
-//        aria-label={deliveryError ? `Failed: ${deliveryError}` : "Failed to send"}>
-//     <span>{deliveryError?.trim() || "Failed to send"}</span>
-//     <button className="chat-error-retry" aria-label="Retry failed message"
-//             onClick={() => onRetryMessage(messageId)}>Retry</button>
-//   </div>
-//
-// Flutter port: a Row with the trimmed error text (error color) + a
-// compact TextButton("Retry"). The whole row is wrapped in
-// `Semantics(container: true, excludeSemantics: true, label: <status
-// label>)` so the screen reader announces the row as one labeled unit
-// (matching React's `role=status` + `aria-label`); the Retry button's own
-// semantics label is the localized "Retry failed message" (React's
-// `aria-label="Retry failed message"`).
-//
-// Styling: mirrors React's `.message-meta` (a small meta row, muted) +
-// `.chat-error-retry` (a small error-tinted retry button). The error text
-// uses `theme.colorScheme.error`; the Retry button is a compact TextButton
-// with `error` foreground (React's `.chat-error-retry` is error-tinted) so
-// it reads as a retry affordance, not a primary action.
-library;
+// The `onRetry` callback is wired by the row screens to the Gateway retry
+// seam: React `retryChannelMessage` / `retryGroupMessage` (native-messaging-
+// gateway.ts L494/500) -> Rust `channel_retry_message` /
+// `private_group_retry_message` (src-tauri/src/lib.rs L780/922) -> frb
+// `channel_api.retryMessage` / `group_api.retryMessage` -> Gateway
+// `retryChannelMessage` / `retryGroupMessage`. Tapping Retry fires the
+// seam then invalidates the conversation snapshot so the next poll
+// re-renders the row delivery status (mirrors the AttachmentCard
+// download/cancel wiring).
 
 import 'package:flutter/material.dart';
 
@@ -74,10 +50,9 @@ class FailedMessageRetry extends StatelessWidget {
   /// back to the localized "Failed to send".
   final String? deliveryError;
 
-  /// Retry callback. RENDER-ONLY STUB at this atomic: the row screens wire
-  /// a no-op `() {}` (see the `TODO(channel-group-retry-seam)` marker at the
-  /// call sites). The Gateway retry seam (Rust + frb codegen + Gateway
-  /// method) is a LATER atomic.
+  /// Retry callback. The row screens wire this to the Gateway retry seam
+  /// (`retryChannelMessage` / `retryGroupMessage`); fire-and-forget then
+  /// invalidate the conversation snapshot so the next poll re-renders.
   final VoidCallback onRetry;
 
   /// Localized strings (the React component inlined the literals "Failed
