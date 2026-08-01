@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
+import 'package:mosh/src/features/dm/dm_message_list.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
@@ -71,7 +72,10 @@ void main() {
   group('groupDmMessages', () {
     test('single message is never grouped', () {
       final result = groupDmMessages([
-        _msg(fromDevice: 'alice', body: 'a', sentAtMs: BigInt.from(1700000000000)),
+        _msg(
+            fromDevice: 'alice',
+            body: 'a',
+            sentAtMs: BigInt.from(1700000000000)),
       ]);
       expect(result.length, 1);
       expect(result.first.grouped, false);
@@ -183,8 +187,7 @@ void main() {
 
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        activeSessionProvider(sessionId)
-            .overrideWith((ref) async => snapshot),
+        activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
