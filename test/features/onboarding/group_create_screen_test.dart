@@ -7,15 +7,18 @@
 //   (Create, not Recreate -- no invite exists).
 // Test 2: Create button is enabled even when the label is empty (React
 //   `disabled={busy}` only -- the group label is OPTIONAL).
-// Test 3: tapping Create shows the "later slice" SnackBar (Gateway
-//   createGroup seam is deferred -> honest stub).
+// Test 3: tapping Create calls FakeGateway.createGroup (canned
+//   GroupCreated) and renders the InviteResult card with the invite URI +
+//   flips the button label to Recreate (slice-3 seam).
 // Test 4: Back button returns to the onboarding menu.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
@@ -79,16 +82,37 @@ void main() {
   });
 
   testWidgets(
-      'tapping Create shows the later-slice SnackBar stub (createGroup seam deferred)',
+      'tapping Create creates via the gateway and renders the InviteResult card with the invite URI',
       (tester) async {
     await pumpScreen(tester);
 
+    // Intercept the flutter/services clipboard method channel so the
+    // auto-copy on create (React `copyText(created.invite_uri)`) does not
+    // hang the test waiting on a real platform channel.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      // Clipboard.setData is the only platform call this screen makes.
+      return null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding.instance
+        .defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    // Enter a label so the canned GroupCreated invite URI is deterministic
+    // (FakeGateway derives it from the label).
+    await tester.enterText(find.byType(TextField), 'friends');
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
 
-    // The Gateway createGroup seam is deferred; the button honestly shows
-    // the "later slice" SnackBar instead of calling a gateway method.
-    expect(find.byType(SnackBar), findsOneWidget);
+    // The createGroup seam (slice-3) calls FakeGateway.createGroup (returns
+    // a canned GroupCreated with invite URI `mosh://group/fake-group-friends`)
+    // and renders the InviteResult card with that URI. No SnackBar on the
+    // happy path; the button label flips to Recreate.
+    expect(find.byType(InviteResult), findsOneWidget);
+    expect(find.text('mosh://group/fake-group-friends'), findsOneWidget);
+    expect(find.text('Replace group invite'), findsOneWidget);
+    expect(find.text('Create group'), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
