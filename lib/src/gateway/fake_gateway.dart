@@ -302,6 +302,23 @@ class FakeGateway implements Gateway {
   Future<GroupLeaveResult> closeGroup({required String groupId}) =>
       Future.value(GroupLeaveResult(groupId: groupId, closed: true));
 
+  // The `createGroup` seam (slice-3) mirrors the React happy path: a canned
+  // GroupCreated with a deterministic invite URI derived from the requested
+  // label so the GroupCreateScreen InviteResult branch has something to
+  // render + copy (the real impl returns the runtime-minted invite URI).
+  @override
+  Future<GroupCreated> createGroup({required CreateGroupRequest request}) {
+    final label = request.label ?? '';
+    final groupId = 'fake-group-${label.isEmpty ? 'untitled' : label}';
+    return Future.value(GroupCreated(
+      groupId: groupId,
+      meshId: '',
+      inviteUri: 'mosh://group/$groupId',
+      fingerprint: '',
+      label: request.label,
+    ));
+  }
+
   SessionSnapshot _fakeSession({
     required String sessionId,
     required String displayName,

@@ -5,33 +5,41 @@
 // Recreate button (label flips once an invite exists), plus an
 // `InviteResult` card rendered only after a successful create.
 //
-// Scope (this atomic): the group-create step UI ONLY. The Gateway
-// `createGroup` (createPrivateGroup) seam is a LATER slice (Rust
-// `private_group_runtime::create_group` exists; the Flutter Gateway
-// method is deferred), so the Create button is a NO-OP STUB that shows a
-// "later slice" SnackBar -- mirroring the channel-join stub pattern.
-// The label is ephemeral to this screen visit (React keeps it as
-// per-step `value` state), so the TextEditingController stays
-// widget-local and is not lifted to a store until the create seam lands.
+// Scope: the group-create step UI + the createGroup Gateway seam (slice-3).
+// Tapping Create calls `gateway.createGroup` with a CreateGroupRequest built
+// from the entered label + the displayName/listenPort/staticPeer that
+// [inviteFlowProvider] already sources for createInvite (ADR 0010 DRY: one
+// settings source for both flows), copies the returned invite URI to the
+// clipboard (mirrors React `copyText(created.invite_uri)`), and stays on this
+// step to show the InviteResult card (React `setShowSetup(true)` -- the user
+// shares the invite before navigating away). The label is ephemeral to this
+// screen visit (React keeps it as per-step `value` state), so the
+// TextEditingController + the GroupCreated result stay widget-local and are
+// not lifted to a store.
 //
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 
 /// The group-create step screen.
 ///
 /// Reached from the onboarding Group tile (`context.go(AppRoutes.groupCreate)`).
-/// Tapping Create is a NO-OP STUB that shows a "later slice" SnackBar (the
-/// Gateway `createGroup` seam is deferred). Back returns to the onboarding
-/// menu (`AppRoutes.onboarding`). The entered group label is optional and
-/// ephemeral to this visit, mirroring React's per-step `value` state.
+/// Tapping Create calls `gateway.createGroup`, copies the returned invite URI
+/// to the clipboard, and renders the InviteResult card on this step. Back
+/// returns to the onboarding menu (`AppRoutes.onboarding`). The entered group
+/// label is optional and ephemeral to this visit, mirroring React's per-step
+/// `value` state.
 class GroupCreateScreen extends ConsumerStatefulWidget {
   const GroupCreateScreen({super.key});
 
@@ -41,15 +49,14 @@ class GroupCreateScreen extends ConsumerStatefulWidget {
 
 class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
   late final TextEditingController _labelController;
-  // Both stay false this atomic (Create is a no-op stub). A later atomic
-  // drops `final` when it wires the real createGroup seam via setState.
-  final bool _busy = false;
-  final bool _copied = false;
-  // The InviteResult branch is dead this atomic (the create seam is
-  // deferred, so no invite URI ever exists). The field-backed conditional
-  // keeps the React-faithful structure so the next atomic just flips the
-  // field to a provider-watched value -- no analyzer dead-code warning.
-  final bool _hasInvite = false;
+  bool _busy = false;
+  bool _copied = false;
+  // The GroupCreated from the last successful create (null until the first
+  // create). Kept widget-local -- React's `groupCreateState` lives in
+  // `usePrivateDmSetup` per-step state, not the DM inviteFlowProvider, so
+  // this mirrors that separation (ADR 0010 widget-local state for
+  // per-step UI state).
+  GroupCreated? _created;
 
   @override
   void initState() {
@@ -65,20 +72,56 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
 
   void _onBack() => context.go(AppRoutes.onboarding);
 
-  // NO-OP STUB: the Gateway `createGroup` (createPrivateGroup) seam is a
-  // later slice. Mirror the channel-join stub so the button is honest
-  // about what is and isn't wired yet. The guard mirrors ChatCreateScreen.
-  void _onCreate() {
+  // Calls gateway.createGroup with a CreateGroupRequest built from the
+  // entered label (trimmed, null if empty -- React `label.trim() || null`)
+  // + inviteFlowProvider's displayName/listenPort/staticPeer (the same
+  // settings source createInvite uses, ADR 0010), copies the returned invite
+  // URI to the clipboard (React `copyText(created.invite_uri)`), and stores
+  // the GroupCreated so the InviteResult branch renders. Stays on this step
+  // (React `setShowSetup(true)` -- the user shares the invite before
+  // navigating away). Mirrors ChatCreateScreen's busy + reset-copied +
+  // try/finally pattern.
+  Future<void> _onCreate() async {
     if (_busy) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.onboardJoinStepBody)),
-    );
+    final label = _labelController.text.trim();
+    final settings = ref.read(inviteFlowProvider);
+    setState(() {
+      _busy = true;
+      _copied = false;
+    });
+    try {
+      final created = await ref.read(gatewayProvider).createGroup(
+            request: CreateGroupRequest(
+              label: label.isEmpty ? null : label,
+              displayName: settings.displayName,
+              listenPort: settings.listenPort,
+              staticPeer: settings.staticPeer,
+            ),
+          );
+      await Clipboard.setData(ClipboardData(text: created.inviteUri));
+      if (!mounted) return;
+      setState(() {
+        _created = created;
+        _copied = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
-  // TODO(group-create-seam): wire real clipboard copy when the Gateway
-  // createGroup seam lands (mirrors ChatCreateScreen._onCopy). Dead this
-  // atomic because the InviteResult branch never renders.
-  void _onCopy() {}
+  // Re-copies the stored invite URI and flips the "Copied" badge (mirrors
+  // ChatCreateScreen._onCopy). Only reachable when `_created != null`.
+  Future<void> _onCopy() async {
+    final created = _created;
+    if (created == null) return;
+    await Clipboard.setData(ClipboardData(text: created.inviteUri));
+    if (mounted) setState(() => _copied = true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,8 +163,9 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
           const SizedBox(height: 20),
           // .btn.btn-primary.btn-block: full-width primary (mirrors
           // ChatCreateScreen's FilledButton with minimumSize 48h). The
-          // label flips Create/Recreate based on `_hasInvite` (always
-          // Create this atomic). NOT disabled by an empty label.
+          // label flips Create/Recreate based on `_created` (null = first
+          // create). NOT disabled by an empty label (React `disabled={busy}`
+          // only).
           FilledButton(
             onPressed: _busy ? null : _onCreate,
             style: FilledButton.styleFrom(
@@ -133,19 +177,18 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
                     height: 22,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(_hasInvite
+                : Text(_created != null
                     ? l.onboardGroupRecreate
                     : l.onboardGroupCreate),
           ),
-          // Dead branch this atomic (the create seam is deferred, so
-          // `_hasInvite` is always false). Kept to document the future
-          // wiring so the next atomic plugs in the real create result
-          // without restructuring the build tree.
-          if (_hasInvite) ...[
+          // Renders only after a successful create (`_created != null`).
+          // Mirrors React's GroupCreateStep InviteResult card; the URI is
+          // auto-copied on create and re-copyable via `_onCopy`.
+          if (_created != null) ...[
             const SizedBox(height: 20),
             InviteResult(
               note: l.onboardGroupInviteReady,
-              uri: '',
+              uri: _created!.inviteUri,
               copied: _copied,
               onCopy: _onCopy,
             ),
