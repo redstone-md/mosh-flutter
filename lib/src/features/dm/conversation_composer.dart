@@ -1,27 +1,27 @@
-/// Shared conversation composer for the DM + channel + group screens --
-/// the 1-в-1 port of React ChatComposer.tsx Composer. All three screens
-/// wire AttachmentPicker (paperclip) + TextField + send button through this
-/// widget; the screen owns the controller + sending flag + the per-kind
-/// send*Attachment Gateway seam.
+/// Shared conversation composer for the DM + channel + group screens -- the
+/// 1-в-1 port of React ChatComposer.tsx Composer. All three screens wire
+/// AttachmentPicker (paperclip) + VoiceComposer (mic) + TextField + send
+/// button through this widget; the screen owns the controller + sending flag
+/// + the per-kind send*Attachment / sendVoice Gateway seam.
 //
 // React Composer (ChatComposer.tsx): form -> .composer-box -> AttachmentPicker
 // (when onAttach) -> VoiceComposer (when onSendVoice) -> input -> send-button.
-// This Flutter port renders AttachmentPicker -> TextField -> FilledButton.
-// Voice + drag-drop (ChatDropZone) are later slices -- the onSendVoice /
-// onDrop params are not part of this widget surface yet.
+// This Flutter port renders AttachmentPicker -> VoiceComposer -> TextField ->
+// FilledButton. Drag-drop (ChatDropZone) is a later slice.
 //
-// Disabled semantics mirror React: disabled gates the picker + input + send
-// button; sending (separate flag, React sending prop) swaps the send icon
-// for a spinner and forces enabled false. onSend fires on button or submit.
+// Disabled semantics mirror React: disabled gates the picker + voice mic + input
+// + send button; sending (separate flag, React sending prop) swaps the send
+// icon for a spinner and forces enabled false. onSend fires on button or submit.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/features/shared/attachment_picker.dart';
+import 'package:mosh/src/features/shared/voice_composer.dart';
 
-/// The shared channel + group composer. Stateless because all state is
-/// transient or owned by the screen (`controller` + `sending` are passed
-/// in; the screen owns the `sending` flag + post-send invalidate).
+/// The shared DM + channel + group composer. Stateless because all state is
+/// transient or owned by the screen (`controller` + `sending` are passed in;
+/// the screen owns the `sending` flag + post-send invalidate).
 class ConversationComposer extends StatelessWidget {
   const ConversationComposer({
     super.key,
@@ -33,6 +33,13 @@ class ConversationComposer extends StatelessWidget {
     required this.attachLabel,
     required this.onAttach,
     required this.onAttachmentPickError,
+    required this.voiceRecordLabel,
+    required this.voiceDiscardLabel,
+    required this.voiceStopLabel,
+    required this.voicePlayLabel,
+    required this.voiceSendLabel,
+    required this.onSendVoice,
+    required this.onVoiceError,
   });
 
   final TextEditingController controller;
@@ -43,6 +50,13 @@ class ConversationComposer extends StatelessWidget {
   final String attachLabel;
   final AttachmentPickedCallback onAttach;
   final AttachmentPickErrorCallback onAttachmentPickError;
+  final String voiceRecordLabel;
+  final String voiceDiscardLabel;
+  final String voiceStopLabel;
+  final String voicePlayLabel;
+  final String voiceSendLabel;
+  final void Function(VoiceSend voice) onSendVoice;
+  final void Function(String message) onVoiceError;
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +77,20 @@ class ConversationComposer extends StatelessWidget {
                 ariaLabel: attachLabel,
                 onPick: onAttach,
                 onError: onAttachmentPickError,
+              ),
+              const SizedBox(width: 4),
+              // React Composer renders VoiceComposer after AttachmentPicker
+              // (ChatComposer.tsx L93-99). The mic is disabled while a send is
+              // in flight (mirrors React's `disabled` prop).
+              VoiceComposer(
+                disabled: sending,
+                onSend: onSendVoice,
+                onError: onVoiceError,
+                recordLabel: voiceRecordLabel,
+                discardLabel: voiceDiscardLabel,
+                stopLabel: voiceStopLabel,
+                playLabel: voicePlayLabel,
+                sendLabel: voiceSendLabel,
               ),
               const SizedBox(width: 4),
               Expanded(
