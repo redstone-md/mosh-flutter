@@ -90,14 +90,17 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
     // ~L305-313): title = the group label (or "Private group" fallback);
     // subtitle = is_admin ? `${adminBadge} · ` : ""
     //   + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`.
-    // Flutter `AppBar` (3.44) has no `subtitle:` slot, so the subtitle
-    // renders as the second line of a two-line `title:` Column (the
-    // idiomatic Flutter AppBar-with-subtitle pattern). Admin prefix (with
-    // the " · " separator) only when admin; member count with English
-    // plural ("1 member" vs "N members", selected by `memberCount ==
-    // BigInt.one` to mirror React's `member_count === 1`); then the
-    // " · MLS {state}" suffix via groupScreenMlsStateSuffix.
-    return AppBar(
+// Flutter `AppBar` (3.44) has no `subtitle:` slot, so the subtitle
+// renders as the second line of a two-line `title:` Column (the
+// idiomatic Flutter AppBar-with-subtitle pattern). Admin prefix (with
+// the " · " separator) only when admin; member count rendered via an
+// ICU MessageFormat plural ([AppLocalizations.membersCount], typed int
+// `count`) so the locale selects the correct form (English one/other;
+// Russian one/few/many) -- this CORRECTS the Russian grammar that the
+// prior naive binary plural (`memberCount == BigInt.one ? singular :
+// plural`) broke ("2 участников" -> "2 участника"); then the
+// " · MLS {state}" suffix via groupScreenMlsStateSuffix.
+return AppBar(
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -163,15 +166,20 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
 ///   is_admin ? `${adminBadge} · ` : ""
 ///   + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`
 /// Admin prefix (with the " · " separator) only when admin; the member
-/// count with English plural ("1 member" vs "N members", selected by
-/// `memberCount == BigInt.one` to mirror React's `member_count === 1`);
-/// then the " · MLS {state}" suffix from
+/// count rendered via an ICU MessageFormat plural
+/// ([AppLocalizations.membersCount], typed int `count`) so the locale
+/// selects the correct form (English one "1 member" / other "N members";
+/// Russian one "1 участник" / few "2 участника" / many "5 участников").
+/// This CORRECTS the prior naive binary plural (which selected a
+/// separate singular key when `memberCount == BigInt.one`) that
+/// mirrored React's inline ternary but was grammatically broken for
+/// Russian (rendered "2 участников" instead of "2 участника"); the
+/// former singular key was removed (the ICU `one` form now handles
+/// the singular). Then the " · MLS {state}" suffix from
 /// [AppLocalizations.groupScreenMlsStateSuffix].
 String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
   final n = group.memberCount.toInt();
-  final memberPart = group.memberCount == BigInt.one
-      ? l.membersCountSingular(n)
-      : l.membersCount(n);
+  final memberPart = l.membersCount(n);
   final adminPrefix = group.isAdmin ? '${l.groupAdminBadge} · ' : '';
   return '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
 }
