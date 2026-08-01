@@ -605,6 +605,11 @@
   },
   "deleteChatConfirm": "Удалить чат",
   "@deleteChatConfirm": {
-    "description": "Подпись кнопки подтверждения диалога удаления DM (React useChatCloseFlow, ветка dm, `confirmLabel`)"
+  "description": "Подпись кнопки подтверждения диалога удаления DM (React useChatCloseFlow, ветка dm, `confirmLabel`)"
+  }
+  ,
+  "closeViewer": "Закрыть просмотрщик",
+  "@closeViewer": {
+    "description": "Tooltip/aria-label of the close button in the shared MediaViewer (React inline 'Close viewer'; localized in the Flutter port)"
   }
 }
