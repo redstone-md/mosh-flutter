@@ -4,22 +4,23 @@
 // widgets depend on `Gateway`, never on a concrete impl, so swapping the
 // wired runtime is one provider change (ADR 0013).
 //
-// The twenty-eight methods below mirror the slice-one Rust `mosh_core::api`
-// surface 1:1, poll-based (no streams). Signatures match the generated frb
-// functions. The channels/groups read seam adds pollChannel/listChannels/
-// pollGroup/listGroups; the channels/groups write seam adds joinChannel/
-// sendChannel/leaveChannel/sendGroup/closeGroup/createGroup/joinGroup/
+// The thirty methods below mirror the slice-one Rust `mosh_core::api` surface
+// 1:1, poll-based (no streams). Signatures match the generated frb functions.
+// The channels/groups read seam adds pollChannel/listChannels/pollGroup/
+// listGroups; the channels/groups write seam adds joinChannel/sendChannel/
+// leaveChannel/sendGroup/closeGroup/createGroup/joinGroup/
 // dismissChannelDmOffer/dismissGroupDmOffer/downloadChannelAttachment/
-// cancelChannelAttachment/downloadGroupAttachment/cancelGroupAttachment; the
-// org write seam adds joinOrg. The remaining write halves (sendAttachment/
-// dm-offer SEND/listInterfaces/VPN) land in later atomics -- the frb
-// functions for them already exist in `lib/src/rust/api/`; only the Gateway
-// seam + UI wiring is missing.
+// cancelChannelAttachment/downloadGroupAttachment/cancelGroupAttachment/
+// sendChannelAttachment/sendGroupAttachment; the org write seam adds joinOrg.
+// The remaining write halves (dm-offer SEND/listInterfaces/VPN) land in later
+// atomics -- the frb functions for them already exist in `lib/src/rust/api/`;
+// only the Gateway seam + UI wiring is missing.
 
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
+import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 
 /// Abstraction over the slice-one private-DM + diagnostics API.
@@ -84,6 +85,29 @@ abstract interface class Gateway {
   Future<void> cancelChannelAttachment({required String name, required String attachmentId});
   Future<void> downloadGroupAttachment({required String groupId, required String attachmentId});
   Future<void> cancelGroupAttachment({required String groupId, required String attachmentId});
+  // Channel/group attachment SEND (1:1 port of channel_send_attachment +
+  // private_group_send_attachment). The composer reads a picked file into
+  // base64 (+ optional thumbnailBase64 / VoiceMeta for voice) and sends.
+  // Returns an AttachmentSendResult (attachmentId + contentHash) the screen
+  // uses to invalidate the snapshot so the next poll renders the new row.
+  // Note: DM send is NOT frb-bound in this fork (no send_private_attachment),
+  // so DM attachment-send stays deferred on Rust; channel/group are wired.
+  Future<AttachmentSendResult> sendChannelAttachment({
+    required String name,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  });
+  Future<AttachmentSendResult> sendGroupAttachment({
+    required String groupId,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  });
 
   // Org write seam (1:1 port of `org_join`). `joinOrg` is the fourth slice-3
   // write seam -- joins an org from a `mosh://org` bundle URI. Unlike the
