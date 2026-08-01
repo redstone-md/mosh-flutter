@@ -1,481 +1,1047 @@
 {
   "@@locale": "en",
   "shellProductName": "MOSH",
-  "@shellProductName": { "description": "Product name shown in the app shell" },
+  "@shellProductName": {
+    "description": "Product name shown in the app shell"
+  },
   "shellWindowSubtitle": "Private DM · OpenMLS over Moss",
-  "@shellWindowSubtitle": { "description": "Window subtitle shown in the app shell" },
+  "@shellWindowSubtitle": {
+    "description": "Window subtitle shown in the app shell"
+  },
   "shellNewSession": "New",
-  "@shellNewSession": { "description": "Label for starting a new session" },
+  "@shellNewSession": {
+    "description": "Label for starting a new session"
+  },
   "shellCloseSession": "Close session",
-  "@shellCloseSession": { "description": "Label for closing the active session" },
+  "@shellCloseSession": {
+    "description": "Label for closing the active session"
+  },
   "shellNoActive": "No active session",
-  "@shellNoActive": { "description": "Shown when no session is active" },
+  "@shellNoActive": {
+    "description": "Shown when no session is active"
+  },
   "setupSectionTitle": "Session setup",
-  "@setupSectionTitle": { "description": "Title of the session setup section" },
+  "@setupSectionTitle": {
+    "description": "Title of the session setup section"
+  },
   "setupDisplayNameLabel": "Your display name",
-  "@setupDisplayNameLabel": { "description": "Label for the display name field" },
+  "@setupDisplayNameLabel": {
+    "description": "Label for the display name field"
+  },
   "setupDisplayNamePlaceholder": "e.g. juno-laptop",
-  "@setupDisplayNamePlaceholder": { "description": "Placeholder for the display name field" },
+  "@setupDisplayNamePlaceholder": {
+    "description": "Placeholder for the display name field"
+  },
   "setupStaticPeerLabel": "Static peer (optional)",
-  "@setupStaticPeerLabel": { "description": "Label for the static peer field" },
+  "@setupStaticPeerLabel": {
+    "description": "Label for the static peer field"
+  },
   "setupStaticPeerPlaceholder": "host:port — bypass trackers, direct dial",
-  "@setupStaticPeerPlaceholder": { "description": "Placeholder for the static peer field" },
+  "@setupStaticPeerPlaceholder": {
+    "description": "Placeholder for the static peer field"
+  },
   "setupStaticPeerHint": "Empty = Moss public trackers + NAT punch.",
-  "@setupStaticPeerHint": { "description": "Hint shown for the static peer field" },
+  "@setupStaticPeerHint": {
+    "description": "Hint shown for the static peer field"
+  },
   "setupListenPortLabel": "Listen port",
-  "@setupListenPortLabel": { "description": "Label for the listen port field" },
+  "@setupListenPortLabel": {
+    "description": "Label for the listen port field"
+  },
   "setupListenPortHint": "0 = OS picks",
-  "@setupListenPortHint": { "description": "Hint shown for the listen port field" },
+  "@setupListenPortHint": {
+    "description": "Hint shown for the listen port field"
+  },
   "inviteNewSessionTitle": "Start a private chat",
-  "@inviteNewSessionTitle": { "description": "Title shown when starting a new session invite flow" },
+  "@inviteNewSessionTitle": {
+    "description": "Title shown when starting a new session invite flow"
+  },
   "inviteCreateSectionTitle": "Invite a friend",
-  "@inviteCreateSectionTitle": { "description": "Heading of the invite-create section" },
+  "@inviteCreateSectionTitle": {
+    "description": "Heading of the invite-create section"
+  },
   "inviteCreateHint": "Generates a one-time invite URI. Share it any channel you trust.",
-  "@inviteCreateHint": { "description": "Hint explaining how invite creation works" },
+  "@inviteCreateHint": {
+    "description": "Hint explaining how invite creation works"
+  },
   "inviteCreateButton": "Create invite",
-  "@inviteCreateButton": { "description": "Button label for creating an invite" },
+  "@inviteCreateButton": {
+    "description": "Button label for creating an invite"
+  },
   "inviteRecreateButton": "Replace invite",
-  "@inviteRecreateButton": { "description": "Button label for replacing an invite" },
+  "@inviteRecreateButton": {
+    "description": "Button label for replacing an invite"
+  },
   "inviteCopyButton": "Copy",
-  "@inviteCopyButton": { "description": "Button label for copying an invite" },
+  "@inviteCopyButton": {
+    "description": "Button label for copying an invite"
+  },
   "inviteCopiedButton": "Copied",
-  "@inviteCopiedButton": { "description": "Button label after copying an invite" },
+  "@inviteCopiedButton": {
+    "description": "Button label after copying an invite"
+  },
   "inviteJoinSectionTitle": "Join via invite",
-  "@inviteJoinSectionTitle": { "description": "Heading of the join-via-invite section" },
+  "@inviteJoinSectionTitle": {
+    "description": "Heading of the join-via-invite section"
+  },
   "inviteJoinHint": "Paste the mosh:// URI your friend sent you.",
-  "@inviteJoinHint": { "description": "Hint explaining how to join via invite" },
+  "@inviteJoinHint": {
+    "description": "Hint explaining how to join via invite"
+  },
   "inviteJoinPlaceholder": "mosh://invite?mesh=...&session=...#fp=...",
-  "@inviteJoinPlaceholder": { "description": "Placeholder for the join-via-invite field" },
+  "@inviteJoinPlaceholder": {
+    "description": "Placeholder for the join-via-invite field"
+  },
   "inviteJoinButton": "Connect",
-  "@inviteJoinButton": { "description": "Button label for joining an invite" },
+  "@inviteJoinButton": {
+    "description": "Button label for joining an invite"
+  },
   "inviteFingerprintLabel": "Peer fingerprint",
-  "@inviteFingerprintLabel": { "description": "Label for the peer fingerprint field" },
+  "@inviteFingerprintLabel": {
+    "description": "Label for the peer fingerprint field"
+  },
   "inviteFingerprintHint": "Verify out-of-band (voice / in person). Then click confirm.",
-  "@inviteFingerprintHint": { "description": "Hint explaining fingerprint verification" },
+  "@inviteFingerprintHint": {
+    "description": "Hint explaining fingerprint verification"
+  },
   "inviteConfirmButton": "Confirm fingerprint",
-  "@inviteConfirmButton": { "description": "Button label for confirming a fingerprint" },
+  "@inviteConfirmButton": {
+    "description": "Button label for confirming a fingerprint"
+  },
   "inviteConfirmedButton": "Fingerprint confirmed",
-  "@inviteConfirmedButton": { "description": "Button label after a fingerprint is confirmed" },
+  "@inviteConfirmedButton": {
+    "description": "Button label after a fingerprint is confirmed"
+  },
   "chatEmptyTitle": "No messages yet.",
-  "@chatEmptyTitle": { "description": "Title shown when a chat has no messages" },
+  "@chatEmptyTitle": {
+    "description": "Title shown when a chat has no messages"
+  },
   "chatEmptyBody": "Once the peer joins and MLS handshake finishes, plaintext stays only on your devices.",
-  "@chatEmptyBody": { "description": "Body shown when a chat has no messages" },
+  "@chatEmptyBody": {
+    "description": "Body shown when a chat has no messages"
+  },
   "chatComposerPlaceholder": "Write a message…",
-  "@chatComposerPlaceholder": { "description": "Placeholder for the message composer" },
+  "@chatComposerPlaceholder": {
+    "description": "Placeholder for the message composer"
+  },
   "chatSendLabel": "Send",
-  "@chatSendLabel": { "description": "Label for the send button" },
+  "@chatSendLabel": {
+    "description": "Label for the send button"
+  },
   "chatAttachLabel": "Attach a file",
-  "@chatAttachLabel": { "description": "Label for the attach-file button" },
+  "@chatAttachLabel": {
+    "description": "Label for the attach-file button"
+  },
   "chatDropHint": "Drop a file to share it",
-  "@chatDropHint": { "description": "Hint shown when dragging a file over the composer" },
+  "@chatDropHint": {
+    "description": "Hint shown when dragging a file over the composer"
+  },
   "chatSearchPlaceholder": "Search messages",
-  "@chatSearchPlaceholder": { "description": "Placeholder for the message search field" },
+  "@chatSearchPlaceholder": {
+    "description": "Placeholder for the message search field"
+  },
   "chatFilterAll": "All",
-  "@chatFilterAll": { "description": "Filter option showing all messages" },
+  "@chatFilterAll": {
+    "description": "Filter option showing all messages"
+  },
   "chatFilterAttachments": "Files",
-  "@chatFilterAttachments": { "description": "Filter option showing only attachments" },
+  "@chatFilterAttachments": {
+    "description": "Filter option showing only attachments"
+  },
   "chatSearchEmptyTitle": "No matching messages.",
-  "@chatSearchEmptyTitle": { "description": "Title shown when search has no results" },
+  "@chatSearchEmptyTitle": {
+    "description": "Title shown when search has no results"
+  },
   "chatSearchEmptyBody": "Try another search or switch back to all messages.",
-  "@chatSearchEmptyBody": { "description": "Body shown when search has no results" },
+  "@chatSearchEmptyBody": {
+    "description": "Body shown when search has no results"
+  },
   "chatAttachmentEmptyBody": "No attachments match this view.",
-  "@chatAttachmentEmptyBody": { "description": "Body shown when no attachments match the filter" },
+  "@chatAttachmentEmptyBody": {
+    "description": "Body shown when no attachments match the filter"
+  },
   "chatCryptoFooter": "OpenMLS sealed · ciphertext over Moss gossip",
-  "@chatCryptoFooter": { "description": "Footer noting the cryptographic transport" },
+  "@chatCryptoFooter": {
+    "description": "Footer noting the cryptographic transport"
+  },
   "chatNoSessionTitle": "Welcome to Mosh.",
-  "@chatNoSessionTitle": { "description": "Title shown on the no-session welcome screen" },
+  "@chatNoSessionTitle": {
+    "description": "Title shown on the no-session welcome screen"
+  },
   "chatNoSessionBody": "Create an invite or paste one to start your first encrypted conversation.",
-  "@chatNoSessionBody": { "description": "Body shown on the no-session welcome screen" },
+  "@chatNoSessionBody": {
+    "description": "Body shown on the no-session welcome screen"
+  },
   "chatStartCta": "New private chat",
-  "@chatStartCta": { "description": "Call to action for starting a new private chat" },
+  "@chatStartCta": {
+    "description": "Call to action for starting a new private chat"
+  },
   "stateIdle": "Idle",
-  "@stateIdle": { "description": "State label for the idle connection state" },
+  "@stateIdle": {
+    "description": "State label for the idle connection state"
+  },
   "stateWaiting": "Waiting",
-  "@stateWaiting": { "description": "State label for the waiting connection state" },
- "stateReady": "Connected",
- "@stateReady": { "description": "State label for the ready connection state" },
- "sessionsListTitle": "Conversations",
- "@sessionsListTitle": { "description": "AppBar title of the DM sessions list screen" },
- "sessionsError": "Could not load sessions.",
- "@sessionsError": { "description": "Error message shown when loading the session list fails" },
- "sessionsRetry": "Retry",
- "@sessionsRetry": { "description": "Button label for retrying the sessions list fetch" },
- "cryptoNoticeTitle": "End-to-end encrypted",
- "@cryptoNoticeTitle": { "description": "Title of the end-to-end encryption notice" },
+  "@stateWaiting": {
+    "description": "State label for the waiting connection state"
+  },
+  "stateReady": "Connected",
+  "@stateReady": {
+    "description": "State label for the ready connection state"
+  },
+  "sessionsListTitle": "Conversations",
+  "@sessionsListTitle": {
+    "description": "AppBar title of the DM sessions list screen"
+  },
+  "sessionsError": "Could not load sessions.",
+  "@sessionsError": {
+    "description": "Error message shown when loading the session list fails"
+  },
+  "sessionsRetry": "Retry",
+  "@sessionsRetry": {
+    "description": "Button label for retrying the sessions list fetch"
+  },
+  "cryptoNoticeTitle": "End-to-end encrypted",
+  "@cryptoNoticeTitle": {
+    "description": "Title of the end-to-end encryption notice"
+  },
   "cryptoNoticeBody": "OpenMLS protects message content. Moss carries ciphertext via public trackers + supernodes for NAT punching — peer discovery metadata is NOT hidden.",
-  "@cryptoNoticeBody": { "description": "Body of the end-to-end encryption notice" },
+  "@cryptoNoticeBody": {
+    "description": "Body of the end-to-end encryption notice"
+  },
   "groupCreateCardTitle": "Create private group",
-  "@groupCreateCardTitle": { "description": "Title of the create-group card" },
+  "@groupCreateCardTitle": {
+    "description": "Title of the create-group card"
+  },
   "groupCreateHint": "MLS-encrypted N-member group with random mesh id. Only people you share the invite with can join. You are the admin until membership control is added.",
-  "@groupCreateHint": { "description": "Hint explaining group creation" },
+  "@groupCreateHint": {
+    "description": "Hint explaining group creation"
+  },
   "groupLabelLabel": "Group name (optional)",
-  "@groupLabelLabel": { "description": "Label for the group name field" },
+  "@groupLabelLabel": {
+    "description": "Label for the group name field"
+  },
   "groupLabelHint": "Human-readable label embedded in the invite URI.",
-  "@groupLabelHint": { "description": "Hint for the group name field" },
+  "@groupLabelHint": {
+    "description": "Hint for the group name field"
+  },
   "groupLabelPlaceholder": "Friends, work, etc.",
-  "@groupLabelPlaceholder": { "description": "Placeholder for the group name field" },
+  "@groupLabelPlaceholder": {
+    "description": "Placeholder for the group name field"
+  },
   "groupCreateButton": "Create group",
-  "@groupCreateButton": { "description": "Button label for creating a group" },
+  "@groupCreateButton": {
+    "description": "Button label for creating a group"
+  },
   "groupRecreateButton": "Replace group invite",
-  "@groupRecreateButton": { "description": "Button label for replacing a group invite" },
+  "@groupRecreateButton": {
+    "description": "Button label for replacing a group invite"
+  },
   "groupJoinCardTitle": "Join private group",
-  "@groupJoinCardTitle": { "description": "Title of the join-group card" },
+  "@groupJoinCardTitle": {
+    "description": "Title of the join-group card"
+  },
   "groupJoinHint": "Paste a mosh://group invite URI from the admin.",
-  "@groupJoinHint": { "description": "Hint explaining how to join a group" },
+  "@groupJoinHint": {
+    "description": "Hint explaining how to join a group"
+  },
   "groupJoinPlaceholder": "mosh://group?mesh=...&group=...&name=...#fp=...",
-  "@groupJoinPlaceholder": { "description": "Placeholder for the join-group field" },
+  "@groupJoinPlaceholder": {
+    "description": "Placeholder for the join-group field"
+  },
   "groupJoinButton": "Join group",
-  "@groupJoinButton": { "description": "Button label for joining a group" },
+  "@groupJoinButton": {
+    "description": "Button label for joining a group"
+  },
   "groupNoticeTitle": "End-to-end encrypted group",
-  "@groupNoticeTitle": { "description": "Title of the group encryption notice" },
+  "@groupNoticeTitle": {
+    "description": "Title of the group encryption notice"
+  },
   "groupNoticeBody": "OpenMLS protects message content. Only members the admin has admitted can decrypt. New members do not see prior history.",
-  "@groupNoticeBody": { "description": "Body of the group encryption notice" },
+  "@groupNoticeBody": {
+    "description": "Body of the group encryption notice"
+  },
   "groupEmptyTitle": "No messages in this group yet.",
-  "@groupEmptyTitle": { "description": "Title shown when a group has no messages" },
+  "@groupEmptyTitle": {
+    "description": "Title shown when a group has no messages"
+  },
   "groupEmptyBody": "Once members join via invite, the admin admits them and they decrypt messages from this point onward.",
-  "@groupEmptyBody": { "description": "Body shown when a group has no messages" },
+  "@groupEmptyBody": {
+    "description": "Body shown when a group has no messages"
+  },
   "groupAdminBadge": "admin",
-  "@groupAdminBadge": { "description": "Badge marking a group admin" },
+  "@groupAdminBadge": {
+    "description": "Badge marking a group admin"
+  },
   "groupLeaveLabel": "Leave group",
-  "@groupLeaveLabel": { "description": "Label for the leave-group button" },
+  "@groupLeaveLabel": {
+    "description": "Label for the leave-group button"
+  },
   "groupCopyInvite": "Copy invite",
-  "@groupCopyInvite": { "description": "Button label for copying a group invite" },
+  "@groupCopyInvite": {
+    "description": "Button label for copying a group invite"
+  },
   "groupCopyInviteDone": "Invite copied",
-  "@groupCopyInviteDone": { "description": "Button label after copying a group invite" },
+  "@groupCopyInviteDone": {
+    "description": "Button label after copying a group invite"
+  },
   "groupUntitled": "Private group",
-  "@groupUntitled": { "description": "Fallback title for an unnamed group" },
+  "@groupUntitled": {
+    "description": "Fallback title for an unnamed group"
+  },
   "onboardTitle": "Start a conversation",
-  "@onboardTitle": { "description": "Title of the onboarding screen" },
+  "@onboardTitle": {
+    "description": "Title of the onboarding screen"
+  },
   "onboardSubtitle": "Pick how you want to connect. Private chats and groups are end-to-end encrypted; public channels are open.",
-  "@onboardSubtitle": { "description": "Subtitle of the onboarding screen" },
+  "@onboardSubtitle": {
+    "description": "Subtitle of the onboarding screen"
+  },
   "onboardIdentityHint": "This is how peers see you",
-  "@onboardIdentityHint": { "description": "Hint for the identity field on onboarding" },
+  "@onboardIdentityHint": {
+    "description": "Hint for the identity field on onboarding"
+  },
   "onboardStartLabel": "Start",
-  "@onboardStartLabel": { "description": "Label for the start action on onboarding" },
+  "@onboardStartLabel": {
+    "description": "Label for the start action on onboarding"
+  },
   "onboardJoinLabel": "Join",
-  "@onboardJoinLabel": { "description": "Label for the join action on onboarding" },
+  "@onboardJoinLabel": {
+    "description": "Label for the join action on onboarding"
+  },
   "onboardBack": "Back",
-  "@onboardBack": { "description": "Label for the back navigation on onboarding" },
+  "@onboardBack": {
+    "description": "Label for the back navigation on onboarding"
+  },
   "onboardAdvancedToggle": "Advanced connection settings",
-  "@onboardAdvancedToggle": { "description": "Toggle label for advanced connection settings" },
+  "@onboardAdvancedToggle": {
+    "description": "Toggle label for advanced connection settings"
+  },
   "onboardAboutToggle": "How Mosh protects you",
-  "@onboardAboutToggle": { "description": "Toggle label for the about-protection panel" },
+  "@onboardAboutToggle": {
+    "description": "Toggle label for the about-protection panel"
+  },
   "onboardTileChatTitle": "New private chat",
-  "@onboardTileChatTitle": { "description": "Title of the private-chat onboarding tile" },
+  "@onboardTileChatTitle": {
+    "description": "Title of the private-chat onboarding tile"
+  },
   "onboardTileChatDesc": "One-to-one, end-to-end encrypted",
-  "@onboardTileChatDesc": { "description": "Description of the private-chat onboarding tile" },
+  "@onboardTileChatDesc": {
+    "description": "Description of the private-chat onboarding tile"
+  },
   "onboardTileGroupTitle": "New group",
-  "@onboardTileGroupTitle": { "description": "Title of the new-group onboarding tile" },
+  "@onboardTileGroupTitle": {
+    "description": "Title of the new-group onboarding tile"
+  },
   "onboardTileGroupDesc": "Encrypted group — you are the admin",
-  "@onboardTileGroupDesc": { "description": "Description of the new-group onboarding tile" },
+  "@onboardTileGroupDesc": {
+    "description": "Description of the new-group onboarding tile"
+  },
   "onboardTileJoinTitle": "Join with a link",
-  "@onboardTileJoinTitle": { "description": "Title of the join-with-link onboarding tile" },
+  "@onboardTileJoinTitle": {
+    "description": "Title of the join-with-link onboarding tile"
+  },
   "onboardTileJoinDesc": "Paste an invite a friend sent you",
-  "@onboardTileJoinDesc": { "description": "Description of the join-with-link onboarding tile" },
+  "@onboardTileJoinDesc": {
+    "description": "Description of the join-with-link onboarding tile"
+  },
   "onboardTileChannelTitle": "Join a public channel",
-  "@onboardTileChannelTitle": { "description": "Title of the public-channel onboarding tile" },
+  "@onboardTileChannelTitle": {
+    "description": "Title of the public-channel onboarding tile"
+  },
   "onboardTileChannelDesc": "Open broadcast room, joined by name",
-  "@onboardTileChannelDesc": { "description": "Description of the public-channel onboarding tile" },
+  "@onboardTileChannelDesc": {
+    "description": "Description of the public-channel onboarding tile"
+  },
   "onboardChatStepBody": "Create a one-time invite link, then send it to one person over any channel you trust.",
-  "@onboardChatStepBody": { "description": "Body of the chat step in onboarding" },
+  "@onboardChatStepBody": {
+    "description": "Body of the chat step in onboarding"
+  },
   "onboardChatCreate": "Create invite link",
-  "@onboardChatCreate": { "description": "Button label to create a chat invite link" },
+  "@onboardChatCreate": {
+    "description": "Button label to create a chat invite link"
+  },
   "onboardChatRecreate": "Replace invite link",
-  "@onboardChatRecreate": { "description": "Button label to replace a chat invite link" },
+  "@onboardChatRecreate": {
+    "description": "Button label to replace a chat invite link"
+  },
   "onboardInviteReady": "Invite ready — share it with one person.",
-  "@onboardInviteReady": { "description": "Status shown when a chat invite is ready" },
+  "@onboardInviteReady": {
+    "description": "Status shown when a chat invite is ready"
+  },
   "onboardGroupStepBody": "Spin up an MLS-encrypted group. You admit members and stay the admin.",
-  "@onboardGroupStepBody": { "description": "Body of the group step in onboarding" },
+  "@onboardGroupStepBody": {
+    "description": "Body of the group step in onboarding"
+  },
   "onboardGroupNamePlaceholder": "Group name (optional)",
-  "@onboardGroupNamePlaceholder": { "description": "Placeholder for the group name field on onboarding" },
+  "@onboardGroupNamePlaceholder": {
+    "description": "Placeholder for the group name field on onboarding"
+  },
   "onboardGroupCreate": "Create group",
-  "@onboardGroupCreate": { "description": "Button label to create a group on onboarding" },
+  "@onboardGroupCreate": {
+    "description": "Button label to create a group on onboarding"
+  },
   "onboardGroupRecreate": "Replace group invite",
-  "@onboardGroupRecreate": { "description": "Button label to replace a group invite on onboarding" },
+  "@onboardGroupRecreate": {
+    "description": "Button label to replace a group invite on onboarding"
+  },
   "onboardGroupInviteReady": "Group invite ready — send it to the people you want in.",
-  "@onboardGroupInviteReady": { "description": "Status shown when a group invite is ready" },
+  "@onboardGroupInviteReady": {
+    "description": "Status shown when a group invite is ready"
+  },
   "onboardJoinStepBody": "Paste a mosh:// invite link. Mosh detects whether it opens a private chat or a group.",
-  "@onboardJoinStepBody": { "description": "Body of the join step in onboarding" },
+  "@onboardJoinStepBody": {
+    "description": "Body of the join step in onboarding"
+  },
   "onboardJoinPlaceholder": "mosh://invite?…  or  mosh://group?…",
-  "@onboardJoinPlaceholder": { "description": "Placeholder for the join step field on onboarding" },
+  "@onboardJoinPlaceholder": {
+    "description": "Placeholder for the join step field on onboarding"
+  },
   "onboardJoinDetectChat": "Private chat invite detected",
-  "@onboardJoinDetectChat": { "description": "Detection message for a private-chat invite" },
+  "@onboardJoinDetectChat": {
+    "description": "Detection message for a private-chat invite"
+  },
   "onboardJoinDetectGroup": "Group invite detected",
-  "@onboardJoinDetectGroup": { "description": "Detection message for a group invite" },
+  "@onboardJoinDetectGroup": {
+    "description": "Detection message for a group invite"
+  },
   "onboardJoinDetectOrg": "Organization bundle detected",
-  "@onboardJoinDetectOrg": { "description": "Detection message for an organization bundle" },
+  "@onboardJoinDetectOrg": {
+    "description": "Detection message for an organization bundle"
+  },
   "onboardJoinDetectNone": "Waiting for a mosh:// link…",
-  "@onboardJoinDetectNone": { "description": "Detection message while waiting for a link" },
+  "@onboardJoinDetectNone": {
+    "description": "Detection message while waiting for a link"
+  },
   "onboardJoinDetectBad": "That does not look like a mosh:// invite",
-  "@onboardJoinDetectBad": { "description": "Detection message for an invalid invite" },
+  "@onboardJoinDetectBad": {
+    "description": "Detection message for an invalid invite"
+  },
   "onboardJoinConnect": "Connect",
-  "@onboardJoinConnect": { "description": "Button label to connect via a joined invite" },
+  "@onboardJoinConnect": {
+    "description": "Button label to connect via a joined invite"
+  },
   "onboardChannelStepBody": "Public channels are not end-to-end encrypted — anyone who knows the name can read along.",
-  "@onboardChannelStepBody": { "description": "Body of the channel step in onboarding" },
+  "@onboardChannelStepBody": {
+    "description": "Body of the channel step in onboarding"
+  },
   "onboardChannelPlaceholder": "channel-name",
-  "@onboardChannelPlaceholder": { "description": "Placeholder for the channel name field on onboarding" },
+  "@onboardChannelPlaceholder": {
+    "description": "Placeholder for the channel name field on onboarding"
+  },
   "onboardChannelJoin": "Join channel",
-  "@onboardChannelJoin": { "description": "Button label to join a channel on onboarding" },
+  "@onboardChannelJoin": {
+    "description": "Button label to join a channel on onboarding"
+  },
   "onboardCopyLink": "Copy link",
-  "@onboardCopyLink": { "description": "Button label to copy a link on onboarding" },
+  "@onboardCopyLink": {
+    "description": "Button label to copy a link on onboarding"
+  },
   "onboardCopied": "Copied",
-  "@onboardCopied": { "description": "Button label after copying a link on onboarding" },
+  "@onboardCopied": {
+    "description": "Button label after copying a link on onboarding"
+  },
   "channelCardTitle": "Join a public channel",
-  "@channelCardTitle": { "description": "Title of the join-channel card" },
+  "@channelCardTitle": {
+    "description": "Title of the join-channel card"
+  },
   "channelCardHint": "Type a channel name to subscribe. Anyone who knows the name can join. Messages are NOT end-to-end encrypted — only Moss transport (Noise) protects in-flight bytes.",
-  "@channelCardHint": { "description": "Hint explaining how public channels work" },
+  "@channelCardHint": {
+    "description": "Hint explaining how public channels work"
+  },
   "channelNameLabel": "Channel name",
-  "@channelNameLabel": { "description": "Label for the channel name field" },
+  "@channelNameLabel": {
+    "description": "Label for the channel name field"
+  },
   "channelNamePlaceholder": "@mosh-dev",
-  "@channelNamePlaceholder": { "description": "Placeholder for the channel name field" },
+  "@channelNamePlaceholder": {
+    "description": "Placeholder for the channel name field"
+  },
   "channelJoinButton": "Join channel",
-  "@channelJoinButton": { "description": "Button label for joining a channel" },
+  "@channelJoinButton": {
+    "description": "Button label for joining a channel"
+  },
   "channelSubtitle": "Public channel · plaintext over Moss",
-  "@channelSubtitle": { "description": "Subtitle shown on the channel view" },
+  "@channelSubtitle": {
+    "description": "Subtitle shown on the channel view"
+  },
   "channelLeaveLabel": "Leave channel",
-  "@channelLeaveLabel": { "description": "Label for the leave-channel button" },
+  "@channelLeaveLabel": {
+    "description": "Label for the leave-channel button"
+  },
   "channelBroadcastBadge": "Broadcast",
-  "@channelBroadcastBadge": { "description": "Badge marking a broadcast channel" },
+  "@channelBroadcastBadge": {
+    "description": "Badge marking a broadcast channel"
+  },
   "channelNoticeTitle": "Public channel",
-  "@channelNoticeTitle": { "description": "Title of the public-channel notice" },
+  "@channelNoticeTitle": {
+    "description": "Title of the public-channel notice"
+  },
   "channelNoticeBody": "Not end-to-end encrypted. Anyone who joins this channel can read messages. Your device fingerprint is shown next to each message you publish.",
-  "@channelNoticeBody": { "description": "Body of the public-channel notice" },
+  "@channelNoticeBody": {
+    "description": "Body of the public-channel notice"
+  },
   "channelEmptyTitle": "No messages in this channel yet.",
-  "@channelEmptyTitle": { "description": "Title shown when a channel has no messages" },
+  "@channelEmptyTitle": {
+    "description": "Title shown when a channel has no messages"
+  },
   "channelEmptyBody": "Say hi. Anyone subscribed to this channel will see your message.",
-  "@channelEmptyBody": { "description": "Body shown when a channel has no messages" },
+  "@channelEmptyBody": {
+    "description": "Body shown when a channel has no messages"
+  },
   "orgLeave": "Leave organization",
-  "@orgLeave": { "description": "Label for leaving an organization" },
+  "@orgLeave": {
+    "description": "Label for leaving an organization"
+  },
   "orgPendingHint": "Your confirmation code — give it to your admin",
-  "@orgPendingHint": { "description": "Hint shown for a pending organization confirmation" },
+  "@orgPendingHint": {
+    "description": "Hint shown for a pending organization confirmation"
+  },
   "orgDmOffer": "wants to chat",
-  "@orgDmOffer": { "description": "Offer text for a direct-message request from an org member" },
+  "@orgDmOffer": {
+    "description": "Offer text for a direct-message request from an org member"
+  },
   "orgGroupOffer": "Org group",
-  "@orgGroupOffer": { "description": "Label for an organization group offer" },
+  "@orgGroupOffer": {
+    "description": "Label for an organization group offer"
+  },
   "orgGroupOfferFrom": "invited by",
-  "@orgGroupOfferFrom": { "description": "Text attributing who invited a group" },
+  "@orgGroupOfferFrom": {
+    "description": "Text attributing who invited a group"
+  },
   "orgMemberDmHint": "Message",
-  "@orgMemberDmHint": { "description": "Hint for messaging an org member" },
+  "@orgMemberDmHint": {
+    "description": "Hint for messaging an org member"
+  },
   "orgYouBadge": "you",
-  "@orgYouBadge": { "description": "Badge marking the current user" },
+  "@orgYouBadge": {
+    "description": "Badge marking the current user"
+  },
   "orgAdminBadge": "Org admin",
-  "@orgAdminBadge": { "description": "Badge marking an organization admin" },
+  "@orgAdminBadge": {
+    "description": "Badge marking an organization admin"
+  },
   "orgRevokedBadge": "no longer in",
-  "@orgRevokedBadge": { "description": "Badge marking a revoked member" },
+  "@orgRevokedBadge": {
+    "description": "Badge marking a revoked member"
+  },
   "orgAddMissing": "Add to group",
-  "@orgAddMissing": { "description": "Button label to add missing members to a group" },
+  "@orgAddMissing": {
+    "description": "Button label to add missing members to a group"
+  },
   "orgMissingOne": "roster member not in this group",
-  "@orgMissingOne": { "description": "Status text for one missing roster member" },
+  "@orgMissingOne": {
+    "description": "Status text for one missing roster member"
+  },
   "orgMissingMany": "roster members not in this group",
-  "@orgMissingMany": { "description": "Status text for several missing roster members" },
+  "@orgMissingMany": {
+    "description": "Status text for several missing roster members"
+  },
   "orgNewGroup": "New org group",
-  "@orgNewGroup": { "description": "Button label to create a new org group" },
+  "@orgNewGroup": {
+    "description": "Button label to create a new org group"
+  },
   "orgNewGroupPlaceholder": "new group name",
-  "@orgNewGroupPlaceholder": { "description": "Placeholder for the new org group field" },
+  "@orgNewGroupPlaceholder": {
+    "description": "Placeholder for the new org group field"
+  },
   "orgRejoinNeededTitle": "Group out of sync",
-  "@orgRejoinNeededTitle": { "description": "Title of the rejoin-needed notice" },
+  "@orgRejoinNeededTitle": {
+    "description": "Title of the rejoin-needed notice"
+  },
   "orgRejoinNeededBody": "This group missed membership changes that could not be replayed. Ask an admin to re-invite you from the roster.",
-  "@orgRejoinNeededBody": { "description": "Body of the rejoin-needed notice" },
+  "@orgRejoinNeededBody": {
+    "description": "Body of the rejoin-needed notice"
+  },
   "diagnosticsDiagnostics": "Diagnostics",
-  "@diagnosticsDiagnostics": { "description": "AppBar title of the diagnostics screen" },
+  "@diagnosticsDiagnostics": {
+    "description": "AppBar title of the diagnostics screen"
+  },
   "attachmentStateAvailable": "Available",
-  "@attachmentStateAvailable": { "description": "Attachment transfer state label: file bytes are on disk locally" },
+  "@attachmentStateAvailable": {
+    "description": "Attachment transfer state label: file bytes are on disk locally"
+  },
   "attachmentStateDownloading": "Downloading {percent}%",
-  "@attachmentStateDownloading": { "description": "Attachment transfer state label: chunks are in flight, {percent} of chunks completed", "placeholders": { "percent": { "type": "int" } } },
+  "@attachmentStateDownloading": {
+    "description": "Attachment transfer state label: chunks are in flight, {percent} of chunks completed",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "attachmentStateFailed": "Transfer failed",
-  "@attachmentStateFailed": { "description": "Attachment transfer state label: transfer or verification failed, retry is possible" },
+  "@attachmentStateFailed": {
+    "description": "Attachment transfer state label: transfer or verification failed, retry is possible"
+  },
   "attachmentStateCancelled": "Transfer cancelled",
-  "@attachmentStateCancelled": { "description": "Attachment transfer state label: either side cancelled the transfer" },
+  "@attachmentStateCancelled": {
+    "description": "Attachment transfer state label: either side cancelled the transfer"
+  },
   "attachmentStateOffered": "Ready to download",
-  "@attachmentStateOffered": { "description": "Attachment transfer state label: manifest known, download not started yet" },
- "unreadBadge": "{count} unread",
-  "@unreadBadge": { "description": "Accessibility label for the unread-message count badge on a DM session row", "placeholders": { "count": { "type": "int" } } },
+  "@attachmentStateOffered": {
+    "description": "Attachment transfer state label: manifest known, download not started yet"
+  },
+  "unreadBadge": "{count} unread",
+  "@unreadBadge": {
+    "description": "Accessibility label for the unread-message count badge on a DM session row",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "mlsBadgeLabel": "OpenMLS protected",
-  "@mlsBadgeLabel": { "description": "Screen-reader label for the MLS badge shown next to a message sender name, indicating OpenMLS end-to-end encryption" },
+  "@mlsBadgeLabel": {
+    "description": "Screen-reader label for the MLS badge shown next to a message sender name, indicating OpenMLS end-to-end encryption"
+  },
   "mlsBadgeTooltip": "Message content is protected by OpenMLS",
-  "@mlsBadgeTooltip": { "description": "Tooltip shown when hovering the MLS badge next to a message sender name" },
+  "@mlsBadgeTooltip": {
+    "description": "Tooltip shown when hovering the MLS badge next to a message sender name"
+  },
   "summaryDmKicker": "Private DM",
-  "@summaryDmKicker": { "description": "Kicker label for the diagnostics summary card when a private DM session is active" },
+  "@summaryDmKicker": {
+    "description": "Kicker label for the diagnostics summary card when a private DM session is active"
+  },
   "summaryIdleKicker": "Diagnostics idle",
-  "@summaryIdleKicker": { "description": "Kicker label for the diagnostics summary card when no session is active" },
+  "@summaryIdleKicker": {
+    "description": "Kicker label for the diagnostics summary card when no session is active"
+  },
   "summaryNoSessionTitle": "No active session",
-  "@summaryNoSessionTitle": { "description": "Title of the diagnostics summary card when no session is active" },
+  "@summaryNoSessionTitle": {
+    "description": "Title of the diagnostics summary card when no session is active"
+  },
   "summaryNoSessionDescription": "Open a conversation to inspect connection state, peer count, NAT, relay, and events.",
-  "@summaryNoSessionDescription": { "description": "Description of the diagnostics summary card when no session is active" },
+  "@summaryNoSessionDescription": {
+    "description": "Description of the diagnostics summary card when no session is active"
+  },
   "summaryReadyWithPeers": "MLS is ready and Moss sees at least one peer on this mesh.",
-  "@summaryReadyWithPeers": { "description": "DM summary description shown when the session is ready and the mesh reports at least one peer" },
+  "@summaryReadyWithPeers": {
+    "description": "DM summary description shown when the session is ready and the mesh reports at least one peer"
+  },
   "summaryReadyNoPeers": "MLS is ready; Moss peer telemetry is still catching up.",
-  "@summaryReadyNoPeers": { "description": "DM summary description shown when the session is ready but the mesh reports zero peers" },
+  "@summaryReadyNoPeers": {
+    "description": "DM summary description shown when the session is ready but the mesh reports zero peers"
+  },
   "summaryWaiting": "Invite created. Waiting for the peer and Moss mesh to complete discovery.",
-  "@summaryWaiting": { "description": "DM summary description shown when the session is in the waiting state" },
+  "@summaryWaiting": {
+    "description": "DM summary description shown when the session is in the waiting state"
+  },
   "summaryIdle": "Session exists, but the secure conversation is not connected yet.",
-  "@summaryIdle": { "description": "DM summary description shown when the session is in an unknown/idle state" },
+  "@summaryIdle": {
+    "description": "DM summary description shown when the session is in an unknown/idle state"
+  },
   "summaryFactPeers": "Peers",
-  "@summaryFactPeers": { "description": "Fact label for the peer count row of the diagnostics summary card" },
+  "@summaryFactPeers": {
+    "description": "Fact label for the peer count row of the diagnostics summary card"
+  },
   "summaryFactNat": "NAT",
-  "@summaryFactNat": { "description": "Fact label for the NAT type row of the diagnostics summary card" },
+  "@summaryFactNat": {
+    "description": "Fact label for the NAT type row of the diagnostics summary card"
+  },
   "summaryFactRelay": "Relay",
-  "@summaryFactRelay": { "description": "Fact label for the relay status row of the diagnostics summary card" },
+  "@summaryFactRelay": {
+    "description": "Fact label for the relay status row of the diagnostics summary card"
+  },
   "summaryFactSession": "Session",
-  "@summaryFactSession": { "description": "Fact label for the session row of the idle diagnostics summary card" },
+  "@summaryFactSession": {
+    "description": "Fact label for the session row of the idle diagnostics summary card"
+  },
   "summaryFactMesh": "Mesh",
-  "@summaryFactMesh": { "description": "Fact label for the mesh row of the idle diagnostics summary card" },
+  "@summaryFactMesh": {
+    "description": "Fact label for the mesh row of the idle diagnostics summary card"
+  },
   "summaryFactEvents": "Events",
-  "@summaryFactEvents": { "description": "Fact label for the events row of the idle diagnostics summary card" },
+  "@summaryFactEvents": {
+    "description": "Fact label for the events row of the idle diagnostics summary card"
+  },
   "summaryStateWaiting": "Waiting",
-  "@summaryStateWaiting": { "description": "State badge text for the idle diagnostics summary card when there is no error" },
+  "@summaryStateWaiting": {
+    "description": "State badge text for the idle diagnostics summary card when there is no error"
+  },
   "summaryStateError": "Error",
-  "@summaryStateError": { "description": "State badge text for the diagnostics summary card when a runtime error is present" },
+  "@summaryStateError": {
+    "description": "State badge text for the diagnostics summary card when a runtime error is present"
+  },
   "runtimeError": "Runtime error",
-  "@runtimeError": { "description": "Label of the runtime-error alert shown in the diagnostics drawer" },
+  "@runtimeError": {
+    "description": "Label of the runtime-error alert shown in the diagnostics drawer"
+  },
   "diagConversationDetails": "Conversation details",
-  "@diagConversationDetails": { "description": "Group label of the Conversation details section in the diagnostics drawer" },
+  "@diagConversationDetails": {
+    "description": "Group label of the Conversation details section in the diagnostics drawer"
+  },
   "diagSessionLabel": "Session",
-  "@diagSessionLabel": { "description": "The 'Session' label, used both as the NoActiveSession group label and as the row key for the session id" },
+  "@diagSessionLabel": {
+    "description": "The 'Session' label, used both as the NoActiveSession group label and as the row key for the session id"
+  },
   "diagRowPeer": "Peer",
-  "@diagRowPeer": { "description": "Row key for the peer display name in the Conversation details group" },
+  "@diagRowPeer": {
+    "description": "Row key for the peer display name in the Conversation details group"
+  },
   "diagRowMlsState": "MLS state",
-  "@diagRowMlsState": { "description": "Row key for the MLS connection state in the Conversation details group" },
+  "@diagRowMlsState": {
+    "description": "Row key for the MLS connection state in the Conversation details group"
+  },
   "diagRowPath": "Path",
-  "@diagRowPath": { "description": "Row key for the transport path in the Conversation details group" },
+  "@diagRowPath": {
+    "description": "Row key for the transport path in the Conversation details group"
+  },
   "diagRowEncryption": "Encryption",
-  "@diagRowEncryption": { "description": "Row key for the encryption note shown when the path is relayed" },
+  "@diagRowEncryption": {
+    "description": "Row key for the encryption note shown when the path is relayed"
+  },
   "diagRowRole": "Role",
-  "@diagRowRole": { "description": "Row key for the local device role in the Conversation details group" },
+  "@diagRowRole": {
+    "description": "Row key for the local device role in the Conversation details group"
+  },
   "diagRowDisplay": "Display",
-  "@diagRowDisplay": { "description": "Row key for the local display name in the Conversation details group" },
+  "@diagRowDisplay": {
+    "description": "Row key for the local display name in the Conversation details group"
+  },
   "diagPeerUnknown": "unknown",
-  "@diagPeerUnknown": { "description": "Fallback value for the Peer row when the peer display name is empty" },
+  "@diagPeerUnknown": {
+    "description": "Fallback value for the Peer row when the peer display name is empty"
+  },
   "diagEncryptionRelayed": "E2E — supernode sees only ciphertext",
-  "@diagEncryptionRelayed": { "description": "Value of the Encryption row when the path is relayed; the em dash matches the React literal" },
+  "@diagEncryptionRelayed": {
+    "description": "Value of the Encryption row when the path is relayed; the em dash matches the React literal"
+  },
   "diagNoActiveTitle": "No active session",
-  "@diagNoActiveTitle": { "description": "Title of the empty state shown when no session is active in the diagnostics drawer" },
+  "@diagNoActiveTitle": {
+    "description": "Title of the empty state shown when no session is active in the diagnostics drawer"
+  },
   "diagNoActiveBody": "Select a DM, channel, or group to inspect its Moss network and recent events.",
-  "@diagNoActiveBody": { "description": "Description of the empty state shown when no session is active in the diagnostics drawer" },
+  "@diagNoActiveBody": {
+    "description": "Description of the empty state shown when no session is active in the diagnostics drawer"
+  },
   "diagGroupMossNetwork": "Moss network",
-  "@diagGroupMossNetwork": { "description": "Group label of the Moss network section in the diagnostics drawer" },
+  "@diagGroupMossNetwork": {
+    "description": "Group label of the Moss network section in the diagnostics drawer"
+  },
   "diagMetricSupernode": "Supernode",
-  "@diagMetricSupernode": { "description": "Metric label for the supernode readiness cell in the Moss network group" },
+  "@diagMetricSupernode": {
+    "description": "Metric label for the supernode readiness cell in the Moss network group"
+  },
   "diagRowAdvertised": "Advertised",
-  "@diagRowAdvertised": { "description": "Row key for the advertised mesh address in the Moss network group" },
+  "@diagRowAdvertised": {
+    "description": "Row key for the advertised mesh address in the Moss network group"
+  },
   "diagRowListenPort": "Listen port",
-  "@diagRowListenPort": { "description": "Row key for the mesh listen port in the Moss network group" },
+  "@diagRowListenPort": {
+    "description": "Row key for the mesh listen port in the Moss network group"
+  },
   "diagRowKnownPeers": "Known peers",
-  "@diagRowKnownPeers": { "description": "Row key for the known peer count in the Moss network group" },
+  "@diagRowKnownPeers": {
+    "description": "Row key for the known peer count in the Moss network group"
+  },
   "diagRowRelayRoutes": "Relay routes",
-  "@diagRowRelayRoutes": { "description": "Row key for the relay route count in the Moss network group" },
+  "@diagRowRelayRoutes": {
+    "description": "Row key for the relay route count in the Moss network group"
+  },
   "diagRowChannels": "Channels",
-  "@diagRowChannels": { "description": "Row key for the channel count in the Moss network group" },
+  "@diagRowChannels": {
+    "description": "Row key for the channel count in the Moss network group"
+  },
   "diagRowMeshId": "Mesh id",
-  "@diagRowMeshId": { "description": "Row key for the mesh id in the Moss network group" },
+  "@diagRowMeshId": {
+    "description": "Row key for the mesh id in the Moss network group"
+  },
   "diagRowPublicKey": "Public key",
-  "@diagRowPublicKey": { "description": "Row key for the mesh public key in the Moss network group" },
+  "@diagRowPublicKey": {
+    "description": "Row key for the mesh public key in the Moss network group"
+  },
   "diagMeshBootingTitle": "Mesh booting",
-  "@diagMeshBootingTitle": { "description": "Title of the empty state shown when the mesh is still booting in the diagnostics drawer" },
- "diagMeshBootingBody": "Network facts appear after Moss binds a port and receives its first runtime poll.",
- "@diagMeshBootingBody": { "description": "Description of the empty state shown when the mesh is still booting in the diagnostics drawer" },
- "diagGroupMossEvents": "Moss events",
- "@diagGroupMossEvents": { "description": "Group label of the Moss events section (the event log) in the diagnostics drawer" },
- "diagNoEventsTitle": "No events yet",
- "@diagNoEventsTitle": { "description": "Title of the empty state shown when the event log has no events in the diagnostics drawer" },
- "diagNoEventsBody": "Moss will list peer joins, tracker updates, and relay changes here as they happen.",
- "@diagNoEventsBody": { "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer" },
- "peerStatusTitle": "Peer status",
- "@peerStatusTitle": { "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen" },
- "refreshStatus": "Refresh status",
- "@refreshStatus": { "description": "Tooltip/aria-label of the refresh button in the Peer status drawer" },
- "closePeerStatus": "Close peer status",
- "@closePeerStatus": { "description": "Tooltip/aria-label of the close button in the Peer status drawer" },
+  "@diagMeshBootingTitle": {
+    "description": "Title of the empty state shown when the mesh is still booting in the diagnostics drawer"
+  },
+  "diagMeshBootingBody": "Network facts appear after Moss binds a port and receives its first runtime poll.",
+  "@diagMeshBootingBody": {
+    "description": "Description of the empty state shown when the mesh is still booting in the diagnostics drawer"
+  },
+  "diagGroupMossEvents": "Moss events",
+  "@diagGroupMossEvents": {
+    "description": "Group label of the Moss events section (the event log) in the diagnostics drawer"
+  },
+  "diagNoEventsTitle": "No events yet",
+  "@diagNoEventsTitle": {
+    "description": "Title of the empty state shown when the event log has no events in the diagnostics drawer"
+  },
+  "diagNoEventsBody": "Moss will list peer joins, tracker updates, and relay changes here as they happen.",
+  "@diagNoEventsBody": {
+    "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer"
+  },
+  "peerStatusTitle": "Peer status",
+  "@peerStatusTitle": {
+    "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen"
+  },
+  "refreshStatus": "Refresh status",
+  "@refreshStatus": {
+    "description": "Tooltip/aria-label of the refresh button in the Peer status drawer"
+  },
+  "closePeerStatus": "Close peer status",
+  "@closePeerStatus": {
+    "description": "Tooltip/aria-label of the close button in the Peer status drawer"
+  },
   "openPeerStatus": "Open peer status",
-  "@openPeerStatus": { "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen" }
-,
+  "@openPeerStatus": {
+    "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen"
+  },
   "attachmentOpen": "Open",
-  "@attachmentOpen": { "description": "Tooltip of the Open action button on an attachment card (state == available)" },
+  "@attachmentOpen": {
+    "description": "Tooltip of the Open action button on an attachment card (state == available)"
+  },
   "attachmentDownload": "Download",
-  "@attachmentDownload": { "description": "Tooltip of the Download action button on an attachment card (incoming, offered)" },
+  "@attachmentDownload": {
+    "description": "Tooltip of the Download action button on an attachment card (incoming, offered)"
+  },
   "attachmentRetryDownload": "Retry download",
-  "@attachmentRetryDownload": { "description": "Tooltip of the Retry-download action button on an attachment card (incoming, cancelled)" },
+  "@attachmentRetryDownload": {
+    "description": "Tooltip of the Retry-download action button on an attachment card (incoming, cancelled)"
+  },
   "attachmentRetry": "Retry",
-  "@attachmentRetry": { "description": "Tooltip of the Retry action button on an attachment card (incoming, failed)" },
+  "@attachmentRetry": {
+    "description": "Tooltip of the Retry action button on an attachment card (incoming, failed)"
+  },
   "attachmentCancelDownload": "Cancel download",
-  "@attachmentCancelDownload": { "description": "Tooltip of the Cancel action button on an attachment card (incoming, downloading)" },
+  "@attachmentCancelDownload": {
+    "description": "Tooltip of the Cancel action button on an attachment card (incoming, downloading)"
+  },
   "attachmentOpenAria": "Open {fileName}",
-  "@attachmentOpenAria": { "description": "Screen-reader label for the Open attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentOpenAria": {
+    "description": "Screen-reader label for the Open attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentDownloadAria": "Download {fileName}",
-  "@attachmentDownloadAria": { "description": "Screen-reader label for the Download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentDownloadAria": {
+    "description": "Screen-reader label for the Download attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentRetryDownloadAria": "Retry download {fileName}",
-  "@attachmentRetryDownloadAria": { "description": "Screen-reader label for the Retry-download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentRetryDownloadAria": {
+    "description": "Screen-reader label for the Retry-download attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentRetryAria": "Retry {fileName}",
-  "@attachmentRetryAria": { "description": "Screen-reader label for the Retry attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentRetryAria": {
+    "description": "Screen-reader label for the Retry attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentCancelDownloadAria": "Cancel download for {fileName}",
-  "@attachmentCancelDownloadAria": { "description": "Screen-reader label for the Cancel-download attachment action button, with the file name", "placeholders": { "fileName": { "type": "String" } } },
+  "@attachmentCancelDownloadAria": {
+    "description": "Screen-reader label for the Cancel-download attachment action button, with the file name",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
   "diagGroupChannelDetails": "Channel details",
-  "@diagGroupChannelDetails": { "description": "Group label of the Channel details section in the diagnostics drawer (mirrors React's ChannelDiagnostics)" },
+  "@diagGroupChannelDetails": {
+    "description": "Group label of the Channel details section in the diagnostics drawer (mirrors React's ChannelDiagnostics)"
+  },
   "diagGroupGroupDetails": "Group details",
-  "@diagGroupGroupDetails": { "description": "Group label of the Group details section in the diagnostics drawer (mirrors React's GroupDiagnostics)" },
+  "@diagGroupGroupDetails": {
+    "description": "Group label of the Group details section in the diagnostics drawer (mirrors React's GroupDiagnostics)"
+  },
   "diagRowName": "Name",
-  "@diagRowName": { "description": "Row key for the channel name in the Channel details group" },
+  "@diagRowName": {
+    "description": "Row key for the channel name in the Channel details group"
+  },
   "diagRowTopic": "Topic",
-  "@diagRowTopic": { "description": "Row key for the channel topic in the Channel details group" },
+  "@diagRowTopic": {
+    "description": "Row key for the channel topic in the Channel details group"
+  },
   "diagRowDevice": "Device",
-  "@diagRowDevice": { "description": "Row key for the device fingerprint in the Channel details and Group details groups" },
+  "@diagRowDevice": {
+    "description": "Row key for the device fingerprint in the Channel details and Group details groups"
+  },
   "diagRowLabel": "Label",
-  "@diagRowLabel": { "description": "Row key for the group label in the Group details group" },
+  "@diagRowLabel": {
+    "description": "Row key for the group label in the Group details group"
+  },
   "diagRowMembers": "Members",
-  "@diagRowMembers": { "description": "Row key for the member count in the Group details group" },
+  "@diagRowMembers": {
+    "description": "Row key for the member count in the Group details group"
+  },
   "diagRowGroupId": "Group id",
-  "@diagRowGroupId": { "description": "Row key for the group id in the Group details group" },
+  "@diagRowGroupId": {
+    "description": "Row key for the group id in the Group details group"
+  },
   "diagRowCreator": "Creator",
-  "@diagRowCreator": { "description": "Row key for the creator fingerprint in the Group details group" },
+  "@diagRowCreator": {
+    "description": "Row key for the creator fingerprint in the Group details group"
+  },
   "diagRoleAdmin": "admin",
-  "@diagRoleAdmin": { "description": "Role value for the local device when it is the group admin" },
+  "@diagRoleAdmin": {
+    "description": "Role value for the local device when it is the group admin"
+  },
   "diagRoleMember": "member",
-  "@diagRoleMember": { "description": "Role value for the local device when it is a non-admin group member" },
+  "@diagRoleMember": {
+    "description": "Role value for the local device when it is a non-admin group member"
+  },
   "diagDash": "-",
-  "@diagDash": { "description": "Fallback value for the group Label row when the group has no label (mirrors React's null dash fallback)" },
+  "@diagDash": {
+    "description": "Fallback value for the group Label row when the group has no label (mirrors React's null dash fallback)"
+  },
   "openChannelAria": "Open channel {name}",
-  "@openChannelAria": { "description": "Screen-reader label for the Open-channel rail-item row, with the channel name", "placeholders": { "name": { "type": "String" } } },
+  "@openChannelAria": {
+    "description": "Screen-reader label for the Open-channel rail-item row, with the channel name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "openGroupAria": "Open group {label}",
-  "@openGroupAria": { "description": "Screen-reader label for the Open-group rail-item row, with the group label", "placeholders": { "label": { "type": "String" } } },
+  "@openGroupAria": {
+    "description": "Screen-reader label for the Open-group rail-item row, with the group label",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "membersCount": "{count, plural, one {{count} member} other {{count} members}}",
-  "@membersCount": { "description": "Subtitle for the GroupScreen AppBar subtitle and the group rail-item showing the member count. ICU MessageFormat plural (English: one '1 member' / other 'N members'); corrects Russian grammar (one/few/many) where the prior naive binary plural rendered '2 участников' instead of '2 участника'. The 'count' placeholder is int.", "placeholders": { "count": { "type": "int" } } },
+  "@membersCount": {
+    "description": "Subtitle for the GroupScreen AppBar subtitle and the group rail-item showing the member count. ICU MessageFormat plural (English: one '1 member' / other 'N members'); corrects Russian grammar (one/few/many) where the prior naive binary plural rendered '2 участников' instead of '2 участника'. The 'count' placeholder is int.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "groupScreenMlsStateSuffix": " · MLS {state}",
-  "@groupScreenMlsStateSuffix": { "description": "MLS-state suffix appended to the GroupScreen AppBar subtitle (mirrors React ' · MLS {state}'), with the MLS connection state", "placeholders": { "state": { "type": "String" } } },
+  "@groupScreenMlsStateSuffix": {
+    "description": "MLS-state suffix appended to the GroupScreen AppBar subtitle (mirrors React ' · MLS {state}'), with the MLS connection state",
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
   "summaryChannelKicker": "Public channel",
-  "@summaryChannelKicker": { "description": "Kicker label for the diagnostics summary card when a public channel is active" },
+  "@summaryChannelKicker": {
+    "description": "Kicker label for the diagnostics summary card when a public channel is active"
+  },
   "summaryChannelState": "Broadcast",
-  "@summaryChannelState": { "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)" },
+  "@summaryChannelState": {
+    "description": "State badge text for the diagnostics summary card when a public channel is active (channels are always in the Broadcast state)"
+  },
   "summaryChannelDescription": "Plaintext channel traffic is riding over the current Moss mesh.",
-  "@summaryChannelDescription": { "description": "Description of the diagnostics summary card when a public channel is active" },
+  "@summaryChannelDescription": {
+    "description": "Description of the diagnostics summary card when a public channel is active"
+  },
   "summaryGroupKicker": "Private group",
-  "@summaryGroupKicker": { "description": "Kicker label for the diagnostics summary card when a private group is active" },
+  "@summaryGroupKicker": {
+    "description": "Kicker label for the diagnostics summary card when a private group is active"
+  },
   "summaryGroupFallbackTitle": "Encrypted group",
-  "@summaryGroupFallbackTitle": { "description": "Title fallback for the diagnostics summary card when a private group has no label" },
+  "@summaryGroupFallbackTitle": {
+    "description": "Title fallback for the diagnostics summary card when a private group has no label"
+  },
   "summaryGroupDescription": "{memberCount} members on an MLS-protected group mesh.",
-  "@summaryGroupDescription": { "description": "Description of the diagnostics summary card when a private group is active, with the member count", "placeholders": { "memberCount": { "type": "String" } } },
+  "@summaryGroupDescription": {
+    "description": "Description of the diagnostics summary card when a private group is active, with the member count",
+    "placeholders": {
+      "memberCount": {
+        "type": "String"
+      }
+    }
+  },
   "summaryFactMembers": "Members",
-  "@summaryFactMembers": { "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active" }
-  ,
+  "@summaryFactMembers": {
+    "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active"
+  },
   "messageFailedToSend": "Failed to send",
-  "@messageFailedToSend": { "description": "Fallback error text shown in the FailedMessageRetry row below a failed outbound message when deliveryError is null/empty (React inline literal in MessageLists.tsx FailedMessageRetry, the <span> fallback)" },
+  "@messageFailedToSend": {
+    "description": "Fallback error text shown in the FailedMessageRetry row below a failed outbound message when deliveryError is null/empty (React inline literal in MessageLists.tsx FailedMessageRetry, the <span> fallback)"
+  },
   "messageFailedWithError": "Failed: {error}",
-  "@messageFailedWithError": { "description": "Screen-reader status label for the FailedMessageRetry row when deliveryError is present (React aria-label `Failed: ${deliveryError}`), with the trimmed delivery error", "placeholders": { "error": { "type": "String" } } },
+  "@messageFailedWithError": {
+    "description": "Screen-reader status label for the FailedMessageRetry row when deliveryError is present (React aria-label `Failed: ${deliveryError}`), with the trimmed delivery error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "messageRetry": "Retry",
-  "@messageRetry": { "description": "Retry button text in the FailedMessageRetry row below a failed outbound message (React inline literal 'Retry' button text)" },
+  "@messageRetry": {
+    "description": "Retry button text in the FailedMessageRetry row below a failed outbound message (React inline literal 'Retry' button text)"
+  },
   "retryFailedMessage": "Retry failed message",
-  "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" },
+  "@retryFailedMessage": {
+    "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')"
+  },
   "dialogCancel": "Cancel",
-  "@dialogCancel": { "description": "Generic Cancel label for the shared ConfirmDialog close-X and ghost cancel button (React inline default 'Cancel'; the close-flow and other destructive flows pass a localized cancel label from this key)" },
+  "@dialogCancel": {
+    "description": "Generic Cancel label for the shared ConfirmDialog close-X and ghost cancel button (React inline default 'Cancel'; the close-flow and other destructive flows pass a localized cancel label from this key)"
+  },
   "leaveChannelTitle": "Leave #{name}?",
-  "@leaveChannelTitle": { "description": "Title of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch `Leave #${label}?`), with the channel name", "placeholders": { "name": { "type": "String" } } },
+  "@leaveChannelTitle": {
+    "description": "Title of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch `Leave #${label}?`), with the channel name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "leaveChannelBody": "You will stop receiving new messages from this public channel until you join it again.",
-  "@leaveChannelBody": { "description": "Body of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch body, static)" },
+  "@leaveChannelBody": {
+    "description": "Body of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch body, static)"
+  },
   "leaveChannelConfirm": "Leave channel",
-  "@leaveChannelConfirm": { "description": "Confirm button label of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch `confirmLabel`)" },
+  "@leaveChannelConfirm": {
+    "description": "Confirm button label of the leave-channel ConfirmDialog (React useChatCloseFlow channel branch `confirmLabel`)"
+  },
   "leaveGroupTitle": "Leave {label}?",
-  "@leaveGroupTitle": { "description": "Title of the leave-group ConfirmDialog (React useChatCloseFlow group branch `Leave ${label}?`), with the group label (group.label ?? shorten(groupId, 6))", "placeholders": { "label": { "type": "String" } } },
+  "@leaveGroupTitle": {
+    "description": "Title of the leave-group ConfirmDialog (React useChatCloseFlow group branch `Leave ${label}?`), with the group label (group.label ?? shorten(groupId, 6))",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "leaveGroupBody": "Saved group history will be removed from this device. You will need a new invite to rejoin.",
-  "@leaveGroupBody": { "description": "Body of the leave-group ConfirmDialog (React useChatCloseFlow group branch body, static)" },
+  "@leaveGroupBody": {
+    "description": "Body of the leave-group ConfirmDialog (React useChatCloseFlow group branch body, static)"
+  },
   "leaveGroupConfirm": "Leave group",
-  "@leaveGroupConfirm": { "description": "Confirm button label of the leave-group ConfirmDialog (React useChatCloseFlow group branch `confirmLabel`)" }
+  "@leaveGroupConfirm": {
+    "description": "Confirm button label of the leave-group ConfirmDialog (React useChatCloseFlow group branch `confirmLabel`)"
+  },
+  "deleteChatTitle": "Delete chat with {label}?",
+  "@deleteChatTitle": {
+    "description": "Title of the delete-DM ConfirmDialog (React useChatCloseFlow dm branch: Delete chat with the label), with the peer display name (session.peerDisplayName ?? session.sessionId; the dm screen always has a session, so the React 'this private chat' fallback is unreachable but mirrored defensively)",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteChatBody": "Saved history for this private chat will be removed from this device. You cannot undo this.",
+  "@deleteChatBody": {
+    "description": "Body of the delete-DM ConfirmDialog (React useChatCloseFlow dm branch body, static)"
+  },
+  "deleteChatConfirm": "Delete chat",
+  "@deleteChatConfirm": {
+    "description": "Confirm button label of the delete-DM ConfirmDialog (React useChatCloseFlow dm branch `confirmLabel`)"
+  }
 }
