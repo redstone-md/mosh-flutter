@@ -46,11 +46,14 @@
 // _showPeerStatus; the body is a Stack whose last child is a
 // Positioned.fill(PeerStatusDrawer(...)) overlay.
 //
-
-import 'dart:async' show Timer;
+// The AppBar (title Column + admin-pill + copy-invite + peer-status + leave
+// actions) and its copy-invite ephemeral state live in [GroupScreenHeader]
+// (group_screen_header.dart), extracted to restore the 500-line headroom;
+// this screen passes `groupId` + the `onOpenPeerStatus` / `onLeave`
+// callbacks. The body (notice banner + ConversationTools + message list +
+// composer + peer-status drawer overlay) stays here.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -58,6 +61,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
+import 'package:mosh/src/features/group/group_screen_header.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -84,10 +88,6 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
   bool _showPeerStatus = false;
-  // Copy-invite ephemeral state (React inviteCopied/inviteCopyTimer ~L255-256);
-  // reverts after 1600ms; React's useEffect([inviteUri]) reset is omitted (GroupScreen remounts per groupId, so state resets on cross-group nav).
-  bool _inviteCopied = false;
-  Timer? _inviteCopyTimer;
   // Ephemeral search + filter (React ConversationTools); widget-local per
   // ADR 0010; drive [filterGroupMessages] before grouping, mirroring
   // DmScreen's `_search` / `_filter` (filter-then-group order).
@@ -96,7 +96,6 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
 
   @override
   void dispose() {
-    _inviteCopyTimer?.cancel();
     _composer.dispose();
     super.dispose();
   }
@@ -124,18 +123,6 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     context.go(AppRoutes.sessions);
   }
 
-  Future<void> _copyInvite(String? inviteUri) async {
-    if (inviteUri == null) return;
-    await Clipboard.setData(ClipboardData(text: inviteUri));
-    if (!mounted) return;
-    setState(() => _inviteCopied = true);
-    _inviteCopyTimer?.cancel();
-    _inviteCopyTimer = Timer(const Duration(milliseconds: 1600), () {
-      if (!mounted) return;
-      setState(() => _inviteCopied = false);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -143,75 +130,10 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     final groupForDrawer = async.value;
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
-      appBar: AppBar(
-        // React ActiveChatHeader `title` + `subtitle` (ActiveChatPanes.tsx
-        // ~L305-313): title = the group label (or "Private group" fallback);
-        // subtitle = is_admin ? `${adminBadge} · ` : ""
-        //   + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`.
-        // This Flutter `AppBar` (3.44) has no `subtitle:` slot, so the
-        // subtitle renders as the second line of a two-line `title:` Column
-        // (the idiomatic Flutter AppBar-with-subtitle pattern). Admin prefix
-        // (with the " · " separator) only when admin; member count with
-        // English plural ("1 member" vs "N members", selected by
-        // `memberCount == BigInt.one` to mirror React's `member_count === 1`);
-        // then the " · MLS {state}" suffix via groupScreenMlsStateSuffix.
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(async.maybeWhen(
-              data: (group) => group.label ?? l.groupUntitled,
-              orElse: () => widget.groupId,
-            )),
-            Text(
-              async.maybeWhen(
-                data: (group) => _groupSubtitle(group, l),
-                orElse: () => '',
-              ),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          // React `beforeSearchActions` slot (ActiveChatPanes.tsx ~L315-324):
-          // the admin-pill badge (<span className="admin-pill
-          // chat-desktop-only" title={adminBadge}><IconCrown size=14/>
-          // <span>{adminBadge}</span></span>) shown only if is_admin. Placed
-          // FIRST in `actions:` so it sits left of the peer-status + leave
-          // IconButtons, mirroring React's beforeSearchActions position
-          // (left of the search). `Icons.workspace_premium` is the closest
-          // Material equivalent to lucide `IconCrown` (a crown medal) -- the
-          // rail already uses the same icon for its admin crown
-          // (group_rail_item.dart).
-          if (async.maybeWhen(
-            data: (group) => group.isAdmin,
-            orElse: () => false,
-          ))
-            _AdminPill(label: l.groupAdminBadge),
-          // React `beforeSearchActions` copy-invite button (~L327-337):
-          // ghost icon button copying `invite_uri`, check ~1.6s then
-          // revert; only when inviteUri != null; icon 14; tooltip done/invite.
-          if (async.maybeWhen(
-            data: (group) => group.inviteUri != null,
-            orElse: () => false,
-          ))
-            IconButton(
-              icon: Icon(_inviteCopied ? Icons.check : Icons.copy, size: 14),
-              tooltip:
-                  _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
-              onPressed: () => _copyInvite(async.value?.inviteUri),
-            ),
-          IconButton(
-            icon: const Icon(Icons.electrical_services, size: 18),
-            tooltip: l.openPeerStatus,
-            onPressed: () => setState(() => _showPeerStatus = true),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: l.groupLeaveLabel,
-            onPressed: _leave,
-          ),
-        ],
+      appBar: GroupScreenHeader(
+        groupId: widget.groupId,
+        onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+        onLeave: _leave,
       ),
       body: SafeArea(
         child: Stack(
@@ -439,60 +361,6 @@ class _Composer extends StatelessWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-/// Builds the GroupScreen AppBar subtitle, 1-в-1 with React
-/// `ActiveChatHeader.subtitle` (ActiveChatPanes.tsx ~L308-313):
-///   is_admin ? `${adminBadge} · ` : ""
-///   + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`
-/// Admin prefix (with the " · " separator) only when admin; the member
-/// count with English plural ("1 member" vs "N members", selected by
-/// `memberCount == BigInt.one` to mirror React's `member_count === 1`);
-/// then the " · MLS {state}" suffix from
-/// [AppLocalizations.groupScreenMlsStateSuffix].
-String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
-  final n = group.memberCount.toInt();
-  final memberPart = group.memberCount == BigInt.one
-      ? l.membersCountSingular(n)
-      : l.membersCount(n);
-  final adminPrefix = group.isAdmin ? '${l.groupAdminBadge} · ' : '';
-  return '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
-}
-
-/// Admin-pill badge for the GroupScreen AppBar `actions:` slot, 1-в-1 with
-/// React's `beforeSearchActions` admin-pill (ActiveChatPanes.tsx ~L315-324):
-/// `<span className="admin-pill chat-desktop-only" title={adminBadge}>
-/// `<IconCrown size=14/><span>{adminBadge}</span></span>`. A small pill with
-/// a crown icon + the "admin" label, wrapped in a [Tooltip] that mirrors
-/// React's `title` attribute. `Icons.workspace_premium` is the closest
-/// Material equivalent to lucide `IconCrown` (a crown medal) -- the rail
-/// already uses the same icon for its admin crown (group_rail_item.dart).
-class _AdminPill extends StatelessWidget {
-  const _AdminPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.workspace_premium, size: 14),
-            const SizedBox(width: 4),
-            Text(label),
-          ],
-        ),
       ),
     );
   }
