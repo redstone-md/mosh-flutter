@@ -4,10 +4,12 @@
 // widgets depend on `Gateway`, never on a concrete impl, so swapping the
 // wired runtime is one provider change (ADR 0013).
 //
-// The fourteen methods below mirror the slice-one Rust `mosh_core::api` surface
+// The eighteen methods below mirror the slice-one Rust `mosh_core::api` surface
 // 1:1, poll-based (no streams). Signatures match the generated frb functions.
 // The channels/groups read seam adds pollChannel/listChannels/pollGroup/
-// listChannels; the write halves of that slice land in a later atomic.
+// listGroups; the channels/groups write seam adds sendChannel/leaveChannel/
+// sendGroup/closeGroup. The remaining write halves of that slice (create/join/
+// send attachment/dm offers/...) land in a later atomic.
 
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
@@ -45,4 +47,15 @@ abstract interface class Gateway {
   Future<ChannelListSnapshot> listChannels();
   Future<GroupSnapshot> pollGroup({required String groupId});
   Future<GroupListSnapshot> listGroups();
+
+  // Channels/groups write seam (1:1 port of `channel_send`/`channel_leave`/
+  // `private_group_send`/`private_group_close`). The minimal write surface a
+  // chat screen needs: posting a message and closing the conversation. The
+  // frb channel `leave` and group `close` both map here (channel's teardown is
+  // named `leave`, group's is named `close`); create/join/attachment/dm-offer
+  // write methods stay deferred to a later atomic.
+  Future<ChannelSendResult> sendChannel({required String name, required String body});
+  Future<ChannelLeaveResult> leaveChannel({required String name});
+  Future<GroupSendResult> sendGroup({required String groupId, required String body});
+  Future<GroupLeaveResult> closeGroup({required String groupId});
 }
