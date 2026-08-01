@@ -34,7 +34,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use crate::private_dm_runtime::{AttachmentSendResult, VoiceMeta};
 use crate::private_group_runtime::{
-    CreateGroupRequest, GroupCreated, GroupListSnapshot, GroupLeaveResult, GroupSendResult,
+    CreateGroupRequest, GroupCreated, GroupLeaveResult, GroupListSnapshot, GroupSendResult,
     GroupSnapshot, JoinGroupRequest, PrivateGroupError, PrivateGroupRuntime,
 };
 
@@ -157,9 +157,7 @@ pub fn retry_message(group_id: String, message_id: String) -> Result<GroupSendRe
 pub fn poll(group_id: String) -> Result<GroupSnapshot, String> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .poll(&group_id)
-        .map_err(|error| error.to_string())
+    runtime.poll(&group_id).map_err(|error| error.to_string())
 }
 
 /// List all private groups and their snapshots (1:1 port of
@@ -174,9 +172,7 @@ pub fn list() -> Result<GroupListSnapshot, String> {
 pub fn close(group_id: String) -> Result<GroupLeaveResult, String> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .close(&group_id)
-        .map_err(|error| error.to_string())
+    runtime.close(&group_id).map_err(|error| error.to_string())
 }
 
 /// Send an attachment into a private group (1:1 port of

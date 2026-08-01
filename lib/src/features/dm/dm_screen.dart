@@ -32,6 +32,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
@@ -119,8 +120,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   ConversationFilter _filter = ConversationFilter.all;
   bool _showPeerStatus = false;
 
- // Ephemeral confirmed-fingerprint set (React `confirmedFingerprints`
- // useState, use-chat-close-flow.ts). Widget-local per ADR 0010; purely
+  // Ephemeral confirmed-fingerprint set (React `confirmedFingerprints`
+  // useState, use-chat-close-flow.ts). Widget-local per ADR 0010; purely
   // client-side, NOT a Gateway call. `_leave` removes the sessionId from
   // this set on close (mirrors React `confirmCloseActive`'s
   // `confirmedFingerprints.delete(target.id)` cleanup).
@@ -141,57 +142,57 @@ class _DmScreenState extends ConsumerState<DmScreen> {
             sessionId: widget.sessionId,
             body: body,
           );
-     _composer.clear();
-     ref.invalidate(activeSessionProvider(widget.sessionId));
-     ref.invalidate(sessionListProvider);
-   } finally {
-     if (mounted) setState(() => _sending = false);
-   }
- }
+      _composer.clear();
+      ref.invalidate(activeSessionProvider(widget.sessionId));
+      ref.invalidate(sessionListProvider);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
 
- /// DM attachment SEND -- 1-в-1 with React's `sendAttachment`
- /// (use-chat-orchestration.ts L165), the dm branch. Reads the picked
- /// file's bytes (already base64-encoded by AttachmentPicker), calls the
- /// Gateway DM send seam, then invalidates the session provider so the
- /// next poll renders the new row. `thumbnailBase64`/`voice` come from the
- /// picker (thumbnail is the 320px JPEG for image picks; voice stays null
- /// for this atomic -- the voice composer is a later slice). The 50 MB
- /// ceiling is enforced in the picker BEFORE bytes are read; an oversized
- /// pick routes to `_onAttachmentPickError`.
- Future<void> _sendAttachment(PickedAttachment attachment) async {
-   if (_sending) return;
-   setState(() => _sending = true);
-   try {
-     await ref.read(gatewayProvider).sendPrivateAttachment(
-           sessionId: widget.sessionId,
-           fileName: attachment.fileName,
-           mime: attachment.mime,
-           dataBase64: attachment.dataBase64,
-           thumbnailBase64: attachment.thumbnailBase64,
-         );
-     ref.invalidate(activeSessionProvider(widget.sessionId));
-     ref.invalidate(sessionListProvider);
-   } finally {
-     if (mounted) setState(() => _sending = false);
-   }
- }
+  /// DM attachment SEND -- 1-в-1 with React's `sendAttachment`
+  /// (use-chat-orchestration.ts L165), the dm branch. Reads the picked
+  /// file's bytes (already base64-encoded by AttachmentPicker), calls the
+  /// Gateway DM send seam, then invalidates the session provider so the
+  /// next poll renders the new row. `thumbnailBase64`/`voice` come from the
+  /// picker (thumbnail is the 320px JPEG for image picks; voice stays null
+  /// for this atomic -- the voice composer is a later slice). The 50 MB
+  /// ceiling is enforced in the picker BEFORE bytes are read; an oversized
+  /// pick routes to `_onAttachmentPickError`.
+  Future<void> _sendAttachment(PickedAttachment attachment) async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      await ref.read(gatewayProvider).sendPrivateAttachment(
+            sessionId: widget.sessionId,
+            fileName: attachment.fileName,
+            mime: attachment.mime,
+            dataBase64: attachment.dataBase64,
+            thumbnailBase64: attachment.thumbnailBase64,
+          );
+      ref.invalidate(activeSessionProvider(widget.sessionId));
+      ref.invalidate(sessionListProvider);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
 
- /// Surfaces the localized 50 MB limit message when the picker rejects an
- /// oversized file (mirrors React's `onError("Attachment exceeds the 50 MB
- /// limit")`). A SnackBar is the Material idiom for a transient, non-modal
- /// error that does not steal focus from the composer.
- void _onAttachmentPickError(AttachmentPickError error) {
-   if (!mounted) return;
-   final l = AppLocalizations.of(context)!;
-   ScaffoldMessenger.of(context).showSnackBar(
-     SnackBar(content: Text(l.attachmentTooLargeMessage)),
-   );
- }
+  /// Surfaces the localized 50 MB limit message when the picker rejects an
+  /// oversized file (mirrors React's `onError("Attachment exceeds the 50 MB
+  /// limit")`). A SnackBar is the Material idiom for a transient, non-modal
+  /// error that does not steal focus from the composer.
+  void _onAttachmentPickError(AttachmentPickError error) {
+    if (!mounted) return;
+    final l = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.attachmentTooLargeMessage)),
+    );
+  }
 
- /// Builds the per-row transfer-action callbacks for [AttachmentCard]:
- /// download/cancel fire the Gateway seam (99bc9d9) then invalidate the
- /// session provider so the next poll re-renders state + progress
- /// (fire-and-forget via `unawaited`).
+  /// Builds the per-row transfer-action callbacks for [AttachmentCard]:
+  /// download/cancel fire the Gateway seam (99bc9d9) then invalidate the
+  /// session provider so the next poll re-renders state + progress
+  /// (fire-and-forget via `unawaited`).
   AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
       AttachmentCallbacks(
         onDownload: (id) => unawaited(_gateway
@@ -202,6 +203,17 @@ class _DmScreenState extends ConsumerState<DmScreen> {
             .then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
         onOpen: (descriptor) => _openAttachment(view),
       );
+
+  /// Retry a failed outbound DM message (React `retryDmMessage`,
+  /// native-messaging-gateway.ts; Rust `private_dm_retry_message`).
+  /// Fire-and-forget via `unawaited`, then invalidate the session snapshot
+  /// so the next poll re-renders the row's delivery status (mirrors the
+  /// attachment download/cancel wiring + the channel/group retry seam).
+  void _retryMessage(String messageId) {
+    unawaited(_gateway
+        .retryDmMessage(sessionId: _sessionId, messageId: messageId)
+        .then((_) => ref.invalidate(activeSessionProvider(_sessionId))));
+  }
 
   /// Opens the attachment's local file (React `openPath(local_path)` via
   /// the Tauri opener plugin -- here client-side, no Rust fn). Windows:
@@ -216,8 +228,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   String get _sessionId => widget.sessionId;
   Gateway get _gateway => ref.read(gatewayProvider);
 
-  void _confirmFingerprint() => setState(() => _confirmedFingerprints =
-      {..._confirmedFingerprints, widget.sessionId});
+  void _confirmFingerprint() => setState(() =>
+      _confirmedFingerprints = {..._confirmedFingerprints, widget.sessionId});
 
   /// Closes the active DM session -- the real half of the close-flow
   /// (React `confirmCloseActive` for the `dm` branch, use-chat-close-flow.ts
@@ -229,12 +241,10 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   /// channel/group `_leave` invalidation + `context.go(AppRoutes.sessions)`
   /// pattern.
   Future<void> _leave() async {
-    await ref
-        .read(gatewayProvider)
-        .closeSession(sessionId: widget.sessionId);
+    await ref.read(gatewayProvider).closeSession(sessionId: widget.sessionId);
     if (!mounted) return;
-    setState(() => _confirmedFingerprints =
-        _confirmedFingerprints..remove(widget.sessionId));
+    setState(() => _confirmedFingerprints = _confirmedFingerprints
+      ..remove(widget.sessionId));
     ref.invalidate(activeSessionProvider(widget.sessionId));
     ref.invalidate(sessionListProvider);
     context.go(AppRoutes.sessions);
@@ -281,12 +291,24 @@ class _DmScreenState extends ConsumerState<DmScreen> {
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: AppBar(
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text(s == null || s.peerDisplayName.isEmpty ? widget.sessionId : s.peerDisplayName),
-          Text(confirmed ? l.dmSubtitleConfirmed(mlsState) : l.dmSubtitleUnverified(mlsState), style: Theme.of(context).textTheme.bodySmall),
-        ]),
+        title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(s == null || s.peerDisplayName.isEmpty
+                  ? widget.sessionId
+                  : s.peerDisplayName),
+              Text(
+                  confirmed
+                      ? l.dmSubtitleConfirmed(mlsState)
+                      : l.dmSubtitleUnverified(mlsState),
+                  style: Theme.of(context).textTheme.bodySmall),
+            ]),
         actions: [
-          FingerprintBadge(fingerprint: fingerprint, confirmed: confirmed, onConfirm: _confirmFingerprint),
+          FingerprintBadge(
+              fingerprint: fingerprint,
+              confirmed: confirmed,
+              onConfirm: _confirmFingerprint),
           IconButton(
             icon: const Icon(Icons.electrical_services, size: 18),
             tooltip: l.openPeerStatus,
@@ -322,7 +344,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                 ),
                 Expanded(
                   child: async.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(child: Text(e.toString())),
                     data: (s) {
                       if (s.messages.isEmpty) return _Empty(l: l);
@@ -336,21 +359,22 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                         grouped: groupDmMessages(filtered).reversed.toList(),
                         attachments: s.attachments,
                         attachmentCallbacks: _attachmentCallbacks,
+                        onRetryMessage: _retryMessage,
                       );
                     },
                   ),
                 ),
-               ConversationComposer(
-                 controller: _composer,
-                 sending: _sending,
-                 placeholder: l.chatComposerPlaceholder,
-                 sendLabel: l.chatSendLabel,
-                 onSend: _send,
-                 attachLabel: l.chatAttachLabel,
-                 onAttach: _sendAttachment,
-                 onAttachmentPickError: _onAttachmentPickError,
-               ),
-               Padding(
+                ConversationComposer(
+                  controller: _composer,
+                  sending: _sending,
+                  placeholder: l.chatComposerPlaceholder,
+                  sendLabel: l.chatSendLabel,
+                  onSend: _send,
+                  attachLabel: l.chatAttachLabel,
+                  onAttach: _sendAttachment,
+                  onAttachmentPickError: _onAttachmentPickError,
+                ),
+                Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                   child: Text(
                     l.chatCryptoFooter,
@@ -365,8 +389,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                   session: sessionForDrawer,
                   error: errorForDrawer,
                   refreshing: false,
-                  onRefresh: () => ref
-                      .invalidate(activeSessionProvider(widget.sessionId)),
+                  onRefresh: () =>
+                      ref.invalidate(activeSessionProvider(widget.sessionId)),
                   onClose: () => setState(() => _showPeerStatus = false),
                 ),
               ),
@@ -386,12 +410,18 @@ class _MessageListView extends StatelessWidget {
     required this.ownDeviceName,
     required this.attachments,
     required this.attachmentCallbacks,
+    required this.onRetryMessage,
   });
 
   final List<GroupedMessage> grouped;
   final String ownDeviceName;
   final List<AttachmentView> attachments;
   final AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
+
+  /// Retry a failed outbound DM message by its messageId (React
+  /// `retryDmMessage`). Fire-and-forget via `unawaited` then invalidate the
+  /// session snapshot; the screen builds this from the Gateway seam.
+  final void Function(String messageId) onRetryMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -415,6 +445,8 @@ class _MessageListView extends StatelessWidget {
           onAttachmentDownload: callbacks.onDownload,
           onAttachmentCancel: callbacks.onCancel,
           onAttachmentOpen: callbacks.onOpen,
+          onRetry: onRetryMessage,
+          l: AppLocalizations.of(context)!.toFailedMessageRetryL10n(),
         );
       },
     );

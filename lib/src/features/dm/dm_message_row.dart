@@ -14,6 +14,8 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/outbound_delivery.dart';
+import 'package:mosh/src/features/shared/failed_message_retry.dart';
 
 /// Avatar diameter used by `DmMessageRow` -- both the real `CircleAvatar`
 /// and the grouped-row spacer share this width so a grouped row stays
@@ -32,6 +34,8 @@ class DmMessageRow extends StatelessWidget {
     required this.onAttachmentDownload,
     required this.onAttachmentCancel,
     required this.onAttachmentOpen,
+    required this.onRetry,
+    required this.l,
   });
 
   final ChatMessage message;
@@ -41,6 +45,8 @@ class DmMessageRow extends StatelessWidget {
   final void Function(String attachmentId) onAttachmentDownload;
   final void Function(String attachmentId) onAttachmentCancel;
   final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
+  final void Function(String messageId) onRetry;
+  final FailedMessageRetryL10n l;
 
   @override
   Widget build(BuildContext context) {
@@ -51,14 +57,14 @@ class DmMessageRow extends StatelessWidget {
         own ? MainAxisAlignment.end : MainAxisAlignment.start;
     final avatarSlot = grouped
         ? const SizedBox(width: dmMessageAvatarSize)
-       : CircleAvatar(
+        : CircleAvatar(
             backgroundColor: avatarColor(message.fromDevice),
-          maxRadius: dmMessageAvatarSize / 2,
-          child: Text(
-            avatarInitials(message.fromDevice),
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        );
+            maxRadius: dmMessageAvatarSize / 2,
+            child: Text(
+              avatarInitials(message.fromDevice),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -69,8 +75,7 @@ class DmMessageRow extends StatelessWidget {
           Flexible(
             child: Container(
               constraints: const BoxConstraints(maxWidth: 360),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: BorderRadius.circular(12),
@@ -90,6 +95,24 @@ class DmMessageRow extends StatelessWidget {
                       onOpen: onAttachmentOpen,
                     ),
                   if (own) DeliveryTicks(status: message.deliveryStatus),
+                  // FailedMessageRetry row (React FailedMessageRetry,
+                  // MessageLists.tsx L354-357) -- renders BELOW the body + AttachmentCard +
+                  // DeliveryTicks, mirroring React's message-body order (FailedMessageRetry
+                  // last child). Gate is the 1-1 port of React's render condition:
+                  // outbound && delivery_status === 'failed' && retryable && message_id
+                  // (outbound == own == from_device == ownDeviceName). The onRetry
+                  // callback fires the Gateway retry seam (retryDmMessage -> frb
+                  // private_dm_retry_message); the gate guarantees message.messageId is
+                  // non-null, so the bang (!) is safe.
+                  if (own &&
+                      message.deliveryStatus == MessageDeliveryStatus.failed &&
+                      message.retryable == true &&
+                      message.messageId != null)
+                    FailedMessageRetry(
+                      deliveryError: message.deliveryError,
+                      onRetry: () => onRetry(message.messageId!),
+                      l: l,
+                    ),
                 ],
               ),
             ),

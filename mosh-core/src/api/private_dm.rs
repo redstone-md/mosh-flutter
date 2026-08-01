@@ -197,6 +197,21 @@ pub fn send_message(session_id: String, body: String) -> Result<SendMessageResul
         .map_err(|error| error.to_string())
 }
 
+/// Retry a failed outbound message (1:1 port of `private_dm_retry_message`,
+/// src-tauri/src/lib.rs L359-369). Re-sends a failed outbound message by
+/// its message id; returns the send result (new delivery status) the
+/// bridge caller uses to invalidate its snapshot so the next poll
+/// re-renders the row. Mirrors React `retryDmMessage`
+/// (native-messaging-gateway.ts) and the channel/group retry facades
+/// (`channel::retry_message`, `private_group::retry_message`).
+pub fn retry_message(session_id: String, message_id: String) -> Result<SendMessageResult, String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .retry_message(&session_id, &message_id)
+        .map_err(|error| error.to_string())
+}
+
 /// Poll a session for its current snapshot (1:1 port of
 /// `private_dm_poll_session`). The React frontend called this every
 /// AUTO_POLL_MS; no push, no StreamSink.
@@ -266,14 +281,7 @@ pub fn send_attachment(
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
-        .send_attachment(
-            &session_id,
-            file_name,
-            mime,
-            bytes,
-            thumbnail_base64,
-            voice,
-        )
+        .send_attachment(&session_id, file_name, mime, bytes, thumbnail_base64, voice)
         .map_err(|error| error.to_string())
 }
 
@@ -289,7 +297,7 @@ fn decode_base64(value: &str) -> Result<Vec<u8>, String> {
 
 #[cfg(test)]
 mod tests {
-use crate::api::shared_runtime::resolve_data_dir;
+    use crate::api::shared_runtime::resolve_data_dir;
     use crate::moss_ffi::{
         clear_moss_keystore, set_moss_keystore, MossFfiRuntime, MossNodeConfig, MOSS_TEST_LOCK,
     };

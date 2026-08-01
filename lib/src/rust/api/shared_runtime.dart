@@ -4,7 +4,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import '../lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `construct_resources`, `resolve_data_dir`
@@ -26,16 +25,4 @@ Future<SharedResources> ensureSharedResources() =>
     RustLib.instance.api.crateApiSharedRuntimeEnsureSharedResources();
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SharedResources>>
-abstract class SharedResources implements RustOpaqueInterface {
-  ArcAttachmentStore get attachmentStore;
-
-  ArcPersistence? get persistence;
-
-  ArcSharedMossNode get sharedNode;
-
-  set attachmentStore(ArcAttachmentStore attachmentStore);
-
-  set persistence(ArcPersistence? persistence);
-
-  set sharedNode(ArcSharedMossNode sharedNode);
-}
+abstract class SharedResources implements RustOpaqueInterface {}
