@@ -360,6 +360,24 @@ class FakeGateway implements Gateway {
   @override
   Future<void> dismissGroupDmOffer({required String groupId, required String offerId}) =>
       Future.value();
+  // Channel/group attachment transfer seams (slice-3): the fake has no real
+  // transfer runtime, so all four are no-ops that complete synchronously
+  // (the screen refreshes its snapshot after the call, which still shows
+  // the attachment's previous state until a real runtime is wired).
+  // Mirrors the Future<void> shape of the real impls + the existing DM
+  // downloadAttachment/cancelAttachment no-op stubs in this fake.
+  @override
+  Future<void> downloadChannelAttachment({required String name, required String attachmentId}) =>
+      Future.value();
+  @override
+  Future<void> cancelChannelAttachment({required String name, required String attachmentId}) =>
+      Future.value();
+  @override
+  Future<void> downloadGroupAttachment({required String groupId, required String attachmentId}) =>
+      Future.value();
+  @override
+  Future<void> cancelGroupAttachment({required String groupId, required String attachmentId}) =>
+      Future.value();
 
   // The `joinOrg` seam (slice-3) mirrors the React happy path: a canned
   // OrgSnapshot with empty-but-valid members/offers/links (the org has no

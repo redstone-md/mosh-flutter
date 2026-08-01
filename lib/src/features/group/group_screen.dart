@@ -59,6 +59,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
@@ -68,7 +71,7 @@ import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AttachmentView;
+    show AttachmentView, AttachmentDescriptor;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -149,6 +152,34 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
       cancelLabel: l.dialogCancel,
     );
     if (confirmed) await _leave();
+  }
+
+  /// Builds the per-row transfer-action callbacks for [GroupMessageRow]'s
+  /// AttachmentCard: download/cancel fire the Gateway seam then invalidate
+  /// the group snapshot so the next poll re-renders state + progress
+  /// (fire-and-forget via `unawaited`, mirrors DmScreen's
+  /// `_attachmentCallbacks` and ChannelScreen's mirror).
+  _AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
+      _AttachmentCallbacks(
+        onDownload: (id) => unawaited(ref
+            .read(gatewayProvider)
+            .downloadGroupAttachment(groupId: widget.groupId, attachmentId: id)
+            .then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
+        onCancel: (id) => unawaited(ref
+            .read(gatewayProvider)
+            .cancelGroupAttachment(groupId: widget.groupId, attachmentId: id)
+            .then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
+        onOpen: (descriptor) => _openAttachment(view),
+      );
+
+  /// Opens the attachment's local file (React `openPath(local_path)` via the
+  /// Tauri opener plugin -- here client-side, no Rust fn). Windows:
+  /// `cmd /c start ""`; non-Windows is a no-op (the card disables Open when
+  /// `view.localPath` is null; React `disabled={!view?.local_path}`).
+  void _openAttachment(AttachmentView? view) {
+    final localPath = view?.localPath;
+    if (localPath == null || localPath.isEmpty || !Platform.isWindows) return;
+    unawaited(Process.run('cmd', ['/c', 'start', '', '', localPath]));
   }
 
   @override
@@ -239,6 +270,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                         messages: filtered,
                         ownFingerprint: group.deviceFingerprint,
                         attachments: group.attachments,
+                        attachmentCallbacks: _attachmentCallbacks,
                       );
                     },
                   ),
@@ -281,11 +313,16 @@ class _GroupMessageListView extends StatelessWidget {
     required this.messages,
     required this.ownFingerprint,
     required this.attachments,
+    required this.attachmentCallbacks,
   });
 
   final List<GroupMessage> messages;
   final String ownFingerprint;
   final List<AttachmentView> attachments;
+  /// Per-row transfer-action callbacks (download/cancel/open). Built by the
+  /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
+  /// `_attachmentCallbacks`).
+  final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
 
   @override
   Widget build(BuildContext context) {
@@ -308,19 +345,16 @@ class _GroupMessageListView extends StatelessWidget {
             ? null
             : _findGroupAttachmentView(
                 attachments, msg.attachment!.attachmentId);
+        final callbacks = attachmentCallbacks(attachmentView);
         return GroupMessageRow(
           message: msg,
           ownFingerprint: ownFingerprint,
           grouped: item.grouped,
           attachmentView: attachmentView,
           l: l,
-          // TODO(channel-group-attachment-transfer): wire to Gateway
-          // download/cancel/open once the channel/group attachment-
-          // transfer seam exists. No-op stubs for the display-only stage
-          // (mirrors the DM port's `b7660f8`).
-          onAttachmentDownload: (_) {},
-          onAttachmentCancel: (_) {},
-          onAttachmentOpen: (_) {},
+          onAttachmentDownload: callbacks.onDownload,
+          onAttachmentCancel: callbacks.onCancel,
+          onAttachmentOpen: callbacks.onOpen,
         );
       },
     );
@@ -336,6 +370,21 @@ AttachmentView? _findGroupAttachmentView(
     if (v.attachmentId == attachmentId) return v;
   }
   return null;
+}
+
+/// Per-row attachment transfer-action callbacks for the group screen.
+/// Mirrors DmScreen's `AttachmentCallbacks` value class (kept local to this
+/// file to avoid coupling channel/group to the DM screen's class).
+class _AttachmentCallbacks {
+  const _AttachmentCallbacks({
+    required this.onDownload,
+    required this.onCancel,
+    required this.onOpen,
+  });
+
+  final void Function(String attachmentId) onDownload;
+  final void Function(String attachmentId) onCancel;
+  final void Function(AttachmentDescriptor descriptor) onOpen;
 }
 
 /// Reads `group.needsRejoin` off the resolved [GroupSnapshot] for the
