@@ -57,6 +57,8 @@ import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show AttachmentView;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -177,6 +179,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                       return _GroupMessageListView(
                         messages: filtered,
                         ownFingerprint: group.deviceFingerprint,
+                        attachments: group.attachments,
                       );
                     },
                   ),
@@ -218,10 +221,12 @@ class _GroupMessageListView extends StatelessWidget {
   const _GroupMessageListView({
     required this.messages,
     required this.ownFingerprint,
+    required this.attachments,
   });
 
   final List<GroupMessage> messages;
   final String ownFingerprint;
+  final List<AttachmentView> attachments;
 
   @override
   Widget build(BuildContext context) {
@@ -234,14 +239,42 @@ class _GroupMessageListView extends StatelessWidget {
       itemCount: grouped.length,
       itemBuilder: (context, i) {
         final item = grouped[i];
+        final msg = item.message;
+        // React parity: `view = attachments.views.get(attachment_id)` --
+        // a per-message lookup into the snapshot's attachment views. The
+        // DM port uses a linear scan (session lists are small); we mirror
+        // that idiom exactly (see DmScreen's `_findAttachmentView`).
+        final attachmentView = msg.attachment == null
+            ? null
+            : _findGroupAttachmentView(
+                attachments, msg.attachment!.attachmentId);
         return GroupMessageRow(
-          message: item.message,
+          message: msg,
           ownFingerprint: ownFingerprint,
           grouped: item.grouped,
+          attachmentView: attachmentView,
+          // TODO(channel-group-attachment-transfer): wire to Gateway
+          // download/cancel/open once the channel/group attachment-
+          // transfer seam exists. No-op stubs for the display-only stage
+          // (mirrors the DM port's `b7660f8`).
+          onAttachmentDownload: (_) {},
+          onAttachmentCancel: (_) {},
+          onAttachmentOpen: (_) {},
         );
       },
     );
   }
+}
+
+/// Linear lookup for the group attachment view by id (mirrors DmScreen's
+/// `_findAttachmentView` -- a group's attachment list is small, so a plain
+/// scan avoids a Map).
+AttachmentView? _findGroupAttachmentView(
+    List<AttachmentView> attachments, String attachmentId) {
+  for (final v in attachments) {
+    if (v.attachmentId == attachmentId) return v;
+  }
+  return null;
 }
 
 /// Empty-state for a group with no messages yet. Shell form: no localized

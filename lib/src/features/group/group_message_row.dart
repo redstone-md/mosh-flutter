@@ -32,6 +32,7 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
@@ -150,19 +151,35 @@ class _GroupSearchable implements SearchableMessage {
 /// (React `PeerNickname` bolds the own name; mirrors the DM port's
 /// `if (!grouped)` gate).
 /// Own rows align right with a primaryContainer bubble; others align left
-/// with a surfaceContainerHighest bubble. No avatar, attachment card, or
-/// retry row yet (deferred to later atomics).
+/// with a surfaceContainerHighest bubble. The [AttachmentCard] renders
+/// under the body when `message.attachment != null` (display-only: the
+/// transfer callbacks are no-op stubs until the group attachment-transfer
+/// seam arrives). No avatar or retry row yet (deferred to later atomics).
 class GroupMessageRow extends StatelessWidget {
   const GroupMessageRow({
     super.key,
     required this.message,
     required this.ownFingerprint,
     required this.grouped,
+    this.attachmentView,
+    required this.onAttachmentDownload,
+    required this.onAttachmentCancel,
+    required this.onAttachmentOpen,
   });
 
   final GroupMessage message;
   final String ownFingerprint;
   final bool grouped;
+  final AttachmentView? attachmentView;
+
+  /// Transfer-action callbacks for the [AttachmentCard] (React
+  /// `attachments.onDownload`/`onCancel`/`onOpen`). The group attachment-
+  /// transfer Gateway seam is a LATER atomic, so the screen wires these as
+  /// no-op stubs for now (display-only stage, mirroring the DM port's
+  /// `b7660f8`).
+  final void Function(String attachmentId) onAttachmentDownload;
+  final void Function(String attachmentId) onAttachmentCancel;
+  final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -196,6 +213,15 @@ class GroupMessageRow extends StatelessWidget {
                   sentAtMs: message.sentAtMs,
                 ),
               Text(message.body),
+              if (message.attachment != null)
+                AttachmentCard(
+                  descriptor: message.attachment!,
+                  view: attachmentView,
+                  own: own,
+                  onDownload: onAttachmentDownload,
+                  onCancel: onAttachmentCancel,
+                  onOpen: onAttachmentOpen,
+                ),
             ],
           ),
         ),
