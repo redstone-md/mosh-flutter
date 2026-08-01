@@ -43,18 +43,17 @@
 // Positioned.fill(PeerStatusDrawer(...)) overlay.
 //
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/util/format.dart' show shorten;
 
 /// Group screen for one private group. Own vs others is inferred from
 /// `GroupMessage.fromFingerprint` vs the group's `deviceFingerprint`
@@ -178,8 +177,11 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
 }
 
 /// Message list view. `reverse: true` keeps the newest message at the bottom
-/// (mirrors ChannelScreen's `_ChannelMessageListView`); no grouping yet
-/// (shell only).
+/// (mirrors ChannelScreen's `_ChannelMessageListView`); grouping via
+/// [groupGroupMessages] (the 5-min, same-`fromFingerprint` rule ported
+/// from React `messageItems`/`shouldGroup`) so only the first row of a
+/// group renders the sender meta. Rows are [GroupMessageRow] instances
+/// from `group_message_row.dart`.
 class _GroupMessageListView extends StatelessWidget {
   const _GroupMessageListView({
     required this.messages,
@@ -191,82 +193,21 @@ class _GroupMessageListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Chronological grouping (oldest -> newest), then reversed for the
+    // reverse=true ListView (newest at the bottom). Mirrors ChannelScreen.
+    final grouped = groupGroupMessages(messages).reversed.toList();
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       reverse: true,
-      itemCount: messages.length,
+      itemCount: grouped.length,
       itemBuilder: (context, i) {
-        // newest -> oldest with reverse=true, so index the reversed list.
-        final msg = messages[messages.length - 1 - i];
-        return _GroupMessageRow(
-          message: msg,
+        final item = grouped[i];
+        return GroupMessageRow(
+          message: item.message,
           ownFingerprint: ownFingerprint,
+          grouped: item.grouped,
         );
       },
-    );
-  }
-}
-
-/// One group message row (React `GroupMessageRow`, shell form). Own =
-/// `fromFingerprint == ownFingerprint` (fingerprint comparison, NOT display
-/// name -- groups are multi-party). For others, a small `fromDevice` label
-/// + a shortened `fromFingerprint` (monospace) sit above the body so senders
-/// are distinguishable. Own aligns right with a primaryContainer bubble;
-/// others align left with a surfaceContainerHighest bubble. No avatar,
-/// grouping, or sender-meta widget yet.
-class _GroupMessageRow extends StatelessWidget {
-  const _GroupMessageRow({
-    required this.message,
-    required this.ownFingerprint,
-  });
-
-  final GroupMessage message;
-  final String ownFingerprint;
-
-  @override
-  Widget build(BuildContext context) {
-    final own = message.fromFingerprint == ownFingerprint;
-    final theme = Theme.of(context);
-    final bubble = own
-        ? theme.colorScheme.primaryContainer
-        : theme.colorScheme.surfaceContainerHighest;
-    final alignment =
-        own ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    return Align(
-      alignment: own ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: bubble,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: alignment,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!own) ...[
-                Text(
-                  message.fromDevice,
-                  style: theme.textTheme.labelSmall,
-                ),
-                Text(
-                  shorten(message.fromFingerprint, 6),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const SizedBox(height: 4),
-              ],
-              Text(message.body),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -13,6 +13,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/util/format.dart' show shorten;
 
 /// Delivery-tick glyph row for an own-message row. Renders nothing for
 /// `failed` or null status (matches React's per-state tick rendering),
@@ -36,8 +37,7 @@ class DeliveryTicks extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Text(label,
-          style:
-              TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
+          style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
     );
   }
 }
@@ -54,8 +54,7 @@ class DeliveryTicks extends StatelessWidget {
 /// for non-en locales to format in-locale rather than fall back to en.
 String? formatClock(BigInt? sentAtMs, {String? locale}) {
   if (sentAtMs == null) return null;
-  final dt =
-      DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
+  final dt = DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
   return DateFormat.Hm(locale ?? 'en').format(dt);
 }
 
@@ -69,8 +68,7 @@ String? formatClock(BigInt? sentAtMs, {String? locale}) {
 /// [formatClock]'s locale handling.
 String? formatClockFull(BigInt? sentAtMs, {String? locale}) {
   if (sentAtMs == null) return null;
-  final dt =
-      DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
+  final dt = DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
   // add_Hm() appends the Hm skeleton to the locale-aware yMMMd DateFormat;
   // the locale is already set on the base, so add_Hm takes no locale arg.
   return DateFormat.yMMMd(locale ?? 'en').add_Hm().format(dt);
@@ -233,6 +231,102 @@ class SenderMeta extends StatelessWidget {
               // Mirrors React's `title={date.toLocaleString()}` on the
               // `<time>` element: the full locale-aware date-time shows on
               // hover (desktop) / long-press (mobile).
+              message: full,
+              child: Text(
+                clock,
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: theme.hintColor),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Sender-meta row for the FIRST message of a channel / group group: the
+/// raw `fromDevice` name in bold + a monospace shortened `fromFingerprint`
+/// + an [MlsBadge] + a muted locale-aware HH:mm timestamp wrapped in a
+/// [Tooltip] with the full locale-aware date-time. 1-1 with the non-grouped
+/// branch of React `ChannelMessageRow` / `GroupMessageRow`'s `message-meta`
+/// row order
+/// (`<PeerNickname/><code className="device-fp">{shorten(from_fingerprint,6)}</code><MlsBadge/><MessageTimestamp/>`):
+/// name, fingerprint, badge, timestamp.
+///
+/// Differs from [SenderMeta] (the DM meta): the DM meta has NO fingerprint
+/// code (DMs are 1:1, so the device name alone disambiguates the single
+/// peer), whereas channel / group meta render the shortened fingerprint
+/// because those contexts are multi-party and two members could share a
+/// display name but never a device fingerprint (React's `<code
+/// className="device-fp">` in `ChannelMessageRow` / `GroupMessageRow`).
+/// This concrete difference is why this is a sibling widget rather than a
+/// reuse of [SenderMeta] -- per the brief: reuse `SenderMeta` directly
+/// unless React's channel/group meta differs (it does, by the fingerprint
+/// code).
+///
+/// Takes primitive ctor args (`fromDevice`, `fromFingerprint`, `sentAtMs`)
+/// rather than a `ChannelMessage` / `GroupMessage` so it stays decoupled
+/// from the two distinct generated message types (which share no base) --
+/// both `ChannelMessageRow` (channel_message_row.dart) and `GroupMessageRow`
+/// (group_message_row.dart) feed it their row's three fields. The visible
+/// fingerprint text uses [shorten] (the same helper DMs use for their
+/// fingerprint badges), with `head = 6` to match React's
+/// `shorten(message.from_fingerprint, 6)`.
+class MultiPartySenderMeta extends StatelessWidget {
+ const MultiPartySenderMeta({
+   super.key,
+   required this.fromDevice,
+   required this.fromFingerprint,
+   required this.sentAtMs,
+    this.showMlsBadge = true,
+ });
+
+ final String fromDevice;
+ final String fromFingerprint;
+ final BigInt? sentAtMs;
+  // React distinguishes channel vs group sender-meta: the GROUP row
+  // (MessageLists.tsx GroupMessageRow ~line 273-279) renders an MLS badge
+  // after the fingerprint code; the CHANNEL row (ChannelMessageRow ~line
+  // 378-383) does NOT. Default true matches the group layout; channel
+  // passes false.
+  final bool showMlsBadge;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final locale = AppLocalizations.of(context)?.localeName;
+    final clock = formatClock(sentAtMs, locale: locale);
+    final full = formatClockFull(sentAtMs, locale: locale);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              fromDevice,
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            shorten(fromFingerprint, 6),
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontFamily: 'monospace',
+              color: theme.hintColor,
+            ),
+          ),
+         const SizedBox(width: 6),
+          if (showMlsBadge) ...[
+            const SizedBox(width: 6),
+            const MlsBadge(),
+          ],
+         if (clock != null && full != null) ...[
+            const SizedBox(width: 6),
+            Tooltip(
               message: full,
               child: Text(
                 clock,
