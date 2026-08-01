@@ -1,13 +1,14 @@
 /// Pure mesh-summary helpers for the Diagnostics drawer, 1-в-1 with React's
 /// `src/features/private-dm/DiagnosticsDrawerHelpers.ts`. This atomic ports
-/// the THREE helpers that the DM branch of `diagnosticsSummary` needs:
-/// `peerCount`, `natType`, and `relayStatus`.
+/// the FOUR helpers that the Diagnostics drawer needs so far: `peerCount`,
+/// `natType`, `relayStatus`, and `pathLabel`.
 ///
 /// The other helpers from the React file (`peerBreakdown`, `relayBreakdown`,
-/// `pathLabel`, `compactDetail`, `formatTime`, `shorten`) are used by the
-/// full DiagnosticsDrawer sections (peer/mesh/event breakdowns), not by the
-/// summary card. They are DEFERRED to a later atomic that ports the rest of
-/// the drawer once the channel/group contracts land in the Flutter fork.
+/// `compactDetail`, `formatTime`) are used by the full DiagnosticsDrawer
+/// sections (peer/mesh/event breakdowns), not by the summary card or the
+/// Conversation-details group. They are DEFERRED to a later atomic that ports
+/// the rest of the drawer once the channel/group contracts land in the
+/// Flutter fork. `shorten` is reused from `lib/src/util/format.dart`.
 library;
 
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -45,4 +46,30 @@ String relayStatus(MeshInfo mesh) {
     return '${mesh.relayCapablePeerCount} capable';
   }
   return 'none';
+}
+
+/// Human label for a DM's transport path, 1-в-1 with React `pathLabel(path,
+/// relayReady?)`. "relayed" gets the "via supernode" suffix to make clear
+/// the path is a Mesh-TURN relay (still E2E -- the supernode only sees
+/// ciphertext). While the shared relay node has not converged yet
+/// (`relayReady === false`) the label says so -- sends are queued, not
+/// failing.
+///
+/// The "relayed via supernode" / "(warming up)" / "direct" / "connecting" /
+/// "unknown" literals are DATA values (transport-path labels), not user
+/// copy -- they match React literally and are NOT localized, mirroring the
+/// React source.
+String pathLabel(String path, bool? relayReady) {
+  switch (path) {
+    case 'relayed':
+      return relayReady == false
+          ? 'relayed via supernode (warming up)'
+          : 'relayed via supernode';
+    case 'direct':
+      return 'direct';
+    case 'connecting':
+      return 'connecting';
+    default:
+      return path.isEmpty ? 'unknown' : path;
+  }
 }

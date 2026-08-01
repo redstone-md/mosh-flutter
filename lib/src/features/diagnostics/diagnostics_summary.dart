@@ -24,6 +24,7 @@ library;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
+import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// Tone of a `DiagnosticSummary`, mirroring React's `SummaryTone`. Drives
@@ -110,7 +111,7 @@ bool _listEquals(List<DiagnosticSummaryFact> a, List<DiagnosticSummaryFact> b) {
 ///
 /// `l` is the localized copy seam: the function is pure (deterministic
 /// given `l`). The DM-branch state badge uses the existing `stateReady` /
-/// `stateWaiting` / `stateIdle` keys via the shared `_stateLabel` mapper
+/// `stateWaiting` / `stateIdle` keys via the shared `stateLabel` mapper
 /// (mirrors React's `stateLabels[session.state] ?? session.state` with the
 /// raw-state fallback used by `sessions_screen.dart`). The idle/error state
 /// badges use the new `summaryStateWaiting` / `summaryStateError` keys.
@@ -129,7 +130,7 @@ DiagnosticSummary diagnosticsSummary({
           : (session.displayName.isNotEmpty
               ? session.displayName
               : 'Private session'),
-      state: _stateLabel(l, session.state),
+      state: stateLabel(l, session.state),
       description: _sessionDescription(l, session.state, mesh),
       facts: [
         DiagnosticSummaryFact(label: l.summaryFactPeers, value: peerCount(mesh)),
@@ -184,25 +185,4 @@ String _sessionDescription(AppLocalizations l, String state, MeshInfo? mesh) {
     return l.summaryWaiting;
   }
   return l.summaryIdle;
-}
-
-/// Maps a raw session state string to a localized label, mirroring React's
-/// `stateLabels[session.state] ?? session.state` lookup. Falls back to the
-/// raw state string for unknown states (same as React and the existing
-/// `_stateLabel` in `sessions_screen.dart`). Not extracted to a shared
-/// helper yet to avoid touching `sessions_screen.dart` in this atomic; a
-/// later refactor can lift this + the sessions_screen copy into a shared
-/// `state_label.dart`.
-String _stateLabel(AppLocalizations l, String state) {
-  switch (state) {
-    case 'idle':
-      return l.stateIdle;
-    case 'waiting':
-    case 'connecting':
-      return l.stateWaiting;
-    case 'ready':
-      return l.stateReady;
-    default:
-      return state;
-  }
 }

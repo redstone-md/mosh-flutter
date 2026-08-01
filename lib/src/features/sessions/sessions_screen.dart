@@ -31,6 +31,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/unread_providers.dart';
@@ -130,7 +131,7 @@ class _SessionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final label = _label();
-    final stateLabel = _stateLabel(l, session.state);
+    final stateText = stateLabel(l, session.state);
     final bg = avatarColor(session.sessionId);
     return Semantics(
       label: 'Open session with $label',
@@ -148,7 +149,7 @@ class _SessionRow extends StatelessWidget {
           ),
         ),
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(stateLabel),
+        subtitle: Text(stateText),
        trailing: Row(
          mainAxisSize: MainAxisSize.min,
          children: [
@@ -259,22 +260,6 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-/// Maps a raw session state string to a localized label, mirroring the
-/// React `stateLabels[session.state] ?? session.state` lookup. Falls back to
-/// the raw state string for unknown states (same as React).
-String _stateLabel(AppLocalizations l, String state) {
-  switch (state) {
-    case 'idle':
-      return l.stateIdle;
-    case 'waiting':
-    case 'connecting':
-      return l.stateWaiting;
-    case 'ready':
-      return l.stateReady;
-    default:
-      return state;
-  }
-}
 
 /// State dot color: idle = grey, waiting/connecting = amber, ready = teal,
 /// default = grey. Mirrors the React `rail-dot-*` palette.
