@@ -12,6 +12,7 @@ import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
+import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
 void main() async {
@@ -27,6 +28,11 @@ void main() async {
   // environments without the native cdylib this throws; main() is only
   // exercised in real device/desktop runs, not in `flutter test`.
   await RustLib.init();
+  // Slice-3 media viewer: initialize media_kit (the Player/Video engine
+  // behind MediaViewer video + audio playback) before any Player is
+  // constructed. Idempotent; skipped harmlessly under `flutter test` (no
+  // MediaViewer is pumped there). Must run after WidgetsFlutterBinding.
+  MediaKit.ensureInitialized();
   // S2-2: register the `mosh://` custom URL scheme with Windows so the OS
   // launches mosh.exe (URI as launch arg) for a `mosh://...` link. The
   // runner already pipes launch args to Dart; this is the OS-association

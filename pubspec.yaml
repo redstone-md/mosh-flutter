@@ -48,6 +48,15 @@ dependencies:
   # records to a file (start/stop return a path) + onAmplitudeChanged
   # drives the waveform preview. Desktop + mobile + web platform impls.
   record: ^7.1.1
+  # Slice-3 media viewer: video + audio playback for the MediaViewer
+  # fullscreen dialog (1-в-1 port of React MediaViewer.tsx <video/
+  # <audio controls autoPlay>). media_kit is cross-platform (desktop +
+  # mobile + web), so one package covers both branches; media_kit_video
+  # renders the video surface, media_kit_libs_video pulls the native
+  # decoders per platform (windows/linux/macos/ios/android).
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
 
 dev_dependencies:
   flutter_test:

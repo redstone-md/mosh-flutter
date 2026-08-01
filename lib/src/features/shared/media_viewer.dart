@@ -1,13 +1,14 @@
-// Shared MediaViewer -- the 1-в-1 port of React's MediaViewer.tsx. A
+// Shared MediaViewer -- the 1-в-1 port of React MediaViewer.tsx. A
 // fullscreen in-app viewer for image/video/audio/other attachments. The
-// widget itself is just the surface; the caller (the slice-3 attachment
-// transfer seam) resolves the URL and invokes [showMediaViewer]. Video/audio
-// render as placeholder cards (not real player packages) because the src is
-// not real until slice-3; image uses Image.network. See the commit message for
-// the React-structure map + the Flutter translation rationale.
+// caller (the slice-3 attachment transfer seam) resolves the URL and
+// invokes [showMediaViewer]. Image uses Image.network; video + audio use
+// media_kit (Player + VideoController). See the commit message for the
+// React-structure map + the Flutter translation rationale.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -204,22 +205,17 @@ class _MediaStage extends StatelessWidget {
                 bg0: theme.colorScheme.surface,
               )
             : isVideo
-                ? _PlaybackPlaceholderCard(
-                    fileName: descriptor.fileName,
-                    icon: Icons.play_circle_filled,
-                    // TODO(slice-3): wire a real video player (video_player /
-                    // better_player) once the attachment-transfer seam
-                    // resolves a real src.
-                    bg2: theme.colorScheme.surface,
+                ? _VideoStage(
+                    descriptor: descriptor,
+                    src: src,
+                    maxStageWidth: maxStageWidth,
+                    maxStageHeight: maxStageHeight,
                   )
                 : isAudio
-                    ? _PlaybackPlaceholderCard(
-                        fileName: descriptor.fileName,
-                        icon: Icons.play_circle_filled,
-                        // TODO(slice-3): wire a real audio player
-                        // (audioplayers) once the transfer seam resolves a
-                        // real src.
-                        bg2: theme.colorScheme.surface,
+                    ? _AudioStage(
+                        descriptor: descriptor,
+                        src: src,
+                        maxStageWidth: maxStageWidth,
                       )
                     : _PlaybackPlaceholderCard(
                         fileName: descriptor.fileName,
@@ -279,6 +275,220 @@ class _ImageStage extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The video branch -- 1-в-1 with React `media-viewer-video` (a `video`
+/// element with `src controls autoPlay`). Uses media_kit: a [Player]
+/// drives playback, a [VideoController] surfaces the frames to a [Video]
+/// widget with MaterialVideoControls (the Material counterpart to the
+/// native `controls` attribute). Constrained to the stage box so a
+/// tall/wide clip never overflows the viewport (React `max-width 92vw;
+/// max-height 82vh`).
+class _VideoStage extends StatefulWidget {
+  const _VideoStage({
+    required this.descriptor,
+    required this.src,
+    required this.maxStageWidth,
+    required this.maxStageHeight,
+  });
+
+  final AttachmentDescriptor descriptor;
+  final String src;
+  final double maxStageWidth;
+  final double maxStageHeight;
+
+  @override
+  State<_VideoStage> createState() => _VideoStageState();
+}
+
+class _VideoStageState extends State<_VideoStage> {
+  Player? _player;
+  VideoController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // media_kit needs its native lib; in test envs without it (or on an
+    // unsupported platform) Player() throws -- fall back to the placeholder
+    // card so the viewer still renders. React video autoPlay -> open +
+    // play immediately on the happy path.
+    try {
+      final player = Player();
+      _player = player;
+      _controller = VideoController(player);
+      player.open(Media(widget.src));
+    } catch (_) {
+      _player = null;
+      _controller = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    if (controller == null) {
+      // Fallback (test env / unsupported platform) -- the same placeholder
+      // card the viewer used before the slice-3 player wiring.
+      return _PlaybackPlaceholderCard(
+        fileName: widget.descriptor.fileName,
+        icon: Icons.play_circle_filled,
+        bg2: Theme.of(context).colorScheme.surface,
+      );
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: widget.maxStageWidth,
+        maxHeight: widget.maxStageHeight,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Video(
+          controller: controller,
+          // React controls -> Material controls (play/pause/seek/volume
+          // + fullscreen), the closest native counterpart.
+          controls: MaterialVideoControls,
+          fill: Colors.transparent,
+        ),
+      ),
+    );
+  }
+}
+
+/// The audio branch -- 1-в-1 with React `media-viewer-audio` (IconPlayerPlay
+/// + strong file_name + an `audio` element with `src controls autoPlay`).
+/// Uses media_kit [Player] (audio-only -- no VideoController); a minimal
+/// control row (play/pause + seek Slider + position/duration label) mirrors
+/// the native `audio controls` affordance since media_kit ships no ready
+/// audio-controls widget. Listens to the player stream for live position +
+/// duration.
+class _AudioStage extends StatefulWidget {
+  const _AudioStage({
+    required this.descriptor,
+    required this.src,
+    required this.maxStageWidth,
+  });
+
+  final AttachmentDescriptor descriptor;
+  final String src;
+  final double maxStageWidth;
+
+  @override
+  State<_AudioStage> createState() => _AudioStageState();
+}
+
+class _AudioStageState extends State<_AudioStage> {
+  Player? _player;
+  bool _playing = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    // media_kit needs its native lib; in test envs without it Player()
+    // throws -- fall back to the placeholder card. React audio autoPlay ->
+    // open + play on the happy path.
+    try {
+      final player = Player();
+      _player = player;
+      player.stream.playing.listen((playing) {
+        if (mounted) setState(() => _playing = playing);
+      });
+      player.stream.position.listen((pos) {
+        if (mounted) setState(() => _position = pos);
+      });
+      player.stream.duration.listen((dur) {
+        if (mounted) setState(() => _duration = dur);
+      });
+      player.open(Media(widget.src));
+    } catch (_) {
+      _player = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds.remainder(60);
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final player = _player;
+    if (player == null) {
+      // Fallback (test env / unsupported platform).
+      return _PlaybackPlaceholderCard(
+        fileName: widget.descriptor.fileName,
+        icon: Icons.play_circle_filled,
+        bg2: theme.colorScheme.surface,
+      );
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: widget.maxStageWidth),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border.all(color: theme.dividerColor),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(Icons.play_circle_filled,
+                size: 32, color: theme.colorScheme.primary),
+            const SizedBox(height: 14),
+            Text(widget.descriptor.fileName,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurface)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                IconButton(
+                    icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+                    onPressed: () => player.playOrPause()),
+                Expanded(
+                  child: Slider(
+                    value: _position.inMilliseconds.toDouble(),
+                    min: 0,
+                    max: _duration.inMilliseconds
+                        .toDouble()
+                        .clamp(1, double.infinity),
+                    onChanged: (value) =>
+                        player.seek(Duration(milliseconds: value.round())),
+                  ),
+                ),
+                SizedBox(
+                  width: 80,
+                  child: Text(
+                    '${_fmt(_position)} / ${_fmt(_duration)}',
+                    style: theme.textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
