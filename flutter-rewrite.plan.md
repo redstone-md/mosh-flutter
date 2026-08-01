@@ -714,3 +714,48 @@ M-3+M-7 under iOS, needs macOS/Xcode), and a real device integration pass
 (install emulator+AVD or use a real device, build apk, open mosh://, confirm
 Keystore DEK + history persist across restart in app-support, confirm
 biometric prompt).
+
+## Diagnostics slice — DiagnosticsDrawer wiring (DONE, commit 94724be)
+
+The DiagnosticsDrawer primitives (SummaryCard, RuntimeError, SessionDiagnostics
+with all 3 groups — Conversation details / Moss network / Moss events,
+NoActiveSession, MeshDiagnostics, EventLog, and the 8 helpers) were built across
+commits b69bae0..f93f077 as standalone, unwired primitives. This atomic wires
+them into the DM screen as a modal peer-status drawer, 1-в-1 with React's
+`src/features/private-dm/DiagnosticsDrawer.tsx`.
+
+Implementation: new `lib/src/features/dm/peer_status_drawer.dart` (`PeerStatusDrawer`)
+mirrors the React shell — translucent backdrop (tap to close, the React
+`role=presentation onClick`), right-aligned aside (max 384px, left divider
+border, the `aside`), header (plug icon + "Peer status" + refresh-while-disabled
++ close), and a `SingleChildScrollView` body reusing SummaryCard -> optional
+RuntimeError -> SessionDiagnostics-or-NoActiveSession. No primitives were
+duplicated. `DmScreen` gained a `_showPeerStatus` bool, an AppBar action
+(Icons.electrical_services, tooltip openPeerStatus — the Flutter equivalent of
+React's titlebar plug button), and a Stack body whose last child is
+`Positioned.fill(child: PeerStatusDrawer(...))` when open. The drawer reads
+`session: async.value` / `error: async.hasError ? async.error.toString() : null`
+from the existing `activeSessionProvider` watch; `refreshing` is hardcoded false
+and `onRefresh` re-invalidates `activeSessionProvider` (the React `refresh(false)`
+poll loop is a later slice).
+
+DM-only: channel/group branches are deferred — those Snapshot contracts don't
+exist in the fork yet, so they pass null and hit the idle/error fallback in the
+existing `diagnosticsSummary(l, session, error)` seam. New ARB keys (en + ru):
+peerStatusTitle, refreshStatus, closePeerStatus, openPeerStatus.
+
+Verify (independent review, Meitner, 9/9 PASS + 1 deferred-a11y note):
+`flutter analyze` 0 issues; `flutter test` 190/190 pass; dm_screen.dart 468
+lines (< 500); ARB trailing LF preserved on both files; scope clean (4 files).
+The one deferred item is drawer a11y — React uses `role=dialog aria-modal=true
+aria-labelledby`; Flutter has a `Semantics(container: true, label)` but no
+focus-trap/scopedRoute. That is the next atomic (RuntimeError liveRegion is the
+same a11y follow-up batch).
+
+Next atomic (recorded): a11y follow-up — RuntimeError `Semantics(liveRegion:
+true)` (React `role="alert"`) + PeerStatusDrawer modal `scopedRoute`/focus-trap.
+Then the larger atomics: attachment transfer actions (Dart+Rust +
+download/cancel/open_attachment + frb codegen + RealBridge/Fake), the
+channels/groups contract slice (port ChannelSnapshot/GroupSnapshot to Rust api +
+frb before any channels/groups UI), and FingerprintBadge (needs Gateway
+confirm-fingerprint method).
