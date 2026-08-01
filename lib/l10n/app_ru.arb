@@ -229,6 +229,12 @@
   "@diagRowPublicKey": { "description": "Row key for the mesh public key in the Moss network group" },
   "diagMeshBootingTitle": "Сеть запускается",
   "@diagMeshBootingTitle": { "description": "Title of the empty state shown when the mesh is still booting in the diagnostics drawer" },
-  "diagMeshBootingBody": "Сетевые данные появятся после того, как Moss привяжет порт и получит первый опрос среды.",
-  "@diagMeshBootingBody": { "description": "Description of the empty state shown when the mesh is still booting in the diagnostics drawer" }
-}
+ "diagMeshBootingBody": "Сетевые данные появятся после того, как Moss привяжет порт и получит первый опрос среды.",
+ "@diagMeshBootingBody": { "description": "Description of the empty state shown when the mesh is still booting in the diagnostics drawer" },
+ "diagGroupMossEvents": "События Moss",
+ "@diagGroupMossEvents": { "description": "Group label of the Moss events section (the event log) in the diagnostics drawer" },
+ "diagNoEventsTitle": "Событий пока нет",
+ "@diagNoEventsTitle": { "description": "Title of the empty state shown when the event log has no events in the diagnostics drawer" },
+ "diagNoEventsBody": "Moss будет показывать здесь подключения пиров, обновления трекеров и изменения ретрансляции по мере их возникновения.",
+ "@diagNoEventsBody": { "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer" }
+ }
