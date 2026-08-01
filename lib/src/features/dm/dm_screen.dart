@@ -32,9 +32,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
-import 'package:mosh/src/features/dm/dm_message_row.dart';
+import 'package:mosh/src/features/dm/dm_message_list.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
@@ -46,58 +45,6 @@ import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
-
-/// Grouping window ported 1-1 from React `GROUP_WINDOW_MS`
-/// (src/features/private-dm/MessageLists.tsx): 5 minutes.
-const Duration _groupWindow = Duration(minutes: 5);
-
-/// One grouping row: the message plus whether it was grouped under the
-/// previous visible message (React `messageItems`/`shouldGroup`).
-@visibleForTesting
-class GroupedMessage {
-  const GroupedMessage({required this.message, required this.grouped});
-
-  final ChatMessage message;
-  final bool grouped;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is GroupedMessage &&
-          runtimeType == other.runtimeType &&
-          message == other.message &&
-          grouped == other.grouped;
-
-  @override
-  int get hashCode => Object.hash(message, grouped);
-}
-
-/// Computes the per-message `grouped` flag (React `messageItems` /
-/// `shouldGroup` in MessageLists.tsx). Chronological, oldest -> newest: the
-/// first message is never grouped; a row groups when its `fromDevice`
-/// equals the previous one AND both `sentAtMs` are non-null AND `current >=
-/// previous` AND the delta is within [_groupWindow] (5 min). A null
-/// `sentAtMs` breaks grouping (React's `!prev || !cur` guard); the screen
-/// reverses the result for display (reverse=true).
-@visibleForTesting
-List<GroupedMessage> groupDmMessages(List<ChatMessage> messages) {
-  final result = <GroupedMessage>[];
-  for (var i = 0; i < messages.length; i++) {
-    final current = messages[i];
-    final grouped = i > 0 && _shouldGroup(messages[i - 1], current);
-    result.add(GroupedMessage(message: current, grouped: grouped));
-  }
-  return result;
-}
-
-bool _shouldGroup(ChatMessage previous, ChatMessage current) {
-  final prevMs = previous.sentAtMs;
-  final curMs = current.sentAtMs;
-  if (prevMs == null || curMs == null) return false;
-  if (previous.fromDevice != current.fromDevice) return false;
-  if (curMs < prevMs) return false;
-  return curMs - prevMs <= BigInt.from(_groupWindow.inMilliseconds);
-}
 
 /// Direct-message screen for one session. Own vs peer is inferred from
 /// `ChatMessage.fromDevice` vs the session's `displayName` (React's
@@ -193,8 +140,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   /// download/cancel fire the Gateway seam (99bc9d9) then invalidate the
   /// session provider so the next poll re-renders state + progress
   /// (fire-and-forget via `unawaited`).
-  AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
-      AttachmentCallbacks(
+  DmAttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
+      DmAttachmentCallbacks(
         onDownload: (id) => unawaited(_gateway
             .downloadAttachment(sessionId: _sessionId, attachmentId: id)
             .then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
@@ -354,7 +301,7 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                       if (filtered.isEmpty) {
                         return DmSearchEmpty(filter: _filter, l: l);
                       }
-                      return _MessageListView(
+                      return DmMessageListView(
                         ownDeviceName: s.displayName,
                         grouped: groupDmMessages(filtered).reversed.toList(),
                         attachments: s.attachments,
@@ -399,84 +346,6 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       ),
     );
   }
-}
-
-/// Message list view. `grouped` is in DISPLAY order (newest -> oldest);
-/// the screen computes it chronologically via [groupDmMessages] then
-/// reverses it.
-class _MessageListView extends StatelessWidget {
-  const _MessageListView({
-    required this.grouped,
-    required this.ownDeviceName,
-    required this.attachments,
-    required this.attachmentCallbacks,
-    required this.onRetryMessage,
-  });
-
-  final List<GroupedMessage> grouped;
-  final String ownDeviceName;
-  final List<AttachmentView> attachments;
-  final AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
-
-  /// Retry a failed outbound DM message by its messageId (React
-  /// `retryDmMessage`). Fire-and-forget via `unawaited` then invalidate the
-  /// session snapshot; the screen builds this from the Gateway seam.
-  final void Function(String messageId) onRetryMessage;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      reverse: true,
-      itemCount: grouped.length,
-      itemBuilder: (context, i) {
-        final item = grouped[i];
-        final msg = item.message;
-        final own = msg.fromDevice == ownDeviceName;
-        final attachmentView = msg.attachment == null
-            ? null
-            : _findAttachmentView(attachments, msg.attachment!.attachmentId);
-        final callbacks = attachmentCallbacks(attachmentView);
-        return DmMessageRow(
-          message: msg,
-          own: own,
-          grouped: item.grouped,
-          attachmentView: attachmentView,
-          onAttachmentDownload: callbacks.onDownload,
-          onAttachmentCancel: callbacks.onCancel,
-          onAttachmentOpen: callbacks.onOpen,
-          onRetry: onRetryMessage,
-          l: AppLocalizations.of(context)!.toFailedMessageRetryL10n(),
-        );
-      },
-    );
-  }
-}
-
-/// Linear lookup for the attachment view by id (session lists are small --
-/// one DM's files -- so a plain scan avoids a Map).
-AttachmentView? _findAttachmentView(
-    List<AttachmentView> attachments, String attachmentId) {
-  for (final v in attachments) {
-    if (v.attachmentId == attachmentId) return v;
-  }
-  return null;
-}
-
-/// Bundles the three transfer-action callbacks one card needs (React
-/// `attachments.onDownload`/`onCancel`/`onOpen`); a class keeps the
-/// `_MessageListView` field type short. Built per-row so Open resolves
-/// THIS row's `view.localPath`.
-class AttachmentCallbacks {
-  const AttachmentCallbacks({
-    required this.onDownload,
-    required this.onCancel,
-    required this.onOpen,
-  });
-
-  final void Function(String attachmentId) onDownload;
-  final void Function(String attachmentId) onCancel;
-  final void Function(AttachmentDescriptor descriptor) onOpen;
 }
 
 /// Empty-state for a chat with no messages yet (React DmChatList empty
