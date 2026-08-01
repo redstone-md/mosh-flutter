@@ -4,11 +4,15 @@
 // widgets depend on `Gateway`, never on a concrete impl, so swapping the
 // wired runtime is one provider change (ADR 0013).
 //
-// The ten methods below mirror the slice-one Rust `mosh_core::api` surface
+// The fourteen methods below mirror the slice-one Rust `mosh_core::api` surface
 // 1:1, poll-based (no streams). Signatures match the generated frb functions.
+// The channels/groups read seam adds pollChannel/listChannels/pollGroup/
+// listChannels; the write halves of that slice land in a later atomic.
 
 import 'package:mosh/src/rust/api/diagnostics.dart';
+import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
 
 /// Abstraction over the slice-one private-DM + diagnostics API.
 ///
@@ -29,7 +33,16 @@ abstract interface class Gateway {
   // Attachment transfer control (1:1 port of `download_attachment` /
   // `cancel_attachment`). Both drive the peer's inbound transfer; progress
   // surfaces in the next `pollSession` snapshot's `attachments`. The "open"
-  // action is client-side (opens `localPath` / streams) and has no Rust fn.
+// action is client-side (opens `localPath` / streams) and has no Rust fn.
   Future<void> downloadAttachment({required String sessionId, required String attachmentId});
   Future<void> cancelAttachment({required String sessionId, required String attachmentId});
+
+  // Channels/groups read seam (1:1 port of `channel_poll`/`channel_list`/
+  // `private_group_poll`/`private_group_list`). Poll-based mirrors of the
+  // React `pollChannel`/`listChannels`/`pollGroup`/`listGroups` shapes; the
+  // write methods (create/join/send/close/...) land in a later atomic.
+  Future<ChannelSnapshot> pollChannel({required String name});
+  Future<ChannelListSnapshot> listChannels();
+  Future<GroupSnapshot> pollGroup({required String groupId});
+  Future<GroupListSnapshot> listGroups();
 }

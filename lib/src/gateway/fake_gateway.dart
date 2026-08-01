@@ -8,6 +8,8 @@
 
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
+import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/moss_runtime.dart';
@@ -191,6 +193,57 @@ class FakeGateway implements Gateway {
     required String sessionId,
     required String attachmentId,
   }) => Future.value();
+
+  // Channels/groups read seam: the fake has no real channel/group runtime,
+  // so each method returns a canned minimal-but-valid snapshot (empty lists
+  // for messages/attachments/dmOffers/events; required strings blanked). This
+  // matches the constructor field order/optionality in channel_runtime.dart
+  // and private_group_runtime.dart.
+  @override
+  Future<ChannelSnapshot> pollChannel({required String name}) =>
+      Future.value(ChannelSnapshot(
+        name: name,
+        topic: '',
+        meshId: '',
+        displayName: '',
+        deviceFingerprint: '',
+        messages: const [],
+        attachments: const [],
+        dmOffers: const [],
+        mesh: null,
+        events: const [],
+      ));
+
+  @override
+  Future<ChannelListSnapshot> listChannels() =>
+      Future.value(const ChannelListSnapshot(channels: []));
+
+  @override
+  Future<GroupSnapshot> pollGroup({required String groupId}) =>
+      Future.value(GroupSnapshot(
+        groupId: groupId,
+        meshId: '',
+        label: null,
+        displayName: '',
+        deviceFingerprint: '',
+        creatorFingerprint: '',
+        isAdmin: false,
+        state: 'ready',
+        memberCount: BigInt.zero,
+        inviteUri: null,
+        messages: const [],
+        attachments: const [],
+        dmOffers: const [],
+        mesh: null,
+        events: const [],
+        needsRejoin: false,
+        orgPubkey: null,
+        memberPeerIds: const [],
+      ));
+
+  @override
+  Future<GroupListSnapshot> listGroups() =>
+      Future.value(const GroupListSnapshot(groups: []));
 
   SessionSnapshot _fakeSession({
     required String sessionId,
