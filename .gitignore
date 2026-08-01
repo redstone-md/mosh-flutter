@@ -58,4 +58,5 @@ lib/l10n/app_localizations.dart
 lib/l10n/app_localizations_*.dart
 # transient PowerShell commit-message scratch file
 commit_msg.txt
+.commit_msg.tmp
 cm.txt
