@@ -4,7 +4,7 @@
 // widgets depend on `Gateway`, never on a concrete impl, so swapping the
 // wired runtime is one provider change (ADR 0013).
 //
-// The eight methods below mirror the slice-one Rust `mosh_core::api` surface
+// The ten methods below mirror the slice-one Rust `mosh_core::api` surface
 // 1:1, poll-based (no streams). Signatures match the generated frb functions.
 
 import 'package:mosh/src/rust/api/diagnostics.dart';
@@ -25,4 +25,11 @@ abstract interface class Gateway {
   Future<SessionSnapshot> pollSession({required String sessionId});
   Future<SessionListSnapshot> listSessions();
   Future<CloseSessionResult> closeSession({required String sessionId});
+
+  // Attachment transfer control (1:1 port of `download_attachment` /
+  // `cancel_attachment`). Both drive the peer's inbound transfer; progress
+  // surfaces in the next `pollSession` snapshot's `attachments`. The "open"
+  // action is client-side (opens `localPath` / streams) and has no Rust fn.
+  Future<void> downloadAttachment({required String sessionId, required String attachmentId});
+  Future<void> cancelAttachment({required String sessionId, required String attachmentId});
 }

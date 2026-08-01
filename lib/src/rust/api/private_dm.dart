@@ -72,5 +72,14 @@ Future<SessionListSnapshot>  listSessions() => RustLib.instance.api.crateApiPriv
 /// Close and tear down a session (1:1 port of `private_dm_close_session`).
 Future<CloseSessionResult>  closeSession({required String sessionId }) => RustLib.instance.api.crateApiPrivateDmCloseSession(sessionId: sessionId);
 
+/// Begin (or retry) downloading a peer's attachment (1:1 port of
+/// `private_dm_download_attachment`). Triggers the transfer; progress is
+/// reported in the next `SessionSnapshot.attachments` poll.
+Future<void>  downloadAttachment({required String sessionId , required String attachmentId }) => RustLib.instance.api.crateApiPrivateDmDownloadAttachment(sessionId: sessionId, attachmentId: attachmentId);
+
+/// Cancel an in-flight attachment transfer (1:1 port of
+/// `private_dm_cancel_attachment`).
+Future<void>  cancelAttachment({required String sessionId , required String attachmentId }) => RustLib.instance.api.crateApiPrivateDmCancelAttachment(sessionId: sessionId, attachmentId: attachmentId);
+
             
             

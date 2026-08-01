@@ -21,7 +21,7 @@ import 'package:mosh/src/rust/api/diagnostics.dart' show AppDiagnostics, NativeR
 import 'package:mosh/src/rust/api/diagnostics.dart' as api show appDiagnostics, nativeRuntimeStatus;
 // private_dm.dart defines only free functions (no types); prefix them so
 // they don't shadow the interface method names.
-import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, closeSession, createInvite, listSessions, pollSession, sendMessage;
+import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, cancelAttachment, closeSession, createInvite, downloadAttachment, listSessions, pollSession, sendMessage;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// Real `mosh_core`-backed Gateway. See file doc for the lifecycle contract.
@@ -57,4 +57,18 @@ class RealBridgeGateway implements Gateway {
   @override
   Future<CloseSessionResult> closeSession({required String sessionId}) =>
       api.closeSession(sessionId: sessionId);
+
+  // Attachment transfer control delegates straight to the frb free
+  // functions; both return Future<void> so no `await` is needed.
+  @override
+  Future<void> downloadAttachment({
+    required String sessionId,
+    required String attachmentId,
+  }) => api.downloadAttachment(sessionId: sessionId, attachmentId: attachmentId);
+
+  @override
+  Future<void> cancelAttachment({
+    required String sessionId,
+    required String attachmentId,
+  }) => api.cancelAttachment(sessionId: sessionId, attachmentId: attachmentId);
 }
