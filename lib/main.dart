@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -15,6 +16,13 @@ import 'package:mosh/src/routing/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Load intl date symbols once so non-en locales (e.g. ru) format dates
+  // in-locale via `DateFormat` (used by `formatClock` / `formatClockFull`
+  // for the locale-aware message timestamp). Idempotent + cheap; en ships
+  // loaded by default, so this only matters for ru -- but calling it
+  // unconditionally keeps the init single-path. Must run BEFORE any
+  // locale-dependent render (runApp below).
+  await initializeDateFormatting();
   // frb 2.x: must initialize the bridge before any api call. In test
   // environments without the native cdylib this throws; main() is only
   // exercised in real device/desktop runs, not in `flutter test`.

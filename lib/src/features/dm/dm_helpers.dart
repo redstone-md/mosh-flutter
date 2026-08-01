@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 
 import 'package:mosh/src/rust/outbound_delivery.dart';
@@ -41,18 +42,38 @@ class DeliveryTicks extends StatelessWidget {
   }
 }
 
-/// Locale-agnostic HH:mm clock for the sender-meta row. Returns null when
-/// the message has no `sentAtMs` (matches React's `MessageTimestamp` early
-/// return on a falsy epoch). Kept local + dep-free so the DM screen does
-/// not pull `intl` into the widget tree -- a later atomic can swap this
-/// for `DateFormat.Hm()` once a locale-aware timestamp is wanted.
-String? formatClock(BigInt? sentAtMs) {
+/// Locale-aware HH:mm clock for the sender-meta row, 1-в-1 with React's
+/// `MessageTimestamp` visible text
+/// (`date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })`).
+/// Formats the epoch in the LOCAL timezone (matching JS `toLocaleTimeString`,
+/// which renders in the host's local tz) via `intl`'s `DateFormat.Hm(locale)`
+/// so the hour/minute follow the device locale. Returns null when the message
+/// has no `sentAtMs` (matches React's early return on a falsy epoch). `locale`
+/// defaults to `'en'` and is fed by the `AppLocalizations` locale in
+/// [SenderMeta]; callers must `initializeDateFormatting()` once in `main()`
+/// for non-en locales to format in-locale rather than fall back to en.
+String? formatClock(BigInt? sentAtMs, {String? locale}) {
   if (sentAtMs == null) return null;
-  final ms = sentAtMs.toInt();
-  final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-  final hh = dt.hour.toString().padLeft(2, '0');
-  final mm = dt.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
+  final dt =
+      DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
+  return DateFormat.Hm(locale ?? 'en').format(dt);
+}
+
+/// Full locale-aware date-time string for the sender-meta timestamp's
+/// tooltip, 1-в-1 with React's `MessageTimestamp`
+/// `title={date.toLocaleString()}` attribute (the hover tooltip). Renders a
+/// full date + time in the LOCAL timezone via
+/// `DateFormat.yMMMd(locale).add_Hm()` -- e.g. "Aug 1, 2026 2:30 PM"
+/// (en). Returns null when the message has no `sentAtMs` (matches React's
+/// early return on a falsy epoch). `locale` defaults to `'en'` and mirrors
+/// [formatClock]'s locale handling.
+String? formatClockFull(BigInt? sentAtMs, {String? locale}) {
+  if (sentAtMs == null) return null;
+  final dt =
+      DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
+  // add_Hm() appends the Hm skeleton to the locale-aware yMMMd DateFormat;
+  // the locale is already set on the base, so add_Hm takes no locale arg.
+  return DateFormat.yMMMd(locale ?? 'en').add_Hm().format(dt);
 }
 
 /// Stable per-device avatar color: a hash of the device name picks one of a
@@ -164,8 +185,10 @@ class MlsBadge extends StatelessWidget {
 }
 
 /// Sender-meta row for the first message of a DM group: the raw
-/// `fromDevice` name in bold + an [MlsBadge] + a muted locale-agnostic
-/// HH:mm timestamp. 1-в-1 with the non-grouped branch of React
+/// `fromDevice` name in bold + an [MlsBadge] + a muted locale-aware HH:mm
+/// timestamp wrapped in a [Tooltip] with the full locale-aware date-time
+/// (the React `MessageTimestamp` `title={date.toLocaleString()}`). 1-в-1
+/// with the non-grouped branch of React
 /// `DmMessageRow`'s `message-meta` row order
 /// (`<strong>{from_device}</strong> <MlsBadge /> <MessageTimestamp/>`):
 /// name, badge, timestamp. Extracted from `dm_screen.dart` to keep that
@@ -184,7 +207,11 @@ class SenderMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final clock = formatClock(message.sentAtMs);
+    // AppLocalizations drives the DateFormat locale (en/ru); falls back to
+    // en when the delegate is absent (e.g. a bare unit test harness).
+    final locale = AppLocalizations.of(context)?.localeName;
+    final clock = formatClock(message.sentAtMs, locale: locale);
+    final full = formatClockFull(message.sentAtMs, locale: locale);
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
@@ -200,12 +227,18 @@ class SenderMeta extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           const MlsBadge(),
-          if (clock != null) ...[
+          if (clock != null && full != null) ...[
             const SizedBox(width: 6),
-            Text(
-              clock,
-              style:
-                  theme.textTheme.labelSmall?.copyWith(color: theme.hintColor),
+            Tooltip(
+              // Mirrors React's `title={date.toLocaleString()}` on the
+              // `<time>` element: the full locale-aware date-time shows on
+              // hover (desktop) / long-press (mobile).
+              message: full,
+              child: Text(
+                clock,
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: theme.hintColor),
+              ),
             ),
           ],
         ],
