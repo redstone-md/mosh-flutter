@@ -67,7 +67,7 @@ use crate::private_dm_runtime::{
     PrivateDmRuntimeError, SendMessageResult, SessionListSnapshot, SessionSnapshot,
     StartSessionRequest,
 };
-use crate::private_dm_runtime::{AttachmentSendResult, VoiceMeta};
+use crate::private_dm_runtime::{AttachmentSendResult, CallStarted, VoiceMeta};
 
 // Mirrors the Tauri shell's `PRIVATE_DM_UNAVAILABLE` constant so the error
 // string is byte-identical across the old and new shells.
@@ -292,6 +292,79 @@ fn decode_base64(value: &str) -> Result<Vec<u8>, String> {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD
         .decode(value)
+        .map_err(|error| error.to_string())
+}
+
+/// Start a voice call in a DM session (1:1 port of the Tauri shell's
+/// `private_dm_call_start`, lib.rs L455). Mints the call id + the
+/// symmetric call key + nonce prefix, publishes a CallOffer to the peer
+/// over the session MLS channel, and moves the session into the
+/// outgoing-ringing state (SessionSnapshot.outgoing_call). The bridge
+/// returns CallStarted so the caller can begin capturing + sealing frames.
+pub fn call_start(session_id: String) -> Result<CallStarted, String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .call_start(&session_id)
+        .map_err(|error| error.to_string())
+}
+
+/// Accept an incoming voice call (1:1 port of `private_dm_call_accept`).
+/// Moves the session from pending-call into the active state. The peer
+/// learns the acceptance through the MLS CallAccept control message.
+pub fn call_accept(session_id: String, call_id: String) -> Result<(), String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .call_accept(&session_id, &call_id)
+        .map_err(|error| error.to_string())
+}
+
+/// Decline an incoming voice call (1:1 port of `private_dm_call_decline`).
+/// Publishes a CallDecline control message with the reason; the session
+/// returns to its idle state.
+pub fn call_decline(session_id: String, call_id: String, reason: String) -> Result<(), String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .call_decline(&session_id, &call_id, &reason)
+        .map_err(|error| error.to_string())
+}
+
+/// End an active or ringing voice call (1:1 port of `private_dm_call_end`).
+/// Publishes a CallEnd control message with the reason; the session
+/// returns to idle and the CallEvent is recorded for the call log.
+pub fn call_end(session_id: String, call_id: String, reason: String) -> Result<(), String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .call_end(&session_id, &call_id, &reason)
+        .map_err(|error| error.to_string())
+}
+
+/// Push an encrypted voice-call frame into the session outbound queue
+/// (1:1 port of the runtime `call_send_frame`; the Tauri shell did not
+/// expose a separate command -- frames went through the session poll, but
+/// the Flutter bridge surfaces this explicitly so the Dart capture loop
+/// can drive it). The caller seals the frame before sending.
+pub fn call_send_frame(session_id: String, call_id: String, frame: Vec<u8>) -> Result<(), String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .call_send_frame(&session_id, &call_id, frame)
+        .map_err(|error| error.to_string())
+}
+
+/// Drain the inbound voice-call frames for an active call (1:1 port of the
+/// runtime `call_drain_frames`). Returns the sealed frames the peer sent; the
+/// caller opens + queues them into the playback jitter buffer. The Tauri
+/// shell folded this into the session poll; the Flutter bridge surfaces it
+/// explicitly so the Dart playback loop can drive it at 20ms cadence.
+pub fn call_drain_frames(session_id: String, call_id: String) -> Result<Vec<Vec<u8>>, String> {
+    let mut guard = ensure_runtime()?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .call_drain_frames(&session_id, &call_id)
         .map_err(|error| error.to_string())
 }
 
