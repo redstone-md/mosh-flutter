@@ -320,5 +320,7 @@
   "messageRetry": "Повторить",
   "@messageRetry": { "description": "Retry button text in the FailedMessageRetry row below a failed outbound message (React inline literal 'Retry' button text)" },
   "retryFailedMessage": "Повторить неудачное сообщение",
-  "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" }
+  "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" },
+  "dialogCancel": "Отмена",
+  "@dialogCancel": { "description": "Универсальная подпись «Отмена» для кнопки-крестика и бледной кнопки отмены в общем ConfirmDialog (React: инлайн-значение 'Cancel'; close-flow и другие деструктивные сценарии передают локализованную подпись отмены из этого ключа)" }
 }

@@ -463,5 +463,7 @@
   "messageRetry": "Retry",
   "@messageRetry": { "description": "Retry button text in the FailedMessageRetry row below a failed outbound message (React inline literal 'Retry' button text)" },
   "retryFailedMessage": "Retry failed message",
-  "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" }
+  "@retryFailedMessage": { "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')" },
+  "dialogCancel": "Cancel",
+  "@dialogCancel": { "description": "Generic Cancel label for the shared ConfirmDialog close-X and ghost cancel button (React inline default 'Cancel'; the close-flow and other destructive flows pass a localized cancel label from this key)" }
 }
