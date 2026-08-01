@@ -6,15 +6,17 @@
 ///
 /// Scope (this atomic): the standalone widget only. It is NOT wired into
 /// `SessionsScreen` yet (a later atomic mounts the groups section), and
-/// `onTap` is a no-op because there is no group screen route yet (also a
-/// later atomic). Server state for the list lives in `groupListProvider`
+/// `onTap` opens `AppRoutes.groupFor(group.groupId)` (the GroupScreen route
+/// shell). Server state for the list lives in `groupListProvider`
 /// (channel_group_providers.dart); the parent passes a resolved
 /// `GroupSnapshot` + the unread count.
 library;
 
 import 'package:flutter/material.dart';
 
+import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/sessions/state_dot.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -37,8 +39,8 @@ import 'package:mosh/src/util/format.dart';
 ///   - `selected` mirrors React's `rail-item-active` (the active class).
 ///
 /// `onTap` is a no-op: there is no group screen route yet. The navigation
-/// wiring (`context.go` to a group screen) lands in a later atomic -- the
-/// TODO below marks the seam.
+/// `onTap` opens `AppRoutes.groupFor(group.groupId)` (the GroupScreen route
+/// shell), mirroring React's `onSelect({ type: "group", id })`.
 class GroupRailItem extends StatelessWidget {
   const GroupRailItem({
     super.key,
@@ -80,10 +82,10 @@ class GroupRailItem extends StatelessWidget {
           ],
         ),
         selected: active,
-        // TODO(group-route): no group screen route exists yet; onTap is a
-        // no-op until a later atomic adds `/group/:id` and wires the
-        // navigation here (mirrors React `onSelect({ type: "group", id })`).
-        onTap: () {},
+        // Open the group screen for this group (mirrors React
+        // `onSelect({ type: "group", id })`). Keyed by `groupId` (the group
+        // identity), not a name.
+        onTap: () => context.go(AppRoutes.groupFor(group.groupId)),
       ),
     );
   }

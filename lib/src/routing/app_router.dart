@@ -21,6 +21,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_screen.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
+import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
@@ -39,6 +40,8 @@ class AppRoutes {
   static const String dm = '/dm';
   static const String channel = '/channel';
 
+  static const String group = '/group';
+
   /// Chat-create step route (1-в-1 with React's ChatCreateStep). Reached
   /// from the onboarding Chat tile.
   static const String chatCreate = '/chat-create';
@@ -51,6 +54,11 @@ class AppRoutes {
   /// Builds a `/channel/<name>` location string. Centralized so callers do
   /// not concatenate paths by hand; mirrors [dmFor] for the channel screen.
   static String channelFor(String name) => '$channel/$name';
+
+  /// Builds a `/group/<groupId>` location string. Centralized so callers do
+  /// not concatenate paths by hand; mirrors [channelFor] / [dmFor] for the
+  /// group screen. Keyed by `groupId` (the group identity), not a name.
+  static String groupFor(String groupId) => '$group/$groupId';
 }
 
 /// The app's [GoRouter]. Stateless + global: it holds no per-session state,
@@ -114,8 +122,19 @@ final GoRouter appRouter = GoRouter(
       // Reached from the sessions rail's ChannelRailItem onTap.
       path: '${AppRoutes.channel}/:name',
       builder: (BuildContext context, GoRouterState state) {
-        final name = state.pathParameters['name']!;
-        return ChannelScreen(name: name);
+       final name = state.pathParameters['name']!;
+       return ChannelScreen(name: name);
+     },
+   ),
+    GoRoute(
+      // GroupScreen takes groupId as a required arg; carry it on the path so
+      // the location is shareable / deep-linkable, mirroring the channel
+      // route. Reached from the sessions rail's GroupRailItem onTap. Keyed
+      // by `groupId` (the group identity), not a name.
+      path: '${AppRoutes.group}/:groupId',
+      builder: (BuildContext context, GoRouterState state) {
+        final groupId = state.pathParameters['groupId']!;
+        return GroupScreen(groupId: groupId);
       },
     ),
   ],

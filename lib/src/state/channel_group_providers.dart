@@ -72,3 +72,15 @@ final channelSnapshotProvider =
     FutureProvider.family<ChannelSnapshot, String>(
   (ref, name) => ref.watch(gatewayProvider).pollChannel(name: name),
 );
+
+/// Server state: one group's snapshot, parameterized by `groupId` (group
+/// screen, the groups analogue of S5-1's ChannelScreen). A one-shot read per
+/// watch, mirroring `channelSnapshotProvider` 1:1 but against
+/// `Gateway.pollGroup`. The GroupScreen re-polls by invalidating the family
+/// entry after a send/leave (ADR 0010 family idiom). Keyed by `groupId`
+/// (the group identity), NOT a display name -- mirroring the Rust/React
+/// `group_id` shape.
+final groupSnapshotProvider =
+    FutureProvider.family<GroupSnapshot, String>(
+  (ref, groupId) => ref.watch(gatewayProvider).pollGroup(groupId: groupId),
+);
