@@ -1,8 +1,24 @@
 // S4.5: Invite Paste screen. Paste a mosh:// invite URI, detect its kind
 // live, and accept it via the Gateway seam. Mirrors the React OnboardJoinStep
-// (src/features/private-dm/NewSessionPanelSteps.tsx): step frame title,
-// body text, a multiline invite field, a live detection badge, and a
+// (src/features/private-dm/NewSessionPanelSteps.tsx): a shared
+// OnboardStepFrame (back button + h1 title + body), a multiline invite
+// field, a live 3-state detection badge (ok / bad / neutral), and a
 // full-width primary Connect button disabled until detection is valid.
+//
+// Visual shell: the screen composes the shared OnboardStepFrame (extracted
+// for the chat-create step) instead of its own Scaffold + AppBar, 1-в-1
+// with React OnboardJoinStep. A thin Scaffold wraps the frame only for
+// SafeArea + theming; the AppBar is gone (the frame's Back button
+// replaces it).
+//
+// Known temporary divergence from React: the React `connect` dispatches by
+// kind (dm -> onAccept, group -> onJoinGroup, org -> onJoinOrg). The
+// Flutter Gateway has ONLY `acceptInvite` (DM). So in this atomic Connect
+// is DM-only: it calls `acceptInvite` when `kind === dm`, and the Connect
+// button is DISABLED for group/org detections. Group/org join needs
+// Gateway `joinGroup`/`joinOrg` methods that do not exist yet (deferred).
+// The detection badge itself is 1-в-1 with React (ok for any detected
+// kind, bad for unknown, neutral for empty).
 //
 // Server/async state lives behind the gatewayProvider seam (ADR 0013);
 // cross-screen form state (displayName/listenPort/staticPeer) comes from
@@ -11,10 +27,15 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsValidationResult;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:go_router/go_router.dart';
+
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/invite/invite_detection.dart';
+import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -104,7 +125,10 @@ class _InvitePasteScreenState extends ConsumerState<InvitePasteScreen> {
   }
 
   Future<void> _connect() async {
-    if (!_detected || _busy) return;
+    // DM-only this atomic (see file header): group/org join needs Gateway
+    // joinGroup/joinOrg methods that do not exist yet (deferred). The
+    // Connect button is gated to dm below, so this guard is a backstop.
+    if (_detection.kind != InviteDetectionKind.dm || _busy) return;
     final uri = _controller.text.trim();
     final flow = ref.read(inviteFlowProvider);
     setState(() {
@@ -130,33 +154,63 @@ class _InvitePasteScreenState extends ConsumerState<InvitePasteScreen> {
     }
   }
 
+  void _onBack() => context.go(AppRoutes.onboarding);
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final ready = _detected && !_busy;
+    final theme = Theme.of(context);
+    // DM-only ready (see file header): group/org join is deferred until the
+    // Gateway grows joinGroup/joinOrg. React enables Connect for every
+    // detected kind; Flutter enables it for DM only for now.
+    final ready = _detected &&
+        _detection.kind == InviteDetectionKind.dm &&
+        !_busy;
     return Scaffold(
-      appBar: AppBar(title: Text(l.onboardTileJoinTitle)),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+        child: OnboardStepFrame(
+          title: l.onboardTileJoinTitle,
+          onBack: _onBack,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(l.onboardJoinStepBody,
-                  style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                l.onboardJoinStepBody,
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
+              ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _controller,
-                maxLines: 4,
-                minLines: 2,
-                enabled: !_busy,
-                decoration: InputDecoration(
-                  hintText: l.onboardJoinPlaceholder,
-                  border: const OutlineInputBorder(),
+             // aria-label="Invite link" + aria-invalid={kind === "unknown"}
+             // (React). The literal 'Invite link' is non-localized, matching
+             // React's literal aria-label (not in onboardText). The
+             // aria-invalid equivalent is `Semantics.validationResult`
+             // (SemanticsValidationResult.invalid for the unknown kind); the
+             // border stays neutral (only the badge reflects the error
+             // visually), and the badge's `liveRegion` also announces the
+             // error to assistive tech (the polite announcement matches
+             // React's aria-live intent).
+             Semantics(
+               textField: true,
+               label: 'Invite link',
+               validationResult: _detection.kind == InviteDetectionKind.unknown
+                   ? SemanticsValidationResult.invalid
+                   : SemanticsValidationResult.none,
+               child: TextField(
+                  controller: _controller,
+                  maxLines: 4,
+                  minLines: 2,
+                  enabled: !_busy,
+                  decoration: InputDecoration(
+                    hintText: l.onboardJoinPlaceholder,
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              _DetectBadge(detected: _detected, label: _detectLabel(l)),
+              _DetectBadge(
+                kind: _detection.kind,
+                detected: _detected,
+                label: _detectLabel(l),
+              ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: ready ? _connect : null,
@@ -174,13 +228,11 @@ class _InvitePasteScreenState extends ConsumerState<InvitePasteScreen> {
               if (_acceptedSessionId != null) ...[
                 const SizedBox(height: 16),
                 Text('Accepted session: $_acceptedSessionId',
-                    style: Theme.of(context).textTheme.bodySmall),
+                    style: theme.textTheme.bodySmall),
               ],
               if (_error != null) ...[
                 const SizedBox(height: 16),
-                Text(_error!,
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               ],
             ],
           ),
@@ -190,33 +242,53 @@ class _InvitePasteScreenState extends ConsumerState<InvitePasteScreen> {
   }
 }
 
-/// Live detection status row: a check icon (valid) or neutral dot, plus the
-/// detection label. Mirrors the React detect-badge (ok/bad/none states).
+/// Live detection status row, 1-в-1 with the React `detect-badge`
+/// (3 states: ok / bad / neutral). Mirrors the React classes:
+///   detected (dm|group|org) -> detect-badge-ok  (green/primary + check icon)
+///   kind === unknown       -> detect-badge-bad (error/red, no check icon)
+///   kind === empty          -> detect-badge     (outline/muted, no check icon)
+///
+/// Wraps the row in `Semantics(liveRegion: true)` (the Flutter equivalent of
+/// `aria-live="polite"`) and exposes a status role so screen readers announce
+/// detection changes. The check icon shows ONLY when detected (React shows
+/// `IconCheck` only in the ok state).
 class _DetectBadge extends StatelessWidget {
-  const _DetectBadge({required this.detected, required this.label});
+  const _DetectBadge({
+    required this.kind,
+    required this.detected,
+    required this.label,
+  });
 
+  final InviteDetectionKind kind;
   final bool detected;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final color = detected ? scheme.primary : scheme.outline;
-    return Row(
-      children: [
-        Icon(
-            detected
-                ? Icons.check_circle_outline
-                : Icons.radio_button_unchecked,
-            size: 18,
-            color: color),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(label,
+    final isBad = kind == InviteDetectionKind.unknown;
+    final color = detected
+        ? scheme.primary
+        : isBad
+            ? scheme.error
+            : scheme.outline;
+    return Semantics(
+      liveRegion: true,
+      child: Row(
+        children: [
+          if (detected) ...[
+            Icon(Icons.check, size: 16, color: color),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: Text(
+              label,
               style: TextStyle(color: color, fontSize: 14),
-              overflow: TextOverflow.ellipsis),
-        ),
-      ],
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
