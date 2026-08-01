@@ -34,7 +34,8 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
-import 'package:mosh/src/features/dm/dm_message_row.dart' show dmMessageAvatarSize;
+import 'package:mosh/src/features/dm/dm_message_row.dart'
+    show dmMessageAvatarSize;
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
@@ -171,6 +172,7 @@ class GroupMessageRow extends StatelessWidget {
     required this.onAttachmentDownload,
     required this.onAttachmentCancel,
     required this.onAttachmentOpen,
+    required this.onRetry,
     required this.l,
   });
 
@@ -187,6 +189,13 @@ class GroupMessageRow extends StatelessWidget {
   final void Function(String attachmentId) onAttachmentDownload;
   final void Function(String attachmentId) onAttachmentCancel;
   final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
+
+  /// Retry callback for the [FailedMessageRetry] row (React
+  /// `onRetryMessage`). The screen wires this to the Gateway retry seam
+  /// (`retryGroupMessage` -> frb `private_group_retry_message`); fire-and-
+  /// forget via `unawaited` then invalidate the group snapshot (mirrors
+  /// the attachment download/cancel wiring).
+  final void Function(String messageId) onRetry;
 
   /// Localized strings for the [FailedMessageRetry] row (the React
   /// component inlined "Failed to send" / "Retry" / "Retry failed message";
@@ -258,33 +267,26 @@ class GroupMessageRow extends StatelessWidget {
                         onCancel: onAttachmentCancel,
                         onOpen: onAttachmentOpen,
                       ),
-                    // FailedMessageRetry row (React `FailedMessageRetry`,
+                    // FailedMessageRetry row (React FailedMessageRetry,
                     // MessageLists.tsx L434-468) -- renders BELOW the body +
                     // AttachmentCard, inside the message bubble's Column,
-                    // mirroring React's `<div className="message-body"> ...
-                    // <FailedMessageRetry/></div>` order. Gate is the 1-в-1
-                    // port of React's render condition: `outbound &&
-                    // delivery_status === "failed" && retryable &&
-                    // message_id` (outbound == own == fromFingerprint ==
-                    // ownFingerprint). RENDER-ONLY: the `onRetry` callback
-                    // is a NO-OP STUB; the Gateway retry seam (Rust
-                    // `private_group_retry_message` + frb codegen + Gateway
-                    // method) is a LATER atomic.
+                    // mirroring React's message-body order (FailedMessageRetry
+                    // last child). Gate is the 1-1 port of React's render
+                    // condition: outbound && delivery_status === 'failed' &&
+                    // retryable && message_id (outbound == own ==
+                    // fromFingerprint == ownFingerprint). The onRetry
+                    // callback fires the Gateway retry seam
+                    // (retryGroupMessage -> frb private_group_retry_message);
+                    // the gate guarantees message.messageId is non-null,
+                    // so the bang (!) is safe.
                     if (own &&
                         message.deliveryStatus ==
                             MessageDeliveryStatus.failed &&
                         message.retryable == true &&
                         message.messageId != null)
-                      // TODO(channel-group-retry-seam): wire onRetry to the
-                      // Gateway retry method (React `retryGroupMessage`,
-                      // native-messaging-gateway.ts L500 + Rust
-                      // `private_group_retry_message`, src-tauri/src/lib.rs
-                      // L922) once the Flutter Gateway ports it. No-op stub
-                      // for the display-only stage (mirrors the AttachmentCard
-                      // atomic's `b879a02` no-op stub pattern).
                       FailedMessageRetry(
                         deliveryError: message.deliveryError,
-                        onRetry: () {},
+                        onRetry: () => onRetry(message.messageId!),
                         l: l.toFailedMessageRetryL10n(),
                       ),
                   ],

@@ -34,7 +34,8 @@ abstract interface class Gateway {
   Future<NativeRuntimeStatus> nativeRuntimeStatus();
   Future<InviteCreated> createInvite({required StartSessionRequest request});
   Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request});
-  Future<SendMessageResult> sendMessage({required String sessionId, required String body});
+  Future<SendMessageResult> sendMessage(
+      {required String sessionId, required String body});
   Future<SessionSnapshot> pollSession({required String sessionId});
   Future<SessionListSnapshot> listSessions();
   Future<CloseSessionResult> closeSession({required String sessionId});
@@ -43,8 +44,10 @@ abstract interface class Gateway {
   // `cancel_attachment`). Both drive the peer's inbound transfer; progress
   // surfaces in the next `pollSession` snapshot's `attachments`. The "open"
 // action is client-side (opens `localPath` / streams) and has no Rust fn.
-  Future<void> downloadAttachment({required String sessionId, required String attachmentId});
-  Future<void> cancelAttachment({required String sessionId, required String attachmentId});
+  Future<void> downloadAttachment(
+      {required String sessionId, required String attachmentId});
+  Future<void> cancelAttachment(
+      {required String sessionId, required String attachmentId});
 
   // Channels/groups read seam (1:1 port of `channel_poll`/`channel_list`/
   // `private_group_poll`/`private_group_list`). Poll-based mirrors of the
@@ -68,58 +71,78 @@ abstract interface class Gateway {
   // acceptInvite, the dismiss path dismisses directly); attachment/dm-offer
   // SEND write methods stay deferred to a later atomic.
   Future<ChannelSnapshot> joinChannel({required JoinChannelRequest request});
-  Future<ChannelSendResult> sendChannel({required String name, required String body});
+  Future<ChannelSendResult> sendChannel(
+      {required String name, required String body});
   Future<ChannelLeaveResult> leaveChannel({required String name});
-  Future<GroupSendResult> sendGroup({required String groupId, required String body});
+  // Channel/group message RETRY (1:1 port of channel_retry_message +
+  // private_group_retry_message). Re-sends a failed outbound message by
+  // its messageId; returns the new send result (new messageId + delivery
+  // status) the screen uses to invalidate the snapshot so the next poll
+  // re-renders the row's status. Mirrors React's retryChannelMessage/
+  // retryGroupMessage (native-messaging-gateway.ts) -- the FailedMessageRetry
+  // row's onRetry calls this then invalidates.
+  Future<ChannelSendResult> retryChannelMessage(
+      {required String name, required String messageId});
+  Future<GroupSendResult> sendGroup(
+      {required String groupId, required String body});
+  Future<GroupSendResult> retryGroupMessage(
+      {required String groupId, required String messageId});
   Future<GroupLeaveResult> closeGroup({required String groupId});
   Future<GroupCreated> createGroup({required CreateGroupRequest request});
   Future<GroupSnapshot> joinGroup({required JoinGroupRequest request});
-  Future<void> dismissChannelDmOffer({required String name, required String offerId});
-  Future<void> dismissGroupDmOffer({required String groupId, required String offerId});
+  Future<void> dismissChannelDmOffer(
+      {required String name, required String offerId});
+  Future<void> dismissGroupDmOffer(
+      {required String groupId, required String offerId});
   // Channel/group attachment transfer control (1:1 port of channel +
   // private_group download_attachment / cancel_attachment). Both drive the
   // peer's inbound transfer; progress surfaces in the next pollChannel/
   // pollGroup snapshot's attachments. The "open" action is client-side
   // (opens localPath) and has no Rust fn -- the screen handles it.
-  Future<void> downloadChannelAttachment({required String name, required String attachmentId});
-  Future<void> cancelChannelAttachment({required String name, required String attachmentId});
-  Future<void> downloadGroupAttachment({required String groupId, required String attachmentId});
-  Future<void> cancelGroupAttachment({required String groupId, required String attachmentId});
- // Channel/group attachment SEND (1:1 port of channel_send_attachment +
- // private_group_send_attachment). The composer reads a picked file into
- // base64 (+ optional thumbnailBase64 / VoiceMeta for voice) and sends.
- // Returns an AttachmentSendResult (attachmentId + contentHash) the screen
- // uses to invalidate the snapshot so the next poll renders the new row.
- // All three conversation kinds (DM, channel, group) are wired -- the DM
- // seam (sendPrivateAttachment) frb-binds to private_dm_send_attachment,
- // which the slice-2 atomic added to mosh-core::api::private_dm.
- Future<AttachmentSendResult> sendChannelAttachment({
-   required String name,
-   required String fileName,
-   required String mime,
-   required String dataBase64,
-   String? thumbnailBase64,
-   VoiceMeta? voice,
- });
- /// DM attachment SEND (1:1 port of private_dm_send_attachment). Same shape
- /// as sendChannelAttachment/sendGroupAttachment; the only delta is the
- /// session id (the DM identity) instead of a channel name / group id.
- Future<AttachmentSendResult> sendPrivateAttachment({
-   required String sessionId,
-   required String fileName,
-   required String mime,
-   required String dataBase64,
-   String? thumbnailBase64,
-   VoiceMeta? voice,
- });
- Future<AttachmentSendResult> sendGroupAttachment({
-   required String groupId,
-   required String fileName,
-   required String mime,
-   required String dataBase64,
-   String? thumbnailBase64,
-   VoiceMeta? voice,
- });
+  Future<void> downloadChannelAttachment(
+      {required String name, required String attachmentId});
+  Future<void> cancelChannelAttachment(
+      {required String name, required String attachmentId});
+  Future<void> downloadGroupAttachment(
+      {required String groupId, required String attachmentId});
+  Future<void> cancelGroupAttachment(
+      {required String groupId, required String attachmentId});
+  // Channel/group attachment SEND (1:1 port of channel_send_attachment +
+  // private_group_send_attachment). The composer reads a picked file into
+  // base64 (+ optional thumbnailBase64 / VoiceMeta for voice) and sends.
+  // Returns an AttachmentSendResult (attachmentId + contentHash) the screen
+  // uses to invalidate the snapshot so the next poll renders the new row.
+  // All three conversation kinds (DM, channel, group) are wired -- the DM
+  // seam (sendPrivateAttachment) frb-binds to private_dm_send_attachment,
+  // which the slice-2 atomic added to mosh-core::api::private_dm.
+  Future<AttachmentSendResult> sendChannelAttachment({
+    required String name,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  });
+
+  /// DM attachment SEND (1:1 port of private_dm_send_attachment). Same shape
+  /// as sendChannelAttachment/sendGroupAttachment; the only delta is the
+  /// session id (the DM identity) instead of a channel name / group id.
+  Future<AttachmentSendResult> sendPrivateAttachment({
+    required String sessionId,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  });
+  Future<AttachmentSendResult> sendGroupAttachment({
+    required String groupId,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  });
 
   // Org write seam (1:1 port of `org_join`). `joinOrg` is the fourth slice-3
   // write seam -- joins an org from a `mosh://org` bundle URI. Unlike the

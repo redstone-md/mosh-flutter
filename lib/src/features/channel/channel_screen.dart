@@ -116,14 +116,14 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-     await ref.read(gatewayProvider).sendChannelAttachment(
-           name: widget.name,
-           fileName: attachment.fileName,
-           mime: attachment.mime,
-           dataBase64: attachment.dataBase64,
-           thumbnailBase64: attachment.thumbnailBase64,
-         );
-     ref.invalidate(channelSnapshotProvider(widget.name));
+      await ref.read(gatewayProvider).sendChannelAttachment(
+            name: widget.name,
+            fileName: attachment.fileName,
+            mime: attachment.mime,
+            dataBase64: attachment.dataBase64,
+            thumbnailBase64: attachment.thumbnailBase64,
+          );
+      ref.invalidate(channelSnapshotProvider(widget.name));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -184,6 +184,18 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
         onOpen: (descriptor) => _openAttachment(view),
       );
 
+  /// Retry a failed outbound message (React `retryChannelMessage`,
+  /// native-messaging-gateway.ts; Rust `channel_retry_message`). Fire-and-
+  /// forget via `unawaited`, then invalidate the channel snapshot so the
+  /// next poll re-renders the row's delivery status (mirrors the attachment
+  /// download/cancel wiring).
+  void _retryMessage(String messageId) {
+    unawaited(ref
+        .read(gatewayProvider)
+        .retryChannelMessage(name: widget.name, messageId: messageId)
+        .then((_) => ref.invalidate(channelSnapshotProvider(widget.name))));
+  }
+
   /// Opens the attachment's local file (React `openPath(local_path)` via the
   /// Tauri opener plugin -- here client-side, no Rust fn). Windows:
   /// `cmd /c start ""`; non-Windows is a no-op (the card disables Open when
@@ -209,11 +221,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
             tooltip: l.openPeerStatus,
             onPressed: () => setState(() => _showPeerStatus = true),
           ),
-         IconButton(
-           icon: const Icon(Icons.logout),
-           tooltip: l.channelLeaveLabel,
-           onPressed: _requestLeave,
-         ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: l.channelLeaveLabel,
+            onPressed: _requestLeave,
+          ),
         ],
       ),
       body: SafeArea(
@@ -268,6 +280,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                         ownFingerprint: snapshot.deviceFingerprint,
                         attachments: snapshot.attachments,
                         attachmentCallbacks: _attachmentCallbacks,
+                        onRetryMessage: _retryMessage,
                       );
                     },
                   ),
@@ -314,15 +327,23 @@ class _ChannelMessageListView extends StatelessWidget {
     required this.ownFingerprint,
     required this.attachments,
     required this.attachmentCallbacks,
+    required this.onRetryMessage,
   });
 
   final List<ChannelMessage> messages;
   final String ownFingerprint;
   final List<AttachmentView> attachments;
+
   /// Per-row transfer-action callbacks (download/cancel/open). Built by the
   /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
   /// `_attachmentCallbacks`).
   final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
+
+  /// Retry a failed outbound message by its messageId (React
+  /// `retryChannelMessage`). Fire-and-forget via `unawaited` then
+  /// invalidate the channel snapshot; the screen builds this from the
+  /// Gateway seam.
+  final void Function(String messageId) onRetryMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +376,7 @@ class _ChannelMessageListView extends StatelessWidget {
           onAttachmentDownload: callbacks.onDownload,
           onAttachmentCancel: callbacks.onCancel,
           onAttachmentOpen: callbacks.onOpen,
+          onRetry: onRetryMessage,
         );
       },
     );
