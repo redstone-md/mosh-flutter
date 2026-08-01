@@ -8,6 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
@@ -58,6 +60,14 @@ SessionSnapshot _snapshot({
     );
 
 void main() {
+  // `formatClock` in the sender-meta row now formats via `intl`'s
+  // `DateFormat`; `main()` (which calls `initializeDateFormatting`) is
+  // bypassed under `flutter test`, so load the date symbols here so the
+  // timestamp renders with the resolved locale (en by default).
+  setUpAll(() async {
+    await initializeDateFormatting();
+  });
+
   group('groupDmMessages', () {
     test('single message is never grouped', () {
       final result = groupDmMessages([
@@ -193,7 +203,12 @@ void main() {
     // HH:mm clock appears exactly once for the first message.
     expect(find.text('bob'), findsOneWidget);
 
-    // base = 1700000000000 ms = 2023-11-14 22:13:20 UTC -> HH:mm "22:13".
-    expect(find.text('22:13'), findsOneWidget);
+    // The HH:mm clock is locale-aware + in the LOCAL timezone (1-1 with
+    // React's `toLocaleTimeString`), so the expected string is derived
+    // from the same epoch the way `formatClock` does -- timezone-agnostic
+    // (passes on any host tz, not just UTC).
+    final expectedClock = DateFormat.Hm('en')
+        .format(DateTime.fromMillisecondsSinceEpoch(base.toInt()).toLocal());
+    expect(find.text(expectedClock), findsOneWidget);
   });
 }
