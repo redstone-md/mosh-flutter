@@ -683,3 +683,34 @@ Remaining mobile work (deferred): iOS Keychain backend for the DEK, biometric/
 user-presence UI (ADR 0011), and a real device integration pass (build apk,
 install, open mosh://, confirm Keystore DEK + history persist across restart
 in the app-support dir).
+## Mobile slice — M-7: biometric/user-presence gating (DONE, commit b3b2f60)
+ADR 0011 requires user presence (biometric/PIN) to be DEFAULT-ON for key
+release on mobile, failing closed on an insecure device. M-3 injected the
+DEK into the Android Keystore namespace `app.mosh.mobile` but with NO
+biometric gating (deferred). M-7 closes that gap.
+Implementation: the real Keystore storage switched from the plain
+`AndroidOptions()` (RSA-OAEP key wrap, no biometric support) to
+`AndroidOptions.biometric(enforceBiometrics: true,
+biometricOrDeviceCredential, ...)` via a new `@visibleForTesting
+buildDekAndroidOptions()` builder in `lib/src/platform/mobile_dek.dart`. The
+biometric constructor selects the KeyStore-backed `AES_GCM_NoPadding`
+key+storage ciphers — the only combination that supports
+`setUserAuthenticationRequired` — and `flutter_secure_storage` self-prompts
+BiometricPrompt, so no `local_auth` dependency is needed. The namespace is
+preserved from M-3 (existing Keystore entries stay addressable).
+Scope discipline: biometrics affect only the real storage wiring + the new
+builder. `resolveHistoryDek` and the `MobileDekStorage` seam are unchanged —
+user presence only gates the Keystore read/write, not the
+loaded/minted/fail-closed decision branches. `AndroidManifest` gained
+`USE_BIOMETIC`. A host test (`mobile_dek_biometric_options_test.dart`) pins
+the 8 biometric-config fields via `toMap()` so a regression that drops
+`enforceBiometrics`, swaps the cipher, or loses the namespace fails fast.
+Verify (Peirce review, 11/11 PASS against locked flutter_secure_storage
+10.3.1 source): `flutter analyze` 0 issues; `flutter test` 55/55 pass. Real
+biometric prompt + cross-restart persistence are verified on-device in the
+integration pass, not here.
+Remaining mobile work (deferred): iOS Keychain backend for the DEK (mirror of
+M-3+M-7 under iOS, needs macOS/Xcode), and a real device integration pass
+(install emulator+AVD or use a real device, build apk, open mosh://, confirm
+Keystore DEK + history persist across restart in app-support, confirm
+biometric prompt).
