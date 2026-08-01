@@ -7,7 +7,7 @@
 // In scope (this atomic): the image-with-thumbnail branch renders a
 // non-interactive `Image.memory` preview above the shared name + size +
 // state-label bar. Out of scope and asserted absent or unasserted: the
-// video play-overlay, the onOpen tap, the actions row, and the voice
+// onOpen tap, the actions row, and the voice
 // message branch.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -123,7 +123,7 @@ void main() {
   });
 
   testWidgets(
-      'video with thumbnail renders the media preview without a play overlay',
+      'video with thumbnail renders the media preview (play overlay covered in the dedicated overlay test)',
       (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-vid',
@@ -142,11 +142,9 @@ void main() {
     );
 
     // The video-with-thumbnail branch takes the media path this atomic
-    // (play overlay deferred), so Image.memory renders.
+    // and renders Image.memory. The centered play overlay (in scope
+    // this atomic) is asserted in the dedicated overlay test file.
     expect(find.byType(Image), findsOneWidget);
-    // The play icon is NOT rendered (deferred to a later atomic).
-    expect(find.byIcon(Icons.play_arrow), findsNothing);
-    expect(find.byIcon(Icons.play_circle_fill), findsNothing);
   });
 
   testWidgets('audio without thumbnail falls back to the file card',
