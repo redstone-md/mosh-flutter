@@ -8,7 +8,7 @@
 //   - sender-meta grouping (the 5-min window) -- DmScreen's groupDmMessages.
 //   - ConversationTools search/filter -- DmScreen's filterDmMessages.
 //   - attachments (AttachmentCard + download/cancel seam).
-//   - peer-status drawer (PeerStatusDrawer).
+//   - peer-status drawer (PeerStatusDrawer) -- WIRED in this atomic.
 //   - fingerprint badge (FingerprintBadge).
 //   - the public-channel notice banner (React shows a PublicNotice for
 //     plaintext channels; the shell has NO footer at all, unlike DmScreen's
@@ -25,13 +25,21 @@
 // gateway.sendChannel via gatewayProvider (ADR 0013) then invalidates the
 // family entry; leave calls gateway.leaveChannel then navigates back to the
 // sessions list. The composer is widget-local (ConsumerStatefulWidget).
-library;
+// Peer-status drawer: mirrors DmScreen wiring. The drawer (PeerStatusDrawer,
+// shared with the DM + Group screens) branches internally -- session ->
+// channel -> group -> NoActiveSession -- and is rendered here with
+// channel: set so it shows ChannelDiagnostics. An AppBar action toggles
+// _showPeerStatus; the body is a Stack whose last child is a
+// Positioned.fill(PeerStatusDrawer(...)) overlay.
+//
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
@@ -54,6 +62,7 @@ class ChannelScreen extends ConsumerStatefulWidget {
 class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
+  bool _showPeerStatus = false;
 
   @override
   void dispose() {
@@ -88,10 +97,17 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(channelSnapshotProvider(widget.name));
+    final channelForDrawer = async.value;
+    final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.name),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.electrical_services, size: 18),
+            tooltip: l.openPeerStatus,
+            onPressed: () => setState(() => _showPeerStatus = true),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: l.channelLeaveLabel,
@@ -100,31 +116,46 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
-              child: async.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text(e.toString())),
-                data: (snapshot) {
-                  if (snapshot.messages.isEmpty) {
-                    return const _Empty();
-                  }
-                  return _ChannelMessageListView(
-                    messages: snapshot.messages,
-                    ownFingerprint: snapshot.deviceFingerprint,
-                  );
-                },
+            Column(
+              children: [
+                Expanded(
+                  child: async.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text(e.toString())),
+                    data: (snapshot) {
+                      if (snapshot.messages.isEmpty) {
+                        return const _Empty();
+                      }
+                      return _ChannelMessageListView(
+                        messages: snapshot.messages,
+                        ownFingerprint: snapshot.deviceFingerprint,
+                      );
+                    },
+                  ),
+                ),
+                _Composer(
+                  controller: _composer,
+                  sending: _sending,
+                  placeholder: l.chatComposerPlaceholder,
+                  sendLabel: l.chatSendLabel,
+                  onSend: _send,
+                ),
+              ],
+            ),
+            if (_showPeerStatus)
+              Positioned.fill(
+                child: PeerStatusDrawer(
+                  channel: channelForDrawer,
+                  error: errorForDrawer,
+                  refreshing: false,
+                  onRefresh: () =>
+                      ref.invalidate(channelSnapshotProvider(widget.name)),
+                  onClose: () => setState(() => _showPeerStatus = false),
+                ),
               ),
-            ),
-            _Composer(
-              controller: _composer,
-              sending: _sending,
-              placeholder: l.chatComposerPlaceholder,
-              sendLabel: l.chatSendLabel,
-              onSend: _send,
-            ),
           ],
         ),
       ),

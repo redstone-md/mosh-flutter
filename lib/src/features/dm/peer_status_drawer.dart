@@ -1,54 +1,73 @@
-// Peer-status modal drawer for the DM screen, 1-to-1 with React's
-// `src/features/private-dm/DiagnosticsDrawer.tsx`. DM-only: the channel/group
-// branches are deferred (their `ChannelSnapshot` / `GroupSnapshot` contracts
-// do not exist in the Flutter fork yet), so callers pass `session: null` and
-// the drawer renders the idle/error fallback via `NoActiveSession` -- exactly
-// what React does when all three of session/channel/group are null.
-//
-// The shell reuses the existing diagnostics primitives
-// (`diagnosticsSummary`, `SummaryCard`, `RuntimeError`, `SessionDiagnostics`,
-// `NoActiveSession`) without re-implementing them -- DRY + orthogonality.
-// This widget only owns the overlay chrome (backdrop + right aside + header
-// + scrollable content column) and the localized copy seam (`AppLocalizations`).
+// Peer-status modal drawer, 1-to-1 with React's
+// `src/features/private-dm/DiagnosticsDrawer.tsx`. The drawer branches the
+// content exactly like React (lines ~78-86):
+//   `session ? SessionDiagnostics : channel ? ChannelDiagnostics
+//    : group ? GroupDiagnostics : NoActiveSession`
+// Callers pass whichever of `session` / `channel` / `group` is active for
+// their screen (DM -> session, ChannelScreen -> channel, GroupScreen ->
+// group); the other two stay null. The `diagnosticsSummary` (already
+// extended to all four branches) and the `ChannelDiagnostics` /
+// `GroupDiagnostics` section widgets (already implemented) are reused here
+// without re-implementing them -- DRY + orthogonality. This widget only
+// owns the overlay chrome (backdrop + right aside + header + scrollable
+// content column) and the localized copy seam (`AppLocalizations`).
 //
 // The React trigger lives in the titlebar with `aria-label="Open peer
-// status"`; the Flutter DM screen surfaces the equivalent as an AppBar
-// action. The overlay is rendered by the DM screen as a `Positioned.fill`
-// child of a `Stack` over the body, so the composer + message list stay
-// interactive when the drawer is closed and are covered while it is open.
+// status"`; the Flutter DM/Channel/Group screens surface the equivalent as
+// an AppBar action. The overlay is rendered by the host screen as a
+// `Positioned.fill` child of a `Stack` over the body, so the composer +
+// message list stay interactive when the drawer is closed and are covered
+// while it is open.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/diagnostics/channel_group_diagnostics.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/features/diagnostics/summary_card.dart';
+import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
 
 /// Modal overlay mirroring React `DiagnosticsDrawer`. Renders a
 /// full-screen translucent backdrop that closes the drawer on tap (React
 /// `role="presentation" onClick={onClose}`), and a right-side `aside` panel
 /// (the drawer) with a header and a scrollable content column.
 ///
-/// `session` is the live `SessionSnapshot` from `activeSessionProvider` when
-/// a DM is active, or `null` when there is none (the idle/error fallback).
+/// Exactly one of `session`, `channel`, or `group` is non-null when a
+/// conversation is active; when all three are null the drawer renders the
+/// idle/error fallback via `NoActiveSession` (mirrors React's final branch).
+/// `session` is the live `SessionSnapshot` from `activeSessionProvider`
+/// (DM screen); `channel` the `ChannelSnapshot` from
+/// `channelSnapshotProvider` (ChannelScreen); `group` the `GroupSnapshot`
+/// from `groupSnapshotProvider` (GroupScreen).
 /// `error` is a runtime error string to surface via `RuntimeError`, or null.
 /// `refreshing` toggles the refresh button (disabled while a refresh is
 /// in flight). `onRefresh` / `onClose` are the header button callbacks.
 class PeerStatusDrawer extends StatelessWidget {
   const PeerStatusDrawer({
     super.key,
-    required this.session,
+    this.session,
     required this.error,
     required this.refreshing,
     required this.onRefresh,
     required this.onClose,
+    this.channel,
+    this.group,
   });
 
-  /// The active DM's `SessionSnapshot`, or null when no DM is active. DM-only:
-  /// the channel/group branches of the React drawer are deferred.
+  /// The active DM's `SessionSnapshot`, or null when no DM is active.
   final SessionSnapshot? session;
+
+  /// The active public channel's `ChannelSnapshot`, or null when no
+  /// channel is active (ChannelScreen host).
+  final ChannelSnapshot? channel;
+
+  /// The active private group's `GroupSnapshot`, or null when no group is
+  /// active (GroupScreen host).
+  final GroupSnapshot? group;
 
   /// A runtime error to surface via `RuntimeError`, or null.
   final String? error;
@@ -108,7 +127,10 @@ class PeerStatusDrawer extends StatelessWidget {
                           onClose: onClose,
                         ),
                         Expanded(child: _DrawerContent(
-                          session: session, error: error)),
+                          session: session,
+                          channel: channel,
+                          group: group,
+                          error: error)),
                       ],
                     ),
                   ),
@@ -154,7 +176,8 @@ class _DrawerHeader extends StatelessWidget {
         children: [
           // React: <IconPlugConnected size=16 />. The closest material icon
           // is `Icons.electrical_services` (a plug), matching the trigger
-          // used on the DM screen's AppBar action for visual consistency.
+          // used on the DM/Channel/Group screens' AppBar action for visual
+          // consistency.
           const Icon(Icons.electrical_services, size: 16),
           const SizedBox(width: 8),
           // React: <h2 id="diagnostics-title">Peer status</h2>.
@@ -187,18 +210,28 @@ class _DrawerHeader extends StatelessWidget {
 }
 
 /// The scrollable content column: SummaryCard, then RuntimeError (if any),
-/// then SessionDiagnostics (if a session is active) else NoActiveSession.
-/// Mirrors React's `.diagnostics-content` body, in that exact order.
+/// then the active conversation's diagnostics section, else NoActiveSession.
+/// Branch order matches React `DiagnosticsDrawer` lines ~78-86 exactly:
+/// `session ? SessionDiagnostics : channel ? ChannelDiagnostics
+///  : group ? GroupDiagnostics : NoActiveSession`.
 class _DrawerContent extends StatelessWidget {
-  const _DrawerContent({required this.session, required this.error});
+  const _DrawerContent({
+    this.session,
+    required this.channel,
+    required this.group,
+    required this.error,
+  });
 
   final SessionSnapshot? session;
+  final ChannelSnapshot? channel;
+  final GroupSnapshot? group;
   final String? error;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final summary = diagnosticsSummary(l: l, session: session, error: error);
+    final summary = diagnosticsSummary(
+        l: l, session: session, channel: channel, group: group, error: error);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -212,6 +245,10 @@ class _DrawerContent extends StatelessWidget {
           const SizedBox(height: 12),
           if (session != null)
             SessionDiagnostics(session: session!)
+          else if (channel != null)
+            ChannelDiagnostics(channel: channel!)
+          else if (group != null)
+            GroupDiagnostics(group: group!)
           else
             const NoActiveSession(),
         ],
