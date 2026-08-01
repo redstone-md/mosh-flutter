@@ -11,7 +11,10 @@ import '../private_dm_runtime/contracts.dart';
 import '../private_group_runtime.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Join an org from a `mosh://org` bundle URI (1:1 port of `org_join`).
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
+
+/// Join an org from a `mosh://org` bundle URI (1:1 port of `org_join`,
+/// src-tauri/src/lib.rs L958-964). Delegates to `OrgRuntime::join_org`.
 Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
     RustLib.instance.api.crateApiOrgJoinOrg(request: request);
 
@@ -21,13 +24,14 @@ Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
 Future<void> leaveOrg({required String orgPubkey}) =>
     RustLib.instance.api.crateApiOrgLeaveOrg(orgPubkey: orgPubkey);
 
-/// List all joined orgs and their snapshots (1:1 port of `org_list`). The
-/// runtime's `list` returns a `Vec<OrgSnapshot>` directly (no Result), so the
-/// facade returns `Result<Vec<OrgSnapshot>, String>` to match the Tauri
-/// command's `Result<Vec<OrgSnapshot>, String>` shape.
+/// List all joined orgs and their snapshots (1:1 port of `org_list`,
+/// src-tauri/src/lib.rs L985-989). The runtime's `list` returns a
+/// `Vec<OrgSnapshot>` directly (no Result), so the facade wraps it in `Ok`
+/// to match the Tauri command's `Result<Vec<OrgSnapshot>, String>` shape.
 Future<List<OrgSnapshot>> list() => RustLib.instance.api.crateApiOrgList();
 
-/// Poll an org for its current snapshot (1:1 port of `org_poll`).
+/// Poll an org for its current snapshot (1:1 port of `org_poll`,
+/// src-tauri/src/lib.rs L992-995). Delegates to `OrgRuntime::poll`.
 Future<OrgSnapshot> poll({required String orgPubkey}) =>
     RustLib.instance.api.crateApiOrgPoll(orgPubkey: orgPubkey);
 
@@ -63,7 +67,9 @@ Future<SessionSnapshot> acceptDmOffer(
         listenPort: listenPort,
         staticPeer: staticPeer);
 
-/// Dismiss an org DM offer (1:1 port of `org_dismiss_dm_offer`).
+/// Dismiss an org DM offer (1:1 port of `org_dismiss_dm_offer`,
+/// src-tauri/src/lib.rs L1070-1076). Delegates to
+/// `OrgRuntime::dismiss_dm_offer`.
 Future<void> dismissDmOffer(
         {required String orgPubkey, required String offerId}) =>
     RustLib.instance.api
@@ -103,7 +109,9 @@ Future<GroupSnapshot> acceptGroupOffer(
         listenPort: listenPort,
         staticPeer: staticPeer);
 
-/// Dismiss an org group offer (1:1 port of `org_dismiss_group_offer`).
+/// Dismiss an org group offer (1:1 port of `org_dismiss_group_offer`,
+/// src-tauri/src/lib.rs L1154-1162). Delegates to
+/// `OrgRuntime::dismiss_group_offer`.
 Future<void> dismissGroupOffer(
         {required String orgPubkey, required String offerId}) =>
     RustLib.instance.api
