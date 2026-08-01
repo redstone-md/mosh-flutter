@@ -34,7 +34,8 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api
         listSessions,
         pollSession,
         sendAttachment,
-        sendMessage;
+        sendMessage,
+        retryMessage;
 // channel.dart and private_group.dart each define a `poll` and a `list` free
 // function, and each also defines a `send` free function (plus channel `leave`
 // and group `close`), so the two imports MUST use distinct prefixes to avoid
@@ -95,6 +96,13 @@ class RealBridgeGateway implements Gateway {
     required String body,
   }) =>
       api.sendMessage(sessionId: sessionId, body: body);
+
+  @override
+  Future<SendMessageResult> retryDmMessage({
+    required String sessionId,
+    required String messageId,
+  }) =>
+      api.retryMessage(sessionId: sessionId, messageId: messageId);
 
   @override
   Future<SessionSnapshot> pollSession({required String sessionId}) =>

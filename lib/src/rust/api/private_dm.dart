@@ -41,6 +41,18 @@ Future<SendMessageResult> sendMessage(
     RustLib.instance.api
         .crateApiPrivateDmSendMessage(sessionId: sessionId, body: body);
 
+/// Retry a failed outbound message (1:1 port of `private_dm_retry_message`,
+/// src-tauri/src/lib.rs L359-369). Re-sends a failed outbound message by
+/// its message id; returns the send result (new delivery status) the
+/// bridge caller uses to invalidate its snapshot so the next poll
+/// re-renders the row. Mirrors React `retryDmMessage`
+/// (native-messaging-gateway.ts) and the channel/group retry facades
+/// (`channel::retry_message`, `private_group::retry_message`).
+Future<SendMessageResult> retryMessage(
+        {required String sessionId, required String messageId}) =>
+    RustLib.instance.api.crateApiPrivateDmRetryMessage(
+        sessionId: sessionId, messageId: messageId);
+
 /// Poll a session for its current snapshot (1:1 port of
 /// `private_dm_poll_session`). The React frontend called this every
 /// AUTO_POLL_MS; no push, no StreamSink.

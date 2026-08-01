@@ -130,9 +130,7 @@ pub fn leave(name: String) -> Result<ChannelLeaveResult, String> {
 pub fn send(name: String, body: String) -> Result<ChannelSendResult, String> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .send(&name, body)
-        .map_err(|error| error.to_string())
+    runtime.send(&name, body).map_err(|error| error.to_string())
 }
 
 /// Retry a failed channel message (1:1 port of `channel_retry_message`).

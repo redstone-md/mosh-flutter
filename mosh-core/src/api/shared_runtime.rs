@@ -42,11 +42,12 @@ static SHARED_RESOURCES: OnceLock<Result<SharedResources, String>> = OnceLock::n
 /// The shared Moss node + the two stores a runtime borrows. Cheap to clone
 /// (three `Arc` bumps) so each facade can `ensure_shared_resources().clone()`
 /// at construct time.
+#[flutter_rust_bridge::frb(opaque)]
 #[derive(Clone)]
 pub struct SharedResources {
-    pub shared_node: Arc<SharedMossNode>,
-    pub attachment_store: Arc<AttachmentStore>,
-    pub persistence: Option<Arc<Persistence>>,
+    pub(crate) shared_node: Arc<SharedMossNode>,
+    pub(crate) attachment_store: Arc<AttachmentStore>,
+    pub(crate) persistence: Option<Arc<Persistence>>,
 }
 
 /// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
@@ -122,4 +123,3 @@ fn construct_resources() -> Result<SharedResources, String> {
         persistence: Some(persistence),
     })
 }
-

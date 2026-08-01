@@ -36,6 +36,14 @@ abstract interface class Gateway {
   Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request});
   Future<SendMessageResult> sendMessage(
       {required String sessionId, required String body});
+
+  /// Retry a failed outbound DM message (1:1 port of React retryDmMessage ->
+  /// Rust private_dm_retry_message). Re-sends a failed outbound message by
+  /// its message id; returns the send result (new delivery status) the
+  /// screen uses to invalidate its snapshot so the next poll re-renders the
+  /// row's delivery status (mirrors retryChannelMessage/retryGroupMessage).
+  Future<SendMessageResult> retryDmMessage(
+      {required String sessionId, required String messageId});
   Future<SessionSnapshot> pollSession({required String sessionId});
   Future<SessionListSnapshot> listSessions();
   Future<CloseSessionResult> closeSession({required String sessionId});

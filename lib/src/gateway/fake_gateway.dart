@@ -158,6 +158,21 @@ class FakeGateway implements Gateway {
   }
 
   @override
+  Future<SendMessageResult> retryDmMessage({
+    required String sessionId,
+    required String messageId,
+  }) =>
+      Future.value(SendMessageResult(
+        sessionId: sessionId,
+        state: 'connecting',
+        ciphertextBytes: BigInt.zero,
+        messageId: messageId,
+        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
+        deliveryStatus: MessageDeliveryStatus.sent,
+        deliveryError: null,
+      ));
+
+  @override
   Future<SessionSnapshot> pollSession({required String sessionId}) {
     final snapshot = _sessions[sessionId];
     if (snapshot == null) {
