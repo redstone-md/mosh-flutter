@@ -79,6 +79,13 @@ import 'package:mosh/src/rust/api/org.dart' as org_api
         list,
         poll,
         sendDmOffer;
+import 'package:mosh/src/rust/api/network.dart' as network_api
+    show listInterfaces;
+import 'package:mosh/src/rust/api/vpn.dart' as vpn_api
+    show detectVpn, getBindInterface, getVpnBypassConsent, setVpnBypassConsent;
+import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
+import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
+import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
@@ -408,4 +415,24 @@ class RealBridgeGateway implements Gateway {
         groupId: groupId,
         memberPeerIds: memberPeerIds,
       );
+
+  // Network + VPN surface: delegates to network_api / vpn_api (frb
+  // bindings for api::network + api::vpn, implemented in 75a2880).
+  @override
+  Future<List<NetworkInterfaceInfo>> listInterfaces() =>
+      network_api.listInterfaces();
+
+  @override
+  Future<VpnDetection> detectVpn() => vpn_api.detectVpn();
+
+  @override
+  Future<String?> getBindInterface() => vpn_api.getBindInterface();
+
+  @override
+  Future<VpnBypassConsent?> getVpnBypassConsent() =>
+      vpn_api.getVpnBypassConsent();
+
+  @override
+  Future<void> setVpnBypassConsent({String? interfaceName}) =>
+      vpn_api.setVpnBypassConsent(interface_: interfaceName);
 }
