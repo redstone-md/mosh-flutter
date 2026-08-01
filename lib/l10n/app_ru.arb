@@ -629,5 +629,31 @@
   "closeViewer": "Закрыть просмотрщик",
   "@closeViewer": {
     "description": "Tooltip/aria-label of the close button in the shared MediaViewer (React inline 'Close viewer'; localized in the Flutter port)"
+  },
+  "persistenceWarningUnavailableTitle": "Зашифрованная история недоступна",
+  "@persistenceWarningUnavailableTitle": {
+    "description": "Title of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch title)"
+  },
+  "persistenceWarningUnavailableBody": "Сообщения по-прежнему отправляются, но приватная история ЛС и непрерывность сессии могут быть потеряны после перезапуска.{reason}",
+  "@persistenceWarningUnavailableBody": {
+    "description": "Body of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch body; {reason} is the leading-space ' Reason: <error>' suffix or empty)",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "persistenceWarningErrorTitle": "Статус истории недоступен",
+  "@persistenceWarningErrorTitle": {
+    "description": "Title of the persistence warning when the gateway threw (React useRuntimePersistenceStatus catch branch title)"
+  },
+  "persistenceWarningErrorBody": "Mosh не смог подтвердить статус зашифрованной локальной истории. Причина: {reason}",
+  "@persistenceWarningErrorBody": {
+    "description": "Body of the persistence warning when the gateway threw (React useRuntimePersistenceStatus catch branch body; {reason} is the thrown error message)",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   }
 }

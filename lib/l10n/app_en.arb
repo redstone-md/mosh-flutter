@@ -1066,5 +1066,31 @@
   "closeViewer": "Close viewer",
   "@closeViewer": {
     "description": "Tooltip/aria-label of the close button in the shared MediaViewer (React inline 'Close viewer'; localized in the Flutter port)"
+  },
+  "persistenceWarningUnavailableTitle": "Encrypted history unavailable",
+  "@persistenceWarningUnavailableTitle": {
+    "description": "Title of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch title)"
+  },
+  "persistenceWarningUnavailableBody": "Messages still send, but private DM history and session continuity may be lost after restart.{reason}",
+  "@persistenceWarningUnavailableBody": {
+    "description": "Body of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch body; {reason} is the leading-space ' Reason: <error>' suffix or empty)",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "persistenceWarningErrorTitle": "History status unavailable",
+  "@persistenceWarningErrorTitle": {
+    "description": "Title of the persistence warning when the gateway threw (React useRuntimePersistenceStatus catch branch title)"
+  },
+  "persistenceWarningErrorBody": "Mosh could not confirm encrypted local history status. Reason: {reason}",
+  "@persistenceWarningErrorBody": {
+    "description": "Body of the persistence warning when the gateway threw (React useRuntimePersistenceStatus catch branch body; {reason} is the thrown error message)",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   }
 }
