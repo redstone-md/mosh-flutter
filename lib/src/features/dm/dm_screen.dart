@@ -40,6 +40,7 @@ import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_message_list.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/conversation_composer.dart';
+import 'package:mosh/src/features/dm/voice_call_layer.dart' show VoiceCallLayer, startVoiceCall;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
@@ -296,11 +297,29 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                       : l.dmSubtitleUnverified(mlsState),
                   style: Theme.of(context).textTheme.bodySmall),
             ]),
-        actions: [
+       actions: [
           FingerprintBadge(
               fingerprint: fingerprint,
               confirmed: confirmed,
               onConfirm: _confirmFingerprint),
+          // Start-call button -- 1-в-1 with React's `onStartCall` header
+          // action (private-dm-screen.tsx L382 -> useVoiceCallOrchestration
+          // startCall). Icons.phone mirrors tabler's IconPhone; the
+          // outgoing-call modal opens once the snapshot reflects the
+          // `outgoing_call` field (the VoiceCallLayer watches it).
+          IconButton(
+            icon: const Icon(Icons.phone, size: 18),
+            tooltip: l.callStart,
+            onPressed: () async {
+              final err = await startVoiceCall(ref, widget.sessionId);
+              if (!context.mounted) return;
+              if (err != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(err.toString())),
+                );
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.electrical_services, size: 18),
             tooltip: l.openPeerStatus,
@@ -382,17 +401,28 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                 ),
               ],
             ),
-            if (_showPeerStatus)
-              Positioned.fill(
-                child: PeerStatusDrawer(
-                  session: sessionForDrawer,
-                  error: errorForDrawer,
-                  refreshing: false,
-                  onRefresh: () =>
-                      ref.invalidate(activeSessionProvider(widget.sessionId)),
-                  onClose: () => setState(() => _showPeerStatus = false),
-                ),
+           if (_showPeerStatus)
+             Positioned.fill(
+               child: PeerStatusDrawer(
+                 session: sessionForDrawer,
+                 error: errorForDrawer,
+                 refreshing: false,
+                 onRefresh: () =>
+                     ref.invalidate(activeSessionProvider(widget.sessionId)),
+                 onClose: () => setState(() => _showPeerStatus = false),
+               ),
+             ),
+            // Voice-call modals/overlay -- watches the per-session snapshot
+            // and routes IncomingCallModal/OutgoingCallModal/CallOverlay
+            // through showDialog based on pendingCall/outgoingCall/activeCall
+            // (1-в-1 with React private-dm-screen.tsx L459-513). The layer
+            // renders nothing itself; it only shows dialogs.
+            Positioned.fill(
+              child: VoiceCallLayer(
+                sessionId: widget.sessionId,
+                l: l,
               ),
+            ),
           ],
         ),
       ),

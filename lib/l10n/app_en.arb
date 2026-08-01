@@ -1191,5 +1191,13 @@
   "callActiveHangUp": "Hang up",
   "@callActiveHangUp": {
     "description": "aria-label/tooltip for the hang-up button in the active-call overlay (React CallOverlay.tsx)"
+  },
+  "callStart": "Start voice call",
+  "@callStart": {
+    "description": "Tooltip/aria-label for the start-call button in the DM AppBar (React private-dm-screen.tsx onStartCall)"
+  },
+  "callPeerFallback": "Peer",
+  "@callPeerFallback": {
+    "description": "Fallback peer label for a call modal/overlay when the session's peerDisplayName is empty (React `peer_display_name || 'Peer'`)"
   }
 }
