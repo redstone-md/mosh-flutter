@@ -32,6 +32,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/features/sessions/state_dot.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/unread_providers.dart';
@@ -152,34 +153,13 @@ class _SessionRow extends StatelessWidget {
         subtitle: Text(stateText),
        trailing: Row(
          mainAxisSize: MainAxisSize.min,
-         children: [
-           _StateDot(state: session.state),
-           const SizedBox(width: 8),
-           UnreadBadge(count: unreadCount),
-         ],
+        children: [
+          StateDot(state: session.state),
+          const SizedBox(width: 8),
+          UnreadBadge(count: unreadCount),
+        ],
        ),
         onTap: () => context.go(AppRoutes.dmFor(session.sessionId)),
-      ),
-    );
-  }
-}
-
-/// Colored dot indicating the session state. Mirrors the React
-/// `rail-dot rail-dot-${session.state}` element. Colors: idle = grey,
-/// waiting/connecting = amber, ready = teal/green, default = grey.
-class _StateDot extends StatelessWidget {
-  const _StateDot({required this.state});
-
-  final String state;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _dotColor(state),
       ),
     );
   }
@@ -257,22 +237,5 @@ class _ErrorState extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-
-/// State dot color: idle = grey, waiting/connecting = amber, ready = teal,
-/// default = grey. Mirrors the React `rail-dot-*` palette.
-Color _dotColor(String state) {
-  switch (state) {
-    case 'idle':
-      return Colors.grey;
-    case 'waiting':
-    case 'connecting':
-      return Colors.amber;
-    case 'ready':
-      return Colors.teal;
-    default:
-      return Colors.grey;
   }
 }

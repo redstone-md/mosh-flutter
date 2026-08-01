@@ -289,5 +289,11 @@
   "diagRoleMember": "участник",
   "@diagRoleMember": { "description": "Role value for the local device when it is a non-admin group member" },
   "diagDash": "-",
-  "@diagDash": { "description": "Fallback value for the group Label row when the group has no label (mirrors React's null dash fallback)" }
+  "@diagDash": { "description": "Fallback value for the group Label row when the group has no label (mirrors React's null dash fallback)" },
+  "openChannelAria": "Открыть канал {name}",
+  "@openChannelAria": { "description": "Screen-reader label for the Open-channel rail-item row, with the channel name", "placeholders": { "name": { "type": "String" } } },
+  "openGroupAria": "Открыть группу {label}",
+  "@openGroupAria": { "description": "Screen-reader label for the Open-group rail-item row, with the group label", "placeholders": { "label": { "type": "String" } } },
+  "membersCount": "{count} участников",
+  "@membersCount": { "description": "Subtitle for a group rail-item row showing the member count (mirrors React String(group.member_count) members)", "placeholders": { "count": { "type": "int" } } }
 }
