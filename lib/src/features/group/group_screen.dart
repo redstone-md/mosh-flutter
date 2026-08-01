@@ -62,6 +62,7 @@ import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/features/group/group_screen_header.dart';
+import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -69,6 +70,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/util/format.dart' show shorten;
 
 /// Group screen for one private group. Own vs others is inferred from
 /// `GroupMessage.fromFingerprint` vs the group's `deviceFingerprint`
@@ -123,6 +125,30 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     context.go(AppRoutes.sessions);
   }
 
+  // Close-flow confirmation -- 1-в-1 with React `useChatCloseFlow` group
+  // branch (use-chat-close-flow.ts L67-77): the leave action opens a
+  // ConfirmDialog with `Leave ${label}?` / body / `Leave group` before the
+  // real `_leave` runs. React's `label = group?.label ?? (group ?
+  // shorten(group.group_id, 6) : "this group")`; the group screen always
+  // has a resolved group (it is the active screen), so the fallback is
+  // `group.label ?? shorten(group.groupId, 6)`. If the snapshot is still
+  // pending when the user taps leave, fall back to `shorten(groupId, 6)`
+  // (the widget arg), which mirrors the resolved-group fallback shape.
+  Future<void> _requestLeave() async {
+    final l = AppLocalizations.of(context)!;
+    final group =
+        ref.read(groupSnapshotProvider(widget.groupId)).value;
+    final label = group?.label ?? shorten(group?.groupId ?? widget.groupId, 6);
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: l.leaveGroupTitle(label),
+      body: l.leaveGroupBody,
+      confirmLabel: l.leaveGroupConfirm,
+      cancelLabel: l.dialogCancel,
+    );
+    if (confirmed) await _leave();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -133,7 +159,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
       appBar: GroupScreenHeader(
         groupId: widget.groupId,
         onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
-        onLeave: _leave,
+        onLeave: _requestLeave,
       ),
       body: SafeArea(
         child: Stack(
