@@ -675,4 +675,8 @@
   "callIncomingStatus": "Входящий голосовой звонок...",
   "callIncomingAccept": "Принять звонок",
   "callIncomingDecline": "Отклонить звонок"
+  ,
+  "callOutgoingAriaLabel": "Исходящий звонок",
+  "callOutgoingStatus": "Звоним...",
+  "callOutgoingCancel": "Отменить звонок"
 }

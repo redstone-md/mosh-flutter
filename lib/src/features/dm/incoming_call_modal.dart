@@ -41,6 +41,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/dm/call_button.dart';
 import 'package:mosh/src/features/dm/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -176,14 +177,14 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _CallButton(
+                      CallButton(
                         icon: Icons.phone_disabled,
                         tooltip: widget.l.callIncomingDecline,
                         color: const Color(0xFFE5484D),
                         onPressed: () => _decline(kCallDeclineReasonUser),
                       ),
                       const SizedBox(width: 16),
-                      _CallButton(
+                      CallButton(
                         icon: Icons.phone,
                         tooltip: widget.l.callIncomingAccept,
                         color: const Color(0xFF2EA043),
@@ -194,46 +195,6 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A 48x48 round call action button -- 1-в-1 with React's `.call-btn`.
-/// White icon on a colored background; `Icons.phone_disabled` /
-/// `Icons.phone` / `Icons.mic` / `Icons.mic_off` are the closest filled
-/// glyphs to tabler's IconPhoneOff / IconPhone / IconMicrophone(Off).
-class _CallButton extends StatelessWidget {
-  const _CallButton({
-    required this.icon,
-    required this.tooltip,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final Color color;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: SizedBox(
-        width: 48,
-        height: 48,
-        child: Material(
-          color: color,
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
-          child: IconButton(
-            icon: Icon(icon, size: 20, color: Colors.white),
-            onPressed: onPressed,
-            splashRadius: 24,
-            padding: EdgeInsets.zero,
           ),
         ),
       ),
