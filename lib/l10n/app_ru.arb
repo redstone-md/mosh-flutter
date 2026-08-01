@@ -670,4 +670,9 @@
   ,
   "callLogMissedLabel": "Пропущенный звонок",
   "callLogEndedLabel": "Звонок завершён"
+  ,
+  "callIncomingAriaLabel": "Входящий звонок",
+  "callIncomingStatus": "Входящий голосовой звонок...",
+  "callIncomingAccept": "Принять звонок",
+  "callIncomingDecline": "Отклонить звонок"
 }

@@ -1147,5 +1147,21 @@
   "callLogEndedLabel": "Call ended",
   "@callLogEndedLabel": {
     "description": "Label for the completed-call pill rendered inline in a DM message row when ChatMessage.callEvent.kind === 'completed' (React CallLogEntry.tsx)"
+  },
+  "callIncomingAriaLabel": "Incoming call",
+  "@callIncomingAriaLabel": {
+    "description": "aria-label for the incoming-call modal (React IncomingCallModal.tsx aria-label)"
+  },
+  "callIncomingStatus": "Incoming voice call...",
+  "@callIncomingStatus": {
+    "description": "Status text under the peer label in the incoming-call modal (React IncomingCallModal.tsx .call-modal-status)"
+  },
+  "callIncomingAccept": "Accept call",
+  "@callIncomingAccept": {
+    "description": "aria-label/tooltip for the accept button in the incoming-call modal (React IncomingCallModal.tsx)"
+  },
+  "callIncomingDecline": "Decline call",
+  "@callIncomingDecline": {
+    "description": "aria-label/tooltip for the decline button in the incoming-call modal (React IncomingCallModal.tsx)"
   }
 }
