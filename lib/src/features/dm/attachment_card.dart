@@ -17,9 +17,6 @@
 // OUT OF SCOPE (deferred to later atomics -- the Gateway seam does not
 // yet have download/cancel/open transfer methods):
 //   - voice messages (descriptor.voice -> VoiceMessage branch in React);
-//   - the video play-overlay (IconPlayerPlayFilled) on the media
-//     preview -- the video-with-thumbnail branch renders the image
-//     WITHOUT the play icon this atomic;
 //   - the onOpen tap handler on the preview (<button onClick={onOpen}>
 //     in React) -- the preview is non-interactive here;
 //   - the `actions` block (download/cancel/retry/open buttons);
@@ -28,6 +25,13 @@
 // `if (hasPreview) return media-card;` (this atomic, image-only surface),
 // then `return file-card;` (the existing branch). Each deferred piece is
 // noted inline where it would slot in.
+//
+// VIDEO play-overlay is IN SCOPE this atomic: a centered
+// `Icons.play_circle_filled` overlays the thumbnail image when the mime
+// is a video (matching React's `<IconPlayerPlayFilled>`); the overlay is
+// decorative (`Semantics(excludeSemantics: true)`), the wrapper's image
+// semantics carries the accessibility label, and the preview stays
+// non-interactive (no onOpen tap).
 //
 // State derivation mirrors React exactly: `outgoing = view?.direction ===
 // "outgoing"`, `state = view?.state ?? (outgoing ? "available" : "offered")`,
@@ -221,12 +225,17 @@ Widget _buildBar({
 /// thumbnail_b64>` payload.
 ///
 /// DEFERRED (later atomics, noted for 1:1 review):
-///   - the video play-overlay (`IconPlayerPlayFilled` in React): the
-///     video-with-thumbnail branch renders the image WITHOUT the play
-///     icon this atomic;
 ///   - the onOpen tap (`<button onClick={onOpen}>`): the preview is
 ///     non-interactive (no Gateway `open` method yet);
 ///   - the actions row (download/cancel/retry/open buttons).
+///
+/// IN SCOPE this atomic: for a video mime, a centered
+/// `Icons.play_circle_filled` overlays the thumbnail image (React's
+/// `<IconPlayerPlayFilled>`). The overlay is decorative -- wrapped in
+/// `Semantics(excludeSemantics: true)` so it does not double the
+/// wrapper's image-label -- and the wrapper semantics label reflects
+/// the actual content ("Image preview: ..." for images, "Video preview:
+/// ..." for videos). The preview stays non-interactive (no onTap).
 class _MediaPreviewCard extends StatelessWidget {
   const _MediaPreviewCard({
     required this.descriptor,
@@ -249,6 +258,12 @@ class _MediaPreviewCard extends StatelessWidget {
     final failed = state == AttachmentState.failed;
     final thumb = descriptor.thumbnailB64!;
     final bytes = Uint8List.fromList(base64Decode(thumb));
+    // React: `isVideo = descriptor.mime.startsWith("video/")`. Drives
+    // the centered play-overlay on top of the thumbnail image.
+    final isVideo = descriptor.mime.startsWith('video/');
+    final previewLabel = isVideo
+        ? 'Video preview: ${descriptor.fileName}'
+        : 'Image preview: ${descriptor.fileName}';
 
     return _FileCardShell(
       failed: failed,
@@ -258,33 +273,58 @@ class _MediaPreviewCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Non-interactive preview (no onOpen tap this atomic). React
-          // wraps the img in `<button onClick={onOpen}>`; that tap and the
-          // video play-overlay are deferred. Constrained so the preview
-          // does not blow up the bubble.
+          // wraps the img in `<button onClick={onOpen}>`; that tap stays
+          // deferred. The video play-overlay IS in scope this atomic
+          // (centered `Icons.play_circle_filled` over the image when
+          // `isVideo`), matching React's `<IconPlayerPlayFilled>`.
+          // Constrained so the preview does not blow up the bubble.
           Semantics(
-            label: 'Image preview: ${descriptor.fileName}',
+            label: previewLabel,
             image: true,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: SizedBox(
                 height: 160,
                 width: double.infinity,
-                child: Image.memory(
-                  bytes,
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                  errorBuilder: (context, _, __) => SizedBox(
-                    height: 160,
-                    width: double.infinity,
-                    child: ColoredBox(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: Icon(
-                        Icons.broken_image_outlined,
-                        size: 32,
-                        color: theme.hintColor,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.memory(
+                      bytes,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      errorBuilder: (context, _, __) => SizedBox(
+                        height: 160,
+                        width: double.infinity,
+                        child: ColoredBox(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            size: 32,
+                            color: theme.hintColor,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    if (isVideo)
+                      // Decorative play overlay (React's
+                      // `<span className="attachment-play"
+                      // aria-hidden="true"><IconPlayerPlayFilled/>`).
+                      // Excluded from semantics so the wrapper's image
+                      // label carries accessibility.
+                      Positioned.fill(
+                        child: Center(
+                          child: Semantics(
+                            excludeSemantics: true,
+                            child: Icon(
+                              Icons.play_circle_filled,
+                              size: 40,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
