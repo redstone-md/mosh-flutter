@@ -138,14 +138,14 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-     await ref.read(gatewayProvider).sendGroupAttachment(
-           groupId: widget.groupId,
-           fileName: attachment.fileName,
-           mime: attachment.mime,
-           dataBase64: attachment.dataBase64,
-           thumbnailBase64: attachment.thumbnailBase64,
-         );
-     ref.invalidate(groupSnapshotProvider(widget.groupId));
+      await ref.read(gatewayProvider).sendGroupAttachment(
+            groupId: widget.groupId,
+            fileName: attachment.fileName,
+            mime: attachment.mime,
+            dataBase64: attachment.dataBase64,
+            thumbnailBase64: attachment.thumbnailBase64,
+          );
+      ref.invalidate(groupSnapshotProvider(widget.groupId));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -181,8 +181,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   // (the widget arg), which mirrors the resolved-group fallback shape.
   Future<void> _requestLeave() async {
     final l = AppLocalizations.of(context)!;
-    final group =
-        ref.read(groupSnapshotProvider(widget.groupId)).value;
+    final group = ref.read(groupSnapshotProvider(widget.groupId)).value;
     final label = group?.label ?? shorten(group?.groupId ?? widget.groupId, 6);
     final confirmed = await showConfirmDialog(
       context: context,
@@ -204,13 +203,27 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         onDownload: (id) => unawaited(ref
             .read(gatewayProvider)
             .downloadGroupAttachment(groupId: widget.groupId, attachmentId: id)
-            .then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
+            .then(
+                (_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
         onCancel: (id) => unawaited(ref
             .read(gatewayProvider)
             .cancelGroupAttachment(groupId: widget.groupId, attachmentId: id)
-            .then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
+            .then(
+                (_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
         onOpen: (descriptor) => _openAttachment(view),
       );
+
+  /// Retry a failed outbound message (React `retryGroupMessage`,
+  /// native-messaging-gateway.ts; Rust `private_group_retry_message`).
+  /// Fire-and-forget via `unawaited`, then invalidate the group snapshot
+  /// so the next poll re-renders the row's delivery status (mirrors the
+  /// attachment download/cancel wiring).
+  void _retryMessage(String messageId) {
+    unawaited(ref
+        .read(gatewayProvider)
+        .retryGroupMessage(groupId: widget.groupId, messageId: messageId)
+        .then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
+  }
 
   /// Opens the attachment's local file (React `openPath(local_path)` via the
   /// Tauri opener plugin -- here client-side, no Rust fn). Windows:
@@ -311,6 +324,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                         ownFingerprint: group.deviceFingerprint,
                         attachments: group.attachments,
                         attachmentCallbacks: _attachmentCallbacks,
+                        onRetryMessage: _retryMessage,
                       );
                     },
                   ),
@@ -357,15 +371,23 @@ class _GroupMessageListView extends StatelessWidget {
     required this.ownFingerprint,
     required this.attachments,
     required this.attachmentCallbacks,
+    required this.onRetryMessage,
   });
 
   final List<GroupMessage> messages;
   final String ownFingerprint;
   final List<AttachmentView> attachments;
+
   /// Per-row transfer-action callbacks (download/cancel/open). Built by the
   /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
   /// `_attachmentCallbacks`).
   final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
+
+  /// Retry a failed outbound message by its messageId (React
+  /// `retryGroupMessage`). Fire-and-forget via `unawaited` then
+  /// invalidate the group snapshot; the screen builds this from the
+  /// Gateway seam.
+  final void Function(String messageId) onRetryMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -398,6 +420,7 @@ class _GroupMessageListView extends StatelessWidget {
           onAttachmentDownload: callbacks.onDownload,
           onAttachmentCancel: callbacks.onCancel,
           onAttachmentOpen: callbacks.onOpen,
+          onRetry: onRetryMessage,
         );
       },
     );
@@ -452,4 +475,3 @@ class _Empty extends StatelessWidget {
     return const Center(child: Text(''));
   }
 }
-

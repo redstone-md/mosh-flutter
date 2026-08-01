@@ -77,8 +77,7 @@ class FakeGateway implements Gateway {
           openmlsSmoke: OpenMlsSmokeRuntimeStatus(
             ok: OpenMlsSmokeStatus(
               provider: 'openmls_rust_crypto',
-              ciphersuite:
-                  'MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519',
+              ciphersuite: 'MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519',
               protectedMessageCreated: true,
             ),
             error: null,
@@ -86,8 +85,7 @@ class FakeGateway implements Gateway {
           openmlsRoundtrip: OpenMlsRoundTripRuntimeStatus(
             ok: OpenMlsRoundTripStatus(
               provider: 'openmls_rust_crypto',
-              ciphersuite:
-                  'MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519',
+              ciphersuite: 'MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519',
               welcomeJoined: true,
               plaintextRoundtrip: true,
             ),
@@ -190,13 +188,15 @@ class FakeGateway implements Gateway {
   Future<void> downloadAttachment({
     required String sessionId,
     required String attachmentId,
-  }) => Future.value();
+  }) =>
+      Future.value();
 
   @override
   Future<void> cancelAttachment({
     required String sessionId,
     required String attachmentId,
-  }) => Future.value();
+  }) =>
+      Future.value();
 
   // Channels/groups read seam: the fake has no real channel/group runtime,
   // so each method returns a canned minimal-but-valid snapshot (empty lists
@@ -275,10 +275,23 @@ class FakeGateway implements Gateway {
       ));
 
   @override
-  Future<ChannelSendResult> sendChannel({required String name, required String body}) =>
+  Future<ChannelSendResult> sendChannel(
+          {required String name, required String body}) =>
       Future.value(ChannelSendResult(
         name: name,
         bytes: BigInt.from(body.codeUnits.length),
+        messageId: 'fake-channel-${_channelSendCount++}',
+        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
+        deliveryStatus: MessageDeliveryStatus.sent,
+        deliveryError: null,
+      ));
+
+  @override
+  Future<ChannelSendResult> retryChannelMessage(
+          {required String name, required String messageId}) =>
+      Future.value(ChannelSendResult(
+        name: name,
+        bytes: BigInt.zero,
         messageId: 'fake-channel-${_channelSendCount++}',
         sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
         deliveryStatus: MessageDeliveryStatus.sent,
@@ -290,10 +303,23 @@ class FakeGateway implements Gateway {
       Future.value(ChannelLeaveResult(name: name, closed: true));
 
   @override
-  Future<GroupSendResult> sendGroup({required String groupId, required String body}) =>
+  Future<GroupSendResult> sendGroup(
+          {required String groupId, required String body}) =>
       Future.value(GroupSendResult(
         groupId: groupId,
         bytes: BigInt.from(body.codeUnits.length),
+        messageId: 'fake-group-${_groupSendCount++}',
+        sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
+        deliveryStatus: MessageDeliveryStatus.sent,
+        deliveryError: null,
+      ));
+
+  @override
+  Future<GroupSendResult> retryGroupMessage(
+          {required String groupId, required String messageId}) =>
+      Future.value(GroupSendResult(
+        groupId: groupId,
+        bytes: BigInt.zero,
         messageId: 'fake-group-${_groupSendCount++}',
         sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
         deliveryStatus: MessageDeliveryStatus.sent,
@@ -356,10 +382,12 @@ class FakeGateway implements Gateway {
   // a real runtime is wired; the accept path's auto-dismiss is also a
   // no-op here). Mirrors the Future<void> shape of the real impls.
   @override
-  Future<void> dismissChannelDmOffer({required String name, required String offerId}) =>
+  Future<void> dismissChannelDmOffer(
+          {required String name, required String offerId}) =>
       Future.value();
   @override
-  Future<void> dismissGroupDmOffer({required String groupId, required String offerId}) =>
+  Future<void> dismissGroupDmOffer(
+          {required String groupId, required String offerId}) =>
       Future.value();
   // Channel/group attachment transfer seams (slice-3): the fake has no real
   // transfer runtime, so all four are no-ops that complete synchronously
@@ -368,16 +396,20 @@ class FakeGateway implements Gateway {
   // Mirrors the Future<void> shape of the real impls + the existing DM
   // downloadAttachment/cancelAttachment no-op stubs in this fake.
   @override
-  Future<void> downloadChannelAttachment({required String name, required String attachmentId}) =>
+  Future<void> downloadChannelAttachment(
+          {required String name, required String attachmentId}) =>
       Future.value();
   @override
-  Future<void> cancelChannelAttachment({required String name, required String attachmentId}) =>
+  Future<void> cancelChannelAttachment(
+          {required String name, required String attachmentId}) =>
       Future.value();
   @override
-  Future<void> downloadGroupAttachment({required String groupId, required String attachmentId}) =>
+  Future<void> downloadGroupAttachment(
+          {required String groupId, required String attachmentId}) =>
       Future.value();
   @override
-  Future<void> cancelGroupAttachment({required String groupId, required String attachmentId}) =>
+  Future<void> cancelGroupAttachment(
+          {required String groupId, required String attachmentId}) =>
       Future.value();
   // Channel/group attachment SEND seams (slice-3): the fake has no real
   // send runtime, so both return a canned AttachmentSendResult with a
@@ -391,28 +423,28 @@ class FakeGateway implements Gateway {
     required String dataBase64,
     String? thumbnailBase64,
     VoiceMeta? voice,
- }) =>
-     Future.value(AttachmentSendResult(
-       sessionId: 'fake-channel:$name',
-       attachmentId: 'fake-channel-attachment:${fileName.hashCode}',
-       contentHash: 'fake-hash:${dataBase64.hashCode}',
-     ));
- @override
- Future<AttachmentSendResult> sendPrivateAttachment({
-   required String sessionId,
-   required String fileName,
-   required String mime,
-   required String dataBase64,
-   String? thumbnailBase64,
-   VoiceMeta? voice,
- }) =>
-     Future.value(AttachmentSendResult(
-       sessionId: 'fake-dm:$sessionId',
-       attachmentId: 'fake-dm-attachment:${fileName.hashCode}',
-       contentHash: 'fake-hash:${dataBase64.hashCode}',
-     ));
- @override
- Future<AttachmentSendResult> sendGroupAttachment({
+  }) =>
+      Future.value(AttachmentSendResult(
+        sessionId: 'fake-channel:$name',
+        attachmentId: 'fake-channel-attachment:${fileName.hashCode}',
+        contentHash: 'fake-hash:${dataBase64.hashCode}',
+      ));
+  @override
+  Future<AttachmentSendResult> sendPrivateAttachment({
+    required String sessionId,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  }) =>
+      Future.value(AttachmentSendResult(
+        sessionId: 'fake-dm:$sessionId',
+        attachmentId: 'fake-dm-attachment:${fileName.hashCode}',
+        contentHash: 'fake-hash:${dataBase64.hashCode}',
+      ));
+  @override
+  Future<AttachmentSendResult> sendGroupAttachment({
     required String groupId,
     required String fileName,
     required String mime,

@@ -47,7 +47,8 @@ Widget _wrap(ChannelMessageRow row) => MaterialApp(
 void main() {
   final l = lookupAppLocalizations(const Locale('en'));
 
-  testWidgets('non-grouped peer channel row renders a CircleAvatar with peer initials',
+  testWidgets(
+      'non-grouped peer channel row renders a CircleAvatar with peer initials',
       (tester) async {
     await tester.pumpWidget(_wrap(ChannelMessageRow(
       message: _msg(
@@ -61,6 +62,7 @@ void main() {
       onAttachmentDownload: (_) {},
       onAttachmentCancel: (_) {},
       onAttachmentOpen: (_) {},
+      onRetry: (_) {},
       l: l,
     )));
     await tester.pumpAndSettle();
@@ -83,6 +85,7 @@ void main() {
       onAttachmentDownload: (_) {},
       onAttachmentCancel: (_) {},
       onAttachmentOpen: (_) {},
+      onRetry: (_) {},
       l: l,
     )));
     await tester.pumpAndSettle();
@@ -90,7 +93,8 @@ void main() {
     expect(find.byType(CircleAvatar), findsNothing);
   });
 
-  testWidgets('non-grouped own channel row renders a CircleAvatar with own initials',
+  testWidgets(
+      'non-grouped own channel row renders a CircleAvatar with own initials',
       (tester) async {
     await tester.pumpWidget(_wrap(ChannelMessageRow(
       message: _msg(
@@ -104,6 +108,7 @@ void main() {
       onAttachmentDownload: (_) {},
       onAttachmentCancel: (_) {},
       onAttachmentOpen: (_) {},
+      onRetry: (_) {},
       l: l,
     )));
     await tester.pumpAndSettle();
