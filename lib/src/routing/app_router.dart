@@ -27,6 +27,7 @@ import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
+import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 
 /// Canonical route paths. Kept as constants so S2-3 deep-link intake and any
 /// in-app `context.go(...)` callers reference one source of truth.
@@ -45,6 +46,10 @@ class AppRoutes {
   /// Chat-create step route (1-в-1 with React's ChatCreateStep). Reached
   /// from the onboarding Chat tile.
   static const String chatCreate = '/chat-create';
+
+  /// Channel-join step route (1-в-1 with React's ChannelJoinStep). Reached
+  /// from the onboarding Channel tile.
+  static const String channelJoin = '/channel-join';
 
   /// Builds a `/dm/<sessionId>` location string. Centralized so callers do
   /// not concatenate paths by hand (and S2-3 can resolve an invite's
@@ -97,6 +102,15 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.chatCreate,
       builder: (BuildContext context, GoRouterState state) =>
           const ChatCreateScreen(),
+    ),
+    GoRoute(
+      // Channel-join step (1-в-1 with React's ChannelJoinStep). Reached from
+      // the onboarding Channel tile via context.go(AppRoutes.channelJoin);
+      // the step's Back button returns to AppRoutes.onboarding. The Join
+      // button is a NO-OP STUB (Gateway joinChannel seam is a later slice).
+      path: AppRoutes.channelJoin,
+      builder: (BuildContext context, GoRouterState state) =>
+          const ChannelJoinScreen(),
     ),
     GoRoute(
       // DM sessions list (React SessionRail sessions section). Wired as its

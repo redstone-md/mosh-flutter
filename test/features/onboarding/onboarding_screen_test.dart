@@ -17,6 +17,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
+import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -97,4 +98,46 @@ void main() {
     expect(find.text('Join a public channel'), findsOneWidget);
     expect(find.text('Open broadcast room, joined by name'), findsOneWidget);
   });
+
+  // Channel tile (this atomic): tapping the channel tile now navigates to
+  // the ChannelJoinScreen step (AppRoutes.channelJoin) instead of showing
+  // the "later slice" SnackBar (mirrors the chat-tile navigation test above
+  // for /chat-create). The ChannelJoin step's Join button is its own stub.
+  testWidgets('channel tile navigates to the ChannelJoinScreen step',
+      (tester) async {
+    final container = ProviderContainer(overrides: [
+      gatewayProvider.overrideWithValue(FakeGateway()),
+    ]);
+    addTearDown(container.dispose);
+
+    final router = GoRouter(
+      initialLocation: AppRoutes.onboarding,
+      routes: appRouter.configuration.routes,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+   // The channel tile title is unique to the Join section; tapping it
+   // routes to /channel-join (ChannelJoinScreen), not a SnackBar.
+   // The tile sits below the fold in the default 800x600 viewport, so
+   // scroll it into view before tapping (matches how a user would scroll).
+   await tester.scrollUntilVisible(
+     find.text('Join a public channel'),
+     100,
+     scrollable: find.byType(Scrollable).first,
+   );
+   await tester.tap(find.text('Join a public channel'));
+   await tester.pumpAndSettle();
+   expect(find.byType(ChannelJoinScreen), findsOneWidget);
+ });
 }
