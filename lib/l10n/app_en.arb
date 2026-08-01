@@ -1111,5 +1111,25 @@
         "type": "String"
       }
     }
+  },
+  "voiceRecordLabel": "Record a voice message",
+  "@voiceRecordLabel": {
+    "description": "Tooltip/aria-label for the idle voice-composer mic button (React VoiceComposer.tsx idle phase)"
+  },
+  "voiceDiscardLabel": "Discard recording",
+  "@voiceDiscardLabel": {
+    "description": "Tooltip for the discard button in the recording + review voice phases (React VoiceComposer.tsx)"
+  },
+  "voiceStopLabel": "Stop recording",
+  "@voiceStopLabel": {
+    "description": "Tooltip for the stop button in the recording voice phase (React VoiceComposer.tsx recording phase)"
+  },
+  "voicePlayLabel": "Play recording",
+  "@voicePlayLabel": {
+    "description": "Tooltip for the play-preview button in the review voice phase (React VoiceComposer.tsx review phase)"
+  },
+  "voiceSendLabel": "Send voice message",
+  "@voiceSendLabel": {
+    "description": "Tooltip for the send button in the review voice phase (React VoiceComposer.tsx review phase)"
   }
 }

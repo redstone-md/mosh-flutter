@@ -659,5 +659,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "voiceRecordLabel": "Записать голосовое сообщение",
+  "voiceDiscardLabel": "Отменить запись",
+  "voiceStopLabel": "Остановить запись",
+  "voicePlayLabel": "Воспроизвести запись",
+  "voiceSendLabel": "Отправить голосовое сообщение"
 }
