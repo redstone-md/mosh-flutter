@@ -43,6 +43,11 @@ dependencies:
   # canvas offscreen render; that is a later slice -- needs video_player +
   # RepaintBoundary capture).
   image: ^4.5.3
+  # Slice-3 voice composer: microphone capture for the VoiceComposer
+  # widget (1-в-1 port of React voice/VoiceComposer.tsx). AudioRecorder
+  # records to a file (start/stop return a path) + onAmplitudeChanged
+  # drives the waveform preview. Desktop + mobile + web platform impls.
+  record: ^7.1.1
 
 dev_dependencies:
   flutter_test:
