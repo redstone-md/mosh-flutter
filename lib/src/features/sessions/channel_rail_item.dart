@@ -6,16 +6,19 @@
 ///
 /// Scope (this atomic): the standalone widget only. It is NOT wired into
 /// `SessionsScreen` yet (a later atomic mounts the channels section), and
-/// `onTap` is a no-op because there is no channel screen route yet (also a
-/// later atomic). Server state for the list lives in `channelListProvider`
+/// `onTap` navigates to `/channel/<name>` via `context.go(AppRoutes.channelFor(name))`
+/// (mirrors React `onSelect({ type: "channel", name })`). Server state for
+/// the list lives in `channelListProvider`
 /// (channel_group_providers.dart); the parent passes a resolved
 /// `ChannelSnapshot` + the unread count.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 
 /// A single channel row in the sessions rail. 1-в-1 with React's
@@ -29,9 +32,8 @@ import 'package:mosh/src/rust/channel_runtime.dart';
 ///     localized `openChannelAria(name)` ARB string.
 ///   - `selected` mirrors React's `rail-item-active` (the active class).
 ///
-/// `onTap` is a no-op: there is no channel screen route yet. The navigation
-/// wiring (`context.go` to a channel screen) lands in a later atomic -- the
-/// TODO below marks the seam.
+/// `onTap` navigates to `/channel/<name>` via `context.go(AppRoutes.channelFor(name))`
+/// (mirrors React `onSelect({ type: "channel", name })`).
 class ChannelRailItem extends StatelessWidget {
   const ChannelRailItem({
     super.key,
@@ -60,10 +62,7 @@ class ChannelRailItem extends StatelessWidget {
         subtitle: Text(channel.topic),
         trailing: UnreadBadge(count: unreadCount),
         selected: active,
-        // TODO(channel-route): no channel screen route exists yet; onTap is a
-        // no-op until a later atomic adds `/channel/:name` and wires the
-        // navigation here (mirrors React `onSelect({ type: "channel", name })`).
-        onTap: () {},
+        onTap: () => context.go(AppRoutes.channelFor(channel.name)),
       ),
     );
   }

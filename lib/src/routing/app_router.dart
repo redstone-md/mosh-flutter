@@ -20,6 +20,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/src/features/diagnostics/diagnostics_screen.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
+import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
@@ -36,6 +37,7 @@ class AppRoutes {
   static const String sessions = '/sessions';
   static const String diagnostics = '/diagnostics';
   static const String dm = '/dm';
+  static const String channel = '/channel';
 
   /// Chat-create step route (1-в-1 with React's ChatCreateStep). Reached
   /// from the onboarding Chat tile.
@@ -45,6 +47,10 @@ class AppRoutes {
   /// not concatenate paths by hand (and S2-3 can resolve an invite's
   /// sessionId to a route in one place).
   static String dmFor(String sessionId) => '$dm/$sessionId';
+
+  /// Builds a `/channel/<name>` location string. Centralized so callers do
+  /// not concatenate paths by hand; mirrors [dmFor] for the channel screen.
+  static String channelFor(String name) => '$channel/$name';
 }
 
 /// The app's [GoRouter]. Stateless + global: it holds no per-session state,
@@ -100,6 +106,16 @@ final GoRouter appRouter = GoRouter(
       builder: (BuildContext context, GoRouterState state) {
         final sessionId = state.pathParameters['sessionId']!;
         return DmScreen(sessionId: sessionId);
+      },
+    ),
+    GoRoute(
+      // ChannelScreen takes name as a required arg; carry it on the path so
+      // the location is shareable / deep-linkable, mirroring the DM route.
+      // Reached from the sessions rail's ChannelRailItem onTap.
+      path: '${AppRoutes.channel}/:name',
+      builder: (BuildContext context, GoRouterState state) {
+        final name = state.pathParameters['name']!;
+        return ChannelScreen(name: name);
       },
     ),
   ],
