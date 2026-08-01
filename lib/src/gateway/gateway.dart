@@ -22,6 +22,9 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
+import 'package:mosh/src/rust/api/vpn.dart';
+import 'package:mosh/src/rust/network_inventory.dart';
+import 'package:mosh/src/rust/vpn_consent.dart';
 
 /// Abstraction over the slice-one private-DM + diagnostics API.
 ///
@@ -204,4 +207,13 @@ abstract interface class Gateway {
     required String groupId,
     required List<String> memberPeerIds,
   });
+
+  // Network + VPN surface (1:1 port of the list_network_interfaces /
+  // detect_vpn / get_bind_interface / get+set_vpn_bypass_consent Tauri
+  // commands). Surfaced for a future VPN-consent screen + diagnostics (ADR 0013).
+  Future<List<NetworkInterfaceInfo>> listInterfaces();
+  Future<VpnDetection> detectVpn();
+  Future<String?> getBindInterface();
+  Future<VpnBypassConsent?> getVpnBypassConsent();
+  Future<void> setVpnBypassConsent({String? interfaceName});
 }

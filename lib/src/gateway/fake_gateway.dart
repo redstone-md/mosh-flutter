@@ -18,6 +18,9 @@ import 'package:mosh/src/rust/moss_runtime.dart';
 import 'package:mosh/src/rust/openmls_crypto.dart';
 import 'package:mosh/src/rust/persistence.dart';
 import 'package:mosh/src/rust/secure_storage.dart';
+import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
+import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
+import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
 /// Slice-one fake runtime: canned diagnostics + an in-memory session map.
 ///
@@ -627,6 +630,42 @@ class FakeGateway implements Gateway {
     required List<String> memberPeerIds,
   }) =>
       Future.value();
+
+  // Network + VPN surface. Canned minimal-but-valid results (no NICs /
+  // no VPN / null bind); the consent pair round-trips an in-memory field
+  // so a VPN-consent screen test can set + read without the filesystem.
+  VpnBypassConsent? _vpnBypassConsent;
+
+  @override
+  Future<List<NetworkInterfaceInfo>> listInterfaces() => Future.value(const []);
+
+  @override
+  Future<VpnDetection> detectVpn() => Future.value(const VpnDetection(
+        vpnLikely: false,
+        suspectInterfaces: [],
+        vpnOwnsDefaultRoute: false,
+      ));
+
+  @override
+  Future<String?> getBindInterface() => Future.value(null);
+
+  @override
+  Future<VpnBypassConsent?> getVpnBypassConsent() =>
+      Future.value(_vpnBypassConsent);
+
+  @override
+  Future<void> setVpnBypassConsent({String? interfaceName}) {
+    final name = interfaceName;
+    if (name == null || name.isEmpty) {
+      _vpnBypassConsent = null;
+      return Future.value();
+    }
+    _vpnBypassConsent = VpnBypassConsent(
+      interface_: name,
+      index: 0,
+    );
+    return Future.value();
+  }
 
   SessionSnapshot _fakeSession({
     required String sessionId,
