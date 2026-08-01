@@ -4,27 +4,29 @@
 // others by FINGERPRINT, not display name -- groups are multi-party so
 // names are not unique) + a composer. SHELL ONLY.
 //
-// Deferred to later atomics (matching how ChannelScreen / DmScreen layered
-// polish later):
-//   - sender-meta grouping (the 5-min window).
-//   - attachments (AttachmentCard + download/cancel seam).
-//   - peer-status drawer (PeerStatusDrawer).
-//   - admin badge / member-count subtitle / MLS-state subtitle (the rail
-//     already shows admin crown + member count; the screen shell does not).
-//   - public/encryption notice banner.
-//   - the failed-message retry row.
+// 1-в-1 with the React group pane (ActiveChatPanes.tsx ActiveGroupChat):
+// AppBar (group label + admin-pill + copy-invite + leave via
+// [GroupScreenHeader]) + GroupNotice banner + ConversationTools +
+// message list (own vs others by FINGERPRINT) + composer + peer-status
+// drawer overlay. The admin badge / member-count subtitle / MLS-state
+// subtitle render in [GroupScreenHeader] (group_screen_header.dart).
 //
-// ConversationTools search/filter -- WIRED in this atomic: the screen owns
-// `_search` / `_filter` widget-local state, renders `ConversationTools`
-// above the list, and applies `filterGroupMessages` BEFORE
-// `groupGroupMessages` (React's filter-then-group order), with the
-// shared `DmSearchEmpty` branch when the filter hides every row.
+// Deferred (slice-3 Rust Gateway seam): attachment/voice SENDING
+// (AttachmentPicker + ChatComposer ChatDropZone/onSendVoice) and the
+// attachment download/cancel transfer seam. AttachmentCard DISPLAY of an
+// already-received attachment is ported (group_message_row.dart).
 //
-// Own-vs-others rule (ported from React, same as ChannelScreen):
-//   own = message.fromFingerprint == group.deviceFingerprint
+// Own-vs-others rule (React MessageLists.tsx GroupChatList, same as
+// ChannelScreen): own = message.fromFingerprint == group.deviceFingerprint.
 // Fingerprint comparison (NOT display name) is the key correctness point --
 // groups are multi-party, so two members could share a display name but
-// never a device fingerprint.
+// never a device fingerprint. Sender-meta grouping (5-min,
+// same-fingerprint) + MultiPartySenderMeta render in group_message_row.dart.
+//
+// ConversationTools search/filter is widget-local (`_search` / `_filter`);
+// the screen applies `filterGroupMessages` BEFORE `groupGroupMessages`
+// (React's filter-then-group order) with the shared `DmSearchEmpty` branch
+// when the filter hides every row.
 //
 // Key differences from ChannelScreen (groups vs channels):
 //   - keyed by `groupId` (the identity), NOT `name`.

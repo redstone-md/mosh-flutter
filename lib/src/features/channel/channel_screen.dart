@@ -4,27 +4,27 @@
 // vs others by FINGERPRINT, not display name -- channels are multi-party so
 // names are not unique) + a composer. SHELL ONLY.
 //
-// Deferred to later atomics (matching how DmScreen layered polish later):
-//   - sender-meta grouping (the 5-min window) -- DmScreen's groupDmMessages.
-//   - attachments (AttachmentCard + download/cancel seam).
-//   - peer-status drawer (PeerStatusDrawer) -- WIRED in this atomic.
-//   - fingerprint badge (FingerprintBadge).
-//   - the public-channel notice banner (React shows a PublicNotice for
-//     plaintext channels; the shell has NO footer at all, unlike DmScreen's
-//     chatCryptoFooter).
-//   - the failed-message retry row.
+// 1-в-1 with the React channel pane (ActiveChatPanes.tsx ActiveChannelChat):
+// AppBar (channel name + leave IconButton) + PublicNotice banner +
+// ConversationTools (search/filter) + message list (own vs others by
+// FINGERPRINT) + composer + peer-status drawer overlay.
 //
-// ConversationTools search/filter -- WIRED in this atomic: the screen owns
-// `_search` / `_filter` widget-local state, renders `ConversationTools`
-// above the list, and applies `filterChannelMessages` BEFORE
-// `groupChannelMessages` (React's filter-then-group order), with the
-// shared `DmSearchEmpty` branch when the filter hides every row.
+// Deferred (slice-3 Rust Gateway seam): attachment/voice SENDING
+// (AttachmentPicker + ChatComposer ChatDropZone/onSendVoice) and the
+// attachment download/cancel transfer seam. AttachmentCard DISPLAY of an
+// already-received attachment is ported (channel_message_row.dart).
 //
-// Own-vs-others rule (ported from React MessageLists.tsx ChannelChatList):
-//   own = message.fromFingerprint == channel.deviceFingerprint
-// Fingerprint comparison (NOT display name) is the key correctness point --
-// channels are multi-party, so two members could share a display name but
-// never a device fingerprint.
+// Own-vs-others rule (React MessageLists.tsx ChannelChatList):
+// own = message.fromFingerprint == channel.deviceFingerprint. Fingerprint
+// comparison (NOT display name) is the key correctness point -- channels
+// are multi-party, so two members could share a display name but never a
+// device fingerprint. Sender-meta grouping (5-min, same-fingerprint) +
+// MultiPartySenderMeta render in channel_message_row.dart.
+//
+// ConversationTools search/filter is widget-local (`_search` / `_filter`);
+// the screen applies `filterChannelMessages` BEFORE `groupChannelMessages`
+// (React's filter-then-group order) with the shared `DmSearchEmpty` branch
+// when the filter hides every row.
 //
 // Server state: channelSnapshotProvider (ADR 0010); send calls
 // gateway.sendChannel via gatewayProvider (ADR 0013) then invalidates the
