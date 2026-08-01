@@ -1042,6 +1042,11 @@
   },
   "deleteChatConfirm": "Delete chat",
   "@deleteChatConfirm": {
-    "description": "Confirm button label of the delete-DM ConfirmDialog (React useChatCloseFlow dm branch `confirmLabel`)"
+  "description": "Confirm button label of the delete-DM ConfirmDialog (React useChatCloseFlow dm branch `confirmLabel`)"
+  }
+  ,
+  "closeViewer": "Close viewer",
+  "@closeViewer": {
+    "description": "Tooltip/aria-label of the close button in the shared MediaViewer (React inline 'Close viewer'; localized in the Flutter port)"
   }
 }
