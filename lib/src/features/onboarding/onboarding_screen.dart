@@ -26,6 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
+import 'package:mosh/src/features/shared/disclosure.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -140,6 +141,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   title: l.onboardTileJoinTitle,
                   desc: l.onboardTileJoinDesc,
                   onTap: _goJoin,
+                ),
+                const SizedBox(height: 18),
+                Disclosure(
+                  icon: Icons.verified_user,
+                  label: l.onboardAboutToggle,
+                  child: Text(
+                    l.cryptoNoticeBody,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 11.5,
+                      height: 1.6,
+                    ),
+                  ),
                 ),
               ],
             ),
