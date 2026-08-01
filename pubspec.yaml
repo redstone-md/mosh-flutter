@@ -27,6 +27,15 @@ dependencies:
   # Already a transitive dep via flutter_secure_storage; pinning the
   # resolved lock version (2.1.6) keeps the lock untouched on `pub get`.
   path_provider: ^2.1.6
+  # Slice-3 attachment-send: native file picker for the channel/group
+  # Composer's AttachmentPicker (paperclip) button. Returns a PlatformFile
+  # whose bytes are read + base64-encoded for gateway.sendChannelAttachment /
+  # sendGroupAttachment. Desktop + mobile + web (web uses `bytes`, not path).
+  file_picker: ^12.0.0-beta.7
+  # MIME inference for the picked file (file_picker exposes no MIME, unlike
+  # the browser `File.type`). Promoted to a direct dep so pub get cannot drop
+  # it; pinned to the already-resolved transitive lock version (2.0.0).
+  mime: ^2.0.0
 
 dev_dependencies:
   flutter_test:

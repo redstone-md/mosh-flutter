@@ -136,6 +136,10 @@
   "@chatDropHint": {
     "description": "Hint shown when dragging a file over the composer"
   },
+  "attachmentTooLargeMessage": "Attachment exceeds the 50 MB limit",
+  "@attachmentTooLargeMessage": {
+    "description": "Shown when the picked attachment is rejected for exceeding the 50 MB ceiling (mirrors React use-chat-orchestration `onError(\"Attachment exceeds the 50 MB limit\")`)"
+  },
   "chatSearchPlaceholder": "Search messages",
   "@chatSearchPlaceholder": {
     "description": "Placeholder for the message search field"
