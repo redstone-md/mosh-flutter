@@ -684,4 +684,7 @@
   "callActiveMute": "Выключить микрофон",
   "callActiveUnmute": "Включить микрофон",
   "callActiveHangUp": "Завершить звонок"
+  ,
+  "callStart": "Позвонить",
+  "callPeerFallback": "Собеседник"
 }
