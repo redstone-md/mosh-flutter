@@ -973,15 +973,89 @@ headroom.
 
 ## Recorded non-blocking follow-ups (for future atomics)
 
-1. group_screen.dart 499-line ceiling: extract header widgets into
-   group_screen_header.dart (HIGH PRIORITY -- blocks the retry-row atomic).
+## GroupScreen header refactor (DONE, commit f619c1f)
+
+Pure refactor -- zero behavioral change -- to restore 500-line headroom on
+group_screen.dart (was 499, 1 under the ceiling; the next group header atomic
+would have overflowed it). Extracted the AppBar header content (two-line title
+Column, _groupSubtitle, _AdminPill, copy-invite button + stateful logic) into a
+new lib/src/features/group/group_screen_header.dart as a GroupScreenHeader
+(ConsumerStatefulWidget implementing PreferredSizeWidget, preferredSize =
+Size.fromHeight(kToolbarHeight) -- kToolbarHeight is the default AppBar height,
+so zero visual change; the interface is mechanically required because
+Scaffold.appBar is typed PreferredSizeWidget?). ctor: groupId, onOpenPeerStatus,
+onLeave callbacks. Owns the copy-invite ephemeral state (_inviteCopied +
+_inviteCopyTimer + dispose + _copyInvite with mounted guards bound to the
+header's State) and reads groupSnapshotProvider(groupId) itself. group_screen.dart
+dropped 499 -> 348 lines (151 headroom restored); group_screen_header.dart is
+198 lines. Proof of zero behavioral change: the 7 group_screen_header_test.dart
+tests pass UNCHANGED (git diff --stat test/ empty); the 1600ms timer, mounted
+guards, subtitle template, admin-pill icon/size, tooltip strings, dispose scope
+were verified byte-identical against the pre-refactor source. 244/244 green,
+analyze clean.
+
+## Channel/group FailedMessageRetry row (display-only) (DONE, commit 353e9d6)
+
+Port the React FailedMessageRetry (MessageLists.tsx L434-468) into the Flutter
+channel/group message rows. Renders below the body + AttachmentCard when the
+message is an outbound failed+retryable message, 1-1 with React.
+
+New shared widget (lib/src/features/shared/failed_message_retry.dart): one
+parameterized FailedMessageRetry(deliveryError, onRetry, l) -- DRY, two call
+sites, reusable by the DM row later. Mirrors React's role=status aria-label via
+Semantics(label: statusLabel, container: true, excludeSemantics: true) where
+statusLabel = hasError ? messageFailedWithError(trimmed) : messageFailedToSend.
+Inside: a Row with an error-colored Text(deliveryError?.trim() ??
+messageFailedToSend) + a compact TextButton "Retry" whose child Semantics(label:
+retryFailedMessage, button: true) carries React's aria-label="Retry failed
+message".
+
+Render condition ported verbatim into ChannelMessageRow + GroupMessageRow:
+own && message.deliveryStatus == MessageDeliveryStatus.failed &&
+message.retryable == true && message.messageId != null (own = fromFingerprint
+== ownFingerprint, the Flutter "outbound" equivalent). Placed BELOW
+Text(message.body) + AttachmentCard, matching React's message-body order. Both
+rows gained a required AppLocalizations l ctor param, wired through the list
+views. onRetry is a NO-OP STUB () {} with a TODO(channel-group-retry-seam)
+comment -- render-only stage, mirroring the AttachmentCard atomic (b879a02). The
+Gateway retry seam (React retryChannelMessage/retryGroupMessage + Rust
+channel_retry_message/private_group_retry_message) is a LATER atomic (Rust +
+frb codegen + Gateway method). Scope discipline: zero Rust/frb/Gateway touch.
+
+i18n: 4 new ARB keys (en + ru): messageFailedToSend, messageFailedWithError
+(error placeholder), messageRetry, retryFailedMessage. en values match React's
+inline literals (they live in MessageLists.tsx, not private-dm.content.ts).
+Trailing LF preserved on both ARB files.
+
+Tests: +12 widget tests (6 cases per screen: happy path, fallback, 4 negatives
+pinning the condition). 256/256 green, analyze clean, all files < 500 lines.
+
+## Recorded non-blocking follow-ups (for future atomics)
+
+1. ~~group_screen.dart 499-line ceiling~~ DONE (f619c1f refactor extracted the
+   header into group_screen_header.dart; 151 lines of headroom restored).
 2. Russian member-count plural grammar (membersCount/membersCountSingular):
    convert to a single ICU MessageFormat plural key with one/few/many forms;
    drop the memberCount == BigInt.one branch.
 3. channel/group attachment-transfer Gateway seam: Rust + frb codegen for
    download/cancel/open_attachment parameterized by conversation kind (currently
-   no-op stubs in the channel/group screens, deferred from b879a02).
+   no-op stubs in the channel/group screens, deferred from b879a02). NOTE: this
+   also covers the retry seam (channel_retry_message / private_group_retry_message)
+   since the FailedMessageRetry onRetry is a no-op stub deferred from 353e9d6 --
+   fold both into one Gateway-seam atomic when it lands.
 4. Device integration pass -- history.redb persist: needs a full create_invite
    UI flow on the emulator (displayName entry + invite creation) to create the
    DB, then verify it survives restart. Not blocking -- basic integration
    (apk + biometric + Keystore DEK + onboarding) is already verified.
+
+## Channel/group UI-parity status
+
+With the retry row landed, the channel/group message rows now render 1-в-1 with
+React's ChannelMessageRow/GroupMessageRow: sender-meta (first-in-group, MLS badge
+group-only per React), grouping (5-min window, fromFingerprint key), body,
+AttachmentCard (display-only), FailedMessageRetry (display-only). The screens
+have: notice banners (PublicNotice/GroupNotice), ConversationTools (search+
+filter), admin-pill + member-count subtitle + copy-invite (group only), the
+PeerStatusDrawer (branches session/channel/group). Remaining React-parity gaps
+are the Gateway seams (attachment transfer + retry -- Rust + frb) and the group
+needs_rejoin / orgAddPrompt fragments (deferred from the notice-banner atomic).
