@@ -708,4 +708,22 @@
   "bindAdapterHint": "Привязка может раскрыть ваш LAN-IP пирам, трекерам и STUN. Mosh перезапускается для применения любого выбора.",
   "bindAdapterReadError": "Не удалось прочитать состояние сети",
   "bindAdapterApplyError": "Не удалось применить переопределение"
+  ,
+  "orgLeave": "Покинуть организацию",
+  "orgPendingHint": "Ваш код подтверждения — передайте его администратору",
+  "orgDmOffer": "хочет общаться",
+  "orgGroupOffer": "Группа организации",
+  "orgGroupOfferFrom": "приглашение от",
+  "orgMemberDmHint": "Написать",
+  "orgYouBadge": "вы",
+  "orgAdminBadge": "Админ организации",
+  "orgNewGroup": "Новая группа организации",
+  "orgNewGroupPlaceholder": "название новой группы",
+  "orgAcceptDmAria": "Принять приглашение к чату от {name}",
+  "orgDismissDmAria": "Отклонить приглашение от {name}",
+  "orgAcceptGroupAria": "Принять приглашение в группу от {name}",
+  "orgDismissGroupAria": "Отклонить приглашение в группу от {name}",
+  "orgMemberAria": "Написать {name}",
+  "orgMemberYouAria": "{name} (вы)",
+  "orgNewGroupAria": "Новая группа организации в {name}"
 }
