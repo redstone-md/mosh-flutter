@@ -34,6 +34,8 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
+import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// Grouping window ported 1-1 from React `GROUP_WINDOW_MS`
 /// (src/features/private-dm/MessageLists.tsx): 5 minutes. Mirrors
@@ -94,6 +96,50 @@ bool _groupShouldGroup(GroupMessage previous, GroupMessage current) {
   return curMs - prevMs <= BigInt.from(groupGroupWindow.inMilliseconds);
 }
 
+/// Group-typed wrapper over the shared generic [filterMessages]
+/// (lib/src/features/dm/conversation_tools.dart). Mirrors React's
+/// `GroupChatList` passing its `GroupMessage[]` to the generic
+/// `filterMessages<T>` (MessageLists.tsx). The search text is the GENERIC
+/// one -- `fromDevice`, `body`, `attachment.fileName`, `attachment.mime` --
+/// and does NOT include `fromFingerprint`, matching React (the group
+/// `*ChatList` calls the SAME generic `filterMessages` with no fingerprint
+/// in the searchable text).
+///
+/// The screen applies this BEFORE [groupGroupMessages] (React's
+/// filter-then-group order), so the grouping window is computed across the
+/// visible set. Public (NOT `@visibleForTesting`) because the screen's
+/// `_GroupMessageListView` calls it in production; unit tests exercise it
+/// via the same public seam.
+List<GroupMessage> filterGroupMessages(
+  List<GroupMessage> messages,
+  String search,
+  ConversationFilter filter,
+) =>
+    filterMessages(
+      messages,
+      search,
+      filter,
+      (m) => _GroupSearchable(m),
+    );
+
+/// [SearchableMessage] view over a [GroupMessage] (the generated type
+/// shares no base with `ChatMessage` / `ChannelMessage`, so a tiny adapter
+/// exposes the searchable fields to the generic [filterMessages]).
+class _GroupSearchable implements SearchableMessage {
+  const _GroupSearchable(this._m);
+
+  final GroupMessage _m;
+
+  @override
+  String get fromDevice => _m.fromDevice;
+
+  @override
+  String get body => _m.body;
+
+  @override
+  AttachmentDescriptor? get attachment => _m.attachment;
+}
+
 /// One group message row (React `GroupMessageRow`). Own =
 /// `fromFingerprint == ownFingerprint` (fingerprint comparison, NOT display
 /// name -- groups are multi-party). The first row of a group renders the
@@ -144,12 +190,12 @@ class GroupMessageRow extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (!grouped)
-               MultiPartySenderMeta(
-                 fromDevice: message.fromDevice,
-                 fromFingerprint: message.fromFingerprint,
-                 sentAtMs: message.sentAtMs,
-               ),
-             Text(message.body),
+                MultiPartySenderMeta(
+                  fromDevice: message.fromDevice,
+                  fromFingerprint: message.fromFingerprint,
+                  sentAtMs: message.sentAtMs,
+                ),
+              Text(message.body),
             ],
           ),
         ),
