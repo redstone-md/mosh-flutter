@@ -1,0 +1,43 @@
+feat(channel,group): implement api runtime bodies
+
+Replace every `todo!()` in `api/channel.rs` and `api/private_group.rs`
+with real implementations, the last piece of the shared-runtime refactor.
+Until now channel/group worked ONLY through FakeGateway in tests; on
+real data `channel_api.send`/`poll`/`leave`/`sendAttachment` and the
+equivalent group calls panicked. With these bodies they delegate to the
+real runtimes built off the shared Moss node, so the rewritten app
+finally drives channel/group on real runtime data.
+
+Each facade mirrors `api/private_dm.rs` exactly (ADR 0016):
+
+- `RUNTIME: OnceLock<Mutex<Option<ChannelRuntime|PrivateGroupRuntime>>>`
+  + `LOAD_ERROR` -- the analogue of the Tauri shell's
+  `ChannelState`/`PrivateGroupState` (managed struct + `runtime:
+  Mutex<Option<...>>` + `load_error`). `ensure_runtime()` is the analogue
+  of `*State::ready` (construction) + `with_runtime` (lock + borrow).
+
+- `construct_runtime` borrows the shared resources from
+  `api::shared_runtime::ensure_shared_resources()`, builds the runtime
+  via `*Runtime::from_shared_node(shared_node, attachment_store,
+  persistence)`, then `rehydrate()`. Matches the Tauri shell ordering:
+  `ChannelState::ready` (lib.rs L139-160) and
+  `PrivateGroupState::ready` (lib.rs L203-224) both called `rehydrate()`
+  on construction, so joined channels/groups + their tails + MLS state
+  rebuild from the encrypted store after restart.
+
+- Each public fn locks the singleton, drives the `&mut self` runtime
+  method, maps `ChannelRuntimeError`/`PrivateGroupError` to a plain
+  `String` (ADR 0010). `send_attachment` decodes base64 the same way
+  `private_dm::send_attachment` does (the bridge contract for all
+  send_attachment facades).
+
+No new tests: the public functions load the live Moss lib via
+`ensure_shared_resources`, so a unit test here would need moss.dll
+present and fail in CI without it. The DM facade is integration-tested
+identically; channel/group get the same treatment in the live-Moss
+integration pass. The existing 222 cargo tests + 349 flutter tests pass
+unchanged (flutter tests use FakeGateway, not the real bridge).
+
+Verified: cargo test --lib 222/222 (--test-threads=1; two live-Moss
+tests are parallel-flaky on the shared identity keystore, pass under
+serial), flutter analyze 0 issues, flutter test 349/349.

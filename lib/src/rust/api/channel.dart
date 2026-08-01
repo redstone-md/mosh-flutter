@@ -10,6 +10,8 @@ import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `decode_base64`, `ensure_runtime`
+
 /// Join a public channel (1:1 port of the `channel_join` Tauri command).
 Future<ChannelSnapshot> join({required JoinChannelRequest request}) =>
     RustLib.instance.api.crateApiChannelJoin(request: request);
@@ -39,6 +41,13 @@ Future<ChannelListSnapshot> list() =>
     RustLib.instance.api.crateApiChannelList();
 
 /// Send an attachment into a channel (1:1 port of `channel_send_attachment`).
+/// The bytes arrive base64-encoded (the bridge contract for all
+/// send_attachment facades); decoded here before handing the raw `Vec<u8>`
+/// to the runtime, matching the Tauri shell's `channel_send_attachment`
+/// (lib.rs). `thumbnail_base64` is forwarded verbatim (the runtime stores
+/// it as-is for the receiver's preview); `voice` is the optional `VoiceMeta`
+/// for voice clips (None for plain files). Returns the new attachment's id
+/// + content hash so the bridge caller can invalidate its snapshot.
 Future<AttachmentSendResult> sendAttachment(
         {required String name,
         required String fileName,
