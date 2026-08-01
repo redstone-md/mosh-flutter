@@ -11,6 +11,7 @@ import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
+import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/moss_runtime.dart';
@@ -378,6 +379,38 @@ class FakeGateway implements Gateway {
   @override
   Future<void> cancelGroupAttachment({required String groupId, required String attachmentId}) =>
       Future.value();
+  // Channel/group attachment SEND seams (slice-3): the fake has no real
+  // send runtime, so both return a canned AttachmentSendResult with a
+  // deterministic attachmentId derived from the file name (so the screen
+  // can invalidate the snapshot and the next poll renders the new row).
+  @override
+  Future<AttachmentSendResult> sendChannelAttachment({
+    required String name,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  }) =>
+      Future.value(AttachmentSendResult(
+        sessionId: 'fake-channel:$name',
+        attachmentId: 'fake-channel-attachment:${fileName.hashCode}',
+        contentHash: 'fake-hash:${dataBase64.hashCode}',
+      ));
+  @override
+  Future<AttachmentSendResult> sendGroupAttachment({
+    required String groupId,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  }) =>
+      Future.value(AttachmentSendResult(
+        sessionId: 'fake-group:$groupId',
+        attachmentId: 'fake-group-attachment:${fileName.hashCode}',
+        contentHash: 'fake-hash:${dataBase64.hashCode}',
+      ));
 
   // The `joinOrg` seam (slice-3) mirrors the React happy path: a canned
   // OrgSnapshot with empty-but-valid members/offers/links (the org has no

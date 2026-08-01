@@ -28,11 +28,12 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api show acceptInvite, can
 // and group `close`), so the two imports MUST use distinct prefixes to avoid
 // collision; the snapshot/result types come in unqualified from their
 // *_runtime.dart modules.
-import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave, dismissDmOffer, downloadAttachment, cancelAttachment;
-import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, joinGroup, poll, list, send, close, dismissDmOffer, downloadAttachment, cancelAttachment;
+import 'package:mosh/src/rust/api/channel.dart' as channel_api show join, poll, list, send, leave, dismissDmOffer, downloadAttachment, cancelAttachment, sendAttachment;
+import 'package:mosh/src/rust/api/private_group.dart' as group_api show createGroup, joinGroup, poll, list, send, close, dismissDmOffer, downloadAttachment, cancelAttachment, sendAttachment;
 import 'package:mosh/src/rust/api/org.dart' as org_api show joinOrg;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 
 /// Real `mosh_core`-backed Gateway. See file doc for the lifecycle contract.
@@ -165,6 +166,45 @@ class RealBridgeGateway implements Gateway {
   @override
   Future<void> cancelGroupAttachment({required String groupId, required String attachmentId}) =>
       group_api.cancelAttachment(groupId: groupId, attachmentId: attachmentId);
+  // Channel/group attachment SEND seams (slice-3): channel_api/group_api
+  // both name the frb free function `sendAttachment` -- disambiguated by the
+  // prefixes. The composer passes fileName/mime/dataBase64 (+ optional
+  // thumbnailBase64 / VoiceMeta for voice); the result carries attachmentId
+  // + contentHash the screen uses to invalidate the snapshot.
+  @override
+  Future<AttachmentSendResult> sendChannelAttachment({
+    required String name,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  }) =>
+      channel_api.sendAttachment(
+        name: name,
+        fileName: fileName,
+        mime: mime,
+        dataBase64: dataBase64,
+        thumbnailBase64: thumbnailBase64,
+        voice: voice,
+      );
+  @override
+  Future<AttachmentSendResult> sendGroupAttachment({
+    required String groupId,
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  }) =>
+      group_api.sendAttachment(
+        groupId: groupId,
+        fileName: fileName,
+        mime: mime,
+        dataBase64: dataBase64,
+        thumbnailBase64: thumbnailBase64,
+        voice: voice,
+      );
   // The `joinOrg` seam (slice-3) delegates to org_api.joinOrg; the request
   // carries bundleUri + displayName + listenPort + staticPeer? (a
   // `mosh://org` bundle URI, not an invite URI -- org joins use a different
