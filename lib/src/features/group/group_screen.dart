@@ -11,7 +11,6 @@
 //   - peer-status drawer (PeerStatusDrawer).
 //   - admin badge / member-count subtitle / MLS-state subtitle (the rail
 //     already shows admin crown + member count; the screen shell does not).
-//   - copy-invite.
 //   - public/encryption notice banner.
 //   - the failed-message retry row.
 //
@@ -48,7 +47,10 @@
 // Positioned.fill(PeerStatusDrawer(...)) overlay.
 //
 
+import 'dart:async' show Timer;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -82,6 +84,10 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
   bool _showPeerStatus = false;
+  // Copy-invite ephemeral state (React inviteCopied/inviteCopyTimer ~L255-256);
+  // reverts after 1600ms; React's useEffect([inviteUri]) reset is omitted (GroupScreen remounts per groupId, so state resets on cross-group nav).
+  bool _inviteCopied = false;
+  Timer? _inviteCopyTimer;
   // Ephemeral search + filter (React ConversationTools); widget-local per
   // ADR 0010; drive [filterGroupMessages] before grouping, mirroring
   // DmScreen's `_search` / `_filter` (filter-then-group order).
@@ -90,6 +96,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
 
   @override
   void dispose() {
+    _inviteCopyTimer?.cancel();
     _composer.dispose();
     super.dispose();
   }
@@ -115,6 +122,18 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     if (!mounted) return;
     ref.invalidate(groupSnapshotProvider(widget.groupId));
     context.go(AppRoutes.sessions);
+  }
+
+  Future<void> _copyInvite(String? inviteUri) async {
+    if (inviteUri == null) return;
+    await Clipboard.setData(ClipboardData(text: inviteUri));
+    if (!mounted) return;
+    setState(() => _inviteCopied = true);
+    _inviteCopyTimer?.cancel();
+    _inviteCopyTimer = Timer(const Duration(milliseconds: 1600), () {
+      if (!mounted) return;
+      setState(() => _inviteCopied = false);
+    });
   }
 
   @override
@@ -163,14 +182,25 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
           // (left of the search). `Icons.workspace_premium` is the closest
           // Material equivalent to lucide `IconCrown` (a crown medal) -- the
           // rail already uses the same icon for its admin crown
-          // (group_rail_item.dart). TODO(group-copy-invite): port the
-          // copy-invite button (lucide IconCopy + clipboard logic) as a
-          // SEPARATE atomic -- NOT done here.
+          // (group_rail_item.dart).
           if (async.maybeWhen(
             data: (group) => group.isAdmin,
             orElse: () => false,
           ))
             _AdminPill(label: l.groupAdminBadge),
+          // React `beforeSearchActions` copy-invite button (~L327-337):
+          // ghost icon button copying `invite_uri`, check ~1.6s then
+          // revert; only when inviteUri != null; icon 14; tooltip done/invite.
+          if (async.maybeWhen(
+            data: (group) => group.inviteUri != null,
+            orElse: () => false,
+          ))
+            IconButton(
+              icon: Icon(_inviteCopied ? Icons.check : Icons.copy, size: 14),
+              tooltip:
+                  _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
+              onPressed: () => _copyInvite(async.value?.inviteUri),
+            ),
           IconButton(
             icon: const Icon(Icons.electrical_services, size: 18),
             tooltip: l.openPeerStatus,
