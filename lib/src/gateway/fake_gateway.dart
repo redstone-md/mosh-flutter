@@ -319,6 +319,35 @@ class FakeGateway implements Gateway {
     ));
   }
 
+  // The `joinGroup` seam (slice-3) mirrors pollGroup's canned snapshot shape;
+  // the groupId is parsed from the invite URI's `group=` query param (the
+  // same param `detectInvite` reads) so the screen navigates to
+  // `groupFor(groupId)` with a deterministic value the test can assert.
+  @override
+  Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) {
+    final groupId = _groupIdFromInviteUri(request.inviteUri);
+    return Future.value(GroupSnapshot(
+      groupId: groupId,
+      meshId: '',
+      label: null,
+      displayName: request.displayName,
+      deviceFingerprint: '',
+      creatorFingerprint: '',
+      isAdmin: false,
+      state: 'ready',
+      memberCount: BigInt.one,
+      inviteUri: request.inviteUri,
+      messages: const [],
+      attachments: const [],
+      dmOffers: const [],
+      mesh: null,
+      events: const [],
+      needsRejoin: false,
+      orgPubkey: request.orgPubkey,
+      memberPeerIds: const [],
+    ));
+  }
+
   SessionSnapshot _fakeSession({
     required String sessionId,
     required String displayName,
@@ -391,4 +420,15 @@ class FakeGateway implements Gateway {
         .toUpperCase();
     return (hex + '0' * 16).substring(0, 16);
   }
+}
+
+/// Parses the `group=` query param from a `mosh://group?...&group=<id>&...`
+/// invite URI. Falls back to a stable `fake-group-joined` placeholder when
+/// the param is absent so [FakeGateway.joinGroup] always returns a non-empty
+/// groupId the screen can navigate to. Mirrors what `detectInvite` reads to
+/// classify a group invite (lib/src/invite/invite_detection.dart).
+String _groupIdFromInviteUri(String inviteUri) {
+  final parsed = Uri.tryParse(inviteUri);
+  final group = parsed?.queryParameters['group'];
+  return (group == null || group.isEmpty) ? 'fake-group-joined' : group;
 }
