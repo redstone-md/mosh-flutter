@@ -5,8 +5,8 @@
 //
 // Test 1: initial state -- title + body + placeholder + `#` + button label.
 // Test 2: Join button is disabled when the name is empty; enabling on text.
-// Test 3: tapping Join (with a name entered) shows the "later slice"
-//   SnackBar (Gateway joinChannel seam is deferred -> honest stub).
+// Test 3: tapping Join (with a name entered) calls FakeGateway.joinChannel
+//   (canned snapshot) and navigates to the channel screen (slice-3 seam).
 // Test 4: Back button returns to the onboarding menu.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
@@ -83,7 +84,7 @@ void main() {
   });
 
   testWidgets(
-      'tapping Join with a name entered shows the later-slice SnackBar stub',
+      'tapping Join with a name entered joins via the gateway and navigates to the channel screen',
       (tester) async {
     await pumpScreen(tester);
 
@@ -92,9 +93,12 @@ void main() {
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
 
-    // The Gateway joinChannel seam is deferred; the button honestly shows
-    // the "later slice" SnackBar instead of calling a gateway method.
-    expect(find.byType(SnackBar), findsOneWidget);
+    // The joinChannel seam (slice-3) calls FakeGateway.joinChannel (returns
+    // a canned ChannelSnapshot for 'test-channel') and navigates to the
+    // channel screen. No SnackBar on the happy path.
+    expect(find.byType(ChannelScreen), findsOneWidget);
+    expect(find.byType(ChannelJoinScreen), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {

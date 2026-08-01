@@ -4,13 +4,14 @@
 // paragraph, the `.step-channel-input` box (`#` prefix + borderless
 // TextField), and the Join button.
 //
-// Scope (this atomic): the channel-join step UI ONLY. The Gateway
-// `joinChannel` seam is a LATER slice (Rust `join_channel_room` exists;
-// the Flutter Gateway method is deferred), so the Join button is a
-// NO-OP STUB that shows a "later slice" SnackBar -- mirroring how the
-// channel tile previously used `_showLaterSlice`. The name is ephemeral
-// to this screen visit (React keeps it as per-step `useState`), so the
-// TextEditingController stays widget-local and is not lifted to a store.
+// Scope: the channel-join step UI + the joinChannel Gateway seam (slice-3).
+// Tapping Join calls `gateway.joinChannel` with a JoinChannelRequest built
+// from the entered name + the displayName/listenPort/staticPeer that
+// [inviteFlowProvider] already sources for createInvite (ADR 0010 DRY: one
+// settings source for both flows), then navigates to the channel screen on
+// success. The name is ephemeral to this screen visit (React keeps it as
+// per-step `useState`), so the TextEditingController stays widget-local and
+// is not lifted to a store.
 library;
 
 import 'package:flutter/material.dart';
@@ -18,8 +19,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
+import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 
 /// The channel-join step screen.
 ///
@@ -38,6 +42,7 @@ class ChannelJoinScreen extends ConsumerStatefulWidget {
 class _ChannelJoinScreenState extends ConsumerState<ChannelJoinScreen> {
   late final TextEditingController _nameController;
   bool _canJoin = false;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -60,14 +65,35 @@ class _ChannelJoinScreenState extends ConsumerState<ChannelJoinScreen> {
 
   void _onBack() => context.go(AppRoutes.onboarding);
 
-  // NO-OP STUB: the Gateway `joinChannel` seam is a later slice. Mirror the
-  // channel tile's former `_showLaterSlice` behavior so the button is honest
-  // about what is and isn't wired yet.
-  void _onJoin() {
-    if (!_canJoin) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.onboardJoinStepBody)),
-    );
+  // Calls gateway.joinChannel with a JoinChannelRequest built from the
+  // entered name + inviteFlowProvider's displayName/listenPort/staticPeer
+  // (the same settings source createInvite uses), then navigates to the
+  // channel screen on success. Mirrors channel_screen's _send/_leave busy +
+  // try/finally pattern.
+  Future<void> _onJoin() async {
+    if (!_canJoin || _busy) return;
+    final name = _nameController.text.trim();
+    final settings = ref.read(inviteFlowProvider);
+    setState(() => _busy = true);
+    try {
+      await ref.read(gatewayProvider).joinChannel(
+            request: JoinChannelRequest(
+              name: name,
+              displayName: settings.displayName,
+              listenPort: settings.listenPort,
+              staticPeer: settings.staticPeer,
+            ),
+          );
+      if (!mounted) return;
+      context.go(AppRoutes.channelFor(name));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -131,11 +157,17 @@ class _ChannelJoinScreenState extends ConsumerState<ChannelJoinScreen> {
           // .btn.btn-primary.btn-block: full-width primary (mirrors
           // ChatCreateScreen's FilledButton with minimumSize 48h).
           FilledButton(
-            onPressed: _canJoin ? _onJoin : null,
+            onPressed: (_canJoin && !_busy) ? _onJoin : null,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(48),
             ),
-            child: Text(l.onboardChannelJoin),
+            child: _busy
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(l.onboardChannelJoin),
           ),
         ],
       ),
