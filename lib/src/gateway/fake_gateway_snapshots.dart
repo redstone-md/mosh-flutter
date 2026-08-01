@@ -1,0 +1,259 @@
+// Canned snapshots + helpers extracted from FakeGateway (ADR 0013) to keep
+// fake_gateway.dart under 500 lines (AGENTS.md). Every function here is pure
+// and stateless -- FakeGateway owns the only mutable state (in-memory
+// _sessions map). Snapshots mirror the real runtime shapes 1:1.
+
+import 'package:mosh/src/rust/api/diagnostics.dart'
+    show
+        AppDiagnostics,
+        NativeRuntimeStatus,
+        OpenMlsRoundTripRuntimeStatus,
+        OpenMlsSmokeRuntimeStatus;
+import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
+import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
+import 'package:mosh/src/rust/moss_runtime.dart' show MossRuntimeStatus;
+import 'package:mosh/src/rust/openmls_crypto.dart'
+    show OpenMlsRoundTripStatus, OpenMlsSmokeStatus;
+import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot;
+import 'package:mosh/src/rust/outbound_delivery.dart'
+    show MessageDeliveryStatus;
+import 'package:mosh/src/rust/persistence.dart' show PersistenceRuntimeStatus;
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show ChatMessage, SessionSnapshot;
+import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
+import 'package:mosh/src/rust/secure_storage.dart' show SecureStorageStatus;
+
+/// Canned [AppDiagnostics] for FakeGateway.appDiagnostics().
+AppDiagnostics cannedAppDiagnostics() => const AppDiagnostics(
+      appName: 'Mosh',
+      privacyModel: 'OpenMLS private messages over Moss transport',
+      discoveryModel: 'default public Moss trackers',
+      mossLinkMode: 'dynamic',
+    );
+
+/// Canned [NativeRuntimeStatus] mirroring the real
+/// `native_runtime_status()` shape: moss dynamically available, secure storage
+/// on the OS keychain, persistence not running in the fake, OpenMLS smoke +
+/// roundtrip succeeding.
+NativeRuntimeStatus cannedNativeRuntimeStatus() => NativeRuntimeStatus(
+      moss: MossRuntimeStatus(
+        linkMode: 'dynamic',
+        libraryName: 'moss.dll',
+        requiredSymbols: const [
+          'Moss_Init',
+          'Moss_Start',
+          'Moss_Stop',
+          'Moss_Subscribe',
+          'Moss_Publish',
+          'Moss_SetCallback',
+          'Moss_SetKeyStore',
+          'Moss_Free',
+        ],
+        available: true,
+        checkedPaths: const ['moss.dll', 'moss-runtime/moss.dll'],
+      ),
+      secureStorage: SecureStorageStatus(
+        backend: 'os-keychain',
+        service: 'app.mosh.desktop',
+        available: true,
+      ),
+      persistence: PersistenceRuntimeStatus(
+        backend: 'redb+aes-256-gcm+os-keychain',
+        database: 'unavailable',
+        available: false,
+        encryptedAtRest: false,
+        error: 'no persistence instance running in this fake',
+      ),
+      openmlsSmoke: OpenMlsSmokeRuntimeStatus(
+        ok: OpenMlsSmokeStatus(
+          provider: 'openmls_rust_crypto',
+          ciphersuite: 'MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519',
+          protectedMessageCreated: true,
+        ),
+        error: null,
+      ),
+      openmlsRoundtrip: OpenMlsRoundTripRuntimeStatus(
+        ok: OpenMlsRoundTripStatus(
+          provider: 'openmls_rust_crypto',
+          ciphersuite: 'MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519',
+          welcomeJoined: true,
+          plaintextRoundtrip: true,
+        ),
+        error: null,
+      ),
+    );
+
+/// Canned empty [ChannelSnapshot] for pollChannel + joinChannel. Empty lists for
+/// messages/attachments/dmOffers/events; required strings blanked.
+ChannelSnapshot cannedChannelSnapshot({
+  required String name,
+  String displayName = '',
+}) =>
+    ChannelSnapshot(
+      name: name,
+      topic: '',
+      meshId: '',
+      displayName: displayName,
+      deviceFingerprint: '',
+      messages: const [],
+      attachments: const [],
+      dmOffers: const [],
+      mesh: null,
+      events: const [],
+    );
+
+/// Canned [GroupSnapshot] for pollGroup + joinGroup + acceptOrgGroupOffer.
+/// Defaults mirror pollGroup (empty/zero/null); callers override the fields
+/// the request supplies.
+GroupSnapshot cannedGroupSnapshot({
+  required String groupId,
+  String displayName = '',
+  String deviceFingerprint = '',
+  String creatorFingerprint = '',
+  bool isAdmin = false,
+  BigInt? memberCount,
+  String? inviteUri,
+  String? orgPubkey,
+}) =>
+    GroupSnapshot(
+      groupId: groupId,
+      meshId: '',
+      label: null,
+      displayName: displayName,
+      deviceFingerprint: deviceFingerprint,
+      creatorFingerprint: creatorFingerprint,
+      isAdmin: isAdmin,
+      state: 'ready',
+      memberCount: memberCount ?? BigInt.zero,
+      inviteUri: inviteUri,
+      messages: const [],
+      attachments: const [],
+      dmOffers: const [],
+      mesh: null,
+      events: const [],
+      needsRejoin: false,
+      orgPubkey: orgPubkey,
+      memberPeerIds: const [],
+    );
+
+/// Canned [OrgSnapshot] for joinOrg + pollOrg. Empty-but-valid members/offers/
+/// links (the org has no other members in the fake).
+OrgSnapshot cannedOrgSnapshot({required String orgPubkey}) => OrgSnapshot(
+      orgPubkey: orgPubkey,
+      orgName: '',
+      meshId: '',
+      ownPeerId: '',
+      confirmationCode: '',
+      inRoster: false,
+      rosterVersion: null,
+      members: const [],
+      dmOffers: const [],
+      groupOffers: const [],
+      dmLinks: const [],
+    );
+
+/// Canned no-VPN [VpnDetection] for FakeGateway.detectVpn().
+VpnDetection cannedVpnDetection() => const VpnDetection(
+      vpnLikely: false,
+      suspectInterfaces: [],
+      vpnOwnsDefaultRoute: false,
+    );
+
+/// Fake [SessionSnapshot] for createInvite/acceptInvite/acceptOrgDmOffer.
+/// State `connecting`, no messages/attachments, no calls.
+SessionSnapshot fakeSession({
+  required String sessionId,
+  required String displayName,
+  required String role,
+  required String inviteUri,
+  required String fingerprint,
+}) =>
+    SessionSnapshot(
+      sessionId: sessionId,
+      meshId: 'fakemesh',
+      role: role,
+      displayName: displayName,
+      peerDisplayName: '',
+      state: 'connecting',
+      path: 'connecting',
+      relayReady: null,
+      inviteUri: inviteUri,
+      fingerprint: fingerprint,
+      messages: const [],
+      attachments: const [],
+      mesh: null,
+      events: const [],
+      pendingCall: null,
+      outgoingCall: null,
+      activeCall: null,
+    );
+
+/// Append one [ChatMessage] to a session snapshot (sendMessage helper).
+/// Copies every base field, spreads the existing messages, appends the new one.
+SessionSnapshot withMessage(
+  SessionSnapshot base,
+  String body,
+  String messageId,
+  BigInt sentAtMs,
+) =>
+    SessionSnapshot(
+      sessionId: base.sessionId,
+      meshId: base.meshId,
+      role: base.role,
+      displayName: base.displayName,
+      peerDisplayName: base.peerDisplayName,
+      state: base.state,
+      path: base.path,
+      relayReady: base.relayReady,
+      inviteUri: base.inviteUri,
+      fingerprint: base.fingerprint,
+      messages: [
+        ...base.messages,
+        ChatMessage(
+          fromDevice: base.displayName,
+          body: body,
+          messageId: messageId,
+          sentAtMs: sentAtMs,
+          deliveryStatus: MessageDeliveryStatus.sent,
+          deliveryError: null,
+          retryable: null,
+          retryCount: null,
+        ),
+      ],
+      attachments: base.attachments,
+      mesh: base.mesh,
+      events: base.events,
+      pendingCall: base.pendingCall,
+      outgoingCall: base.outgoingCall,
+      activeCall: base.activeCall,
+    );
+
+/// Deterministic 16-char hex fingerprint derived from the session id, so
+/// createInvite/acceptInvite return a stable value the screen can render +
+/// the fingerprint-confirm flow can assert against.
+String fakeFingerprint(String sessionId) {
+  final hex = sessionId.codeUnits
+      .map((c) => c.toRadixString(16).padLeft(2, '0'))
+      .join()
+      .toUpperCase();
+  return (hex + '0' * 16).substring(0, 16);
+}
+
+/// Parse the `group=` query param from a `mosh://group?...&group=<id>&...`
+/// invite URI. Falls back to `fake-group-joined` when absent so joinGroup
+/// always returns a non-empty groupId. Mirrors `detectInvite`
+/// (lib/src/invite/invite_detection.dart).
+String groupIdFromInviteUri(String inviteUri) {
+  final parsed = Uri.tryParse(inviteUri);
+  final group = parsed?.queryParameters['group'];
+  return (group == null || group.isEmpty) ? 'fake-group-joined' : group;
+}
+
+/// Derive a deterministic orgPubkey from a `mosh://org?...` bundle URI via the
+/// `org=` query param (mirrors `detectInvite`'s org classification). Falls back
+/// to `fake-org-joined`.
+String orgPubkeyFromBundleUri(String bundleUri) {
+  final parsed = Uri.tryParse(bundleUri);
+  final org = parsed?.queryParameters['org'];
+  return (org == null || org.isEmpty) ? 'fake-org-joined' : org;
+}
