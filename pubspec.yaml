@@ -36,6 +36,13 @@ dependencies:
   # the browser `File.type`). Promoted to a direct dep so pub get cannot drop
   # it; pinned to the already-resolved transitive lock version (2.0.0).
   mime: ^2.0.0
+  # Slice-3 attachment thumbnails: a 320px JPEG preview for image picks
+  # (1-в-1 with React createThumbnail / imageThumbnail). Pure-Dart decoder +
+  # encoder (no native plugin), so it works on desktop + mobile + web.
+  # Video thumbnails are NOT covered here (React videoThumbnail needs a
+  # canvas offscreen render; that is a later slice -- needs video_player +
+  # RepaintBoundary capture).
+  image: ^4.5.3
 
 dev_dependencies:
   flutter_test:
