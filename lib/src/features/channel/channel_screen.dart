@@ -116,13 +116,14 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(gatewayProvider).sendChannelAttachment(
-            name: widget.name,
-            fileName: attachment.fileName,
-            mime: attachment.mime,
-            dataBase64: attachment.dataBase64,
-          );
-      ref.invalidate(channelSnapshotProvider(widget.name));
+     await ref.read(gatewayProvider).sendChannelAttachment(
+           name: widget.name,
+           fileName: attachment.fileName,
+           mime: attachment.mime,
+           dataBase64: attachment.dataBase64,
+           thumbnailBase64: attachment.thumbnailBase64,
+         );
+     ref.invalidate(channelSnapshotProvider(widget.name));
     } finally {
       if (mounted) setState(() => _sending = false);
     }

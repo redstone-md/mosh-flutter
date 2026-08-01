@@ -38,6 +38,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mime/mime.dart' show lookupMimeType;
 
+import 'package:mosh/src/features/shared/thumbnail.dart' show createThumbnail;
+
 /// Why the picker rejected the picked file. Maps to the localized message the
 /// screen shows (mirrors React's single `onError("Attachment exceeds the 50
 /// MB limit")` path -- the enum leaves room for future reasons without an API
@@ -46,19 +48,21 @@ enum AttachmentPickError { tooLarge }
 
 /// A picked file ready to send: the bytes already base64-encoded (the gateway
 /// `sendChannelAttachment`/`sendGroupAttachment` `dataBase64` arg) plus the
-/// `fileName` and inferred `mime`. `thumbnailBase64` stays null for this
-/// atomic -- thumbnail generation is a later slice (needs an image package;
-/// React `createThumbnail` scales to 320px JPEG).
+/// `fileName` and inferred `mime`. `thumbnailBase64` is the base64 of a
+/// 320px JPEG preview for image picks (1-в-1 with React `createThumbnail`);
+/// null for non-images or decode failures (never fatal -- mirrors React).
 class PickedAttachment {
   const PickedAttachment({
     required this.fileName,
     required this.mime,
     required this.dataBase64,
+    this.thumbnailBase64,
   });
 
   final String fileName;
   final String mime;
   final String dataBase64;
+  final String? thumbnailBase64;
 }
 
 typedef AttachmentPickedCallback = void Function(PickedAttachment attachment);
@@ -103,10 +107,16 @@ class AttachmentPicker extends StatelessWidget {
     // gateway treats an empty mime as application/octet-stream).
     final mime = lookupMimeType(result.name) ?? '';
     final bytes = await result.readAsBytes();
+    // 1-в-1 with React sendAttachment (use-chat-orchestration.ts L177):
+    // `const thumbnail = await createThumbnail(file)`. Null for non-
+    // images / decode failures -- never fatal (React resolves undefined
+    // too). The gateway `thumbnailBase64` arg is nullable.
+    final thumbnail = await createThumbnail(bytes, result.name);
     onPick(PickedAttachment(
       fileName: result.name,
       mime: mime,
       dataBase64: base64Encode(bytes),
+      thumbnailBase64: thumbnail,
     ));
   }
 

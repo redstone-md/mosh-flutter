@@ -138,13 +138,14 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(gatewayProvider).sendGroupAttachment(
-            groupId: widget.groupId,
-            fileName: attachment.fileName,
-            mime: attachment.mime,
-            dataBase64: attachment.dataBase64,
-          );
-      ref.invalidate(groupSnapshotProvider(widget.groupId));
+     await ref.read(gatewayProvider).sendGroupAttachment(
+           groupId: widget.groupId,
+           fileName: attachment.fileName,
+           mime: attachment.mime,
+           dataBase64: attachment.dataBase64,
+           thumbnailBase64: attachment.thumbnailBase64,
+         );
+     ref.invalidate(groupSnapshotProvider(widget.groupId));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
