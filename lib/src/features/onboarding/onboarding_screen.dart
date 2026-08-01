@@ -88,12 +88,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _goChatCreate() => context.go(AppRoutes.chatCreate);
   void _goChannelJoin() => context.go(AppRoutes.channelJoin);
   void _goDiagnostics() => context.go(AppRoutes.diagnostics);
-
-  void _showLaterSlice() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.onboardJoinStepBody)),
-    );
-  }
+  void _goGroupCreate() => context.go(AppRoutes.groupCreate);
 
   TextStyle? _sectionStyle(ThemeData t) => t.textTheme.labelSmall?.copyWith(
         fontWeight: FontWeight.w700,
@@ -154,7 +149,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   icon: Icons.group_outlined,
                   title: l.onboardTileGroupTitle,
                   desc: l.onboardTileGroupDesc,
-                  onTap: _showLaterSlice,
+                  onTap: _goGroupCreate,
                 ),
                 const SizedBox(height: 18),
                 Text(l.onboardJoinLabel, style: _sectionStyle(theme)),

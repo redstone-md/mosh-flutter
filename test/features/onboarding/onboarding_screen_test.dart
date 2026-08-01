@@ -18,6 +18,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
+import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -140,4 +141,46 @@ void main() {
    await tester.pumpAndSettle();
    expect(find.byType(ChannelJoinScreen), findsOneWidget);
  });
+
+  // Group tile (this atomic): tapping the group tile now navigates to the
+  // GroupCreateScreen step (AppRoutes.groupCreate) instead of showing the
+  // "later slice" SnackBar (mirrors the chat- and channel-tile navigation
+  // tests). The GroupCreate step's Create button is its own stub.
+  testWidgets('group tile navigates to the GroupCreateScreen step',
+      (tester) async {
+    final container = ProviderContainer(overrides: [
+      gatewayProvider.overrideWithValue(FakeGateway()),
+    ]);
+    addTearDown(container.dispose);
+
+    final router = GoRouter(
+      initialLocation: AppRoutes.onboarding,
+      routes: appRouter.configuration.routes,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The group tile title sits in the Start section; tapping it routes to
+    // /group-create (GroupCreateScreen), not a SnackBar. The tile may sit
+    // below the fold in the default 800x600 viewport, so scroll it into
+    // view before tapping (matches how a user would scroll).
+    await tester.scrollUntilVisible(
+      find.text('New group'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('New group'));
+    await tester.pumpAndSettle();
+    expect(find.byType(GroupCreateScreen), findsOneWidget);
+  });
 }
