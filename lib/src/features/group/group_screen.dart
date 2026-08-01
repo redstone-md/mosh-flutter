@@ -67,6 +67,7 @@ import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/features/group/group_screen_header.dart';
+import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -121,6 +122,42 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  // Slice-3 attachment SEND -- 1-в-1 with React's `sendAttachment`
+  // (use-chat-orchestration.ts L165), the group branch: read the picked
+  // file's bytes (already base64-encoded by AttachmentPicker), call the
+  // Gateway group send seam, then invalidate the group snapshot so the
+  // next poll renders the new row. `thumbnailBase64`/`voice` stay null for
+  // this atomic (thumbnail + voice are later slices). The 50 MB ceiling is
+  // enforced in the picker BEFORE bytes are read; an oversized pick routes
+  // to `_onAttachmentPickError`.
+  Future<void> _sendAttachment(PickedAttachment attachment) async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      await ref.read(gatewayProvider).sendGroupAttachment(
+            groupId: widget.groupId,
+            fileName: attachment.fileName,
+            mime: attachment.mime,
+            dataBase64: attachment.dataBase64,
+          );
+      ref.invalidate(groupSnapshotProvider(widget.groupId));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Surfaces the localized 50 MB limit message when the picker rejects an
+  /// oversized file (mirrors React's `onError("Attachment exceeds the 50 MB
+  /// limit")`). A SnackBar is the Material idiom for a transient, non-modal
+  /// error that does not steal focus from the composer.
+  void _onAttachmentPickError(AttachmentPickError error) {
+    if (!mounted) return;
+    final l = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.attachmentTooLargeMessage)),
+    );
   }
 
   Future<void> _leave() async {
@@ -281,6 +318,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                   placeholder: l.chatComposerPlaceholder,
                   sendLabel: l.chatSendLabel,
                   onSend: _send,
+                  attachLabel: l.chatAttachLabel,
+                  onAttach: _sendAttachment,
+                  onAttachmentPickError: _onAttachmentPickError,
                 ),
               ],
             ),
@@ -494,6 +534,9 @@ class _Composer extends StatelessWidget {
     required this.placeholder,
     required this.sendLabel,
     required this.onSend,
+    required this.attachLabel,
+    required this.onAttach,
+    required this.onAttachmentPickError,
   });
 
   final TextEditingController controller;
@@ -501,6 +544,9 @@ class _Composer extends StatelessWidget {
   final String placeholder;
   final String sendLabel;
   final VoidCallback onSend;
+  final String attachLabel;
+  final AttachmentPickedCallback onAttach;
+  final AttachmentPickErrorCallback onAttachmentPickError;
 
   @override
   Widget build(BuildContext context) {
@@ -513,6 +559,16 @@ class _Composer extends StatelessWidget {
           final enabled = !sending && value.text.trim().isNotEmpty;
           return Row(
             children: [
+              // React Composer renders AttachmentPicker before the input
+              // (ChatComposer.tsx L86-90). The picker is disabled while a
+              // send is in flight (mirrors React's `disabled` prop).
+              AttachmentPicker(
+                disabled: sending,
+                ariaLabel: attachLabel,
+                onPick: onAttach,
+                onError: onAttachmentPickError,
+              ),
+              const SizedBox(width: 4),
               Expanded(
                 child: TextField(
                   controller: controller,
