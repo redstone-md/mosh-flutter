@@ -86,6 +86,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // rolling, and S2-3 deep-link intake reuses the same paths.
   void _goJoin() => context.go(AppRoutes.join);
   void _goChatCreate() => context.go(AppRoutes.chatCreate);
+  void _goChannelJoin() => context.go(AppRoutes.channelJoin);
   void _goDiagnostics() => context.go(AppRoutes.diagnostics);
 
   void _showLaterSlice() {
@@ -169,7 +170,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   icon: Icons.tag,
                   title: l.onboardTileChannelTitle,
                   desc: l.onboardTileChannelDesc,
-                  onTap: _showLaterSlice,
+                  onTap: _goChannelJoin,
                 ),
                 const SizedBox(height: 18),
                 Disclosure(
