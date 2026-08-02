@@ -47,3 +47,8 @@ pub mod vpn;
 /// `record` PCM16 -> Rust Opus encode -> Opus packet). See
 /// `voice_call_opus_encode`.
 pub mod voice_call_opus_encode;
+
+/// Facade for the voice-call Opus decoder + cpal output (real playback
+/// pipeline: Opus packet -> Rust decode -> ring buffer -> cpal stream with
+/// drift-resync). See `voice_call_playback`.
+pub mod voice_call_playback;
