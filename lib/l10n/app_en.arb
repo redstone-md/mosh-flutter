@@ -1022,11 +1022,15 @@
   "@messageRetry": {
     "description": "Retry button text in the FailedMessageRetry row below a failed outbound message (React inline literal 'Retry' button text)"
   },
-  "retryFailedMessage": "Retry failed message",
-  "@retryFailedMessage": {
-    "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')"
-  },
-  "dialogCancel": "Cancel",
+ "retryFailedMessage": "Retry failed message",
+ "@retryFailedMessage": {
+   "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')"
+ },
+ "chatErrorRetry": "Retry",
+ "@chatErrorRetry": {
+   "description": "Retry button label on the ChatError inline banner shown at the top of the chat-pane when a text send fails (React ChatError inline 'Retry' button text, private-dm-screen.tsx L519)"
+ },
+ "dialogCancel": "Cancel",
   "@dialogCancel": {
     "description": "Generic Cancel label for the shared ConfirmDialog close-X and ghost cancel button (React inline default 'Cancel'; the close-flow and other destructive flows pass a localized cancel label from this key)"
   },

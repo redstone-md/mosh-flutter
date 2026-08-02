@@ -76,6 +76,7 @@ import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/features/shared/chat_actions.dart';
+import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/group/org_add_missing_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -109,6 +110,17 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   // shared DM/channel/group seam, Gap 4) so the gateway method name is
   // decided once here instead of triplicated across the three screens.
   late final ChatTarget _target = GroupTarget(widget.groupId);
+  // Failed-send retry queue + inline error banner (Gaps 1+3) -- 1-1 with
+  // React `use-chat-orchestration.ts` L85-149. `_lastFailedSend` mirrors
+  // React's `lastFailedSend: FailedSend | null`; `_chatError` mirrors
+  // React's `error` state that drives `<ChatError message={error}>`. On a
+  // thrown text send record both + leave the composer untouched (the
+  // user's text survives); a successful send clears both. `_leave` clears
+  // both on close (React `clearFailedSend`). The success-path
+  // composer-clear + ref.invalidate + try-finally + `_sending` flag are
+  // unchanged (Gap 5 conditional-clear is a later atom).
+  ({ChatTarget target, String body})? _lastFailedSend;
+  String? _chatError;
   // Ephemeral search + filter (React ConversationTools); widget-local per
   // ADR 0010; drive [filterGroupMessages] before grouping, mirroring
   // DmScreen's `_search` / `_filter` (filter-then-group order).
@@ -122,20 +134,64 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   }
 
   Future<void> _send() async {
+    // Thin wrapper reading the composer; the real send path lives in
+    // [_sendBody] so [_retryFailedSend] can re-send the stored failed body
+    // without touching the composer first (mirrors React
+    // `sendMessageBody(target, body)` taking `body` directly).
     final body = _composer.text.trim();
     if (body.isEmpty || _sending) return;
-    setState(() => _sending = true);
+    await _sendBody(body);
+  }
+
+  /// Sends a body verbatim -- 1-1 with React `sendMessageBody`. Runs the
+  /// full try/catch/finally: on SUCCESS clears `_lastFailedSend` +
+  /// `_chatError` (React `setLastFailedSend(null)` + `onError(undefined)`),
+  /// clears the composer, and invalidates the group snapshot; on FAILURE
+  /// records `_lastFailedSend = (target, body)` + `_chatError` and leaves
+  /// the composer untouched so the user's text survives. The success-path
+  /// composer-clear + invalidate + try-finally + `_sending` flag are
+  /// unchanged from the pre-Gap-1 `_send`.
+  Future<void> _sendBody(String body) async {
+    if (body.isEmpty || _sending) return;
+    setState(() {
+      _sending = true;
+      _chatError = null; // React `onError(undefined)` at the top of `run`.
+    });
     try {
       await sendChatText(
         gateway: ref.read(gatewayProvider),
         target: _target,
         body: body,
       );
+      _lastFailedSend = null;
+      _chatError = null;
       _composer.clear();
       ref.invalidate(groupSnapshotProvider(widget.groupId));
+    } catch (e) {
+      setState(() {
+        _lastFailedSend = (target: _target, body: body);
+        _chatError = e.toString();
+      });
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Whether the banner's Retry button should be active -- 1-1 with React
+  /// `canRetrySend`. `active` is always this screen's `_target`, so it
+  /// reduces to a non-null `_lastFailedSend` whose target matches `_target`.
+  bool get _canRetrySend =>
+      _lastFailedSend != null &&
+      sameChatTarget(_target, _lastFailedSend!.target);
+
+  /// Re-sends the last failed body -- 1-1 with React `retryFailedSend`
+  /// (use-chat-orchestration.ts L144-149): no-op if there is no recorded
+  /// failure for the active target; otherwise re-run [_sendBody] with the
+  /// stored body (a successful retry clears both fields, a re-failure
+  /// re-records them).
+  Future<void> _retryFailedSend() async {
+    if (!_canRetrySend) return;
+    await _sendBody(_lastFailedSend!.body);
   }
 
   // Slice-3 attachment SEND -- 1-в-1 with React's `sendAttachment`
@@ -216,6 +272,14 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   }
 
   Future<void> _leave() async {
+    // Clear the failed-send queue + error banner on close -- 1-1 with React
+    // `clearFailedSend()` (use-chat-orchestration.ts L94) called in the
+    // leave flow. Done before the Gateway close so a slow close does not
+    // flash a stale banner.
+    setState(() {
+      _lastFailedSend = null;
+      _chatError = null;
+    });
     await closeChatTarget(
       gateway: ref.read(gatewayProvider),
       target: _target,
@@ -339,6 +403,18 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
           children: [
             Column(
               children: [
+                // Inline error banner (Gap 3) -- 1-1 with React
+                // private-dm-screen.tsx L337-341
+                // `{!showWelcome && error ? <ChatError message={error}
+                // onRetry={canRetrySend ? retryFailedSend : undefined} /> :
+                // null}`. Placed at the top of the chat-pane (above the
+                // CryptoNoticeBanner); the Retry button is active iff
+                // [_canRetrySend].
+                if (_chatError != null)
+                  ChatErrorBanner(
+                    message: _chatError!,
+                    onRetry: _canRetrySend ? _retryFailedSend : null,
+                  ),
 // React wires the group pane afterHeader (ActiveChatPanes.tsx L352-380)
 // as GroupNotice -> needs_rejoin -> orgAddPrompt. This port follows that
 // order: CryptoNoticeBanner, then RejoinNeeded, then OrgAddMissingBanner.
