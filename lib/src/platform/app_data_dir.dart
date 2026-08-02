@@ -100,6 +100,12 @@ Future<String> resolveAppDataDir({
 /// (systemTemp is always non-empty on every platform).
 Future<void> setAppDataDirBridge() async {
   final String path = await resolveAppDataDir();
+  // Idempotent across main() re-runs in a live process: a fresh Dart isolate
+  // on Android activity recreation re-calls this bridge, and Rust's
+  // `set_app_data_dir` accepts the SAME path as a no-op (returns Ok) so the
+  // warm start does not crash main(). A DIFFERENT path still throws loudly
+  // (Rust side) to surface a real Dart-vs-Rust divergence. Slice-3 device-
+ // pass finding: the prior non-idempotent inject blank-screened warm starts.
   await api.setAppDataDir(path: path);
   _resolvedAppDataDir = path;
 }
