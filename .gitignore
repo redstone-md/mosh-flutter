@@ -60,3 +60,5 @@ lib/l10n/app_localizations_*.dart
 commit_msg.txt
 .commit_msg.tmp
 cm.txt
+# transient flutter analyze stdout dump (do not commit)
+analyze.out
