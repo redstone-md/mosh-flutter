@@ -249,7 +249,14 @@ Future<void> initMobileDek() async {
     // (`Future<void> setHistoryDek({required List<int> dek})`), but
     // `resolveHistoryDek`'s seam uses a positional-arg callback so tests can
     // pass a plain `(List<int> dek) async {}` recorder. This adapter wraps
-    // the frb call into the seam's shape.
+    // the frb call into the seam's shape. Idempotent across main() re-runs
+    // in a live process: a fresh Dart isolate on Android activity recreation
+    // re-reads the DEK (re-prompting biometric, which ADR 0011 wants on each
+    // launch) and re-injects the SAME bytes; Rust's `set_history_dek` accepts
+    // the same-value re-inject as a no-op (returns Ok) so the warm start does
+    // not crash main(). A DIFFERENT DEK still throws loudly (Rust side).
+    // Slice-3 device-pass finding: the prior non-idempotent inject
+    // blank-screened warm starts.
     setHistoryDek: (List<int> dek) => api.setHistoryDek(dek: dek),
   );
 }

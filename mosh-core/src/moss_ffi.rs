@@ -240,6 +240,24 @@ pub struct MossNodeConfig {
 
 impl MossFfiRuntime {
     pub fn load_default() -> Result<Self, MossFfiError> {
+        // Android: the bare `MOSS_LIBRARY_NAME` ("libmoss.so") is resolved by
+        // the dynamic linker against the app's nativeLibraryDir (where AGP
+        // unpacks jniLibs/arm64-v8a/libmoss.so). The `first_available_path()`
+        // fallback below pre-checks each candidate with `Path::exists()`,
+        // which resolves a relative bare name against the process cwd (`/`
+        // on an Android app), NOT nativeLibraryDir -- so `exists()` returns
+        // false and the load fails with "library not found" despite the .so
+        // being packaged (slice-3 device-pass finding). dlopen the bare name
+        // directly on Android first; the linker resolves it through the
+        // app's native-library namespace. Off-Android keep the candidate
+        // lookup (desktop builds ship an absolute exe-adjacent path that
+        // `exists()` does find).
+        #[cfg(target_os = "android")]
+        if let Ok(runtime) =
+            Self::load_from_path(std::path::Path::new(crate::moss_runtime::MOSS_LIBRARY_NAME))
+        {
+            return Ok(runtime);
+        }
         let path = MossDynamicRuntime::from_default_candidates()
             .first_available_path()
             .ok_or_else(|| {

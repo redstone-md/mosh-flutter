@@ -60,9 +60,28 @@ pub fn set_history_dek(dek: Vec<u8>) -> Result<(), String> {
     }
     let mut fixed = [0u8; 32];
     fixed.copy_from_slice(&dek);
-    INJECTED_DEK.set(fixed).map_err(|_| {
-        "set_history_dek: DEK already injected; re-injection is not allowed".to_string()
-    })
+    // Idempotent across main() re-runs in a live process. Android can re-run
+    // main() on activity recreation / warm start (a fresh Dart isolate in the
+    // same process re-enters the inject calls); a new Dart isolate loses its
+    // module-level mirror of this cell, so it cannot tell the inject already
+    // happened. The Rust `OnceLock` is process-global and DOES persist, so it
+    // must be the side that tolerates the no-op re-inject. Accept a re-inject
+    // of the SAME 32 bytes as Ok (true no-op); reject only a DIFFERENT DEK,
+    // which would be a real divergence (the live runtime opened the DB under
+    // the first DEK and re-injecting a new one would orphan it). Slice-3
+    // device-pass finding: the prior "already injected" Err propagated as an
+    // unhandled exception in main() and blank-screened the warm start.
+    match INJECTED_DEK.set(fixed) {
+        Ok(()) => Ok(()),
+        Err(_) => match INJECTED_DEK.get() {
+            Some(existing) if *existing == fixed => Ok(()),
+            _ => Err(
+                "set_history_dek: DEK already injected with a different value; \
+ re-injection is not allowed"
+                    .to_string(),
+            ),
+        },
+    }
 }
 
 /// Inject the app-private data directory from the platform channel (ADR
@@ -71,9 +90,24 @@ pub fn set_app_data_dir(path: String) -> Result<(), String> {
     if path.trim().is_empty() {
         return Err("set_app_data_dir: path must be a non-empty directory".to_string());
     }
-    APP_DATA_DIR.set(PathBuf::from(path)).map_err(|_| {
-        "set_app_data_dir: app_data_dir already set; re-setting is not allowed".to_string()
-    })
+    // Idempotent across main() re-runs in a live process; see `set_history_dek`
+    // for the rationale. Accept a re-inject of the SAME path as Ok (true
+    // no-op); reject only a DIFFERENT path, which would be a real divergence
+    // between Dart's DB-exists check and the path Rust opened the DB under.
+    let candidate = PathBuf::from(path);
+    // `candidate` is moved into `set`; clone so the original survives for the
+    // same-value comparison in the Err branch (PathBuf is not Copy).
+    match APP_DATA_DIR.set(candidate.clone()) {
+        Ok(()) => Ok(()),
+        Err(_) => match APP_DATA_DIR.get() {
+            Some(existing) if *existing == candidate => Ok(()),
+            _ => Err(
+                "set_app_data_dir: app_data_dir already set to a different path; \
+ re-setting is not allowed"
+                    .to_string(),
+            ),
+        },
+    }
 }
 
 /// Lazily construct the shared resources once, then return a clone. Each
