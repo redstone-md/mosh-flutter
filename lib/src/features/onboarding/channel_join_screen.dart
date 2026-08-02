@@ -19,18 +19,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
+import 'package:mosh/src/util/format.dart' show readableError;
 
 /// The channel-join step screen.
 ///
 /// Reached from the onboarding Channel tile (`context.go(AppRoutes.channelJoin)`).
-/// Tapping Join is a NO-OP STUB that shows a "later slice" SnackBar (the
-/// Gateway `joinChannel` seam is deferred). Back returns to the onboarding
-/// menu (`AppRoutes.onboarding`). The entered channel name is ephemeral to
+/// Tapping Join calls `gateway.joinChannel` (the slice-3 Gateway seam) with
+/// a JoinChannelRequest built from the entered name + inviteFlowProvider's
+/// displayName/listenPort/staticPeer, then navigates to the channel screen
+/// on success. Back returns to the onboarding menu
+/// (`AppRoutes.onboarding`). The entered channel name is ephemeral to
 /// this visit, mirroring React's per-step `value` state.
 class ChannelJoinScreen extends ConsumerStatefulWidget {
   const ChannelJoinScreen({super.key});
@@ -43,6 +47,10 @@ class _ChannelJoinScreenState extends ConsumerState<ChannelJoinScreen> {
   late final TextEditingController _nameController;
   bool _canJoin = false;
   bool _busy = false;
+  // Persistent inline error (parity with React's `props.error` on
+  // NewSessionPanel -- stays until the next join attempt). Cleared at
+  // the START of the next join below.
+  String? _error;
 
   @override
   void initState() {
@@ -74,7 +82,10 @@ class _ChannelJoinScreenState extends ConsumerState<ChannelJoinScreen> {
     if (!_canJoin || _busy) return;
     final name = _nameController.text.trim();
     final settings = ref.read(inviteFlowProvider);
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       await ref.read(gatewayProvider).joinChannel(
             request: JoinChannelRequest(
@@ -87,10 +98,12 @@ class _ChannelJoinScreenState extends ConsumerState<ChannelJoinScreen> {
       if (!mounted) return;
       context.go(AppRoutes.channelFor(name));
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      // Mirrors React's parent try/catch feeding `props.error` down: React
+      // stores `readableError(err)` (the bare message) in state, so this
+      // uses the same helper. No transient SnackBar -- the inline error
+      // is the one source of truth AND is announced to assistive tech via
+      // the live region.
+      if (mounted) setState(() => _error = readableError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -169,6 +182,10 @@ class _ChannelJoinScreenState extends ConsumerState<ChannelJoinScreen> {
                   )
                 : Text(l.onboardChannelJoin),
           ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            InlineError(message: _error),
+          ],
         ],
       ),
     );

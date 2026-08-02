@@ -25,12 +25,14 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
+import 'package:mosh/src/util/format.dart' show readableError;
 
 /// The group-create step screen.
 ///
@@ -51,6 +53,10 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
   late final TextEditingController _labelController;
   bool _busy = false;
   bool _copied = false;
+  // Persistent inline error (parity with React's `props.error` on
+  // NewSessionPanel -- stays until the next create attempt). Cleared at
+  // the START of the next create below.
+  String? _error;
   // The GroupCreated from the last successful create (null until the first
   // create). Kept widget-local -- React's `groupCreateState` lives in
   // `usePrivateDmSetup` per-step state, not the DM inviteFlowProvider, so
@@ -88,6 +94,7 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
     setState(() {
       _busy = true;
       _copied = false;
+      _error = null;
     });
     try {
       final created = await ref.read(gatewayProvider).createGroup(
@@ -105,10 +112,12 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
         _copied = true;
       });
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      // Mirrors React's parent try/catch feeding `props.error` down: React
+      // stores `readableError(err)` (the bare message) in state, so this
+      // uses the same helper. No transient SnackBar -- the inline error is
+      // the one source of truth AND is announced to assistive tech via the
+      // live region.
+      if (mounted) setState(() => _error = readableError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -181,6 +190,10 @@ class _GroupCreateScreenState extends ConsumerState<GroupCreateScreen> {
                     ? l.onboardGroupRecreate
                     : l.onboardGroupCreate),
           ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            InlineError(message: _error),
+          ],
           // Renders only after a successful create (`_created != null`).
           // Mirrors React's GroupCreateStep InviteResult card; the URI is
           // auto-copied on create and re-copyable via `_onCopy`.
