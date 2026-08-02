@@ -1402,5 +1402,13 @@
   "lockScreenFailedMessage": "Authentication failed repeatedly. Tap Retry, or close and reopen the app.",
   "@lockScreenFailedMessage": {
     "description": "Body shown on MoshLockScreen when a non-PlatformException DEK error slips past the main() gate (defensive; rare)"
+  },
+  "lockScreenInsecureDeviceTitle": "Device not secured",
+  "@lockScreenInsecureDeviceTitle": {
+    "description": "Title shown on MoshLockScreen when the device has no enrolled PIN/pattern/password/biometric (BIOMETRIC_UNAVAILABLE); NOT retry-recoverable -- the device must be secured first"
+  },
+  "lockScreenInsecureDeviceMessage": "Mosh requires a screen lock (PIN, pattern, or biometric) to protect your conversations. Set one in Settings - Security, then reopen Mosh.",
+  "@lockScreenInsecureDeviceMessage": {
+    "description": "Body shown on MoshLockScreen in the insecureDevice state; explains the screen-lock requirement and points the user at Settings - Security (no Open Settings button is wired: android_intent_plus / url_launcher are not deps, so the deep-link is a documented follow-up)"
   }
 }

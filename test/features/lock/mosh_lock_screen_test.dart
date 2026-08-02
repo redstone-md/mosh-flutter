@@ -6,7 +6,12 @@
 // MoshApp, which would pull in the router + frb runtime).
 import 'dart:async' show Completer;
 
-import 'package:flutter/material.dart';
+// `hide LockState` resolves the same ambiguous-import clash main.dart
+// fixes: `package:flutter/material.dart` (via `shortcuts.dart`) re-exports
+// a Flutter `LockState`, and the lock screen defines its own `LockState`.
+// The insecureDevice test references `LockState.insecureDevice`, so hide
+// Flutter's from the material import.
+import 'package:flutter/material.dart' hide LockState;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -132,7 +137,75 @@ void main() {
     // the Retry button is visible again and no swap happened.
     expect(find.text('Retry'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(swaps, isEmpty);
-    expect(calls, 1);
+   expect(swaps, isEmpty);
+   expect(calls, 1);
+ });
+
+  // BIOMETRIC_UNAVAILABLE: the device has no enrolled PIN/pattern/password/
+  // biometric. main() branches on error.message containing
+  // BIOMETRIC_UNAVAILABLE to pump MoshLockScreen with
+  // initialState: LockState.insecureDevice. This state is NOT retry-
+  // recoverable (re-prompting cannot mint a Keystore key without a device
+  // credential), so the body is message-only -- the title + message
+  // render, but there is NO Retry button and NO spinner. ADR 0011
+  // fail-closed holds: no DEK = no history access; the UI just tells the
+  // user to set a screen lock. There is no Open Settings button
+  // (android_intent_plus / url_launcher are not deps; a Settings
+  // deep-link is a documented follow-up), so there is nothing platform-
+  // channel to fake here.
+  testWidgets('insecureDevice state shows title + message, no Retry button',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MoshLockScreen(
+            // initialState is the only thing this test exercises: main()
+            // pumps this state directly on BIOMETRIC_UNAVAILABLE. retry is
+            // never called (no button to tap), so the default
+            // initMobileDek seam would be safe -- but a throwing fake is
+            // passed anyway so a future refactor that adds a button
+            // cannot silently hit the real Keystore from this test.
+            retry: _insecureDeviceNoRetry,
+            swapTo: _insecureDeviceNoSwap,
+            nextApp: SizedBox(),
+            initialState: LockState.insecureDevice,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+
+    // The insecure-device surface is visible: title + explanatory copy.
+    expect(find.text('Device not secured'), findsOneWidget);
+    expect(
+      find.text(
+        'Mosh requires a screen lock (PIN, pattern, or biometric) to '
+        'protect your conversations. Set one in Settings - Security, then '
+        'reopen Mosh.',
+      ),
+      findsOneWidget,
+    );
+    // NOT retry-recoverable: no Retry button, no spinner.
+    expect(find.text('Retry'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
+}
+
+// Fakes for the insecureDevice test. retry is never invoked (no Retry
+// button in this state), but if it ever were, failing the test is better
+// than silently hitting the real Android Keystore via initMobileDek.
+Future<void> _insecureDeviceNoRetry() async {
+  throw StateError(
+    'insecureDevice retry must not be invoked -- the state is not '
+    'retry-recoverable',
+  );
+}
+
+void _insecureDeviceNoSwap(Widget next) {
+  throw StateError(
+    'insecureDevice swapTo must not be invoked -- the state is not '
+    'retry-recoverable',
+  );
 }
