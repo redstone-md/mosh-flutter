@@ -1365,5 +1365,14 @@
   "@orgNewGroupAria": {
  "description": "aria-label for the new-group input + submit; {name} is the org name (React OrgSection.tsx)",
     "placeholders": { "name": { "type": "String" } }
+  },
+  "notificationNewMessageTitle": "Mosh",
+  "@notificationNewMessageTitle": {
+    "description": "OS toast title for a new unread message. Mirrors React's notificationBody (use-unread-notifications.ts) -- hardcoded 'Mosh' on both sides; the lifecycle provider sources the literal from util/unread.dart's notificationBody for parity, this key documents the canonical localized form."
+  },
+  "notificationNewMessageBody": "{label} - new message",
+  "@notificationNewMessageBody": {
+    "description": "OS toast body for a new unread message; {label} is '#name' for channels or the generic 'New message' for DMs/groups. Mirrors React's notificationBody (use-unread-notifications.ts).",
+    "placeholders": { "label": { "type": "String" } }
   }
 }

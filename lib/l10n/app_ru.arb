@@ -726,5 +726,7 @@
   "orgDismissGroupAria": "Отклонить приглашение в группу от {name}",
   "orgMemberAria": "Написать {name}",
   "orgMemberYouAria": "{name} (вы)",
-  "orgNewGroupAria": "Новая группа организации в {name}"
+  "orgNewGroupAria": "Новая группа организации в {name}",
+  "notificationNewMessageTitle": "Mosh",
+  "notificationNewMessageBody": "{label} — новое сообщение"
 }

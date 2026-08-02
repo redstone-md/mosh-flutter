@@ -19,7 +19,7 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/state/unread_providers.dart';
+import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 
 /// A FakeGateway subclass whose `listSessions` returns a fixed snapshot so
 /// the screen renders a deterministic non-empty list (test 2 + label/state
@@ -258,21 +258,25 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
         state: 'ready'),
   ]);
 
-  // Only Alice has unread messages; Bob's count is 0.
-  final unread = {'dm:$aliceId': 3};
+ // Only Alice has unread messages; Bob's count is 0.
+ final unread = {'dm:$aliceId': 3};
 
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      gatewayProvider.overrideWithValue(gateway),
-      unreadDmCountsProvider.overrideWith((ref) async => unread),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: const SessionsScreen(),
-    ),
-  ));
-  await tester.pumpAndSettle();
+ await tester.pumpWidget(ProviderScope(
+   overrides: [
+     gatewayProvider.overrideWithValue(gateway),
+      // The sessions screen now reads the lifecycle map (the React
+      // `useUnreadNotifications.unread` port), not the raw count map. The
+      // override stubs the lifecycle's `build` to return the static map so
+      // the rendered badges are deterministic (Alice=3, Bob absent -> 0).
+      unreadLifecycleProvider.overrideWithBuild((ref, notifier) => unread),
+   ],
+   child: MaterialApp(
+     localizationsDelegates: AppLocalizations.localizationsDelegates,
+     supportedLocales: AppLocalizations.supportedLocales,
+     home: const SessionsScreen(),
+   ),
+ ));
+ await tester.pumpAndSettle();
 
   // One UnreadBadge renders with count 3, and the numeral '3' is visible.
   expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 3),

@@ -40,11 +40,19 @@ class ChannelRailItem extends StatelessWidget {
     required this.channel,
     this.active = false,
     this.unreadCount = 0,
+    this.onSelect,
   });
 
   final ChannelSnapshot channel;
   final bool active;
   final int unreadCount;
+
+  /// Optional select hook called BEFORE the navigate, so the parent
+  /// (SessionsScreen) can clear the unread badge + set the active
+  /// conversation key for this channel (mirrors React's rail `onSelect`
+  /// calling `clearUnread(conversationKey(item))`). Null keeps the prior
+  /// navigate-only behavior for any other caller.
+  final VoidCallback? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +70,10 @@ class ChannelRailItem extends StatelessWidget {
         subtitle: Text(channel.topic),
         trailing: UnreadBadge(count: unreadCount),
         selected: active,
-        onTap: () => context.go(AppRoutes.channelFor(channel.name)),
+        onTap: () {
+          onSelect?.call();
+          context.go(AppRoutes.channelFor(channel.name));
+        },
       ),
     );
   }

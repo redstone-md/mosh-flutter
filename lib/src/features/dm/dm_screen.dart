@@ -59,6 +59,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView, AttachmentDescriptor, AttachmentState, SessionSnapshot;
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/state/active_conversation_key_provider.dart';
 
 /// Direct-message screen for one session. Own vs peer is inferred from
 /// `ChatMessage.fromDevice` vs the session's `displayName` (React's
@@ -118,6 +119,24 @@ class _DmScreenState extends ConsumerState<DmScreen> {
 
   ({ChatTarget target, String body})? _lastFailedSend;
   String? _chatError;
+
+  @override
+  void initState() {
+    super.initState();
+    // Mark this DM as the active conversation so the unread lifecycle clears
+    // its badge on the next focused poll (mirrors React's
+    // `activeConversationKey = conversationKey(active)` on screen open).
+    // Deferred via a microtask because Riverpod forbids modifying a
+    // provider during a widget lifecycle method (initState/build/dispose)
+    // -- the set lands after the current build, matching React's effect
+    // running after render.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref
+          .read(activeConversationKeyProvider.notifier)
+          .set('dm:${widget.sessionId}');
+    });
+  }
 
   @override
   void dispose() {
@@ -398,6 +417,9 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       _lastFailedSend = null;
       _chatError = null;
     });
+    // Clear the active conversation so the unread lifecycle stops suppressing
+    // toasts for this DM (mirrors React's `active` going null on close).
+    ref.read(activeConversationKeyProvider.notifier).clear();
     await closeChatTarget(
       gateway: ref.read(gatewayProvider),
       target: _target,
