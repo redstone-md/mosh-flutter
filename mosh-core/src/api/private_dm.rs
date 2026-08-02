@@ -569,13 +569,17 @@ mod tests {
     }
 
     #[test]
-    fn set_app_data_dir_rejects_second_call() {
-        // Idempotent-once: the first call wins; the second returns Err. This
-        // test sets the process-global cell (OnceLock is irreversible), but
-        // the cell is inert in the test binary -- no test exercises
+    fn set_app_data_dir_is_idempotent_for_same_value_and_rejects_divergence() {
+        // Idempotent-on-same-value: a re-inject of the SAME path is a no-op
+        // (Ok), since Android re-runs main() on activity recreation in a live
+        // process and a fresh Dart isolate cannot tell the inject already
+        // happened. A DIFFERENT path is a real divergence (Dart's DB-exists
+        // check vs the path Rust opened under) and must still Err. This test
+        // sets the process-global cell (OnceLock is irreversible), but the
+        // cell is inert in the test binary -- no test exercises
         // `construct_runtime` (its only reader) -- so leaving it set cannot
-        // contaminate the other 218 tests. The dir is a unique temp subdir so
-        // a hypothetical future reader would point at an isolated, real path.
+        // contaminate the other tests. The dir is a unique temp subdir so a
+        // hypothetical future reader would point at an isolated, real path.
         let dir = unique_test_dir("app_data_dir_set");
         std::fs::create_dir_all(&dir).expect("test dir should create");
         assert!(
@@ -583,9 +587,15 @@ mod tests {
             "first set_app_data_dir call must succeed"
         );
         assert!(
-            super::set_app_data_dir(dir.to_string_lossy().to_string()).is_err(),
-            "second set_app_data_dir call must be rejected (idempotent-once)"
+            super::set_app_data_dir(dir.to_string_lossy().to_string()).is_ok(),
+            "re-inject of the SAME path must be a no-op (Ok)"
+        );
+        let other = unique_test_dir("app_data_dir_set_other");
+        assert!(
+            super::set_app_data_dir(other.to_string_lossy().to_string()).is_err(),
+            "set_app_data_dir with a DIFFERENT path must be rejected (divergence)"
         );
         let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&other);
     }
 }
