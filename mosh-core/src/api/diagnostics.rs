@@ -17,6 +17,8 @@ pub use crate::openmls_crypto::{
 use crate::persistence::PersistenceRuntimeStatus;
 use crate::secure_storage::{OsSecureSecretStore, SecureStorageStatus};
 use flutter_rust_bridge::frb;
+use std::any::Any;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 
 // App-level identity strings. Mirror the previous Tauri shell constants; kept
 // as named consts (not inline literals) per AGENTS.md no-hardcoding rule.
@@ -101,32 +103,67 @@ fn persistence_status_without_instance() -> PersistenceRuntimeStatus {
     }
 }
 
+/// Extracts a human-readable message from a panic payload caught by
+/// `catch_unwind`. Rust's `panic!` most commonly carries a `&'static str` or
+/// `String` message; non-string payloads (e.g. `panic!(42i32)`) collapse to a
+/// generic placeholder so the diagnostics caller always receives a usable
+/// `String` for the `error` field.
+fn panic_payload_to_string(payload: Box<dyn Any + Send>) -> String {
+    // `&'static str`: the common `panic!("literal")` form.
+    if let Some(message) = payload.downcast_ref::<&'static str>() {
+        return format!("panic: {}", message);
+    }
+    // `String`: the `panic!("{}", format!(..))` form.
+    if let Some(message) = payload.downcast_ref::<String>() {
+        return format!("panic: {}", message);
+    }
+    "panic: unknown panic payload".to_string()
+}
+
 /// Runs the OpenMLS smoke test and flattens the result into the bridge-friendly
 /// `OpenMlsSmokeRuntimeStatus` (see struct doc).
+///
+/// `catch_unwind` guards against an OpenMLS internal panic (e.g. a poisoned
+/// "Vaults list lock" left by an earlier panicked operation) propagating across
+/// the FFI boundary and crashing the onboarding screen. A diagnostics call must
+/// never panic itself -- its contract is to report every runtime's status,
+/// including failures. `AssertUnwindSafe` is sound here: the captured result is
+/// a fully-owned `Ok` value (consumed immediately) or a panic payload we
+/// stringify and discard; no shared mutable state is observed post-unwind on
+/// the success path.
 fn openmls_smoke_runtime_status() -> OpenMlsSmokeRuntimeStatus {
-    match run_openmls_smoke_test() {
-        Ok(ok) => OpenMlsSmokeRuntimeStatus {
+    match catch_unwind(AssertUnwindSafe(|| run_openmls_smoke_test())) {
+        Ok(Ok(ok)) => OpenMlsSmokeRuntimeStatus {
             ok: Some(ok),
             error: None,
         },
-        Err(error) => OpenMlsSmokeRuntimeStatus {
+        Ok(Err(error)) => OpenMlsSmokeRuntimeStatus {
             ok: None,
             error: Some(error.to_string()),
+        },
+        Err(payload) => OpenMlsSmokeRuntimeStatus {
+            ok: None,
+            error: Some(panic_payload_to_string(payload)),
         },
     }
 }
 
 /// Runs the OpenMLS Alice/Bob roundtrip and flattens the result into the
-/// bridge-friendly `OpenMlsRoundTripRuntimeStatus` (see struct doc).
+/// bridge-friendly `OpenMlsRoundTripRuntimeStatus` (see struct doc). Panic-safe
+/// for the same reason as `openmls_smoke_runtime_status` (see its doc).
 fn openmls_roundtrip_runtime_status() -> OpenMlsRoundTripRuntimeStatus {
-    match run_openmls_alice_bob_roundtrip() {
-        Ok(ok) => OpenMlsRoundTripRuntimeStatus {
+    match catch_unwind(AssertUnwindSafe(|| run_openmls_alice_bob_roundtrip())) {
+        Ok(Ok(ok)) => OpenMlsRoundTripRuntimeStatus {
             ok: Some(ok),
             error: None,
         },
-        Err(error) => OpenMlsRoundTripRuntimeStatus {
+        Ok(Err(error)) => OpenMlsRoundTripRuntimeStatus {
             ok: None,
             error: Some(error.to_string()),
+        },
+        Err(payload) => OpenMlsRoundTripRuntimeStatus {
+            ok: None,
+            error: Some(panic_payload_to_string(payload)),
         },
     }
 }
@@ -193,5 +230,35 @@ mod tests {
             assert!(ok.welcome_joined);
             assert!(ok.plaintext_roundtrip);
         }
+    }
+
+    // Pins the contract of `panic_payload_to_string`: a diagnostics call must
+    // surface a usable error message for every panic payload shape Rust allows
+    // (`&'static str`, `String`, or an arbitrary non-string payload). The real
+    // OpenMLS path does not deterministically panic in a host test, so this
+    // focused unit test is the direct proof; the
+    // `native_runtime_status_includes_moss_and_secure_storage` test above is
+    // the end-to-end proof that `native_runtime_status()` never panics.
+    #[test]
+    fn panic_payload_to_string_formats_each_payload_shape() {
+        // &'static str: the common `panic!("literal")` form.
+        let str_payload: Box<dyn Any + Send> = Box::new("Vaults list lock poisoned");
+        assert_eq!(
+            panic_payload_to_string(str_payload),
+            "panic: Vaults list lock poisoned"
+        );
+        // String: the `panic!("{}", format!(..))` form.
+        let string_payload: Box<dyn Any + Send> = Box::new("lock poisoned at step 3".to_string());
+        assert_eq!(
+            panic_payload_to_string(string_payload),
+            "panic: lock poisoned at step 3"
+        );
+        // Non-string payload: collapses to a generic placeholder so the
+        // diagnostics caller still receives a usable `String`.
+        let int_payload: Box<dyn Any + Send> = Box::new(42i32);
+        assert_eq!(
+            panic_payload_to_string(int_payload),
+            "panic: unknown panic payload"
+        );
     }
 }
