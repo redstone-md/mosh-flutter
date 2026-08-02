@@ -24,7 +24,16 @@ android {
         applicationId = "app.mosh.mosh"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // AAudio (cpal 0.18.1's Android backend, deps `ndk = { features =
+        // ["audio", "api-level-26"] }`) links -laaudio, which only ships in
+        // the NDK sysroot at api 26+ (libaaudio.so is absent from /24/).
+        // Flutter's default minSdk (24 for 3.44) is too low for the link, so
+        // hardcode 26 here. This also flows through Cargokit (plugin.gradle
+        // reads defaultConfig.minSdkVersion and android_environment.dart
+        // sets --target=aarch64-linux-android26), so the cargo cross-compile
+        // resolves libaaudio.so from the sysroot /26/ dir too. Single edit,
+        // two effects. Do not revert to flutter.minSdkVersion.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
