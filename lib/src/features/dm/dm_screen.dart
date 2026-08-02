@@ -168,7 +168,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   /// Sends a body verbatim -- 1-1 with React `sendMessageBody`. Runs the
   /// full try/catch/finally: on SUCCESS clears `_lastFailedSend` +
   /// `_chatError` (React `setLastFailedSend(null)` + `onError(undefined)`),
-  /// clears the composer, and invalidates the providers; on FAILURE records
+  /// clears the composer only if it still equals the sent body (React
+  /// parity), and invalidates the providers; on FAILURE records
   /// `_lastFailedSend = (target, body)` + `_chatError` (React
   /// `setLastFailedSend({target, body})`) and leaves the composer untouched
   /// so the user's text survives. The `finally` clears `_sending` exactly as
@@ -188,7 +189,12 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       );
       _lastFailedSend = null;
       _chatError = null;
-      _composer.clear();
+      // React `setComposer(c => c.trim() === body ? "" : c)` -- only clear the
+      // composer if it still holds the sent body, so text the user typed
+      // while the send was in flight survives (1-1 with React parity).
+      if (_composer.text.trim() == body) {
+        _composer.clear();
+      }
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
     } catch (e) {
