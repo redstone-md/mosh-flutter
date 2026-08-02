@@ -1,0 +1,41 @@
+feat(voice): port the real mic capture pipeline behind the VoiceCaptureFactory seam
+
+The real VoiceCaptureFactory: `record` captures 48 kHz mono PCM16
+(AudioEncoder.pcm16bits is universal -- record's native Opus encoder is
+Android/iOS/Linux only, so the Opus encode happens in Rust), a pure
+PcmFrameBuffer accumulates stream chunks and emits complete 1920-byte
+(960-sample, 20 ms) frames, and mosh-core's frb-exposed
+voice_call_opus_encode encodes each to an Opus packet (24 kbps VoIP via
+audiopus / vendored libopus). echoCancel/noiseSuppress/autoGain mirror
+React's getUserMedia constraints; Opus params (48 kHz, Mono, Voip,
+24000) match React's WebCodecs AudioEncoder.
+
+Rust side (mosh-core/src/api/voice_call_opus_encode.rs):
+- VoiceCallOpusEncoder wraps Mutex<audiopus::coder::Encoder> -- the
+  raw Encoder holds *mut OpusEncoder which is Send but not Sync, and
+  frb 2.12's RustAutoOpaqueMoi pool (MoiArc) requires Sync; Mutex
+  provides it. encode takes & (interior mutability) and maps a poisoned
+  lock to Err(String), not unwrap().
+- voice_call_opus_encoder_new: Encoder::new(Hz48000, Mono, Voip) +
+  set_bitrate(BitsPerSecond(24000)).
+- voice_call_opus_encode: rejects pcm16.len() != 1920 with a hard Err
+  (no blind 960-sample read from a short buffer), decodes LE i16, encodes.
+
+Dart side (lib/src/features/dm/record_voice_capture.dart):
+- RecordVoiceCaptureFactory.start: hasPermission gate, AudioRecorder
+  startStream(RecordConfig(pcm16bits, 48k, mono, echoCancel/noise/auto
+  gain)), PcmFrameBuffer feeds the frb encode, onFrame emits every
+  packet INCLUDING DTX comfort-noise -- 1-в-1 with React audio-capture.ts
+  output callback which forwards all chunks unfiltered (no DTX skip).
+- PcmFrameBuffer is public + @visibleForTesting for unit-test framing
+  edge cases (partial chunks across the 1920 boundary, multi-frame,
+  empty, exact) without the native mic/cdylib.
+
+frb regen: `flutter_rust_bridge_codegen generate` produced
+lib/src/rust/api/voice_call_opus_encode.dart + churned frb_generated
+(the expected regen footprint of adding one frb module); `dart format`
+applied after regen so the generated surface stays format-clean.
+
+5 tests (472 -> 477): PcmFrameBuffer framing (4) + isSupported smoke.
+analyze 0; cargo test --lib 222/0 serial (220/2 flaky-parallel is
+pre-existing, unrelated to this slice).
