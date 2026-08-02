@@ -110,11 +110,27 @@ void main() async {
   // on hosts without a registered implementation (e.g. the `flutter test`
   // host), so this stays green in tests. The handle lives for the process.
   startMoshDeepLinkIntake();
+  // ADR 0011 follow-on: runApp FIRST with the splash placeholder
+  // (`_appRoot` defaults to `SizedBox()`) so the first frame is NOT
+  // blocked on the foreground-gate await below. The Android branch then
+  // resolves `root` (after `waitUntilResumed()` + `initMobileDek()`) and
+  // flips the tree via `_appRoot.value = root`; desktop/iOS flip it to
+  // `MoshApp` synchronously. Deep-link intake was subscribed above so the
+  // cold-start initial link is captured before this first frame pumps.
+  runApp(
+    ProviderScope(
+      child: ValueListenableBuilder<Widget>(
+        valueListenable: _appRoot,
+        builder: (BuildContext context, Widget value, _) => value,
+      ),
+    ),
+  );
   // M-8 (ADR 0011): run the Android DEK init behind a try/on PlatformException
   // so a biometric cancel (which makes `flutter_secure_storage`'s `read()` throw
   // a `PlatformException` from BiometricPrompt) does NOT propagate unhandled
-  // out of main()'s await and blank the screen before runApp. On cancel we run
-  // a MoshLockScreen (fail-closed retry UI) instead; on success we run MoshApp.
+  // out of main()'s await and crash main() (leaving the splash placeholder
+  // on screen). On cancel we run a MoshLockScreen (fail-closed retry UI)
+  // instead; on success we run MoshApp.
   // ONLY PlatformException is caught: a real DEK error (the fail-closed
   // StateError when a DB exists but the Keystore has no DEK, or a corrupt
   // Keystore / wrong-length DEK) still propagates -- those are NOT swallowed
@@ -144,9 +160,9 @@ void main() async {
     // Keystore is never called -- no StackOverflow, by design. The OS may
     // later foreground the app (fires resumed -> proceeds normally) or kill
     // the process (acceptable). This is correct gating, not a deadlock.
-    // `runApp` below runs FIRST with the splash placeholder (set above)
-    // so the first frame is NOT blocked on this await; the gate completes
-    // asynchronously and `_appRoot.value = root` flips the tree when ready.
+    // `runApp` already ran above with the splash placeholder, so this
+    // await does NOT block the first frame; the gate completes
+    // asynchronously and `_appRoot.value = root` below flips the tree.
     await gate.waitUntilResumed();
     try {
       await initMobileDek();
@@ -165,21 +181,15 @@ void main() async {
     root = const MoshApp();
   }
   _appRoot.value = root;
-  runApp(
-    ProviderScope(
-      child: ValueListenableBuilder<Widget>(
-        valueListenable: _appRoot,
-        builder: (BuildContext context, Widget value, _) => value,
-      ),
-    ),
-  );
 }
 
-/// The running app's root widget. Defaults to `const SizedBox()` (set in
-/// `main()` before `runApp` to the resolved `MoshApp` or `MoshLockScreen`).
-/// `MoshLockScreen`'s retry-success path writes the real `MoshApp` here via
-/// its `swapTo` callback, flipping the tree under the single `ProviderScope`
-/// without a second `runApp`. See mosh_lock_screen.dart for the rationale.
+/// The running app's root widget. Defaults to `const SizedBox()` (the
+/// splash placeholder `runApp` mounts first); `main()` flips it to the
+/// resolved `MoshApp` or `MoshLockScreen` AFTER `runApp` (so the first
+/// frame is not blocked on the foreground-gate await). `MoshLockScreen`'s
+/// retry-success path writes the real `MoshApp` here via its `swapTo`
+/// callback, flipping the tree under the single `ProviderScope` without a
+/// second `runApp`. See mosh_lock_screen.dart for the rationale.
 final ValueNotifier<Widget> _appRoot =
     ValueNotifier<Widget>(const SizedBox());
 
@@ -207,7 +217,8 @@ class LifecycleGate with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // Best-effort fast path: if the binding already reports `resumed`
     // (a warm start), complete eagerly. On a cold start `lifecycleState`
-    // may be null before the first frame -- the null-safe `?.` skips it
+    // may be null before the first frame -- `null == AppLifecycleState.resumed`
+    // is `false` in Dart (null-aware equality), so the fast path is skipped
     // and the observer's first `resumed` transition is the primary signal.
     if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
       _resumed.complete();
