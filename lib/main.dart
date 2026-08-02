@@ -16,9 +16,17 @@ import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
+import 'package:window_manager/window_manager.dart' show windowManager;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Slice-3 voice-call: initialize window_manager before any isFocused()
+  // call (the incoming-call OS-notification focus check in VoiceCallLayer
+  // awaits `windowManager.isFocused()` on Windows/macOS). Must run after
+  // WidgetsFlutterBinding and before the first frame. A no-op on hosts
+  // without a window_manager platform impl (e.g. `flutter test`), so it
+  // stays green in tests.
+  await windowManager.ensureInitialized();
   // Load intl date symbols once so non-en locales (e.g. ru) format dates
   // in-locale via `DateFormat` (used by `formatClock` / `formatClockFull`
   // for the locale-aware message timestamp). Idempotent + cheap; en ships
@@ -95,19 +103,20 @@ class MoshApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       theme:
           ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
-     // S2-1: route shell. Home is OnboardingScreen; tiles reach invite-paste,
-     // diagnostics, and dm (via path param). The static diagnostics smoke
-     // screen (MoshHome + its FutureBuilder) is gone; the bridge smoke proof
-     // lives in integration_test/slice_one_test.dart and the diagnostics
-     // screen. MaterialApp.router preserves title/locale/localization/theme
-     // while handing navigation to appRouter.
-     routerConfig: appRouter,
-     // Top-level VPN-bypass consent overlay: wraps every route so the one
- // question Mosh asks about the VPN can show above any screen (React
- // mounts <VpnConsentModal gateway={gateway} /> near the root of
- // private-dm-screen.tsx). The modal self-gates: it renders
- // SizedBox.shrink() when there is nothing to ask.
-     builder: (context, child) => VpnConsentOverlay(child: child ?? const SizedBox()),
+      // S2-1: route shell. Home is OnboardingScreen; tiles reach invite-paste,
+      // diagnostics, and dm (via path param). The static diagnostics smoke
+      // screen (MoshHome + its FutureBuilder) is gone; the bridge smoke proof
+      // lives in integration_test/slice_one_test.dart and the diagnostics
+      // screen. MaterialApp.router preserves title/locale/localization/theme
+      // while handing navigation to appRouter.
+      routerConfig: appRouter,
+      // Top-level VPN-bypass consent overlay: wraps every route so the one
+      // question Mosh asks about the VPN can show above any screen (React
+      // mounts <VpnConsentModal gateway={gateway} /> near the root of
+      // private-dm-screen.tsx). The modal self-gates: it renders
+      // SizedBox.shrink() when there is nothing to ask.
+      builder: (context, child) =>
+          VpnConsentOverlay(child: child ?? const SizedBox()),
     );
   }
 }

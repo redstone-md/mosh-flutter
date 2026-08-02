@@ -28,7 +28,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:io' show Platform;
+
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/state/notifications_provider.dart'
+    show flutterLocalNotificationsPluginProvider, notificationsReadyProvider;
 import 'package:mosh/src/features/dm/call_overlay.dart';
 import 'package:mosh/src/features/dm/incoming_call_modal.dart';
 import 'package:mosh/src/features/dm/outgoing_call_modal.dart';
@@ -38,6 +42,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
+import 'package:window_manager/window_manager.dart' show windowManager;
 
 /// Renders the voice-call modals/overlay for one DM session based on the
 /// live `SessionSnapshot`. Place inside a `ProviderScope` + `Stack`.
@@ -147,6 +152,14 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     final pending = s?.pendingCall;
     if (pending != null && _openIncomingFor != pending.callId) {
       _openIncomingFor = pending.callId;
+      final displayName = pending.fromDevice.isEmpty
+          ? widget.l.callPeerFallback
+          : pending.fromDevice;
+      // Fire the OS toast in the SAME one-shot block that opens the modal
+      // (the `_openIncomingFor != pending.callId` guard IS the React
+      // dep-array "fire once per pendingCallId change"). Fire-and-forget,
+      // mirrors React's `void (async () => {...})()`.
+      _maybeNotifyIncomingCall(displayName);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         showDialog(
@@ -154,9 +167,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
           barrierDismissible: false,
           builder: (dialogContext) => IncomingCallModal(
             pending: pending,
-            peerLabel: pending.fromDevice.isEmpty
-                ? widget.l.callPeerFallback
-                : pending.fromDevice,
+            peerLabel: displayName,
             onAccept: () {
               Navigator.of(dialogContext).pop();
               _acceptCall(pending.callId);
@@ -209,7 +220,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     // notifier flips it; the dialog's `muted:` is captured at open time,
     // so a live icon swap while the overlay is open waits on a follow-up
     // that makes `CallOverlay` itself a `Consumer` over this provider.
-    final callMuted = ref.watch(voiceCallOrchestratorProvider(widget.sessionId)).muted;
+    final callMuted =
+        ref.watch(voiceCallOrchestratorProvider(widget.sessionId)).muted;
     if (active != null && _openOverlayFor != active.callId) {
       _openOverlayFor = active.callId;
       _activeCallEnded = false;
@@ -226,7 +238,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
               // The orchestrator is the real mute owner (slice-3 landed);
               // toggleMute flips its flag + bumps state for the rebuild.
               ref
-                  .read(voiceCallOrchestratorProvider(widget.sessionId).notifier)
+                  .read(
+                      voiceCallOrchestratorProvider(widget.sessionId).notifier)
                   .toggleMute();
             },
             onHangUp: () {
@@ -245,6 +258,41 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 
     // The layer renders nothing itself -- the modals route through showDialog.
     return const SizedBox.shrink();
+  }
+
+  /// Fires the incoming-call OS toast, 1-в-1 with React's
+  /// use-voice-call-orchestration.ts second `useEffect` (L250-275):
+  /// gate on notificationsReady, check the window is unfocused, then
+  /// `flutterLocalNotificationsPlugin.show`. Fire-and-forget (the effect's
+  /// async IIFE); errors swallowed (the in-app IncomingCallModal is the
+  /// user's signal regardless, mirrors React's `catch {}`).
+  void _maybeNotifyIncomingCall(String displayName) {
+    final ready = ref.read(notificationsReadyProvider).value ?? false;
+    if (!ready) return;
+    final plugin = ref.read(flutterLocalNotificationsPluginProvider);
+    // The async IIFE: windowManager.isFocused() is async on Windows/macOS;
+    // Linux is undocumented so the gate always notifies there (matches
+    // React's "always notify on Linux" fallback). Mobile (Android/iOS) has
+    // no window focus analog (AppLifecycleState is the analog and is a
+    // separate Android slice), so always notify on mobile for now.
+    () async {
+      try {
+        if (Platform.isWindows || Platform.isMacOS) {
+          if (await windowManager.isFocused()) return;
+        }
+        // Linux + mobile: skip the focus check (no reliable analog in
+        // window_manager; the Android slice wires AppLifecycleState).
+        await plugin.show(
+          id: displayName.hashCode.abs(),
+          title: 'Mosh',
+          body: 'Incoming call from $displayName',
+          notificationDetails: null,
+        );
+      } catch (_) {
+        // Notification host unavailable; the in-app IncomingCallModal is
+        // the user's signal (mirrors React's catch {}).
+      }
+    }();
   }
 }
 

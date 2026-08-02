@@ -67,6 +67,8 @@ dependencies:
   # inputs on Windows/Linux. Pure-Dart fallback works in `flutter test`
   # without initialization, so frame_crypto tests stay host-agnostic.
   cryptography_flutter: ^2.3.4
+  flutter_local_notifications: ^22.2.0
+  window_manager: ^0.5.2
 
 dev_dependencies:
   flutter_test:
