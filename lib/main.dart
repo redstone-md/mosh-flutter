@@ -1,3 +1,4 @@
+import 'dart:async' show Completer;
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -65,6 +66,18 @@ void main() async {
   if (Platform.isWindows) {
     registerMoshUrlScheme();
   }
+  // Foreground gate (ADR 0011 follow-on): construct the lifecycle gate
+  // RIGHT AFTER ensureInitialized() so its WidgetsBindingObserver is
+  // registered BEFORE runApp pumps the first frame -- the first
+  // `AppLifecycleState.resumed` can fire asynchronously after the first
+  // frame is pumped, and an observer added after that transition would
+  // miss it. The gate is a local (not a global): it is only `await`ed in
+  // the Android branch below, but constructing it on all platforms is
+  // harmless -- on desktop/iOS the observer fires but nothing awaits
+  // `waitUntilResumed()`, so the completer just completes into the void.
+  // We keep it scoped to main()'s lifetime (parallel to `_appRoot`); no
+  // `dispose()` is needed because the gate lives for the whole process.
+  final LifecycleGate gate = LifecycleGate();
   // M-5 (ADR 0010): resolve the platform's app-private data directory ONCE
   // via `getApplicationSupportDirectory()` (path_provider) and hand it to
   // Rust via the frb `setAppDataDir` bridge call BEFORE the private-DM
@@ -114,6 +127,27 @@ void main() async {
   // flow here, but Dart's definite-assignment rule is conservative here.
   Widget root;
   if (Platform.isAndroid) {
+    // Foreground guard: do NOT touch the Android Keystore (via
+    // `flutter_secure_storage`) until the app is in the foreground
+    // (`AppLifecycleState.resumed`). When Android relaunches mosh in the
+    // BACKGROUND on a LOCKED device, `flutter_secure_storage` 10.3.1
+    // enters infinite recursion in its key-mismatch recovery path
+    // (handleKeyMismatch -> migrateData -> migrateNonBiometric ->
+    // onError -> deleteAllDataAndKeys -> initializeStorageCipher -> ...)
+    // ending in StackOverflowError FATAL, preceded by keystore2 "device is
+    // locked". That wipes the Keystore DEK and orphans `history.redb`
+    // (DB exists, DEK gone -> the fail-closed StateError blocks
+    // onboarding). On a normal foreground unlocked launch
+    // `initializeStorageCipher` succeeds and the recursion never starts;
+    // the BiometricPrompt requires a foreground activity anyway. A
+    // background relaunch of a locked device never fires `resumed`, so the
+    // Keystore is never called -- no StackOverflow, by design. The OS may
+    // later foreground the app (fires resumed -> proceeds normally) or kill
+    // the process (acceptable). This is correct gating, not a deadlock.
+    // `runApp` below runs FIRST with the splash placeholder (set above)
+    // so the first frame is NOT blocked on this await; the gate completes
+    // asynchronously and `_appRoot.value = root` flips the tree when ready.
+    await gate.waitUntilResumed();
     try {
       await initMobileDek();
       root = const MoshApp();
@@ -148,6 +182,68 @@ void main() async {
 /// without a second `runApp`. See mosh_lock_screen.dart for the rationale.
 final ValueNotifier<Widget> _appRoot =
     ValueNotifier<Widget>(const SizedBox());
+
+/// Foreground gate for the Android Keystore init (ADR 0011 follow-on).
+///
+/// Completes a `Future` on the first observed `AppLifecycleState.resumed`,
+/// so `main()` can `await` it before touching `flutter_secure_storage`
+/// (the Android Keystore). This eliminates the device-locked
+/// background-relaunch recursion that wiped the DEK and orphaned
+/// `history.redb`. The observer transition is the PRIMARY mechanism; the
+/// constructor also does a best-effort fast path reading
+/// `WidgetsBinding.instance.lifecycleState` -- but on a cold start that
+/// value may be null before the first frame, so the observer's first
+/// `resumed` is the relied-upon signal (warm starts where the binding
+/// already reports `resumed` complete eagerly).
+///
+/// DESIGN: the state-transition body is extracted into the
+/// `@visibleForTesting` `handleLifecycleState` method so a unit test can
+/// drive it deterministically without binding-internal APIs. The gate
+/// lives for the process lifetime (parallel to `_appRoot`), so it has no
+/// `dispose()` -- leaving the observer attached for the whole process is
+/// harmless and matches `_appRoot`'s process-lifetime scope.
+class LifecycleGate with WidgetsBindingObserver {
+  LifecycleGate() {
+    WidgetsBinding.instance.addObserver(this);
+    // Best-effort fast path: if the binding already reports `resumed`
+    // (a warm start), complete eagerly. On a cold start `lifecycleState`
+    // may be null before the first frame -- the null-safe `?.` skips it
+    // and the observer's first `resumed` transition is the primary signal.
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      _resumed.complete();
+    }
+  }
+
+  final Completer<void> _resumed = Completer<void>();
+
+  /// Whether the gate has already observed a `resumed` (or completed
+  /// eagerly via the fast path). `@visibleForTesting` so the unit test can
+  /// assert the cold-start (incomplete) and post-resumed (complete) states
+  /// synchronously, without an async completion matcher that would block
+  /// on a never-completing future.
+  @visibleForTesting
+  bool get isCompleted => _resumed.isCompleted;
+
+  /// Waits until the app has observed at least one
+  /// `AppLifecycleState.resumed` (or was already `resumed` at construction
+  /// via the fast path).
+  Future<void> waitUntilResumed() => _resumed.future;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    handleLifecycleState(state);
+  }
+
+  /// The state-transition body, extracted for deterministic unit testing
+  /// (drives the same completer the observer uses). `@visibleForTesting` so
+  /// it stays a stable test seam without exposing the gate's internals.
+  @visibleForTesting
+  void handleLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_resumed.isCompleted) {
+      _resumed.complete();
+    }
+  }
+}
 
 class MoshApp extends ConsumerWidget {
   const MoshApp({super.key});
