@@ -202,4 +202,60 @@ void main() {
     expect(find.text('see this'), findsOneWidget);
     expect(find.text('report.pdf'), findsOneWidget);
   });
+
+  // isMobileBreakpoint boundary -- 1-1 with React's `@media (max-width:
+  // 580px)` (middle-column.css): width <= 580 is mobile, width > 580 is
+  // desktop. The helper reads [MediaQuery.sizeOf] so the boundary is driven
+  // purely by the width; each case overrides the inherited MediaQuery and
+  // asserts the bool returned.
+  group('isMobileBreakpoint', () {
+    // Pumps a Builder whose context has a MediaQuery overridden to the
+    // given width; the builder writes the [isMobileBreakpoint] result into
+    // [captured] so the test can assert it.
+    Future<void> pumpAtWidth(
+      WidgetTester tester,
+      double width, {
+      required ValueNotifier<bool?> captured,
+    }) async {
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: MediaQuery(
+          data: MediaQueryData(size: Size(width, 800)),
+          child: Builder(
+            builder: (context) {
+              captured.value = isMobileBreakpoint(context);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      ));
+      await tester.pump();
+    }
+
+    testWidgets('width 580 -> mobile (CSS max-width: 580px includes 580)',
+        (tester) async {
+      final captured = ValueNotifier<bool?>(null);
+      await pumpAtWidth(tester, 580, captured: captured);
+      expect(captured.value, isTrue);
+    });
+
+    testWidgets('width 581 -> desktop', (tester) async {
+      final captured = ValueNotifier<bool?>(null);
+      await pumpAtWidth(tester, 581, captured: captured);
+      expect(captured.value, isFalse);
+    });
+
+    testWidgets('width 400 -> mobile', (tester) async {
+      final captured = ValueNotifier<bool?>(null);
+      await pumpAtWidth(tester, 400, captured: captured);
+      expect(captured.value, isTrue);
+    });
+
+    testWidgets('width 800 -> desktop', (tester) async {
+      final captured = ValueNotifier<bool?>(null);
+      await pumpAtWidth(tester, 800, captured: captured);
+      expect(captured.value, isFalse);
+    });
+  });
 }

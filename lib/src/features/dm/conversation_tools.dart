@@ -43,12 +43,30 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
+// Re-export the mobile conversation search/filter widgets so the three
+// screens (dm/channel/group) keep importing ONLY this file -- the same
+// import that already pulls `ConversationTools` + `ConversationFilter` +
+// `isMobileBreakpoint` also pulls the mobile trio, mirroring how React
+// imports all of `ConversationTools`/`MobileConversation*` from one module.
+export 'package:mosh/src/features/dm/mobile_conversation_search.dart';
+
 /// Mirrors the React `ConversationFilter` type
 /// (`"all" | "attachments"` in ConversationTools.tsx). `all` shows every
 /// message; `attachments` keeps only messages that carry an attachment.
 /// Shared across all three conversation kinds (DM / channel / group) -- the
 /// React type is one definition reused by all three `*ChatList` components.
 enum ConversationFilter { all, attachments }
+
+/// Mobile vs desktop breakpoint shared across the three conversation
+/// screens (DM / channel / group), 1-1 with React's `@media (max-width:
+/// 580px)` rule (middle-column.css): width <= 580 is mobile (the desktop
+/// `ConversationTools` row hides, the `MobileSearchToggle` header button +
+/// `MobileConversationSearch` panel + `MobileConversationFilterNotice` strip
+/// show); width > 580 is desktop. Uses [MediaQuery.sizeOf] (not
+/// `MediaQuery.of`) so dependents only rebuild on width change, not on
+/// every ancestor MediaQuery field (Flutter 3.10+ size-only selector).
+bool isMobileBreakpoint(BuildContext context) =>
+    MediaQuery.sizeOf(context).width <= 580;
 
 /// The searchable surface React's generic `filterMessages<T>` requires
 /// (`SearchableMessage` in ConversationTools.tsx): a message exposes its
