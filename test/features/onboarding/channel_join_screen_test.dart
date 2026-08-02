@@ -18,16 +18,35 @@ import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
+import 'package:mosh/src/gateway/gateway.dart';
+import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+
+/// A FakeGateway subclass whose `joinChannel` rejects with a fixed error
+/// string so the inline-error path (parity with React role="alert") can be
+/// exercised. The error string is asserted verbatim below.
+class _ThrowingJoinChannelGateway extends FakeGateway {
+  _ThrowingJoinChannelGateway(this._message);
+
+  final String _message;
+
+  @override
+  Future<ChannelSnapshot> joinChannel({required JoinChannelRequest request}) =>
+      // Throws the bare message string so `readableError` (the helper the
+      // screen captures via) yields the bare message, matching React's
+      // `readableError(err)` -> `String(error)` for non-Error values.
+      Future.error(_message);
+}
 
 void main() {
   Future<GoRouter> pumpScreen(
     WidgetTester tester, {
+    Gateway? gateway,
     String initialLocation = AppRoutes.channelJoin,
   }) async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(FakeGateway()),
+      gatewayProvider.overrideWithValue(gateway ?? FakeGateway()),
     ]);
     addTearDown(container.dispose);
 
@@ -112,5 +131,26 @@ void main() {
     // the step screen is gone.
     expect(find.byType(OnboardingScreen), findsOneWidget);
     expect(find.byType(ChannelJoinScreen), findsNothing);
+  });
+
+  testWidgets(
+      'a failed join surfaces a persistent inline error (role="alert") and no SnackBar',
+      (tester) async {
+    const message = 'Channel runtime offline';
+    await pumpScreen(tester, gateway: _ThrowingJoinChannelGateway(message));
+
+    await tester.enterText(find.byType(TextField), 'test-channel');
+    await tester.pump();
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    // The inline error renders the raw error string verbatim (React
+    // `{props.error}` stringifies the caught error) and is the ONE source
+    // of feedback -- no transient SnackBar (the old SnackBar path is gone),
+    // and we did NOT navigate to the channel screen.
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(find.byType(ChannelScreen), findsNothing);
+    expect(find.byType(ChannelJoinScreen), findsOneWidget);
   });
 }

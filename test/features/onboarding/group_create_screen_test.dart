@@ -22,19 +22,38 @@ import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
+import 'package:mosh/src/gateway/gateway.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 const _groupStepBody =
     'Spin up an MLS-encrypted group. You admit members and stay the admin.';
 
+/// A FakeGateway subclass whose `createGroup` rejects with a fixed error
+/// string so the inline-error path (parity with React role="alert") can be
+/// exercised. The error string is asserted verbatim below.
+class _ThrowingCreateGroupGateway extends FakeGateway {
+  _ThrowingCreateGroupGateway(this._message);
+
+  final String _message;
+
+  @override
+  Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>
+      // Throws the bare message string so `readableError` (the helper the
+      // screen captures via) yields the bare message, matching React's
+      // `readableError(err)` -> `String(error)` for non-Error values.
+      Future.error(_message);
+}
+
 void main() {
   Future<void> pumpScreen(
     WidgetTester tester, {
+    Gateway? gateway,
     String initialLocation = AppRoutes.groupCreate,
   }) async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(FakeGateway()),
+      gatewayProvider.overrideWithValue(gateway ?? FakeGateway()),
     ]);
     addTearDown(container.dispose);
 
@@ -126,5 +145,34 @@ void main() {
     // the step screen is gone.
     expect(find.byType(OnboardingScreen), findsOneWidget);
     expect(find.byType(GroupCreateScreen), findsNothing);
+  });
+
+  testWidgets(
+      'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
+      (tester) async {
+    const message = 'Group runtime offline';
+    final throwing = _ThrowingCreateGroupGateway(message);
+
+    // Intercept the flutter/services clipboard channel so the auto-copy on
+    // create does not hang the test on a real platform channel.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      return null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding.instance
+        .defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await pumpScreen(tester, gateway: throwing);
+
+    await tester.enterText(find.byType(TextField), 'friends');
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    // The inline error renders the raw error string verbatim (React
+    // `{props.error}` stringifies the caught error) and is the ONE source
+    // of feedback -- no transient SnackBar (the old SnackBar path is gone).
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
   });
 }

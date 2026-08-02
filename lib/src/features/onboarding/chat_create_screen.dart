@@ -22,10 +22,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/util/format.dart' show readableError;
 
 /// The chat-create step screen.
 ///
@@ -43,6 +45,10 @@ class ChatCreateScreen extends ConsumerStatefulWidget {
 class _ChatCreateScreenState extends ConsumerState<ChatCreateScreen> {
   bool _busy = false;
   bool _copied = false;
+  // Persistent inline error (parity with React's `props.error` on
+  // NewSessionPanel -- stays until the next create attempt). Cleared at
+  // the START of the next attempt below.
+  String? _error;
 
   Future<void> _onCreate() async {
     if (_busy) return;
@@ -51,9 +57,16 @@ class _ChatCreateScreenState extends ConsumerState<ChatCreateScreen> {
     setState(() {
       _busy = true;
       _copied = false;
+      _error = null;
     });
     try {
       await ref.read(inviteFlowProvider.notifier).create();
+    } catch (e) {
+      // Mirrors React's parent try/catch feeding `props.error` down: React
+      // stores `readableError(err)` (the bare message) in state, so this
+      // uses the same helper. The inline error is the ONE source of truth
+      // (no SnackBar here).
+      if (mounted) setState(() => _error = readableError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -94,8 +107,12 @@ class _ChatCreateScreenState extends ConsumerState<ChatCreateScreen> {
                     height: 22,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(hasInvite ? l.onboardChatRecreate : l.onboardChatCreate),
-          ),
+              : Text(hasInvite ? l.onboardChatRecreate : l.onboardChatCreate),
+        ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            InlineError(message: _error),
+          ],
           if (hasInvite) ...[
             const SizedBox(height: 20),
             InviteResult(

@@ -50,6 +50,48 @@ class _ControlledCreateGateway extends FakeGateway {
   }
 }
 
+/// A FakeGateway subclass whose `createInvite` rejects with a fixed
+/// error string so the inline-error path (parity with React role="alert")
+/// can be exercised. The error string is asserted verbatim below.
+class _ThrowingCreateGateway extends FakeGateway {
+  _ThrowingCreateGateway(this._message);
+
+  final String _message;
+
+  @override
+  Future<InviteCreated> createInvite({required StartSessionRequest request}) {
+    // Throws the bare message string so `readableError` (the helper the
+    // screen captures via) yields the bare message, matching React's
+    // `readableError(err)` -> `String(error)` for non-Error values.
+    return Future.error(_message);
+  }
+}
+
+/// A FakeGateway subclass that throws on the FIRST `createInvite` call and
+/// succeeds on the second (returns a fixed invite URI). Used to assert the
+/// inline error CLEARS on the next attempt (React's "error stays until the
+/// next attempt" semantics).
+class _ThenSucceedsCreateGateway extends FakeGateway {
+  _ThenSucceedsCreateGateway(this._inviteUri, this._message);
+
+  final String _inviteUri;
+  final String _message;
+  int _calls = 0;
+
+  @override
+  Future<InviteCreated> createInvite({required StartSessionRequest request}) {
+    _calls++;
+    if (_calls == 1) return Future.error(_message);
+    return Future.value(InviteCreated(
+      inviteUri: _inviteUri,
+      sessionId: 'controlled-2',
+      meshId: 'controlled-mesh',
+      fingerprint: 'AABBCCDDEEFF0022',
+      listenAddress: '127.0.0.1:${request.listenPort}',
+    ));
+  }
+}
+
 void main() {
   Future<GoRouter> pumpScreen(
     WidgetTester tester,
@@ -149,5 +191,41 @@ void main() {
     // Routing returned to '/' (onboarding): the menu screen reappears.
     expect(find.byType(OnboardingScreen), findsOneWidget);
     expect(find.byType(ChatCreateScreen), findsNothing);
+  });
+
+  testWidgets(
+      'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
+      (tester) async {
+    const message = 'Invite service offline';
+    await pumpScreen(tester, _ThrowingCreateGateway(message));
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
+    await tester.pumpAndSettle();
+
+    // The inline error renders the raw error string verbatim (React
+    // `{props.error}` stringifies the caught error) and is the ONE source
+    // of feedback -- no transient SnackBar (the old SnackBar path is gone).
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('the inline error clears on the next successful create attempt',
+      (tester) async {
+    const message = 'Invite service offline';
+    const uri = 'mosh://invite?mesh=m&session=retry#fp=R';
+    await pumpScreen(tester, _ThenSucceedsCreateGateway(uri, message));
+
+    // First attempt throws -> inline error surfaces.
+    await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsOneWidget);
+
+    // Second attempt succeeds -> the error is cleared at the start of the
+    // attempt and the InviteResult renders instead.
+    await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsNothing);
+    expect(find.byType(InviteResult), findsOneWidget);
+    expect(find.text(uri), findsOneWidget);
   });
 }
