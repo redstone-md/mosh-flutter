@@ -166,7 +166,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// Sends a body verbatim -- 1-1 with React `sendMessageBody`. Runs the
   /// full try/catch/finally: on SUCCESS clears `_lastFailedSend` +
   /// `_chatError` (React `setLastFailedSend(null)` + `onError(undefined)`),
-  /// clears the composer, and invalidates the channel snapshot; on FAILURE
+  /// clears the composer only if it still equals the sent body (React
+  /// parity), and invalidates the channel snapshot; on FAILURE
   /// records `_lastFailedSend = (target, body)` + `_chatError` and leaves
   /// the composer untouched so the user's text survives. The success-path
   /// composer-clear + invalidate + try-finally + `_sending` flag are
@@ -185,7 +186,12 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       );
       _lastFailedSend = null;
       _chatError = null;
-      _composer.clear();
+      // React `setComposer(c => c.trim() === body ? "" : c)` -- only clear the
+      // composer if it still holds the sent body, so text the user typed
+      // while the send was in flight survives (1-1 with React parity).
+      if (_composer.text.trim() == body) {
+        _composer.clear();
+      }
       ref.invalidate(channelSnapshotProvider(widget.name));
     } catch (e) {
       setState(() {
