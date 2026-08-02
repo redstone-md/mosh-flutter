@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 import 'package:mosh/src/deeplink/mosh_url_scheme_windows.dart';
+import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/state/locale_provider.dart';
@@ -85,9 +87,6 @@ void main() async {
   // the OS keychain, so the live runtime uses the Keystore DEK on a device.
   // Desktop/iOS keep the Rust desktop keychain path: initMobileDek is a
   // no-op off-Android, so startup is never blocked on desktop.
-  if (Platform.isAndroid) {
-    await initMobileDek();
-  }
   // S2-3: subscribe to the `mosh://` link stream BEFORE runApp so the
   // cold-start initial link is captured (app_links delivers it shortly
   // after the first frame; the intake replays it once the GoRouter is
@@ -98,8 +97,57 @@ void main() async {
   // on hosts without a registered implementation (e.g. the `flutter test`
   // host), so this stays green in tests. The handle lives for the process.
   startMoshDeepLinkIntake();
-  runApp(const ProviderScope(child: MoshApp()));
+  // M-8 (ADR 0011): run the Android DEK init behind a try/on PlatformException
+  // so a biometric cancel (which makes `flutter_secure_storage`'s `read()` throw
+  // a `PlatformException` from BiometricPrompt) does NOT propagate unhandled
+  // out of main()'s await and blank the screen before runApp. On cancel we run
+  // a MoshLockScreen (fail-closed retry UI) instead; on success we run MoshApp.
+  // ONLY PlatformException is caught: a real DEK error (the fail-closed
+  // StateError when a DB exists but the Keystore has no DEK, or a corrupt
+  // Keystore / wrong-length DEK) still propagates -- those are NOT swallowed
+  // into the lock screen; they crash main() as today (ADR 0011 fail-closed).
+  // Desktop/iOS are unaffected: initMobileDek is a no-op off-Android, so the
+  // try block completes synchronously and the success branch runs MoshApp.
+  // Not `final`: the try/catch may assign twice if the try assigns and then
+  // throws on a later statement (the analyzer treats that as a re-assignment
+  // for a `final` local). A plain local is assigned exactly once per control
+  // flow here, but Dart's definite-assignment rule is conservative here.
+  Widget root;
+  if (Platform.isAndroid) {
+    try {
+      await initMobileDek();
+      root = const MoshApp();
+    } on PlatformException {
+      // Biometric cancel: fail-closed retry UI. The lock screen re-runs
+      // initMobileDek on Retry (re-prompting biometric per ADR 0011), and
+      // swaps the running root to MoshApp on success via _appRoot.value =
+      // next. See mosh_lock_screen.dart for the swap-mechanism rationale.
+      root = MoshLockScreen(
+        swapTo: (Widget next) => _appRoot.value = next,
+        nextApp: const MoshApp(),
+      );
+    }
+  } else {
+    root = const MoshApp();
+  }
+  _appRoot.value = root;
+  runApp(
+    ProviderScope(
+      child: ValueListenableBuilder<Widget>(
+        valueListenable: _appRoot,
+        builder: (BuildContext context, Widget value, _) => value,
+      ),
+    ),
+  );
 }
+
+/// The running app's root widget. Defaults to `const SizedBox()` (set in
+/// `main()` before `runApp` to the resolved `MoshApp` or `MoshLockScreen`).
+/// `MoshLockScreen`'s retry-success path writes the real `MoshApp` here via
+/// its `swapTo` callback, flipping the tree under the single `ProviderScope`
+/// without a second `runApp`. See mosh_lock_screen.dart for the rationale.
+final ValueNotifier<Widget> _appRoot =
+    ValueNotifier<Widget>(const SizedBox());
 
 class MoshApp extends ConsumerWidget {
   const MoshApp({super.key});

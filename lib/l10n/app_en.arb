@@ -1382,5 +1382,25 @@
   "@notificationNewMessageBody": {
     "description": "OS toast body for a new unread message; {label} is '#name' for channels or the generic 'New message' for DMs/groups. Mirrors React's notificationBody (use-unread-notifications.ts).",
     "placeholders": { "label": { "type": "String" } }
+  },
+  "lockScreenTitle": "Mosh is locked",
+  "@lockScreenTitle": {
+    "description": "Title shown on the biometric-cancel MoshLockScreen retry UI (no React equivalent -- Flutter-native fail-closed surface per ADR 0011)"
+  },
+  "lockScreenUnlocking": "Unlocking Mosh...",
+  "@lockScreenUnlocking": {
+    "description": "Spinner label shown while MoshLockScreen re-runs initMobileDek (re-prompts biometric per ADR 0011)"
+  },
+  "lockScreenCanceledMessage": "Biometric authentication was canceled. Tap Retry to unlock your conversations.",
+  "@lockScreenCanceledMessage": {
+    "description": "Explanatory body shown on MoshLockScreen after a biometric cancel; precedes the Retry button"
+  },
+  "lockScreenRetry": "Retry",
+  "@lockScreenRetry": {
+    "description": "Button label on MoshLockScreen; re-runs initMobileDek (re-prompts biometric) and swaps to MoshApp on success"
+  },
+  "lockScreenFailedMessage": "Authentication failed repeatedly. Tap Retry, or close and reopen the app.",
+  "@lockScreenFailedMessage": {
+    "description": "Body shown on MoshLockScreen when a non-PlatformException DEK error slips past the main() gate (defensive; rare)"
   }
-}
+ }
