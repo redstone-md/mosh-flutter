@@ -56,6 +56,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
+import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView, AttachmentDescriptor;
@@ -80,6 +81,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
   bool _showPeerStatus = false;
+  // The sealed [ChatTarget] for this channel -- routes the screen's
+  // send/retry/attachment/leave dispatch through `chat_actions.dart` (the
+  // shared DM/channel/group seam, Gap 4) so the gateway method name is
+  // decided once here instead of triplicated across the three screens.
+  late final ChatTarget _target = ChannelTarget(widget.name);
   // Ephemeral search + filter (React ConversationTools); widget-local per
   // ADR 0010; drive [filterChannelMessages] before grouping, mirroring
   // DmScreen's `_search` / `_filter` (filter-then-group order).
@@ -97,10 +103,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     if (body.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(gatewayProvider).sendChannel(
-            name: widget.name,
-            body: body,
-          );
+      await sendChatText(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        body: body,
+      );
       _composer.clear();
       ref.invalidate(channelSnapshotProvider(widget.name));
     } finally {
@@ -119,13 +126,14 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(gatewayProvider).sendChannelAttachment(
-            name: widget.name,
-            fileName: attachment.fileName,
-            mime: attachment.mime,
-            dataBase64: attachment.dataBase64,
-            thumbnailBase64: attachment.thumbnailBase64,
-          );
+      await sendChatAttachment(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        fileName: attachment.fileName,
+        mime: attachment.mime,
+        dataBase64: attachment.dataBase64,
+        thumbnailBase64: attachment.thumbnailBase64,
+      );
       ref.invalidate(channelSnapshotProvider(widget.name));
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -145,16 +153,17 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       final bytes = await file.readAsBytes();
       final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
       final fileName = 'voice-message.$ext';
-      await ref.read(gatewayProvider).sendChannelAttachment(
-            name: widget.name,
-            fileName: fileName,
-            mime: voice.mime,
-            dataBase64: base64Encode(bytes),
-            voice: VoiceMeta(
-              durationMs: voice.durationMs,
-              peaksB64: voice.peaksBase64,
-            ),
-          );
+      await sendChatAttachment(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        fileName: fileName,
+        mime: voice.mime,
+        dataBase64: base64Encode(bytes),
+        voice: VoiceMeta(
+          durationMs: voice.durationMs,
+          peaksB64: voice.peaksBase64,
+        ),
+      );
       ref.invalidate(channelSnapshotProvider(widget.name));
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -183,7 +192,10 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   }
 
   Future<void> _leave() async {
-    await ref.read(gatewayProvider).leaveChannel(name: widget.name);
+    await closeChatTarget(
+      gateway: ref.read(gatewayProvider),
+      target: _target,
+    );
     if (!mounted) return;
     ref.invalidate(channelSnapshotProvider(widget.name));
     context.go(AppRoutes.sessions);
@@ -214,14 +226,16 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// `_attachmentCallbacks`).
   _AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
       _AttachmentCallbacks(
-        onDownload: (id) => unawaited(ref
-            .read(gatewayProvider)
-            .downloadChannelAttachment(name: widget.name, attachmentId: id)
-            .then((_) => ref.invalidate(channelSnapshotProvider(widget.name)))),
-        onCancel: (id) => unawaited(ref
-            .read(gatewayProvider)
-            .cancelChannelAttachment(name: widget.name, attachmentId: id)
-            .then((_) => ref.invalidate(channelSnapshotProvider(widget.name)))),
+        onDownload: (id) => unawaited(downloadChatAttachment(
+          gateway: ref.read(gatewayProvider),
+          target: _target,
+          attachmentId: id,
+        ).then((_) => ref.invalidate(channelSnapshotProvider(widget.name)))),
+        onCancel: (id) => unawaited(cancelChatAttachment(
+          gateway: ref.read(gatewayProvider),
+          target: _target,
+          attachmentId: id,
+        ).then((_) => ref.invalidate(channelSnapshotProvider(widget.name)))),
         onOpen: (descriptor) => _openAttachment(view),
       );
 
@@ -231,10 +245,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// next poll re-renders the row's delivery status (mirrors the attachment
   /// download/cancel wiring).
   void _retryMessage(String messageId) {
-    unawaited(ref
-        .read(gatewayProvider)
-        .retryChannelMessage(name: widget.name, messageId: messageId)
-        .then((_) => ref.invalidate(channelSnapshotProvider(widget.name))));
+    unawaited(retryChatMessage(
+      gateway: ref.read(gatewayProvider),
+      target: _target,
+      messageId: messageId,
+    ).then((_) => ref.invalidate(channelSnapshotProvider(widget.name))));
   }
 
   /// Opens the attachment's local file (React `openPath(local_path)` via the
