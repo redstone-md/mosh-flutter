@@ -236,6 +236,17 @@ class RealBridgeGateway implements Gateway {
   Future<void> dismissGroupDmOffer(
           {required String groupId, required String offerId}) =>
       group_api.dismissDmOffer(groupId: groupId, offerId: offerId);
+  // Peer-DM-offer SEND seams (channel/group): outbound send side of the
+  // dismiss pair above. React `use-dm-offers.ts:54` `offerDm` does
+  // createPrivateInvite -> sendChannelDmOffer OR sendGroupDmOffer. The Rust
+  // `offer` fn exists (commit_sequencer.rs:50) but is NOT yet frb-exposed;
+  // wiring is a separate slice-3 atomic. Throw UnimplementedError (not a silent no-op) so the gap is explicit in prod.
+  @override
+  Future<void> sendChannelDmOffer({required String channelName, required String peerFingerprint, required String inviteUri}) =>
+      throw UnimplementedError('sendChannelDmOffer: real Rust bridge not yet wired (slice-3)');
+  @override
+  Future<void> sendGroupDmOffer({required String groupId, required String peerFingerprint, required String inviteUri}) =>
+      throw UnimplementedError('sendGroupDmOffer: real Rust bridge not yet wired (slice-3)');
   // Channel/group attachment transfer seams (slice-3): channel_api/group_api
   // both name the frb free functions `downloadAttachment`/`cancelAttachment`
   // -- disambiguated by the prefixes. Both return Future<void> (no `await`

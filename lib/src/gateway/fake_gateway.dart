@@ -251,6 +251,12 @@ class FakeGateway implements Gateway {
           {required String groupId, required String offerId}) =>
       Future.value();
 
+  // Peer-DM-offer SEND seams (channel/group): no-ops (no real peer to deliver to; matches the dismiss pair above). The real Rust runtime delivers over Moss transport (slice-3 wiring pending; see RealBridgeGateway).
+  @override
+  Future<void> sendChannelDmOffer({required String channelName, required String peerFingerprint, required String inviteUri}) => Future.value();
+  @override
+  Future<void> sendGroupDmOffer({required String groupId, required String peerFingerprint, required String inviteUri}) => Future.value();
+
   // Channel/group attachment transfer seams (slice-3): the fake has no real
   // transfer runtime, so all four are no-ops that complete synchronously.
   @override
