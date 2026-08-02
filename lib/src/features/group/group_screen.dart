@@ -140,6 +140,13 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   // DmScreen's `_search` / `_filter` (filter-then-group order).
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
+  // Mobile search panel open state -- 1-1 with React `useMobileSearchPanel`
+  // (ActiveChatHeader.tsx L103-111): `useState(false)` reset on `resetKey`
+  // change. For a group the reset key is the group id (`widget.groupId`),
+  // the group's conversation identity; the header toggle (in
+  // [GroupScreenHeader]) flips it and the body renders
+  // `MobileConversationSearch` while true. Gated on the mobile breakpoint.
+  bool _mobileSearchOpen = false;
 
   @override
   void initState() {
@@ -163,6 +170,20 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   void dispose() {
     _composer.dispose();
     super.dispose();
+  }
+
+  // Reset the mobile search panel when the group changes -- 1-1 with React's
+  // `useMobileSearchPanel` `resetKey` effect (ActiveChatHeader.tsx L107-109:
+  // `useEffect(() => { setOpen(false); }, [resetKey])`). The group id is the
+  // reset key; if it changed (the same widget reused for a different group),
+  // the open search panel closes so the new group does not inherit a stale
+  // open mobile search.
+  @override
+  void didUpdateWidget(covariant GroupScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.groupId != oldWidget.groupId) {
+      _mobileSearchOpen = false;
+    }
   }
 
   // Resolves [_pendingOpen] against an updated attachments list. Pure with
@@ -506,6 +527,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         groupId: widget.groupId,
         onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
         onLeave: _requestLeave,
+        mobileSearchOpen: _mobileSearchOpen,
+        onToggleMobileSearch: () =>
+            setState(() => _mobileSearchOpen = !_mobileSearchOpen),
       ),
       body: SafeArea(
         child: Stack(
@@ -560,13 +584,40 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                     missingMany: l.orgMissingMany,
                     addLabel: l.orgAddMissing,
                   ),
-                ConversationTools(
-                  search: _search,
-                  filter: _filter,
-                  onSearch: (value) => setState(() => _search = value),
-                  onFilter: (value) => setState(() => _filter = value),
-                  l: l,
-                ),
+                // Desktop search/filter row -- gated on the desktop
+                // breakpoint (React hides `.conversation-tools-desktop` at
+                // `max-width: 580px`). On desktop the row renders exactly as
+                // before (byte-identical); on mobile the compact trio below
+                // replaces it.
+                if (!isMobileBreakpoint(context))
+                  ConversationTools(
+                    search: _search,
+                    filter: _filter,
+                    onSearch: (value) => setState(() => _search = value),
+                    onFilter: (value) => setState(() => _filter = value),
+                    l: l,
+                  ),
+                // Mobile search/filter trio -- 1-1 with React
+                // ActiveChatHeader `mobileSearchOpen ? <MobileConversation
+                // Search/> : null` + the always-rendered
+                // `MobileConversationFilterNotice` (null-collapses when
+                // filter == all). Only on mobile (the toggle is gated in
+                // [GroupScreenHeader] on the same breakpoint).
+                if (isMobileBreakpoint(context)) ...[
+                  if (_mobileSearchOpen)
+                    MobileConversationSearch(
+                      search: _search,
+                      onSearch: (value) => setState(() => _search = value),
+                      onClose: () =>
+                          setState(() => _mobileSearchOpen = false),
+                      l: l,
+                    ),
+                  MobileConversationFilterNotice(
+                    filter: _filter,
+                    onFilter: (value) => setState(() => _filter = value),
+                    l: l,
+                  ),
+                ],
                 Expanded(
                   child: async.when(
                     loading: () =>

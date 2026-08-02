@@ -86,6 +86,13 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
   bool _showPeerStatus = false;
+  // Mobile search panel open state -- 1-1 with React `useMobileSearchPanel`
+  // (ActiveChatHeader.tsx L103-111): `useState(false)` reset on `resetKey`
+  // change. For a channel the reset key is the channel name (`widget.name`),
+  // the channel's conversation identity; the AppBar toggle flips it and the
+  // body renders `MobileConversationSearch` while true. Gated on the mobile
+  // breakpoint (the toggle only renders on mobile).
+  bool _mobileSearchOpen = false;
   // The sealed [ChatTarget] for this channel -- routes the screen's
   // send/retry/attachment/leave dispatch through `chat_actions.dart` (the
   // shared DM/channel/group seam, Gap 4) so the gateway method name is
@@ -140,6 +147,20 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   void dispose() {
     _composer.dispose();
     super.dispose();
+  }
+
+  // Reset the mobile search panel when the channel changes -- 1-1 with React's
+  // `useMobileSearchPanel` `resetKey` effect (ActiveChatHeader.tsx L107-109:
+  // `useEffect(() => { setOpen(false); }, [resetKey])`). The channel name is
+  // the reset key; if it changed (the same widget reused for a different
+  // channel), the open search panel closes so the new channel does not inherit
+  // a stale open mobile search.
+  @override
+  void didUpdateWidget(covariant ChannelScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.name != oldWidget.name) {
+      _mobileSearchOpen = false;
+    }
   }
 
   // Resolves [_pendingOpen] against an updated attachments list. Pure with
@@ -445,6 +466,18 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       appBar: AppBar(
         title: Text(widget.name),
         actions: [
+          // Mobile search toggle -- 1-1 with React `MobileSearchToggle`
+          // (ActiveChatHeader.tsx L113-131), gated on the mobile
+          // breakpoint (React `chat-mobile-only` class). Placed first in
+          // the actions so it sits left of the peer-status + leave buttons,
+          // mirroring React's beforeSearchActions position.
+          if (isMobileBreakpoint(context))
+            MobileSearchToggle(
+              open: _mobileSearchOpen,
+              onToggle: () =>
+                  setState(() => _mobileSearchOpen = !_mobileSearchOpen),
+              l: l,
+            ),
           IconButton(
             icon: const Icon(Icons.electrical_services, size: 18),
             tooltip: l.openPeerStatus,
@@ -486,13 +519,40 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                   body: l.channelNoticeBody,
                   accent: const Color(0xFF6CB7E8),
                 ),
-                ConversationTools(
-                  search: _search,
-                  filter: _filter,
-                  onSearch: (value) => setState(() => _search = value),
-                  onFilter: (value) => setState(() => _filter = value),
-                  l: l,
-                ),
+                // Desktop search/filter row -- gated on the desktop
+                // breakpoint (React hides `.conversation-tools-desktop` at
+                // `max-width: 580px`). On desktop the row renders exactly as
+                // before (byte-identical); on mobile the compact trio below
+                // replaces it.
+                if (!isMobileBreakpoint(context))
+                  ConversationTools(
+                    search: _search,
+                    filter: _filter,
+                    onSearch: (value) => setState(() => _search = value),
+                    onFilter: (value) => setState(() => _filter = value),
+                    l: l,
+                  ),
+                // Mobile search/filter trio -- 1-1 with React
+                // ActiveChatHeader `mobileSearchOpen ? <MobileConversation
+                // Search/> : null` + the always-rendered
+                // `MobileConversationFilterNotice` (null-collapses when
+                // filter == all). Only on mobile (the toggle is gated in
+                // the AppBar on the same breakpoint).
+                if (isMobileBreakpoint(context)) ...[
+                  if (_mobileSearchOpen)
+                    MobileConversationSearch(
+                      search: _search,
+                      onSearch: (value) => setState(() => _search = value),
+                      onClose: () =>
+                          setState(() => _mobileSearchOpen = false),
+                      l: l,
+                    ),
+                  MobileConversationFilterNotice(
+                    filter: _filter,
+                    onFilter: (value) => setState(() => _filter = value),
+                    l: l,
+                  ),
+                ],
                 Expanded(
                   child: async.when(
                     loading: () =>

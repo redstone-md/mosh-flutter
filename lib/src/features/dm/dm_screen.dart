@@ -81,6 +81,13 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
   bool _showPeerStatus = false;
+  // Mobile search panel open state -- 1-1 with React `useMobileSearchPanel`
+  // (ActiveChatHeader.tsx L103-111): a `useState(false)` reset to false on
+  // `resetKey` (sessionId) change. The AppBar `MobileSearchToggle` flips it;
+  // the body renders `MobileConversationSearch` while true. Gated on the
+  // mobile breakpoint (the toggle only renders on mobile), so on desktop this
+  // stays false and the desktop `ConversationTools` row renders instead.
+  bool _mobileSearchOpen = false;
 
   // Ephemeral confirmed-fingerprint set (React `confirmedFingerprints`
   // useState, use-chat-close-flow.ts). Widget-local per ADR 0010; purely
@@ -142,6 +149,20 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   void dispose() {
     _composer.dispose();
     super.dispose();
+  }
+
+  // Reset the mobile search panel when the session changes -- 1-1 with React's
+  // `useMobileSearchPanel` `resetKey` effect (ActiveChatHeader.tsx L107-109:
+  // `useEffect(() => { setOpen(false); }, [resetKey])`). The session id is
+  // the reset key; if it changed (the same widget is reused for a different
+  // DM), the open search panel closes so the new conversation does not inherit
+  // a stale open mobile search.
+  @override
+  void didUpdateWidget(covariant DmScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.sessionId != oldWidget.sessionId) {
+      _mobileSearchOpen = false;
+    }
   }
 
   // Resolves [_pendingOpen] against an updated attachments list. Pure with
@@ -505,6 +526,22 @@ class _DmScreenState extends ConsumerState<DmScreen> {
               fingerprint: fingerprint,
               confirmed: confirmed,
               onConfirm: _confirmFingerprint),
+          // Mobile search toggle -- 1-1 with React `MobileSearchToggle`
+          // (ActiveChatHeader.tsx L113-131): a ghost icon button in the
+          // header `actions:` that opens/closes the mobile search panel.
+          // Gated on the mobile breakpoint (the CSS `chat-mobile-only`
+          // class hides it on desktop); on desktop the toggle is absent and
+          // the desktop `ConversationTools` row renders in the body. Placed
+          // after the FingerprintBadge (React `beforeSearchActions`) and
+          // before the phone/peer-status/close buttons (React
+          // `afterSearchActions`), mirroring the React header order.
+          if (isMobileBreakpoint(context))
+            MobileSearchToggle(
+              open: _mobileSearchOpen,
+              onToggle: () =>
+                  setState(() => _mobileSearchOpen = !_mobileSearchOpen),
+              l: l,
+            ),
           // Start-call button -- 1-в-1 with React's `onStartCall` header
           // action (private-dm-screen.tsx L382 -> useVoiceCallOrchestration
           // startCall). Icons.phone mirrors tabler's IconPhone; the
@@ -561,13 +598,40 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                     message: _chatError!,
                     onRetry: _canRetrySend ? _retryFailedSend : null,
                   ),
-                ConversationTools(
-                  search: _search,
-                  filter: _filter,
-                  onSearch: (value) => setState(() => _search = value),
-                  onFilter: (value) => setState(() => _filter = value),
-                  l: l,
-                ),
+                // Desktop search/filter row -- gated on the desktop
+                // breakpoint (React hides `.conversation-tools-desktop` at
+                // `max-width: 580px`). On desktop the row renders exactly as
+                // before (byte-identical); on mobile the compact trio below
+                // replaces it.
+                if (!isMobileBreakpoint(context))
+                  ConversationTools(
+                    search: _search,
+                    filter: _filter,
+                    onSearch: (value) => setState(() => _search = value),
+                    onFilter: (value) => setState(() => _filter = value),
+                    l: l,
+                  ),
+                // Mobile search/filter trio -- 1-1 with React
+                // ActiveChatHeader `mobileSearchOpen ? <MobileConversation
+                // Search/> : null` + the always-rendered
+                // `MobileConversationFilterNotice` (null-collapses when
+                // filter == all). Only on mobile (the toggle is gated in
+                // the AppBar on the same breakpoint).
+                if (isMobileBreakpoint(context)) ...[
+                  if (_mobileSearchOpen)
+                    MobileConversationSearch(
+                      search: _search,
+                      onSearch: (value) => setState(() => _search = value),
+                      onClose: () =>
+                          setState(() => _mobileSearchOpen = false),
+                      l: l,
+                    ),
+                  MobileConversationFilterNotice(
+                    filter: _filter,
+                    onFilter: (value) => setState(() => _filter = value),
+                    l: l,
+                  ),
+                ],
                 Expanded(
                   child: async.when(
                     loading: () =>

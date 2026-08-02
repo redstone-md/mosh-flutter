@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/features/dm/conversation_tools.dart';
 
 /// The GroupScreen AppBar header: the two-line title Column (group label +
 /// subtitle) plus the `actions:` row (admin-pill, copy-invite, peer-status,
@@ -43,11 +44,19 @@ class GroupScreenHeader extends ConsumerStatefulWidget
     required this.groupId,
     required this.onOpenPeerStatus,
     required this.onLeave,
+    required this.mobileSearchOpen,
+    required this.onToggleMobileSearch,
   });
 
   final String groupId;
   final VoidCallback onOpenPeerStatus;
   final VoidCallback onLeave;
+  // Mobile search panel open state + toggle -- the open state is owned by
+  // the screen (mirrors React `useMobileSearchPanel` in ActiveChatHeader),
+  // but the toggle button renders in this header's `actions:` row, so the
+  // screen passes the current value + a toggle callback down.
+  final bool mobileSearchOpen;
+  final VoidCallback onToggleMobileSearch;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -145,6 +154,20 @@ return AppBar(
             icon: Icon(_inviteCopied ? Icons.check : Icons.copy, size: 14),
             tooltip: _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
             onPressed: () => _copyInvite(async.value?.inviteUri),
+          ),
+        // Mobile search toggle -- 1-1 with React `MobileSearchToggle`
+        // (ActiveChatHeader.tsx L113-131), gated on the mobile breakpoint
+        // (React `chat-mobile-only` class). Placed after the copy-invite
+        // button (React `beforeSearchActions`) and before the peer-status +
+        // leave buttons (React `afterSearchActions`), mirroring the React
+        // header order `beforeSearchActions | MobileSearchToggle |
+        // afterSearchActions`. The open state + toggle live in the screen;
+        // this header only renders the button + forwards taps.
+        if (isMobileBreakpoint(context))
+          MobileSearchToggle(
+            open: widget.mobileSearchOpen,
+            onToggle: widget.onToggleMobileSearch,
+            l: l,
           ),
         IconButton(
           icon: const Icon(Icons.electrical_services, size: 18),

@@ -152,6 +152,14 @@
   "@chatFilterAttachments": {
     "description": "Filter option showing only attachments"
   },
+  "openMessageSearch": "Open message search",
+  "@openMessageSearch": {
+    "description": "Tooltip/semantics for the mobile search toggle when the panel is closed (mirrors React MobileSearchToggle non-open aria-label)"
+  },
+  "closeMessageSearch": "Close message search",
+  "@closeMessageSearch": {
+    "description": "Tooltip/semantics for the mobile search toggle when open and the mobile search close button (mirrors React's inline literal)"
+  },
   "chatSearchEmptyTitle": "No matching messages.",
   "@chatSearchEmptyTitle": {
     "description": "Title shown when search has no results"

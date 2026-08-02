@@ -38,6 +38,8 @@
   "chatSearchPlaceholder": "Поиск сообщений",
   "chatFilterAll": "Все",
   "chatFilterAttachments": "Файлы",
+  "openMessageSearch": "Открыть поиск сообщений",
+  "closeMessageSearch": "Закрыть поиск сообщений",
   "chatSearchEmptyTitle": "Совпадений не найдено.",
   "chatSearchEmptyBody": "Попробуйте другой поиск или вернитесь ко всем сообщениям.",
   "chatAttachmentEmptyBody": "В этом режиме нет вложений.",
