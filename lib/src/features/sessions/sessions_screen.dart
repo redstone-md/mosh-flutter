@@ -56,6 +56,8 @@ import 'package:mosh/src/features/sessions/channel_rail_item.dart';
 import 'package:mosh/src/features/sessions/group_rail_item.dart';
 import 'package:mosh/src/features/sessions/offer_rail_item.dart';
 import 'package:mosh/src/features/sessions/state_dot.dart';
+import 'package:mosh/src/features/sessions/revoked_dm_badges.dart'
+    show revokedDmBadgesProvider;
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
@@ -104,6 +106,11 @@ class SessionsScreen extends ConsumerWidget {
     final unreadChannels =
         ref.watch(unreadChannelCountsProvider).value ?? const {};
     final unreadGroups = ref.watch(unreadGroupCountsProvider).value ?? const {};
+    // Revoked-org DM badges -- the React `SessionRail` subtitle branch
+    // (SessionRail.tsx L36-38): session-id -> org-name for org-bound DMs whose
+    // peer left the roster. Degrades to an empty map while orgs load or on
+    // error so the badge stays absent during a refresh.
+    final revokedBadges = ref.watch(revokedDmBadgesProvider);
     return Scaffold(
       appBar: AppBar(
         title: Text(l.sessionsListTitle),
@@ -158,6 +165,7 @@ class SessionsScreen extends ConsumerWidget {
               _SessionRow(
                 session: session,
                 unreadCount: unread['dm:${session.sessionId}'] ?? 0,
+                revokedOrgName: revokedBadges[session.sessionId],
               ),
             if (groups.isNotEmpty && sessions.isNotEmpty)
               const Divider(height: 1, thickness: 1),
@@ -303,15 +311,26 @@ class SessionsScreen extends ConsumerWidget {
 ///     (the same chain `dm_screen` uses for its title).
 ///   - subtitle: the localized state label (`stateIdle|stateWaiting|stateReady`
 ///     or the raw state string for unknown states).
+///     OR -- when this DM's linked peer is no longer in the org roster -- the
+///     React `SessionRail` revoked branch (SessionRail.tsx L36-38):
+///     `${orgText.revokedBadge} ${revokedOrgName}` (the "no longer in `<org>`"
+///     badge). The
+///     revoked-org name is looked up from `revokedDmBadgesProvider` at the
+///     call site (DM rows only).
 ///   - trailing: a colored state dot plus an `UnreadBadge` (count > 0)
 ///     mirroring React's `SessionRailItem` trailing slot.
 ///   - onTap: navigate to the DM screen for this session id.
 ///   - Semantics mirrors React's `aria-label="Open session with ${label}"`.
 class _SessionRow extends StatelessWidget {
-  const _SessionRow({required this.session, this.unreadCount = 0});
+  const _SessionRow({
+    required this.session,
+    this.unreadCount = 0,
+    this.revokedOrgName,
+  });
 
   final SessionSnapshot session;
   final int unreadCount;
+  final String? revokedOrgName;
 
   String _label() {
     if (session.peerDisplayName.isNotEmpty) return session.peerDisplayName;
@@ -341,7 +360,11 @@ class _SessionRow extends StatelessWidget {
                   : Colors.black87,
         ),
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(stateText),
+        subtitle: Text(
+          revokedOrgName != null
+              ? '${l.orgRevokedBadge} $revokedOrgName'
+              : stateText,
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
