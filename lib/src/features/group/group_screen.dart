@@ -74,13 +74,16 @@ import 'package:mosh/src/features/group/group_rejoin_needed_error.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
+import 'package:mosh/src/features/shared/attachment_media_src.dart';
+import 'package:mosh/src/features/shared/media_viewer.dart'
+    show showMediaViewer;
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/group/org_add_missing_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AttachmentView, AttachmentDescriptor;
+    show AttachmentView, AttachmentDescriptor, AttachmentState;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/org_providers.dart';
@@ -119,6 +122,16 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   // both on close (React `clearFailedSend`). The success-path
   // composer-clear + ref.invalidate + try-finally + `_sending` flag are
   // unchanged (Gap 5 conditional-clear is a later atom).
+  // Ephemeral pending-open descriptor (Gap 2) -- 1-1 with React's
+  // `pendingOpen` (use-chat-orchestration.ts L266-283). Set by
+  // [_openAttachment] when an image/other attachment is opened before its
+  // download finishes; the `ref.listen` in [build] watches the group
+  // snapshot's attachments and resolves it the moment the matching view's
+  // `localPath` appears (open the viewer) or its state goes failed/cancelled
+  // (drop the pending). Streamable media + already-downloaded opens never
+  // set this (they show the viewer immediately).
+  AttachmentDescriptor? _pendingOpen;
+
   ({ChatTarget target, String body})? _lastFailedSend;
   String? _chatError;
   // Ephemeral search + filter (React ConversationTools); widget-local per
@@ -131,6 +144,36 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   void dispose() {
     _composer.dispose();
     super.dispose();
+  }
+
+  // Resolves [_pendingOpen] against an updated attachments list. Pure with
+  // respect to the snapshot; the side effect is showing the viewer + the
+  // `setState` that clears the pending. Wired by a `ref.listen` in [build]
+  // (Riverpod requires `ref.listen` inside `build`; it dedupes the
+  // subscription across rebuilds so it does not re-subscribe each frame).
+  void _resolvePendingOpen(List<AttachmentView> attachments) {
+    final pending = _pendingOpen;
+    if (pending == null) return;
+    AttachmentView? view;
+    for (final v in attachments) {
+      if (v.attachmentId == pending.attachmentId) {
+        view = v;
+        break;
+      }
+    }
+    if (view == null) return;
+    final localPath = view.localPath;
+    if (localPath != null && localPath.isNotEmpty) {
+      setState(() => _pendingOpen = null);
+      showMediaViewer(
+        context: context,
+        descriptor: pending,
+        src: localFileSrc(localPath),
+      );
+    } else if (view.state == AttachmentState.failed ||
+        view.state == AttachmentState.cancelled) {
+      setState(() => _pendingOpen = null);
+    }
   }
 
   Future<void> _send() async {
@@ -329,7 +372,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
           target: _target,
           attachmentId: id,
         ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
-        onOpen: (descriptor) => _openAttachment(view),
+        onOpen: (descriptor) => _openAttachment(descriptor, view),
       );
 
   /// Retry a failed outbound message (React `retryGroupMessage`,
@@ -375,20 +418,58 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         }));
   }
 
-  /// Opens the attachment's local file (React `openPath(local_path)` via the
-  /// Tauri opener plugin -- here client-side, no Rust fn). Windows:
-  /// `cmd /c start ""`; non-Windows is a no-op (the card disables Open when
-  /// `view.localPath` is null; React `disabled={!view?.local_path}`).
-  void _openAttachment(AttachmentView? view) {
-    final localPath = view?.localPath;
-    if (localPath == null || localPath.isEmpty || !Platform.isWindows) return;
-    unawaited(Process.run('cmd', ['/c', 'start', '', '', localPath]));
+  /// Opens the attachment in the in-app [MediaViewer] -- 1-1 with React
+  /// `openAttachment` (use-chat-orchestration.ts L243-265). The decision
+  /// (src / download / wait) comes from [resolveMediaOpen] (the pure port
+  /// of the React state machine) so this stays a thin actor: show the
+  /// viewer immediately for already-downloaded + streamable media, or arm
+  /// [_pendingOpen] for image/other (the `ref.listen` resolves it once the
+  /// download finishes). Reuses [downloadChatAttachment] (Gap 4) for the
+  /// download trigger; the host is the group id (React `active.id`).
+  void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
+    final decision = resolveMediaOpen(
+      descriptor: descriptor,
+      view: view,
+      kind: 'group',
+      host: widget.groupId,
+    );
+    if (decision.src != null) {
+      showMediaViewer(
+        context: context,
+        descriptor: descriptor,
+        src: decision.src!,
+      );
+    }
+    if (decision.wait) {
+      setState(() => _pendingOpen = descriptor);
+    }
+    if (decision.download) {
+      unawaited(downloadChatAttachment(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        attachmentId: descriptor.attachmentId,
+      ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(groupSnapshotProvider(widget.groupId));
+    // Resolve the pending-open descriptor 1-1 with React's `useEffect`
+    // (use-chat-orchestration.ts L267-283): when the group snapshot's
+    // attachments update and a pending open is armed, find the matching
+    // view; if its `localPath` appeared, show the viewer + clear the
+    // pending; if it went failed/cancelled, drop the pending. `ref.listen`
+    // is idempotent across rebuilds (Riverpod dedupes the subscription).
+    ref.listen<AsyncValue<GroupSnapshot>>(
+      groupSnapshotProvider(widget.groupId),
+      (_, next) {
+        final attachments = next.value?.attachments;
+        if (attachments == null || attachments.isEmpty) return;
+        _resolvePendingOpen(attachments);
+      },
+    );
     final groupForDrawer = async.value;
     final orgAddPrompt = ref.watch(orgAddPromptProvider(widget.groupId));
     final errorForDrawer = async.hasError ? async.error.toString() : null;
