@@ -106,6 +106,19 @@ abstract interface class Gateway {
       {required String name, required String offerId});
   Future<void> dismissGroupDmOffer(
       {required String groupId, required String offerId});
+  /// Peer-DM-from-channel seam. Mirrors React `use-dm-offers.ts:54` `offerDm`:
+  /// after `createInvite` (Flutter: `createInvite`), the popover sends the
+  /// offer over the channel to the target peer. The dismiss pair
+  /// `dismissChannelDmOffer` (above) clears a received offer; this is the
+  /// outbound send side.
+  Future<void> sendChannelDmOffer(
+      {required String channelName, required String peerFingerprint, required String inviteUri});
+  /// Peer-DM-from-group seam. Same as `sendChannelDmOffer` but for a private
+  /// group -- `use-dm-offers.ts:54` branches on `target.type === "group"` and
+  /// calls this with the group id. The dismiss pair `dismissGroupDmOffer`
+  /// (above) is the inbound dismiss; this is the outbound send side.
+  Future<void> sendGroupDmOffer(
+      {required String groupId, required String peerFingerprint, required String inviteUri});
   // Channel/group attachment transfer control (1:1 port of channel +
   // private_group download_attachment / cancel_attachment). Both drive the
   // peer's inbound transfer; progress surfaces in the next pollChannel/

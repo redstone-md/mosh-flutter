@@ -71,4 +71,25 @@ void main() {
     // contentHash is the data-base64 hashCode -- stable + deterministic.
     expect(result.contentHash, isNotEmpty);
   });
+
+  // Peer-DM-offer SEND seams (channel/group): the fake no-ops (no real peer
+  // to deliver to, matching the dismiss pair). Both must complete normally
+  // with no throw so the popover UI resolves.
+  test('FakeGateway sendChannelDmOffer completes (no-op)', () async {
+    final gateway = FakeGateway();
+    await gateway.sendChannelDmOffer(
+      channelName: 'test',
+      peerFingerprint: 'FP',
+      inviteUri: 'mosh://invite?mesh=fakemesh&session=fake-session#fp=FP',
+    );
+  });
+
+  test('FakeGateway sendGroupDmOffer completes (no-op)', () async {
+    final gateway = FakeGateway();
+    await gateway.sendGroupDmOffer(
+      groupId: 'g',
+      peerFingerprint: 'FP',
+      inviteUri: 'mosh://invite?mesh=fakemesh&session=fake-session#fp=FP',
+    );
+  });
 }
