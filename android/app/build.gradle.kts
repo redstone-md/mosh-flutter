@@ -28,6 +28,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Slice-3 device-pass: restrict to arm64-v8a for now. The provisioned
+        // libopus.a (see rust_builder/cargokit/gradle/plugin.gradle) is
+        // aarch64-only, so Cargokit can only build libmosh_core.so for arm64.
+        // Expand to all ABIs once per-ABI opus artifacts exist.
+        ndk { abiFilters += "arm64-v8a" }
     }
 
     buildTypes {
