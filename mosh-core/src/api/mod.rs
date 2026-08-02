@@ -42,3 +42,8 @@ pub mod network;
 /// Facade for the `detect_vpn` / `get_bind_interface` / VPN-bypass-consent
 /// Tauri commands.
 pub mod vpn;
+
+/// Facade for the voice-call Opus encoder (real mic capture pipeline:
+/// `record` PCM16 -> Rust Opus encode -> Opus packet). See
+/// `voice_call_opus_encode`.
+pub mod voice_call_opus_encode;

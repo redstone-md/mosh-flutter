@@ -31,6 +31,7 @@ ed25519-dalek = { version = "2", features = ["rand_core"] }
 hex = "0.4"
 mime_guess = "2"
 if-addrs = "0.15.0"
+audiopus = { version = "0.2.0", features = ["encoder"] }
 
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_NetworkManagement_IpHelper", "Win32_Foundation", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
