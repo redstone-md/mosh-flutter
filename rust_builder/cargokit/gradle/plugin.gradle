@@ -86,6 +86,28 @@ abstract class CargoKitBuildTask extends DefaultTask {
             environment "CARGOKIT_MIN_SDK_VERSION", minSdkVersion
             environment "CARGOKIT_TARGET_PLATFORMS", targetPlatforms.join(",")
             environment "CARGOKIT_JAVA_HOME", System.properties['java.home']
+            // --- BEGIN opus provisioning (libopus.a for audiopus_sys cross-compile) ---
+            // audiopus_sys-0.1.8's build.rs selects its link-search path from the
+            // *host* cfg (x86_64-pc-windows-msvc), so on a Windows host it points
+            // at the bundled msvc/x64/libopus.lib (COFF) which the android ELF
+            // linker cannot use. We provision a real arm64 libopus.a once (see
+            // third_party/build-opus-android.ps1) and set LIBOPUS_LIB_DIR so the
+            // build.rs emits `rustc-link-lib=static=opus` + a rustc-link-search to
+            // this directory in BOTH the unix and msvc arms. LIBOPUS_STATIC
+            // forces static linking; OPUS_NO_PG short-circuits pkg-config on the
+            // unix arm (harmless on msvc). Passed through to cargo because the
+            // exec below inherits the parent environment.
+            // NOTE: the opus dir is anchored on the cargokit plugin file, not
+            // rootProjectDir -- in this project rootProjectDir resolves to
+            // mosh-flutter/android (the cargokit subproject's root), which would
+            // point at android/third_party/... and miss. pluginFile lives at
+            // rust_builder/cargokit/gradle/plugin.gradle, so the opus dir is
+            // ../../../third_party/opus-android-arm64 from there.
+            def opusLibDir = Paths.get(new File(pluginFile).parent, "..", "..", "..", "third_party", "opus-android-arm64").normalize().toAbsolutePath()
+            environment "LIBOPUS_LIB_DIR", opusLibDir
+            environment "LIBOPUS_STATIC", "1"
+            environment "OPUS_NO_PG", "1"
+            // --- END opus provisioning ---
         }
     }
 }
@@ -139,16 +161,29 @@ class CargoKitPlugin implements Plugin<Project> {
             jniLibs.srcDir(new File(cargoOutputDir))
 
             def List<String> platforms
+            // Slice-3 device-pass: clamp Cargokit to arm64-v8a only. The
+            // provisioned libopus.a (third_party/opus-android-arm64) is
+            // aarch64-only, and Flutter's default target-platform list
+            // (android-arm, android-arm64, android-x64) would otherwise also
+            // build armv7, which fails to link opus. We therefore ignore the
+            // reported platforms for now and force android-arm64. Re-enable
+            // multi-ABI once per-ABI libopus.a artifacts exist.
+            platforms = ["android-arm64"]
             try {
-                platforms = com.flutter.gradle.FlutterPluginUtils.getTargetPlatforms(project).collect()
+                // Kept to surface a clear error early if the Flutter plugin
+                // API changes; the result is intentionally discarded.
+                com.flutter.gradle.FlutterPluginUtils.getTargetPlatforms(project)
             } catch (Exception ignored) {
-                platforms = plugin.getTargetPlatforms().collect()
+                // platforms already clamped to android-arm64 above.
             }
 
             // Same thing addFlutterDependencies does in flutter.gradle
             if (buildType == "debug") {
-                platforms.add("android-x86")
-                platforms.add("android-x64")
+                // Only arm64-v8a for now: the single provisioned libopus.a is
+                // aarch64-only (see opus provisioning above). Re-enable x86/x64
+                // once per-ABI libopus.a artifacts exist. This keeps the device
+                // integration pass (Pixel 8 Pro) unblocked without forcing a
+                // full multi-ABI opus build in this atomic.
             }
 
             // The task name depends on plugin properties, which are not available
