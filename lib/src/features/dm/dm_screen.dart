@@ -45,6 +45,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/features/shared/chat_actions.dart';
+import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/fingerprint_badge.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
@@ -86,6 +87,21 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   // decided once here instead of triplicated across the three screens.
   late final ChatTarget _target = DmTarget(widget.sessionId);
 
+  // Failed-send retry queue + inline error banner (Gaps 1+3) -- 1-1 with
+  // React `use-chat-orchestration.ts` L85-149. `_lastFailedSend` mirrors
+  // React's `lastFailedSend: FailedSend | null` (the target + body of the
+  // most recent failed text send); `_chatError` mirrors React's `error`
+  // state that drives `<ChatError message={error} onRetry={...}>`. On a
+  // thrown text send we record both (so the Retry button re-sends the body
+  // and the banner shows the error) and LEAVE the composer untouched (the
+  // user's text is preserved, matching React). A successful send clears
+  // both. `_leave` clears both on navigation away (React `clearFailedSend`
+  // in the close flow). The success-path composer-clear + ref.invalidate +
+  // try-finally + `_sending` flag are unchanged (Gap 5 conditional-clear is
+  // a later atom; this port keeps the existing unconditional clear).
+  ({ChatTarget target, String body})? _lastFailedSend;
+  String? _chatError;
+
   @override
   void dispose() {
     _composer.dispose();
@@ -93,21 +109,68 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   }
 
   Future<void> _send() async {
+    // Thin wrapper 1-1 with React's `_send` reading the composer -- the
+    // real send path lives in [_sendBody] so [_retryFailedSend] can re-send
+    // the stored failed body without touching the composer first (mirrors
+    // React `sendMessageBody(target, body)` taking `body` directly).
     final body = _composer.text.trim();
     if (body.isEmpty || _sending) return;
-    setState(() => _sending = true);
+    await _sendBody(body);
+  }
+
+  /// Sends a body verbatim -- 1-1 with React `sendMessageBody`. Runs the
+  /// full try/catch/finally: on SUCCESS clears `_lastFailedSend` +
+  /// `_chatError` (React `setLastFailedSend(null)` + `onError(undefined)`),
+  /// clears the composer, and invalidates the providers; on FAILURE records
+  /// `_lastFailedSend = (target, body)` + `_chatError` (React
+  /// `setLastFailedSend({target, body})`) and leaves the composer untouched
+  /// so the user's text survives. The `finally` clears `_sending` exactly as
+  /// before; the success-path composer-clear + invalidate + try-finally +
+  /// `_sending` flag are unchanged from the pre-Gap-1 `_send`.
+  Future<void> _sendBody(String body) async {
+    if (body.isEmpty || _sending) return;
+    setState(() {
+      _sending = true;
+      _chatError = null; // React `onError(undefined)` at the top of `run`.
+    });
     try {
       await sendChatText(
         gateway: ref.read(gatewayProvider),
         target: _target,
         body: body,
       );
+      _lastFailedSend = null;
+      _chatError = null;
       _composer.clear();
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
+    } catch (e) {
+      setState(() {
+        _lastFailedSend = (target: _target, body: body);
+        _chatError = e.toString();
+      });
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Whether the banner's Retry button should be active -- 1-1 with React
+  /// `canRetrySend = Boolean(active && lastFailedSend && sameChatTarget(active,
+  /// lastFailedSend.target))`. `active` is always this screen's `_target`
+  /// (the DM screen only ever renders one session), so it reduces to a
+  /// non-null `_lastFailedSend` whose target matches `_target`.
+  bool get _canRetrySend =>
+      _lastFailedSend != null &&
+      sameChatTarget(_target, _lastFailedSend!.target);
+
+  /// Re-sends the last failed body -- 1-1 with React `retryFailedSend`
+  /// (use-chat-orchestration.ts L144-149): if there is no recorded failure
+  /// for the active target, no-op; otherwise re-run the full send path with
+  /// the stored body (which re-enters [_sendBody]'s try/catch, so a
+  /// successful retry clears both fields and a re-failure re-records them).
+  Future<void> _retryFailedSend() async {
+    if (!_canRetrySend) return;
+    await _sendBody(_lastFailedSend!.body);
   }
 
   /// DM attachment SEND -- 1-в-1 with React's `sendAttachment`
@@ -250,6 +313,14 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   /// channel/group `_leave` invalidation + `context.go(AppRoutes.sessions)`
   /// pattern.
   Future<void> _leave() async {
+    // Clear the failed-send queue + error banner on close -- 1-1 with React
+    // `clearFailedSend()` (use-chat-orchestration.ts L94) called in the
+    // onClose/leave flow (private-dm-screen.tsx L137). Done before the
+    // Gateway close so a slow close does not flash a stale banner.
+    setState(() {
+      _lastFailedSend = null;
+      _chatError = null;
+    });
     await closeChatTarget(
       gateway: ref.read(gatewayProvider),
       target: _target,
@@ -365,6 +436,18 @@ class _DmScreenState extends ConsumerState<DmScreen> {
           children: [
             Column(
               children: [
+                // Inline error banner (Gap 3) -- 1-1 with React
+                // private-dm-screen.tsx L337-341
+                // `{!showWelcome && error ? <ChatError message={error}
+                // onRetry={canRetrySend ? retryFailedSend : undefined} /> :
+                // null}`. The DM screen is never on the welcome state (it
+                // always has a session), so the gate is just `_chatError !=
+                // null`. The Retry button is active iff [_canRetrySend].
+                if (_chatError != null)
+                  ChatErrorBanner(
+                    message: _chatError!,
+                    onRetry: _canRetrySend ? _retryFailedSend : null,
+                  ),
                 ConversationTools(
                   search: _search,
                   filter: _filter,
