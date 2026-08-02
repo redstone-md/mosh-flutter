@@ -75,6 +75,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
+import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/features/group/org_add_missing_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -103,6 +104,11 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
   bool _showPeerStatus = false;
+  // The sealed [ChatTarget] for this group -- routes the screen's
+  // send/retry/attachment/leave dispatch through `chat_actions.dart` (the
+  // shared DM/channel/group seam, Gap 4) so the gateway method name is
+  // decided once here instead of triplicated across the three screens.
+  late final ChatTarget _target = GroupTarget(widget.groupId);
   // Ephemeral search + filter (React ConversationTools); widget-local per
   // ADR 0010; drive [filterGroupMessages] before grouping, mirroring
   // DmScreen's `_search` / `_filter` (filter-then-group order).
@@ -120,10 +126,11 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     if (body.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(gatewayProvider).sendGroup(
-            groupId: widget.groupId,
-            body: body,
-          );
+      await sendChatText(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        body: body,
+      );
       _composer.clear();
       ref.invalidate(groupSnapshotProvider(widget.groupId));
     } finally {
@@ -143,13 +150,14 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(gatewayProvider).sendGroupAttachment(
-            groupId: widget.groupId,
-            fileName: attachment.fileName,
-            mime: attachment.mime,
-            dataBase64: attachment.dataBase64,
-            thumbnailBase64: attachment.thumbnailBase64,
-          );
+      await sendChatAttachment(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        fileName: attachment.fileName,
+        mime: attachment.mime,
+        dataBase64: attachment.dataBase64,
+        thumbnailBase64: attachment.thumbnailBase64,
+      );
       ref.invalidate(groupSnapshotProvider(widget.groupId));
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -169,16 +177,17 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
       final bytes = await file.readAsBytes();
       final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
       final fileName = 'voice-message.$ext';
-      await ref.read(gatewayProvider).sendGroupAttachment(
-            groupId: widget.groupId,
-            fileName: fileName,
-            mime: voice.mime,
-            dataBase64: base64Encode(bytes),
-            voice: VoiceMeta(
-              durationMs: voice.durationMs,
-              peaksB64: voice.peaksBase64,
-            ),
-          );
+      await sendChatAttachment(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        fileName: fileName,
+        mime: voice.mime,
+        dataBase64: base64Encode(bytes),
+        voice: VoiceMeta(
+          durationMs: voice.durationMs,
+          peaksB64: voice.peaksBase64,
+        ),
+      );
       ref.invalidate(groupSnapshotProvider(widget.groupId));
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -207,7 +216,10 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   }
 
   Future<void> _leave() async {
-    await ref.read(gatewayProvider).closeGroup(groupId: widget.groupId);
+    await closeChatTarget(
+      gateway: ref.read(gatewayProvider),
+      target: _target,
+    );
     if (!mounted) return;
     ref.invalidate(groupSnapshotProvider(widget.groupId));
     context.go(AppRoutes.sessions);
@@ -243,16 +255,16 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   /// `_attachmentCallbacks` and ChannelScreen's mirror).
   _AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
       _AttachmentCallbacks(
-        onDownload: (id) => unawaited(ref
-            .read(gatewayProvider)
-            .downloadGroupAttachment(groupId: widget.groupId, attachmentId: id)
-            .then(
-                (_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
-        onCancel: (id) => unawaited(ref
-            .read(gatewayProvider)
-            .cancelGroupAttachment(groupId: widget.groupId, attachmentId: id)
-            .then(
-                (_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
+        onDownload: (id) => unawaited(downloadChatAttachment(
+          gateway: ref.read(gatewayProvider),
+          target: _target,
+          attachmentId: id,
+        ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
+        onCancel: (id) => unawaited(cancelChatAttachment(
+          gateway: ref.read(gatewayProvider),
+          target: _target,
+          attachmentId: id,
+        ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
         onOpen: (descriptor) => _openAttachment(view),
       );
 
@@ -262,10 +274,11 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   /// so the next poll re-renders the row's delivery status (mirrors the
   /// attachment download/cancel wiring).
   void _retryMessage(String messageId) {
-    unawaited(ref
-        .read(gatewayProvider)
-        .retryGroupMessage(groupId: widget.groupId, messageId: messageId)
-        .then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
+    unawaited(retryChatMessage(
+      gateway: ref.read(gatewayProvider),
+      target: _target,
+      messageId: messageId,
+    ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
   }
 
   /// Org admin one-click add (React `inviteMembersToGroup`, use-orgs.ts

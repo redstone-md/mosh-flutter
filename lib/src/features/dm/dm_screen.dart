@@ -44,6 +44,7 @@ import 'package:mosh/src/features/dm/voice_call_layer.dart' show VoiceCallLayer,
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
+import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/fingerprint_badge.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
@@ -79,6 +80,12 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   // `confirmedFingerprints.delete(target.id)` cleanup).
   Set<String> _confirmedFingerprints = {};
 
+  // The sealed [ChatTarget] for this DM session -- routes the screen's
+  // send/retry/attachment/leave dispatch through `chat_actions.dart` (the
+  // shared DM/channel/group seam, Gap 4) so the gateway method name is
+  // decided once here instead of triplicated across the three screens.
+  late final ChatTarget _target = DmTarget(widget.sessionId);
+
   @override
   void dispose() {
     _composer.dispose();
@@ -90,10 +97,11 @@ class _DmScreenState extends ConsumerState<DmScreen> {
     if (body.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(gatewayProvider).sendMessage(
-            sessionId: widget.sessionId,
-            body: body,
-          );
+      await sendChatText(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        body: body,
+      );
       _composer.clear();
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
@@ -115,13 +123,14 @@ class _DmScreenState extends ConsumerState<DmScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(gatewayProvider).sendPrivateAttachment(
-            sessionId: widget.sessionId,
-            fileName: attachment.fileName,
-            mime: attachment.mime,
-            dataBase64: attachment.dataBase64,
-            thumbnailBase64: attachment.thumbnailBase64,
-          );
+      await sendChatAttachment(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        fileName: attachment.fileName,
+        mime: attachment.mime,
+        dataBase64: attachment.dataBase64,
+        thumbnailBase64: attachment.thumbnailBase64,
+      );
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
     } finally {
@@ -144,16 +153,17 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       final bytes = await file.readAsBytes();
       final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
       final fileName = 'voice-message.$ext';
-      await ref.read(gatewayProvider).sendPrivateAttachment(
-            sessionId: widget.sessionId,
-            fileName: fileName,
-            mime: voice.mime,
-            dataBase64: base64Encode(bytes),
-            voice: VoiceMeta(
-              durationMs: voice.durationMs,
-              peaksB64: voice.peaksBase64,
-            ),
-          );
+      await sendChatAttachment(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        fileName: fileName,
+        mime: voice.mime,
+        dataBase64: base64Encode(bytes),
+        voice: VoiceMeta(
+          durationMs: voice.durationMs,
+          peaksB64: voice.peaksBase64,
+        ),
+      );
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
     } finally {
@@ -188,12 +198,16 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   /// (fire-and-forget via `unawaited`).
   DmAttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
       DmAttachmentCallbacks(
-        onDownload: (id) => unawaited(_gateway
-            .downloadAttachment(sessionId: _sessionId, attachmentId: id)
-            .then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
-        onCancel: (id) => unawaited(_gateway
-            .cancelAttachment(sessionId: _sessionId, attachmentId: id)
-            .then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
+        onDownload: (id) => unawaited(downloadChatAttachment(
+          gateway: _gateway,
+          target: _target,
+          attachmentId: id,
+        ).then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
+        onCancel: (id) => unawaited(cancelChatAttachment(
+          gateway: _gateway,
+          target: _target,
+          attachmentId: id,
+        ).then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
         onOpen: (descriptor) => _openAttachment(view),
       );
 
@@ -203,9 +217,11 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   /// so the next poll re-renders the row's delivery status (mirrors the
   /// attachment download/cancel wiring + the channel/group retry seam).
   void _retryMessage(String messageId) {
-    unawaited(_gateway
-        .retryDmMessage(sessionId: _sessionId, messageId: messageId)
-        .then((_) => ref.invalidate(activeSessionProvider(_sessionId))));
+    unawaited(retryChatMessage(
+      gateway: _gateway,
+      target: _target,
+      messageId: messageId,
+    ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))));
   }
 
   /// Opens the attachment's local file (React `openPath(local_path)` via
@@ -234,7 +250,10 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   /// channel/group `_leave` invalidation + `context.go(AppRoutes.sessions)`
   /// pattern.
   Future<void> _leave() async {
-    await ref.read(gatewayProvider).closeSession(sessionId: widget.sessionId);
+    await closeChatTarget(
+      gateway: ref.read(gatewayProvider),
+      target: _target,
+    );
     if (!mounted) return;
     setState(() => _confirmedFingerprints = _confirmedFingerprints
       ..remove(widget.sessionId));
