@@ -1403,4 +1403,4 @@
   "@lockScreenFailedMessage": {
     "description": "Body shown on MoshLockScreen when a non-PlatformException DEK error slips past the main() gate (defensive; rare)"
   }
- }
+}
