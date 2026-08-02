@@ -43,7 +43,10 @@ import 'package:mosh/src/platform/mobile_dek.dart' show initMobileDek;
 /// `StateError` or a corrupt Keystore would normally crash `main()`; this
 /// branch is belt-and-braces so a future caller of the lock screen can
 /// still render rather than blank).
-enum LockState { authenticating, canceled, failed }
+/// `insecureDevice` is the NOT-recoverable state for
+/// `BIOMETRIC_UNAVAILABLE` (no enrolled device credential) -- see the
+/// doc on `MoshLockScreen.initialState`.
+enum LockState { authenticating, canceled, failed, insecureDevice }
 
 /// Fail-closed retry UI shown when Android biometric auth is canceled at
 /// startup. The `retry` callback defaults to the real [initMobileDek] so
@@ -75,8 +78,22 @@ class MoshLockScreen extends ConsumerStatefulWidget {
   final Widget nextApp;
 
   /// Initial visual state. `main()` enters on a cancel so it defaults to
-  /// [LockState.canceled]; tests pump `failed` directly.
+  /// [LockState.canceled]; tests pump `failed` directly. For
+  /// [LockState.insecureDevice] (the NOT-recoverable
+  /// `BIOMETRIC_UNAVAILABLE` case -- no enrolled device credential),
+  /// `main()` pumps this state directly; see the doc below for why that
+  /// state renders message-only (no Retry button).
   final LockState initialState;
+
+  /// `main()` pumps this state directly when `initMobileDek()` throws a
+  /// `PlatformException` whose message contains `BIOMETRIC_UNAVAILABLE`
+  /// -- the device has NO enrolled PIN/pattern/password/biometric, so
+  /// re-prompting cannot help (the device itself must be secured first).
+  /// Unlike `canceled`, this state is NOT recoverable by Retry, so the
+  /// body renders the explanatory message with no Retry button. ADR 0011
+  /// fail-closed still holds: no DEK = no history access; the UI just
+  /// tells the user what is wrong instead of silently hanging on the
+  /// `authenticating` spinner (the prior default-init hang).
 
   @override
   ConsumerState<MoshLockScreen> createState() => _MoshLockScreenState();
@@ -138,6 +155,21 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
                   retryLabel: l.lockScreenRetry,
                   onRetry: _retry,
                 ),
+              // `BIOMETRIC_UNAVAILABLE`: the device has no enrolled
+              // PIN/pattern/password/biometric. NOT recoverable by Retry
+              // (re-prompting cannot mint a Keystore key without a device
+              // credential), so the body is message-only -- no Retry
+              // button. ADR 0011 fail-closed still holds; the UI just
+              // tells the user to set a screen lock. A Settings deep-link
+              // (android_intent_plus / url_launcher) is a follow-up: both
+              // are absent from pubspec today, and this atomic adds no
+              // new dep, so the message points at Settings -> Security
+              // in prose.
+              LockState.insecureDevice => _LockBody(
+                  icon: Icons.security_update_warning_outlined,
+                  title: l.lockScreenInsecureDeviceTitle,
+                  message: l.lockScreenInsecureDeviceMessage,
+                ),
             },
           ),
         ),
@@ -146,23 +178,31 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
   }
 }
 
-/// Shared titled + icon + message + retry layout for the `canceled` and
-/// `failed` states (they differ only in icon and message copy). Pulled out
-/// so the `build` switch above stays a flat one-branch-per-state read.
+/// Shared titled + icon + message + optional-retry layout for the
+/// `canceled`, `failed`, and `insecureDevice` states (they differ only in
+/// icon, message copy, and whether a Retry button renders). Pulled out so
+/// the `build` switch above stays a flat one-branch-per-state read. The
+/// retry fields are nullable: `insecureDevice` passes `null` (message-
+/// only, since re-prompting cannot help when no device credential is
+/// enrolled); `canceled`/`failed` pass both so the Retry button renders.
 class _LockBody extends StatelessWidget {
   const _LockBody({
     required this.icon,
     required this.title,
     required this.message,
-    required this.retryLabel,
-    required this.onRetry,
+    this.retryLabel,
+    this.onRetry,
   });
 
   final IconData icon;
   final String title;
   final String message;
-  final String retryLabel;
-  final VoidCallback onRetry;
+  /// Retry button label; when `null` the button is omitted (used by the
+  /// `insecureDevice` state, which is NOT retry-recoverable).
+  final String? retryLabel;
+  /// Retry callback; when `null` the button is omitted. Must be non-null
+  /// whenever [retryLabel] is non-null.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -175,12 +215,14 @@ class _LockBody extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text(message, textAlign: TextAlign.center),
-        const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh),
-          label: Text(retryLabel),
-        ),
+        if (retryLabel != null && onRetry != null) ...[
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: Text(retryLabel!),
+          ),
+        ],
       ],
     );
   }

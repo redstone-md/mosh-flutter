@@ -1,7 +1,16 @@
 import 'dart:async' show Completer;
 import 'dart:io' show Platform;
 
-import 'package:flutter/material.dart';
+// `hide LockState` resolves an ambiguous-import clash: Flutter's
+// `package:flutter/material.dart` (via `shortcuts.dart`) re-exports a
+// `LockState` (a ShortcutActivator-behavior enum), and this file's lock
+// screen also defines `LockState` (the MoshLockScreen visual state).
+// main() only ever references the MoshLockScreen `LockState` (to pick
+// `initialState` on a BIOMETRIC_UNAVAILABLE catch); it never uses
+// Flutter's, so hiding Flutter's from the material import is the
+// minimal disambiguation (vs. aliasing the lock-screen import, which
+// would force `lock.LockState` at the two call sites).
+import 'package:flutter/material.dart' hide LockState;
 import 'package:flutter/services.dart' show PlatformException;
 
 import 'package:intl/date_symbol_data_local.dart';
@@ -167,14 +176,30 @@ void main() async {
     try {
       await initMobileDek();
       root = const MoshApp();
-    } on PlatformException {
-      // Biometric cancel: fail-closed retry UI. The lock screen re-runs
-      // initMobileDek on Retry (re-prompting biometric per ADR 0011), and
-      // swaps the running root to MoshApp on success via _appRoot.value =
-      // next. See mosh_lock_screen.dart for the swap-mechanism rationale.
+    } on PlatformException catch (error) {
+      // Two failure modes collapse into this one PlatformException catch:
+      // (1) a biometric CANCEL (the prompt was dismissed) -- recoverable
+      // by re-prompting, so the lock screen's `canceled` state with a
+      // Retry button is correct; (2) `BIOMETRIC_UNAVAILABLE` -- the device
+      // has NO enrolled PIN/pattern/password/biometric, so re-prompting
+      // cannot mint a Keystore key (the device itself must be secured
+      // first). Distinguishing them here avoids the prior default-init
+      // hang: without branching, the default `initialState`
+      // (`authenticating`, the spinner shown only while a retry is in
+      // flight) left the lock screen on the spinner forever -- no Retry
+      // button visible, no message, indistinguishable from the native
+      // splash / a hang. The message match is the only field
+      // `flutter_secure_storage` surfaces for this case (verified on
+      // device: `message: "BIOMETRIC_UNAVAILABLE: Biometric enforcement
+      // enabled but device has no PIN, pattern, password, or biometric
+      // enrolled. Cannot generate secure key."`).
+      final bool insecureDevice =
+          error.message?.contains('BIOMETRIC_UNAVAILABLE') ?? false;
       root = MoshLockScreen(
         swapTo: (Widget next) => _appRoot.value = next,
         nextApp: const MoshApp(),
+        initialState:
+            insecureDevice ? LockState.insecureDevice : LockState.canceled,
       );
     }
   } else {
