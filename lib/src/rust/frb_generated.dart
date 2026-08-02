@@ -11,6 +11,7 @@ import 'api/private_dm.dart';
 import 'api/private_group.dart';
 import 'api/shared_runtime.dart';
 import 'api/voice_call_opus_encode.dart';
+import 'api/voice_call_playback.dart';
 import 'api/vpn.dart';
 import 'attachment_runtime.dart';
 import 'channel_runtime.dart';
@@ -88,7 +89,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -67185941;
+  int get rustContentHash => -35078087;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -311,6 +312,14 @@ abstract class RustLibApi extends BaseApi {
 
   VoiceCallOpusEncoder crateApiVoiceCallOpusEncodeVoiceCallOpusEncoderNew();
 
+  void crateApiVoiceCallPlaybackVoiceCallPlaybackPushFrame(
+      {required VoicePlayback p, required BigInt seq, required List<int> opus});
+
+  VoicePlayback crateApiVoiceCallPlaybackVoiceCallPlaybackStart();
+
+  void crateApiVoiceCallPlaybackVoiceCallPlaybackStop(
+      {required VoicePlayback p});
+
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_SharedResources;
 
@@ -328,6 +337,15 @@ abstract class RustLibApi extends BaseApi {
 
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_VoiceCallOpusEncoderPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_VoicePlayback;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_VoicePlayback;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_VoicePlaybackPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -2114,6 +2132,87 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             argNames: [],
           );
 
+  @override
+  void crateApiVoiceCallPlaybackVoiceCallPlaybackPushFrame(
+      {required VoicePlayback p,
+      required BigInt seq,
+      required List<int> opus}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+            p, serializer);
+        sse_encode_U128(seq, serializer);
+        sse_encode_list_prim_u_8_loose(opus, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiVoiceCallPlaybackVoiceCallPlaybackPushFrameConstMeta,
+      argValues: [p, seq, opus],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiVoiceCallPlaybackVoiceCallPlaybackPushFrameConstMeta =>
+          const TaskConstMeta(
+            debugName: "voice_call_playback_push_frame",
+            argNames: ["p", "seq", "opus"],
+          );
+
+  @override
+  VoicePlayback crateApiVoiceCallPlaybackVoiceCallPlaybackStart() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 66)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiVoiceCallPlaybackVoiceCallPlaybackStartConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiVoiceCallPlaybackVoiceCallPlaybackStartConstMeta =>
+      const TaskConstMeta(
+        debugName: "voice_call_playback_start",
+        argNames: [],
+      );
+
+  @override
+  void crateApiVoiceCallPlaybackVoiceCallPlaybackStop(
+      {required VoicePlayback p}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+            p, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 67)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiVoiceCallPlaybackVoiceCallPlaybackStopConstMeta,
+      argValues: [p],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiVoiceCallPlaybackVoiceCallPlaybackStopConstMeta =>
+      const TaskConstMeta(
+        debugName: "voice_call_playback_stop",
+        argNames: ["p"],
+      );
+
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_SharedResources => wire
           .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSharedResources;
@@ -2129,6 +2228,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustArcDecrementStrongCountFnType
       get rust_arc_decrement_strong_count_VoiceCallOpusEncoder => wire
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_VoicePlayback => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_VoicePlayback => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback;
 
   @protected
   SharedResources
@@ -2147,11 +2254,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VoicePlayback
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return VoicePlaybackImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   VoiceCallOpusEncoder
       dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return VoiceCallOpusEncoderImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  VoicePlayback
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return VoicePlaybackImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2171,9 +2294,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VoicePlayback
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return VoicePlaybackImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
+  }
+
+  @protected
+  BigInt dco_decode_U128(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BigInt.parse(raw);
   }
 
   @protected
@@ -3411,11 +3548,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VoicePlayback
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return VoicePlaybackImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   VoiceCallOpusEncoder
       sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return VoiceCallOpusEncoderImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  VoicePlayback
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return VoicePlaybackImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -3438,10 +3593,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VoicePlayback
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return VoicePlaybackImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
+  }
+
+  @protected
+  BigInt sse_decode_U128(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return BigInt.parse(inner);
   }
 
   @protected
@@ -4942,11 +5113,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          VoicePlayback self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as VoicePlaybackImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
       sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
           VoiceCallOpusEncoder self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as VoiceCallOpusEncoderImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          VoicePlayback self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as VoicePlaybackImpl).frbInternalSseEncode(move: false),
         serializer);
   }
 
@@ -4971,9 +5162,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
+          VoicePlayback self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as VoicePlaybackImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_U128(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.toString(), serializer);
   }
 
   @protected
@@ -6148,5 +6355,25 @@ class VoiceCallOpusEncoderImpl extends RustOpaque
         .instance.api.rust_arc_decrement_strong_count_VoiceCallOpusEncoder,
     rustArcDecrementStrongCountPtr: RustLib
         .instance.api.rust_arc_decrement_strong_count_VoiceCallOpusEncoderPtr,
+  );
+}
+
+@sealed
+class VoicePlaybackImpl extends RustOpaque implements VoicePlayback {
+  // Not to be used by end users
+  VoicePlaybackImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  VoicePlaybackImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_VoicePlayback,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_VoicePlayback,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_VoicePlaybackPtr,
   );
 }

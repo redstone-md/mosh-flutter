@@ -26,8 +26,9 @@
 
 // Section: imports
 
-use crate::api::voice_call_opus_encode::*;
-use crate::api::shared_runtime::*;use flutter_rust_bridge::{Handler, IntoIntoDart};
+use crate::api::shared_runtime::*;
+use crate::api::voice_call_playback::*;
+use crate::api::voice_call_opus_encode::*;use flutter_rust_bridge::{Handler, IntoIntoDart};
 use flutter_rust_bridge::for_generated::{Lockable, transform_result_dco, Lifetimeable};
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, WriteBytesExt, ReadBytesExt};
 
@@ -50,7 +51,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
                     default_rust_auto_opaque = RustAutoOpaqueMoi,
                 );
                 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-                pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -67185941;
+                pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -35078087;
             
 
 // Section: executor
@@ -705,12 +706,57 @@ let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decod
                 transform_result_sse::<_, String>((move || {
                      let output_ok = crate::api::voice_call_opus_encode::voice_call_opus_encoder_new()?;   Ok(output_ok)
                 })()) })
+            }fn wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "voice_call_playback_push_frame", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_p = <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>>::sse_decode(&mut deserializer);
+let api__seq = <u128>::sse_decode(&mut deserializer);
+let api_opus = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, String>((move || {
+                    let mut api_p_guard = None;
+let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_p, 0, false)]);
+        for i in decode_indices_ {
+            match i {
+                0 => api_p_guard = Some(api_p.lockable_decode_sync_ref()),
+                _ => unreachable!(),
+            }
+        }
+        let api_p_guard = api_p_guard.unwrap();
+ let output_ok = crate::api::voice_call_playback::voice_call_playback_push_frame(&*api_p_guard, api__seq, api_opus)?;   Ok(output_ok)
+                })()) })
+            }fn wire__crate__api__voice_call_playback__voice_call_playback_start_impl(ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "voice_call_playback_start", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+                transform_result_sse::<_, String>((move || {
+                     let output_ok = crate::api::voice_call_playback::voice_call_playback_start()?;   Ok(output_ok)
+                })()) })
+            }fn wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "voice_call_playback_stop", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_p = <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, String>((move || {
+                    let mut api_p_guard = None;
+let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_p, 0, false)]);
+        for i in decode_indices_ {
+            match i {
+                0 => api_p_guard = Some(api_p.lockable_decode_sync_ref()),
+                _ => unreachable!(),
+            }
+        }
+        let api_p_guard = api_p_guard.unwrap();
+ let output_ok = crate::api::voice_call_playback::voice_call_playback_stop(&*api_p_guard)?;   Ok(output_ok)
+                })()) })
             }
 
 // Section: related_funcs
 
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SharedResources>);
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>);
+flutter_rust_bridge::frb_generated_moi_arc_impl_value!(flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>);
 
 
 // Section: dart2rust
@@ -728,6 +774,12 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(flutter_rust_bridge::for_
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);}
                 }
                 
+                impl SseDecode for VoicePlayback {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);}
+                }
+                
                 impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SharedResources>> {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <usize>::sse_decode(deserializer);
@@ -740,10 +792,22 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(flutter_rust_bridge::for_
         return decode_rust_opaque_moi(inner);}
                 }
                 
+                impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <usize>::sse_decode(deserializer);
+        return decode_rust_opaque_moi(inner);}
+                }
+                
                 impl SseDecode for String {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <Vec<u8>>::sse_decode(deserializer);
         return String::from_utf8(inner).unwrap();}
+                }
+                
+                impl SseDecode for u128 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <String>::sse_decode(deserializer);
+        return inner.parse().unwrap();}
                 }
                 
                 impl SseDecode for crate::private_dm_runtime::contracts::AcceptInviteRequest {
@@ -1718,6 +1782,9 @@ return crate::api::vpn::VpnDetection{vpn_likely: var_vpnLikely, suspect_interfac
                     match func_id {
                         63 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(ptr, rust_vec_len, data_len),
 64 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(ptr, rust_vec_len, data_len),
+65 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(ptr, rust_vec_len, data_len),
+66 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(ptr, rust_vec_len, data_len),
+67 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
                 }
@@ -1751,6 +1818,21 @@ return crate::api::vpn::VpnDetection{vpn_likely: var_vpnLikely, suspect_interfac
 
                 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<VoiceCallOpusEncoder>> for VoiceCallOpusEncoder {
             fn into_into_dart(self) -> FrbWrapper<VoiceCallOpusEncoder> {
+                self.into()
+            }
+        }
+
+                
+                // Codec=Dco (DartCObject based), see doc to use other codecs
+            impl flutter_rust_bridge::IntoDart for FrbWrapper<VoicePlayback> {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0).into_dart()
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<VoicePlayback> {}
+
+                impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<VoicePlayback>> for VoicePlayback {
+            fn into_into_dart(self) -> FrbWrapper<VoicePlayback> {
                 self.into()
             }
         }
@@ -2763,6 +2845,11 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::vpn::VpnDetection> for crate:
                     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);}
                 }
                 
+                impl SseEncode for VoicePlayback {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);}
+                }
+                
                 impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SharedResources>> {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {let (ptr, size) = self.sse_encode_raw();
@@ -2777,9 +2864,21 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::vpn::VpnDetection> for crate:
                 <i32>::sse_encode(size, serializer);}
                 }
                 
+                impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {let (ptr, size) = self.sse_encode_raw();
+                <usize>::sse_encode(ptr, serializer);
+                <i32>::sse_encode(size, serializer);}
+                }
+                
                 impl SseEncode for String {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<Vec<u8>>::sse_encode(self.into_bytes(), serializer);}
+                }
+                
+                impl SseEncode for u128 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<String>::sse_encode(self.to_string(), serializer);}
                 }
                 
                 impl SseEncode for crate::private_dm_runtime::contracts::AcceptInviteRequest {
@@ -3571,8 +3670,9 @@ crate::outbound_delivery::MessageDeliveryStatus::Failed => { 3 }
 
 // Section: imports
 
-use crate::api::voice_call_opus_encode::*;
-use crate::api::shared_runtime::*;use flutter_rust_bridge::{Handler, IntoIntoDart};
+use crate::api::shared_runtime::*;
+use crate::api::voice_call_playback::*;
+use crate::api::voice_call_opus_encode::*;use flutter_rust_bridge::{Handler, IntoIntoDart};
 use flutter_rust_bridge::for_generated::{Lockable, transform_result_dco, Lifetimeable};
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, WriteBytesExt, ReadBytesExt};use super::*;
 
@@ -3615,6 +3715,18 @@ flutter_rust_bridge::frb_generated_boilerplate_io!();
                 }
             
 
+                #[unsafe(no_mangle)]
+                pub extern "C" fn frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(ptr: *const std::ffi::c_void)  {
+                    MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>::increment_strong_count(ptr as _);
+                }
+            
+
+                #[unsafe(no_mangle)]
+                pub extern "C" fn frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(ptr: *const std::ffi::c_void)  {
+                    MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>::decrement_strong_count(ptr as _);
+                }
+            
+
         }
         #[cfg(not(target_family = "wasm"))]
         pub use io::*;
@@ -3630,8 +3742,9 @@ flutter_rust_bridge::frb_generated_boilerplate_io!();
 
 // Section: imports
 
-use crate::api::voice_call_opus_encode::*;
-use crate::api::shared_runtime::*;use flutter_rust_bridge::{Handler, IntoIntoDart};
+use crate::api::shared_runtime::*;
+use crate::api::voice_call_playback::*;
+use crate::api::voice_call_opus_encode::*;use flutter_rust_bridge::{Handler, IntoIntoDart};
 use flutter_rust_bridge::for_generated::{Lockable, transform_result_dco, Lifetimeable};
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, WriteBytesExt, ReadBytesExt};use super::*;
                 use flutter_rust_bridge::for_generated::wasm_bindgen;
@@ -3674,6 +3787,18 @@ flutter_rust_bridge::frb_generated_boilerplate_web!();
                 #[wasm_bindgen]
                 pub  fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(ptr: *const std::ffi::c_void)  {
                     MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoiceCallOpusEncoder>>::decrement_strong_count(ptr as _);
+                }
+            
+
+                #[wasm_bindgen]
+                pub  fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(ptr: *const std::ffi::c_void)  {
+                    MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>::increment_strong_count(ptr as _);
+                }
+            
+
+                #[wasm_bindgen]
+                pub  fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(ptr: *const std::ffi::c_void)  {
+                    MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<VoicePlayback>>::decrement_strong_count(ptr as _);
                 }
             
 
