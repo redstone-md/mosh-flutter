@@ -88,6 +88,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
 /// Group screen for one private group. Own vs others is inferred from
@@ -139,6 +140,24 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   // DmScreen's `_search` / `_filter` (filter-then-group order).
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    // Mark this group as the active conversation so the unread lifecycle
+    // clears its badge on the next focused poll (mirrors React's
+    // `activeConversationKey = conversationKey(active)` on screen open).
+    // Deferred via a microtask because Riverpod forbids modifying a
+    // provider during a widget lifecycle method (initState/build/dispose)
+    // -- the set lands after the current build, matching React's effect
+    // running after render.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref
+          .read(activeConversationKeyProvider.notifier)
+          .set('group:${widget.groupId}');
+    });
+  }
 
   @override
   void dispose() {
@@ -329,6 +348,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
       _lastFailedSend = null;
       _chatError = null;
     });
+    // Clear the active conversation so the unread lifecycle stops suppressing
+    // toasts for this group (mirrors React's `active` going null on close).
+    ref.read(activeConversationKeyProvider.notifier).clear();
     await closeChatTarget(
       gateway: ref.read(gatewayProvider),
       target: _target,

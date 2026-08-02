@@ -66,7 +66,8 @@ import 'package:mosh/src/state/dm_offer_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/state/org_providers.dart';
-import 'package:mosh/src/state/unread_providers.dart';
+import 'package:mosh/src/state/active_conversation_key_provider.dart';
+import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
@@ -96,16 +97,21 @@ class SessionsScreen extends ConsumerWidget {
     // re-polls and the offer row disappears). Rendered at the TOP of the
     // rail (React SessionRail order: offers -> sessions -> groups -> channels).
     final pendingOffers = ref.watch(pendingDmOffersProvider);
-    // Unread map is data-only; AsyncValue guards leave it {} while loading
-    // or on error so the badge simply stays absent (mirrors React clearing
-    // to 0 visually during a refresh).
-    final unread = ref.watch(unreadDmCountsProvider).value ?? const {};
-    // Channels/groups unread maps -- same `.value ?? const {}` degrade as
-    // the DM map: loading/error leaves them empty so the rail badges stay
-    // absent (mirrors React clearing to 0 during a refresh).
-    final unreadChannels =
-        ref.watch(unreadChannelCountsProvider).value ?? const {};
-    final unreadGroups = ref.watch(unreadGroupCountsProvider).value ?? const {};
+    // Unread lifecycle map -- the React `useUnreadNotifications.unread`
+    // port (unread_lifecycle_provider.dart). It merges the DM/channel/group
+    // count maps into ONE diffed map keyed `dm:<id>` / `channel:<name>` /
+    // `group:<id>`, and is the source the rail reads so clearOnActive takes
+    // effect (the active conversation's badge clears when focused). The
+    // raw count providers (unreadDmCountsProvider etc.) stay the upstream
+    // the lifecycle provider watches; the screen no longer reads them
+    // directly. Reads the notifier so `clearUnread(key)` is callable on
+    // select (mirrors React's rail `onSelect` calling clearUnread).
+    final unread = ref.watch(unreadLifecycleProvider);
+    final unreadNotifier = ref.read(unreadLifecycleProvider.notifier);
+    // The active-conversation key (active_conversation_key_provider.dart),
+    // set on select + open + cleared on leave (mirrors React's
+    // `activeConversationKey`). Reads the notifier for the set call below.
+    final activeKeyNotifier = ref.read(activeConversationKeyProvider.notifier);
     // Revoked-org DM badges -- the React `SessionRail` subtitle branch
     // (SessionRail.tsx L36-38): session-id -> org-name for org-bound DMs whose
     // peer left the roster. Degrades to an empty map while orgs load or on
@@ -166,6 +172,14 @@ class SessionsScreen extends ConsumerWidget {
                 session: session,
                 unreadCount: unread['dm:${session.sessionId}'] ?? 0,
                 revokedOrgName: revokedBadges[session.sessionId],
+                // Select hook: clear this conversation's badge + mark it the
+                // active conversation so the lifecycle clears it on focus
+                // (mirrors React's rail `onSelect` -> clearUnread(key) +
+                // activeConversationKey set). The navigate still runs after.
+                onSelect: () {
+                  unreadNotifier.clearUnread('dm:${session.sessionId}');
+                  activeKeyNotifier.set('dm:${session.sessionId}');
+                },
               ),
             if (groups.isNotEmpty && sessions.isNotEmpty)
               const Divider(height: 1, thickness: 1),
@@ -175,7 +189,13 @@ class SessionsScreen extends ConsumerWidget {
               // DM row's `unread['dm:<sessionId>']` lookup.
               GroupRailItem(
                 group: group,
-                unreadCount: unreadGroups['group:${group.groupId}'] ?? 0,
+                unreadCount: unread['group:${group.groupId}'] ?? 0,
+                // Select hook: same clearUnread + activeKey set as the DM
+                // row, keyed `'group:<groupId>'` (the group identity).
+                onSelect: () {
+                  unreadNotifier.clearUnread('group:${group.groupId}');
+                  activeKeyNotifier.set('group:${group.groupId}');
+                },
               ),
             if (channels.isNotEmpty &&
                 (sessions.isNotEmpty || groups.isNotEmpty))
@@ -185,7 +205,13 @@ class SessionsScreen extends ConsumerWidget {
               // `'channel:<name>'` (fingerprint comparison).
               ChannelRailItem(
                 channel: channel,
-                unreadCount: unreadChannels['channel:${channel.name}'] ?? 0,
+                unreadCount: unread['channel:${channel.name}'] ?? 0,
+                // Select hook: same clearUnread + activeKey set as the DM
+                // row, keyed `'channel:<name>'`.
+                onSelect: () {
+                  unreadNotifier.clearUnread('channel:${channel.name}');
+                  activeKeyNotifier.set('channel:${channel.name}');
+                },
               ),
             for (final org in orgs) ...[
               // React SessionRail renders each org wrapped in a
@@ -326,11 +352,19 @@ class _SessionRow extends StatelessWidget {
     required this.session,
     this.unreadCount = 0,
     this.revokedOrgName,
+    this.onSelect,
   });
 
   final SessionSnapshot session;
   final int unreadCount;
   final String? revokedOrgName;
+
+  /// Optional select hook called BEFORE the navigate, so the parent
+  /// (SessionsScreen) can clear the unread badge + set the active
+  /// conversation key for this session (mirrors React's rail `onSelect`
+  /// calling `clearUnread(conversationKey(item))`). Null keeps the prior
+  /// navigate-only behavior.
+  final VoidCallback? onSelect;
 
   String _label() {
     if (session.peerDisplayName.isNotEmpty) return session.peerDisplayName;
@@ -373,7 +407,13 @@ class _SessionRow extends StatelessWidget {
             UnreadBadge(count: unreadCount),
           ],
         ),
-        onTap: () => context.go(AppRoutes.dmFor(session.sessionId)),
+        onTap: () {
+          // Select hook first (clear badge + set active key), then navigate
+          // -- mirrors React's rail `onSelect` -> clearUnread(key) then the
+          // screen swaps. The navigate stays identical for behavior parity.
+          onSelect?.call();
+          context.go(AppRoutes.dmFor(session.sessionId));
+        },
       ),
     );
   }

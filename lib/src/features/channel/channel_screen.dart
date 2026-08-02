@@ -67,6 +67,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/active_conversation_key_provider.dart';
 
 /// Channel screen for one public channel. Own vs others is inferred from
 /// `ChannelMessage.fromFingerprint` vs the channel's `deviceFingerprint`
@@ -116,6 +117,24 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   // DmScreen's `_search` / `_filter` (filter-then-group order).
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    // Mark this channel as the active conversation so the unread lifecycle
+    // clears its badge on the next focused poll (mirrors React's
+    // `activeConversationKey = conversationKey(active)` on screen open).
+    // Deferred via a microtask because Riverpod forbids modifying a
+    // provider during a widget lifecycle method (initState/build/dispose)
+    // -- the set lands after the current build, matching React's effect
+    // running after render.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref
+          .read(activeConversationKeyProvider.notifier)
+          .set('channel:${widget.name}');
+    });
+  }
 
   @override
   void dispose() {
@@ -305,6 +324,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       _lastFailedSend = null;
       _chatError = null;
     });
+    // Clear the active conversation so the unread lifecycle stops suppressing
+    // toasts for this channel (mirrors React's `active` going null on close).
+    ref.read(activeConversationKeyProvider.notifier).clear();
     await closeChatTarget(
       gateway: ref.read(gatewayProvider),
       target: _target,

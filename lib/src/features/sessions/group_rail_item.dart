@@ -47,11 +47,19 @@ class GroupRailItem extends StatelessWidget {
     required this.group,
     this.active = false,
     this.unreadCount = 0,
+    this.onSelect,
   });
 
   final GroupSnapshot group;
   final bool active;
   final int unreadCount;
+
+  /// Optional select hook called BEFORE the navigate, so the parent
+  /// (SessionsScreen) can clear the unread badge + set the active
+  /// conversation key for this group (mirrors React's rail `onSelect`
+  /// calling `clearUnread(conversationKey(item))`). Null keeps the prior
+  /// navigate-only behavior for any other caller.
+  final VoidCallback? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +93,10 @@ class GroupRailItem extends StatelessWidget {
         // Open the group screen for this group (mirrors React
         // `onSelect({ type: "group", id })`). Keyed by `groupId` (the group
         // identity), not a name.
-        onTap: () => context.go(AppRoutes.groupFor(group.groupId)),
+        onTap: () {
+          onSelect?.call();
+          context.go(AppRoutes.groupFor(group.groupId));
+        },
       ),
     );
   }
