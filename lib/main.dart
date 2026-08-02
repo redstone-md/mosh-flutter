@@ -23,10 +23,20 @@ void main() async {
   // Slice-3 voice-call: initialize window_manager before any isFocused()
   // call (the incoming-call OS-notification focus check in VoiceCallLayer
   // awaits `windowManager.isFocused()` on Windows/macOS). Must run after
-  // WidgetsFlutterBinding and before the first frame. A no-op on hosts
-  // without a window_manager platform impl (e.g. `flutter test`), so it
-  // stays green in tests.
-  await windowManager.ensureInitialized();
+  // WidgetsFlutterBinding and before the first frame. window_manager is a
+  // DESKTOP-only plugin (Windows/macOS/Linux): it registers NO platform
+  // channel implementation on Android/iOS, so `ensureInitialized()` there
+  // throws `MissingPluginException('ensureInitialized' on channel
+  // window_manager)` -- which, as the first `await` in main(), killed the
+  // isolate before `runApp` and left the Android launch showing only the
+  // native splash (device-pass finding, ADR slice-3). Gate to the supported
+  // desktop hosts so Android/iOS skip it (and `flutter test` already skips
+  // it via no host). The later `windowManager.isFocused()` callers are
+  // themselves desktop-gated, so no Android call site reaches a missing
+  // channel.
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    await windowManager.ensureInitialized();
+  }
   // Load intl date symbols once so non-en locales (e.g. ru) format dates
   // in-locale via `DateFormat` (used by `formatClock` / `formatClockFull`
   // for the locale-aware message timestamp). Idempotent + cheap; en ships
