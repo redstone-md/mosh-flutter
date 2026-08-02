@@ -729,6 +729,11 @@
   "orgMemberAria": "Написать {name}",
   "orgMemberYouAria": "{name} (вы)",
   "orgNewGroupAria": "Новая группа организации в {name}",
-  "notificationNewMessageTitle": "Mosh",
-  "notificationNewMessageBody": "{label} — новое сообщение"
+ "notificationNewMessageTitle": "Mosh",
+ "notificationNewMessageBody": "{label} — новое сообщение",
+  "lockScreenTitle": "Mosh заблокирован",
+  "lockScreenUnlocking": "Разблокировка Mosh...",
+  "lockScreenCanceledMessage": "Биометрическая аутентификация отменена. Нажмите «Повторить», чтобы разблокировать переписки.",
+  "lockScreenRetry": "Повторить",
+  "lockScreenFailedMessage": "Не удалось пройти аутентификацию. Нажмите «Повторить» или перезапустите приложение."
 }
