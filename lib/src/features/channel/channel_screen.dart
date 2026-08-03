@@ -50,18 +50,12 @@ import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart' show PeerActions;
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
-import 'package:mosh/src/features/channel/channel_message_row.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
-import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/attachment_media_src.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
-import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/features/shared/chat_actions.dart';
-import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView, AttachmentDescriptor, AttachmentState, StartSessionRequest;
@@ -71,6 +65,9 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart'
     show inviteFlowProvider, sessionListProvider;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
+
+import 'package:mosh/src/features/channel/channel_screen_body.dart';
+import 'package:mosh/src/features/channel/channel_message_list_view.dart';
 
 /// Channel screen for one public channel. Own vs others is inferred from
 /// `ChannelMessage.fromFingerprint` vs the channel's `deviceFingerprint`
@@ -391,8 +388,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// the channel snapshot so the next poll re-renders state + progress
   /// (fire-and-forget via `unawaited`, mirrors DmScreen's
   /// `_attachmentCallbacks`).
-  _AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
-      _AttachmentCallbacks(
+  ChannelAttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
+      ChannelAttachmentCallbacks(
         onDownload: (id) => unawaited(downloadChatAttachment(
           gateway: ref.read(gatewayProvider),
           target: _target,
@@ -537,255 +534,35 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                // Inline error banner (Gap 3) -- 1-1 with React
-                // private-dm-screen.tsx L337-341
-                // `{!showWelcome && error ? <ChatError message={error}
-                // onRetry={canRetrySend ? retryFailedSend : undefined} /> :
-                // null}`. Placed at the top of the chat-pane (above the
-                // CryptoNoticeBanner); the Retry button is active iff
-                // [_canRetrySend].
-                if (_chatError != null)
-                  ChatErrorBanner(
-                    message: _chatError!,
-                    onRetry: _canRetrySend ? _retryFailedSend : null,
-                  ),
-                CryptoNoticeBanner(
-                  // React `PublicNotice` (ActiveChatPanes.tsx ~L434-445):
-                  // `crypto-banner crypto-banner-public` with `IconHash`.
-                  // Material `Icons.tag` is the closest hash glyph; the
-                  // info-blue accent mirrors React's
-                  // `.crypto-banner-public` border / `.crypto-icon` tint
-                  // (rgba(108,183,232,*)).
-                  icon: Icons.tag,
-                  title: l.channelNoticeTitle,
-                  body: l.channelNoticeBody,
-                  accent: const Color(0xFF6CB7E8),
-                ),
-                // Desktop search/filter row -- gated on the desktop
-                // breakpoint (React hides `.conversation-tools-desktop` at
-                // `max-width: 580px`). On desktop the row renders exactly as
-                // before (byte-identical); on mobile the compact trio below
-                // replaces it.
-                if (!isMobileBreakpoint(context))
-                  ConversationTools(
-                    search: _search,
-                    filter: _filter,
-                    onSearch: (value) => setState(() => _search = value),
-                    onFilter: (value) => setState(() => _filter = value),
-                    l: l,
-                  ),
-                // Mobile search/filter trio -- 1-1 with React
-                // ActiveChatHeader `mobileSearchOpen ? <MobileConversation
-                // Search/> : null` + the always-rendered
-                // `MobileConversationFilterNotice` (null-collapses when
-                // filter == all). Only on mobile (the toggle is gated in
-                // the AppBar on the same breakpoint).
-                if (isMobileBreakpoint(context)) ...[
-                  if (_mobileSearchOpen)
-                    MobileConversationSearch(
-                      search: _search,
-                      onSearch: (value) => setState(() => _search = value),
-                      onClose: () =>
-                          setState(() => _mobileSearchOpen = false),
-                      l: l,
-                    ),
-                  MobileConversationFilterNotice(
-                    filter: _filter,
-                    onFilter: (value) => setState(() => _filter = value),
-                    l: l,
-                  ),
-                ],
-                Expanded(
-                  child: async.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text(e.toString())),
-                    data: (snapshot) {
-                      if (snapshot.messages.isEmpty) {
-                        return const _Empty();
-                      }
-                      // React's filter-THEN-group order (MessageLists.tsx
-                      // `ChannelChatList`): filter the raw list, THEN group
-                      // the visible set so the 5-min window is computed
-                      // across what the user actually sees. Empty-after-
-                      // filter renders the shared `DmSearchEmpty` (the
-                      // React `SearchEmpty` branch), mirroring DmScreen.
-                      final filtered = filterChannelMessages(
-                        snapshot.messages,
-                        _search,
-                        _filter,
-                      );
-                      if (filtered.isEmpty) {
-                        return DmSearchEmpty(filter: _filter, l: l);
-                      }
-                     return _ChannelMessageListView(
-                       messages: filtered,
-                       ownFingerprint: snapshot.deviceFingerprint,
-                       attachments: snapshot.attachments,
-                       attachmentCallbacks: _attachmentCallbacks,
-                       onRetryMessage: _retryMessage,
-                       peer: PeerActions(
-                         ownFingerprint: snapshot.deviceFingerprint,
-                         offered: _offeredFingerprints,
-                         busy: _offerBusy,
-                         onMessage: _onPeerMessage,
-                       ),
-                     );
-                    },
-                  ),
-                ),
-                ConversationComposer(
-                  controller: _composer,
-                  sending: _sending,
-                  placeholder: l.chatComposerPlaceholder,
-                  sendLabel: l.chatSendLabel,
-                  onSend: _send,
-                  attachLabel: l.chatAttachLabel,
-                  onAttach: _sendAttachment,
-                  onAttachmentPickError: _onAttachmentPickError,
-                  voiceRecordLabel: l.voiceRecordLabel,
-                  voiceDiscardLabel: l.voiceDiscardLabel,
-                  voiceStopLabel: l.voiceStopLabel,
-                  voicePlayLabel: l.voicePlayLabel,
-                  voiceSendLabel: l.voiceSendLabel,
-                  onSendVoice: _sendVoice,
-                  onVoiceError: _onVoiceError,
-                ),
-              ],
-            ),
-            if (_showPeerStatus)
-              Positioned.fill(
-                child: PeerStatusDrawer(
-                  channel: channelForDrawer,
-                  error: errorForDrawer,
-                  refreshing: false,
-                  onRefresh: () =>
-                      ref.invalidate(channelSnapshotProvider(widget.name)),
-                  onClose: () => setState(() => _showPeerStatus = false),
-                ),
-              ),
-          ],
-        ),
+      body: ChannelScreenBody(
+        async: async,
+        chatError: _chatError,
+        canRetrySend: _canRetrySend,
+        onRetry: _retryFailedSend,
+        search: _search,
+        filter: _filter,
+        onSearch: (value) => setState(() => _search = value),
+        onFilter: (value) => setState(() => _filter = value),
+        mobileSearchOpen: _mobileSearchOpen,
+        onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
+        attachmentCallbacks: _attachmentCallbacks,
+        onRetryMessage: _retryMessage,
+        offeredFingerprints: _offeredFingerprints,
+        offerBusy: _offerBusy,
+        onPeerMessage: _onPeerMessage,
+        composerController: _composer,
+        sending: _sending,
+        onSend: _send,
+        onSendAttachment: _sendAttachment,
+        onAttachmentPickError: _onAttachmentPickError,
+        onSendVoice: _sendVoice,
+        onVoiceError: _onVoiceError,
+        showPeerStatus: _showPeerStatus,
+        onClosePeerStatus: () => setState(() => _showPeerStatus = false),
+        channelForDrawer: channelForDrawer,
+        errorForDrawer: errorForDrawer,
+        onRefresh: () => ref.invalidate(channelSnapshotProvider(widget.name)),
       ),
     );
-  }
-}
-
-/// Message list view. `reverse: true` keeps the newest message at the bottom
-/// (mirrors DmScreen's `_MessageListView`); grouping via
-/// [groupChannelMessages] (the 5-min, same-`fromFingerprint` rule ported
-/// from React `messageItems`/`shouldGroup`) so only the first row of a
-/// group renders the sender meta. Rows are [ChannelMessageRow] instances
-/// from `channel_message_row.dart`.
-class _ChannelMessageListView extends StatelessWidget {
- const _ChannelMessageListView({
-   required this.messages,
-   required this.ownFingerprint,
-   required this.attachments,
-   required this.attachmentCallbacks,
-   required this.onRetryMessage,
-   required this.peer,
- });
-
- final List<ChannelMessage> messages;
- final String ownFingerprint;
- final List<AttachmentView> attachments;
-
- /// Per-row transfer-action callbacks (download/cancel/open). Built by the
- /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
- /// `_attachmentCallbacks`).
- final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
-
- /// Retry a failed outbound message by its messageId (React
- /// `retryChannelMessage`). Fire-and-forget via `unawaited` then
- /// invalidate the channel snapshot; the screen builds this from the
- /// Gateway seam.
- final void Function(String messageId) onRetryMessage;
-
-  /// Peer-DM actions threaded into each [ChannelMessageRow]'s
-  /// [MultiPartySenderMeta] (React `PeerActions`). Built by the screen
-  /// from its offered set + offer-busy flag + the `_onPeerMessage`
-  /// closure (createInvite + sendChannelDmOffer + navigate).
-  final PeerActions peer;
-
-  @override
-  Widget build(BuildContext context) {
-    // Chronological grouping (oldest -> newest), then reversed for the
-    // reverse=true ListView (newest at the bottom). Mirrors DmScreen.
-    final grouped = groupChannelMessages(messages).reversed.toList();
-    final l = AppLocalizations.of(context)!;
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      reverse: true,
-      itemCount: grouped.length,
-      itemBuilder: (context, i) {
-        final item = grouped[i];
-        final msg = item.message;
-        // React parity: `view = attachments.views.get(attachment_id)` --
-        // a per-message lookup into the snapshot's attachment views. The
-        // DM port uses a linear scan (session lists are small); we mirror
-        // that idiom exactly (see DmScreen's `_findAttachmentView`).
-        final attachmentView = msg.attachment == null
-            ? null
-            : _findChannelAttachmentView(
-                attachments, msg.attachment!.attachmentId);
-        final callbacks = attachmentCallbacks(attachmentView);
-        return ChannelMessageRow(
-          message: msg,
-          ownFingerprint: ownFingerprint,
-          grouped: item.grouped,
-          attachmentView: attachmentView,
-          peer: peer,
-          l: l,
-          onAttachmentDownload: callbacks.onDownload,
-          onAttachmentCancel: callbacks.onCancel,
-          onAttachmentOpen: callbacks.onOpen,
-          onRetry: onRetryMessage,
-        );
-      },
-    );
-  }
-}
-
-/// Linear lookup for the channel attachment view by id (mirrors DmScreen's
-/// `_findAttachmentView` -- a channel's attachment list is small, so a plain
-/// scan avoids a Map).
-AttachmentView? _findChannelAttachmentView(
-    List<AttachmentView> attachments, String attachmentId) {
-  for (final v in attachments) {
-    if (v.attachmentId == attachmentId) return v;
-  }
-  return null;
-}
-
-/// Per-row attachment transfer-action callbacks for the channel screen.
-/// Mirrors DmScreen's `AttachmentCallbacks` value class (kept local to this
-/// file to avoid coupling channel/group to the DM screen's class).
-class _AttachmentCallbacks {
-  const _AttachmentCallbacks({
-    required this.onDownload,
-    required this.onCancel,
-    required this.onOpen,
-  });
-
-  final void Function(String attachmentId) onDownload;
-  final void Function(String attachmentId) onCancel;
-  final void Function(AttachmentDescriptor descriptor) onOpen;
-}
-
-/// Empty-state for a channel with no messages yet. Shell form: no localized
-/// title/body yet (deferred with the notice banner atomic); a plain hint so
-/// the layout is not bare.
-class _Empty extends StatelessWidget {
-  const _Empty();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text(''));
   }
 }

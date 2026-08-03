@@ -67,21 +67,13 @@ import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart' show PeerActions;
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
-import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/features/group/group_screen_header.dart';
-import 'package:mosh/src/features/group/group_rejoin_needed_error.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
-import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/attachment_media_src.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
-import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/features/shared/chat_actions.dart';
-import 'package:mosh/src/features/shared/chat_error_banner.dart';
-import 'package:mosh/src/features/group/org_add_missing_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView, AttachmentDescriptor, AttachmentState, StartSessionRequest;
@@ -92,6 +84,9 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart'
     show inviteFlowProvider, sessionListProvider;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
+
+import 'package:mosh/src/features/group/group_screen_body.dart';
+import 'package:mosh/src/features/group/group_message_list_view.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
 /// Group screen for one private group. Own vs others is inferred from
@@ -420,8 +415,8 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   /// the group snapshot so the next poll re-renders state + progress
   /// (fire-and-forget via `unawaited`, mirrors DmScreen's
   /// `_attachmentCallbacks` and ChannelScreen's mirror).
-  _AttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
-      _AttachmentCallbacks(
+  GroupAttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
+      GroupAttachmentCallbacks(
         onDownload: (id) => unawaited(downloadChatAttachment(
           gateway: ref.read(gatewayProvider),
           target: _target,
@@ -550,7 +545,6 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     final async = ref.watch(groupSnapshotProvider(widget.groupId));
     // Resolve the pending-open descriptor 1-1 with React's `useEffect`
     // (use-chat-orchestration.ts L267-283): when the group snapshot's
@@ -578,290 +572,37 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         onToggleMobileSearch: () =>
             setState(() => _mobileSearchOpen = !_mobileSearchOpen),
       ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                // Inline error banner (Gap 3) -- 1-1 with React
-                // private-dm-screen.tsx L337-341
-                // `{!showWelcome && error ? <ChatError message={error}
-                // onRetry={canRetrySend ? retryFailedSend : undefined} /> :
-                // null}`. Placed at the top of the chat-pane (above the
-                // CryptoNoticeBanner); the Retry button is active iff
-                // [_canRetrySend].
-                if (_chatError != null)
-                  ChatErrorBanner(
-                    message: _chatError!,
-                    onRetry: _canRetrySend ? _retryFailedSend : null,
-                  ),
-// React wires the group pane afterHeader (ActiveChatPanes.tsx L352-380)
-// as GroupNotice -> needs_rejoin -> orgAddPrompt. This port follows that
-// order: CryptoNoticeBanner, then RejoinNeeded, then OrgAddMissingBanner.
-                CryptoNoticeBanner(
-                  // React `GroupNotice` (ActiveChatPanes.tsx ~L420-432):
-                  // `crypto-banner crypto-banner-group` with `IconLock`.
-                  // Material `Icons.lock` mirrors lucide `IconLock`; the
-                  // moss-green accent mirrors React's
-                  // `.crypto-banner-group` border / `.crypto-icon` tint
-                  // (rgba(183,216,74,*), var(--moss-glow)).
-                  icon: Icons.lock,
-                  title: l.groupNoticeTitle,
-                  body: l.groupNoticeBody,
-                  accent: const Color(0xFFB7D84A),
-                ),
-                // React `needs_rejoin` fragment (ActiveChatPanes.tsx L355-360):
-                // `<div className="inline-error" role="alert"><strong>
-                // {rejoinNeededTitle}.</strong> {" "}{rejoinNeededBody}</div>`.
-                // Reads `group.needsRejoin` off the snapshot; renders ONLY when
-                // the snapshot is resolved AND the flag is true (loading/error
-                // => no banner). Stacks BELOW the GroupNotice, ABOVE
-                // ConversationTools -- matching React's afterHeader order.
-                if (_needsRejoin(async))
-                  GroupRejoinNeededError(
-                    title: l.orgRejoinNeededTitle,
-                    body: l.orgRejoinNeededBody,
-                  ),
-                if (orgAddPrompt != null && orgAddPrompt.count > 0)
-                  OrgAddMissingBanner(
-                    count: orgAddPrompt.count,
-                    busy: orgAddPrompt.busy,
-                    onAdd: () => _inviteMembers(orgAddPrompt),
-                    missingOne: l.orgMissingOne,
-                    missingMany: l.orgMissingMany,
-                    addLabel: l.orgAddMissing,
-                  ),
-                // Desktop search/filter row -- gated on the desktop
-                // breakpoint (React hides `.conversation-tools-desktop` at
-                // `max-width: 580px`). On desktop the row renders exactly as
-                // before (byte-identical); on mobile the compact trio below
-                // replaces it.
-                if (!isMobileBreakpoint(context))
-                  ConversationTools(
-                    search: _search,
-                    filter: _filter,
-                    onSearch: (value) => setState(() => _search = value),
-                    onFilter: (value) => setState(() => _filter = value),
-                    l: l,
-                  ),
-                // Mobile search/filter trio -- 1-1 with React
-                // ActiveChatHeader `mobileSearchOpen ? <MobileConversation
-                // Search/> : null` + the always-rendered
-                // `MobileConversationFilterNotice` (null-collapses when
-                // filter == all). Only on mobile (the toggle is gated in
-                // [GroupScreenHeader] on the same breakpoint).
-                if (isMobileBreakpoint(context)) ...[
-                  if (_mobileSearchOpen)
-                    MobileConversationSearch(
-                      search: _search,
-                      onSearch: (value) => setState(() => _search = value),
-                      onClose: () =>
-                          setState(() => _mobileSearchOpen = false),
-                      l: l,
-                    ),
-                  MobileConversationFilterNotice(
-                    filter: _filter,
-                    onFilter: (value) => setState(() => _filter = value),
-                    l: l,
-                  ),
-                ],
-                Expanded(
-                  child: async.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text(e.toString())),
-                    data: (group) {
-                      if (group.messages.isEmpty) {
-                        return const _Empty();
-                      }
-                      // React's filter-THEN-group order (MessageLists.tsx
-                      // `GroupChatList`): filter the raw list, THEN group
-                      // the visible set so the 5-min window is computed
-                      // across what the user actually sees. Empty-after-
-                      // filter renders the shared `DmSearchEmpty` (the
-                      // React `SearchEmpty` branch), mirroring DmScreen.
-                      final filtered = filterGroupMessages(
-                        group.messages,
-                        _search,
-                        _filter,
-                      );
-                      if (filtered.isEmpty) {
-                        return DmSearchEmpty(filter: _filter, l: l);
-                      }
-                     return _GroupMessageListView(
-                       messages: filtered,
-                       ownFingerprint: group.deviceFingerprint,
-                       attachments: group.attachments,
-                       attachmentCallbacks: _attachmentCallbacks,
-                       onRetryMessage: _retryMessage,
-                       peer: PeerActions(
-                         ownFingerprint: group.deviceFingerprint,
-                         offered: _offeredFingerprints,
-                         busy: _offerBusy,
-                         onMessage: _onPeerMessage,
-                       ),
-                     );
-                    },
-                  ),
-                ),
-                ConversationComposer(
-                  controller: _composer,
-                  sending: _sending,
-                  placeholder: l.chatComposerPlaceholder,
-                  sendLabel: l.chatSendLabel,
-                  onSend: _send,
-                  attachLabel: l.chatAttachLabel,
-                  onAttach: _sendAttachment,
-                  onAttachmentPickError: _onAttachmentPickError,
-                  voiceRecordLabel: l.voiceRecordLabel,
-                  voiceDiscardLabel: l.voiceDiscardLabel,
-                  voiceStopLabel: l.voiceStopLabel,
-                  voicePlayLabel: l.voicePlayLabel,
-                  voiceSendLabel: l.voiceSendLabel,
-                  onSendVoice: _sendVoice,
-                  onVoiceError: _onVoiceError,
-                ),
-              ],
-            ),
-            if (_showPeerStatus)
-              Positioned.fill(
-                child: PeerStatusDrawer(
-                  group: groupForDrawer,
-                  error: errorForDrawer,
-                  refreshing: false,
-                  onRefresh: () =>
-                      ref.invalidate(groupSnapshotProvider(widget.groupId)),
-                  onClose: () => setState(() => _showPeerStatus = false),
-                ),
-              ),
-          ],
-        ),
+      body: GroupScreenBody(
+        async: async,
+        chatError: _chatError,
+        canRetrySend: _canRetrySend,
+        onRetry: _retryFailedSend,
+        search: _search,
+        filter: _filter,
+        onSearch: (value) => setState(() => _search = value),
+        onFilter: (value) => setState(() => _filter = value),
+        mobileSearchOpen: _mobileSearchOpen,
+        onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
+        orgAddPrompt: orgAddPrompt,
+        onInviteMembers: _inviteMembers,
+        attachmentCallbacks: _attachmentCallbacks,
+        onRetryMessage: _retryMessage,
+        offeredFingerprints: _offeredFingerprints,
+        offerBusy: _offerBusy,
+        onPeerMessage: _onPeerMessage,
+        composerController: _composer,
+        sending: _sending,
+        onSend: _send,
+        onSendAttachment: _sendAttachment,
+        onAttachmentPickError: _onAttachmentPickError,
+        onSendVoice: _sendVoice,
+        onVoiceError: _onVoiceError,
+        showPeerStatus: _showPeerStatus,
+        onClosePeerStatus: () => setState(() => _showPeerStatus = false),
+        groupForDrawer: groupForDrawer,
+        errorForDrawer: errorForDrawer,
+        onRefresh: () => ref.invalidate(groupSnapshotProvider(widget.groupId)),
       ),
     );
-  }
-}
-
-/// Message list view. `reverse: true` keeps the newest message at the bottom
-/// (mirrors ChannelScreen's `_ChannelMessageListView`); grouping via
-/// [groupGroupMessages] (the 5-min, same-`fromFingerprint` rule ported
-/// from React `messageItems`/`shouldGroup`) so only the first row of a
-/// group renders the sender meta. Rows are [GroupMessageRow] instances
-/// from `group_message_row.dart`.
-class _GroupMessageListView extends StatelessWidget {
- const _GroupMessageListView({
-   required this.messages,
-   required this.ownFingerprint,
-   required this.attachments,
-   required this.attachmentCallbacks,
-   required this.onRetryMessage,
-   required this.peer,
- });
-
- final List<GroupMessage> messages;
- final String ownFingerprint;
- final List<AttachmentView> attachments;
-
- /// Per-row transfer-action callbacks (download/cancel/open). Built by the
- /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
- /// `_attachmentCallbacks`).
- final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
-
- /// Retry a failed outbound message by its messageId (React
- /// `retryGroupMessage`). Fire-and-forget via `unawaited` then
- /// invalidate the group snapshot; the screen builds this from the
- /// Gateway seam.
- final void Function(String messageId) onRetryMessage;
-
-  /// Peer-DM actions threaded into each [GroupMessageRow]'s
-  /// [MultiPartySenderMeta] (React `PeerActions`). Built by the screen
-  /// from its offered set + offer-busy flag + the `_onPeerMessage`
-  /// closure (createInvite + sendGroupDmOffer + navigate).
-  final PeerActions peer;
-
-  @override
-  Widget build(BuildContext context) {
-    // Chronological grouping (oldest -> newest), then reversed for the
-    // reverse=true ListView (newest at the bottom). Mirrors ChannelScreen.
-    final grouped = groupGroupMessages(messages).reversed.toList();
-    final l = AppLocalizations.of(context)!;
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      reverse: true,
-      itemCount: grouped.length,
-      itemBuilder: (context, i) {
-        final item = grouped[i];
-        final msg = item.message;
-        // React parity: `view = attachments.views.get(attachment_id)` --
-        // a per-message lookup into the snapshot's attachment views. The
-        // DM port uses a linear scan (session lists are small); we mirror
-        // that idiom exactly (see DmScreen's `_findAttachmentView`).
-        final attachmentView = msg.attachment == null
-            ? null
-            : _findGroupAttachmentView(
-                attachments, msg.attachment!.attachmentId);
-        final callbacks = attachmentCallbacks(attachmentView);
-        return GroupMessageRow(
-          message: msg,
-          ownFingerprint: ownFingerprint,
-          grouped: item.grouped,
-          attachmentView: attachmentView,
-          peer: peer,
-          l: l,
-          onAttachmentDownload: callbacks.onDownload,
-          onAttachmentCancel: callbacks.onCancel,
-          onAttachmentOpen: callbacks.onOpen,
-          onRetry: onRetryMessage,
-        );
-      },
-    );
-  }
-}
-
-/// Linear lookup for the group attachment view by id (mirrors DmScreen's
-/// `_findAttachmentView` -- a group's attachment list is small, so a plain
-/// scan avoids a Map).
-AttachmentView? _findGroupAttachmentView(
-    List<AttachmentView> attachments, String attachmentId) {
-  for (final v in attachments) {
-    if (v.attachmentId == attachmentId) return v;
-  }
-  return null;
-}
-
-/// Per-row attachment transfer-action callbacks for the group screen.
-/// Mirrors DmScreen's `AttachmentCallbacks` value class (kept local to this
-/// file to avoid coupling channel/group to the DM screen's class).
-class _AttachmentCallbacks {
-  const _AttachmentCallbacks({
-    required this.onDownload,
-    required this.onCancel,
-    required this.onOpen,
-  });
-
-  final void Function(String attachmentId) onDownload;
-  final void Function(String attachmentId) onCancel;
-  final void Function(AttachmentDescriptor descriptor) onOpen;
-}
-
-/// Reads `group.needsRejoin` off the resolved [GroupSnapshot] for the
-/// inline-error gate. Returns `false` while the snapshot is loading or in
-/// error (no data) so the banner does not render until the group is known.
-/// Mirrors React's `props.group.needs_rejoin` guard in ActiveChatPanes.tsx
-/// (the snapshot is always resolved on the React side by the time the pane
-/// renders; here the async path can still be pending).
-bool _needsRejoin(AsyncValue<GroupSnapshot?> async) {
-  final group = async.maybeWhen(data: (g) => g, orElse: () => null);
-  return group != null && group.needsRejoin;
-}
-
-/// Empty-state for a group with no messages yet. Shell form: no localized
-/// title/body yet (deferred with the notice banner atomic); a plain hint so
-/// the layout is not bare.
-class _Empty extends StatelessWidget {
-  const _Empty();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text(''));
   }
 }
