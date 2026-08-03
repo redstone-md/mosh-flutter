@@ -298,17 +298,26 @@ class SenderMeta extends StatelessWidget {
 /// fingerprint badges), with `head = 6` to match React's
 /// `shorten(message.from_fingerprint, 6)`.
 class MultiPartySenderMeta extends StatelessWidget {
- const MultiPartySenderMeta({
-   super.key,
-   required this.fromDevice,
-   required this.fromFingerprint,
-   required this.sentAtMs,
-    this.showMlsBadge = true,
- });
+const MultiPartySenderMeta({
+  super.key,
+  required this.fromDevice,
+  required this.fromFingerprint,
+  required this.sentAtMs,
+   this.peer,
+   this.showMlsBadge = true,
+});
 
- final String fromDevice;
- final String fromFingerprint;
- final BigInt? sentAtMs;
+final String fromDevice;
+final String fromFingerprint;
+final BigInt? sentAtMs;
+  /// Optional per-conversation peer actions (React `PeerActions` in
+  /// MessageLists.tsx:31-35). `null` (the default) renders `fromDevice`
+  /// as plain bold `Text` -- the DM-row + existing-tests case. When set
+  /// and `fromFingerprint != peer.ownFingerprint`, the name becomes a
+  /// tappable target opening the [_PeerNickname] popover (React's
+  /// `nick-popover`, role="dialog"). When set and the row IS the user's
+  /// own fingerprint, the name stays plain bold (React `<strong>{name}</strong>`).
+  final PeerActions? peer;
   // React distinguishes channel vs group sender-meta: the GROUP row
   // (MessageLists.tsx GroupMessageRow ~line 273-279) renders an MLS badge
   // after the fingerprint code; the CHANNEL row (ChannelMessageRow ~line
@@ -322,19 +331,17 @@ class MultiPartySenderMeta extends StatelessWidget {
     final locale = AppLocalizations.of(context)?.localeName;
     final clock = formatClock(sentAtMs, locale: locale);
     final full = formatClockFull(sentAtMs, locale: locale);
+    // React PeerNickname (MessageLists.tsx:198-244): own fingerprint ->
+    // plain `<strong>{name}</strong>`; a non-own name -> a tappable
+    // nick-button opening a nick-popover. `peer == null` reproduces the
+    // DM-row + existing-tests behavior (plain bold, no tap target).
+    final nameWidget = _peerName(context, theme);
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Flexible(
-            child: Text(
-              fromDevice,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          Flexible(child: nameWidget),
           const SizedBox(width: 6),
           Text(
             shorten(fromFingerprint, 6),
@@ -359,6 +366,145 @@ class MultiPartySenderMeta extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// Renders the `fromDevice` name. When `peer == null` (DM row +
+  /// existing tests) OR `fromFingerprint == peer.ownFingerprint` (own
+  /// name), it is plain bold `Text` (React `<strong>{name}</strong>`).
+  /// Otherwise it wraps the same bold `Text` in a tap target that opens
+  /// the [_PeerNickname] popover (React `nick-button` + `nick-popover`).
+  Widget _peerName(BuildContext context, ThemeData theme) {
+    final text = Text(
+      fromDevice,
+      style: theme.textTheme.labelSmall
+          ?.copyWith(fontWeight: FontWeight.bold),
+      overflow: TextOverflow.ellipsis,
+    );
+    final p = peer;
+    if (p == null || fromFingerprint == p.ownFingerprint) return text;
+    return _PeerNickname(
+      name: fromDevice,
+      fingerprint: fromFingerprint,
+      peer: p,
+      child: text,
+    );
+  }
+}
+
+/// The peer-actions value object mirroring React's `PeerActions` type
+/// (src/features/private-dm/MessageLists.tsx:31-35):
+/// ownFingerprint, offered (a Set of offered fingerprints), busy, and an
+/// onMessage fingerprint callback. Co-located with
+/// [MultiPartySenderMeta] (the only consumer) because both channel + group
+/// rows use it (DRY): the screens construct it from their state and thread
+/// it down through [ChannelMessageRow] / [GroupMessageRow] into the meta.
+///
+/// `offered` is the set of fingerprints the user already messaged this
+/// session (React's `offeredFingerprints` in use-dm-offers.ts); it is reset
+/// when the active host changes (the screen owns that reset). `busy` is the
+/// offer-in-flight flag (React's `offerBusy`). `onMessage` is the closure
+/// that creates a DM invite, sends the offer over the channel/group, marks
+/// the fingerprint offered, and navigates to the new DM (React
+/// `use-dm-offers.ts:54` `offerDm`).
+@immutable
+class PeerActions {
+  const PeerActions({
+    required this.ownFingerprint,
+    required this.offered,
+    required this.busy,
+    required this.onMessage,
+  });
+
+  /// The user's own device fingerprint -- a name with this fingerprint
+  /// renders as plain bold (React `fingerprint === peer.ownFingerprint`).
+  final String ownFingerprint;
+
+  /// Fingerprints already messaged this session -- a name in this set
+  /// disables the "Message" button and relabels it "Invite sent" (React
+  /// `alreadyOffered = peer.offered.has(fingerprint)`).
+  final Set<String> offered;
+
+  /// True while a DM-offer send is in flight -- disables the "Message"
+  /// button (React `disabled={alreadyOffered || peer.busy}`).
+  final bool busy;
+
+  /// Opens a 1:1 DM with the named peer (React `peer.onMessage(fingerprint)`).
+  /// The screen wires this to `gateway.createInvite` +
+  /// `sendChannelDmOffer`/`sendGroupDmOffer`, tracks the fingerprint as
+  /// offered, and navigates to the new DM session.
+  final Future<void> Function(String peerFingerprint) onMessage;
+}
+
+/// The nick-popover anchor + popover (React `PeerNickname`'s `nick-anchor`
+/// + `nick-popover`, MessageLists.tsx:198-244). Wraps the bold name `Text`
+/// (passed as [child]) in an `InkWell` tap target; tapping opens a small
+/// `Dialog` (Flutter's idiomatic `role="dialog"` equivalent) titled with the
+/// peer's name and a "Message" button that is disabled when the peer is
+/// already offered OR the screen is busy, labelled "Invite sent" when
+/// already offered, and otherwise calls [PeerActions.onMessage] then
+/// closes the popover.
+///
+/// The visible name is the SAME bold `Text` the plain-bold branch renders
+/// (passed in as [child]) so the meta row's typography is byte-identical
+/// whether the name is tappable or plain -- the only delta is the tap
+/// target wrapper, matching React where the `nick-button` carries the
+/// identical bold style.
+class _PeerNickname extends StatelessWidget {
+  const _PeerNickname({
+    required this.name,
+    required this.fingerprint,
+    required this.peer,
+    required this.child,
+  });
+
+  final String name;
+  final String fingerprint;
+  final PeerActions peer;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final alreadyOffered = peer.offered.contains(fingerprint);
+    return InkWell(
+      onTap: () => _show(context, l, alreadyOffered),
+      borderRadius: BorderRadius.circular(4),
+      child: child,
+    );
+  }
+
+  // Opens the Dialog popover. React renders `nick-popover` inline below the
+  // name; Flutter's `showDialog` with an `AlertDialog` is the idiomatic
+  // equivalent of a `role="dialog"` overlay and handles the backdrop + Esc
+  // dismiss (React's `nick-popover-backdrop` onClick + Esc semantics).
+  Future<void> _show(
+      BuildContext context, AppLocalizations l, bool alreadyOffered) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(name),
+        // The Message button mirrors React's `nick-popover` primary button:
+        // disabled when alreadyOffered || busy, labelled "Invite sent" when
+        // already offered, otherwise "Message". Tapping it calls
+        // `peer.onMessage(fingerprint)` then closes the popover (React
+        // `peer.onMessage(fingerprint); setOpen(false)`).
+        actions: [
+          TextButton(
+            onPressed: (alreadyOffered || peer.busy)
+                ? null
+                : () {
+                    Navigator.of(dialogContext).pop();
+                    peer.onMessage(fingerprint);
+                  },
+            child: Text(alreadyOffered ? l.peerInviteSent : l.peerMessageAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l.dialogCancel),
+          ),
         ],
       ),
     );
