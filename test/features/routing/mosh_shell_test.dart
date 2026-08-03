@@ -31,6 +31,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/main.dart';
+import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
@@ -219,5 +220,39 @@ void main() {
 
     expect(find.byType(SessionsScreen), findsOneWidget);
     expect(find.byType(DmScreen), findsNothing);
+  });
+
+  // Desktop ChatPaneWelcome Start CTA (React EmptyState parity,
+  // ActiveChatPanes.tsx:407-418): the desktop right-pane welcome is no
+  // longer inert. It renders the icon + title + body + start CTA in the
+  // React EmptyState order, and tapping the CTA routes to /chat-create
+  // (ChatCreateScreen mounts) -- the same route the onboarding Chat tile
+  // uses. The chat branch is preloaded (app_router.dart preload: true)
+  // so the welcome pane renders side-by-side with the rail at >= 900 wide
+  // even though /sessions is the active branch.
+  testWidgets(
+      'desktop (1200x900): ChatPaneWelcome renders icon + title + body + '
+      'start CTA; tapping the CTA routes to /chat-create', (tester) async {
+    final gw = _SeededGateway(
+        _session(sessionId: 'dave-1', peer: 'Dave'));
+
+    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+
+    // The welcome pane renders beside the rail (chat branch preloaded).
+    expect(find.byType(ChatPaneWelcome), findsOneWidget);
+
+    // React EmptyState order 1:1: icon -> title -> body -> start CTA.
+    expect(find.byIcon(Icons.chat_outlined), findsOneWidget);
+    expect(find.text('Welcome to Mosh.'), findsOneWidget);
+    expect(find.text('Create an invite or paste one to start your first encrypted conversation.'),
+        findsOneWidget);
+    expect(find.text('New private chat'), findsOneWidget);
+
+    // Tap the start CTA. The router's onStart closure does
+    // context.go(AppRoutes.chatCreate), mounting ChatCreateScreen.
+    await tester.tap(find.text('New private chat'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChatCreateScreen), findsOneWidget);
   });
 }

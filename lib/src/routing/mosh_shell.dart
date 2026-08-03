@@ -296,19 +296,33 @@ class _MobileShell extends StatelessWidget {
 }
 
 /// The chat-pane welcome / empty state -- the Flutter port of React's
-/// NewSessionPanel "no conversation open" arm (private-dm-screen.tsx
-/// showWelcome). Rendered as branch B's default location (/chat) so the
-/// desktop right pane is never blank before the user opens a conversation,
-/// and so leaving a chat (context.go(AppRoutes.sessions)) on desktop can
-/// reset branch B here instead of leaving a dead chat mounted. Reuses the
-/// same ARB keys as the sessions empty state (chatNoSessionTitle +
-/// chatNoSessionBody) so the wording stays DRY and consistent.
+/// EmptyState (src/features/private-dm/ActiveChatPanes.tsx:407-418), the
+/// inert desktop right pane shown at /chat when no conversation is open.
+/// Rendered as branch B's default location so the desktop right pane is
+/// never blank before the user opens a conversation, and so leaving a
+/// chat (context.go(AppRoutes.sessions)) on desktop can reset branch B
+/// here instead of leaving a dead chat mounted.
 ///
-/// This is a PLACEHOLDER (not the React NewSessionPanel create/accept
-/// form): wiring the create/accept flow into the welcome pane is a later
-/// atomic. Here the pane just confirms the shell mounted branch B.
+/// Layout mirrors React's EmptyState order 1:1: IconMessageCircle (28) ->
+/// noSessionTitle -> noSessionBody -> primary startCta button with
+/// IconPlus. The `onStart` callback is injected by the router
+/// (app_router.dart), which routes it to context.go(AppRoutes.chatCreate)
+/// -- the same route the onboarding Chat tile uses
+/// (onboarding_screen.dart:90 _goChatCreate). This keeps the widget
+/// testable (no context.go inside) and matches the sessions_screen.dart
+/// _EmptyState.onStart pattern (sessions_screen.dart:461-478).
+///
+/// Parity note: React's onNew also calls setup.resetInviteState()
+/// (private-dm-screen.tsx:329-336). The Flutter port has NO counterpart
+/// -- inviteFlowProvider keeps lastInvite across screens intentionally
+/// (no resetInviteState method exists); navigating to /chat-create is
+/// the parity action.
 class ChatPaneWelcome extends StatelessWidget {
-  const ChatPaneWelcome({super.key});
+  const ChatPaneWelcome({super.key, required this.onStart});
+
+  /// Starts the chat-create flow (router passes
+  /// `() => context.go(AppRoutes.chatCreate)`). Mirrors React's onNew.
+  final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +334,11 @@ class ChatPaneWelcome extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
+              Icon(Icons.chat_outlined,
+                  size: 28, color: theme.colorScheme.onSurfaceVariant),
+              const SizedBox(height: 12),
               Text(
                 l.chatNoSessionTitle,
                 style: theme.textTheme.titleMedium,
@@ -331,6 +349,12 @@ class ChatPaneWelcome extends StatelessWidget {
                 l.chatNoSessionBody,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: onStart,
+                icon: const Icon(Icons.add, size: 14),
+                label: Text(l.chatStartCta),
               ),
             ],
           ),
