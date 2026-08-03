@@ -4,17 +4,12 @@
 // others by FINGERPRINT, not display name -- groups are multi-party so
 // names are not unique) + a composer. SHELL ONLY.
 //
-// 1-в-1 with the React group pane (ActiveChatPanes.tsx ActiveGroupChat):
+// 1-1 with the React group pane (ActiveChatPanes.tsx ActiveGroupChat):
 // AppBar (group label + admin-pill + copy-invite + leave via
 // [GroupScreenHeader]) + GroupNotice banner + ConversationTools +
 // message list (own vs others by FINGERPRINT) + composer + peer-status
 // drawer overlay. The admin badge / member-count subtitle / MLS-state
 // subtitle render in [GroupScreenHeader] (group_screen_header.dart).
-//
-// Deferred (slice-3): voice sending (VoiceComposer onSendVoice) + drag-drop
-// (ChatComposer ChatDropZone). Attachment sending (picker -> sendGroupAttachment)
-// + download/cancel transfer seam are ported; AttachmentCard display is ported
-// (group_message_row.dart).
 //
 // Own-vs-others rule (React MessageLists.tsx GroupChatList, same as
 // ChannelScreen): own = message.fromFingerprint == group.deviceFingerprint.
@@ -22,11 +17,6 @@
 // groups are multi-party, so two members could share a display name but
 // never a device fingerprint. Sender-meta grouping (5-min,
 // same-fingerprint) + MultiPartySenderMeta render in group_message_row.dart.
-//
-// ConversationTools search/filter is widget-local (`_search` / `_filter`);
-// the screen applies `filterGroupMessages` BEFORE `groupGroupMessages`
-// (React's filter-then-group order) with the shared `DmSearchEmpty` branch
-// when the filter hides every row.
 //
 // Key differences from ChannelScreen (groups vs channels):
 //   - keyed by `groupId` (the identity), NOT `name`.
@@ -37,63 +27,49 @@
 //   - send via `gateway.sendGroup` (NOT `sendChannel`); then
 //     `ref.invalidate(groupSnapshotProvider(widget.groupId))`.
 //
-// Server state: groupSnapshotProvider (ADR 0010); send calls
-// gateway.sendGroup via gatewayProvider (ADR 0013) then invalidates the
-// family entry; leave calls gateway.closeGroup then navigates back to the
-// sessions list. The composer is widget-local (ConsumerStatefulWidget).
-// Peer-status drawer: mirrors DmScreen wiring. The drawer (PeerStatusDrawer,
-// shared with the DM + Channel screens) branches internally -- session ->
-// channel -> group -> NoActiveSession -- and is rendered here with
-// group: set so it shows GroupDiagnostics. An AppBar action toggles
-// _showPeerStatus; the body is a Stack whose last child is a
-// Positioned.fill(PeerStatusDrawer(...)) overlay.
-//
-// The AppBar (title Column + admin-pill + copy-invite + peer-status + leave
-// actions) and its copy-invite ephemeral state live in [GroupScreenHeader]
-// (group_screen_header.dart), extracted to restore the 500-line headroom;
-// this screen passes `groupId` + the `onOpenPeerStatus` / `onLeave`
-// callbacks. The body (notice banner + ConversationTools + message list +
-// composer + peer-status drawer overlay) stays here.
+// AGENTS.md state separation: the BUSINESS orchestration state (sending /
+// offerBusy / offeredFingerprints / chatError / pendingOpen / lastFailedSend
+// + the send/retry/attachment/voice/leave/peer-DM/open-attachment/org-invite
+// methods) lives in [GroupController] (group_controller.dart), a Riverpod
+// Notifier keyed by the group id. This screen keeps ONLY the UI state
+// (`_composer` / `_showPeerStatus` / `_mobileSearchOpen` / `_search` /
+// `_filter`) + the lifecycle + navigation (the controller returns results --
+// [GroupLeaveResult] / [GroupPeerDmResult] -- and the screen does
+// `context.go`) + the composer-clear-on-success + the SnackBar error
+// surfaces + the MediaViewer open + the leave-confirm dialog (which reads
+// the group snapshot for the label -- a UI concern). The controller never
+// navigates and never touches the composer.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import 'dart:async';
-import 'dart:io';
-import 'dart:convert' show base64Encode;
-import 'package:mosh/src/features/shared/voice_composer.dart';
-import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/group/group_screen_header.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
-import 'package:mosh/src/features/shared/attachment_media_src.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
-import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AttachmentView, AttachmentDescriptor, AttachmentState, StartSessionRequest;
+    show AttachmentView, AttachmentDescriptor;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
-import 'package:mosh/src/state/org_providers.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/state/session_providers.dart'
-    show inviteFlowProvider, sessionListProvider;
+import 'package:mosh/src/state/org_providers.dart' show orgAddPromptProvider;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
-
-import 'package:mosh/src/features/group/group_screen_body.dart';
-import 'package:mosh/src/features/group/group_message_list_view.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
+
+import 'package:mosh/src/features/group/group_controller.dart';
+import 'package:mosh/src/features/group/group_screen_body.dart';
 
 /// Group screen for one private group. Own vs others is inferred from
 /// `GroupMessage.fromFingerprint` vs the group's `deviceFingerprint`
 /// (React's `from_fingerprint === group.device_fingerprint` rule -- NOT
 /// display name, since groups are multi-party). Keyed by `groupId` (the
-/// group identity), not a display name.
+/// group identity), not a display name. Business orchestration state +
+/// methods are delegated to [GroupController]; this widget owns UI state +
+/// navigation + the composer-clear-on-success + the leave-confirm dialog.
 class GroupScreen extends ConsumerStatefulWidget {
   const GroupScreen({super.key, required this.groupId});
 
@@ -105,34 +81,7 @@ class GroupScreen extends ConsumerStatefulWidget {
 
 class _GroupScreenState extends ConsumerState<GroupScreen> {
   final TextEditingController _composer = TextEditingController();
-  bool _sending = false;
   bool _showPeerStatus = false;
-  // The sealed [ChatTarget] for this group -- routes the screen's
-  // send/retry/attachment/leave dispatch through `chat_actions.dart` (the
-  // shared DM/channel/group seam, Gap 4) so the gateway method name is
-  // decided once here instead of triplicated across the three screens.
-  late final ChatTarget _target = GroupTarget(widget.groupId);
-  // Failed-send retry queue + inline error banner (Gaps 1+3) -- 1-1 with
-  // React `use-chat-orchestration.ts` L85-149. `_lastFailedSend` mirrors
-  // React's `lastFailedSend: FailedSend | null`; `_chatError` mirrors
-  // React's `error` state that drives `<ChatError message={error}>`. On a
-  // thrown text send record both + leave the composer untouched (the
-  // user's text survives); a successful send clears both. `_leave` clears
-  // both on close (React `clearFailedSend`). The success-path
-  // composer-clear + ref.invalidate + try-finally + `_sending` flag are
-  // unchanged (Gap 5 conditional-clear is a later atom).
-  // Ephemeral pending-open descriptor (Gap 2) -- 1-1 with React's
-  // `pendingOpen` (use-chat-orchestration.ts L266-283). Set by
-  // [_openAttachment] when an image/other attachment is opened before its
-  // download finishes; the `ref.listen` in [build] watches the group
-  // snapshot's attachments and resolves it the moment the matching view's
-  // `localPath` appears (open the viewer) or its state goes failed/cancelled
-  // (drop the pending). Streamable media + already-downloaded opens never
-  // set this (they show the viewer immediately).
-  AttachmentDescriptor? _pendingOpen;
-
-  ({ChatTarget target, String body})? _lastFailedSend;
-  String? _chatError;
   // Ephemeral search + filter (React ConversationTools); widget-local per
   // ADR 0010; drive [filterGroupMessages] before grouping, mirroring
   // DmScreen's `_search` / `_filter` (filter-then-group order).
@@ -145,14 +94,6 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   // [GroupScreenHeader]) flips it and the body renders
   // `MobileConversationSearch` while true. Gated on the mobile breakpoint.
   bool _mobileSearchOpen = false;
-  // Peer-DM-offer state (React use-dm-offers.ts): the fingerprints the user
-  // already messaged this session (disables + relabels the popover button),
-  // and a busy flag while a DM-offer send is in flight (disables the
-  // button). The set is reset implicitly on screen rebuild for a new
-  // group (the widget is keyed by groupId in the route), matching React's
-  // `prevHostKey` host-change reset.
-  final Set<String> _offeredFingerprints = <String>{};
-  bool _offerBusy = false;
 
   @override
   void initState() {
@@ -192,161 +133,75 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     }
   }
 
-  // Resolves [_pendingOpen] against an updated attachments list. Pure with
-  // respect to the snapshot; the side effect is showing the viewer + the
-  // `setState` that clears the pending. Wired by a `ref.listen` in [build]
-  // (Riverpod requires `ref.listen` inside `build`; it dedupes the
-  // subscription across rebuilds so it does not re-subscribe each frame).
-  void _resolvePendingOpen(List<AttachmentView> attachments) {
-    final pending = _pendingOpen;
-    if (pending == null) return;
-    AttachmentView? view;
-    for (final v in attachments) {
-      if (v.attachmentId == pending.attachmentId) {
-        view = v;
-        break;
-      }
+  // Send a text body -- reads the composer (UI state), delegates the gateway
+  // send + business-state mutation to [GroupController.sendBody], then does
+  // the React-parity composer clear on success (clear iff the composer still
+  // equals the sent body so in-flight typing survives). The controller never
+  // touches the composer; this closure owns that UI mutation.
+  Future<void> _send() async {
+    final body = _composer.text.trim();
+    if (body.isEmpty) return;
+    final controller =
+        ref.read(groupControllerProvider(widget.groupId).notifier);
+    final outcome = await controller.sendBody(body);
+    if (!mounted) return;
+    if (outcome.sent && _composer.text.trim() == outcome.body) {
+      _composer.clear();
     }
-    if (view == null) return;
-    final localPath = view.localPath;
-    if (localPath != null && localPath.isNotEmpty) {
-      setState(() => _pendingOpen = null);
+  }
+
+  // Retry the last failed send from the ChatError banner -- delegates to
+  // [GroupController.retryFailedSend] and does the same React-parity
+  // composer clear on a successful retry (the composer still holds the
+  // failed body, so a successful retry clears it -- 1-1 with React parity).
+  Future<void> _retryFailedSend() async {
+    final controller =
+        ref.read(groupControllerProvider(widget.groupId).notifier);
+    final outcome = await controller.retryFailedSend();
+    if (!mounted) return;
+    if (outcome.sent && _composer.text.trim() == outcome.body) {
+      _composer.clear();
+    }
+  }
+
+  // Open an attachment -- delegates the pending-open arming + download to
+  // [GroupController.openAttachment]; if the controller returns a `showSrc`
+  // (already-downloaded or streamable media), the screen shows the in-app
+  // [MediaViewer] (the UI side effect the controller never performs).
+  void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
+    final controller =
+        ref.read(groupControllerProvider(widget.groupId).notifier);
+    final result = controller.openAttachment(descriptor, view);
+    final src = result.showSrc;
+    if (src != null) {
       showMediaViewer(
         context: context,
-        descriptor: pending,
-        src: localFileSrc(localPath),
+        descriptor: result.descriptor ?? descriptor,
+        src: src,
       );
-    } else if (view.state == AttachmentState.failed ||
-        view.state == AttachmentState.cancelled) {
-      setState(() => _pendingOpen = null);
     }
   }
 
-  Future<void> _send() async {
-    // Thin wrapper reading the composer; the real send path lives in
-    // [_sendBody] so [_retryFailedSend] can re-send the stored failed body
-    // without touching the composer first (mirrors React
-    // `sendMessageBody(target, body)` taking `body` directly).
-    final body = _composer.text.trim();
-    if (body.isEmpty || _sending) return;
-    await _sendBody(body);
-  }
-
-  /// Sends a body verbatim -- 1-1 with React `sendMessageBody`. Runs the
-  /// full try/catch/finally: on SUCCESS clears `_lastFailedSend` +
-  /// `_chatError` (React `setLastFailedSend(null)` + `onError(undefined)`),
-  /// clears the composer only if it still equals the sent body (React
-  /// parity), and invalidates the group snapshot; on FAILURE
-  /// records `_lastFailedSend = (target, body)` + `_chatError` and leaves
-  /// the composer untouched so the user's text survives. The success-path
-  /// composer-clear + invalidate + try-finally + `_sending` flag are
-  /// unchanged from the pre-Gap-1 `_send`.
-  Future<void> _sendBody(String body) async {
-    if (body.isEmpty || _sending) return;
-    setState(() {
-      _sending = true;
-      _chatError = null; // React `onError(undefined)` at the top of `run`.
-    });
-    try {
-      await sendChatText(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        body: body,
-      );
-      _lastFailedSend = null;
-      _chatError = null;
-      // React `setComposer(c => c.trim() === body ? "" : c)` -- only clear the
-      // composer if it still holds the sent body, so text the user typed
-      // while the send was in flight survives (1-1 with React parity).
-      if (_composer.text.trim() == body) {
-        _composer.clear();
-      }
-      ref.invalidate(groupSnapshotProvider(widget.groupId));
-    } catch (e) {
-      setState(() {
-        _lastFailedSend = (target: _target, body: body);
-        _chatError = e.toString();
-      });
-    } finally {
-      if (mounted) setState(() => _sending = false);
+  // Start a 1:1 DM with a group peer -- delegates the invite create +
+  // group-DM-offer send + offered-tracking + sessionList invalidation to
+  // [GroupController.onPeerMessage]; on a successful offer the controller
+  // returns the new session id and the screen navigates to `/dm/<id>` (the
+  // controller never navigates). A no-op (already-offered peer) returns
+  // `sessionId == null` and the screen does nothing.
+  Future<void> _onPeerMessage(String peerFingerprint) async {
+    final controller =
+        ref.read(groupControllerProvider(widget.groupId).notifier);
+    final result = await controller.onPeerMessage(peerFingerprint);
+    if (!mounted) return;
+    final sessionId = result.sessionId;
+    if (sessionId != null) {
+      context.go(AppRoutes.dmFor(sessionId));
     }
   }
 
-  /// Whether the banner's Retry button should be active -- 1-1 with React
-  /// `canRetrySend`. `active` is always this screen's `_target`, so it
-  /// reduces to a non-null `_lastFailedSend` whose target matches `_target`.
-  bool get _canRetrySend =>
-      _lastFailedSend != null &&
-      sameChatTarget(_target, _lastFailedSend!.target);
-
-  /// Re-sends the last failed body -- 1-1 with React `retryFailedSend`
-  /// (use-chat-orchestration.ts L144-149): no-op if there is no recorded
-  /// failure for the active target; otherwise re-run [_sendBody] with the
-  /// stored body (a successful retry clears both fields, a re-failure
-  /// re-records them).
-  Future<void> _retryFailedSend() async {
-    if (!_canRetrySend) return;
-    await _sendBody(_lastFailedSend!.body);
-  }
-
-  // Slice-3 attachment SEND -- 1-в-1 with React's `sendAttachment`
-  // (use-chat-orchestration.ts L165), the group branch: read the picked
-  // file's bytes (already base64-encoded by AttachmentPicker), call the
-  // Gateway group send seam, then invalidate the group snapshot so the
-  // next poll renders the new row. `thumbnailBase64`/`voice` stay null for
-  // this atomic (thumbnail + voice are later slices). The 50 MB ceiling is
-  // enforced in the picker BEFORE bytes are read; an oversized pick routes
-  // to `_onAttachmentPickError`.
-  Future<void> _sendAttachment(PickedAttachment attachment) async {
-    if (_sending) return;
-    setState(() => _sending = true);
-    try {
-      await sendChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        fileName: attachment.fileName,
-        mime: attachment.mime,
-        dataBase64: attachment.dataBase64,
-        thumbnailBase64: attachment.thumbnailBase64,
-      );
-      ref.invalidate(groupSnapshotProvider(widget.groupId));
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
-
-  /// Group voice SEND -- 1-в-1 with React `sendVoice` (use-chat-
-  /// orchestration.ts L191-210), the group branch. Reads the recorded
-  /// file (path from the VoiceComposer), base64-encodes the bytes, derives
-  /// `voice-message.<ext>` from the mime, and calls the Gateway group
-  /// send seam with `voice: VoiceMeta(durationMs, peaksBase64)`.
-  Future<void> _sendVoice(VoiceSend voice) async {
-    if (_sending) return;
-    setState(() => _sending = true);
-    try {
-      final file = File(voice.path);
-      final bytes = await file.readAsBytes();
-      final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
-      final fileName = 'voice-message.$ext';
-      await sendChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        fileName: fileName,
-        mime: voice.mime,
-        dataBase64: base64Encode(bytes),
-        voice: VoiceMeta(
-          durationMs: voice.durationMs,
-          peaksB64: voice.peaksBase64,
-        ),
-      );
-      ref.invalidate(groupSnapshotProvider(widget.groupId));
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
-
-  /// Surfaces mic-permission / start failures from the VoiceComposer
-  /// (mirrors React `onVoiceError` -> the screen error SnackBar).
+  // Surfaces mic-permission / start failures from the VoiceComposer
+  // (mirrors React `onVoiceError` -> the screen error SnackBar). UI side
+  // effect; stays in the screen.
   void _onVoiceError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -354,10 +209,11 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     );
   }
 
-  /// Surfaces the localized 50 MB limit message when the picker rejects an
-  /// oversized file (mirrors React's `onError("Attachment exceeds the 50 MB
-  /// limit")`). A SnackBar is the Material idiom for a transient, non-modal
-  /// error that does not steal focus from the composer.
+  // Surfaces the localized 50 MB limit message when the picker rejects an
+  // oversized file (mirrors React's `onError("Attachment exceeds the 50 MB
+  // limit")`). A SnackBar is the Material idiom for a transient, non-modal
+  // error that does not steal focus from the composer. UI side effect;
+  // stays in the screen.
   void _onAttachmentPickError(AttachmentPickError error) {
     if (!mounted) return;
     final l = AppLocalizations.of(context)!;
@@ -366,31 +222,24 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     );
   }
 
+  // Leave the group -- the confirm dialog is UI (stays in the screen); on
+  // confirm the screen clears the active-conversation key (a global provider
+  // the screen owns the lifecycle of) + delegates the gateway close +
+  // invalidation + failed-send clear to [GroupController.leave] + then
+  // navigates back to the sessions list (the controller never navigates).
   Future<void> _leave() async {
-    // Clear the failed-send queue + error banner on close -- 1-1 with React
-    // `clearFailedSend()` (use-chat-orchestration.ts L94) called in the
-    // leave flow. Done before the Gateway close so a slow close does not
-    // flash a stale banner.
-    setState(() {
-      _lastFailedSend = null;
-      _chatError = null;
-    });
-    // Clear the active conversation so the unread lifecycle stops suppressing
-    // toasts for this group (mirrors React's `active` going null on close).
     ref.read(activeConversationKeyProvider.notifier).clear();
-    await closeChatTarget(
-      gateway: ref.read(gatewayProvider),
-      target: _target,
-    );
+    final controller =
+        ref.read(groupControllerProvider(widget.groupId).notifier);
+    await controller.leave();
     if (!mounted) return;
-    ref.invalidate(groupSnapshotProvider(widget.groupId));
     context.go(AppRoutes.sessions);
   }
 
-  // Close-flow confirmation -- 1-в-1 with React `useChatCloseFlow` group
+  // Close-flow confirmation -- 1-1 with React `useChatCloseFlow` group
   // branch (use-chat-close-flow.ts L67-77): the leave action opens a
   // ConfirmDialog with `Leave ${label}?` / body / `Leave group` before the
-  // real `_leave` runs. React's `label = group?.label ?? (group ?
+  // real [_leave] runs. React's `label = group?.label ?? (group ?
   // shorten(group.group_id, 6) : "this group")`; the group screen always
   // has a resolved group (it is the active screen), so the fallback is
   // `group.label ?? shorten(group.groupId, 6)`. If the snapshot is still
@@ -410,154 +259,33 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     if (confirmed) await _leave();
   }
 
-  /// Builds the per-row transfer-action callbacks for [GroupMessageRow]'s
-  /// AttachmentCard: download/cancel fire the Gateway seam then invalidate
-  /// the group snapshot so the next poll re-renders state + progress
-  /// (fire-and-forget via `unawaited`, mirrors DmScreen's
-  /// `_attachmentCallbacks` and ChannelScreen's mirror).
-  GroupAttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
-      GroupAttachmentCallbacks(
-        onDownload: (id) => unawaited(downloadChatAttachment(
-          gateway: ref.read(gatewayProvider),
-          target: _target,
-          attachmentId: id,
-        ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
-        onCancel: (id) => unawaited(cancelChatAttachment(
-          gateway: ref.read(gatewayProvider),
-          target: _target,
-          attachmentId: id,
-        ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId)))),
-        onOpen: (descriptor) => _openAttachment(descriptor, view),
-      );
-
-  /// Retry a failed outbound message (React `retryGroupMessage`,
-  /// native-messaging-gateway.ts; Rust `private_group_retry_message`).
-  /// Fire-and-forget via `unawaited`, then invalidate the group snapshot
-  /// so the next poll re-renders the row's delivery status (mirrors the
-  /// attachment download/cancel wiring).
- void _retryMessage(String messageId) {
-   unawaited(retryChatMessage(
-     gateway: ref.read(gatewayProvider),
-     target: _target,
-     messageId: messageId,
-   ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
- }
-
-  /// Start a 1:1 DM with a group peer -- 1-1 with React `offerDm`
-  /// (use-dm-offers.ts:54), the group branch: create a private DM invite
-  /// (`gateway.createInvite` with the `requestBase` from
-  /// [inviteFlowProvider], the Flutter name for React's
-  /// `createPrivateInvite(requestBase)`), send the offer over this group
-  /// (`gateway.sendGroupDmOffer` -- the seam from c02fac2), track the
-  /// peer fingerprint as offered (disables + relabels the popover
-  /// button), and navigate to the new DM session
-  /// (React `setActive({type: 'dm', id: invite.session_id})` -> the
-  /// `/dm/<sessionId>` route). No-op if the peer was already offered.
-  Future<void> _onPeerMessage(String peerFingerprint) async {
-    if (_offeredFingerprints.contains(peerFingerprint)) return;
-    setState(() => _offerBusy = true);
-    try {
-      final flow = ref.read(inviteFlowProvider);
-      final invite = await ref.read(gatewayProvider).createInvite(
-            request: StartSessionRequest(
-              displayName: flow.displayName,
-              listenPort: flow.listenPort,
-              staticPeer: flow.staticPeer,
-            ),
-          );
-      await ref.read(gatewayProvider).sendGroupDmOffer(
-            groupId: widget.groupId,
-            peerFingerprint: peerFingerprint,
-            inviteUri: invite.inviteUri,
-          );
-      if (!mounted) return;
-      setState(() => _offeredFingerprints.add(peerFingerprint));
-      ref.invalidate(sessionListProvider);
-      context.go(AppRoutes.dmFor(invite.sessionId));
-    } finally {
-      if (mounted) setState(() => _offerBusy = false);
-    }
-  }
-
-  /// Org admin one-click add (React `inviteMembersToGroup`, use-orgs.ts
-  /// L197-205). Calls the Gateway org-group-invite seam with the missing
-  /// roster peer-ids, marks them offered so the banner does not re-count
-  /// them, toggles the busy flag, and refreshes orgs + the group snapshot
-  /// so the next render re-evaluates the prompt. Fire-and-forget via
-  /// `unawaited` (the busy flag + invalidation drive the UI).
-  void _inviteMembers(OrgAddPrompt prompt) {
-    final peerIds = prompt.missingPeerIds;
-    if (peerIds.isEmpty) return;
-    ref.read(invitingGroupsProvider.notifier).start(widget.groupId);
-    unawaited(ref
-        .read(gatewayProvider)
-        .orgGroupInviteMembers(
-          orgPubkey: prompt.orgPubkey,
-          groupId: widget.groupId,
-          memberPeerIds: peerIds,
-        )
-        .then((_) {
-          ref
-              .read(offeredGroupInvitesProvider.notifier)
-              .markInvited(widget.groupId, peerIds);
-        })
-        .catchError((_) {})
-        .whenComplete(() {
-          ref.read(invitingGroupsProvider.notifier).finish(widget.groupId);
-          ref.invalidate(orgsProvider);
-          ref.invalidate(groupSnapshotProvider(widget.groupId));
-        }));
-  }
-
-  /// Opens the attachment in the in-app [MediaViewer] -- 1-1 with React
-  /// `openAttachment` (use-chat-orchestration.ts L243-265). The decision
-  /// (src / download / wait) comes from [resolveMediaOpen] (the pure port
-  /// of the React state machine) so this stays a thin actor: show the
-  /// viewer immediately for already-downloaded + streamable media, or arm
-  /// [_pendingOpen] for image/other (the `ref.listen` resolves it once the
-  /// download finishes). Reuses [downloadChatAttachment] (Gap 4) for the
-  /// download trigger; the host is the group id (React `active.id`).
-  void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
-    final decision = resolveMediaOpen(
-      descriptor: descriptor,
-      view: view,
-      kind: 'group',
-      host: widget.groupId,
-    );
-    if (decision.src != null) {
-      showMediaViewer(
-        context: context,
-        descriptor: descriptor,
-        src: decision.src!,
-      );
-    }
-    if (decision.wait) {
-      setState(() => _pendingOpen = descriptor);
-    }
-    if (decision.download) {
-      unawaited(downloadChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        attachmentId: descriptor.attachmentId,
-      ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(groupSnapshotProvider(widget.groupId));
+    final controller =
+        ref.watch(groupControllerProvider(widget.groupId).notifier);
+    final state = ref.watch(groupControllerProvider(widget.groupId));
     // Resolve the pending-open descriptor 1-1 with React's `useEffect`
     // (use-chat-orchestration.ts L267-283): when the group snapshot's
-    // attachments update and a pending open is armed, find the matching
-    // view; if its `localPath` appeared, show the viewer + clear the
-    // pending; if it went failed/cancelled, drop the pending. `ref.listen`
-    // is idempotent across rebuilds (Riverpod dedupes the subscription).
+    // attachments update and a pending open is armed, ask the controller to
+    // resolve it; on `show` the screen opens the [MediaViewer], on `drop`
+    // the pending is cleared (the controller already cleared its state),
+    // on `none` there is nothing to do. `ref.listen` is idempotent across
+    // rebuilds (Riverpod dedupes the subscription).
     ref.listen<AsyncValue<GroupSnapshot>>(
       groupSnapshotProvider(widget.groupId),
       (_, next) {
         final attachments = next.value?.attachments;
         if (attachments == null || attachments.isEmpty) return;
-        _resolvePendingOpen(attachments);
+        final resolution = controller.resolvePendingOpen(attachments);
+        switch (resolution) {
+          case GroupPendingShow(:final descriptor, :final src):
+            showMediaViewer(context: context, descriptor: descriptor, src: src);
+          case GroupPendingDrop():
+            break;
+          case GroupPendingNone():
+            break;
+        }
       },
     );
     final groupForDrawer = async.value;
@@ -574,8 +302,8 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
       ),
       body: GroupScreenBody(
         async: async,
-        chatError: _chatError,
-        canRetrySend: _canRetrySend,
+        chatError: state.chatError,
+        canRetrySend: state.canRetrySend(controller.target),
         onRetry: _retryFailedSend,
         search: _search,
         filter: _filter,
@@ -584,18 +312,19 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         mobileSearchOpen: _mobileSearchOpen,
         onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
         orgAddPrompt: orgAddPrompt,
-        onInviteMembers: _inviteMembers,
-        attachmentCallbacks: _attachmentCallbacks,
-        onRetryMessage: _retryMessage,
-        offeredFingerprints: _offeredFingerprints,
-        offerBusy: _offerBusy,
+        onInviteMembers: controller.inviteMembers,
+        attachmentCallbacks:
+            controller.attachmentCallbacks(_openAttachment),
+        onRetryMessage: controller.retryMessage,
+        offeredFingerprints: state.offeredFingerprints,
+        offerBusy: state.offerBusy,
         onPeerMessage: _onPeerMessage,
         composerController: _composer,
-        sending: _sending,
+        sending: state.sending,
         onSend: _send,
-        onSendAttachment: _sendAttachment,
+        onSendAttachment: controller.sendAttachment,
         onAttachmentPickError: _onAttachmentPickError,
-        onSendVoice: _sendVoice,
+        onSendVoice: controller.sendVoice,
         onVoiceError: _onVoiceError,
         showPeerStatus: _showPeerStatus,
         onClosePeerStatus: () => setState(() => _showPeerStatus = false),
