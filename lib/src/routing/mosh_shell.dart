@@ -20,9 +20,15 @@
 //
 // Layout:
 //   - Desktop (width > 580, the React @media (max-width: 580px) inverse):
-//     a Row with the rail branch (fixed width 300, the React rail width)
-//     + a VerticalDivider + an Expanded chat branch. Both branches are
-//     ALWAYS mounted (the rail stays while a DM is open -- the parity gap).
+//     a Column with the shared desktop titlebar (mosh_title_bar.dart -- the
+//     React header.titlebar port: brand + subtitle + Peer status button +
+//     live StatePill) ABOVE a Row of the rail branch (fixed width 300, the
+//     React rail width) + a VerticalDivider + an Expanded chat branch.
+//     Both branches are ALWAYS mounted (the rail stays while a DM is open
+//     -- the parity gap). The titlebar's Peer status button opens the
+//     shell-level PeerStatusDrawer as a Positioned.fill overlay over the
+//     whole shell (the same overlay pattern the DM/Channel/Group screens
+//     use with their own AppBar buttons).
 //   - Mobile (width <= 580): the go_router default IndexedStack (the
 //     _IndexedStackedRouteBranchContainer: Offstage + TickerMode + stack)
 //     so only the ACTIVE branch renders but the inactive branch's
@@ -32,12 +38,27 @@
 //     chat's back/leave does context.go(AppRoutes.sessions) -> branch A,
 //     swapping back to the rail. Mirrors React's useConversationRailState
 //     rail-or-chat toggle (the rail is NOT shown over the chat on mobile).
+//     DEVIATION: the shared desktop titlebar is NOT mounted on mobile --
+//     the mobile screens already carry their own AppBar + peer-status
+//     button (dm_screen.dart / channel_screen.dart / group_screen.dart),
+//     so a second titlebar would duplicate the Peer status entry. React's
+//     titlebar is desktop-only too (it sits in the desktop-body above the
+//     rail+chat row; mobile renders the per-screen header instead).
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/routing/mosh_title_bar.dart';
+import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
+import 'package:mosh/src/state/active_conversation_key_provider.dart';
+import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/session_providers.dart';
 
 /// Desktop rail pane width -- the React SessionRail fixed width. Kept
 /// fixed (not responsive) so the chat pane gets the remaining space, 1-1
@@ -55,7 +76,18 @@ const double _kRailWidth = 300.0;
 /// by context.go(...) from the rail rows + chat screens, and go_router
 /// auto-activates the matched branch. The shell only LAYS OUT whatever
 /// branch is active (mobile) or both (desktop).
-class MoshShell extends StatelessWidget {
+/// A ConsumerStatefulWidget so the desktop titlebar's shell-level
+/// PeerStatusDrawer toggle (`_showPeerStatus`) lives here -- the shell
+/// both flips the toggle AND mounts the Positioned.fill overlay over the
+/// desktop Column, mirroring dm_screen.dart L83 + L683-691 exactly (the
+/// SAME widget owns the toggle AND mounts the overlay). The titlebar is
+/// now a stateless-ish leaf that fires the shell-supplied
+/// `onOpenPeerStatus` VoidCallback; it no longer holds the toggle or
+/// exposes an overlay builder. This is what makes the drawer actually
+/// appear: the shell rebuilds when it flips `_showPeerStatus` (the prior
+/// titlebar-owned toggle did not, so the shell never re-rendered and the
+/// tap silently no-opped).
+class MoshShell extends ConsumerStatefulWidget {
   const MoshShell({
     super.key,
     required this.currentIndex,
@@ -71,25 +103,167 @@ class MoshShell extends StatelessWidget {
   final List<Widget> children;
 
   @override
+  ConsumerState<MoshShell> createState() => _MoshShellState();
+}
+
+class _MoshShellState extends ConsumerState<MoshShell> {
+  // Shell-level PeerStatusDrawer visibility -- mirrors the DM screen's
+  // `_showPeerStatus` (dm_screen.dart L83). The shell owns this toggle
+  // AND mounts the Positioned.fill overlay (dm_screen.dart L683-691), so
+  // flipping it rebuilds the desktop Stack and the drawer appears.
+  bool _showPeerStatus = false;
+
+  @override
   Widget build(BuildContext context) {
     // Desktop: rail + chat side-by-side, both ALWAYS visible (the parity
     // gap -- the rail stays while a DM is open). Mobile: the go_router
     // default IndexedStack container, so only the active branch shows
     // while the inactive branch's Navigator state is preserved.
     if (isMobileBreakpoint(context)) {
-      return _MobileShell(currentIndex: currentIndex, children: children);
+      return _MobileShell(
+          currentIndex: widget.currentIndex, children: widget.children);
     }
-    return Row(
+    return Stack(
       children: <Widget>[
-        // Branch A (the rail). Fixed width so the chat pane gets the rest.
-        SizedBox(width: _kRailWidth, child: children[0]),
-        const VerticalDivider(width: 1, thickness: 1),
-        // Branch B (the chat). Expanded so it fills the remaining width.
-        Expanded(child: children[1]),
+        Column(
+          children: <Widget>[
+            // Shared desktop titlebar (React header.titlebar). Sits ABOVE
+            // the rail+chat row, full window width.
+            MoshTitleBar(
+              onOpenPeerStatus: () =>
+                  setState(() => _showPeerStatus = true),
+            ),
+            Expanded(
+              child: Row(
+                children: <Widget>[
+                  // Branch A (the rail). Fixed width so the chat pane gets
+                  // the rest.
+                  SizedBox(width: _kRailWidth, child: widget.children[0]),
+                  const VerticalDivider(width: 1, thickness: 1),
+                  // Branch B (the chat). Expanded so it fills the remaining
+                  // width.
+                  Expanded(child: widget.children[1]),
+                ],
+              ),
+            ),
+          ],
+        ),
+        // Shell-level PeerStatusDrawer overlay (mirrors dm_screen.dart
+        // L683-691): the shell owns the toggle AND mounts the overlay.
+        // Built directly here for the active conversation -- watch
+        // activeConversationKeyProvider, branch on the key prefix
+        // ('dm:' / 'channel:' / 'group:'), ref.watch the matching
+        // FutureProvider.family, unwrap AsyncValue (null while
+        // loading/error -- PeerStatusDrawer renders NoActiveSession when
+        // all three are null), pass onRefresh (invalidate the matching
+        // family entry) + onClose (flip the toggle).
+        if (_showPeerStatus)
+          Positioned.fill(
+            child: PeerStatusDrawer(
+              session: _activeDmSession(ref),
+              channel: _activeChannelSnapshot(ref),
+              group: _activeGroupSnapshot(ref),
+              error: _activeDrawerError(ref),
+              refreshing: false,
+              onRefresh: _invalidateActiveFamily,
+              onClose: () => setState(() => _showPeerStatus = false),
+            ),
+          ),
       ],
     );
   }
+
+  // The active-conversation kind, parsed from the active key prefix.
+  // Mirrors React's branch test on `activeSession` / `activeChannel` /
+  // `activeGroup` (private-dm-screen.tsx L282-292). null when no
+  // conversation is open. Defined here (not re-imported from the titlebar)
+  // because the titlebar's copy is file-private; the shell needs its own
+  // parse to build the drawer in build().
+  _ActiveKind? _activeKind(WidgetRef ref) {
+    final key = ref.watch(activeConversationKeyProvider);
+    if (key == null) return null;
+    if (key.startsWith('dm:')) return _ActiveKind.dm;
+    if (key.startsWith('channel:')) return _ActiveKind.channel;
+    if (key.startsWith('group:')) return _ActiveKind.group;
+    return null;
+  }
+
+  // The family argument for the active conversation (sessionId / name /
+  // groupId -- the suffix after the ':' prefix), or null when nothing is
+  // open.
+  String? _activeArg(WidgetRef ref) {
+    final key = ref.watch(activeConversationKeyProvider);
+    if (key == null) return null;
+    if (key.startsWith('dm:')) return key.substring(3);
+    if (key.startsWith('channel:')) return key.substring(8);
+    if (key.startsWith('group:')) return key.substring(6);
+    return null;
+  }
+
+  // The live DM SessionSnapshot for the active conversation, or null
+  // (non-dm or loading/error). PeerStatusDrawer renders NoActiveSession
+  // when all three snapshot getters return null.
+  SessionSnapshot? _activeDmSession(WidgetRef ref) {
+    final arg = _activeArg(ref);
+    if (_activeKind(ref) != _ActiveKind.dm || arg == null) return null;
+    return ref.watch(activeSessionProvider(arg)).value;
+  }
+
+  // The live ChannelSnapshot for the active conversation, or null
+  // (non-channel or loading/error).
+  ChannelSnapshot? _activeChannelSnapshot(WidgetRef ref) {
+    final arg = _activeArg(ref);
+    if (_activeKind(ref) != _ActiveKind.channel || arg == null) return null;
+    return ref.watch(channelSnapshotProvider(arg)).value;
+  }
+
+  // The live GroupSnapshot for the active conversation, or null
+  // (non-group or loading/error).
+  GroupSnapshot? _activeGroupSnapshot(WidgetRef ref) {
+    final arg = _activeArg(ref);
+    if (_activeKind(ref) != _ActiveKind.group || arg == null) return null;
+    return ref.watch(groupSnapshotProvider(arg)).value;
+  }
+
+  // A runtime error string for the active snapshot (mirrors dm_screen.dart
+  // L507-508: `async.hasError ? async.error.toString() : null`), or null
+  // when the active family is loading/data or no conversation is open.
+  String? _activeDrawerError(WidgetRef ref) {
+    final kind = _activeKind(ref);
+    final arg = _activeArg(ref);
+    if (kind == null || arg == null) return null;
+    final async = switch (kind) {
+      _ActiveKind.dm => ref.watch(activeSessionProvider(arg)),
+      _ActiveKind.channel => ref.watch(channelSnapshotProvider(arg)),
+      _ActiveKind.group => ref.watch(groupSnapshotProvider(arg)),
+    };
+    return async.hasError ? async.error.toString() : null;
+  }
+
+  // Invalidates the active conversation's snapshot family entry so a
+  // refresh re-runs the server query (mirrors dm_screen.dart L688-689's
+  // `ref.invalidate(activeSessionProvider(...))`). No-op when nothing is
+  // open.
+  void _invalidateActiveFamily() {
+    final kind = _activeKind(ref);
+    final arg = _activeArg(ref);
+    if (kind == null || arg == null) return;
+    switch (kind) {
+      case _ActiveKind.dm:
+        ref.invalidate(activeSessionProvider(arg));
+      case _ActiveKind.channel:
+        ref.invalidate(channelSnapshotProvider(arg));
+      case _ActiveKind.group:
+        ref.invalidate(groupSnapshotProvider(arg));
+    }
+  }
 }
+
+// The active-conversation kind for the shell's drawer build -- mirrors
+// the titlebar's `_ActiveKind` enum (private there). Defined here so the
+// shell can branch the snapshot family without exporting the titlebar's
+// private enum.
+enum _ActiveKind { dm, channel, group }
 
 /// Mobile shell -- the go_router default _IndexedStackedRouteBranchContainer
 /// port (Offstage + TickerMode + IndexedStack) so the inactive branch's
