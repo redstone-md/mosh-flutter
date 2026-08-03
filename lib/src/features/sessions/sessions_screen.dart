@@ -112,6 +112,13 @@ class SessionsScreen extends ConsumerWidget {
     // set on select + open + cleared on leave (mirrors React's
     // `activeConversationKey`). Reads the notifier for the set call below.
     final activeKeyNotifier = ref.read(activeConversationKeyProvider.notifier);
+    // The active-conversation key VALUE (mirrors React's
+    // `activeConversationKey`). Watched so the rail re-renders + marks the
+    // open row as selected (React `rail-item-active`,
+    // SessionRail.tsx:254-296). The key matches the one the rail sets below
+    // (`dm:<id>` / `group:<id>` / `channel:<name>`), so the highlight stays
+    // when the chat screen's initState re-sets the same key.
+    final String? activeKey = ref.watch(activeConversationKeyProvider);
     // Revoked-org DM badges -- the React `SessionRail` subtitle branch
     // (SessionRail.tsx L36-38): session-id -> org-name for org-bound DMs whose
     // peer left the roster. Degrades to an empty map while orgs load or on
@@ -172,6 +179,9 @@ class SessionsScreen extends ConsumerWidget {
                 session: session,
                 unreadCount: unread['dm:${session.sessionId}'] ?? 0,
                 revokedOrgName: revokedBadges[session.sessionId],
+                // Highlight the open DM row (React `rail-item-active`,
+                // SessionRail.tsx:254-296). Same key the rail sets below.
+                active: activeKey == 'dm:${session.sessionId}',
                 // Select hook: clear this conversation's badge + mark it the
                 // active conversation so the lifecycle clears it on focus
                 // (mirrors React's rail `onSelect` -> clearUnread(key) +
@@ -190,6 +200,9 @@ class SessionsScreen extends ConsumerWidget {
               GroupRailItem(
                 group: group,
                 unreadCount: unread['group:${group.groupId}'] ?? 0,
+                // Highlight the open group row (React `rail-item-active`,
+                // SessionRail.tsx:254-296). Same key the rail sets below.
+                active: activeKey == 'group:${group.groupId}',
                 // Select hook: same clearUnread + activeKey set as the DM
                 // row, keyed `'group:<groupId>'` (the group identity).
                 onSelect: () {
@@ -206,6 +219,9 @@ class SessionsScreen extends ConsumerWidget {
               ChannelRailItem(
                 channel: channel,
                 unreadCount: unread['channel:${channel.name}'] ?? 0,
+                // Highlight the open channel row (React `rail-item-active`,
+                // SessionRail.tsx:254-296). Same key the rail sets below.
+                active: activeKey == 'channel:${channel.name}',
                 // Select hook: same clearUnread + activeKey set as the DM
                 // row, keyed `'channel:<name>'`.
                 onSelect: () {
@@ -350,12 +366,17 @@ class SessionsScreen extends ConsumerWidget {
 class _SessionRow extends StatelessWidget {
   const _SessionRow({
     required this.session,
+    this.active = false,
     this.unreadCount = 0,
     this.revokedOrgName,
     this.onSelect,
   });
 
   final SessionSnapshot session;
+  // Highlight the open DM row (React `rail-item-active`,
+  // SessionRail.tsx:254-296). Passed to `ListTile(selected:)` -- the
+  // idiomatic selected-tile highlight (theme `selectedTileColor`).
+  final bool active;
   final int unreadCount;
   final String? revokedOrgName;
 
@@ -384,6 +405,7 @@ class _SessionRow extends StatelessWidget {
     return Semantics(
       label: 'Open session with $label',
       button: true,
+      selected: active,
       child: ListTile(
         leading: Avatar(
           name: label,
@@ -407,6 +429,9 @@ class _SessionRow extends StatelessWidget {
             UnreadBadge(count: unreadCount),
           ],
         ),
+        // `selected: active` is the Flutter `rail-item-active` equivalent
+        // (theme selected tile color), matching GroupRailItem/ChannelRailItem.
+        selected: active,
         onTap: () {
           // Select hook first (clear badge + set active key), then navigate
           // -- mirrors React's rail `onSelect` -> clearUnread(key) then the
