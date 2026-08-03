@@ -7,9 +7,19 @@
 // Route table (path -> screen):
 //   /                 OnboardingScreen (home; matches the React entry flow)
 //   /join             InvitePasteScreen
-//   /sessions         SessionsScreen (DM sessions list; React SessionRail sessions section)
+//   /sessions         SessionsScreen (DM sessions list; React SessionRail)
 //   /dm/:sessionId    DmScreen(sessionId = state.pathParameters['sessionId'])
 //   /diagnostics      DiagnosticsScreen
+//
+// Two-pane shell (React private-dm-screen desktop-body parity): the
+// /sessions, /dm/:id, /channel/:name, /group/:groupId, and /chat (welcome)
+// routes live inside a StatefulShellRoute with TWO branches:
+//   - branch A (rail):  /sessions (SessionsScreen)
+//   - branch B (chat):  /chat (ChatPaneWelcome) + /dm/:id + /channel/:name
+//                       + /group/:groupId
+// The shell (mosh_shell.dart) lays them out side-by-side on desktop (rail
+// always visible beside the chat -- the parity gap) and as a single pane
+// on mobile (rail OR chat, mirroring React's useConversationRailState).
 //
 // `DmScreen` already takes `sessionId` as a required constructor arg, so the
 // route feeds it from the path parameter (typed String). No screen internals
@@ -30,6 +40,8 @@ import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 
+import 'package:mosh/src/routing/mosh_shell.dart';
+
 /// Canonical route paths. Kept as constants so S2-3 deep-link intake and any
 /// in-app `context.go(...)` callers reference one source of truth.
 class AppRoutes {
@@ -37,8 +49,13 @@ class AppRoutes {
 
   static const String onboarding = '/';
   static const String join = '/join';
-  static const String sessions = '/sessions';
   static const String diagnostics = '/diagnostics';
+  static const String sessions = '/sessions';
+  // Branch B (chat) default location -- the welcome pane shown when no
+  // conversation is open (desktop right pane / mobile chat branch initial).
+  // Reached by the chat screens' leave (context.go stays on the rail branch)
+  // and as branch B's initial location.
+  static const String chat = '/chat';
   static const String dm = '/dm';
   static const String channel = '/channel';
 
@@ -125,45 +142,97 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.groupCreate,
       builder: (BuildContext context, GoRouterState state) =>
           const GroupCreateScreen(),
-    ),
-    GoRoute(
-      // DM sessions list (React SessionRail sessions section). Wired as its
-      // own atomic; the onboarding Chat tile is NOT redirected here yet (a
-      // later atomic connects the home tile to /sessions). Initial location
-      // stays '/' (onboarding) so existing flows are unchanged.
-      path: AppRoutes.sessions,
-      builder: (BuildContext context, GoRouterState state) =>
-          const SessionsScreen(),
-    ),
-    GoRoute(
-      // DmScreen takes sessionId as a required arg; carry it on the path so
-      // the location is shareable / deep-linkable (S2-3 will re-use this).
-      path: '${AppRoutes.dm}/:sessionId',
-      builder: (BuildContext context, GoRouterState state) {
-        final sessionId = state.pathParameters['sessionId']!;
-        return DmScreen(sessionId: sessionId);
-      },
-    ),
-    GoRoute(
-      // ChannelScreen takes name as a required arg; carry it on the path so
-      // the location is shareable / deep-linkable, mirroring the DM route.
-      // Reached from the sessions rail's ChannelRailItem onTap.
-      path: '${AppRoutes.channel}/:name',
-      builder: (BuildContext context, GoRouterState state) {
-       final name = state.pathParameters['name']!;
-       return ChannelScreen(name: name);
-     },
    ),
-    GoRoute(
-      // GroupScreen takes groupId as a required arg; carry it on the path so
-      // the location is shareable / deep-linkable, mirroring the channel
-      // route. Reached from the sessions rail's GroupRailItem onTap. Keyed
-      // by `groupId` (the group identity), not a name.
-      path: '${AppRoutes.group}/:groupId',
-      builder: (BuildContext context, GoRouterState state) {
-        final groupId = state.pathParameters['groupId']!;
-        return GroupScreen(groupId: groupId);
+    // Two-pane shell -- the React private-dm-screen desktop-body port. The
+    // rail (branch A, /sessions) + the chat (branch B, /chat welcome +
+    // /dm/:id + /channel/:name + /group/:groupId) share one
+    // StatefulShellRoute. The navigatorContainerBuilder (MoshShell) lays
+    // them out side-by-side on desktop (rail always visible beside the
+    // chat) and as a single pane on mobile (rail OR chat). go_router
+    // auto-activates the branch matching the destination, so the rail's
+    // context.go(AppRoutes.dmFor(...)) + the chat's context.go(AppRoutes
+    // .sessions) Just Work without any screen edits -- the rail rows stay
+    // mounted on desktop while the chat pane swaps, and on mobile the
+    // active branch swaps (the rail hides when the chat opens).
+    StatefulShellRoute.indexedStack(
+      builder: (BuildContext context, GoRouterState state,
+          StatefulNavigationShell navigationShell) {
+        return StatefulNavigationShell(
+          shellRouteContext: navigationShell.shellRouteContext,
+          router: GoRouter.of(context),
+          containerBuilder: (BuildContext c, StatefulNavigationShell shell,
+              List<Widget> children) => MoshShell(
+            currentIndex: shell.currentIndex,
+            children: children,
+          ),
+        );
       },
+      branches: <StatefulShellBranch>[
+        // Branch A (the rail). The SessionsScreen renders the combined
+        // rail (DM sessions + groups + channels + orgs). On desktop this
+        // is the left pane (fixed width 300); on mobile it is the only
+        // pane when no chat is open. The row onTap navigates to a branch
+        // B route, which go_router auto-activates (no goBranch call here).
+        StatefulShellBranch(
+          routes: <RouteBase>[
+            GoRoute(
+              // DM sessions list (React SessionRail sessions section).
+              path: AppRoutes.sessions,
+              builder: (BuildContext context, GoRouterState state) =>
+                  const SessionsScreen(),
+            ),
+          ],
+        ),
+        // Branch B (the chat). The welcome pane (/chat) is the initial
+        // location so the desktop right pane is never blank before a
+        // conversation opens. The DM/channel/group routes are
+        // byte-identical to the prior flat routes -- they become branch B
+        // content. The chat screens' context.go(AppRoutes.sessions) on
+        // leave routes to branch A (rail visible on desktop, swap on
+        // mobile) -- no chat-screen edits needed.
+       StatefulShellBranch(
+         initialLocation: AppRoutes.chat,
+         // preload so the desktop right pane renders the welcome pane
+         // (branch B's initial location) even before the user opens a
+         // conversation. go_router only builds an inactive branch's
+          // Navigator when it is the active branch or preloaded; without
+          // this the desktop two-pane Row would show a blank right pane
+          // (a SizedBox.shrink) until a DM is opened. Mobile is unaffected
+          // (the chat branch is offstage until activated anyway).
+          preload: true,
+         routes: <RouteBase>[
+           GoRoute(
+             // Chat-pane welcome / empty state (React NewSessionPanel
+              // showWelcome arm). Placeholder; the create/accept flow is
+              // a later atomic.
+              path: AppRoutes.chat,
+              builder: (BuildContext context, GoRouterState state) =>
+                  const ChatPaneWelcome(),
+            ),
+            GoRoute(
+              path: '${AppRoutes.dm}/:sessionId',
+              builder: (BuildContext context, GoRouterState state) {
+                final sessionId = state.pathParameters['sessionId']!;
+                return DmScreen(sessionId: sessionId);
+              },
+            ),
+            GoRoute(
+              path: '${AppRoutes.channel}/:name',
+              builder: (BuildContext context, GoRouterState state) {
+                final name = state.pathParameters['name']!;
+                return ChannelScreen(name: name);
+              },
+            ),
+            GoRoute(
+              path: '${AppRoutes.group}/:groupId',
+              builder: (BuildContext context, GoRouterState state) {
+                final groupId = state.pathParameters['groupId']!;
+                return GroupScreen(groupId: groupId);
+              },
+            ),
+          ],
+        ),
+      ],
     ),
   ],
 );
