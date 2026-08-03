@@ -33,6 +33,7 @@
 library;
 
 import 'dart:convert' show base64Encode;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +69,34 @@ class PickedAttachment {
 typedef AttachmentPickedCallback = void Function(PickedAttachment attachment);
 typedef AttachmentPickErrorCallback = void Function(AttachmentPickError error);
 
+/// Shared byte->PickedAttachment ingest path. Both the paperclip picker and
+/// [ChatDropZone] route through this (DRY): infer MIME via `package:mime`
+/// (file_picker / desktop_drop expose no MIME unlike the browser `File.type`),
+/// generate the 320px image/video thumbnail (1-в-1 with React
+/// `createThumbnail`), and base64-encode the payload. Returns null when the
+/// payload exceeds [maxBytes]; the caller decides whether to surface
+/// [AttachmentPickError.tooLarge] -- keeps the helper pure so the picker keeps
+/// its pre-read rejection (500 MB files never load into RAM) and the drop
+/// zone fires its own onError.
+///
+/// Mirrors React sendAttachment (use-chat-orchestration.ts L177):
+/// `const thumbnail = await createThumbnail(file)`.
+Future<PickedAttachment?> ingestAttachment({
+  required Uint8List bytes,
+  required String fileName,
+  required int maxBytes,
+}) async {
+  if (bytes.length > maxBytes) return null;
+  final mime = lookupMimeType(fileName) ?? '';
+  final thumbnail = await createThumbnail(bytes, fileName);
+  return PickedAttachment(
+    fileName: fileName,
+    mime: mime,
+    dataBase64: base64Encode(bytes),
+    thumbnailBase64: thumbnail,
+  );
+}
+
 /// Paperclip button that opens the native file picker and produces a
 /// [PickedAttachment] (or rejects with [AttachmentPickError]).
 ///
@@ -97,27 +126,21 @@ class AttachmentPicker extends StatelessWidget {
       dialogTitle: ariaLabel,
     );
     if (result == null) return; // cancelled
+    // Reject before reading bytes -- a 500 MB file is rejected without
+    // loading it into RAM (file_picker exposes `result.size` pre-read).
     if (result.size > maxBytes) {
       onError(AttachmentPickError.tooLarge);
       return;
     }
-    // file_picker does not expose a MIME (unlike the browser `File.type`);
-    // infer from the extension via `package:mime`. React passes `file.type ??
-    // ""`; we fall back to an empty string when the extension is unknown (the
-    // gateway treats an empty mime as application/octet-stream).
-    final mime = lookupMimeType(result.name) ?? '';
     final bytes = await result.readAsBytes();
-    // 1-в-1 with React sendAttachment (use-chat-orchestration.ts L177):
-    // `const thumbnail = await createThumbnail(file)`. Null for non-
-    // images / decode failures -- never fatal (React resolves undefined
-    // too). The gateway `thumbnailBase64` arg is nullable.
-    final thumbnail = await createThumbnail(bytes, result.name);
-    onPick(PickedAttachment(
+    final picked = await ingestAttachment(
+      bytes: bytes,
       fileName: result.name,
-      mime: mime,
-      dataBase64: base64Encode(bytes),
-      thumbnailBase64: thumbnail,
-    ));
+      maxBytes: maxBytes,
+    );
+    // The pre-read size check above guarantees picked != null here; the
+    // null branch is defensive against a picker that lies about size.
+    if (picked != null) onPick(picked);
   }
 
   @override

@@ -33,6 +33,7 @@ import 'dart:convert' show base64Encode;
 
 import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
+import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -632,26 +633,37 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                     l: l,
                   ),
                 ],
+                // ChatDropZone wraps the message list so a desktop file drop
+                // reuses the SAME onAttach/onError pair the paperclip uses
+                // (ChatComposer.tsx:8-43 React parity). DM has no separate
+                // ready flag -- async.when's data branch gates the list render.
+                // Expanded stays the Column's direct child (Flex parent data);
+                // ChatDropZone sits inside it wrapping the list content.
                 Expanded(
-                  child: async.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text(e.toString())),
-                    data: (s) {
-                      if (s.messages.isEmpty) return _Empty(l: l);
-                      final filtered =
-                          filterDmMessages(s.messages, _search, _filter);
-                      if (filtered.isEmpty) {
-                        return DmSearchEmpty(filter: _filter, l: l);
-                      }
-                      return DmMessageListView(
-                        ownDeviceName: s.displayName,
-                        grouped: groupDmMessages(filtered).reversed.toList(),
-                        attachments: s.attachments,
-                        attachmentCallbacks: _attachmentCallbacks,
-                        onRetryMessage: _retryMessage,
-                      );
-                    },
+                  child: ChatDropZone(
+                    disabled: _sending,
+                    onAttach: _sendAttachment,
+                    onError: _onAttachmentPickError,
+                    child: async.when(
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(child: Text(e.toString())),
+                      data: (s) {
+                        if (s.messages.isEmpty) return _Empty(l: l);
+                        final filtered =
+                            filterDmMessages(s.messages, _search, _filter);
+                        if (filtered.isEmpty) {
+                          return DmSearchEmpty(filter: _filter, l: l);
+                        }
+                        return DmMessageListView(
+                          ownDeviceName: s.displayName,
+                          grouped: groupDmMessages(filtered).reversed.toList(),
+                          attachments: s.attachments,
+                          attachmentCallbacks: _attachmentCallbacks,
+                          onRetryMessage: _retryMessage,
+                        );
+                      },
+                    ),
                   ),
                 ),
                 ConversationComposer(

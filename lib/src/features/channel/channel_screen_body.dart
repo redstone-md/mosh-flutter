@@ -28,6 +28,7 @@ import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
+import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
 import 'package:mosh/src/features/channel/channel_message_list_view.dart';
 import 'package:mosh/src/features/channel/channel_message_row.dart'
     show filterChannelMessages;
@@ -171,43 +172,54 @@ class ChannelScreenBody extends StatelessWidget {
                   l: l,
                 ),
               ],
+              // ChatDropZone wraps the message list so a desktop file drop
+              // reuses the SAME onAttach/onError pair the paperclip uses
+              // (ChatComposer.tsx:8-43 React parity). `sending` gates the
+              // zone (no overlay + no ingest while a send is in flight).
+              // Expanded stays the Column's direct child (Flex parent data);
+              // ChatDropZone sits inside it wrapping the list content.
               Expanded(
-                child: async.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text(e.toString())),
-                  data: (snapshot) {
-                    if (snapshot.messages.isEmpty) {
-                      return const _Empty();
-                    }
-                    // React's filter-THEN-group order (MessageLists.tsx
-                    // `ChannelChatList`): filter the raw list, THEN group
-                    // the visible set so the 5-min window is computed
-                    // across what the user actually sees. Empty-after-
-                    // filter renders the shared `DmSearchEmpty` (the
-                    // React `SearchEmpty` branch), mirroring DmScreen.
-                    final filtered = filterChannelMessages(
-                      snapshot.messages,
-                      search,
-                      filter,
-                    );
-                    if (filtered.isEmpty) {
-                      return DmSearchEmpty(filter: filter, l: l);
-                    }
-                    return ChannelMessageListView(
-                      messages: filtered,
-                      ownFingerprint: snapshot.deviceFingerprint,
-                      attachments: snapshot.attachments,
-                      attachmentCallbacks: attachmentCallbacks,
-                      onRetryMessage: onRetryMessage,
-                      peer: PeerActions(
+                child: ChatDropZone(
+                  disabled: sending,
+                  onAttach: onSendAttachment,
+                  onError: onAttachmentPickError,
+                  child: async.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text(e.toString())),
+                    data: (snapshot) {
+                      if (snapshot.messages.isEmpty) {
+                        return const _Empty();
+                      }
+                      // React's filter-THEN-group order (MessageLists.tsx
+                      // `ChannelChatList`): filter the raw list, THEN group
+                      // the visible set so the 5-min window is computed
+                      // across what the user actually sees. Empty-after-
+                      // filter renders the shared `DmSearchEmpty` (the
+                      // React `SearchEmpty` branch), mirroring DmScreen.
+                      final filtered = filterChannelMessages(
+                        snapshot.messages,
+                        search,
+                        filter,
+                      );
+                      if (filtered.isEmpty) {
+                        return DmSearchEmpty(filter: filter, l: l);
+                      }
+                      return ChannelMessageListView(
+                        messages: filtered,
                         ownFingerprint: snapshot.deviceFingerprint,
-                        offered: offeredFingerprints,
-                        busy: offerBusy,
-                        onMessage: onPeerMessage,
-                      ),
-                    );
-                  },
+                        attachments: snapshot.attachments,
+                        attachmentCallbacks: attachmentCallbacks,
+                        onRetryMessage: onRetryMessage,
+                        peer: PeerActions(
+                          ownFingerprint: snapshot.deviceFingerprint,
+                          offered: offeredFingerprints,
+                          busy: offerBusy,
+                          onMessage: onPeerMessage,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
               ConversationComposer(
