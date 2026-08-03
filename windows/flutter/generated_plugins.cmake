@@ -5,10 +5,12 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   flutter_secure_storage_windows
+  irondash_engine_context
   media_kit_libs_windows_video
   media_kit_video
   record_windows
   screen_retriever_windows
+  super_native_extensions
   window_manager
 )
 
