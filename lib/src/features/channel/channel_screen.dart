@@ -50,6 +50,7 @@ import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/dm/dm_helpers.dart' show PeerActions;
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/channel/channel_message_row.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
@@ -63,10 +64,12 @@ import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AttachmentView, AttachmentDescriptor, AttachmentState;
+    show AttachmentView, AttachmentDescriptor, AttachmentState, StartSessionRequest;
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/session_providers.dart'
+    show inviteFlowProvider, sessionListProvider;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 
 /// Channel screen for one public channel. Own vs others is inferred from
@@ -124,6 +127,14 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   // DmScreen's `_search` / `_filter` (filter-then-group order).
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
+  // Peer-DM-offer state (React use-dm-offers.ts): the fingerprints the user
+  // already messaged this session (disables + relabels the popover button),
+  // and a busy flag while a DM-offer send is in flight (disables the
+  // button). The set is reset implicitly on screen rebuild for a new
+  // channel (the widget is keyed by name in the route), matching React's
+  // `prevHostKey` host-change reset.
+  final Set<String> _offeredFingerprints = <String>{};
+  bool _offerBusy = false;
 
   @override
   void initState() {
@@ -400,12 +411,48 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// forget via `unawaited`, then invalidate the channel snapshot so the
   /// next poll re-renders the row's delivery status (mirrors the attachment
   /// download/cancel wiring).
-  void _retryMessage(String messageId) {
-    unawaited(retryChatMessage(
-      gateway: ref.read(gatewayProvider),
-      target: _target,
-      messageId: messageId,
-    ).then((_) => ref.invalidate(channelSnapshotProvider(widget.name))));
+ void _retryMessage(String messageId) {
+   unawaited(retryChatMessage(
+     gateway: ref.read(gatewayProvider),
+     target: _target,
+     messageId: messageId,
+   ).then((_) => ref.invalidate(channelSnapshotProvider(widget.name))));
+ }
+
+  /// Start a 1:1 DM with a channel peer -- 1-1 with React `offerDm`
+  /// (use-dm-offers.ts:54): create a private DM invite
+  /// (`gateway.createInvite` with the `requestBase` from
+  /// [inviteFlowProvider], the Flutter name for React's
+  /// `createPrivateInvite(requestBase)`), send the offer over this
+  /// channel (`gateway.sendChannelDmOffer` -- the seam from c02fac2),
+  /// track the peer fingerprint as offered (disables + relabels the
+  /// popover button), and navigate to the new DM session
+  /// (React `setActive({type: 'dm', id: invite.session_id})` -> the
+  /// `/dm/<sessionId>` route). No-op if the peer was already offered.
+  Future<void> _onPeerMessage(String peerFingerprint) async {
+    if (_offeredFingerprints.contains(peerFingerprint)) return;
+    setState(() => _offerBusy = true);
+    try {
+      final flow = ref.read(inviteFlowProvider);
+      final invite = await ref.read(gatewayProvider).createInvite(
+            request: StartSessionRequest(
+              displayName: flow.displayName,
+              listenPort: flow.listenPort,
+              staticPeer: flow.staticPeer,
+            ),
+          );
+      await ref.read(gatewayProvider).sendChannelDmOffer(
+            channelName: widget.name,
+            peerFingerprint: peerFingerprint,
+            inviteUri: invite.inviteUri,
+          );
+      if (!mounted) return;
+      setState(() => _offeredFingerprints.add(peerFingerprint));
+      ref.invalidate(sessionListProvider);
+      context.go(AppRoutes.dmFor(invite.sessionId));
+    } finally {
+      if (mounted) setState(() => _offerBusy = false);
+    }
   }
 
   /// Opens the attachment in the in-app [MediaViewer] -- 1-1 with React
@@ -576,13 +623,19 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                       if (filtered.isEmpty) {
                         return DmSearchEmpty(filter: _filter, l: l);
                       }
-                      return _ChannelMessageListView(
-                        messages: filtered,
-                        ownFingerprint: snapshot.deviceFingerprint,
-                        attachments: snapshot.attachments,
-                        attachmentCallbacks: _attachmentCallbacks,
-                        onRetryMessage: _retryMessage,
-                      );
+                     return _ChannelMessageListView(
+                       messages: filtered,
+                       ownFingerprint: snapshot.deviceFingerprint,
+                       attachments: snapshot.attachments,
+                       attachmentCallbacks: _attachmentCallbacks,
+                       onRetryMessage: _retryMessage,
+                       peer: PeerActions(
+                         ownFingerprint: snapshot.deviceFingerprint,
+                         offered: _offeredFingerprints,
+                         busy: _offerBusy,
+                         onMessage: _onPeerMessage,
+                       ),
+                     );
                     },
                   ),
                 ),
@@ -630,28 +683,35 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
 /// group renders the sender meta. Rows are [ChannelMessageRow] instances
 /// from `channel_message_row.dart`.
 class _ChannelMessageListView extends StatelessWidget {
-  const _ChannelMessageListView({
-    required this.messages,
-    required this.ownFingerprint,
-    required this.attachments,
-    required this.attachmentCallbacks,
-    required this.onRetryMessage,
-  });
+ const _ChannelMessageListView({
+   required this.messages,
+   required this.ownFingerprint,
+   required this.attachments,
+   required this.attachmentCallbacks,
+   required this.onRetryMessage,
+   required this.peer,
+ });
 
-  final List<ChannelMessage> messages;
-  final String ownFingerprint;
-  final List<AttachmentView> attachments;
+ final List<ChannelMessage> messages;
+ final String ownFingerprint;
+ final List<AttachmentView> attachments;
 
-  /// Per-row transfer-action callbacks (download/cancel/open). Built by the
-  /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
-  /// `_attachmentCallbacks`).
-  final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
+ /// Per-row transfer-action callbacks (download/cancel/open). Built by the
+ /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
+ /// `_attachmentCallbacks`).
+ final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
 
-  /// Retry a failed outbound message by its messageId (React
-  /// `retryChannelMessage`). Fire-and-forget via `unawaited` then
-  /// invalidate the channel snapshot; the screen builds this from the
-  /// Gateway seam.
-  final void Function(String messageId) onRetryMessage;
+ /// Retry a failed outbound message by its messageId (React
+ /// `retryChannelMessage`). Fire-and-forget via `unawaited` then
+ /// invalidate the channel snapshot; the screen builds this from the
+ /// Gateway seam.
+ final void Function(String messageId) onRetryMessage;
+
+  /// Peer-DM actions threaded into each [ChannelMessageRow]'s
+  /// [MultiPartySenderMeta] (React `PeerActions`). Built by the screen
+  /// from its offered set + offer-busy flag + the `_onPeerMessage`
+  /// closure (createInvite + sendChannelDmOffer + navigate).
+  final PeerActions peer;
 
   @override
   Widget build(BuildContext context) {
@@ -680,6 +740,7 @@ class _ChannelMessageListView extends StatelessWidget {
           ownFingerprint: ownFingerprint,
           grouped: item.grouped,
           attachmentView: attachmentView,
+          peer: peer,
           l: l,
           onAttachmentDownload: callbacks.onDownload,
           onAttachmentCancel: callbacks.onCancel,

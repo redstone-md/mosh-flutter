@@ -67,6 +67,7 @@ import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/dm/dm_helpers.dart' show PeerActions;
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/features/group/group_screen_header.dart';
@@ -83,11 +84,13 @@ import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/group/org_add_missing_banner.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AttachmentView, AttachmentDescriptor, AttachmentState;
+    show AttachmentView, AttachmentDescriptor, AttachmentState, StartSessionRequest;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/session_providers.dart'
+    show inviteFlowProvider, sessionListProvider;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
@@ -147,6 +150,14 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   // [GroupScreenHeader]) flips it and the body renders
   // `MobileConversationSearch` while true. Gated on the mobile breakpoint.
   bool _mobileSearchOpen = false;
+  // Peer-DM-offer state (React use-dm-offers.ts): the fingerprints the user
+  // already messaged this session (disables + relabels the popover button),
+  // and a busy flag while a DM-offer send is in flight (disables the
+  // button). The set is reset implicitly on screen rebuild for a new
+  // group (the widget is keyed by groupId in the route), matching React's
+  // `prevHostKey` host-change reset.
+  final Set<String> _offeredFingerprints = <String>{};
+  bool _offerBusy = false;
 
   @override
   void initState() {
@@ -429,12 +440,48 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
   /// Fire-and-forget via `unawaited`, then invalidate the group snapshot
   /// so the next poll re-renders the row's delivery status (mirrors the
   /// attachment download/cancel wiring).
-  void _retryMessage(String messageId) {
-    unawaited(retryChatMessage(
-      gateway: ref.read(gatewayProvider),
-      target: _target,
-      messageId: messageId,
-    ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
+ void _retryMessage(String messageId) {
+   unawaited(retryChatMessage(
+     gateway: ref.read(gatewayProvider),
+     target: _target,
+     messageId: messageId,
+   ).then((_) => ref.invalidate(groupSnapshotProvider(widget.groupId))));
+ }
+
+  /// Start a 1:1 DM with a group peer -- 1-1 with React `offerDm`
+  /// (use-dm-offers.ts:54), the group branch: create a private DM invite
+  /// (`gateway.createInvite` with the `requestBase` from
+  /// [inviteFlowProvider], the Flutter name for React's
+  /// `createPrivateInvite(requestBase)`), send the offer over this group
+  /// (`gateway.sendGroupDmOffer` -- the seam from c02fac2), track the
+  /// peer fingerprint as offered (disables + relabels the popover
+  /// button), and navigate to the new DM session
+  /// (React `setActive({type: 'dm', id: invite.session_id})` -> the
+  /// `/dm/<sessionId>` route). No-op if the peer was already offered.
+  Future<void> _onPeerMessage(String peerFingerprint) async {
+    if (_offeredFingerprints.contains(peerFingerprint)) return;
+    setState(() => _offerBusy = true);
+    try {
+      final flow = ref.read(inviteFlowProvider);
+      final invite = await ref.read(gatewayProvider).createInvite(
+            request: StartSessionRequest(
+              displayName: flow.displayName,
+              listenPort: flow.listenPort,
+              staticPeer: flow.staticPeer,
+            ),
+          );
+      await ref.read(gatewayProvider).sendGroupDmOffer(
+            groupId: widget.groupId,
+            peerFingerprint: peerFingerprint,
+            inviteUri: invite.inviteUri,
+          );
+      if (!mounted) return;
+      setState(() => _offeredFingerprints.add(peerFingerprint));
+      ref.invalidate(sessionListProvider);
+      context.go(AppRoutes.dmFor(invite.sessionId));
+    } finally {
+      if (mounted) setState(() => _offerBusy = false);
+    }
   }
 
   /// Org admin one-click add (React `inviteMembersToGroup`, use-orgs.ts
@@ -641,13 +688,19 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                       if (filtered.isEmpty) {
                         return DmSearchEmpty(filter: _filter, l: l);
                       }
-                      return _GroupMessageListView(
-                        messages: filtered,
-                        ownFingerprint: group.deviceFingerprint,
-                        attachments: group.attachments,
-                        attachmentCallbacks: _attachmentCallbacks,
-                        onRetryMessage: _retryMessage,
-                      );
+                     return _GroupMessageListView(
+                       messages: filtered,
+                       ownFingerprint: group.deviceFingerprint,
+                       attachments: group.attachments,
+                       attachmentCallbacks: _attachmentCallbacks,
+                       onRetryMessage: _retryMessage,
+                       peer: PeerActions(
+                         ownFingerprint: group.deviceFingerprint,
+                         offered: _offeredFingerprints,
+                         busy: _offerBusy,
+                         onMessage: _onPeerMessage,
+                       ),
+                     );
                     },
                   ),
                 ),
@@ -695,28 +748,35 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
 /// group renders the sender meta. Rows are [GroupMessageRow] instances
 /// from `group_message_row.dart`.
 class _GroupMessageListView extends StatelessWidget {
-  const _GroupMessageListView({
-    required this.messages,
-    required this.ownFingerprint,
-    required this.attachments,
-    required this.attachmentCallbacks,
-    required this.onRetryMessage,
-  });
+ const _GroupMessageListView({
+   required this.messages,
+   required this.ownFingerprint,
+   required this.attachments,
+   required this.attachmentCallbacks,
+   required this.onRetryMessage,
+   required this.peer,
+ });
 
-  final List<GroupMessage> messages;
-  final String ownFingerprint;
-  final List<AttachmentView> attachments;
+ final List<GroupMessage> messages;
+ final String ownFingerprint;
+ final List<AttachmentView> attachments;
 
-  /// Per-row transfer-action callbacks (download/cancel/open). Built by the
-  /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
-  /// `_attachmentCallbacks`).
-  final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
+ /// Per-row transfer-action callbacks (download/cancel/open). Built by the
+ /// screen from the Gateway seam + invalidate + open (mirrors DmScreen's
+ /// `_attachmentCallbacks`).
+ final _AttachmentCallbacks Function(AttachmentView? view) attachmentCallbacks;
 
-  /// Retry a failed outbound message by its messageId (React
-  /// `retryGroupMessage`). Fire-and-forget via `unawaited` then
-  /// invalidate the group snapshot; the screen builds this from the
-  /// Gateway seam.
-  final void Function(String messageId) onRetryMessage;
+ /// Retry a failed outbound message by its messageId (React
+ /// `retryGroupMessage`). Fire-and-forget via `unawaited` then
+ /// invalidate the group snapshot; the screen builds this from the
+ /// Gateway seam.
+ final void Function(String messageId) onRetryMessage;
+
+  /// Peer-DM actions threaded into each [GroupMessageRow]'s
+  /// [MultiPartySenderMeta] (React `PeerActions`). Built by the screen
+  /// from its offered set + offer-busy flag + the `_onPeerMessage`
+  /// closure (createInvite + sendGroupDmOffer + navigate).
+  final PeerActions peer;
 
   @override
   Widget build(BuildContext context) {
@@ -745,6 +805,7 @@ class _GroupMessageListView extends StatelessWidget {
           ownFingerprint: ownFingerprint,
           grouped: item.grouped,
           attachmentView: attachmentView,
+          peer: peer,
           l: l,
           onAttachmentDownload: callbacks.onDownload,
           onAttachmentCancel: callbacks.onCancel,

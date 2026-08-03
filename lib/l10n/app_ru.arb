@@ -167,6 +167,8 @@
   "@mlsBadgeTooltip": {
     "description": "Tooltip shown when hovering the MLS badge next to a message sender name"
   },
+  "peerMessageAction": "Написать",
+  "peerInviteSent": "Приглашение отправлено",
   "summaryDmKicker": "Личный диалог",
   "@summaryDmKicker": {
     "description": "Kicker label for the diagnostics summary card when a private DM session is active"

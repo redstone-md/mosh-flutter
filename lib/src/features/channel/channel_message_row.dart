@@ -157,23 +157,30 @@ class _ChannelSearchable implements SearchableMessage {
 /// `avatar avatar-spacer`): real `CircleAvatar` on the first row of a group,
 /// a same-width `SizedBox` spacer on grouped rows; own = right, peer = left.
 class ChannelMessageRow extends StatelessWidget {
-  const ChannelMessageRow({
-    super.key,
-    required this.message,
-    required this.ownFingerprint,
-    required this.grouped,
-    this.attachmentView,
-    required this.onAttachmentDownload,
-    required this.onAttachmentCancel,
-    required this.onAttachmentOpen,
-    required this.onRetry,
-    required this.l,
-  });
+ const ChannelMessageRow({
+   super.key,
+   required this.message,
+   required this.ownFingerprint,
+   required this.grouped,
+   this.attachmentView,
+   this.peer,
+   required this.onAttachmentDownload,
+   required this.onAttachmentCancel,
+   required this.onAttachmentOpen,
+   required this.onRetry,
+   required this.l,
+ });
 
-  final ChannelMessage message;
-  final String ownFingerprint;
-  final bool grouped;
-  final AttachmentView? attachmentView;
+ final ChannelMessage message;
+ final String ownFingerprint;
+ final bool grouped;
+ final AttachmentView? attachmentView;
+  /// Optional per-conversation peer actions (React `PeerActions`). `null`
+  /// (the default) keeps the sender name a plain bold `Text` -- the
+  /// DM-row + existing-tests case. The screen sets this on non-grouped
+  /// rows so a non-own name opens the PeerNickname popover. See
+  /// [MultiPartySenderMeta.peer].
+  final PeerActions? peer;
 
   /// Transfer-action callbacks for the [AttachmentCard] (React
   /// `attachments.onDownload`/`onCancel`/`onOpen`). The channel attachment-
@@ -241,13 +248,14 @@ class ChannelMessageRow extends StatelessWidget {
                   crossAxisAlignment: alignment,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (!grouped)
-                      MultiPartySenderMeta(
-                        fromDevice: message.fromDevice,
-                        fromFingerprint: message.fromFingerprint,
-                        sentAtMs: message.sentAtMs,
-                        showMlsBadge: false,
-                      ),
+                   if (!grouped)
+                     MultiPartySenderMeta(
+                       fromDevice: message.fromDevice,
+                       fromFingerprint: message.fromFingerprint,
+                       sentAtMs: message.sentAtMs,
+                       showMlsBadge: false,
+                       peer: peer,
+                     ),
                     Text(message.body),
                     if (message.attachment != null)
                       AttachmentCard(

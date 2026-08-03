@@ -625,6 +625,14 @@
   "@mlsBadgeTooltip": {
     "description": "Tooltip shown when hovering the MLS badge next to a message sender name"
   },
+  "peerMessageAction": "Message",
+  "@peerMessageAction": {
+    "description": "Label for the Message button in the PeerNickname popover (channel/group row) that starts a 1:1 DM with the named peer (React MessageLists.tsx nick-popover Message button)"
+  },
+  "peerInviteSent": "Invite sent",
+  "@peerInviteSent": {
+    "description": "Disabled-state label for the Message button in the PeerNickname popover when a DM offer was already sent to this peer this session (React MessageLists.tsx alreadyOffered ? \"Invite sent\" : \"Message\")"
+  },
   "summaryDmKicker": "Private DM",
   "@summaryDmKicker": {
     "description": "Kicker label for the diagnostics summary card when a private DM session is active"
