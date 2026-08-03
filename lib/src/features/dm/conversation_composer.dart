@@ -25,9 +25,10 @@ import 'package:mosh/src/features/shared/voice_composer.dart';
 class ConversationComposer extends StatelessWidget {
   const ConversationComposer({
     super.key,
-    required this.controller,
-    required this.sending,
-    required this.placeholder,
+   required this.controller,
+   required this.sending,
+    this.disabled = false,
+   required this.placeholder,
     required this.sendLabel,
     required this.onSend,
     required this.attachLabel,
@@ -42,9 +43,19 @@ class ConversationComposer extends StatelessWidget {
     required this.onVoiceError,
   });
 
-  final TextEditingController controller;
-  final bool sending;
-  final String placeholder;
+ final TextEditingController controller;
+ final bool sending;
+  /// Mirrors React `ChatComposer` `disabled` prop (ChatComposer.tsx L58):
+  /// a hard gate that disables the picker, voice mic, text input, and send
+  /// button INDEPENDENTLY of an in-flight send. `sending` separately swaps
+  /// the send label to "Sending" + shows the busy spinner while a send runs.
+  /// React gates with `disabled || !value.trim()` for the send button and
+  /// `disabled` for the picker/voice/input; Flutter previously conflated
+  /// both into `sending`, so a screen that wanted to gate input without
+  /// showing a spinner had no seam. Defaults to false so existing callers
+  /// (which pass only `sending`) are unchanged.
+  final bool disabled;
+ final String placeholder;
   final String sendLabel;
   final VoidCallback onSend;
   final String attachLabel;
@@ -59,47 +70,48 @@ class ConversationComposer extends StatelessWidget {
   final void Function(String message) onVoiceError;
 
   @override
-  Widget build(BuildContext context) {
-    final canSend = !sending && controller.text.trim().isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: ValueListenableBuilder<TextEditingValue>(
-        valueListenable: controller,
-        builder: (context, value, _) {
-          final enabled = !sending && value.text.trim().isNotEmpty;
-          return Row(
-            children: [
-              // React Composer renders AttachmentPicker before the input
+ Widget build(BuildContext context) {
+    final canSend = !sending && !disabled && controller.text.trim().isNotEmpty;
+   return Padding(
+     padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+     child: ValueListenableBuilder<TextEditingValue>(
+       valueListenable: controller,
+       builder: (context, value, _) {
+          final enabled = !sending && !disabled && value.text.trim().isNotEmpty;
+         return Row(
+           children: [
+             // React Composer renders AttachmentPicker before the input
               // (ChatComposer.tsx L86-90). The picker is disabled while a
-              // send is in flight (mirrors React's `disabled` prop).
-              AttachmentPicker(
-                disabled: sending,
-                ariaLabel: attachLabel,
-                onPick: onAttach,
-                onError: onAttachmentPickError,
-              ),
-              const SizedBox(width: 4),
-              // React Composer renders VoiceComposer after AttachmentPicker
-              // (ChatComposer.tsx L93-99). The mic is disabled while a send is
-              // in flight (mirrors React's `disabled` prop).
-              VoiceComposer(
-                disabled: sending,
-                onSend: onSendVoice,
-                onError: onVoiceError,
-                recordLabel: voiceRecordLabel,
-                discardLabel: voiceDiscardLabel,
-                stopLabel: voiceStopLabel,
-                playLabel: voicePlayLabel,
-                sendLabel: voiceSendLabel,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  enabled: !sending,
-                  onSubmitted: (_) {
-                    if (canSend) onSend();
-                  },
+              // send is in flight OR when the hard `disabled` gate is set
+              // (mirrors React's `disabled` prop).
+             AttachmentPicker(
+                disabled: sending || disabled,
+               ariaLabel: attachLabel,
+               onPick: onAttach,
+               onError: onAttachmentPickError,
+             ),
+             const SizedBox(width: 4),
+             // React Composer renders VoiceComposer after AttachmentPicker
+              // (ChatComposer.tsx L93-99). The mic is disabled while a send
+              // is in flight OR when the hard `disabled` gate is set.
+             VoiceComposer(
+                disabled: sending || disabled,
+               onSend: onSendVoice,
+               onError: onVoiceError,
+               recordLabel: voiceRecordLabel,
+               discardLabel: voiceDiscardLabel,
+               stopLabel: voiceStopLabel,
+               playLabel: voicePlayLabel,
+               sendLabel: voiceSendLabel,
+             ),
+             const SizedBox(width: 4),
+             Expanded(
+               child: TextField(
+                 controller: controller,
+                  enabled: !sending && !disabled,
+                 onSubmitted: (_) {
+                   if (canSend) onSend();
+                 },
                   decoration: InputDecoration(
                     hintText: placeholder,
                     border: const OutlineInputBorder(),
