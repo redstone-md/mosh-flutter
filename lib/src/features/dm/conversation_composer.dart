@@ -17,6 +17,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/features/shared/attachment_picker.dart';
+import 'package:mosh/src/features/dm/clipboard_paste_handler.dart' show PasteImageAction;
 import 'package:mosh/src/features/shared/voice_composer.dart';
 
 /// The shared DM + channel + group composer. Stateless because all state is
@@ -105,21 +106,38 @@ class ConversationComposer extends StatelessWidget {
                sendLabel: voiceSendLabel,
              ),
              const SizedBox(width: 4),
-             Expanded(
-               child: TextField(
-                 controller: controller,
-                  enabled: !sending && !disabled,
-                 onSubmitted: (_) {
-                   if (canSend) onSend();
-                 },
-                  decoration: InputDecoration(
-                    hintText: placeholder,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
+            Expanded(
+              child: Actions(
+                // Paste-to-attach (React ChatComposer.tsx:71-82 handlePaste):
+                // intercept the paste [Intent] so an image on the clipboard is
+                // attached instead of pasted as text. No `onPaste` callback
+                // exists on Flutter 3.44 `TextField`, so the ancestor `Actions`
+                // override is the interception point (the same `Action.
+                // overridable` pattern EditableTextState uses, editable_text
+                // .dart:5709). On no image the action defers to `callingAction`
+                // so the default text paste runs.
+                actions: <Type, Action<Intent>>{
+                  PasteTextIntent: PasteImageAction(
+                    onAttach: onAttach,
+                    onAttachmentPickError: onAttachmentPickError,
+                    gate: () => !sending && !disabled,
+                  ) as Action<Intent>,
+                },
+                child: TextField(
+                  controller: controller,
+                   enabled: !sending && !disabled,
+                  onSubmitted: (_) {
+                    if (canSend) onSend();
+                  },
+                   decoration: InputDecoration(
+                     hintText: placeholder,
+                     border: const OutlineInputBorder(),
+                     isDense: true,
+                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+            ),
+            const SizedBox(width: 8),
               FilledButton(
                 onPressed: enabled ? onSend : null,
                 child: sending
