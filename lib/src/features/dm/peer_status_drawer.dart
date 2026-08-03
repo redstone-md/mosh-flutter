@@ -107,6 +107,11 @@ class PeerStatusDrawer extends StatelessWidget {
                 // `scopesRoute: true` mirrors React `aria-modal="true"`
                 // (it scopes the route so the drawer is announced as a
                 // modal boundary); `label` is the `aria-labelledby` title.
+                // `explicitChildNodes: true` is REQUIRED by the framework
+                // when `scopesRoute` is true (RenderObject assertion), so
+                // the drawer's own semantics children stay visible under
+                // the scoped node instead of being merged up.
+                explicitChildNodes: true,
                 scopesRoute: true,
                 child: Material(
                   color: theme.scaffoldBackgroundColor,

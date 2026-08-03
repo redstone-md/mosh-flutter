@@ -20,11 +20,18 @@
 //   2. Mobile (400x800): /sessions shows the rail ALONE (no welcome pane).
 //      Tapping the DM row swaps to DmScreen and the rail is GONE. Leaving
 //      the DM (close + confirm) returns to the rail.
+//   3. Desktop (1200x900): tapping the shared titlebar's "Peer status"
+//      button mounts the shell-level PeerStatusDrawer (Positioned.fill
+//      over rail + chat); tapping the drawer's close button unmounts it.
+//      Regression guard for the titlebar-owned-_showPeerStatus bug (the
+//      shell never rebuilt when the titlebar flipped its private toggle,
+//      so the tap silently no-opped).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/main.dart';
+import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
@@ -142,6 +149,43 @@ void main() {
     expect(find.byType(SessionsScreen), findsOneWidget);
     // The welcome pane was replaced by the DM in the chat branch.
     expect(find.byType(ChatPaneWelcome), findsNothing);
+  });
+
+  testWidgets(
+      'desktop (1200x900): tapping the titlebar "Peer status" button '
+      'mounts PeerStatusDrawer and the close button unmounts it',
+      (tester) async {
+    final gw = _SeededGateway(
+        _session(sessionId: 'carol-1', peer: 'Carol'));
+
+    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+
+    // No drawer before the titlebar button is tapped.
+    expect(find.byType(PeerStatusDrawer), findsNothing);
+
+    // Tap the shared desktop titlebar's "Peer status" button (its visible
+    // text is l.peerStatusTitle -- the same locator style the existing
+    // cases use via find.text). At this point the drawer is closed, so
+    // "Peer status" resolves to exactly the titlebar button.
+    await tester.tap(find.text('Peer status'));
+    await tester.pumpAndSettle();
+
+    // The shell flipped its _showPeerStatus and rebuilt the Stack, so the
+    // Positioned.fill PeerStatusDrawer is now mounted over the whole
+    // shell (rail + chat). Before the fix this assertion FAILED: the
+    // titlebar owned the toggle, the shell never rebuilt, the tap no-
+    // oped.
+    expect(find.byType(PeerStatusDrawer), findsOneWidget);
+
+    // Close via the drawer header's close IconButton (tooltip
+    // l.closePeerStatus = "Close peer status" -- unique, so it does not
+    // collide with the welcome pane or rail).
+    await tester.tap(find.byTooltip('Close peer status'));
+    await tester.pumpAndSettle();
+
+    // The shell flipped _showPeerStatus back to false and the drawer
+    // unmounted.
+    expect(find.byType(PeerStatusDrawer), findsNothing);
   });
 
   testWidgets(
