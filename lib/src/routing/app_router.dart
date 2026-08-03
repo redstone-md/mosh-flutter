@@ -201,14 +201,19 @@ final GoRouter appRouter = GoRouter(
           // (the chat branch is offstage until activated anyway).
           preload: true,
          routes: <RouteBase>[
-           GoRoute(
-             // Chat-pane welcome / empty state (React NewSessionPanel
-              // showWelcome arm). Placeholder; the create/accept flow is
-              // a later atomic.
-              path: AppRoutes.chat,
-              builder: (BuildContext context, GoRouterState state) =>
-                  const ChatPaneWelcome(),
-            ),
+          GoRoute(
+            // Chat-pane welcome / empty state (React EmptyState parity,
+            // ActiveChatPanes.tsx:407-418). The start CTA routes to the
+            // chat-create step (AppRoutes.chatCreate) -- the same route
+            // the onboarding Chat tile uses. The closure captures the
+            // route's BuildContext (passed by the builder) so the
+            // widget stays testable (no context.go inside ChatPaneWelcome).
+            path: AppRoutes.chat,
+            builder: (BuildContext context, GoRouterState state) =>
+                ChatPaneWelcome(
+                  onStart: () => context.go(AppRoutes.chatCreate),
+                ),
+          ),
             GoRoute(
               path: '${AppRoutes.dm}/:sessionId',
               builder: (BuildContext context, GoRouterState state) {
