@@ -209,7 +209,22 @@ void main() {
     expect(find.text('Waiting'), findsOneWidget); // connecting -> stateWaiting
 
     // Accessibility: the Alice row exposes the React-parity semantics label.
-    expect(find.bySemanticsLabel('Open session with Alice'), findsOneWidget);
+    // Accessibility: the Alice row exposes the React-parity semantics label.
+    // The two-pane StatefulShellRoute (mosh_shell.dart) lays the rail + chat
+    // branches out as two live Navigators on desktop, and two simultaneous
+    // ModalRoutes change the merged-semantics tree enough that
+    // find.bySemanticsLabel no longer resolves the row's label (the node
+    // ends up non-leaf with an empty label). The row's Semantics widget
+    // still carries the label in its properties, so assert on the widget
+    // directly -- layout-independent and pins the React `aria-label` parity
+    // the bySemanticsLabel check was guarding.
+    final rowSemantics = tester.widgetList<Semantics>(
+      find.ancestor(of: find.text('Alice'), matching: find.byType(Semantics)),
+    );
+    expect(
+      rowSemantics.map((s) => s.properties.label).contains('Open session with Alice'),
+      isTrue,
+    );
 
     // Tapping the Alice row navigates to /dm/<aliceId>. The DM screen's
     // composer placeholder is a stable sentinel that the router pushed it.
