@@ -134,7 +134,7 @@
   },
   "chatDropHint": "Drop a file to share it",
   "@chatDropHint": {
-    "description": "Hint shown when dragging a file over the composer"
+    "description": "Hint shown when dragging a file over the message list"
   },
   "attachmentTooLargeMessage": "Attachment exceeds the 50 MB limit",
   "@attachmentTooLargeMessage": {

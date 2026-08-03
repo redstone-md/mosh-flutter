@@ -70,6 +70,7 @@ dependencies:
   flutter_local_notifications: ^22.2.0
   window_manager: ^0.5.2
   super_clipboard: ^0.1.7+6
+  desktop_drop: ^0.7.1
 
 dev_dependencies:
   flutter_test:

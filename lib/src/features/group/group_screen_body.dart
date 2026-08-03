@@ -27,6 +27,7 @@ import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
+import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
 import 'package:mosh/src/features/group/group_rejoin_needed_error.dart';
 import 'package:mosh/src/features/group/org_add_missing_banner.dart';
 import 'package:mosh/src/features/group/group_message_list_view.dart';
@@ -204,43 +205,54 @@ class GroupScreenBody extends StatelessWidget {
                   l: l,
                 ),
               ],
+              // ChatDropZone wraps the message list so a desktop file drop
+              // reuses the SAME onAttach/onError pair the paperclip uses
+              // (ChatComposer.tsx:8-43 React parity). `sending` gates the
+              // zone (no overlay + no ingest while a send is in flight).
+              // Expanded stays the Column's direct child (Flex parent data);
+              // ChatDropZone sits inside it wrapping the list content.
               Expanded(
-                child: async.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text(e.toString())),
-                  data: (group) {
-                    if (group.messages.isEmpty) {
-                      return const _Empty();
-                    }
-                    // React's filter-THEN-group order (MessageLists.tsx
-                    // `GroupChatList`): filter the raw list, THEN group
-                    // the visible set so the 5-min window is computed
-                    // across what the user actually sees. Empty-after-
-                    // filter renders the shared `DmSearchEmpty` (the
-                    // React `SearchEmpty` branch), mirroring DmScreen.
-                    final filtered = filterGroupMessages(
-                      group.messages,
-                      search,
-                      filter,
-                    );
-                    if (filtered.isEmpty) {
-                      return DmSearchEmpty(filter: filter, l: l);
-                    }
-                    return GroupMessageListView(
-                      messages: filtered,
-                      ownFingerprint: group.deviceFingerprint,
-                      attachments: group.attachments,
-                      attachmentCallbacks: attachmentCallbacks,
-                      onRetryMessage: onRetryMessage,
-                      peer: PeerActions(
+                child: ChatDropZone(
+                  disabled: sending,
+                  onAttach: onSendAttachment,
+                  onError: onAttachmentPickError,
+                  child: async.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text(e.toString())),
+                    data: (group) {
+                      if (group.messages.isEmpty) {
+                        return const _Empty();
+                      }
+                      // React's filter-THEN-group order (MessageLists.tsx
+                      // `GroupChatList`): filter the raw list, THEN group
+                      // the visible set so the 5-min window is computed
+                      // across what the user actually sees. Empty-after-
+                      // filter renders the shared `DmSearchEmpty` (the
+                      // React `SearchEmpty` branch), mirroring DmScreen.
+                      final filtered = filterGroupMessages(
+                        group.messages,
+                        search,
+                        filter,
+                      );
+                      if (filtered.isEmpty) {
+                        return DmSearchEmpty(filter: filter, l: l);
+                      }
+                      return GroupMessageListView(
+                        messages: filtered,
                         ownFingerprint: group.deviceFingerprint,
-                        offered: offeredFingerprints,
-                        busy: offerBusy,
-                        onMessage: onPeerMessage,
-                      ),
-                    );
-                  },
+                        attachments: group.attachments,
+                        attachmentCallbacks: attachmentCallbacks,
+                        onRetryMessage: onRetryMessage,
+                        peer: PeerActions(
+                          ownFingerprint: group.deviceFingerprint,
+                          offered: offeredFingerprints,
+                          busy: offerBusy,
+                          onMessage: onPeerMessage,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
               ConversationComposer(
