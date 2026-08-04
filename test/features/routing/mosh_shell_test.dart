@@ -31,7 +31,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/main.dart';
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
+import 'package:mosh/src/features/onboarding/chat_create_step.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
@@ -235,9 +237,20 @@ void main() {
   // Chat tile uses. The chat branch is preloaded (app_router.dart
   // preload: true) so the welcome pane renders side-by-side with the rail
   // at >= 900 wide even though /sessions is the active branch.
+  //
+  // Atomic #8 inlined the steps (React NewSessionPanel parity,
+  // NewSessionPanel.tsx:18-67): the desktop welcome now embeds
+  // NewSessionPanel (owns the OnboardStep state + an IndexedStack that
+  // keeps every step mounted). Tapping the Chat tile NO LONGER routes to
+  // /chat-create -- it switches the inline step to ChatCreateStep wrapped
+  // in OnboardStepBody (title + Back). Back returns to the menu. The rail
+  // stays mounted throughout (no routing). This case pins the inline
+  // switch + the back round-trip; the mobile case below pins the bare CTA
+  // still routes.
   testWidgets(
-      'desktop (1200x900): ChatPaneWelcome embeds OnboardMenu inline; '
-      'tapping the Chat tile routes to /chat-create', (tester) async {
+      'desktop (1200x900): ChatPaneWelcome embeds NewSessionPanel inline; '
+      'tapping the Chat tile switches the inline step (no routing); Back '
+      'returns to the menu', (tester) async {
     final gw = _SeededGateway(
         _session(sessionId: 'dave-1', peer: 'Dave'));
 
@@ -246,9 +259,10 @@ void main() {
     // The welcome pane renders beside the rail (chat branch preloaded).
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
 
-    // Desktop embeds OnboardMenu (React NewSessionPanel parity). The
-    // menu renders the onboard head (onboardTitle "Start a conversation")
-    // + the four tiles (Start: chat/group, Join: join/channel).
+    // Desktop embeds NewSessionPanel, whose step=menu child is OnboardMenu
+    // (React NewSessionPanel parity). The menu renders the onboard head
+    // (onboardTitle "Start a conversation") + the four tiles (Start:
+    // chat/group, Join: join/channel).
     expect(find.byType(OnboardMenu), findsOneWidget);
     expect(find.text('Start a conversation'), findsOneWidget);
     expect(find.text('New private chat'), findsOneWidget);
@@ -261,13 +275,38 @@ void main() {
         findsNothing);
 
     // Tap the Chat tile (onboardTileChatTitle "New private chat"). The
-    // desktop branch's onPickChat closure does
-    // context.go(AppRoutes.chatCreate), mounting ChatCreateScreen (the
-    // full-screen step -- atomic #8 will inline the step).
+    // desktop NewSessionPanel switches its IndexedStack to the chat step
+    // INLINE (no context.go): ChatCreateStep wrapped in OnboardStepBody
+    // renders the step title (l.onboardTileChatTitle) + a Back button.
+    // ChatCreateScreen does NOT mount -- the step is inline, the rail
+    // stays, no routing happened.
     await tester.tap(find.text('New private chat'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(ChatCreateScreen), findsOneWidget);
+    // No routing: ChatCreateScreen does NOT mount (the step is inline).
+    expect(find.byType(ChatCreateScreen), findsNothing);
+    // The chat step body (ChatCreateStep) is now the active IndexedStack
+    // child, so it is on-stage. The menu tile carrying the same
+    // "New private chat" text is offstage (skipOffstage default skips it),
+    // so find.text(l.onboardTileChatTitle) resolves to exactly the visible
+    // step title (OnboardStepBody headlineSmall).
+    final chatTitle = AppLocalizations.of(
+            tester.element(find.byType(ChatPaneWelcome)))!
+        .onboardTileChatTitle;
+    expect(find.text(chatTitle), findsOneWidget);
+    expect(find.byType(ChatCreateStep), findsOneWidget);
+
+    // Back (l.onboardBack "Back") returns the IndexedStack to step=menu.
+    // The menu re-renders (onboardTitle "Start a conversation" findsOne).
+    // The chat step body (ChatCreateStep) goes offstage inside the
+    // IndexedStack, so find.byType skips it (skipOffstage default). The
+    // menu tile "New private chat" re-shows, so find.text(chatTitle) is
+    // NOT usable as the "step gone" signal -- the type check is.
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start a conversation'), findsOneWidget);
+    expect(find.byType(ChatCreateStep), findsNothing);
   });
 
   // Mobile ChatPaneWelcome CTA (React EmptyState parity,
@@ -302,7 +341,8 @@ void main() {
     expect(find.byType(OnboardMenu), findsNothing);
 
     // Tap the start CTA. The router's onStart closure does
-    // context.go(AppRoutes.chatCreate), mounting ChatCreateScreen.
+    // context.go(AppRoutes.chatCreate), mounting ChatCreateScreen. Mobile
+    // still routes (the mobile branch of ChatPaneWelcome is unchanged).
     await tester.tap(find.text('New private chat'));
     await tester.pumpAndSettle();
 
