@@ -71,6 +71,7 @@ dependencies:
   window_manager: ^0.5.2
   super_clipboard: ^0.1.7+6
   desktop_drop: ^0.7.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

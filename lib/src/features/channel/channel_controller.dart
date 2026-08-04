@@ -21,7 +21,8 @@
 // [onPeerMessage] returns [ChannelPeerDmResult] carrying the new session id
 // (the screen navigates to /dm/<id>). [openAttachment] /
 // [resolvePendingOpen] return intents ([ChannelOpenResult] /
-// [ChannelPendingResolution]) so the screen shows the MediaViewer (UI).
+// [ChannelPendingResolution]) so the screen owns the MediaViewer and
+// platform side effects.
 //
 // The controller reads `gatewayProvider`, invalidates
 // `channelSnapshotProvider(name)` + `sessionListProvider`, and reads
@@ -43,7 +44,12 @@ import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/attachment_media_src.dart'
-    show resolveMediaOpen, localFileSrc;
+    show
+        resolveMediaOpen,
+        localFileSrc,
+        resolveLocalAttachmentOpen,
+        isViewableMedia;
+import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show
@@ -151,16 +157,6 @@ class ChannelPeerDmResult {
   static const noop = ChannelPeerDmResult(null);
 }
 
-/// Result of [ChannelController.openAttachment] -- the controller arms the
-/// pending-open + kicks the download internally; `showSrc`/`descriptor` are
-/// non-null when the viewer should open immediately (already-downloaded or
-/// streamable media), and the screen calls `showMediaViewer` with them.
-class ChannelOpenResult {
-  const ChannelOpenResult({this.descriptor, this.showSrc});
-  final AttachmentDescriptor? descriptor;
-  final String? showSrc;
-}
-
 /// Result of [ChannelController.resolvePendingOpen] -- the controller clears
 /// `pendingOpen` internally on `show`/`drop`; `show` carries the descriptor +
 /// local src so the screen opens the viewer, `drop` means the transfer
@@ -191,8 +187,9 @@ class ChannelPendingNone extends ChannelPendingResolution {
 /// Family by channel name. Riverpod v3 passes the family arg to the Notifier's
 /// constructor, so the class extends plain `Notifier` and stores the arg in a
 /// field (mirrors `voiceCallOrchestratorProvider`).
-final channelControllerProvider = NotifierProvider.family<
-    ChannelController, ChannelControllerState, String>(ChannelController.new);
+final channelControllerProvider =
+    NotifierProvider.family<ChannelController, ChannelControllerState, String>(
+        ChannelController.new);
 
 /// Owns the channel screen's business state + orchestration methods. See the
 /// library doc for the controller/screen split. The controller never
@@ -285,13 +282,13 @@ class ChannelController extends Notifier<ChannelControllerState> {
     state = state.copyWith(sending: true);
     try {
       await _runTransfer(() => sendChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        fileName: attachment.fileName,
-        mime: attachment.mime,
-        dataBase64: attachment.dataBase64,
-        thumbnailBase64: attachment.thumbnailBase64,
-      ));
+            gateway: ref.read(gatewayProvider),
+            target: _target,
+            fileName: attachment.fileName,
+            mime: attachment.mime,
+            dataBase64: attachment.dataBase64,
+            thumbnailBase64: attachment.thumbnailBase64,
+          ));
       ref.invalidate(channelSnapshotProvider(name));
     } finally {
       state = state.copyWith(sending: false);
@@ -342,15 +339,15 @@ class ChannelController extends Notifier<ChannelControllerState> {
             busy: state.transferBusy,
             onDownload: (id) => unawaited(_runTransfer(() =>
                 downloadChatAttachment(
-              gateway: ref.read(gatewayProvider),
-              target: _target,
-              attachmentId: id,
-            ).then((_) => ref.invalidate(channelSnapshotProvider(name))))),
+                  gateway: ref.read(gatewayProvider),
+                  target: _target,
+                  attachmentId: id,
+                ).then((_) => ref.invalidate(channelSnapshotProvider(name))))),
             onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
-              gateway: ref.read(gatewayProvider),
-              target: _target,
-              attachmentId: id,
-            ).then((_) => ref.invalidate(channelSnapshotProvider(name))))),
+                  gateway: ref.read(gatewayProvider),
+                  target: _target,
+                  attachmentId: id,
+                ).then((_) => ref.invalidate(channelSnapshotProvider(name))))),
             onOpen: (descriptor) => onOpen(descriptor, view),
           );
 
@@ -369,12 +366,18 @@ class ChannelController extends Notifier<ChannelControllerState> {
   /// (use-chat-orchestration.ts L243-265). The decision (src / download /
   /// wait) comes from [resolveMediaOpen] (the pure port of the React state
   /// machine). The controller arms `pendingOpen` + kicks the download
-  /// (business state + gateway); it returns [ChannelOpenResult] so the
-  /// screen shows the MediaViewer immediately for already-downloaded +
-  /// streamable media (UI side effect). The screen calls `showMediaViewer`
-  /// when `showSrc != null`.
-  ChannelOpenResult openAttachment(
+  /// (business state + gateway), then returns an immutable intent for the
+  /// screen to interpret.
+  AttachmentOpenIntent openAttachment(
       AttachmentDescriptor descriptor, AttachmentView? view) {
+    final localIntent = resolveLocalAttachmentOpen(
+      descriptor: descriptor,
+      view: view,
+    );
+    if (localIntent is! AttachmentNoopOpenIntent) return localIntent;
+    if (!isViewableMedia(descriptor.mime)) {
+      return const AttachmentNoopOpenIntent();
+    }
     final decision = resolveMediaOpen(
       descriptor: descriptor,
       view: view,
@@ -386,15 +389,18 @@ class ChannelController extends Notifier<ChannelControllerState> {
     }
     if (decision.download) {
       unawaited(_runTransfer(() => downloadChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        attachmentId: descriptor.attachmentId,
-      ).then((_) => ref.invalidate(channelSnapshotProvider(name)))));
+            gateway: ref.read(gatewayProvider),
+            target: _target,
+            attachmentId: descriptor.attachmentId,
+          ).then((_) => ref.invalidate(channelSnapshotProvider(name)))));
     }
     if (decision.src != null) {
-      return ChannelOpenResult(descriptor: descriptor, showSrc: decision.src);
+      return AttachmentMediaOpenIntent(
+        descriptor: descriptor,
+        src: decision.src!,
+      );
     }
-    return const ChannelOpenResult();
+    return const AttachmentNoopOpenIntent();
   }
 
   /// Resolves `pendingOpen` against an updated attachments list -- 1-1 with
@@ -403,7 +409,8 @@ class ChannelController extends Notifier<ChannelControllerState> {
   /// state (business) + return [ChannelPendingResolution] so the screen
   /// shows the viewer (UI) or drops the pending. Driven by the screen's
   /// `ref.listen` on the channel snapshot.
-  ChannelPendingResolution resolvePendingOpen(List<AttachmentView> attachments) {
+  ChannelPendingResolution resolvePendingOpen(
+      List<AttachmentView> attachments) {
     final pending = state.pendingOpen;
     if (pending == null) return const ChannelPendingResolution.none();
     AttachmentView? view;

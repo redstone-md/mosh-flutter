@@ -44,6 +44,8 @@ import 'package:mosh/src/features/dm/dm_screen_header.dart';
 import 'package:mosh/src/features/dm/dm_screen_body.dart';
 import 'package:mosh/src/features/dm/voice_call_layer.dart' show startVoiceCall;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
+import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/attachment_media_src.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
@@ -57,6 +59,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
+import 'package:mosh/src/util/format.dart' show readableError;
 
 part 'dm_screen_actions.dart';
 
@@ -155,7 +158,7 @@ class _DmScreenState extends ConsumerState<DmScreen> with DmScreenActions {
           if (!context.mounted) return;
           if (err != null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(err.toString())),
+              SnackBar(content: Text(readableError(err))),
             );
           }
         },

@@ -34,9 +34,11 @@
 // returns the sent body via [ChannelSendOutcome]; the screen clears
 // `_composer` iff it still equals it -- React parity) + the SnackBar error
 // surfaces (`_onVoiceError` / `_onAttachmentPickError`) + the MediaViewer
-// open (the controller returns [ChannelOpenResult] / [ChannelPendingResolution]
-// intents; the screen calls `showMediaViewer`). The controller never
+// open (the controller returns immutable intents/resolutions; the screen
+// performs UI and platform side effects). The controller never
 // navigates and never touches the composer.
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,6 +48,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/chat_header_menu.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
+import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
@@ -55,6 +59,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
+import 'package:mosh/src/util/format.dart' show readableError;
 
 import 'package:mosh/src/features/channel/channel_controller.dart';
 import 'package:mosh/src/features/channel/channel_screen_body.dart';
@@ -159,20 +164,29 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     }
   }
 
-  // Open an attachment -- delegates the pending-open arming + download to
-  // [ChannelController.openAttachment]; if the controller returns a `showSrc`
-  // (already-downloaded or streamable media), the screen shows the in-app
-  // [MediaViewer] (the UI side effect the controller never performs).
+  // Open an attachment -- delegates pending-open/download orchestration to
+  // [ChannelController.openAttachment] and interprets its immutable intent.
   void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
     final controller =
         ref.read(channelControllerProvider(widget.name).notifier);
     final result = controller.openAttachment(descriptor, view);
-    final src = result.showSrc;
-    if (src != null) {
-      showMediaViewer(
-        context: context,
-        descriptor: result.descriptor ?? descriptor,
-        src: src,
+    switch (result) {
+      case AttachmentExternalOpenIntent(:final localPath):
+        unawaited(_openExternalAttachment(localPath));
+      case AttachmentMediaOpenIntent(:final descriptor, :final src):
+        showMediaViewer(context: context, descriptor: descriptor, src: src);
+      case AttachmentNoopOpenIntent():
+        break;
+    }
+  }
+
+  Future<void> _openExternalAttachment(String localPath) async {
+    try {
+      await ref.read(attachmentLauncherProvider).open(localPath);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(readableError(error))),
       );
     }
   }
@@ -325,8 +339,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                 ChatHeaderMenuAction(
                   label: l.chatFilterAttachments,
                   icon: Icons.attach_file,
-                  onSelect: () => setState(
-                      () => _filter = ConversationFilter.attachments),
+                  onSelect: () =>
+                      setState(() => _filter = ConversationFilter.attachments),
                 ),
               ChatHeaderMenuAction(
                 label: l.channelLeaveLabel,
@@ -363,8 +377,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
         onFilter: (value) => setState(() => _filter = value),
         mobileSearchOpen: _mobileSearchOpen,
         onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
-        attachmentCallbacks:
-            controller.attachmentCallbacks(_openAttachment),
+        attachmentCallbacks: controller.attachmentCallbacks(_openAttachment),
         onRetryMessage: controller.retryMessage,
         offeredFingerprints: state.offeredFingerprints,
         offerBusy: state.offerBusy,

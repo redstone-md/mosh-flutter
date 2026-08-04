@@ -40,14 +40,19 @@
 // the group snapshot for the label -- a UI concern). The controller never
 // navigates and never touches the composer.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/group/group_attachment_open.dart';
 import 'package:mosh/src/features/group/group_screen_header.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
+import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
@@ -58,7 +63,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/org_providers.dart' show orgAddPromptProvider;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
-import 'package:mosh/src/util/format.dart' show shorten;
+import 'package:mosh/src/util/format.dart' show readableError, shorten;
 
 import 'package:mosh/src/features/group/group_controller.dart';
 import 'package:mosh/src/features/group/group_screen_body.dart';
@@ -164,20 +169,29 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     }
   }
 
-  // Open an attachment -- delegates the pending-open arming + download to
-  // [GroupController.openAttachment]; if the controller returns a `showSrc`
-  // (already-downloaded or streamable media), the screen shows the in-app
-  // [MediaViewer] (the UI side effect the controller never performs).
+  // Open an attachment -- delegates pending-open/download orchestration to
+  // [GroupController.openAttachment] and interprets its immutable intent.
   void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
     final controller =
         ref.read(groupControllerProvider(widget.groupId).notifier);
     final result = controller.openAttachment(descriptor, view);
-    final src = result.showSrc;
-    if (src != null) {
-      showMediaViewer(
-        context: context,
-        descriptor: result.descriptor ?? descriptor,
-        src: src,
+    switch (result) {
+      case AttachmentExternalOpenIntent(:final localPath):
+        unawaited(_openExternalAttachment(localPath));
+      case AttachmentMediaOpenIntent(:final descriptor, :final src):
+        showMediaViewer(context: context, descriptor: descriptor, src: src);
+      case AttachmentNoopOpenIntent():
+        break;
+    }
+  }
+
+  Future<void> _openExternalAttachment(String localPath) async {
+    try {
+      await ref.read(attachmentLauncherProvider).open(localPath);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(readableError(error))),
       );
     }
   }
@@ -319,8 +333,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
         orgAddPrompt: orgAddPrompt,
         onInviteMembers: controller.inviteMembers,
-        attachmentCallbacks:
-            controller.attachmentCallbacks(_openAttachment),
+        attachmentCallbacks: controller.attachmentCallbacks(_openAttachment),
         onRetryMessage: controller.retryMessage,
         offeredFingerprints: state.offeredFingerprints,
         offerBusy: state.offerBusy,
