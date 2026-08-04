@@ -17,6 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
+import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
+import 'package:mosh/src/state/persistence_warning_provider.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -41,6 +43,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    // Banner mirrors NewSessionPanel: renders above the menu (React parity;
+    // OnboardMenu itself has no banner so a single surface shows it once).
+    final warning = ref.watch(persistenceWarningProvider);
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -56,11 +61,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
-            child: OnboardMenu(
-              onPickChat: _goChatCreate,
-              onPickGroup: _goGroupCreate,
-              onPickChannel: _goChannelJoin,
-              onPickJoin: _goJoin,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (warning case AsyncData(:final value) when value != null) ...[
+                  PersistenceWarningBanner(warning: value),
+                  const SizedBox(height: 12),
+                ],
+                OnboardMenu(
+                  onPickChat: _goChatCreate,
+                  onPickGroup: _goGroupCreate,
+                  onPickChannel: _goChannelJoin,
+                  onPickJoin: _goJoin,
+                ),
+              ],
             ),
           ),
         ),
