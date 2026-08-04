@@ -4,12 +4,12 @@
 // the localized state labels resolve, mirroring the established DM
 // widget-test pattern but scoped to the card (no Riverpod/DmScreen).
 //
-// In scope (this atomic): the image-with-thumbnail branch renders a
-// non-interactive `Image.memory` preview above the shared name + size +
-// state-label bar. Out of scope and asserted absent or unasserted: the
-// onOpen tap, the actions row, and the voice
-// message branch.
+// In scope (this atomic): the image-with-thumbnail branch renders a tappable
+// `Image.memory` preview above the shared name + size + state-label bar. The
+// no-thumbnail viewable and non-viewable file-card behavior is covered by the
+// focused tests below.
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -24,13 +24,17 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 const _pngThumbB64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-// No-op transfer-action callbacks for the card-only render tests. The
-// actions row (download/cancel/retry/open) is required by AttachmentCard
-// this atomic, but these tests assert the preview/bar/icon surface, not
-// the action wiring, so the callbacks are inert.
+// Transfer-action callbacks are inert; these tests focus on the thumb and
+// media-preview surfaces while tracking the shared onOpen callback.
 void _onDownload(String _) {}
 void _onCancel(String _) {}
-void _onOpen(AttachmentDescriptor _) {}
+int _openCount = 0;
+AttachmentDescriptor? _opened;
+
+void _onOpen(AttachmentDescriptor descriptor) {
+  _openCount++;
+  _opened = descriptor;
+}
 
 AttachmentDescriptor _descriptor({
   required String attachmentId,
@@ -76,7 +80,14 @@ Future<void> _pump(WidgetTester tester, AttachmentCard card) async {
   await tester.pumpAndSettle();
 }
 
+void _resetOpenSpy() {
+  _openCount = 0;
+  _opened = null;
+}
+
 void main() {
+  setUp(_resetOpenSpy);
+
   testWidgets(
       'image with thumbnail renders the Image.memory preview + name + size',
       (tester) async {
@@ -89,26 +100,30 @@ void main() {
     );
     await _pump(
       tester,
-     AttachmentCard(
-       descriptor: descriptor,
-       view: _view(attachmentId: 'att-img'),
-       own: false,
-       busy: false,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-img'),
+        own: false,
+        busy: false,
         onDownload: _onDownload,
         onCancel: _onCancel,
         onOpen: _onOpen,
-     ),
-   );
+      ),
+    );
 
-   // The media-preview branch mounts an Image.memory from the decoded
-   // thumbnail bytes.
-   expect(find.byType(Image), findsOneWidget);
+    // The media-preview branch mounts an Image.memory from the decoded
+    // thumbnail bytes and keeps the open surface.
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.bySemanticsLabel('Open photo.png'), findsOneWidget);
+    await tester.tap(find.byType(Image));
+    expect(_openCount, 1);
+    expect(_opened, descriptor);
     // The shared bar still renders the file name and the formatted size.
     expect(find.text('photo.png'), findsOneWidget);
     expect(find.textContaining('4.0 KB'), findsOneWidget);
   });
 
-  testWidgets('image without thumbnail falls back to the file card',
+  testWidgets('image without thumbnail renders an open thumb button',
       (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-img-nothumb',
@@ -119,21 +134,40 @@ void main() {
     );
     await _pump(
       tester,
-     AttachmentCard(
-       descriptor: descriptor,
-       view: _view(attachmentId: 'att-img-nothumb'),
-       own: false,
-       busy: false,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-img-nothumb'),
+        own: false,
+        busy: false,
         onDownload: _onDownload,
         onCancel: _onCancel,
         onOpen: _onOpen,
-     ),
-   );
+      ),
+    );
 
-   // No preview: no Image.memory in the tree.
-   expect(find.byType(Image), findsNothing);
-    // The file-card file icon renders.
-    expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
+    // No preview: no Image.memory in the tree.
+    expect(find.byType(Image), findsNothing);
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    // The thumb owns the accessible action; IconButton's visual tooltip is
+    // excluded from semantics, so there is exactly one Open announcement.
+    expect(find.bySemanticsLabel('Open photo2.png'), findsOneWidget);
+    final thumbButton = find.ancestor(
+      of: find.byIcon(Icons.play_arrow),
+      matching: find.byType(IconButton),
+    );
+    expect(thumbButton, findsOneWidget);
+    expect(tester.getSize(thumbButton), const Size(40, 40));
+    expect(tester.widget<IconButton>(thumbButton).tooltip, 'Open');
+    final semanticsHandle = tester.ensureSemantics();
+    final thumbSemantics = tester
+        .getSemantics(find.byIcon(Icons.play_arrow))
+        .getSemanticsData();
+    expect(thumbSemantics.label, 'Open photo2.png');
+    expect(thumbSemantics.hasAction(SemanticsAction.tap), isTrue);
+    semanticsHandle.dispose();
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    expect(_openCount, 1);
+    expect(_opened, descriptor);
     // The file name still renders.
     expect(find.text('photo2.png'), findsOneWidget);
   });
@@ -150,24 +184,53 @@ void main() {
     );
     await _pump(
       tester,
-     AttachmentCard(
-       descriptor: descriptor,
-       view: _view(attachmentId: 'att-vid'),
-       own: false,
-       busy: false,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-vid'),
+        own: false,
+        busy: false,
         onDownload: _onDownload,
         onCancel: _onCancel,
         onOpen: _onOpen,
-     ),
-   );
+      ),
+    );
 
-   // The video-with-thumbnail branch takes the media path this atomic
+    // The video-with-thumbnail branch takes the media path this atomic
     // and renders Image.memory. The centered play overlay (in scope
     // this atomic) is asserted in the dedicated overlay test file.
     expect(find.byType(Image), findsOneWidget);
   });
 
-  testWidgets('audio without thumbnail falls back to the file card',
+  testWidgets('video without thumbnail opens from the thumb button',
+      (tester) async {
+    final descriptor = _descriptor(
+      attachmentId: 'att-vid-nothumb-open',
+      fileName: 'clip2.mp4',
+      mime: 'video/mp4',
+      totalSize: 2048576,
+    );
+    await _pump(
+      tester,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-vid-nothumb-open'),
+        own: false,
+        busy: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+      ),
+    );
+
+    expect(find.byType(Image), findsNothing);
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    expect(find.bySemanticsLabel('Open clip2.mp4'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    expect(_openCount, 1);
+    expect(_opened, descriptor);
+  });
+
+  testWidgets('audio without thumbnail renders an open thumb button',
       (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-audio',
@@ -178,20 +241,24 @@ void main() {
     );
     await _pump(
       tester,
-     AttachmentCard(
-       descriptor: descriptor,
-       view: _view(attachmentId: 'att-audio'),
-       own: false,
-       busy: false,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-audio'),
+        own: false,
+        busy: false,
         onDownload: _onDownload,
         onCancel: _onCancel,
         onOpen: _onOpen,
-     ),
-   );
+      ),
+    );
 
-   // Audio is not isImage/isVideo, so no preview.
+    // Audio is viewable without a thumbnail, but it is not a media preview.
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    expect(find.bySemanticsLabel('Open song.mp3'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    expect(_openCount, 1);
+    expect(_opened, descriptor);
     expect(find.text('song.mp3'), findsOneWidget);
   });
 
@@ -209,20 +276,66 @@ void main() {
     );
     await _pump(
       tester,
-     AttachmentCard(
-       descriptor: descriptor,
-       view: _view(attachmentId: 'att-pdf'),
-       own: false,
-       busy: false,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-pdf'),
+        own: false,
+        busy: false,
         onDownload: _onDownload,
         onCancel: _onCancel,
         onOpen: _onOpen,
-     ),
-   );
+      ),
+    );
 
-   // Pins the `isImage || isVideo` guard: no Image.memory.
+    // Pins the `isImage || isVideo` guard: no Image.memory.
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
+    final fileIcon = find.byIcon(Icons.insert_drive_file_outlined);
+    expect(fileIcon, findsOneWidget);
+    expect(
+      find.ancestor(of: fileIcon, matching: find.byType(IconButton)),
+      findsNothing,
+    );
+    expect(find.bySemanticsLabel('Open doc.pdf'), findsNothing);
+    expect(find.byType(IconButton), findsOneWidget);
+    expect(tester.widget<IconButton>(find.byType(IconButton)).onPressed,
+        isNotNull);
+    await tester.tap(find.byIcon(Icons.insert_drive_file_outlined));
+    expect(_openCount, 0);
     expect(find.text('doc.pdf'), findsOneWidget);
+  });
+
+  testWidgets('failed non-viewable attachment keeps a non-tappable error icon',
+      (tester) async {
+    final descriptor = _descriptor(
+      attachmentId: 'att-failed-pdf',
+      fileName: 'broken.pdf',
+      mime: 'application/pdf',
+      totalSize: 8192,
+    );
+    await _pump(
+      tester,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(
+          attachmentId: 'att-failed-pdf',
+          state: AttachmentState.failed,
+        ),
+        own: false,
+        busy: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+      ),
+    );
+
+    final errorIcon = find.byIcon(Icons.error_outline);
+    expect(errorIcon, findsOneWidget);
+    expect(
+      find.ancestor(of: errorIcon, matching: find.byType(IconButton)),
+      findsNothing,
+    );
+    expect(find.bySemanticsLabel('Open broken.pdf'), findsNothing);
+    await tester.tap(errorIcon);
+    expect(_openCount, 0);
   });
 }

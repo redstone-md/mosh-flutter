@@ -2,7 +2,8 @@
 // React `AttachmentCard` (src/features/private-dm/AttachmentCard.tsx).
 //
 // FILE branch (in scope): file name, formatted size, transfer-state label,
-// file icon (normal vs alert-on-failed), progress bar while downloading.
+// viewable MIME thumb button or non-viewable file/error icon, and progress
+// bar while downloading.
 //
 // IMAGE preview branch (in scope): when the descriptor carries a non-empty
 // `thumbnailB64` AND the mime is image/* or video/*, render the decoded
@@ -16,7 +17,8 @@
 // Voice messages ARE in scope: descriptor.voice -> VoiceMessageCard
 // (voice_message_card.dart, a separate file to keep this one focused).
 // React flow: if (voice) return VoiceMessage; then if (hasPreview)
-// return media-card; then return file-card.
+// return media-card; then return the file card with a viewable thumb button
+// or a non-viewable file/error icon.
 //
 // VIDEO play-overlay is IN SCOPE: a centered `Icons.play_circle_filled`
 // overlays the thumbnail when the mime is a video (React's
@@ -46,6 +48,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart';
 
 import 'package:mosh/src/features/dm/attachment_actions.dart';
+import 'package:mosh/src/features/dm/attachment_thumb.dart';
 import 'package:mosh/src/features/dm/voice_message_card.dart';
 
 /// Renders the in-scope file or image-preview attachment card for a DM
@@ -123,9 +126,6 @@ class AttachmentCard extends StatelessWidget {
         (outgoing ? AttachmentState.available : AttachmentState.offered);
     final percent = _progressPercent(view);
     final failed = state == AttachmentState.failed;
-    final icon =
-        failed ? Icons.error_outline : Icons.insert_drive_file_outlined;
-    final iconColor = failed ? theme.colorScheme.error : null;
     final bar = _buildBar(
       theme: theme,
       l: l,
@@ -140,7 +140,12 @@ class AttachmentCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 22, color: iconColor),
+          AttachmentThumb(
+            descriptor: descriptor,
+            viewable: _isViewable,
+            failed: failed,
+            onOpen: onOpen,
+          ),
           const SizedBox(width: 8),
           Expanded(child: bar),
           // React `attachment-bar`: `attachment-info` (flex-1) + actions
@@ -164,12 +169,20 @@ class AttachmentCard extends StatelessWidget {
 
   /// React: `hasPreview = Boolean(thumbnail_b64) && (isImage || isVideo)`.
   /// Image/video-with-thumbnail take the media branch; everything else
-  /// (audio, pdf, ...) falls back to the file card.
+  /// (audio, pdf, ...) takes the file-card branch. Audio remains viewable in
+  /// that branch and receives the open thumb button there.
   bool get _hasPreview {
     final thumb = descriptor.thumbnailB64;
     if (thumb == null || thumb.isEmpty) return false;
     final mime = descriptor.mime;
     return mime.startsWith('image/') || mime.startsWith('video/');
+  }
+
+  bool get _isViewable {
+    final mime = descriptor.mime;
+    return mime.startsWith('image/') ||
+        mime.startsWith('video/') ||
+        mime.startsWith('audio/');
   }
 }
 
@@ -253,7 +266,7 @@ Widget _buildBar({
   );
 }
 
-/// Renders the in-scope IMAGE media preview: the decoded base64 thumbnail
+/// Renders the in-scope image/video media preview: the decoded base64 thumbnail
 /// as a tappable `Image.memory` (rounded, height-constrained) above the
 /// shared name+meta+progress bar + actions row. Mirrors React's
 /// `attachment-card-media` shell with the `<img src=data:image/jpeg;base64,
@@ -263,8 +276,8 @@ Widget _buildBar({
 /// onClick={onOpen}>` -> `GestureDetector` opens the local file) and the
 /// actions row ([AttachmentActions] to the right of the bar, React's
 /// `attachment-bar` flex row). The video play-overlay is decorative
-/// (`Semantics(excludeSemantics: true)`); the wrapper semantics label
-/// reflects the content ("Image preview: ..." / "Video preview: ...").
+/// (`Semantics(excludeSemantics: true)`); the wrapper uses the localized open
+/// attachment action as its semantics label.
 class _MediaPreviewCard extends StatelessWidget {
   const _MediaPreviewCard({
     required this.descriptor,
@@ -298,9 +311,7 @@ class _MediaPreviewCard extends StatelessWidget {
     // React: `isVideo = descriptor.mime.startsWith("video/")`. Drives
     // the centered play-overlay on top of the thumbnail image.
     final isVideo = descriptor.mime.startsWith('video/');
-    final previewLabel = isVideo
-        ? 'Video preview: ${descriptor.fileName}'
-        : 'Image preview: ${descriptor.fileName}';
+    final previewLabel = l.attachmentOpenAria(descriptor.fileName);
 
     return _FileCardShell(
       failed: failed,
@@ -310,8 +321,9 @@ class _MediaPreviewCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // React wraps the thumbnail in `<button onClick={onOpen}>`; the
-          // preview is tappable via `GestureDetector` (opens the local
-          // file). The video play-overlay is decorative and stays on top.
+          // preview is tappable via `GestureDetector` (opens the local file)
+          // with the localized open-attachment action. The video
+          // play-overlay is decorative and stays on top.
           Semantics(
             label: previewLabel,
             image: true,
