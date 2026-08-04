@@ -36,9 +36,13 @@
   "chatDropHint": "Перетащите файл, чтобы поделиться им",
   "attachmentTooLargeMessage": "Размер вложения превышает 50 МБ",
   "chatSearchPlaceholder": "Поиск сообщений",
-  "chatFilterAll": "Все",
-  "chatFilterAttachments": "Файлы",
-  "openMessageSearch": "Открыть поиск сообщений",
+ "chatFilterAll": "Все",
+ "chatFilterAttachments": "Файлы",
+ "chatMoreActions": "Ещё действия чата",
+ "@chatMoreActions": {
+   "description": "Tooltip/aria-label кнопки мобильного меню-«кебаб» в заголовке чата (React ChatHeaderMenu aria-label, ActiveChatHeader.tsx)"
+ },
+ "openMessageSearch": "Открыть поиск сообщений",
   "closeMessageSearch": "Закрыть поиск сообщений",
   "chatSearchEmptyTitle": "Совпадений не найдено.",
   "chatSearchEmptyBody": "Попробуйте другой поиск или вернитесь ко всем сообщениям.",

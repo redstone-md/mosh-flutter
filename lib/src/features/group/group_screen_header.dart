@@ -25,6 +25,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/dm/chat_header_menu.dart';
 
 /// The GroupScreen AppBar header: the two-line title Column (group label +
 /// subtitle) plus the `actions:` row (admin-pill, copy-invite, peer-status,
@@ -46,6 +47,8 @@ class GroupScreenHeader extends ConsumerStatefulWidget
     required this.onLeave,
     required this.mobileSearchOpen,
     required this.onToggleMobileSearch,
+    required this.filter,
+    required this.onFilter,
   });
 
   final String groupId;
@@ -57,6 +60,12 @@ class GroupScreenHeader extends ConsumerStatefulWidget
   // screen passes the current value + a toggle callback down.
   final bool mobileSearchOpen;
   final VoidCallback onToggleMobileSearch;
+  // Conversation filter + onFilter -- the filter is owned by the screen
+  // (the body's ConversationTools + the kebab's filter toggle both drive
+  // it), so the screen passes the current value + a setter down, mirroring
+  // the mobileSearchOpen/onToggleMobileSearch pair.
+  final ConversationFilter filter;
+  final ValueChanged<ConversationFilter> onFilter;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -169,16 +178,69 @@ return AppBar(
             onToggle: widget.onToggleMobileSearch,
             l: l,
           ),
+        // Mobile kebab menu -- 1-1 with React `ChatHeaderMenu`
+        // (ChatHeaderMenu.tsx) prepended with the filter toggle via
+        // `conversationMenuActions` (ActiveChatHeader.tsx ~L155-170).
+        // Self-gates to mobile; React places it last in
+        // `chat-header-actions`. The group `menuActions` (ActiveChatPanes
+        // ActiveGroupChat ~L252-271): Copy invite (only when inviteUri !=
+        // null; label flips to "Invite copied" for 1600ms via the SAME
+        // `_copyInvite` + `_inviteCopied` state the desktop copy-invite
+        // IconButton uses -- the action list rebuilds on setState so the
+        // label/icon flip), then Leave group (danger; onSelect ->
+        // onClose -> widget.onLeave). Filter toggle FIRST
+        // (attachments -> "All"/Icons.chat_bubble_outline -> onFilter(all);
+        // else "Files"/Icons.attach_file -> onFilter(attachments)).
+        ChatHeaderMenu(
+          l: l,
+          actions: [
+            if (widget.filter == ConversationFilter.attachments)
+              ChatHeaderMenuAction(
+                label: l.chatFilterAll,
+                icon: Icons.chat_bubble_outline,
+                onSelect: () =>
+                    widget.onFilter(ConversationFilter.all),
+              )
+            else
+              ChatHeaderMenuAction(
+                label: l.chatFilterAttachments,
+                icon: Icons.attach_file,
+                onSelect: () =>
+                    widget.onFilter(ConversationFilter.attachments),
+              ),
+            if (async.maybeWhen(
+              data: (group) => group.inviteUri != null,
+              orElse: () => false,
+            ))
+              ChatHeaderMenuAction(
+                label: _inviteCopied
+                    ? l.groupCopyInviteDone
+                    : l.groupCopyInvite,
+                icon: _inviteCopied ? Icons.check : Icons.copy,
+                onSelect: () => _copyInvite(async.value?.inviteUri),
+              ),
+            ChatHeaderMenuAction(
+              label: l.groupLeaveLabel,
+              icon: Icons.logout,
+              danger: true,
+              onSelect: widget.onLeave,
+            ),
+          ],
+        ),
         IconButton(
           icon: const Icon(Icons.electrical_services, size: 18),
           tooltip: l.openPeerStatus,
           onPressed: widget.onOpenPeerStatus,
         ),
-        IconButton(
-          icon: const Icon(Icons.logout),
-          tooltip: l.groupLeaveLabel,
-          onPressed: widget.onLeave,
-        ),
+        // React marks the leave button `chat-desktop-only` (ActiveChatPanes
+        // ~L267-271); on mobile the kebab's "Leave group" item is the
+        // entry point instead.
+        if (!isMobileBreakpoint(context))
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: l.groupLeaveLabel,
+            onPressed: widget.onLeave,
+          ),
       ],
     );
   }

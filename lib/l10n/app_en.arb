@@ -148,11 +148,15 @@
   "@chatFilterAll": {
     "description": "Filter option showing all messages"
   },
-  "chatFilterAttachments": "Files",
-  "@chatFilterAttachments": {
-    "description": "Filter option showing only attachments"
-  },
-  "openMessageSearch": "Open message search",
+ "chatFilterAttachments": "Files",
+ "@chatFilterAttachments": {
+   "description": "Filter option showing only attachments"
+ },
+ "chatMoreActions": "More chat actions",
+ "@chatMoreActions": {
+   "description": "Tooltip/aria-label of the mobile kebab menu button in the chat header (React ChatHeaderMenu aria-label, ActiveChatHeader.tsx)"
+ },
+ "openMessageSearch": "Open message search",
   "@openMessageSearch": {
     "description": "Tooltip/semantics for the mobile search toggle when the panel is closed (mirrors React MobileSearchToggle non-open aria-label)"
   },
