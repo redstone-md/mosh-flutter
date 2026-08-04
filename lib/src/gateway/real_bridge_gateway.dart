@@ -73,7 +73,8 @@ import 'package:mosh/src/rust/api/private_group.dart' as group_api
         downloadAttachment,
         cancelAttachment,
         sendAttachment,
-        retryMessage;
+        retryMessage,
+        sendDmOffer;
 import 'package:mosh/src/rust/api/org.dart' as org_api
     show
         acceptDmOffer,
@@ -244,7 +245,10 @@ class RealBridgeGateway implements Gateway {
       channel_api.sendDmOffer(name: channelName, targetFingerprint: peerFingerprint, inviteUri: inviteUri);
   @override
   Future<void> sendGroupDmOffer({required String groupId, required String peerFingerprint, required String inviteUri}) =>
-      throw UnimplementedError('sendGroupDmOffer: real Rust bridge not yet wired (slice-3)');
+      group_api.sendDmOffer(
+          groupId: groupId,
+          targetFingerprint: peerFingerprint,
+          inviteUri: inviteUri);
   // Channel/group attachment transfer seams (slice-3): channel_api/group_api
   // both name the frb free functions `downloadAttachment`/`cancelAttachment`
   // -- disambiguated by the prefixes. Both return Future<void> (no `await`
