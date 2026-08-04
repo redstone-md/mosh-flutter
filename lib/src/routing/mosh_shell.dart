@@ -48,11 +48,14 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import 'package:mosh/src/routing/mosh_title_bar.dart';
+import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -296,36 +299,78 @@ class _MobileShell extends StatelessWidget {
 }
 
 /// The chat-pane welcome / empty state -- the Flutter port of React's
-/// EmptyState (src/features/private-dm/ActiveChatPanes.tsx:407-418), the
-/// inert desktop right pane shown at /chat when no conversation is open.
-/// Rendered as branch B's default location so the desktop right pane is
-/// never blank before the user opens a conversation, and so leaving a
-/// chat (context.go(AppRoutes.sessions)) on desktop can reset branch B
-/// here instead of leaving a dead chat mounted.
+/// desktop chat-pane body when no conversation is open
+/// (src/features/private-dm/private-dm-screen.tsx:325-343). Rendered as
+/// branch B's default location so the desktop right pane is never blank
+/// before the user opens a conversation, and so leaving a chat
+/// (context.go(AppRoutes.sessions)) on desktop can reset branch B here
+/// instead of leaving a dead chat mounted.
 ///
-/// Layout mirrors React's EmptyState order 1:1: IconMessageCircle (28) ->
-/// noSessionTitle -> noSessionBody -> primary startCta button with
-/// IconPlus. The `onStart` callback is injected by the router
-/// (app_router.dart), which routes it to context.go(AppRoutes.chatCreate)
-/// -- the same route the onboarding Chat tile uses
-/// (onboarding_screen.dart:90 _goChatCreate). This keeps the widget
-/// testable (no context.go inside) and matches the sessions_screen.dart
-/// _EmptyState.onStart pattern (sessions_screen.dart:461-478).
+/// DESKTOP (width > 580): React renders the full NewSessionPanel
+/// (OnboardMenu) INLINE in the chat-pane (private-dm-screen.tsx:325-343);
+/// the bare EmptyState CTA is mobile-only. The desktop branch therefore
+/// embeds the same OnboardMenu the OnboardingScreen uses, wrapped in the
+/// SAME body composition (Scaffold > SafeArea > Center >
+/// SingleChildScrollView(32/48) > ConstrainedBox(maxWidth: 460)) so the
+/// inline menu renders identically to the onboarding screen. The four
+/// onPick callbacks route to the full-screen step screens
+/// (atomic #8 will inline the steps); the menu's own context.go lives
+/// here, not in OnboardMenu (mirrors OnboardingScreen's _go* closures).
+///
+/// MOBILE (width <= 580): the parity-correct path is the bare CTA -- React
+/// renders EmptyState (ActiveChatPanes.tsx:407-418) with IconMessageCircle
+/// (28) -> noSessionTitle -> noSessionBody -> start CTA button, and
+/// routes to the chat-create step. The `onStart` callback is injected by
+/// the router (app_router.dart) as
+/// `() => context.go(AppRoutes.chatCreate)` -- the same route the
+/// desktop Chat tile uses. This keeps the widget testable (no context.go
+/// inside the mobile branch's CTA) and matches sessions_screen.dart
+/// _EmptyState.onStart (sessions_screen.dart:461-478).
+///
+/// ChatPaneWelcome stays a StatelessWidget: the desktop branch's
+/// OnboardMenu reads its own providers (inviteFlowProvider,
+/// gatewayProvider) via its ConsumerStatefulWidget ref; the root
+/// ProviderScope supplies the container. The desktop context.go calls
+/// use the widget build's `context`.
 ///
 /// Parity note: React's onNew also calls setup.resetInviteState()
 /// (private-dm-screen.tsx:329-336). The Flutter port has NO counterpart
 /// -- inviteFlowProvider keeps lastInvite across screens intentionally
-/// (no resetInviteState method exists); navigating to /chat-create is
+/// (no resetInviteState method exists); navigating to a step route is
 /// the parity action.
 class ChatPaneWelcome extends StatelessWidget {
   const ChatPaneWelcome({super.key, required this.onStart});
 
   /// Starts the chat-create flow (router passes
-  /// `() => context.go(AppRoutes.chatCreate)`). Mirrors React's onNew.
+  /// `() => context.go(AppRoutes.chatCreate)`). Mobile-only: the desktop
+  /// branch embeds OnboardMenu and routes via its own tile callbacks.
   final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
+    // Desktop: full OnboardMenu inline (React NewSessionPanel parity).
+    if (!isMobileBreakpoint(context)) {
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: OnboardMenu(
+                  onPickChat: () => context.go(AppRoutes.chatCreate),
+                  onPickGroup: () => context.go(AppRoutes.groupCreate),
+                  onPickChannel: () => context.go(AppRoutes.channelJoin),
+                  onPickJoin: () => context.go(AppRoutes.join),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    // Mobile: bare EmptyState CTA (React ActiveChatPanes.tsx:407-418).
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Scaffold(
