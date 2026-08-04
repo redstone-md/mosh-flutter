@@ -59,7 +59,8 @@ import 'package:mosh/src/rust/api/channel.dart' as channel_api
         downloadAttachment,
         cancelAttachment,
         sendAttachment,
-        retryMessage;
+        retryMessage,
+        sendDmOffer;
 import 'package:mosh/src/rust/api/private_group.dart' as group_api
     show
         createGroup,
@@ -236,14 +237,11 @@ class RealBridgeGateway implements Gateway {
   Future<void> dismissGroupDmOffer(
           {required String groupId, required String offerId}) =>
       group_api.dismissDmOffer(groupId: groupId, offerId: offerId);
-  // Peer-DM-offer SEND seams (channel/group): outbound send side of the
-  // dismiss pair above. React `use-dm-offers.ts:54` `offerDm` does
-  // createPrivateInvite -> sendChannelDmOffer OR sendGroupDmOffer. The Rust
-  // `offer` fn exists (commit_sequencer.rs:50) but is NOT yet frb-exposed;
-  // wiring is a separate slice-3 atomic. Throw UnimplementedError (not a silent no-op) so the gap is explicit in prod.
+  // Peer-DM-offer SEND seams: channel is wired to the generated Rust facade;
+  // group remains a separate atomic for independent review.
   @override
   Future<void> sendChannelDmOffer({required String channelName, required String peerFingerprint, required String inviteUri}) =>
-      throw UnimplementedError('sendChannelDmOffer: real Rust bridge not yet wired (slice-3)');
+      channel_api.sendDmOffer(name: channelName, targetFingerprint: peerFingerprint, inviteUri: inviteUri);
   @override
   Future<void> sendGroupDmOffer({required String groupId, required String peerFingerprint, required String inviteUri}) =>
       throw UnimplementedError('sendGroupDmOffer: real Rust bridge not yet wired (slice-3)');
