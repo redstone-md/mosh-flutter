@@ -35,6 +35,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
+import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
@@ -223,6 +224,49 @@ void main() {
 
     expect(find.byType(SessionsScreen), findsOneWidget);
     expect(find.byType(DmScreen), findsNothing);
+  });
+
+  // Desktop close-flow (atomic #9, NewSessionPanel-inline epic): on desktop
+  // the DM screen's `_leave` routes to /chat (branch B initialLocation)
+  // instead of /sessions, so the inline NewSessionPanel reappears in the
+  // chat pane while the rail STAYS mounted (the parity invariant). Before
+  // this fix, close routed to /sessions on both surfaces -- branch A
+  // activated and branch B kept the stale DmScreen mounted, so the inline
+  // welcome never re-showed after a close. The mobile path is pinned by
+  // the mobile case above (close -> rail returns).
+  testWidgets(
+      'desktop (1200x900): closing a DM routes to /chat so the inline '
+      'NewSessionPanel reappears while the rail STAYS mounted',
+      (tester) async {
+    final gw = _SeededGateway(
+        _session(sessionId: 'frank-1', peer: 'Frank'));
+
+    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+
+    // Open Frank's DM. Desktop two-pane: rail STAYS, chat pane swaps to
+    // the DM (the welcome pane is replaced).
+    await tester.tap(find.text('Frank'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DmScreen), findsOneWidget);
+    expect(find.byType(SessionsScreen), findsOneWidget);
+    expect(find.byType(NewSessionPanel), findsNothing);
+
+    // Leave the DM (Icons.close -> ConfirmDialog -> "Delete chat"). On
+    // desktop the screen's _leave routes to /chat, so branch B swaps back
+    // to its initialLocation -- the inline NewSessionPanel reappears.
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete chat'));
+    await tester.pumpAndSettle();
+
+    // The stale chat unmounts; the inline NewSessionPanel re-shows in the
+    // chat pane (the desktop close->inline-panel behavior this atomic
+    // pins).
+    expect(find.byType(DmScreen), findsNothing);
+    expect(find.byType(NewSessionPanel), findsOneWidget);
+    // The rail stays mounted on desktop (it was always mounted).
+    expect(find.byType(SessionsScreen), findsOneWidget);
   });
 
   // Desktop ChatPaneWelcome Start CTA (React EmptyState parity,

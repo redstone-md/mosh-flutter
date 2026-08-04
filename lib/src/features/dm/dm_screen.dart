@@ -451,7 +451,11 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       ..remove(widget.sessionId));
     ref.invalidate(activeSessionProvider(widget.sessionId));
     ref.invalidate(sessionListProvider);
-    context.go(AppRoutes.sessions);
+    // Desktop routes to /chat (branch B initialLocation) so the inline
+    // NewSessionPanel reappears; mobile keeps the rail (current behavior).
+    final target =
+        isMobileBreakpoint(context) ? AppRoutes.sessions : AppRoutes.chat;
+    context.go(target);
   }
 
   /// Close-flow confirmation -- 1-в-1 with React `useChatCloseFlow` dm branch
