@@ -33,19 +33,16 @@ import 'dart:convert' show base64Encode;
 
 import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
-import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_message_list.dart';
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/dm_screen_header.dart';
-import 'package:mosh/src/features/dm/conversation_composer.dart';
-import 'package:mosh/src/features/dm/voice_call_layer.dart' show VoiceCallLayer, startVoiceCall;
+import 'package:mosh/src/features/dm/dm_screen_body.dart';
+import 'package:mosh/src/features/dm/voice_call_layer.dart' show startVoiceCall;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/attachment_media_src.dart';
@@ -53,7 +50,6 @@ import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/features/shared/chat_actions.dart';
-import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -488,8 +484,6 @@ class _DmScreenState extends ConsumerState<DmScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final async = ref.watch(activeSessionProvider(widget.sessionId));
     // Resolve the pending-open descriptor 1-1 with React's `useEffect`
     // (use-chat-orchestration.ts L267-283): when the session snapshot's
     // attachments update and a pending open is armed, find the matching
@@ -504,9 +498,6 @@ class _DmScreenState extends ConsumerState<DmScreen> {
         _resolvePendingOpen(attachments);
       },
     );
-    final s = async.value;
-    final sessionForDrawer = s;
-    final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: DmScreenHeader(
         sessionId: widget.sessionId,
@@ -529,167 +520,30 @@ class _DmScreenState extends ConsumerState<DmScreen> {
         confirmedFingerprints: _confirmedFingerprints,
         onConfirmFingerprint: _confirmFingerprint,
       ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                // Inline error banner (Gap 3) -- 1-1 with React
-                // private-dm-screen.tsx L337-341
-                // `{!showWelcome && error ? <ChatError message={error}
-                // onRetry={canRetrySend ? retryFailedSend : undefined} /> :
-                // null}`. The DM screen is never on the welcome state (it
-                // always has a session), so the gate is just `_chatError !=
-                // null`. The Retry button is active iff [_canRetrySend].
-                if (_chatError != null)
-                  ChatErrorBanner(
-                    message: _chatError!,
-                    onRetry: _canRetrySend ? _retryFailedSend : null,
-                  ),
-                // Desktop search/filter row -- gated on the desktop
-                // breakpoint (React hides `.conversation-tools-desktop` at
-                // `max-width: 580px`). On desktop the row renders exactly as
-                // before (byte-identical); on mobile the compact trio below
-                // replaces it.
-                if (!isMobileBreakpoint(context))
-                  ConversationTools(
-                    search: _search,
-                    filter: _filter,
-                    onSearch: (value) => setState(() => _search = value),
-                    onFilter: (value) => setState(() => _filter = value),
-                    l: l,
-                  ),
-                // Mobile search/filter trio -- 1-1 with React
-                // ActiveChatHeader `mobileSearchOpen ? <MobileConversation
-                // Search/> : null` + the always-rendered
-                // `MobileConversationFilterNotice` (null-collapses when
-                // filter == all). Only on mobile (the toggle is gated in
-                // the AppBar on the same breakpoint).
-                if (isMobileBreakpoint(context)) ...[
-                  if (_mobileSearchOpen)
-                    MobileConversationSearch(
-                      search: _search,
-                      onSearch: (value) => setState(() => _search = value),
-                      onClose: () =>
-                          setState(() => _mobileSearchOpen = false),
-                      l: l,
-                    ),
-                  MobileConversationFilterNotice(
-                    filter: _filter,
-                    onFilter: (value) => setState(() => _filter = value),
-                    l: l,
-                  ),
-                ],
-                // ChatDropZone wraps the message list so a desktop file drop
-                // reuses the SAME onAttach/onError pair the paperclip uses
-                // (ChatComposer.tsx:8-43 React parity). DM has no separate
-                // ready flag -- async.when's data branch gates the list render.
-                // Expanded stays the Column's direct child (Flex parent data);
-                // ChatDropZone sits inside it wrapping the list content.
-                Expanded(
-                  child: ChatDropZone(
-                    disabled: _sending,
-                    onAttach: _sendAttachment,
-                    onError: _onAttachmentPickError,
-                    child: async.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Center(child: Text(e.toString())),
-                      data: (s) {
-                        if (s.messages.isEmpty) return _Empty(l: l);
-                        final filtered =
-                            filterDmMessages(s.messages, _search, _filter);
-                        if (filtered.isEmpty) {
-                          return DmSearchEmpty(filter: _filter, l: l);
-                        }
-                        return DmMessageListView(
-                          ownDeviceName: s.displayName,
-                          grouped: groupDmMessages(filtered).reversed.toList(),
-                          attachments: s.attachments,
-                          attachmentCallbacks: _attachmentCallbacks,
-                          onRetryMessage: _retryMessage,
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                ConversationComposer(
-                  controller: _composer,
-                  sending: _sending,
-                  placeholder: l.chatComposerPlaceholder,
-                  sendLabel: l.chatSendLabel,
-                  onSend: _send,
-                  attachLabel: l.chatAttachLabel,
-                  onAttach: _sendAttachment,
-                  onAttachmentPickError: _onAttachmentPickError,
-                  voiceRecordLabel: l.voiceRecordLabel,
-                  voiceDiscardLabel: l.voiceDiscardLabel,
-                  voiceStopLabel: l.voiceStopLabel,
-                  voicePlayLabel: l.voicePlayLabel,
-                  voiceSendLabel: l.voiceSendLabel,
-                  onSendVoice: _sendVoice,
-                  onVoiceError: _onVoiceError,
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                  child: Text(
-                    l.chatCryptoFooter,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ],
-            ),
-           if (_showPeerStatus)
-             Positioned.fill(
-               child: PeerStatusDrawer(
-                 session: sessionForDrawer,
-                 error: errorForDrawer,
-                 refreshing: false,
-                 onRefresh: () =>
-                     ref.invalidate(activeSessionProvider(widget.sessionId)),
-                 onClose: () => setState(() => _showPeerStatus = false),
-               ),
-             ),
-            // Voice-call modals/overlay -- watches the per-session snapshot
-            // and routes IncomingCallModal/OutgoingCallModal/CallOverlay
-            // through showDialog based on pendingCall/outgoingCall/activeCall
-            // (1-в-1 with React private-dm-screen.tsx L459-513). The layer
-            // renders nothing itself; it only shows dialogs.
-            Positioned.fill(
-              child: VoiceCallLayer(
-                sessionId: widget.sessionId,
-                l: l,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Empty-state for a chat with no messages yet (React DmChatList empty
-/// branch; chatEmptyTitle + chatEmptyBody).
-class _Empty extends StatelessWidget {
-  const _Empty({required this.l});
-  final AppLocalizations l;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l.chatEmptyTitle,
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(l.chatEmptyBody,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium),
-          ],
-        ),
+      body: DmScreenBody(
+        sessionId: widget.sessionId,
+        chatError: _chatError,
+        canRetrySend: _canRetrySend,
+        onRetrySend: _canRetrySend ? _retryFailedSend : null,
+        search: _search,
+        onSearch: (value) => setState(() => _search = value),
+        filter: _filter,
+        onFilter: (value) => setState(() => _filter = value),
+        mobileSearchOpen: _mobileSearchOpen,
+        onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
+        sending: _sending,
+        onAttach: _sendAttachment,
+        onAttachmentPickError: _onAttachmentPickError,
+        composer: _composer,
+        onSend: _send,
+        onSendVoice: _sendVoice,
+        onVoiceError: _onVoiceError,
+        showPeerStatus: _showPeerStatus,
+        onClosePeerStatus: () => setState(() => _showPeerStatus = false),
+        onRefreshSession: () =>
+            ref.invalidate(activeSessionProvider(widget.sessionId)),
+        attachmentCallbacks: _attachmentCallbacks,
+        onRetryMessage: _retryMessage,
       ),
     );
   }
