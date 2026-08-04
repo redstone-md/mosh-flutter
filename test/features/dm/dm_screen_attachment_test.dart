@@ -7,17 +7,31 @@
 // FakeGateway nor the native cdylib are involved.
 //
 // In scope: file name + formatted size + localized state label + icon +
-// progress indicator. Out of scope (asserted NOT present): the action
-// buttons (download/cancel/retry/open) and the media preview -- those are
-// later atomics once the Gateway seam grows transfer methods.
+// progress indicator, plus transfer-action busy behavior.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
+import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+
+class _ControllableGateway extends FakeGateway {
+  final Completer<void> downloadCompleter = Completer<void>();
+
+  @override
+  Future<void> downloadAttachment({
+    required String sessionId,
+    required String attachmentId,
+  }) =>
+      downloadCompleter.future;
+}
 
 AttachmentDescriptor _fileDescriptor({
   required String attachmentId,
@@ -100,10 +114,12 @@ Future<void> _pump(
   WidgetTester tester, {
   required String sessionId,
   required SessionSnapshot snapshot,
+  _ControllableGateway? gateway,
 }) async {
   await tester.pumpWidget(ProviderScope(
     overrides: [
       activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
+      if (gateway != null) gatewayProvider.overrideWithValue(gateway),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -113,6 +129,11 @@ Future<void> _pump(
   ));
   await tester.pumpAndSettle();
 }
+
+Finder _attachmentAction() => find.descendant(
+      of: find.byType(AttachmentCard),
+      matching: find.byType(IconButton),
+    );
 
 void main() {
   const sessionId = 'sess-attach';
@@ -228,5 +249,52 @@ void main() {
     expect(find.byIcon(Icons.error_outline), findsOneWidget);
     // The normal file icon does NOT render alongside it.
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsNothing);
+  });
+
+  testWidgets('DM offered download disables during the real transfer',
+      (tester) async {
+    final descriptor = _fileDescriptor(
+      attachmentId: 'att-busy',
+      fileName: 'busy.pdf',
+      mime: 'application/pdf',
+      totalSize: 1536,
+    );
+    final snapshot = _snapshot(
+      sessionId: sessionId,
+      displayName: 'alice',
+      messages: [
+        _msgWithAttachment(
+          fromDevice: 'bob',
+          body: 'download this',
+          attachment: descriptor,
+          sentAtMs: base,
+        ),
+      ],
+      attachments: [
+        _view(
+          attachmentId: 'att-busy',
+          direction: 'incoming',
+          state: AttachmentState.offered,
+        ),
+      ],
+    );
+    final gateway = _ControllableGateway();
+
+    await _pump(
+      tester,
+      sessionId: sessionId,
+      snapshot: snapshot,
+      gateway: gateway,
+    );
+    expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
+
+    await tester.tap(_attachmentAction());
+    await tester.pump();
+    expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNull);
+
+    gateway.downloadCompleter.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
   });
 }

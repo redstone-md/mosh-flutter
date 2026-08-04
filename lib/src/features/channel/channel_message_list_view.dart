@@ -87,6 +87,7 @@ class ChannelMessageListView extends StatelessWidget {
            onAttachmentDownload: callbacks.onDownload,
            onAttachmentCancel: callbacks.onCancel,
            onAttachmentOpen: callbacks.onOpen,
+           busy: callbacks.busy,
            onRetry: onRetryMessage,
          );
        },
@@ -110,11 +111,13 @@ AttachmentView? findChannelAttachmentView(
 /// file to avoid coupling channel/group to the DM screen's class).
 class ChannelAttachmentCallbacks {
   const ChannelAttachmentCallbacks({
+    required this.busy,
     required this.onDownload,
     required this.onCancel,
     required this.onOpen,
   });
 
+  final bool busy;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
   final void Function(AttachmentDescriptor descriptor) onOpen;

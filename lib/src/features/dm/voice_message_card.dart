@@ -52,6 +52,7 @@ class VoiceMessageCard extends StatefulWidget {
     super.key,
     required this.descriptor,
     required this.view,
+    required this.busy,
     required this.onDownload,
     required this.playLabel,
     required this.pauseLabel,
@@ -59,6 +60,7 @@ class VoiceMessageCard extends StatefulWidget {
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
+  final bool busy;
   final void Function(String attachmentId) onDownload;
 
   final String playLabel;
@@ -180,7 +182,8 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
             icon:
                 Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
             tooltip: playLabel,
-            onPressed: _toggle,
+            onPressed:
+                widget.busy && widget.view?.localPath == null ? null : _toggle,
           ),
           const SizedBox(width: 4),
           GestureDetector(

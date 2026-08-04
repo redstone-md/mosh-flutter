@@ -58,6 +58,7 @@ void main() {
       onAttachmentDownload: (_) {},
       onAttachmentCancel: (_) {},
       onAttachmentOpen: (_) {},
+      busy: false,
       onRetry: (_) {},
       l: l,
     )));
@@ -81,6 +82,7 @@ void main() {
       onAttachmentDownload: (_) {},
       onAttachmentCancel: (_) {},
       onAttachmentOpen: (_) {},
+      busy: false,
       onRetry: (_) {},
       l: l,
     )));
@@ -104,6 +106,7 @@ void main() {
       onAttachmentDownload: (_) {},
       onAttachmentCancel: (_) {},
       onAttachmentOpen: (_) {},
+      busy: false,
       onRetry: (_) {},
       l: l,
     )));

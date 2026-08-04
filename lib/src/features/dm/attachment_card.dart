@@ -66,6 +66,7 @@ class AttachmentCard extends StatelessWidget {
     required this.descriptor,
     required this.view,
     required this.own,
+    required this.busy,
     required this.onDownload,
     required this.onCancel,
     required this.onOpen,
@@ -74,6 +75,7 @@ class AttachmentCard extends StatelessWidget {
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
   final bool own;
+  final bool busy;
 
   /// React `onDownload`: fires `Gateway.downloadAttachment`; the screen
   /// invalidates the session provider so the downloading state re-renders.
@@ -95,6 +97,7 @@ class AttachmentCard extends StatelessWidget {
       return VoiceMessageCard(
         descriptor: descriptor,
         view: view,
+        busy: busy,
         onDownload: onDownload,
         playLabel: l.voiceMessagePlayLabel,
         pauseLabel: l.voiceMessagePauseLabel,
@@ -107,6 +110,7 @@ class AttachmentCard extends StatelessWidget {
         descriptor: descriptor,
         view: view,
         own: own,
+        busy: busy,
         onDownload: onDownload,
         onCancel: onCancel,
         onOpen: onOpen,
@@ -149,7 +153,7 @@ class AttachmentCard extends StatelessWidget {
             view: view,
             state: state,
             outgoing: outgoing,
-            busy: false,
+            busy: busy,
             onDownload: onDownload,
             onCancel: onCancel,
             onOpen: onOpen,
@@ -268,6 +272,7 @@ class _MediaPreviewCard extends StatelessWidget {
     required this.descriptor,
     required this.view,
     required this.own,
+    required this.busy,
     required this.onDownload,
     required this.onCancel,
     required this.onOpen,
@@ -276,6 +281,7 @@ class _MediaPreviewCard extends StatelessWidget {
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
   final bool own;
+  final bool busy;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
   final void Function(AttachmentDescriptor descriptor) onOpen;
@@ -383,7 +389,7 @@ class _MediaPreviewCard extends StatelessWidget {
                 view: view,
                 state: state,
                 outgoing: outgoing,
-                busy: false,
+                busy: busy,
                 onDownload: onDownload,
                 onCancel: onCancel,
                 onOpen: onOpen,

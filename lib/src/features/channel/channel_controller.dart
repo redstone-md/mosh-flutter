@@ -69,6 +69,7 @@ import 'package:mosh/src/features/channel/channel_message_list_view.dart'
 class ChannelControllerState {
   const ChannelControllerState({
     this.sending = false,
+    this.transferOperations = 0,
     this.offerBusy = false,
     this.offeredFingerprints = const <String>{},
     this.chatError,
@@ -77,6 +78,7 @@ class ChannelControllerState {
   });
 
   final bool sending;
+  final int transferOperations;
   final bool offerBusy;
   final Set<String> offeredFingerprints;
   final String? chatError;
@@ -86,6 +88,8 @@ class ChannelControllerState {
   // Ephemeral pending-open descriptor (Gap 2) -- 1-1 with React's `pendingOpen`.
   final AttachmentDescriptor? pendingOpen;
 
+  bool get transferBusy => transferOperations > 0;
+
   /// Whether the banner's Retry button should be active -- 1-1 with React
   /// `canRetrySend`. `active` is always this controller's target, so it
   /// reduces to a non-null `lastFailedSend` whose target matches `target`.
@@ -94,6 +98,7 @@ class ChannelControllerState {
 
   ChannelControllerState copyWith({
     bool? sending,
+    int? transferOperations,
     bool? offerBusy,
     Set<String>? offeredFingerprints,
     Object? chatError = _sentinel,
@@ -102,6 +107,7 @@ class ChannelControllerState {
   }) =>
       ChannelControllerState(
         sending: sending ?? this.sending,
+        transferOperations: transferOperations ?? this.transferOperations,
         offerBusy: offerBusy ?? this.offerBusy,
         offeredFingerprints: offeredFingerprints ?? this.offeredFingerprints,
         chatError: identical(chatError, _sentinel)
@@ -208,6 +214,20 @@ class ChannelController extends Notifier<ChannelControllerState> {
 
   ChatTarget get target => _target;
 
+  Future<T> _runTransfer<T>(Future<T> Function() operation) async {
+    state = state.copyWith(transferOperations: state.transferOperations + 1);
+    try {
+      return await operation();
+    } finally {
+      if (ref.mounted) {
+        state = state.copyWith(
+          transferOperations:
+              state.transferOperations > 0 ? state.transferOperations - 1 : 0,
+        );
+      }
+    }
+  }
+
   /// Sends a body verbatim -- 1-1 with React `sendMessageBody`. Runs the full
   /// try/catch/finally: on SUCCESS clears `lastFailedSend` + `chatError`
   /// (React `setLastFailedSend(null)` + `onError(undefined)`) and invalidates
@@ -264,14 +284,14 @@ class ChannelController extends Notifier<ChannelControllerState> {
     if (state.sending) return;
     state = state.copyWith(sending: true);
     try {
-      await sendChatAttachment(
+      await _runTransfer(() => sendChatAttachment(
         gateway: ref.read(gatewayProvider),
         target: _target,
         fileName: attachment.fileName,
         mime: attachment.mime,
         dataBase64: attachment.dataBase64,
         thumbnailBase64: attachment.thumbnailBase64,
-      );
+      ));
       ref.invalidate(channelSnapshotProvider(name));
     } finally {
       state = state.copyWith(sending: false);
@@ -287,21 +307,23 @@ class ChannelController extends Notifier<ChannelControllerState> {
     if (state.sending) return;
     state = state.copyWith(sending: true);
     try {
-      final file = File(voice.path);
-      final bytes = await file.readAsBytes();
-      final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
-      final fileName = 'voice-message.$ext';
-      await sendChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        fileName: fileName,
-        mime: voice.mime,
-        dataBase64: base64Encode(bytes),
-        voice: VoiceMeta(
-          durationMs: voice.durationMs,
-          peaksB64: voice.peaksBase64,
-        ),
-      );
+      await _runTransfer(() async {
+        final file = File(voice.path);
+        final bytes = await file.readAsBytes();
+        final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
+        final fileName = 'voice-message.$ext';
+        await sendChatAttachment(
+          gateway: ref.read(gatewayProvider),
+          target: _target,
+          fileName: fileName,
+          mime: voice.mime,
+          dataBase64: base64Encode(bytes),
+          voice: VoiceMeta(
+            durationMs: voice.durationMs,
+            peaksB64: voice.peaksBase64,
+          ),
+        );
+      });
       ref.invalidate(channelSnapshotProvider(name));
     } finally {
       state = state.copyWith(sending: false);
@@ -317,16 +339,18 @@ class ChannelController extends Notifier<ChannelControllerState> {
     void Function(AttachmentDescriptor descriptor, AttachmentView? view) onOpen,
   ) =>
       (view) => ChannelAttachmentCallbacks(
-            onDownload: (id) => unawaited(downloadChatAttachment(
+            busy: state.transferBusy,
+            onDownload: (id) => unawaited(_runTransfer(() =>
+                downloadChatAttachment(
               gateway: ref.read(gatewayProvider),
               target: _target,
               attachmentId: id,
-            ).then((_) => ref.invalidate(channelSnapshotProvider(name)))),
-            onCancel: (id) => unawaited(cancelChatAttachment(
+            ).then((_) => ref.invalidate(channelSnapshotProvider(name))))),
+            onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
               gateway: ref.read(gatewayProvider),
               target: _target,
               attachmentId: id,
-            ).then((_) => ref.invalidate(channelSnapshotProvider(name)))),
+            ).then((_) => ref.invalidate(channelSnapshotProvider(name))))),
             onOpen: (descriptor) => onOpen(descriptor, view),
           );
 
@@ -361,11 +385,11 @@ class ChannelController extends Notifier<ChannelControllerState> {
       state = state.copyWith(pendingOpen: descriptor);
     }
     if (decision.download) {
-      unawaited(downloadChatAttachment(
+      unawaited(_runTransfer(() => downloadChatAttachment(
         gateway: ref.read(gatewayProvider),
         target: _target,
         attachmentId: descriptor.attachmentId,
-      ).then((_) => ref.invalidate(channelSnapshotProvider(name))));
+      ).then((_) => ref.invalidate(channelSnapshotProvider(name)))));
     }
     if (decision.src != null) {
       return ChannelOpenResult(descriptor: descriptor, showSrc: decision.src);
