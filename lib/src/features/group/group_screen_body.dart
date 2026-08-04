@@ -222,7 +222,7 @@ class GroupScreenBody extends StatelessWidget {
                     error: (e, _) => Center(child: Text(e.toString())),
                     data: (group) {
                       if (group.messages.isEmpty) {
-                        return const _Empty();
+                        return _Empty(l: l);
                       }
                       // React's filter-THEN-group order (MessageLists.tsx
                       // `GroupChatList`): filter the raw list, THEN group
@@ -301,14 +301,30 @@ bool _needsRejoin(AsyncValue<GroupSnapshot?> async) {
   return group != null && group.needsRejoin;
 }
 
-/// Empty-state for a group with no messages yet. Shell form: no localized
-/// title/body yet (deferred with the notice banner atomic); a plain hint so
-/// the layout is not bare.
+/// Empty-state for a group with no messages yet (React
+/// MessageLists.tsx:79-86 GroupChatList empty branch;
+/// groupEmptyTitle + groupEmptyBody). Mirrors DmScreen _Empty.
 class _Empty extends StatelessWidget {
-  const _Empty();
+  const _Empty({required this.l});
+  final AppLocalizations l;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text(''));
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l.groupEmptyTitle,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(l.groupEmptyBody,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -189,7 +189,7 @@ class ChannelScreenBody extends StatelessWidget {
                     error: (e, _) => Center(child: Text(e.toString())),
                     data: (snapshot) {
                       if (snapshot.messages.isEmpty) {
-                        return const _Empty();
+                        return _Empty(l: l);
                       }
                       // React's filter-THEN-group order (MessageLists.tsx
                       // `ChannelChatList`): filter the raw list, THEN group
@@ -257,14 +257,30 @@ class ChannelScreenBody extends StatelessWidget {
   }
 }
 
-/// Empty-state for a channel with no messages yet. Shell form: no localized
-/// title/body yet (deferred with the notice banner atomic); a plain hint so
-/// the layout is not bare.
+/// Empty-state for a channel with no messages yet (React
+/// MessageLists.tsx:170-177 ChannelChatList empty branch;
+/// channelEmptyTitle + channelEmptyBody). Mirrors DmScreen _Empty.
 class _Empty extends StatelessWidget {
-  const _Empty();
+  const _Empty({required this.l});
+  final AppLocalizations l;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text(''));
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l.channelEmptyTitle,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(l.channelEmptyBody,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
   }
 }
