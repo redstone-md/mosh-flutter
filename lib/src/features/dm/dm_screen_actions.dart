@@ -173,13 +173,13 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
     setState(() => _sending = true);
     try {
       await _runTransfer(() => sendChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        fileName: attachment.fileName,
-        mime: attachment.mime,
-        dataBase64: attachment.dataBase64,
-        thumbnailBase64: attachment.thumbnailBase64,
-      ));
+            gateway: ref.read(gatewayProvider),
+            target: _target,
+            fileName: attachment.fileName,
+            mime: attachment.mime,
+            dataBase64: attachment.dataBase64,
+            thumbnailBase64: attachment.thumbnailBase64,
+          ));
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
     } finally {
@@ -250,17 +250,16 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   DmAttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
       DmAttachmentCallbacks(
         busy: _transferBusy,
-        onDownload: (id) => unawaited(_runTransfer(() =>
-            downloadChatAttachment(
-          gateway: _gateway,
-          target: _target,
-          attachmentId: id,
-        ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
+        onDownload: (id) => unawaited(_runTransfer(() => downloadChatAttachment(
+              gateway: _gateway,
+              target: _target,
+              attachmentId: id,
+            ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
         onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
-          gateway: _gateway,
-          target: _target,
-          attachmentId: id,
-        ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
+              gateway: _gateway,
+              target: _target,
+              attachmentId: id,
+            ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
         onOpen: (descriptor) => _openAttachment(descriptor, view),
       );
 
@@ -286,6 +285,20 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   /// download finishes). Reuses [downloadChatAttachment] (Gap 4) for the
   /// download trigger; the host is the DM session id (React `active.id`).
   void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
+    final localIntent = resolveLocalAttachmentOpen(
+      descriptor: descriptor,
+      view: view,
+    );
+    switch (localIntent) {
+      case AttachmentExternalOpenIntent(:final localPath):
+        unawaited(_openExternalAttachment(localPath));
+        return;
+      case AttachmentMediaOpenIntent(:final descriptor, :final src):
+        showMediaViewer(context: context, descriptor: descriptor, src: src);
+        return;
+      case AttachmentNoopOpenIntent():
+        break;
+    }
     final decision = resolveMediaOpen(
       descriptor: descriptor,
       view: view,
@@ -304,10 +317,21 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
     }
     if (decision.download) {
       unawaited(_runTransfer(() => downloadChatAttachment(
-        gateway: _gateway,
-        target: _target,
-        attachmentId: descriptor.attachmentId,
-      ).then((_) => ref.invalidate(activeSessionProvider(_sessionId)))));
+            gateway: _gateway,
+            target: _target,
+            attachmentId: descriptor.attachmentId,
+          ).then((_) => ref.invalidate(activeSessionProvider(_sessionId)))));
+    }
+  }
+
+  Future<void> _openExternalAttachment(String localPath) async {
+    try {
+      await ref.read(attachmentLauncherProvider).open(localPath);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(readableError(error))),
+      );
     }
   }
 

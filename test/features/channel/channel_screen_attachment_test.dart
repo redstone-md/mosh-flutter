@@ -15,11 +15,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+
+import '../shared/attachment_launcher_test_support.dart';
 
 class _ControllableGateway extends FakeGateway {
   final Completer<void> downloadCompleter = Completer<void>();
@@ -74,6 +77,7 @@ AttachmentView _view({
   required AttachmentState state,
   int completed = 0,
   int total = 0,
+  String? localPath,
 }) =>
     AttachmentView(
       attachmentId: attachmentId,
@@ -81,7 +85,7 @@ AttachmentView _view({
       state: state,
       completedChunks: BigInt.from(completed),
       chunkCount: BigInt.from(total),
-      localPath: null,
+      localPath: localPath,
     );
 
 ChannelSnapshot _snapshot({
@@ -108,11 +112,14 @@ Future<void> _pump(
   required String name,
   required ChannelSnapshot snapshot,
   _ControllableGateway? gateway,
+  AttachmentLauncher? launcher,
 }) async {
   await tester.pumpWidget(ProviderScope(
     overrides: [
       channelSnapshotProvider(name).overrideWith((ref) async => snapshot),
       if (gateway != null) gatewayProvider.overrideWithValue(gateway),
+      if (launcher != null)
+        attachmentLauncherProvider.overrideWithValue(launcher),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -252,5 +259,83 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
+  });
+
+  testWidgets('available non-media channel attachment opens externally',
+      (tester) async {
+    final descriptor = _fileDescriptor(
+      attachmentId: 'att-external',
+      fileName: 'report.pdf',
+      mime: 'application/pdf',
+      totalSize: 1536,
+    );
+    final launcher = RecordingAttachmentLauncher();
+    await _pump(
+      tester,
+      name: name,
+      launcher: launcher,
+      snapshot: _snapshot(
+        name: name,
+        deviceFingerprint: 'fp-me',
+        messages: [
+          _msgWithAttachment(
+            fromDevice: 'me',
+            fromFingerprint: 'fp-me',
+            body: 'local report',
+            attachment: descriptor,
+            sentAtMs: base,
+          ),
+        ],
+        attachments: [
+          _view(
+            attachmentId: 'att-external',
+            direction: 'outgoing',
+            state: AttachmentState.available,
+            localPath: '/tmp/report.pdf',
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(_attachmentAction());
+    await tester.pump();
+
+    expect(launcher.paths, ['/tmp/report.pdf']);
+  });
+
+  testWidgets('empty local path keeps channel Open disabled', (tester) async {
+    final descriptor = _fileDescriptor(
+      attachmentId: 'att-empty',
+      fileName: 'report.pdf',
+      mime: 'application/pdf',
+      totalSize: 1536,
+    );
+    await _pump(
+      tester,
+      name: name,
+      snapshot: _snapshot(
+        name: name,
+        deviceFingerprint: 'fp-me',
+        messages: [
+          _msgWithAttachment(
+            fromDevice: 'me',
+            fromFingerprint: 'fp-me',
+            body: 'not local',
+            attachment: descriptor,
+            sentAtMs: base,
+          ),
+        ],
+        attachments: [
+          _view(
+            attachmentId: 'att-empty',
+            direction: 'outgoing',
+            state: AttachmentState.available,
+            localPath: '',
+          ),
+        ],
+      ),
+    );
+
+    expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNull);
   });
 }

@@ -16,7 +16,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 /// At most ONE `IconButton` renders, gated on `state` + `outgoing` (the
 /// outgoing sender only ever gets Open):
 ///   - available              -> Open (Icons.open_in_new), disabled when
-///                               `view.localPath == null` (React
+///                               `view.localPath` is null or empty (React
 ///                               `disabled={!view?.local_path}`).
 ///   - !outgoing && offered   -> Download (Icons.download).
 ///   - !outgoing && cancelled -> Retry-download (Icons.download, the same
@@ -59,9 +59,11 @@ class AttachmentActions extends StatelessWidget {
     final id = descriptor.attachmentId;
     final localPath = view?.localPath;
 
-    // 1) available -> Open (disabled when no localPath).
+    // 1) available -> Open (disabled when no usable localPath).
     if (state == AttachmentState.available) {
-      final onPressed = localPath == null ? null : () => onOpen(descriptor);
+      final onPressed = localPath == null || localPath.isEmpty
+          ? null
+          : () => onOpen(descriptor);
       return _ActionIcon(
         icon: Icons.open_in_new,
         tooltip: l.attachmentOpen,
@@ -73,9 +75,11 @@ class AttachmentActions extends StatelessWidget {
     // 2) !outgoing && (offered|cancelled) -> Download / Retry-download
     //    (cancelled reuses the button with the "Retry download" label).
     if (!outgoing &&
-        (state == AttachmentState.offered || state == AttachmentState.cancelled)) {
+        (state == AttachmentState.offered ||
+            state == AttachmentState.cancelled)) {
       final isRetry = state == AttachmentState.cancelled;
-      final tooltip = isRetry ? l.attachmentRetryDownload : l.attachmentDownload;
+      final tooltip =
+          isRetry ? l.attachmentRetryDownload : l.attachmentDownload;
       final semanticsLabel = isRetry
           ? l.attachmentRetryDownloadAria(fileName)
           : l.attachmentDownloadAria(fileName);

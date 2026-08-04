@@ -15,6 +15,7 @@
 library;
 
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/features/shared/attachment_open.dart';
 
 /// React `isViewableMedia` -- image/video/audio. Drives the open affordance.
 bool isViewableMedia(String mime) =>
@@ -23,6 +24,27 @@ bool isViewableMedia(String mime) =>
 /// React `isStreamableMedia` -- video/audio. These stream while downloading.
 bool isStreamableMedia(String mime) =>
     mime.startsWith('video/') || mime.startsWith('audio/');
+
+/// Resolves an already-downloaded attachment without performing a side
+/// effect. Media remains an in-app viewer intent; every other file becomes an
+/// external-open intent. A missing path returns a no-op for the caller's
+/// normal download/media state machine.
+AttachmentOpenIntent resolveLocalAttachmentOpen({
+  required AttachmentDescriptor descriptor,
+  AttachmentView? view,
+}) {
+  final localPath = view?.localPath;
+  if (localPath == null || localPath.isEmpty) {
+    return const AttachmentNoopOpenIntent();
+  }
+  if (isViewableMedia(descriptor.mime)) {
+    return AttachmentMediaOpenIntent(
+      descriptor: descriptor,
+      src: localFileSrc(localPath),
+    );
+  }
+  return AttachmentExternalOpenIntent(localPath: localPath);
+}
 
 /// React `localFileSrc` (Tauri `convertFileSrc`) -- Flutter equivalent. A
 /// downloaded attachment lives on disk, so it is served via `file://` + the

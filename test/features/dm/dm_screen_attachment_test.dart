@@ -17,10 +17,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
+import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+
+import '../shared/attachment_launcher_test_support.dart';
 
 class _ControllableGateway extends FakeGateway {
   final Completer<void> downloadCompleter = Completer<void>();
@@ -74,6 +77,7 @@ AttachmentView _view({
   required AttachmentState state,
   int completed = 0,
   int total = 0,
+  String? localPath,
 }) =>
     AttachmentView(
       attachmentId: attachmentId,
@@ -81,7 +85,7 @@ AttachmentView _view({
       state: state,
       completedChunks: BigInt.from(completed),
       chunkCount: BigInt.from(total),
-      localPath: null,
+      localPath: localPath,
     );
 
 SessionSnapshot _snapshot({
@@ -115,11 +119,14 @@ Future<void> _pump(
   required String sessionId,
   required SessionSnapshot snapshot,
   _ControllableGateway? gateway,
+  AttachmentLauncher? launcher,
 }) async {
   await tester.pumpWidget(ProviderScope(
     overrides: [
       activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
       if (gateway != null) gatewayProvider.overrideWithValue(gateway),
+      if (launcher != null)
+        attachmentLauncherProvider.overrideWithValue(launcher),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -296,5 +303,122 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
+  });
+
+  testWidgets('available non-media attachment opens with the injected launcher',
+      (tester) async {
+    final descriptor = _fileDescriptor(
+      attachmentId: 'att-external',
+      fileName: 'report.pdf',
+      mime: 'application/pdf',
+      totalSize: 1536,
+    );
+    final launcher = RecordingAttachmentLauncher();
+    await _pump(
+      tester,
+      sessionId: sessionId,
+      launcher: launcher,
+      snapshot: _snapshot(
+        sessionId: sessionId,
+        displayName: 'alice',
+        messages: [
+          _msgWithAttachment(
+            fromDevice: 'alice',
+            body: 'local report',
+            attachment: descriptor,
+            sentAtMs: base,
+          ),
+        ],
+        attachments: [
+          _view(
+            attachmentId: 'att-external',
+            direction: 'outgoing',
+            state: AttachmentState.available,
+            localPath: '/tmp/report.pdf',
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(_attachmentAction());
+    await tester.pump();
+
+    expect(launcher.paths, ['/tmp/report.pdf']);
+  });
+
+  testWidgets('launcher failure is surfaced in a SnackBar', (tester) async {
+    final descriptor = _fileDescriptor(
+      attachmentId: 'att-failure',
+      fileName: 'report.pdf',
+      mime: 'application/pdf',
+      totalSize: 1536,
+    );
+    await _pump(
+      tester,
+      sessionId: sessionId,
+      launcher: RecordingAttachmentLauncher(
+        error: StateError('launcher failed'),
+      ),
+      snapshot: _snapshot(
+        sessionId: sessionId,
+        displayName: 'alice',
+        messages: [
+          _msgWithAttachment(
+            fromDevice: 'alice',
+            body: 'local report',
+            attachment: descriptor,
+            sentAtMs: base,
+          ),
+        ],
+        attachments: [
+          _view(
+            attachmentId: 'att-failure',
+            direction: 'outgoing',
+            state: AttachmentState.available,
+            localPath: '/tmp/report.pdf',
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(_attachmentAction());
+    await tester.pump();
+
+    expect(find.text('launcher failed'), findsOneWidget);
+  });
+
+  testWidgets('empty local path keeps available Open disabled', (tester) async {
+    final descriptor = _fileDescriptor(
+      attachmentId: 'att-empty',
+      fileName: 'report.pdf',
+      mime: 'application/pdf',
+      totalSize: 1536,
+    );
+    await _pump(
+      tester,
+      sessionId: sessionId,
+      snapshot: _snapshot(
+        sessionId: sessionId,
+        displayName: 'alice',
+        messages: [
+          _msgWithAttachment(
+            fromDevice: 'alice',
+            body: 'not local',
+            attachment: descriptor,
+            sentAtMs: base,
+          ),
+        ],
+        attachments: [
+          _view(
+            attachmentId: 'att-empty',
+            direction: 'outgoing',
+            state: AttachmentState.available,
+            localPath: '',
+          ),
+        ],
+      ),
+    );
+
+    expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNull);
   });
 }

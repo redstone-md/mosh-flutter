@@ -31,7 +31,12 @@ import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/attachment_media_src.dart'
-    show resolveMediaOpen, localFileSrc;
+    show
+        resolveMediaOpen,
+        localFileSrc,
+        resolveLocalAttachmentOpen,
+        isViewableMedia;
+import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show
@@ -53,6 +58,7 @@ import 'package:mosh/src/state/org_providers.dart'
 
 import 'package:mosh/src/features/group/group_message_list_view.dart'
     show GroupAttachmentCallbacks;
+import 'package:mosh/src/features/group/group_attachment_open.dart';
 
 /// Immutable business state for [GroupController]. Mirrors
 /// [ChannelControllerState] 1-1 (the group has the same send/retry/attachment/
@@ -142,48 +148,12 @@ class GroupPeerDmResult {
   static const noop = GroupPeerDmResult(null);
 }
 
-/// Result of [GroupController.openAttachment] -- the controller arms the
-/// pending-open + kicks the download internally; `showSrc`/`descriptor` are
-/// non-null when the viewer should open immediately (already-downloaded or
-/// streamable media), and the screen calls `showMediaViewer` with them.
-class GroupOpenResult {
-  const GroupOpenResult({this.descriptor, this.showSrc});
-  final AttachmentDescriptor? descriptor;
-  final String? showSrc;
-}
-
-/// Result of [GroupController.resolvePendingOpen] -- the controller clears
-/// `pendingOpen` internally on `show`/`drop`; `show` carries the descriptor +
-/// local src so the screen opens the viewer, `drop` means the transfer
-/// failed/cancelled, `none` means there was no pending open or the matching
-/// view is not ready yet.
-sealed class GroupPendingResolution {
-  const GroupPendingResolution();
-  const factory GroupPendingResolution.show(
-      AttachmentDescriptor descriptor, String src) = GroupPendingShow;
-  const factory GroupPendingResolution.drop() = GroupPendingDrop;
-  const factory GroupPendingResolution.none() = GroupPendingNone;
-}
-
-class GroupPendingShow extends GroupPendingResolution {
-  const GroupPendingShow(this.descriptor, this.src);
-  final AttachmentDescriptor descriptor;
-  final String src;
-}
-
-class GroupPendingDrop extends GroupPendingResolution {
-  const GroupPendingDrop();
-}
-
-class GroupPendingNone extends GroupPendingResolution {
-  const GroupPendingNone();
-}
-
 /// Family by group id. Riverpod v3 passes the family arg to the Notifier's
 /// constructor, so the class extends plain `Notifier` and stores the arg in a
 /// field (mirrors `voiceCallOrchestratorProvider`).
-final groupControllerProvider = NotifierProvider.family<
-    GroupController, GroupControllerState, String>(GroupController.new);
+final groupControllerProvider =
+    NotifierProvider.family<GroupController, GroupControllerState, String>(
+        GroupController.new);
 
 /// Owns the group screen's business state + orchestration methods. Mirrors
 /// [ChannelController] 1-1 on the shared surface; the group-specific addition
@@ -274,13 +244,13 @@ class GroupController extends Notifier<GroupControllerState> {
     state = state.copyWith(sending: true);
     try {
       await _runTransfer(() => sendChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        fileName: attachment.fileName,
-        mime: attachment.mime,
-        dataBase64: attachment.dataBase64,
-        thumbnailBase64: attachment.thumbnailBase64,
-      ));
+            gateway: ref.read(gatewayProvider),
+            target: _target,
+            fileName: attachment.fileName,
+            mime: attachment.mime,
+            dataBase64: attachment.dataBase64,
+            thumbnailBase64: attachment.thumbnailBase64,
+          ));
       ref.invalidate(groupSnapshotProvider(groupId));
     } finally {
       state = state.copyWith(sending: false);
@@ -330,15 +300,15 @@ class GroupController extends Notifier<GroupControllerState> {
             busy: state.transferBusy,
             onDownload: (id) => unawaited(_runTransfer(() =>
                 downloadChatAttachment(
-              gateway: ref.read(gatewayProvider),
-              target: _target,
-              attachmentId: id,
-            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))))),
+                  gateway: ref.read(gatewayProvider),
+                  target: _target,
+                  attachmentId: id,
+                ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))))),
             onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
-              gateway: ref.read(gatewayProvider),
-              target: _target,
-              attachmentId: id,
-            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))))),
+                  gateway: ref.read(gatewayProvider),
+                  target: _target,
+                  attachmentId: id,
+                ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))))),
             onOpen: (descriptor) => onOpen(descriptor, view),
           );
 
@@ -356,12 +326,18 @@ class GroupController extends Notifier<GroupControllerState> {
   /// Opens an attachment -- 1-1 with React `openAttachment`. The decision
   /// (src / download / wait) comes from [resolveMediaOpen] (the pure port of
   /// the React state machine). The controller arms `pendingOpen` + kicks the
-  /// download (business state + gateway); it returns [GroupOpenResult] so the
-  /// screen shows the MediaViewer immediately for already-downloaded +
-  /// streamable media (UI side effect). The screen calls `showMediaViewer`
-  /// when `showSrc != null`.
-  GroupOpenResult openAttachment(
+  /// download (business state + gateway), then returns an immutable intent for
+  /// the screen to interpret.
+  AttachmentOpenIntent openAttachment(
       AttachmentDescriptor descriptor, AttachmentView? view) {
+    final localIntent = resolveLocalAttachmentOpen(
+      descriptor: descriptor,
+      view: view,
+    );
+    if (localIntent is! AttachmentNoopOpenIntent) return localIntent;
+    if (!isViewableMedia(descriptor.mime)) {
+      return const AttachmentNoopOpenIntent();
+    }
     final decision = resolveMediaOpen(
       descriptor: descriptor,
       view: view,
@@ -373,15 +349,18 @@ class GroupController extends Notifier<GroupControllerState> {
     }
     if (decision.download) {
       unawaited(_runTransfer(() => downloadChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        attachmentId: descriptor.attachmentId,
-      ).then((_) => ref.invalidate(groupSnapshotProvider(groupId)))));
+            gateway: ref.read(gatewayProvider),
+            target: _target,
+            attachmentId: descriptor.attachmentId,
+          ).then((_) => ref.invalidate(groupSnapshotProvider(groupId)))));
     }
     if (decision.src != null) {
-      return GroupOpenResult(descriptor: descriptor, showSrc: decision.src);
+      return AttachmentMediaOpenIntent(
+        descriptor: descriptor,
+        src: decision.src!,
+      );
     }
-    return const GroupOpenResult();
+    return const AttachmentNoopOpenIntent();
   }
 
   /// Resolves `pendingOpen` against an updated attachments list -- 1-1 with

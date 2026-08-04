@@ -11,9 +11,8 @@
 // `hasPreview = Boolean(thumbnail_b64) && (isImage || isVideo)` and the
 // `attachment-card-media` JSX.
 //
-// OUT OF SCOPE (deferred): the media viewer / streaming playback, and
-// the cross-platform open launcher (this atomic ships Windows cmd /c
-// start; non-Windows is a TODO no-op, a later atomic wires open_filex).
+// Media viewing and external opening are dispatched by the owning screen;
+// this card only emits the shared onOpen callback.
 // Voice messages ARE in scope: descriptor.voice -> VoiceMessageCard
 // (voice_message_card.dart, a separate file to keep this one focused).
 // React flow: if (voice) return VoiceMessage; then if (hasPreview)
@@ -84,9 +83,8 @@ class AttachmentCard extends StatelessWidget {
   /// React `onCancel`: fires `Gateway.cancelAttachment` (same pattern).
   final void Function(String attachmentId) onCancel;
 
-  /// React `onOpen`: opens `view.localPath` via a dart:io launcher (Windows
-  /// `cmd /c start`; non-Windows is a TODO no-op). Carries the descriptor
-  /// so a later viewer refactor can route to it.
+  /// React `onOpen`: carries the descriptor to the owning screen, which
+  /// routes media to MediaViewer or non-media files to the OS launcher.
   final void Function(AttachmentDescriptor descriptor) onOpen;
 
   @override
