@@ -48,14 +48,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
-import 'package:mosh/src/features/onboarding/onboard_menu.dart';
+import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/routing/mosh_title_bar.dart';
-import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -307,15 +305,15 @@ class _MobileShell extends StatelessWidget {
 /// instead of leaving a dead chat mounted.
 ///
 /// DESKTOP (width > 580): React renders the full NewSessionPanel
-/// (OnboardMenu) INLINE in the chat-pane (private-dm-screen.tsx:325-343);
-/// the bare EmptyState CTA is mobile-only. The desktop branch therefore
-/// embeds the same OnboardMenu the OnboardingScreen uses, wrapped in the
-/// SAME body composition (Scaffold > SafeArea > Center >
+/// (menu + the four inline steps) INLINE in the chat-pane
+/// (private-dm-screen.tsx:325-343); the bare EmptyState CTA is mobile-
+/// only. The desktop branch embeds [NewSessionPanel], wrapped in the SAME
+/// body composition (Scaffold > SafeArea > Center >
 /// SingleChildScrollView(32/48) > ConstrainedBox(maxWidth: 460)) so the
-/// inline menu renders identically to the onboarding screen. The four
-/// onPick callbacks route to the full-screen step screens
-/// (atomic #8 will inline the steps); the menu's own context.go lives
-/// here, not in OnboardMenu (mirrors OnboardingScreen's _go* closures).
+/// inline panel renders identically to the onboarding screen's menu.
+/// [NewSessionPanel] owns the local step state + the IndexedStack keep-
+/// alive; the step success navigation (context.go channelFor / groupFor /
+/// sessions) fires from within the steps and leaves the welcome pane.
 ///
 /// MOBILE (width <= 580): the parity-correct path is the bare CTA -- React
 /// renders EmptyState (ActiveChatPanes.tsx:407-418) with IconMessageCircle
@@ -328,16 +326,16 @@ class _MobileShell extends StatelessWidget {
 /// _EmptyState.onStart (sessions_screen.dart:461-478).
 ///
 /// ChatPaneWelcome stays a StatelessWidget: the desktop branch's
-/// OnboardMenu reads its own providers (inviteFlowProvider,
-/// gatewayProvider) via its ConsumerStatefulWidget ref; the root
-/// ProviderScope supplies the container. The desktop context.go calls
-/// use the widget build's `context`.
+/// [NewSessionPanel] reads its own providers (inviteFlowProvider,
+/// gatewayProvider, persistenceWarningProvider) via its
+/// ConsumerStatefulWidget ref; the root ProviderScope supplies the
+/// container.
 ///
 /// Parity note: React's onNew also calls setup.resetInviteState()
 /// (private-dm-screen.tsx:329-336). The Flutter port has NO counterpart
 /// -- inviteFlowProvider keeps lastInvite across screens intentionally
-/// (no resetInviteState method exists); navigating to a step route is
-/// the parity action.
+/// (no resetInviteState method exists); the inline step switch is the
+/// parity action.
 class ChatPaneWelcome extends StatelessWidget {
   const ChatPaneWelcome({super.key, required this.onStart});
 
@@ -358,12 +356,7 @@ class ChatPaneWelcome extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
-                child: OnboardMenu(
-                  onPickChat: () => context.go(AppRoutes.chatCreate),
-                  onPickGroup: () => context.go(AppRoutes.groupCreate),
-                  onPickChannel: () => context.go(AppRoutes.channelJoin),
-                  onPickJoin: () => context.go(AppRoutes.join),
-                ),
+                child: NewSessionPanel(),
               ),
             ),
           ),
