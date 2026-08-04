@@ -233,7 +233,11 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         ref.read(groupControllerProvider(widget.groupId).notifier);
     await controller.leave();
     if (!mounted) return;
-    context.go(AppRoutes.sessions);
+    // Desktop routes to /chat (branch B initialLocation) so the inline
+    // NewSessionPanel reappears; mobile keeps the rail (current behavior).
+    final target =
+        isMobileBreakpoint(context) ? AppRoutes.sessions : AppRoutes.chat;
+    context.go(target);
   }
 
   // Close-flow confirmation -- 1-1 with React `useChatCloseFlow` group
