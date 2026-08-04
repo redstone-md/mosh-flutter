@@ -51,6 +51,7 @@ Future<void> _pumpRow(
           onAttachmentDownload: (_) {},
           onAttachmentCancel: (_) {},
           onAttachmentOpen: (_) {},
+          busy: false,
           onRetry: (_) {},
           l: await _l(),
         ),

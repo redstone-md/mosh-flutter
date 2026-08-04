@@ -1,23 +1,36 @@
 // Widget tests for the in-scope attachment card rendered inside a GROUP
 // message bubble (lib/src/features/dm/attachment_card.dart, wired into the
 // group row by lib/src/features/group/group_message_row.dart +
-// group_screen.dart). Render-only stage: the transfer callbacks are no-op
-// stubs (the group attachment-transfer Gateway seam is a later atomic),
-// mirroring the DM display-only stage (`b7660f8`) and its test
-// (dm_screen_attachment_test.dart). We seed a peer message carrying a file
+// group_screen.dart). We seed a peer message carrying a file
 // descriptor + a matching offered AttachmentView and assert the card
 // renders the file name + offered state label -- proving the per-message
 // AttachmentView lookup (snapshot.attachments by attachmentId) wires the
-// view into the row.
+// view into the row, and the transfer action reflects the screen busy state.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
+import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
+
+class _ControllableGateway extends FakeGateway {
+  final Completer<void> downloadCompleter = Completer<void>();
+
+  @override
+  Future<void> downloadGroupAttachment({
+    required String groupId,
+    required String attachmentId,
+  }) =>
+      downloadCompleter.future;
+}
 
 AttachmentDescriptor _fileDescriptor({
   required String attachmentId,
@@ -102,10 +115,12 @@ Future<void> _pump(
   WidgetTester tester, {
   required String groupId,
   required GroupSnapshot snapshot,
+  _ControllableGateway? gateway,
 }) async {
   await tester.pumpWidget(ProviderScope(
     overrides: [
       groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
+      if (gateway != null) gatewayProvider.overrideWithValue(gateway),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -115,6 +130,11 @@ Future<void> _pump(
   ));
   await tester.pumpAndSettle();
 }
+
+Finder _attachmentAction() => find.descendant(
+      of: find.byType(AttachmentCard),
+      matching: find.byType(IconButton),
+    );
 
 void main() {
   const groupId = 'group-attach';
@@ -197,5 +217,53 @@ void main() {
     expect(find.text('no view yet'), findsOneWidget);
     // Card renders with the file name even though no view matched.
     expect(find.text('photo.jpg'), findsOneWidget);
+  });
+
+  testWidgets('group offered download disables during the real transfer',
+      (tester) async {
+    final descriptor = _fileDescriptor(
+      attachmentId: 'att-busy',
+      fileName: 'busy.pdf',
+      mime: 'application/pdf',
+      totalSize: 1536,
+    );
+    final snapshot = _snapshot(
+      groupId: groupId,
+      deviceFingerprint: 'fp-me',
+      messages: [
+        _msgWithAttachment(
+          fromDevice: 'bob',
+          fromFingerprint: 'fp-bob',
+          body: 'download this',
+          attachment: descriptor,
+          sentAtMs: base,
+        ),
+      ],
+      attachments: [
+        _view(
+          attachmentId: 'att-busy',
+          direction: 'incoming',
+          state: AttachmentState.offered,
+        ),
+      ],
+    );
+    final gateway = _ControllableGateway();
+
+    await _pump(
+      tester,
+      groupId: groupId,
+      snapshot: snapshot,
+      gateway: gateway,
+    );
+    expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
+
+    await tester.tap(_attachmentAction());
+    await tester.pump();
+    expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNull);
+
+    gateway.downloadCompleter.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
   });
 }

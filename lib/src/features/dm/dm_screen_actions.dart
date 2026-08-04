@@ -3,6 +3,22 @@ part of 'dm_screen.dart';
 mixin DmScreenActions on ConsumerState<DmScreen> {
   final TextEditingController _composer = TextEditingController();
   bool _sending = false;
+  int _transferOperations = 0;
+
+  bool get _transferBusy => _transferOperations > 0;
+
+  Future<T> _runTransfer<T>(Future<T> Function() operation) async {
+    if (mounted) setState(() => _transferOperations++);
+    try {
+      return await operation();
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (_transferOperations > 0) _transferOperations--;
+        });
+      }
+    }
+  }
 
   // Ephemeral confirmed-fingerprint set (React `confirmedFingerprints`
   // useState, use-chat-close-flow.ts). Widget-local per ADR 0010; purely
@@ -156,14 +172,14 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      await sendChatAttachment(
+      await _runTransfer(() => sendChatAttachment(
         gateway: ref.read(gatewayProvider),
         target: _target,
         fileName: attachment.fileName,
         mime: attachment.mime,
         dataBase64: attachment.dataBase64,
         thumbnailBase64: attachment.thumbnailBase64,
-      );
+      ));
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
     } finally {
@@ -182,21 +198,23 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      final file = File(voice.path);
-      final bytes = await file.readAsBytes();
-      final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
-      final fileName = 'voice-message.$ext';
-      await sendChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        fileName: fileName,
-        mime: voice.mime,
-        dataBase64: base64Encode(bytes),
-        voice: VoiceMeta(
-          durationMs: voice.durationMs,
-          peaksB64: voice.peaksBase64,
-        ),
-      );
+      await _runTransfer(() async {
+        final file = File(voice.path);
+        final bytes = await file.readAsBytes();
+        final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
+        final fileName = 'voice-message.$ext';
+        await sendChatAttachment(
+          gateway: ref.read(gatewayProvider),
+          target: _target,
+          fileName: fileName,
+          mime: voice.mime,
+          dataBase64: base64Encode(bytes),
+          voice: VoiceMeta(
+            durationMs: voice.durationMs,
+            peaksB64: voice.peaksBase64,
+          ),
+        );
+      });
       ref.invalidate(activeSessionProvider(widget.sessionId));
       ref.invalidate(sessionListProvider);
     } finally {
@@ -231,16 +249,18 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   /// (fire-and-forget via `unawaited`).
   DmAttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
       DmAttachmentCallbacks(
-        onDownload: (id) => unawaited(downloadChatAttachment(
+        busy: _transferBusy,
+        onDownload: (id) => unawaited(_runTransfer(() =>
+            downloadChatAttachment(
           gateway: _gateway,
           target: _target,
           attachmentId: id,
-        ).then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
-        onCancel: (id) => unawaited(cancelChatAttachment(
+        ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
+        onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
           gateway: _gateway,
           target: _target,
           attachmentId: id,
-        ).then((_) => ref.invalidate(activeSessionProvider(_sessionId)))),
+        ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
         onOpen: (descriptor) => _openAttachment(descriptor, view),
       );
 
@@ -283,11 +303,11 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
       setState(() => _pendingOpen = descriptor);
     }
     if (decision.download) {
-      unawaited(downloadChatAttachment(
+      unawaited(_runTransfer(() => downloadChatAttachment(
         gateway: _gateway,
         target: _target,
         attachmentId: descriptor.attachmentId,
-      ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))));
+      ).then((_) => ref.invalidate(activeSessionProvider(_sessionId)))));
     }
   }
 

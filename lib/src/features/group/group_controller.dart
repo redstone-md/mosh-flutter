@@ -1,11 +1,6 @@
 // Group orchestration state -- the Riverpod Notifier that owns the group
 // screen's BUSINESS state + the send/retry/attachment/voice/leave/peer-DM/
 // open-attachment/org-invite methods. Extracted from `group_screen.dart` so
-// the screen clears the AGENTS.md 500-line ceiling (it was 608; the dominant
-// remaining bulk was this ~18-method orchestration class + its business-state
-// fields). Mirrors [ChannelController] 1-1 on the shared send/retry/
-// attachment/voice/peer-DM/open-attachment/leave surface; the group-specific
-// addition is [inviteMembers] (the org one-click add).
 //
 // AGENTS.md state separation (controller = business state, screen = UI state):
 // the controller owns `sending` / `offerBusy` / `offeredFingerprints` /
@@ -15,14 +10,6 @@
 // navigation (the controller returns results, the screen does `context.go`)
 // + the composer-clear-on-success (the controller returns the sent body, the
 // screen clears `_composer` iff it still equals it -- React parity).
-//
-// The controller NEVER navigates and NEVER touches the composer. Methods that
-// can clear the composer on success ([sendBody] / [retryFailedSend]) return
-// [GroupSendOutcome] carrying the body + a `sent` flag; the screen does the
-// conditional clear. [leave] returns [GroupLeaveResult] (the screen navigates
-// to /sessions). [onPeerMessage] returns [GroupPeerDmResult] carrying the new
-// session id (the screen navigates to /dm/<id>). [openAttachment] /
-// [resolvePendingOpen] return intents so the screen shows the MediaViewer.
 //
 // The controller reads `gatewayProvider`, invalidates
 // `groupSnapshotProvider(groupId)` + `sessionListProvider` + `orgsProvider`,
@@ -75,6 +62,7 @@ import 'package:mosh/src/features/group/group_message_list_view.dart'
 class GroupControllerState {
   const GroupControllerState({
     this.sending = false,
+    this.transferOperations = 0,
     this.offerBusy = false,
     this.offeredFingerprints = const <String>{},
     this.chatError,
@@ -83,6 +71,7 @@ class GroupControllerState {
   });
 
   final bool sending;
+  final int transferOperations;
   final bool offerBusy;
   final Set<String> offeredFingerprints;
   final String? chatError;
@@ -92,6 +81,8 @@ class GroupControllerState {
   // Ephemeral pending-open descriptor (Gap 2) -- 1-1 with React's `pendingOpen`.
   final AttachmentDescriptor? pendingOpen;
 
+  bool get transferBusy => transferOperations > 0;
+
   /// Whether the banner's Retry button should be active -- 1-1 with React
   /// `canRetrySend`. `active` is always this controller's target, so it
   /// reduces to a non-null `lastFailedSend` whose target matches `target`.
@@ -100,6 +91,7 @@ class GroupControllerState {
 
   GroupControllerState copyWith({
     bool? sending,
+    int? transferOperations,
     bool? offerBusy,
     Set<String>? offeredFingerprints,
     Object? chatError = _sentinel,
@@ -108,6 +100,7 @@ class GroupControllerState {
   }) =>
       GroupControllerState(
         sending: sending ?? this.sending,
+        transferOperations: transferOperations ?? this.transferOperations,
         offerBusy: offerBusy ?? this.offerBusy,
         offeredFingerprints: offeredFingerprints ?? this.offeredFingerprints,
         chatError: identical(chatError, _sentinel)
@@ -212,6 +205,20 @@ class GroupController extends Notifier<GroupControllerState> {
 
   ChatTarget get target => _target;
 
+  Future<T> _runTransfer<T>(Future<T> Function() operation) async {
+    state = state.copyWith(transferOperations: state.transferOperations + 1);
+    try {
+      return await operation();
+    } finally {
+      if (ref.mounted) {
+        state = state.copyWith(
+          transferOperations:
+              state.transferOperations > 0 ? state.transferOperations - 1 : 0,
+        );
+      }
+    }
+  }
+
   /// Sends a body verbatim -- 1-1 with React `sendMessageBody`, the group
   /// branch. On SUCCESS clears `lastFailedSend` + `chatError` and invalidates
   /// the group snapshot; on FAILURE records `lastFailedSend` + `chatError`.
@@ -266,14 +273,14 @@ class GroupController extends Notifier<GroupControllerState> {
     if (state.sending) return;
     state = state.copyWith(sending: true);
     try {
-      await sendChatAttachment(
+      await _runTransfer(() => sendChatAttachment(
         gateway: ref.read(gatewayProvider),
         target: _target,
         fileName: attachment.fileName,
         mime: attachment.mime,
         dataBase64: attachment.dataBase64,
         thumbnailBase64: attachment.thumbnailBase64,
-      );
+      ));
       ref.invalidate(groupSnapshotProvider(groupId));
     } finally {
       state = state.copyWith(sending: false);
@@ -288,21 +295,23 @@ class GroupController extends Notifier<GroupControllerState> {
     if (state.sending) return;
     state = state.copyWith(sending: true);
     try {
-      final file = File(voice.path);
-      final bytes = await file.readAsBytes();
-      final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
-      final fileName = 'voice-message.$ext';
-      await sendChatAttachment(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        fileName: fileName,
-        mime: voice.mime,
-        dataBase64: base64Encode(bytes),
-        voice: VoiceMeta(
-          durationMs: voice.durationMs,
-          peaksB64: voice.peaksBase64,
-        ),
-      );
+      await _runTransfer(() async {
+        final file = File(voice.path);
+        final bytes = await file.readAsBytes();
+        final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
+        final fileName = 'voice-message.$ext';
+        await sendChatAttachment(
+          gateway: ref.read(gatewayProvider),
+          target: _target,
+          fileName: fileName,
+          mime: voice.mime,
+          dataBase64: base64Encode(bytes),
+          voice: VoiceMeta(
+            durationMs: voice.durationMs,
+            peaksB64: voice.peaksBase64,
+          ),
+        );
+      });
       ref.invalidate(groupSnapshotProvider(groupId));
     } finally {
       state = state.copyWith(sending: false);
@@ -318,16 +327,18 @@ class GroupController extends Notifier<GroupControllerState> {
     void Function(AttachmentDescriptor descriptor, AttachmentView? view) onOpen,
   ) =>
       (view) => GroupAttachmentCallbacks(
-            onDownload: (id) => unawaited(downloadChatAttachment(
+            busy: state.transferBusy,
+            onDownload: (id) => unawaited(_runTransfer(() =>
+                downloadChatAttachment(
               gateway: ref.read(gatewayProvider),
               target: _target,
               attachmentId: id,
-            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId)))),
-            onCancel: (id) => unawaited(cancelChatAttachment(
+            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))))),
+            onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
               gateway: ref.read(gatewayProvider),
               target: _target,
               attachmentId: id,
-            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId)))),
+            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))))),
             onOpen: (descriptor) => onOpen(descriptor, view),
           );
 
@@ -361,11 +372,11 @@ class GroupController extends Notifier<GroupControllerState> {
       state = state.copyWith(pendingOpen: descriptor);
     }
     if (decision.download) {
-      unawaited(downloadChatAttachment(
+      unawaited(_runTransfer(() => downloadChatAttachment(
         gateway: ref.read(gatewayProvider),
         target: _target,
         attachmentId: descriptor.attachmentId,
-      ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))));
+      ).then((_) => ref.invalidate(groupSnapshotProvider(groupId)))));
     }
     if (decision.src != null) {
       return GroupOpenResult(descriptor: descriptor, showSrc: decision.src);

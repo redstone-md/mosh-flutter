@@ -71,11 +71,13 @@ bool _shouldGroup(ChatMessage previous, ChatMessage current) {
 /// `view.localPath`.
 class DmAttachmentCallbacks {
   const DmAttachmentCallbacks({
+    required this.busy,
     required this.onDownload,
     required this.onCancel,
     required this.onOpen,
   });
 
+  final bool busy;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
   final void Function(AttachmentDescriptor descriptor) onOpen;
@@ -139,6 +141,7 @@ class DmMessageListView extends StatelessWidget {
           onAttachmentDownload: callbacks.onDownload,
           onAttachmentCancel: callbacks.onCancel,
           onAttachmentOpen: callbacks.onOpen,
+          busy: callbacks.busy,
          onRetry: onRetryMessage,
          l: AppLocalizations.of(context)!,
        );

@@ -37,6 +37,7 @@ class DmMessageRow extends StatelessWidget {
     required this.onAttachmentDownload,
     required this.onAttachmentCancel,
     required this.onAttachmentOpen,
+    required this.busy,
     required this.onRetry,
     required this.l,
   });
@@ -48,6 +49,7 @@ class DmMessageRow extends StatelessWidget {
   final void Function(String attachmentId) onAttachmentDownload;
   final void Function(String attachmentId) onAttachmentCancel;
   final void Function(AttachmentDescriptor descriptor) onAttachmentOpen;
+  final bool busy;
   final void Function(String messageId) onRetry;
   final AppLocalizations l;
 
@@ -89,6 +91,7 @@ class DmMessageRow extends StatelessWidget {
                      descriptor: message.attachment!,
                      view: attachmentView,
                      own: own,
+                     busy: busy,
                      onDownload: onAttachmentDownload,
                      onCancel: onAttachmentCancel,
                      onOpen: onAttachmentOpen,
