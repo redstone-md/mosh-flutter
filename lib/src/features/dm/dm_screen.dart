@@ -55,6 +55,7 @@ import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/fingerprint_badge.dart';
+import 'package:mosh/src/features/dm/chat_header_menu.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView, AttachmentDescriptor, AttachmentState, SessionSnapshot;
@@ -547,6 +548,52 @@ class _DmScreenState extends ConsumerState<DmScreen> {
                   setState(() => _mobileSearchOpen = !_mobileSearchOpen),
               l: l,
             ),
+          // Mobile kebab menu -- 1-1 with React `ChatHeaderMenu`
+          // (ChatHeaderMenu.tsx) prepended with the filter toggle via
+          // `conversationMenuActions` (ActiveChatHeader.tsx ~L155-170).
+          // Self-gates to mobile (the widget returns SizedBox.shrink() on
+          // desktop); React places it last in `chat-header-actions`, so it
+          // sits rightmost on mobile. The DM `menuActions` (ActiveChatPanes
+          // ActiveDmChat ~L38-49): confirm/confirmed fingerprint (disabled
+          // when confirmed; onSelect -> onConfirm -> _confirmFingerprint)
+          // + Delete chat (danger tone; onSelect -> onClose ->
+          // _requestLeave). The filter toggle is FIRST: if the current
+          // filter is "attachments" the item is "All" (IconMessageCircle ->
+          // Icons.chat_bubble_outline) -> onFilter(all); otherwise "Files"
+          // (IconPaperclip -> Icons.attach_file) -> onFilter(attachments).
+          ChatHeaderMenu(
+            l: l,
+            actions: [
+              if (_filter == ConversationFilter.attachments)
+                ChatHeaderMenuAction(
+                  label: l.chatFilterAll,
+                  icon: Icons.chat_bubble_outline,
+                  onSelect: () =>
+                      setState(() => _filter = ConversationFilter.all),
+                )
+              else
+                ChatHeaderMenuAction(
+                  label: l.chatFilterAttachments,
+                  icon: Icons.attach_file,
+                  onSelect: () => setState(
+                      () => _filter = ConversationFilter.attachments),
+                ),
+              ChatHeaderMenuAction(
+                label: confirmed
+                    ? l.inviteConfirmedButton
+                    : l.inviteConfirmButton,
+                icon: Icons.verified_user,
+                disabled: confirmed,
+                onSelect: _confirmFingerprint,
+              ),
+              ChatHeaderMenuAction(
+                label: l.deleteChatConfirm,
+                icon: Icons.delete_outline,
+                danger: true,
+                onSelect: _requestLeave,
+              ),
+            ],
+          ),
           // Start-call button -- 1-в-1 with React's `onStartCall` header
           // action (private-dm-screen.tsx L382 -> useVoiceCallOrchestration
           // startCall). Icons.phone mirrors tabler's IconPhone; the
@@ -579,11 +626,14 @@ class _DmScreenState extends ConsumerState<DmScreen> {
           // the rightmost header button). Icons.close mirrors React's IconX;
           // size 18 matches the peer-status IconButton for header
           // consistency (React uses 16, but the sibling button is 18 here).
-          IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            tooltip: l.shellCloseSession,
-            onPressed: _requestLeave,
-          ),
+          // React marks this `chat-desktop-only`; on mobile the kebab's
+          // "Delete chat" item (above) is the close entry point instead.
+          if (!isMobileBreakpoint(context))
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              tooltip: l.shellCloseSession,
+              onPressed: _requestLeave,
+            ),
         ],
       ),
       body: SafeArea(

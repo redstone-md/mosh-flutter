@@ -303,6 +303,8 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         mobileSearchOpen: _mobileSearchOpen,
         onToggleMobileSearch: () =>
             setState(() => _mobileSearchOpen = !_mobileSearchOpen),
+        filter: _filter,
+        onFilter: (value) => setState(() => _filter = value),
       ),
       body: GroupScreenBody(
         async: async,

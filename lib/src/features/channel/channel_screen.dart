@@ -44,6 +44,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/dm/chat_header_menu.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
@@ -300,16 +301,55 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                   setState(() => _mobileSearchOpen = !_mobileSearchOpen),
               l: l,
             ),
+          // Mobile kebab menu -- 1-1 with React `ChatHeaderMenu`
+          // (ChatHeaderMenu.tsx) prepended with the filter toggle via
+          // `conversationMenuActions` (ActiveChatHeader.tsx ~L155-170).
+          // Self-gates to mobile; React places it last in
+          // `chat-header-actions`. The channel `menuActions`
+          // (ActiveChatPanes ActiveChannelChat ~L99-103): Leave channel
+          // (danger tone; onSelect -> onClose -> _requestLeave). Filter
+          // toggle is FIRST (attachments -> "All"/Icons.chat_bubble_outline
+          // -> onFilter(all); else "Files"/Icons.attach_file ->
+          // onFilter(attachments)).
+          ChatHeaderMenu(
+            l: l,
+            actions: [
+              if (_filter == ConversationFilter.attachments)
+                ChatHeaderMenuAction(
+                  label: l.chatFilterAll,
+                  icon: Icons.chat_bubble_outline,
+                  onSelect: () =>
+                      setState(() => _filter = ConversationFilter.all),
+                )
+              else
+                ChatHeaderMenuAction(
+                  label: l.chatFilterAttachments,
+                  icon: Icons.attach_file,
+                  onSelect: () => setState(
+                      () => _filter = ConversationFilter.attachments),
+                ),
+              ChatHeaderMenuAction(
+                label: l.channelLeaveLabel,
+                icon: Icons.logout,
+                danger: true,
+                onSelect: _requestLeave,
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.electrical_services, size: 18),
             tooltip: l.openPeerStatus,
             onPressed: () => setState(() => _showPeerStatus = true),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: l.channelLeaveLabel,
-            onPressed: _requestLeave,
-          ),
+          // React marks the leave button `chat-desktop-only` (ActiveChatPanes
+          // ~L99-103); on mobile the kebab's "Leave channel" item is the
+          // entry point instead.
+          if (!isMobileBreakpoint(context))
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: l.channelLeaveLabel,
+              onPressed: _requestLeave,
+            ),
         ],
       ),
       body: ChannelScreenBody(

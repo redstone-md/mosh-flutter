@@ -215,9 +215,17 @@ void main() {
     expect(find.byType(SessionsScreen), findsNothing);
 
     // Leave the DM (the DM screen's leave confirm closes the session +
-    // context.go('/sessions')). Tap the close IconButton (Icons.close) +
-    // confirm. The rail returns.
-    await tester.tap(find.byIcon(Icons.close));
+    // context.go('/sessions')). On MOBILE the standalone close button is
+    // desktop-only (React `chat-desktop-only`); the leave entry point is
+    // the mobile kebab menu's "Delete chat" item. Open the kebab
+    // (Icons.more_vert, ChatHeaderMenu's PopupMenuButton trigger), tap
+    // "Delete chat" from the dropdown -> ConfirmDialog -> tap the dialog's
+    // "Delete chat" confirm button. The rail returns. (The menu closes
+    // when its item is selected, so `find.text('Delete chat')` resolves
+    // to exactly one widget at each stage -- menu item, then dialog.)
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete chat'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete chat'));
     await tester.pumpAndSettle();
