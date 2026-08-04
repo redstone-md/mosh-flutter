@@ -17,10 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/disclosure.dart';
 import 'package:mosh/src/features/shared/field.dart';
-import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/state/persistence_warning_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 /// OnboardMenu body -- embeddable Column mirroring React's `OnboardMenu`
@@ -98,14 +96,9 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final warning = ref.watch(persistenceWarningProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (warning case AsyncData(:final value) when value != null) ...[
-          PersistenceWarningBanner(warning: value),
-          const SizedBox(height: 12),
-        ],
         _IdentityChip(
           controller: _nameController,
           label: l.setupDisplayNameLabel,
