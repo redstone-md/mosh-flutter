@@ -4,8 +4,8 @@
 // <IconPlayerPlayFilled size={20}/>` overlay: a centered
 // `Icons.play_circle_filled` renders over the thumbnail image WHEN the
 // mime is a video, and nothing renders for an image. The overlay is
-// decorative and the preview stays non-interactive (no onOpen tap --
-// that stays deferred; these tests do not assert interactivity).
+// decorative; the preview's open behavior is asserted in the focused card
+// tests. The no-thumbnail video case covers the file-card thumb affordance.
 //
 // The harness mirrors the established DM widget-test pattern (pump
 // `AttachmentCard` directly inside a localized `MaterialApp`, find by
@@ -22,8 +22,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 const _pngThumbB64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-// No-op transfer-action callbacks: these tests assert the video play-overlay
-// surface, not the action wiring, so the callbacks are inert.
+// Transfer-action callbacks are inert; these tests assert the media overlay
+// and the no-thumbnail thumb surface.
 void _onDownload(String _) {}
 void _onCancel(String _) {}
 void _onOpen(AttachmentDescriptor _) {}
@@ -85,26 +85,26 @@ void main() {
     );
     await _pump(
       tester,
-     AttachmentCard(
-       descriptor: descriptor,
-       view: _view(attachmentId: 'att-vid'),
-       own: false,
-       busy: false,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-vid'),
+        own: false,
+        busy: false,
         onDownload: _onDownload,
         onCancel: _onCancel,
         onOpen: _onOpen,
-     ),
-   );
+      ),
+    );
 
-   // The media-preview branch mounts the decoded thumbnail Image.memory.
+    // The media-preview branch mounts the decoded thumbnail Image.memory.
     expect(find.byType(Image), findsOneWidget);
     // The centered play overlay (React's IconPlayerPlayFilled) is present
     // for a video mime.
     expect(find.byIcon(Icons.play_circle_filled), findsOneWidget);
   });
 
-  testWidgets(
-      'image with thumbnail does NOT render a play overlay', (tester) async {
+  testWidgets('image with thumbnail does NOT render a play overlay',
+      (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-img',
       fileName: 'photo.jpg',
@@ -114,55 +114,53 @@ void main() {
     );
     await _pump(
       tester,
-     AttachmentCard(
-       descriptor: descriptor,
-       view: _view(attachmentId: 'att-img'),
-       own: false,
-       busy: false,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-img'),
+        own: false,
+        busy: false,
         onDownload: _onDownload,
         onCancel: _onCancel,
         onOpen: _onOpen,
-     ),
-   );
+      ),
+    );
 
-   // Image still mounts on the media-preview branch.
+    // Image still mounts on the media-preview branch.
     expect(find.byType(Image), findsOneWidget);
     // No play overlay for an image mime (React renders the overlay only
     // when `isVideo`).
     expect(find.byIcon(Icons.play_circle_filled), findsNothing);
   });
 
-  testWidgets(
-      'video without thumbnail falls back to the file card (no overlay)',
+  testWidgets('video without thumbnail renders an open thumb (no overlay)',
       (tester) async {
     final descriptor = _descriptor(
       attachmentId: 'att-vid-nothumb',
       fileName: 'clip2.mp4',
       mime: 'video/mp4',
       totalSize: 2048576,
-      // No thumbnail: hasPreview is false, so the file-card branch
-      // renders (no media preview, no play overlay).
+      // No thumbnail: hasPreview is false, so the file-card branch renders
+      // (no media preview or thumbnail overlay).
       thumbnailB64: null,
     );
     await _pump(
       tester,
-     AttachmentCard(
-       descriptor: descriptor,
-       view: _view(attachmentId: 'att-vid-nothumb'),
-       own: false,
-       busy: false,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-vid-nothumb'),
+        own: false,
+        busy: false,
         onDownload: _onDownload,
         onCancel: _onCancel,
         onOpen: _onOpen,
-     ),
-   );
+      ),
+    );
 
-   // Pins that the overlay only appears on the media branch (hasPreview
-    // requires a thumbnail): no Image.memory and no play icon.
+    // Pins that the overlay only appears on the media branch (hasPreview
+    // requires a thumbnail): no Image.memory or overlay icon.
     expect(find.byType(Image), findsNothing);
     expect(find.byIcon(Icons.play_circle_filled), findsNothing);
-    // The file-card file icon renders instead.
-    expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
     expect(find.text('clip2.mp4'), findsOneWidget);
   });
 }
