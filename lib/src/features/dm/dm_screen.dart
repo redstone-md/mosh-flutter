@@ -43,6 +43,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_message_list.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/features/dm/dm_screen_header.dart';
 import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/dm/voice_call_layer.dart' show VoiceCallLayer, startVoiceCall;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
@@ -54,8 +55,6 @@ import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/features/shared/chat_actions.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
-import 'package:mosh/src/features/dm/fingerprint_badge.dart';
-import 'package:mosh/src/features/dm/chat_header_menu.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView, AttachmentDescriptor, AttachmentState, SessionSnapshot;
@@ -506,135 +505,29 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       },
     );
     final s = async.value;
-    final mlsState = s?.state ?? '';
-    final fingerprint = s?.fingerprint ?? '';
-    final confirmed = fingerprint.isNotEmpty &&
-        _confirmedFingerprints.contains(widget.sessionId);
     final sessionForDrawer = s;
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(s == null || s.peerDisplayName.isEmpty
-                  ? widget.sessionId
-                  : s.peerDisplayName),
-              Text(
-                  confirmed
-                      ? l.dmSubtitleConfirmed(mlsState)
-                      : l.dmSubtitleUnverified(mlsState),
-                  style: Theme.of(context).textTheme.bodySmall),
-            ]),
-       actions: [
-          FingerprintBadge(
-              fingerprint: fingerprint,
-              confirmed: confirmed,
-              onConfirm: _confirmFingerprint),
-          // Mobile search toggle -- 1-1 with React `MobileSearchToggle`
-          // (ActiveChatHeader.tsx L113-131): a ghost icon button in the
-          // header `actions:` that opens/closes the mobile search panel.
-          // Gated on the mobile breakpoint (the CSS `chat-mobile-only`
-          // class hides it on desktop); on desktop the toggle is absent and
-          // the desktop `ConversationTools` row renders in the body. Placed
-          // after the FingerprintBadge (React `beforeSearchActions`) and
-          // before the phone/peer-status/close buttons (React
-          // `afterSearchActions`), mirroring the React header order.
-          if (isMobileBreakpoint(context))
-            MobileSearchToggle(
-              open: _mobileSearchOpen,
-              onToggle: () =>
-                  setState(() => _mobileSearchOpen = !_mobileSearchOpen),
-              l: l,
-            ),
-          // Mobile kebab menu -- 1-1 with React `ChatHeaderMenu`
-          // (ChatHeaderMenu.tsx) prepended with the filter toggle via
-          // `conversationMenuActions` (ActiveChatHeader.tsx ~L155-170).
-          // Self-gates to mobile (the widget returns SizedBox.shrink() on
-          // desktop); React places it last in `chat-header-actions`, so it
-          // sits rightmost on mobile. The DM `menuActions` (ActiveChatPanes
-          // ActiveDmChat ~L38-49): confirm/confirmed fingerprint (disabled
-          // when confirmed; onSelect -> onConfirm -> _confirmFingerprint)
-          // + Delete chat (danger tone; onSelect -> onClose ->
-          // _requestLeave). The filter toggle is FIRST: if the current
-          // filter is "attachments" the item is "All" (IconMessageCircle ->
-          // Icons.chat_bubble_outline) -> onFilter(all); otherwise "Files"
-          // (IconPaperclip -> Icons.attach_file) -> onFilter(attachments).
-          ChatHeaderMenu(
-            l: l,
-            actions: [
-              if (_filter == ConversationFilter.attachments)
-                ChatHeaderMenuAction(
-                  label: l.chatFilterAll,
-                  icon: Icons.chat_bubble_outline,
-                  onSelect: () =>
-                      setState(() => _filter = ConversationFilter.all),
-                )
-              else
-                ChatHeaderMenuAction(
-                  label: l.chatFilterAttachments,
-                  icon: Icons.attach_file,
-                  onSelect: () => setState(
-                      () => _filter = ConversationFilter.attachments),
-                ),
-              ChatHeaderMenuAction(
-                label: confirmed
-                    ? l.inviteConfirmedButton
-                    : l.inviteConfirmButton,
-                icon: Icons.verified_user,
-                disabled: confirmed,
-                onSelect: _confirmFingerprint,
-              ),
-              ChatHeaderMenuAction(
-                label: l.deleteChatConfirm,
-                icon: Icons.delete_outline,
-                danger: true,
-                onSelect: _requestLeave,
-              ),
-            ],
-          ),
-          // Start-call button -- 1-в-1 with React's `onStartCall` header
-          // action (private-dm-screen.tsx L382 -> useVoiceCallOrchestration
-          // startCall). Icons.phone mirrors tabler's IconPhone; the
-          // outgoing-call modal opens once the snapshot reflects the
-          // `outgoing_call` field (the VoiceCallLayer watches it).
-          IconButton(
-            icon: const Icon(Icons.phone, size: 18),
-            tooltip: l.callStart,
-            onPressed: () async {
-              final err = await startVoiceCall(ref, widget.sessionId);
-              if (!context.mounted) return;
-              if (err != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(err.toString())),
-                );
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.electrical_services, size: 18),
-            tooltip: l.openPeerStatus,
-            onPressed: () => setState(() => _showPeerStatus = true),
-          ),
-          // Leave/close-session button -- 1-в-1 with React's DM leave button
-          // in ActiveChatHeader `afterSearchActions` (ActiveChatPanes.tsx
-          // L122-130: IconX, aria-label/title = `shellText.closeSession`,
-          // onClick = closeFlow.closeActive -> _requestLeave). Placed LAST in
-          // AppBar `actions` so it sits rightmost (React's
-          // afterSearchActions is right-of-search, so the leave button is
-          // the rightmost header button). Icons.close mirrors React's IconX;
-          // size 18 matches the peer-status IconButton for header
-          // consistency (React uses 16, but the sibling button is 18 here).
-          // React marks this `chat-desktop-only`; on mobile the kebab's
-          // "Delete chat" item (above) is the close entry point instead.
-          if (!isMobileBreakpoint(context))
-            IconButton(
-              icon: const Icon(Icons.close, size: 18),
-              tooltip: l.shellCloseSession,
-              onPressed: _requestLeave,
-            ),
-        ],
+      appBar: DmScreenHeader(
+        sessionId: widget.sessionId,
+        onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+        onLeave: _requestLeave,
+        mobileSearchOpen: _mobileSearchOpen,
+        onToggleMobileSearch: () =>
+            setState(() => _mobileSearchOpen = !_mobileSearchOpen),
+        filter: _filter,
+        onFilter: (value) => setState(() => _filter = value),
+        onStartCall: () async {
+          final err = await startVoiceCall(ref, widget.sessionId);
+          if (!context.mounted) return;
+          if (err != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(err.toString())),
+            );
+          }
+        },
+        confirmedFingerprints: _confirmedFingerprints,
+        onConfirmFingerprint: _confirmFingerprint,
       ),
       body: SafeArea(
         child: Stack(
