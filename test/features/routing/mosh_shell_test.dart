@@ -32,6 +32,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/main.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
+import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
@@ -224,15 +225,19 @@ void main() {
 
   // Desktop ChatPaneWelcome Start CTA (React EmptyState parity,
   // ActiveChatPanes.tsx:407-418): the desktop right-pane welcome is no
-  // longer inert. It renders the icon + title + body + start CTA in the
-  // React EmptyState order, and tapping the CTA routes to /chat-create
-  // (ChatCreateScreen mounts) -- the same route the onboarding Chat tile
-  // uses. The chat branch is preloaded (app_router.dart preload: true)
-  // so the welcome pane renders side-by-side with the rail at >= 900 wide
-  // even though /sessions is the active branch.
+  // longer the bare EmptyState CTA. React renders the full NewSessionPanel
+  // (OnboardMenu) INLINE in the chat-pane when no conversation is open
+  // (private-dm-screen.tsx:325-343); the bare CTA is mobile-only now. The
+  // desktop branch embeds the same OnboardMenu the OnboardingScreen uses,
+  // so the welcome pane renders the menu's identity chip -> head -> Start
+  // tiles -> Join tiles -> Advanced/About. Tapping the Chat tile routes to
+  // /chat-create (ChatCreateScreen mounts) -- the same route the onboarding
+  // Chat tile uses. The chat branch is preloaded (app_router.dart
+  // preload: true) so the welcome pane renders side-by-side with the rail
+  // at >= 900 wide even though /sessions is the active branch.
   testWidgets(
-      'desktop (1200x900): ChatPaneWelcome renders icon + title + body + '
-      'start CTA; tapping the CTA routes to /chat-create', (tester) async {
+      'desktop (1200x900): ChatPaneWelcome embeds OnboardMenu inline; '
+      'tapping the Chat tile routes to /chat-create', (tester) async {
     final gw = _SeededGateway(
         _session(sessionId: 'dave-1', peer: 'Dave'));
 
@@ -241,12 +246,60 @@ void main() {
     // The welcome pane renders beside the rail (chat branch preloaded).
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
 
-    // React EmptyState order 1:1: icon -> title -> body -> start CTA.
+    // Desktop embeds OnboardMenu (React NewSessionPanel parity). The
+    // menu renders the onboard head (onboardTitle "Start a conversation")
+    // + the four tiles (Start: chat/group, Join: join/channel).
+    expect(find.byType(OnboardMenu), findsOneWidget);
+    expect(find.text('Start a conversation'), findsOneWidget);
+    expect(find.text('New private chat'), findsOneWidget);
+    expect(find.text('New group'), findsOneWidget);
+
+    // The bare EmptyState CTA is GONE on desktop (mobile-only now).
+    expect(find.byIcon(Icons.chat_outlined), findsNothing);
+    expect(find.text('Welcome to Mosh.'), findsNothing);
+    expect(find.text('Create an invite or paste one to start your first encrypted conversation.'),
+        findsNothing);
+
+    // Tap the Chat tile (onboardTileChatTitle "New private chat"). The
+    // desktop branch's onPickChat closure does
+    // context.go(AppRoutes.chatCreate), mounting ChatCreateScreen (the
+    // full-screen step -- atomic #8 will inline the step).
+    await tester.tap(find.text('New private chat'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChatCreateScreen), findsOneWidget);
+  });
+
+  // Mobile ChatPaneWelcome CTA (React EmptyState parity,
+  // ActiveChatPanes.tsx:407-418): the mobile chat-pane welcome keeps the
+  // bare CTA (icon + title + body + start button) that atomic #3 replaced
+  // with the inline OnboardMenu on desktop. The mobile step screens stay
+  // full-screen (the parity-correct mobile path for now), so tapping the
+  // CTA routes to /chat-create (ChatCreateScreen mounts). This pins the
+  // mobile path is preserved after the desktop inline-menu change.
+  testWidgets(
+      'mobile (400x800): ChatPaneWelcome keeps the bare start CTA; tapping '
+      'it routes to /chat-create', (tester) async {
+    final gw = _SeededGateway(
+        _session(sessionId: 'erin-1', peer: 'Erin'));
+
+    await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
+
+    // Mobile single-pane: the chat branch is offstage (rail is active),
+    // so navigate to /chat to mount ChatPaneWelcome as the active branch.
+    appRouter.go(AppRoutes.chat);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChatPaneWelcome), findsOneWidget);
+
+    // Mobile keeps the React EmptyState order 1:1: icon -> title -> body ->
+    // start CTA button. No OnboardMenu inline on mobile.
     expect(find.byIcon(Icons.chat_outlined), findsOneWidget);
     expect(find.text('Welcome to Mosh.'), findsOneWidget);
     expect(find.text('Create an invite or paste one to start your first encrypted conversation.'),
         findsOneWidget);
     expect(find.text('New private chat'), findsOneWidget);
+    expect(find.byType(OnboardMenu), findsNothing);
 
     // Tap the start CTA. The router's onStart closure does
     // context.go(AppRoutes.chatCreate), mounting ChatCreateScreen.
