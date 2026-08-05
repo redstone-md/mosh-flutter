@@ -13,10 +13,6 @@
  /// pure helpers `formatTime` / `compactDetail` (from
  /// `diagnostics_helpers.dart`).
  ///
- /// DEFERRED: the per-event-name color tint (React's `event-${event_name}`
- /// CSS class keys rows by event type) is rendered neutral here -- the
- /// content + row shape are the parity surface; the decorative tint can
- /// be added later without changing the row content. The
  /// `ChannelDiagnostics` / `GroupDiagnostics` sections are still deferred
  /// (their contracts do not exist in the Flutter fork yet).
  library;
@@ -45,8 +41,8 @@
  /// The group label ("Moss events"), the empty-state title ("No events
  /// yet"), and the description are localized (ARB). The event NAME, the
  /// formatted TIME, and the detail string are DATA (not localized). The
- /// per-event-name color tint (React's `event-${event_name}` CSS) is
- /// deferred -- rows render neutral here.
+ /// per-event-name color tint (React's `event-${event_name}` CSS) is applied
+ /// to the event name only; time and detail remain neutral.
  class EventLog extends StatelessWidget {
    const EventLog({super.key, required this.events});
  
@@ -110,9 +106,6 @@
  ///     </strong>
  ///   </div>
  ///
- /// The per-event-name color tint (React's `event-${event_name}` CSS class)
- /// is DEFERRED -- rows render neutral here. A small map of per-name
- /// tints can be added later without changing the row content/shape.
  class _EventRow extends StatelessWidget {
    const _EventRow({required this.event});
  
@@ -154,7 +147,10 @@
                    style: theme.textTheme.bodySmall?.copyWith(
                      fontSize: 10.5,
                      fontWeight: FontWeight.w700,
-                     color: theme.colorScheme.onSurface,
+                     color: eventNameColor(
+                       event.eventName,
+                       fallback: theme.colorScheme.onSurface,
+                     ),
                    ),
                  ),
                  if (detail.isNotEmpty)
@@ -174,3 +170,21 @@
      );
    }
  }
+
+/// Maps React's event-name semantic colors, preserving the supplied neutral
+/// fallback for event types without an explicit mapping.
+Color eventNameColor(String eventName, {required Color fallback}) {
+  switch (eventName) {
+    case 'peer_joined':
+    case 'supernode_promoted':
+      return const Color(0xFFB7D84A); // --moss
+    case 'peer_left':
+      return const Color(0xFFE8B65A); // --warn
+    case 'tracker_announce':
+      return const Color(0xFF6CB7E8); // --info
+    case 'tracker_failure':
+      return const Color(0xFFE86A5A); // --danger
+    default:
+      return fallback;
+  }
+}

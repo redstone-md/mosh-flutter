@@ -17,8 +17,6 @@
  //     rendered newest first, each with its time + name.
  //   - `EventLog` with 45 events -> only the last 40 render (the slice).
  //
- // The per-event-name color tint (React's `event-${event_name}` CSS) is
- // deferred (rendered neutral) and is not asserted here.
  import 'package:flutter/material.dart';
  import 'package:flutter_test/flutter_test.dart';
  
@@ -159,7 +157,28 @@
        expect(compactDetail('not json'), 'not json');
      });
    });
- 
+
+   group('eventNameColor', () {
+     const fallback = Color(0xFF6B7075);
+
+     test('maps all React semantic event-name groups', () {
+       expect(eventNameColor('peer_joined', fallback: fallback),
+           const Color(0xFFB7D84A));
+       expect(eventNameColor('supernode_promoted', fallback: fallback),
+           const Color(0xFFB7D84A));
+       expect(eventNameColor('peer_left', fallback: fallback),
+           const Color(0xFFE8B65A));
+       expect(eventNameColor('tracker_announce', fallback: fallback),
+           const Color(0xFF6CB7E8));
+       expect(eventNameColor('tracker_failure', fallback: fallback),
+           const Color(0xFFE86A5A));
+     });
+
+     test('keeps unknown event names on the neutral fallback', () {
+       expect(eventNameColor('tracker_update', fallback: fallback), fallback);
+     });
+   });
+
    group('EventLog - empty', () {
      testWidgets('renders the Moss events group label + No-events empty-state',
          (tester) async {
