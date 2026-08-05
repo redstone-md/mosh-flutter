@@ -50,15 +50,12 @@ final ringtonePlayerProvider = Provider<RingtonePlayer>(
   (ref) => const NoopRingtonePlayer(),
 );
 
-/// A seam for surfacing voice-call errors (React onError). The wiring in
-/// step 6 will read this and show a snackbar; tests override with a
-/// recording provider. Default is a no-op print (so errors are not lost in
-/// prod before the snackbar wiring lands).
+/// A seam for surfacing voice-call errors (React onError). DM screens install
+/// a local callback that owns their inline ChatError state; isolated provider
+/// tests can override this with a recording callback. The default is a no-op
+/// because a provider container has no UI owner to which it can report.
 final voiceCallErrorSinkProvider = Provider<void Function(String? message)>(
-  (ref) => (message) {
-    // ignore: avoid_print
-    print(message); // replaced by a snackbar in step 6
-  },
+  (ref) => (_) {},
 );
 
 /// Family by sessionId. Riverpod v3 passes the family arg to the Notifier's
@@ -76,12 +73,16 @@ class VoiceCallOrchestratorNotifier
   final String sessionId;
 
   VoiceCallOrchestrator? _orchestrator;
+  void Function(String? message)? _providerErrorSink;
+  void Function(String? message)? _ownerErrorSink;
+  Object? _errorSinkOwner;
   // The callId the orchestrator is currently attached to (or null when
   // detached). Used to detect a call-id change and re-attach.
   String? _attachedCallId;
 
   @override
   VoiceCallOrchestratorState build() {
+    _providerErrorSink = ref.read(voiceCallErrorSinkProvider);
     // Tear down the orchestrator when the provider is disposed (v3 Notifier
     // has no dispose() hook -- register via ref.onDispose in build).
     ref.onDispose(() {
@@ -123,7 +124,6 @@ class VoiceCallOrchestratorNotifier
     _attachedCallId = activeCall.callId;
     final gateway = ref.read(gatewayProvider);
     final transport = CallFrameTransport(gateway);
-    final onError = ref.read(voiceCallErrorSinkProvider);
     final sid = sessionId;
     orchestrator.attach(
       sessionId: sid,
@@ -134,12 +134,34 @@ class VoiceCallOrchestratorNotifier
       transport: transport,
       captureFactory: ref.read(voiceCaptureFactoryProvider),
       playbackFactory: ref.read(voicePlaybackFactoryProvider),
-      onError: onError,
+      onError: _emitError,
       endCall: (s, c, reason) async {
         await gateway.callEnd(sessionId: s, callId: c, reason: reason);
         ref.invalidate(activeSessionProvider(sid));
       },
     );
+  }
+
+  /// Installs the owning screen's local error callback. The owner token keeps
+  /// an older widget's dispose from clearing a newer widget's callback.
+  void setOwnerErrorSink(
+    Object owner,
+    void Function(String? message) sink,
+  ) {
+    _errorSinkOwner = owner;
+    _ownerErrorSink = sink;
+  }
+
+  /// Removes an owner callback only when it still owns this session notifier.
+  /// Once cleared, the provider override remains the effective fallback.
+  void clearOwnerErrorSink(Object owner) {
+    if (!identical(_errorSinkOwner, owner)) return;
+    _errorSinkOwner = null;
+    _ownerErrorSink = null;
+  }
+
+  void _emitError(String? message) {
+    (_ownerErrorSink ?? _providerErrorSink)?.call(message);
   }
 
   /// Toggles mute (React toggleMute). Mirrors the orchestrator's own flag;

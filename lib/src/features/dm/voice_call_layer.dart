@@ -52,6 +52,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     required this.sessionId,
     required this.l,
     this.ringtone = const NoopRingtonePlayer(),
+    this.onVoiceCallError,
   });
 
   /// The DM session this layer watches.
@@ -64,11 +65,17 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   /// The ringtone player for the incoming/outgoing modals.
   final RingtonePlayer ringtone;
 
+  /// The owning DM screen's inline error setter for audio setup failures.
+  final void Function(String? message)? onVoiceCallError;
+
   @override
   ConsumerState<VoiceCallLayer> createState() => _VoiceCallLayerState();
 }
 
 class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
+  final Object _errorSinkOwner = Object();
+  VoiceCallOrchestratorNotifier? _registeredErrorNotifier;
+
   // The call id each modal is currently open for, so a snapshot re-poll
   // does not re-mount an already-open modal (React keys by call id).
   String? _openIncomingFor;
@@ -79,15 +86,54 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   // closes).
   bool _activeCallEnded = false;
 
+  void _registerErrorSink() {
+    final notifier = ref.read(
+      voiceCallOrchestratorProvider(widget.sessionId).notifier,
+    );
+    _registeredErrorNotifier = notifier;
+    final sink = widget.onVoiceCallError;
+    if (sink == null) {
+      notifier.clearOwnerErrorSink(_errorSinkOwner);
+    } else {
+      notifier.setOwnerErrorSink(_errorSinkOwner, sink);
+    }
+  }
+
+  void _clearRegisteredErrorSink() {
+    _registeredErrorNotifier?.clearOwnerErrorSink(_errorSinkOwner);
+    _registeredErrorNotifier = null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _registerErrorSink();
+  }
+
+  @override
+  void didUpdateWidget(covariant VoiceCallLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId != widget.sessionId ||
+        oldWidget.onVoiceCallError != widget.onVoiceCallError) {
+      _clearRegisteredErrorSink();
+      _registerErrorSink();
+    }
+  }
+
+  @override
+  void dispose() {
+    _clearRegisteredErrorSink();
+    super.dispose();
+  }
+
   Gateway _gateway() => ref.read(gatewayProvider);
 
   void _invalidateSession() =>
       ref.invalidate(activeSessionProvider(widget.sessionId));
 
   void _onError(Object? e) {
-    // Surface a brief SnackBar so the user sees a failed call control;
-    // React routes through `onError` -> an inline-error toast. Kept minimal
-    // here; a richer error surface is a later atomic.
+    // Call-control failures remain transient feedback. Audio setup failures
+    // use the owning DM screen's inline error callback instead.
     if (!mounted) return;
     final msg = e == null ? 'Call failed' : e.toString();
     ScaffoldMessenger.maybeOf(context)

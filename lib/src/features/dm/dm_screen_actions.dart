@@ -231,6 +231,14 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
     );
   }
 
+  /// Routes active-call audio setup failures into the shared inline chat
+  /// error. This intentionally leaves [_lastFailedSend] untouched, so a
+  /// call failure never creates a text-send Retry action.
+  void _onVoiceCallError(String? message) {
+    if (!mounted) return;
+    setState(() => _chatError = message);
+  }
+
   /// Surfaces the localized 50 MB limit message when the picker rejects an
   /// oversized file (mirrors React's `onError("Attachment exceeds the 50 MB
   /// limit")`). A SnackBar is the Material idiom for a transient, non-modal
