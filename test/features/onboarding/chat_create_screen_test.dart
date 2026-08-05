@@ -33,7 +33,17 @@ import 'package:mosh/src/state/gateway_provider.dart';
 /// A FakeGateway subclass whose `createInvite` returns a fixed
 /// `InviteCreated` so the step's URI is deterministic. The listenPort +
 /// displayName flow through from inviteFlowProvider (the default state).
-class _ControlledCreateGateway extends FakeGateway {
+class _RecordingCreateGateway extends FakeGateway {
+  int listSessionsCalls = 0;
+
+  @override
+  Future<SessionListSnapshot> listSessions() async {
+    listSessionsCalls++;
+    return super.listSessions();
+  }
+}
+
+class _ControlledCreateGateway extends _RecordingCreateGateway {
   _ControlledCreateGateway(this._inviteUri);
 
   final String _inviteUri;
@@ -53,7 +63,7 @@ class _ControlledCreateGateway extends FakeGateway {
 /// A FakeGateway subclass whose `createInvite` rejects with a fixed
 /// error string so the inline-error path (parity with React role="alert")
 /// can be exercised. The error string is asserted verbatim below.
-class _ThrowingCreateGateway extends FakeGateway {
+class _ThrowingCreateGateway extends _RecordingCreateGateway {
   _ThrowingCreateGateway(this._message);
 
   final String _message;
@@ -71,7 +81,7 @@ class _ThrowingCreateGateway extends FakeGateway {
 /// succeeds on the second (returns a fixed invite URI). Used to assert the
 /// inline error CLEARS on the next attempt (React's "error stays until the
 /// next attempt" semantics).
-class _ThenSucceedsCreateGateway extends FakeGateway {
+class _ThenSucceedsCreateGateway extends _RecordingCreateGateway {
   _ThenSucceedsCreateGateway(this._inviteUri, this._message);
 
   final String _inviteUri;
@@ -130,7 +140,8 @@ void main() {
       'tapping Create calls inviteFlowProvider.create() and surfaces the URI',
       (tester) async {
     const uri = 'mosh://invite?mesh=m&session=s#fp=Z';
-    await pumpScreen(tester, _ControlledCreateGateway(uri));
+    final gateway = _ControlledCreateGateway(uri);
+    await pumpScreen(tester, gateway);
 
     // Create is a FilledButton; before tap the Recreate label is absent.
     final createButton = find.widgetWithText(FilledButton, 'Create invite link');
@@ -144,6 +155,8 @@ void main() {
     expect(find.text('Replace invite link'), findsOneWidget);
     expect(find.byType(InviteResult), findsOneWidget);
     expect(find.text(uri), findsOneWidget);
+    // Provider initialization plus the explicit post-create refresh.
+    expect(gateway.listSessionsCalls, 2);
   });
 
   testWidgets('tapping Copy writes the URI to the clipboard and flips the label',
@@ -197,7 +210,8 @@ void main() {
       'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Invite service offline';
-    await pumpScreen(tester, _ThrowingCreateGateway(message));
+    final gateway = _ThrowingCreateGateway(message);
+    await pumpScreen(tester, gateway);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
     await tester.pumpAndSettle();
@@ -207,6 +221,7 @@ void main() {
     // of feedback -- no transient SnackBar (the old SnackBar path is gone).
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
+    expect(gateway.listSessionsCalls, 0);
   });
 
   testWidgets('the inline error clears on the next successful create attempt',
