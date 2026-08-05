@@ -26,7 +26,17 @@ import 'package:mosh/src/state/gateway_provider.dart';
 /// A FakeGateway subclass whose `joinChannel` rejects with a fixed error
 /// string so the inline-error path (parity with React role="alert") can be
 /// exercised. The error string is asserted verbatim below.
-class _ThrowingJoinChannelGateway extends FakeGateway {
+class _RecordingChannelListGateway extends FakeGateway {
+  int listChannelsCalls = 0;
+
+  @override
+  Future<ChannelListSnapshot> listChannels() async {
+    listChannelsCalls++;
+    return const ChannelListSnapshot(channels: []);
+  }
+}
+
+class _ThrowingJoinChannelGateway extends _RecordingChannelListGateway {
   _ThrowingJoinChannelGateway(this._message);
 
   final String _message;
@@ -105,7 +115,8 @@ void main() {
   testWidgets(
       'tapping Join with a name entered joins via the gateway and navigates to the channel screen',
       (tester) async {
-    await pumpScreen(tester);
+    final gateway = _RecordingChannelListGateway();
+    await pumpScreen(tester, gateway: gateway);
 
     await tester.enterText(find.byType(TextField), 'test-channel');
     await tester.pump();
@@ -118,6 +129,9 @@ void main() {
     expect(find.byType(ChannelScreen), findsOneWidget);
     expect(find.byType(ChannelJoinScreen), findsNothing);
     expect(find.byType(SnackBar), findsNothing);
+    // Reading the notifier initializes the provider once, then the explicit
+    // post-join refresh performs the second fetch.
+    expect(gateway.listChannelsCalls, 2);
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
@@ -137,7 +151,8 @@ void main() {
       'a failed join surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Channel runtime offline';
-    await pumpScreen(tester, gateway: _ThrowingJoinChannelGateway(message));
+    final throwing = _ThrowingJoinChannelGateway(message);
+    await pumpScreen(tester, gateway: throwing);
 
     await tester.enterText(find.byType(TextField), 'test-channel');
     await tester.pump();
@@ -152,5 +167,7 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
     expect(find.byType(ChannelScreen), findsNothing);
     expect(find.byType(ChannelJoinScreen), findsOneWidget);
+    // A failed join must not initialize or refresh the channel list.
+    expect(throwing.listChannelsCalls, 0);
   });
 }
