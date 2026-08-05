@@ -52,3 +52,6 @@ pub mod voice_call_opus_encode;
 /// pipeline: Opus packet -> Rust decode -> ring buffer -> cpal stream with
 /// drift-resync). See `voice_call_playback`.
 pub mod voice_call_playback;
+
+/// Facade for the CPAL-backed two-tone voice-call ringtone.
+pub mod voice_call_ringtone;

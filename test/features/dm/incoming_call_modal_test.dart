@@ -32,6 +32,11 @@ class _RecordingHandle implements RingtoneHandle {
   void stop() => player.stopCount++;
 }
 
+class _FailingRingtonePlayer implements RingtonePlayer {
+  @override
+  RingtoneHandle start() => throw StateError('no output device');
+}
+
 PendingCall _pending() => const PendingCall(
       callId: 'call-1',
       fromDevice: 'peer-device',
@@ -152,6 +157,25 @@ void main() {
       await tester.pumpWidget(Container());
       await tester.pumpAndSettle();
       expect(ringtone.stopCount, 1);
+    },
+  );
+
+  testWidgets(
+    'keeps the modal alive when the ringtone device is unavailable',
+    (tester) async {
+      await _pump(
+        tester,
+        modal: IncomingCallModal(
+          pending: _pending(),
+          peerLabel: 'Alice',
+          onAccept: () {},
+          onDecline: (_) {},
+          ringtone: _FailingRingtonePlayer(),
+          l: await _l(),
+        ),
+      );
+      expect(find.text('Alice'), findsOneWidget);
+      expect(find.text('Incoming voice call...'), findsOneWidget);
     },
   );
 

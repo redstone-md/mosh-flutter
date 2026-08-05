@@ -73,7 +73,11 @@ class _OutgoingCallModalState extends State<OutgoingCallModal> {
   void initState() {
     super.initState();
     // React: `ringtoneRef.current = startRingtone()` in a try/catch.
-    _ringtone = widget.ringtone.start();
+    try {
+      _ringtone = widget.ringtone.start();
+    } catch (_) {
+      _ringtone = null;
+    }
   }
 
   @override
@@ -95,7 +99,8 @@ class _OutgoingCallModalState extends State<OutgoingCallModal> {
       autofocus: true,
       // React useModalFocus(onCancel) Esc-trap.
       onKeyEvent: (event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
           _cancel();
         }
       },
@@ -103,7 +108,8 @@ class _OutgoingCallModalState extends State<OutgoingCallModal> {
         label: widget.l.callOutgoingAriaLabel,
         container: true,
         child: Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           backgroundColor: const Color(0xFF1D1F24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 280),

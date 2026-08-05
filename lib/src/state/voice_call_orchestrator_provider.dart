@@ -24,6 +24,8 @@ import 'package:mosh/src/features/dm/voice_capture.dart'
     show NoopVoiceCaptureFactory, VoiceCaptureFactory;
 import 'package:mosh/src/features/dm/voice_playback.dart'
     show NoopVoicePlaybackFactory, VoicePlaybackFactory;
+import 'package:mosh/src/features/dm/ringtone_player.dart'
+    show NoopRingtonePlayer, RingtonePlayer;
 
 /// The orchestrator state the CallOverlay reads -- just the mute flag.
 /// activeCall / pendingCallSession / callSupported are derived from
@@ -43,6 +45,9 @@ final voiceCaptureFactoryProvider = Provider<VoiceCaptureFactory>(
 );
 final voicePlaybackFactoryProvider = Provider<VoicePlaybackFactory>(
   (ref) => const NoopVoicePlaybackFactory(),
+);
+final ringtonePlayerProvider = Provider<RingtonePlayer>(
+  (ref) => const NoopRingtonePlayer(),
 );
 
 /// A seam for surfacing voice-call errors (React onError). The wiring in
