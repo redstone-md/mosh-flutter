@@ -23,7 +23,64 @@ import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/rust/org_runtime.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+
+class _RecordingGateway extends FakeGateway {
+  int listSessionsCalls = 0;
+  int listGroupsCalls = 0;
+  int listOrgsCalls = 0;
+
+  @override
+  Future<SessionListSnapshot> listSessions() async {
+    listSessionsCalls++;
+    return super.listSessions();
+  }
+
+  @override
+  Future<GroupListSnapshot> listGroups() async {
+    listGroupsCalls++;
+    return super.listGroups();
+  }
+
+  @override
+  Future<List<OrgSnapshot>> listOrgs() async {
+    listOrgsCalls++;
+    return super.listOrgs();
+  }
+}
+
+class _ThrowingAcceptGateway extends _RecordingGateway {
+  _ThrowingAcceptGateway(this.message);
+
+  final String message;
+
+  @override
+  Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request}) =>
+      Future.error(message);
+}
+
+class _ThrowingJoinGroupGateway extends _RecordingGateway {
+  _ThrowingJoinGroupGateway(this.message);
+
+  final String message;
+
+  @override
+  Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) =>
+      Future.error(message);
+}
+
+class _ThrowingJoinOrgGateway extends _RecordingGateway {
+  _ThrowingJoinOrgGateway(this.message);
+
+  final String message;
+
+  @override
+  Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
+      Future.error(message);
+}
 
 void main() {
   Future<GoRouter> pumpScreen(
@@ -97,7 +154,8 @@ void main() {
   testWidgets(
       'group detection shows the ok badge and ENABLES Connect; tapping navigates to the group screen',
       (tester) async {
-    await pumpScreen(tester, FakeGateway());
+    final gateway = _RecordingGateway();
+    await pumpScreen(tester, gateway);
 
     // Valid group invite (mosh://group, 32-hex fingerprint).
     await tester.enterText(
@@ -118,12 +176,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(GroupScreen), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsNothing);
+    expect(gateway.listGroupsCalls, 2);
   });
 
   testWidgets(
       'org detection shows the ok badge and ENABLES Connect; tapping navigates to the sessions list',
       (tester) async {
-    await pumpScreen(tester, FakeGateway());
+    final gateway = _RecordingGateway();
+    await pumpScreen(tester, gateway);
 
     // Valid org bundle: mosh://org + mesh= + name= + #org=<64 hex>.
     await tester.enterText(
@@ -145,11 +205,50 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SessionsScreen), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsNothing);
+    expect(gateway.listOrgsCalls, 2);
+  });
+
+  testWidgets('a failed group join does not refresh groups or navigate',
+      (tester) async {
+    const message = 'Group runtime offline';
+    final gateway = _ThrowingJoinGroupGateway(message);
+    await pumpScreen(tester, gateway);
+
+    await tester.enterText(
+        find.byType(TextField),
+        'mosh://group?mesh=7x9v&group=drift-team#fp=91A4D2C877B091A4D2C877B091A4D2C8');
+    await tester.pump();
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(InvitePasteScreen), findsOneWidget);
+    expect(gateway.listGroupsCalls, 0);
+  });
+
+  testWidgets('a failed org join does not refresh orgs or navigate',
+      (tester) async {
+    const message = 'Org runtime offline';
+    final gateway = _ThrowingJoinOrgGateway(message);
+    await pumpScreen(tester, gateway);
+
+    await tester.enterText(
+        find.byType(TextField),
+        'mosh://org?mesh=7x9v&name=drift-collective#org='
+        '91a4d2c877b091a4d2c877b091a4d2c877b091a4d2c877b091a4d2c877b091a4');
+    await tester.pump();
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(InvitePasteScreen), findsOneWidget);
+    expect(gateway.listOrgsCalls, 0);
   });
 
   testWidgets('tapping Connect on a DM invite calls gateway.acceptInvite',
       (tester) async {
-    await pumpScreen(tester, FakeGateway());
+    final gateway = _RecordingGateway();
+    await pumpScreen(tester, gateway);
 
     await tester.enterText(
         find.byType(TextField),
@@ -158,6 +257,25 @@ void main() {
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
     expect(find.textContaining('Accepted session:'), findsOneWidget);
+    expect(gateway.listSessionsCalls, 2);
+  });
+
+  testWidgets('a failed DM accept does not initialize or refresh sessions',
+      (tester) async {
+    const message = 'DM runtime offline';
+    final gateway = _ThrowingAcceptGateway(message);
+    await pumpScreen(tester, gateway);
+
+    await tester.enterText(
+        find.byType(TextField),
+        'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
+    await tester.pump();
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text(message), findsOneWidget);
+    expect(find.textContaining('Accepted session:'), findsNothing);
+    expect(gateway.listSessionsCalls, 0);
   });
 
   testWidgets('Back returns to the onboarding menu', (tester) async {
