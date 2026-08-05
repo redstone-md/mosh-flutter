@@ -92,6 +92,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 ///     message).
 ///   - [onVoiceError] -- the screen's `_onVoiceError` (mic-permission /
 ///     start failures -> SnackBar).
+///   - [onVoiceCallError] -- the screen's `_onVoiceCallError` (active-call
+///     audio setup failures -> the shared inline [ChatErrorBanner]).
 ///   - [showPeerStatus] + [onClosePeerStatus] -- the peer-status drawer
 ///     open state, owned by the screen (the AppBar's peer-status IconButton
 ///     opens it), passed down so this body can render the overlay + close
@@ -124,6 +126,7 @@ class DmScreenBody extends ConsumerStatefulWidget {
     required this.onSend,
     required this.onSendVoice,
     required this.onVoiceError,
+    required this.onVoiceCallError,
     required this.showPeerStatus,
     required this.onClosePeerStatus,
     required this.onRefreshSession,
@@ -148,6 +151,7 @@ class DmScreenBody extends ConsumerStatefulWidget {
   final VoidCallback onSend;
   final void Function(VoiceSend voice) onSendVoice;
   final ValueChanged<String> onVoiceError;
+  final void Function(String? message) onVoiceCallError;
   final bool showPeerStatus;
   final VoidCallback onClosePeerStatus;
   final VoidCallback onRefreshSession;
@@ -303,6 +307,7 @@ class _DmScreenBodyState extends ConsumerState<DmScreenBody> {
               sessionId: widget.sessionId,
               l: l,
               ringtone: ref.read(ringtonePlayerProvider),
+              onVoiceCallError: widget.onVoiceCallError,
             ),
           ),
         ],

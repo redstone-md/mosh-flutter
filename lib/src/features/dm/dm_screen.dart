@@ -183,6 +183,7 @@ class _DmScreenState extends ConsumerState<DmScreen> with DmScreenActions {
         onSend: _send,
         onSendVoice: _sendVoice,
         onVoiceError: _onVoiceError,
+        onVoiceCallError: _onVoiceCallError,
         showPeerStatus: _showPeerStatus,
         onClosePeerStatus: () => setState(() => _showPeerStatus = false),
         onRefreshSession: () =>
