@@ -16,16 +16,17 @@ import 'package:mosh/src/state/dm_offer_providers.dart'
     show PendingDmOffer, PendingDmOfferKind;
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
+import 'package:mosh/src/state/active_conversation_key_provider.dart'
+    show activeConversationKeyProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show inviteFlowProvider, sessionListProvider;
 
-// Mirrors onboarding's _startChat: inviteFlowProvider.create() then surfaces
-// the invite URI as a SnackBar. ScaffoldMessenger is captured at call time
-// (not stored) to avoid holding a context across an await.
-Future<void> startChatAction(BuildContext context, WidgetRef ref) async {
-  final scaffold = ScaffoldMessenger.of(context);
-  final invite = await ref.read(inviteFlowProvider.notifier).create();
-  scaffold.showSnackBar(SnackBar(content: Text(invite.inviteUri)));
+// Mirrors React SessionRail.onNew: reset setup state, clear the active
+// conversation, and show the existing NewSessionPanel in the chat branch.
+void openNewSessionAction(BuildContext context, WidgetRef ref) {
+  ref.read(activeConversationKeyProvider.notifier).clear();
+  ref.read(inviteFlowProvider.notifier).resetInviteState();
+  context.go(AppRoutes.chat);
 }
 
 // Accept a pending DM offer, 1-в-1 with React `useDmOffers.acceptDmOffer`:

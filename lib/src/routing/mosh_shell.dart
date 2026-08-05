@@ -49,7 +49,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
@@ -131,8 +130,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
             // Shared desktop titlebar (React header.titlebar). Sits ABOVE
             // the rail+chat row, full window width.
             MoshTitleBar(
-              onOpenPeerStatus: () =>
-                  setState(() => _showPeerStatus = true),
+              onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
             ),
             Expanded(
               child: Row(
@@ -304,97 +302,34 @@ class _MobileShell extends StatelessWidget {
 /// (context.go(AppRoutes.sessions)) on desktop can reset branch B here
 /// instead of leaving a dead chat mounted.
 ///
-/// DESKTOP (width > 580): React renders the full NewSessionPanel
-/// (menu + the four inline steps) INLINE in the chat-pane
-/// (private-dm-screen.tsx:325-343); the bare EmptyState CTA is mobile-
-/// only. The desktop branch embeds [NewSessionPanel], wrapped in the SAME
-/// body composition (Scaffold > SafeArea > Center >
-/// SingleChildScrollView(32/48) > ConstrainedBox(maxWidth: 460)) so the
-/// inline panel renders identically to the onboarding screen's menu.
+/// React renders the full NewSessionPanel (menu + the four inline steps)
+/// INLINE in the chat-pane (private-dm-screen.tsx:325-343). The same panel
+/// is used at every viewport size so SessionRail's New action reaches the
+/// complete flow in one tap on mobile as well as desktop.
 /// [NewSessionPanel] owns the local step state + the IndexedStack keep-
 /// alive; the step success navigation (context.go channelFor / groupFor /
 /// sessions) fires from within the steps and leaves the welcome pane.
 ///
-/// MOBILE (width <= 580): the parity-correct path is the bare CTA -- React
-/// renders EmptyState (ActiveChatPanes.tsx:407-418) with IconMessageCircle
-/// (28) -> noSessionTitle -> noSessionBody -> start CTA button, and
-/// routes to the chat-create step. The `onStart` callback is injected by
-/// the router (app_router.dart) as
-/// `() => context.go(AppRoutes.chatCreate)` -- the same route the
-/// desktop Chat tile uses. This keeps the widget testable (no context.go
-/// inside the mobile branch's CTA) and matches sessions_screen.dart
-/// _EmptyState.onStart (sessions_screen.dart:461-478).
-///
-/// ChatPaneWelcome stays a StatelessWidget: the desktop branch's
 /// [NewSessionPanel] reads its own providers (inviteFlowProvider,
 /// gatewayProvider, persistenceWarningProvider) via its
 /// ConsumerStatefulWidget ref; the root ProviderScope supplies the
 /// container.
-///
-/// Parity note: React's onNew also calls setup.resetInviteState()
-/// (private-dm-screen.tsx:329-336). The Flutter port has NO counterpart
-/// -- inviteFlowProvider keeps lastInvite across screens intentionally
-/// (no resetInviteState method exists); the inline step switch is the
-/// parity action.
 class ChatPaneWelcome extends StatelessWidget {
-  const ChatPaneWelcome({super.key, required this.onStart});
-
-  /// Starts the chat-create flow (router passes
-  /// `() => context.go(AppRoutes.chatCreate)`). Mobile-only: the desktop
-  /// branch embeds OnboardMenu and routes via its own tile callbacks.
-  final VoidCallback onStart;
+  const ChatPaneWelcome({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Desktop: full OnboardMenu inline (React NewSessionPanel parity).
-    if (!isMobileBreakpoint(context)) {
-      return Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: NewSessionPanel(),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    // Mobile: bare EmptyState CTA (React ActiveChatPanes.tsx:407-418).
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Icon(Icons.chat_outlined,
-                  size: 28, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(height: 12),
-              Text(
-                l.chatNoSessionTitle,
-                style: theme.textTheme.titleMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l.chatNoSessionBody,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: onStart,
-                icon: const Icon(Icons.add, size: 14),
-                label: Text(l.chatStartCta),
-              ),
-            ],
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: isMobileBreakpoint(context)
+                ? const EdgeInsets.all(24)
+                : const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: const NewSessionPanel(),
+            ),
           ),
         ),
       ),

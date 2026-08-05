@@ -142,7 +142,7 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.groupCreate,
       builder: (BuildContext context, GoRouterState state) =>
           const GroupCreateScreen(),
-   ),
+    ),
     // Two-pane shell -- the React private-dm-screen desktop-body port. The
     // rail (branch A, /sessions) + the chat (branch B, /chat welcome +
     // /dm/:id + /channel/:name + /group/:groupId) share one
@@ -161,7 +161,8 @@ final GoRouter appRouter = GoRouter(
           shellRouteContext: navigationShell.shellRouteContext,
           router: GoRouter.of(context),
           containerBuilder: (BuildContext c, StatefulNavigationShell shell,
-              List<Widget> children) => MoshShell(
+                  List<Widget> children) =>
+              MoshShell(
             currentIndex: shell.currentIndex,
             children: children,
           ),
@@ -190,30 +191,24 @@ final GoRouter appRouter = GoRouter(
         // content. The chat screens' context.go(AppRoutes.sessions) on
         // leave routes to branch A (rail visible on desktop, swap on
         // mobile) -- no chat-screen edits needed.
-       StatefulShellBranch(
-         initialLocation: AppRoutes.chat,
-         // preload so the desktop right pane renders the welcome pane
-         // (branch B's initial location) even before the user opens a
-         // conversation. go_router only builds an inactive branch's
+        StatefulShellBranch(
+          initialLocation: AppRoutes.chat,
+          // preload so the desktop right pane renders the welcome pane
+          // (branch B's initial location) even before the user opens a
+          // conversation. go_router only builds an inactive branch's
           // Navigator when it is the active branch or preloaded; without
           // this the desktop two-pane Row would show a blank right pane
           // (a SizedBox.shrink) until a DM is opened. Mobile is unaffected
           // (the chat branch is offstage until activated anyway).
           preload: true,
-         routes: <RouteBase>[
-          GoRoute(
-            // Chat-pane welcome / empty state (React EmptyState parity,
-            // ActiveChatPanes.tsx:407-418). The start CTA routes to the
-            // chat-create step (AppRoutes.chatCreate) -- the same route
-            // the onboarding Chat tile uses. The closure captures the
-            // route's BuildContext (passed by the builder) so the
-            // widget stays testable (no context.go inside ChatPaneWelcome).
-            path: AppRoutes.chat,
-            builder: (BuildContext context, GoRouterState state) =>
-                ChatPaneWelcome(
-                  onStart: () => context.go(AppRoutes.chatCreate),
-                ),
-          ),
+          routes: <RouteBase>[
+            GoRoute(
+              // Chat-pane welcome: the existing NewSessionPanel is rendered
+              // inline at every viewport size, matching React's showSetup path.
+              path: AppRoutes.chat,
+              builder: (BuildContext context, GoRouterState state) =>
+                  const ChatPaneWelcome(),
+            ),
             GoRoute(
               path: '${AppRoutes.dm}/:sessionId',
               builder: (BuildContext context, GoRouterState state) {
