@@ -33,7 +33,17 @@ const _groupStepBody =
 /// A FakeGateway subclass whose `createGroup` rejects with a fixed error
 /// string so the inline-error path (parity with React role="alert") can be
 /// exercised. The error string is asserted verbatim below.
-class _ThrowingCreateGroupGateway extends FakeGateway {
+class _RecordingGroupListGateway extends FakeGateway {
+  int listGroupsCalls = 0;
+
+  @override
+  Future<GroupListSnapshot> listGroups() async {
+    listGroupsCalls++;
+    return const GroupListSnapshot(groups: []);
+  }
+}
+
+class _ThrowingCreateGroupGateway extends _RecordingGroupListGateway {
   _ThrowingCreateGroupGateway(this._message);
 
   final String _message;
@@ -103,7 +113,8 @@ void main() {
   testWidgets(
       'tapping Create creates via the gateway and renders the InviteResult card with the invite URI',
       (tester) async {
-    await pumpScreen(tester);
+    final gateway = _RecordingGroupListGateway();
+    await pumpScreen(tester, gateway: gateway);
 
     // Intercept the flutter/services clipboard method channel so the
     // auto-copy on create (React `copyText(created.invite_uri)`) does not
@@ -132,6 +143,10 @@ void main() {
     expect(find.text('Replace group invite'), findsOneWidget);
     expect(find.text('Create group'), findsNothing);
     expect(find.byType(SnackBar), findsNothing);
+    // Reading the notifier initializes it once, then the explicit refresh
+    // performs the post-create fetch. Pin both calls so this cannot pass on
+    // provider initialization alone.
+    expect(gateway.listGroupsCalls, 2);
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
@@ -174,5 +189,6 @@ void main() {
     // of feedback -- no transient SnackBar (the old SnackBar path is gone).
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
+    expect(throwing.listGroupsCalls, 0);
   });
 }
