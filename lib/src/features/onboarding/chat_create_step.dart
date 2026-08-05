@@ -76,6 +76,7 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
     });
     try {
       await ref.read(inviteFlowProvider.notifier).create();
+      await ref.read(sessionListProvider.notifier).refresh();
     } catch (e) {
       // Mirrors React's parent try/catch feeding `props.error` down: React
       // stores `readableError(err)` (the bare message) in state, so this
