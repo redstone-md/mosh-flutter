@@ -58,9 +58,8 @@ class _SeededGateway extends FakeGateway {
   bool _closed = false;
 
   @override
-  Future<SessionListSnapshot> listSessions() =>
-      Future.value(SessionListSnapshot(
-          sessions: _closed ? const [] : [_snapshot]));
+  Future<SessionListSnapshot> listSessions() => Future.value(
+      SessionListSnapshot(sessions: _closed ? const [] : [_snapshot]));
 
   @override
   Future<SessionSnapshot> pollSession({required String sessionId}) {
@@ -132,9 +131,9 @@ Future<void> _pumpApp(
 void main() {
   testWidgets(
       'desktop (1200x900): rail + welcome pane render side-by-side; '
-      'tapping a DM row swaps the chat pane while the rail STAYS', (tester) async {
-    final gw = _SeededGateway(
-        _session(sessionId: 'alice-1', peer: 'Alice'));
+      'tapping a DM row swaps the chat pane while the rail STAYS',
+      (tester) async {
+    final gw = _SeededGateway(_session(sessionId: 'alice-1', peer: 'Alice'));
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -160,8 +159,7 @@ void main() {
       'desktop (1200x900): tapping the titlebar "Peer status" button '
       'mounts PeerStatusDrawer and the close button unmounts it',
       (tester) async {
-    final gw = _SeededGateway(
-        _session(sessionId: 'carol-1', peer: 'Carol'));
+    final gw = _SeededGateway(_session(sessionId: 'carol-1', peer: 'Carol'));
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -197,8 +195,7 @@ void main() {
       'mobile (400x800): rail renders ALONE; tapping a DM row swaps to '
       'DmScreen and the rail is GONE; leaving returns to the rail',
       (tester) async {
-    final gw = _SeededGateway(
-        _session(sessionId: 'bob-1', peer: 'Bob'));
+    final gw = _SeededGateway(_session(sessionId: 'bob-1', peer: 'Bob'));
 
     await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
 
@@ -244,10 +241,8 @@ void main() {
   // the mobile case above (close -> rail returns).
   testWidgets(
       'desktop (1200x900): closing a DM routes to /chat so the inline '
-      'NewSessionPanel reappears while the rail STAYS mounted',
-      (tester) async {
-    final gw = _SeededGateway(
-        _session(sessionId: 'frank-1', peer: 'Frank'));
+      'NewSessionPanel reappears while the rail STAYS mounted', (tester) async {
+    final gw = _SeededGateway(_session(sessionId: 'frank-1', peer: 'Frank'));
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -277,34 +272,13 @@ void main() {
     expect(find.byType(SessionsScreen), findsOneWidget);
   });
 
-  // Desktop ChatPaneWelcome Start CTA (React EmptyState parity,
-  // ActiveChatPanes.tsx:407-418): the desktop right-pane welcome is no
-  // longer the bare EmptyState CTA. React renders the full NewSessionPanel
-  // (OnboardMenu) INLINE in the chat-pane when no conversation is open
-  // (private-dm-screen.tsx:325-343); the bare CTA is mobile-only now. The
-  // desktop branch embeds the same OnboardMenu the OnboardingScreen uses,
-  // so the welcome pane renders the menu's identity chip -> head -> Start
-  // tiles -> Join tiles -> Advanced/About. Tapping the Chat tile routes to
-  // /chat-create (ChatCreateScreen mounts) -- the same route the onboarding
-  // Chat tile uses. The chat branch is preloaded (app_router.dart
-  // preload: true) so the welcome pane renders side-by-side with the rail
-  // at >= 900 wide even though /sessions is the active branch.
-  //
-  // Atomic #8 inlined the steps (React NewSessionPanel parity,
-  // NewSessionPanel.tsx:18-67): the desktop welcome now embeds
-  // NewSessionPanel (owns the OnboardStep state + an IndexedStack that
-  // keeps every step mounted). Tapping the Chat tile NO LONGER routes to
-  // /chat-create -- it switches the inline step to ChatCreateStep wrapped
-  // in OnboardStepBody (title + Back). Back returns to the menu. The rail
-  // stays mounted throughout (no routing). This case pins the inline
-  // switch + the back round-trip; the mobile case below pins the bare CTA
-  // still routes.
+  // The desktop welcome embeds the full NewSessionPanel. Its steps switch
+  // inline while the rail stays mounted, matching React's showSetup branch.
   testWidgets(
       'desktop (1200x900): ChatPaneWelcome embeds NewSessionPanel inline; '
       'tapping the Chat tile switches the inline step (no routing); Back '
       'returns to the menu', (tester) async {
-    final gw = _SeededGateway(
-        _session(sessionId: 'dave-1', peer: 'Dave'));
+    final gw = _SeededGateway(_session(sessionId: 'dave-1', peer: 'Dave'));
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -323,7 +297,9 @@ void main() {
     // The bare EmptyState CTA is GONE on desktop (mobile-only now).
     expect(find.byIcon(Icons.chat_outlined), findsNothing);
     expect(find.text('Welcome to Mosh.'), findsNothing);
-    expect(find.text('Create an invite or paste one to start your first encrypted conversation.'),
+    expect(
+        find.text(
+            'Create an invite or paste one to start your first encrypted conversation.'),
         findsNothing);
 
     // Tap the Chat tile (onboardTileChatTitle "New private chat"). The
@@ -342,9 +318,9 @@ void main() {
     // "New private chat" text is offstage (skipOffstage default skips it),
     // so find.text(l.onboardTileChatTitle) resolves to exactly the visible
     // step title (OnboardStepBody headlineSmall).
-    final chatTitle = AppLocalizations.of(
-            tester.element(find.byType(ChatPaneWelcome)))!
-        .onboardTileChatTitle;
+    final chatTitle =
+        AppLocalizations.of(tester.element(find.byType(ChatPaneWelcome)))!
+            .onboardTileChatTitle;
     expect(find.text(chatTitle), findsOneWidget);
     expect(find.byType(ChatCreateStep), findsOneWidget);
 
@@ -361,18 +337,12 @@ void main() {
     expect(find.byType(ChatCreateStep), findsNothing);
   });
 
-  // Mobile ChatPaneWelcome CTA (React EmptyState parity,
-  // ActiveChatPanes.tsx:407-418): the mobile chat-pane welcome keeps the
-  // bare CTA (icon + title + body + start button) that atomic #3 replaced
-  // with the inline OnboardMenu on desktop. The mobile step screens stay
-  // full-screen (the parity-correct mobile path for now), so tapping the
-  // CTA routes to /chat-create (ChatCreateScreen mounts). This pins the
-  // mobile path is preserved after the desktop inline-menu change.
-  testWidgets(
-      'mobile (400x800): ChatPaneWelcome keeps the bare start CTA; tapping '
-      'it routes to /chat-create', (tester) async {
-    final gw = _SeededGateway(
-        _session(sessionId: 'erin-1', peer: 'Erin'));
+  // Mobile ChatPaneWelcome uses the same NewSessionPanel as desktop. This
+  // pins the one-tap SessionRail New flow: the full panel is inline and the
+  // chat-create route is not pushed.
+  testWidgets('mobile (400x800): ChatPaneWelcome embeds NewSessionPanel inline',
+      (tester) async {
+    final gw = _SeededGateway(_session(sessionId: 'erin-1', peer: 'Erin'));
 
     await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
 
@@ -383,21 +353,10 @@ void main() {
 
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
 
-    // Mobile keeps the React EmptyState order 1:1: icon -> title -> body ->
-    // start CTA button. No OnboardMenu inline on mobile.
-    expect(find.byIcon(Icons.chat_outlined), findsOneWidget);
-    expect(find.text('Welcome to Mosh.'), findsOneWidget);
-    expect(find.text('Create an invite or paste one to start your first encrypted conversation.'),
-        findsOneWidget);
+    expect(find.byType(NewSessionPanel), findsOneWidget);
+    expect(find.byType(OnboardMenu), findsOneWidget);
+    expect(find.text('Start a conversation'), findsOneWidget);
     expect(find.text('New private chat'), findsOneWidget);
-    expect(find.byType(OnboardMenu), findsNothing);
-
-    // Tap the start CTA. The router's onStart closure does
-    // context.go(AppRoutes.chatCreate), mounting ChatCreateScreen. Mobile
-    // still routes (the mobile branch of ChatPaneWelcome is unchanged).
-    await tester.tap(find.text('New private chat'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(ChatCreateScreen), findsOneWidget);
+    expect(find.byType(ChatCreateScreen), findsNothing);
   });
 }

@@ -95,6 +95,15 @@ class InviteFlowNotifier extends Notifier<InviteFlowState> {
   void setStaticPeer(String? value) =>
       state = state.copyWith(staticPeer: value);
 
+  /// Clears invite results when the user starts a fresh onboarding flow.
+  void resetInviteState() {
+    state = InviteFlowState(
+      displayName: state.displayName,
+      listenPort: state.listenPort,
+      staticPeer: state.staticPeer,
+    );
+  }
+
   /// Calls gateway.createInvite, stores the result, and returns it so the
   /// caller can navigate to the invite-paste screen with the URI in hand.
   Future<InviteCreated> create() async {

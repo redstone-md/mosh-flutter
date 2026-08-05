@@ -38,10 +38,7 @@
 // analogue; loading/data/error flows through AsyncValue. The new-session
 // flow reuses the cross-screen `inviteFlowProvider` Notifier (the same one
 // onboarding uses) so display-name + listen-port stay DRY and consistent.
-// No widget-local state is needed beyond obtaining the ScaffoldMessenger
-// inside the tap callback (not stored on the widget), so a ConsumerWidget
-// would suffice -- but ConsumerStatefulWidget mirrors the other slice-one
-// screens and leaves room for a selection animation in a later atomic.
+// No widget-local state is needed, so a ConsumerWidget is sufficient.
 library;
 
 import 'package:flutter/material.dart';
@@ -158,7 +155,8 @@ class SessionsScreen extends ConsumerWidget {
               channels.isEmpty &&
               groups.isEmpty &&
               orgs.isEmpty) {
-            return _EmptyState(onStart: () => startChatAction(context, ref));
+            return _EmptyState(
+                onStart: () => openNewSessionAction(context, ref));
           }
           // React SessionRail order: sessions, [divider if groups && sessions],
           // groups, [divider if channels && (sessions || groups)], channels.
@@ -267,7 +265,7 @@ class SessionsScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: Text(l.shellNewSession),
-        onPressed: () => startChatAction(context, ref),
+        onPressed: () => openNewSessionAction(context, ref),
       ),
     );
   }
@@ -378,7 +376,7 @@ class _SessionRow extends StatelessWidget {
 /// Empty state for the sessions list. Reuses the same ARB keys as the React
 /// `chatNoSessionTitle` + `chatNoSessionBody` welcome, with the
 /// `chatStartCta` ("New private chat") button mirroring onboarding's Chat
-/// tile -- both call the same `inviteFlowProvider.create()` flow.
+/// tile -- both open the existing `NewSessionPanel` flow.
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onStart});
 
