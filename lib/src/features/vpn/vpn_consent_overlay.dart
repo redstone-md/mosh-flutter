@@ -7,10 +7,8 @@
 // `Stack` and lays the modal on top, so the consent prompt appears above
 // onboarding / sessions / dm / channel / group alike.
 //
-// `onAccept` (the relaunch) is a slice-3 native concern; for now it is a
-// no-op so the modal is fully wired on the desktop build without a native
-// restart hook -- once the relaunch lands, this is the single call site
-// to swap it.
+// The relaunch is provided by the app-level DesktopAppRelauncherScope so the
+// modal keeps its existing injectable onAccept seam.
 
 library;
 
@@ -19,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_modal.dart';
+import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 /// Wraps [child] with a top-level [VpnConsentModal] overlay. Place via
@@ -41,9 +40,7 @@ class VpnConsentOverlay extends ConsumerWidget {
           VpnConsentModal(
             gateway: ref.watch(gatewayProvider),
             l: l,
-            // Slice-3: swap for a native relaunch (e.g. a Tauri-equivalent
-            // `process relaunch` via `dart:io` / window_manager).
-            onAccept: () async {},
+            onAccept: DesktopAppRelauncherScope.of(context).relaunch,
           ),
       ],
     );

@@ -21,6 +21,7 @@ import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 import 'package:mosh/src/deeplink/mosh_url_scheme_windows.dart';
 import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
+import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
@@ -30,8 +31,9 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
 
-void main() async {
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  final relauncher = DesktopAppRelauncher(arguments: args);
   // Slice-3 voice-call: initialize window_manager before any isFocused()
   // call (the incoming-call OS-notification focus check in VoiceCallLayer
   // awaits `windowManager.isFocused()` on Windows/macOS). Must run after
@@ -175,7 +177,7 @@ void main() async {
     await gate.waitUntilResumed();
     try {
       await initMobileDek();
-      root = const MoshApp();
+      root = MoshApp(relauncher: relauncher);
     } on PlatformException catch (error) {
       // Two failure modes collapse into this one PlatformException catch:
       // (1) a biometric CANCEL (the prompt was dismissed) -- recoverable
@@ -197,13 +199,13 @@ void main() async {
           error.message?.contains('BIOMETRIC_UNAVAILABLE') ?? false;
       root = MoshLockScreen(
         swapTo: (Widget next) => _appRoot.value = next,
-        nextApp: const MoshApp(),
+        nextApp: MoshApp(relauncher: relauncher),
         initialState:
             insecureDevice ? LockState.insecureDevice : LockState.canceled,
       );
     }
   } else {
-    root = const MoshApp();
+    root = MoshApp(relauncher: relauncher);
   }
   _appRoot.value = root;
 }
@@ -282,11 +284,13 @@ class LifecycleGate with WidgetsBindingObserver {
 }
 
 class MoshApp extends ConsumerWidget {
-  const MoshApp({super.key});
+  const MoshApp({super.key, this.relauncher});
+
+  final DesktopAppRelauncher? relauncher;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp.router(
+    final app = MaterialApp.router(
       title: 'Mosh',
       locale: ref.watch(localeProvider),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -307,6 +311,10 @@ class MoshApp extends ConsumerWidget {
       // SizedBox.shrink() when there is nothing to ask.
       builder: (context, child) =>
           VpnConsentOverlay(child: child ?? const SizedBox()),
+    );
+    return DesktopAppRelauncherScope(
+      relauncher: relauncher ?? DesktopAppRelauncher.unsupported(),
+      child: app,
     );
   }
 }

@@ -32,9 +32,9 @@
 // `initState`, renders a scrim `Stack` overlay + a danger-tinted `Dialog`
 // when it should ask, and `SizedBox.shrink()` otherwise (the host places
 // it in a `Stack`; React renders the scrim inline as `position: fixed`).
-// `restartApp` is an injectable callback (`onAccept`) so the modal is
-// parity-first + testable without a native relaunch -- the real
-// relaunch is a slice-3 native concern. The dialog mirrors React's
+// `restartApp` is an injectable callback (`onAccept`) so the modal remains
+// parity-first and testable. Production supplies the Windows-only desktop
+// relauncher; unsupported platforms use its safe no-op behavior. The dialog mirrors React's
 // danger tint (`--danger` #e5484d border + icon) + the 440px max width.
 
 library;
@@ -73,9 +73,9 @@ class VpnConsentModal extends StatefulWidget {
   final AppLocalizations l;
 
   /// Invoked after `setVpnBypassConsent(adapter)` succeeds, to relaunch
-  /// the app (React `gateway.restartApp()`). The real native relaunch is
-  /// a slice-3 concern; tests pass a no-op. Must not throw -- the modal
-  /// clears its saving phase regardless.
+  /// the app (React `gateway.restartApp()`). Production wires the
+  /// Windows-only desktop relauncher; unsupported platforms use a safe
+  /// no-op. Failures are caught and shown by the modal.
   final Future<void> Function() onAccept;
 
   @override

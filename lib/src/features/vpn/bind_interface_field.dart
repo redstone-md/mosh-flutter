@@ -29,7 +29,8 @@
 // defaulting `picked` to the current bind or `defaultBypassAdapter(list)`.
 // apply(enabled ? null : picked) -> setVpnBypassConsent(value) +
 // restartApp(). `restartApp` is an injectable callback (`onAccept`) so the
-// field is parity-first + testable without a native relaunch (slice-3).
+// field remains parity-first and testable. Production supplies the
+// Windows-only desktop relauncher; unsupported platforms use a safe no-op.
 
 library;
 
@@ -56,8 +57,8 @@ class BindInterfaceField extends StatefulWidget {
   final AppLocalizations l;
 
   /// Invoked after `setVpnBypassConsent` succeeds, to relaunch (React
-  /// `gateway.restartApp()`). The real native relaunch is a slice-3
-  /// concern; tests pass a no-op.
+  /// `gateway.restartApp()`). Production wires the Windows-only desktop
+  /// relauncher; unsupported platforms use a safe no-op.
   final Future<void> Function() onAccept;
 
   @override

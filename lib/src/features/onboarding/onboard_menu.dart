@@ -18,6 +18,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/disclosure.dart';
 import 'package:mosh/src/features/shared/field.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
+import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
@@ -192,11 +193,10 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
              // (L93 <BindInterfaceField gateway={props.gateway} />).
              // Writes the same stored VPN-bypass answer the
              // startup question does + relaunches via onAccept
-             // (no-op until the native restart lands in slice-3).
              BindInterfaceField(
                gateway: ref.read(gatewayProvider),
                l: l,
-               onAccept: () async {},
+               onAccept: DesktopAppRelauncherScope.of(context).relaunch,
              ),
            ],
          ),
