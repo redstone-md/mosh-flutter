@@ -16,7 +16,8 @@ import 'package:mosh/src/state/dm_offer_providers.dart'
     show PendingDmOffer, PendingDmOfferKind;
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
-import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
+import 'package:mosh/src/state/session_providers.dart'
+    show inviteFlowProvider, sessionListProvider;
 
 // Mirrors onboarding's _startChat: inviteFlowProvider.create() then surfaces
 // the invite URI as a SnackBar. ScaffoldMessenger is captured at call time
@@ -54,6 +55,10 @@ Future<void> acceptOfferAction(
     // Auto-dismiss the offer after accept (React's acceptDmOffer calls
     // dismissChannelDmOffer/dismissGroupDmOffer after acceptPrivateInvite).
     await dismissOfferAction(ref, pending, gateway: gateway);
+    // The accepted invite creates a new DM session. Refresh the rail's session
+    // list after the offer and its source list have been refreshed, matching
+    // React use-dm-offers.ts acceptDmOffer -> refresh(true).
+    await ref.read(sessionListProvider.notifier).refresh();
     if (!context.mounted) return;
     context.go(AppRoutes.dmFor(session.sessionId));
   } catch (e) {

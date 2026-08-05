@@ -52,8 +52,17 @@ class _FailingListGateway extends FakeGateway {
 /// deterministic session so the accept-and-navigate test can assert the DM
 /// screen renders.
 class _SeededChannelOfferGateway extends FakeGateway {
-  _SeededChannelOfferGateway();
+  _SeededChannelOfferGateway({this.failAccept = false});
+
+  final bool failAccept;
+  int listSessionCalls = 0;
   int dismissCalls = 0;
+
+  @override
+  Future<SessionListSnapshot> listSessions() {
+    listSessionCalls++;
+    return Future.value(SessionListSnapshot(sessions: const []));
+  }
 
   @override
   Future<ChannelListSnapshot> listChannels() => Future.value(ChannelListSnapshot(
@@ -84,7 +93,9 @@ class _SeededChannelOfferGateway extends FakeGateway {
 
   @override
   Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request}) =>
-      Future.value(SessionSnapshot(
+      failAccept
+          ? Future.error(Exception('accept-failed'))
+          : Future.value(SessionSnapshot(
         sessionId: 'accepted-dm',
         meshId: 'm',
         role: 'invitee',
@@ -335,10 +346,27 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
     // Reset dismiss counter first so the auto-dismiss after accept is the
     // only call counted.
     gateway.dismissCalls = 0;
+    final sessionCallsBeforeAccept = gateway.listSessionCalls;
     await tester.tap(find.text('alpha-peer'));
     await tester.pumpAndSettle();
     expect(gateway.dismissCalls, 1);
+    expect(gateway.listSessionCalls, sessionCallsBeforeAccept + 1);
     // The DM screen rendered (its composer is a TextField).
     expect(find.byType(TextField), findsWidgets);
+  });
+
+  testWidgets(
+      'failed channel DM offer acceptance does not refresh sessions or navigate',
+      (tester) async {
+    final gateway = _SeededChannelOfferGateway(failAccept: true);
+    await pumpScreen(tester, gateway, useRouter: true);
+
+    final sessionCallsBeforeAccept = gateway.listSessionCalls;
+    await tester.tap(find.text('alpha-peer'));
+    await tester.pumpAndSettle();
+
+    expect(gateway.listSessionCalls, sessionCallsBeforeAccept);
+    expect(gateway.dismissCalls, 0);
+    expect(find.text('Write a message\u2026'), findsNothing);
   });
 }
