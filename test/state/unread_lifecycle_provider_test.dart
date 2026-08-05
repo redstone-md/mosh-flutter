@@ -40,7 +40,12 @@ import 'package:mosh/src/state/window_focus_provider.dart';
 /// text. `noSuchMethod` covers the rest so any unmocked call surfaces
 /// loudly (the notifications-provider-test convention).
 class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
-  final List<({int id, String? title, String? body})> shows = [];
+  final List<({
+    int id,
+    String? title,
+    String? body,
+    NotificationDetails? details,
+  })> shows = [];
 
   @override
   Future<bool?> initialize({
@@ -59,7 +64,12 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
     NotificationDetails? notificationDetails,
     String? payload,
   }) async {
-    shows.add((id: id, title: title, body: body));
+    shows.add((
+      id: id,
+      title: title,
+      body: body,
+      details: notificationDetails,
+    ));
   }
 
   @override
@@ -337,6 +347,8 @@ void main() {
       final show = h.notifications.shows.single;
       expect(show.title, 'Mosh');
       expect(show.body, '#general - new message');
+      expect(show.details?.android?.channelId, 'mosh_notifications');
+      expect(show.details?.android?.channelName, 'Mosh notifications');
     });
 
     test(
@@ -387,6 +399,10 @@ void main() {
       ]);
       await _poll(hNotReady.container);
       expect(hNotReady.notifications.shows, isEmpty);
+      expect(
+        hNotReady.container.read(unreadLifecycleProvider)['channel:general'],
+        1,
+      );
     });
 
     test('case 5: a channel key toast body renders #name', () async {

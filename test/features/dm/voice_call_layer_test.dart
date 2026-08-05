@@ -100,6 +100,7 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
   int? lastId;
   String? lastTitle;
   String? lastBody;
+  NotificationDetails? lastDetails;
 
   @override
   Future<void> show({
@@ -113,6 +114,7 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
     lastId = id;
     lastTitle = title;
     lastBody = body;
+    lastDetails = notificationDetails;
   }
 
   @override
@@ -292,6 +294,8 @@ void main() {
       expect(notifications.lastTitle, 'Mosh');
       expect(notifications.lastBody, 'Incoming call from Alice');
       expect(notifications.lastId, 'Alice'.hashCode.abs());
+      expect(notifications.lastDetails?.android?.channelId, 'mosh_notifications');
+      expect(notifications.lastDetails?.android?.channelName, 'Mosh notifications');
       // The in-app IncomingCallModal opened too (the toast is additive):
       // the modal shows the peer label + the localized incoming status.
       expect(find.text('Alice'), findsWidgets);

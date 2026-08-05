@@ -35,7 +35,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart'
-    show flutterLocalNotificationsPluginProvider, notificationsReadyProvider;
+    show flutterLocalNotificationsPluginProvider, moshNotificationDetails,
+        notificationsReadyProvider;
 import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/window_focus_provider.dart';
 import 'package:mosh/src/util/unread.dart';
@@ -154,7 +155,7 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
               id: message.id.hashCode.abs(),
               title: body.title,
               body: body.body,
-              notificationDetails: null,
+              notificationDetails: moshNotificationDetails,
             );
           } catch (_) {
             // Notification host unavailable; the badge still updates
