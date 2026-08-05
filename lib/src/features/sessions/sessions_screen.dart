@@ -55,6 +55,7 @@ import 'package:mosh/src/features/sessions/org_actions.dart';
 import 'package:mosh/src/features/sessions/channel_rail_item.dart';
 import 'package:mosh/src/features/sessions/group_rail_item.dart';
 import 'package:mosh/src/features/sessions/offer_rail_item.dart';
+import 'package:mosh/src/features/sessions/sessions_rail_actions.dart';
 import 'package:mosh/src/features/sessions/state_dot.dart';
 import 'package:mosh/src/features/sessions/revoked_dm_badges.dart'
     show revokedDmBadgesProvider;
@@ -63,8 +64,6 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/dm_offer_providers.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
@@ -159,7 +158,7 @@ class SessionsScreen extends ConsumerWidget {
               channels.isEmpty &&
               groups.isEmpty &&
               orgs.isEmpty) {
-            return _EmptyState(onStart: () => _startChat(context, ref));
+            return _EmptyState(onStart: () => startChatAction(context, ref));
           }
           // React SessionRail order: sessions, [divider if groups && sessions],
           // groups, [divider if channels && (sessions || groups)], channels.
@@ -169,8 +168,8 @@ class SessionsScreen extends ConsumerWidget {
             for (final pending in pendingOffers)
               OfferRailItem(
                 pending: pending,
-                onAccept: () => _acceptOffer(context, ref, pending),
-                onDismiss: () => _dismissOffer(ref, pending),
+                onAccept: () => acceptOfferAction(context, ref, pending),
+                onDismiss: () => dismissOfferAction(ref, pending),
               ),
             if (pendingOffers.isNotEmpty && sessions.isNotEmpty)
               const Divider(height: 1, thickness: 1),
@@ -268,77 +267,9 @@ class SessionsScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: Text(l.shellNewSession),
-        onPressed: () => _startChat(context, ref),
+        onPressed: () => startChatAction(context, ref),
       ),
     );
-  }
-
-  // Mirrors onboarding's _startChat: inviteFlowProvider.create() then surfaces
-  // the invite URI as a SnackBar. ScaffoldMessenger is captured at call time
-  // (not stored) to avoid holding a context across an await.
-  Future<void> _startChat(BuildContext context, WidgetRef ref) async {
-    final scaffold = ScaffoldMessenger.of(context);
-    final invite = await ref.read(inviteFlowProvider.notifier).create();
-    scaffold.showSnackBar(SnackBar(content: Text(invite.inviteUri)));
-  }
-
-  // Accept a pending DM offer, 1-в-1 with React `useDmOffers.acceptDmOffer`:
-  // gateway.acceptInvite with the offer's inviteUri (the existing DM accept
-  // path -- top-level offers reuse acceptInvite, NOT org's acceptDmOffer),
-  // then auto-dismiss the offer (React dismisses after accept so it leaves
-  // the channel/group's offer list), then navigate to the new DM session.
-  // The displayName/listenPort/staticPeer come from inviteFlowProvider (the
-  // same settings source onboarding uses, ADR 0010 DRY).
-  Future<void> _acceptOffer(
-    BuildContext context,
-    WidgetRef ref,
-    PendingDmOffer pending,
-  ) async {
-    final scaffold = ScaffoldMessenger.of(context);
-    final flow = ref.read(inviteFlowProvider);
-    final gateway = ref.read(gatewayProvider);
-    try {
-      final session = await gateway.acceptInvite(
-        request: AcceptInviteRequest(
-          inviteUri: pending.offer.inviteUri,
-          displayName:
-              flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
-          listenPort: flow.listenPort,
-          staticPeer: flow.staticPeer,
-        ),
-      );
-      // Auto-dismiss the offer after accept (React's acceptDmOffer calls
-      // dismissChannelDmOffer/dismissGroupDmOffer after acceptPrivateInvite).
-      await _dismissOffer(ref, pending, gateway: gateway);
-      if (!context.mounted) return;
-      context.go(AppRoutes.dmFor(session.sessionId));
-    } catch (e) {
-      scaffold.showSnackBar(SnackBar(content: Text(e.toString())));
-    }
-  }
-
-  // Dismiss a pending DM offer, 1-в-1 with React `useDmOffers.dismissDmOffer`:
-  // dismissChannelDmOffer (kind == channel, host = name) or
-  // dismissGroupDmOffer (kind == group, host = groupId), then refresh the
-  // channel/group list so the offer row disappears. The accept path passes
-  // its already-acquired gateway to avoid a second read.
-  Future<void> _dismissOffer(
-    WidgetRef ref,
-    PendingDmOffer pending, {
-    Gateway? gateway,
-  }) async {
-    final Gateway gw = gateway ?? ref.read(gatewayProvider);
-    if (pending.kind == PendingDmOfferKind.channel) {
-      await gw.dismissChannelDmOffer(
-          name: pending.host, offerId: pending.offer.offerId);
-    } else {
-      await gw.dismissGroupDmOffer(
-          groupId: pending.host, offerId: pending.offer.offerId);
-    }
-    // Refresh both lists so the offer row leaves the rail (the derived
-    // pendingDmOffersProvider re-reads on invalidation).
-    await ref.read(channelListProvider.notifier).refresh();
-    await ref.read(groupListProvider.notifier).refresh();
   }
 }
 
