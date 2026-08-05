@@ -35,10 +35,9 @@ class VoiceCallOrchestratorState {
       VoiceCallOrchestratorState(muted: muted ?? this.muted);
 }
 
-/// The capture/playback factory providers. Default to the Noop fakes (ADR
-/// 0013 seam: the real record/media_kit impls land in a later slice and
-/// override these in main.dart / a ProviderScope). Tests override with
-/// fakes in the ProviderScope.
+/// The capture/playback factory providers. Noop defaults keep isolated
+/// provider containers inert; the production root binds the real record/cpal
+/// implementations, while tests can override these with fakes.
 final voiceCaptureFactoryProvider = Provider<VoiceCaptureFactory>(
   (ref) => const NoopVoiceCaptureFactory(),
 );

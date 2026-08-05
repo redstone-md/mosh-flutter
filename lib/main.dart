@@ -24,6 +24,7 @@ import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/state/locale_provider.dart';
+import 'package:mosh/src/state/production_provider_overrides.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -130,6 +131,7 @@ void main(List<String> args) async {
   // cold-start initial link is captured before this first frame pumps.
   runApp(
     ProviderScope(
+      overrides: productionVoiceOverrides,
       child: ValueListenableBuilder<Widget>(
         valueListenable: _appRoot,
         builder: (BuildContext context, Widget value, _) => value,
@@ -217,8 +219,7 @@ void main(List<String> args) async {
 /// retry-success path writes the real `MoshApp` here via its `swapTo`
 /// callback, flipping the tree under the single `ProviderScope` without a
 /// second `runApp`. See mosh_lock_screen.dart for the rationale.
-final ValueNotifier<Widget> _appRoot =
-    ValueNotifier<Widget>(const SizedBox());
+final ValueNotifier<Widget> _appRoot = ValueNotifier<Widget>(const SizedBox());
 
 /// Foreground gate for the Android Keystore init (ADR 0011 follow-on).
 ///
