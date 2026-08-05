@@ -6,6 +6,8 @@
 // shape as gatewayProvider / voiceCaptureFactoryProvider overrides).
 library;
 
+import 'dart:io';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +23,7 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
   int? lastId;
   String? lastTitle;
   String? lastBody;
+  InitializationSettings? initializationSettings;
 
   @override
   Future<bool?> initialize({
@@ -28,8 +31,10 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
     DidReceiveNotificationResponseCallback? onDidReceiveNotificationResponse,
     DidReceiveBackgroundNotificationResponseCallback?
         onDidReceiveBackgroundNotificationResponse,
-  }) async =>
-      true;
+  }) async {
+    initializationSettings = settings;
+    return true;
+  }
 
   @override
   Future<void> show({
@@ -68,6 +73,21 @@ class _FailingInitNotifications implements FlutterLocalNotificationsPlugin {
       throw UnimplementedError(' ${invocation.memberName}');
 }
 
+class _NullInitNotifications implements FlutterLocalNotificationsPlugin {
+  @override
+  Future<bool?> initialize({
+    required InitializationSettings settings,
+    DidReceiveNotificationResponseCallback? onDidReceiveNotificationResponse,
+    DidReceiveBackgroundNotificationResponseCallback?
+        onDidReceiveBackgroundNotificationResponse,
+  }) async =>
+      null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(' ${invocation.memberName}');
+}
+
 void main() {
   group('notificationsReadyProvider', () {
     test('resolves true when the plugin initializes successfully', () async {
@@ -83,6 +103,61 @@ void main() {
       expect(container.read(notificationsReadyProvider).value, isTrue);
     });
 
+    test('Android initialization requests granted notification permission',
+        () async {
+      final plugin = _RecordingNotifications();
+      var requests = 0;
+      final container = ProviderContainer(overrides: [
+        flutterLocalNotificationsPluginProvider.overrideWithValue(plugin),
+        notificationPlatformProvider
+            .overrideWithValue(MoshNotificationPlatform.android),
+        androidNotificationPermissionProvider.overrideWithValue((_) async {
+          requests++;
+          return true;
+        }),
+      ]);
+      addTearDown(container.dispose);
+
+      expect(await container.read(notificationsReadyProvider.future), isTrue);
+      expect(requests, 1);
+      expect(
+        plugin.initializationSettings?.android?.defaultIcon,
+        'ic_stat_mosh',
+      );
+      expect(
+        File('android/app/src/main/res/drawable/ic_stat_mosh.xml').existsSync(),
+        isTrue,
+      );
+    });
+
+    for (final permission in <bool?>[false, null]) {
+      test('Android permission $permission closes the notification gate',
+          () async {
+        final container = ProviderContainer(overrides: [
+          flutterLocalNotificationsPluginProvider
+              .overrideWithValue(_RecordingNotifications()),
+          notificationPlatformProvider
+              .overrideWithValue(MoshNotificationPlatform.android),
+          androidNotificationPermissionProvider
+              .overrideWithValue((_) async => permission),
+        ]);
+        addTearDown(container.dispose);
+
+        expect(await container.read(notificationsReadyProvider.future), isFalse);
+      });
+    }
+
+    test('Windows host keeps the existing ready behavior', () async {
+      final plugin = _RecordingNotifications();
+      final container = ProviderContainer(overrides: [
+        flutterLocalNotificationsPluginProvider.overrideWithValue(plugin),
+      ]);
+      addTearDown(container.dispose);
+
+      expect(await container.read(notificationsReadyProvider.future), isTrue);
+      expect(plugin.initializationSettings?.windows, isNotNull);
+    });
+
     test('resolves false when the plugin init returns false', () async {
       final container = ProviderContainer(overrides: [
         flutterLocalNotificationsPluginProvider
@@ -92,6 +167,16 @@ void main() {
 
       final ready = await container.read(notificationsReadyProvider.future);
       expect(ready, isFalse);
+    });
+
+    test('resolves false when the plugin init returns null', () async {
+      final container = ProviderContainer(overrides: [
+        flutterLocalNotificationsPluginProvider
+            .overrideWithValue(_NullInitNotifications()),
+      ]);
+      addTearDown(container.dispose);
+
+      expect(await container.read(notificationsReadyProvider.future), isFalse);
     });
 
     test(

@@ -32,7 +32,8 @@ import 'dart:io' show Platform;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/state/notifications_provider.dart'
-    show flutterLocalNotificationsPluginProvider, notificationsReadyProvider;
+    show flutterLocalNotificationsPluginProvider, moshNotificationDetails,
+        notificationsReadyProvider;
 import 'package:mosh/src/features/dm/call_overlay.dart';
 import 'package:mosh/src/features/dm/incoming_call_modal.dart';
 import 'package:mosh/src/features/dm/outgoing_call_modal.dart';
@@ -332,7 +333,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
           id: displayName.hashCode.abs(),
           title: 'Mosh',
           body: 'Incoming call from $displayName',
-          notificationDetails: null,
+          notificationDetails: moshNotificationDetails,
         );
       } catch (_) {
         // Notification host unavailable; the in-app IncomingCallModal is

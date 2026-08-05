@@ -30,6 +30,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const _kWindowsAumid = 'redstone.md.Mosh.MoshClient.1';
 const _kWindowsGuid = '8f2c3d4e-5a6b-4c7d-9e8f-0a1b2c3d4e5f';
 
+const moshNotificationDetails = NotificationDetails(
+  android: AndroidNotificationDetails(
+    'mosh_notifications',
+    'Mosh notifications',
+    channelDescription: 'Messages and incoming calls',
+    importance: Importance.high,
+    priority: Priority.high,
+  ),
+);
+
+enum MoshNotificationPlatform { android, ios, macos, linux, windows, other }
+
+final notificationPlatformProvider = Provider<MoshNotificationPlatform>((ref) {
+  if (Platform.isAndroid) return MoshNotificationPlatform.android;
+  if (Platform.isIOS) return MoshNotificationPlatform.ios;
+  if (Platform.isMacOS) return MoshNotificationPlatform.macos;
+  if (Platform.isLinux) return MoshNotificationPlatform.linux;
+  if (Platform.isWindows) return MoshNotificationPlatform.windows;
+  return MoshNotificationPlatform.other;
+});
+
+typedef AndroidNotificationPermissionRequest = Future<bool?> Function(
+  FlutterLocalNotificationsPlugin plugin,
+);
+
+final androidNotificationPermissionProvider =
+    Provider<AndroidNotificationPermissionRequest>((ref) => (plugin) async {
+          return plugin
+              .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin>()
+              ?.requestNotificationsPermission();
+        });
+
 /// The single flutter_local_notifications plugin instance, exposed as a
 /// Provider so tests override it with a recording fake (the seam
 /// convention). The default body calls the plugin's singleton factory --
@@ -51,9 +84,11 @@ final flutterLocalNotificationsPluginProvider =
 /// voice-call layer.
 final notificationsReadyProvider = FutureProvider<bool>((ref) async {
   final plugin = ref.watch(flutterLocalNotificationsPluginProvider);
+  final platform = ref.watch(notificationPlatformProvider);
   try {
     final initialized = await plugin.initialize(
       settings: const InitializationSettings(
+        android: AndroidInitializationSettings('ic_stat_mosh'),
         windows: WindowsInitializationSettings(
           appName: 'Mosh',
           appUserModelId: _kWindowsAumid,
@@ -64,14 +99,19 @@ final notificationsReadyProvider = FutureProvider<bool>((ref) async {
       ),
     );
     if (initialized != true) return false;
-    if (Platform.isMacOS) {
+    if (platform == MoshNotificationPlatform.android) {
+      final ok = await ref
+          .read(androidNotificationPermissionProvider)(plugin);
+      return ok ?? false;
+    }
+    if (platform == MoshNotificationPlatform.macos) {
       final ok = await plugin
           .resolvePlatformSpecificImplementation<
               MacOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(alert: true, badge: true, sound: true);
       return ok ?? false;
     }
-    if (Platform.isIOS) {
+    if (platform == MoshNotificationPlatform.ios) {
       final ok = await plugin
           .resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin>()
