@@ -39,6 +39,8 @@ import 'package:mosh/src/features/dm/dm_message_list.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/conversation_composer.dart';
 import 'package:mosh/src/features/dm/voice_call_layer.dart' show VoiceCallLayer;
+import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
+    show ringtonePlayerProvider;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
@@ -300,6 +302,7 @@ class _DmScreenBodyState extends ConsumerState<DmScreenBody> {
             child: VoiceCallLayer(
               sessionId: widget.sessionId,
               l: l,
+              ringtone: ref.read(ringtonePlayerProvider),
             ),
           ),
         ],

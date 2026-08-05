@@ -113,7 +113,11 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
   void initState() {
     super.initState();
     // React: `try { ringtoneRef.current = startRingtone() } catch { null }`.
-    _ringtone = widget.ringtone.start();
+    try {
+      _ringtone = widget.ringtone.start();
+    } catch (_) {
+      _ringtone = null;
+    }
     // React: `timerRef = setTimeout(() => onDecline('no_answer'), 30_000)`.
     _noAnswerTimer = Timer(
       widget.noAnswerTimeout,
@@ -141,7 +145,8 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
       autofocus: true,
       // React useModalFocus Esc -> onDecline('declined').
       onKeyEvent: (event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
           _decline(kCallDeclineReasonUser);
         }
       },
@@ -149,7 +154,8 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
         label: widget.l.callIncomingAriaLabel,
         container: true,
         child: Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           backgroundColor: const Color(0xFF1D1F24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 280),

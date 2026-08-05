@@ -12,6 +12,7 @@ import 'api/private_group.dart';
 import 'api/shared_runtime.dart';
 import 'api/voice_call_opus_encode.dart';
 import 'api/voice_call_playback.dart';
+import 'api/voice_call_ringtone.dart';
 import 'api/vpn.dart';
 import 'attachment_runtime.dart';
 import 'channel_runtime.dart';
@@ -48,6 +49,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoderPtr;
 
   CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_VoiceCallRingtonePtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtonePtr;
+
+  CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_VoicePlaybackPtr => wire
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlaybackPtr;
 
@@ -62,6 +67,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
           dynamic raw);
 
   @protected
+  VoiceCallRingtone
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+          dynamic raw);
+
+  @protected
   VoicePlayback
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
           dynamic raw);
@@ -69,6 +79,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   VoiceCallOpusEncoder
       dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
+          dynamic raw);
+
+  @protected
+  VoiceCallRingtone
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
           dynamic raw);
 
   @protected
@@ -84,6 +99,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   VoiceCallOpusEncoder
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
+          dynamic raw);
+
+  @protected
+  VoiceCallRingtone
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
           dynamic raw);
 
   @protected
@@ -472,6 +492,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
           SseDeserializer deserializer);
 
   @protected
+  VoiceCallRingtone
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+          SseDeserializer deserializer);
+
+  @protected
   VoicePlayback
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
           SseDeserializer deserializer);
@@ -479,6 +504,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   VoiceCallOpusEncoder
       sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
+          SseDeserializer deserializer);
+
+  @protected
+  VoiceCallRingtone
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
           SseDeserializer deserializer);
 
   @protected
@@ -494,6 +524,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   VoiceCallOpusEncoder
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
+          SseDeserializer deserializer);
+
+  @protected
+  VoiceCallRingtone
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
           SseDeserializer deserializer);
 
   @protected
@@ -931,6 +966,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+          VoiceCallRingtone self, SseSerializer serializer);
+
+  @protected
+  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
           VoicePlayback self, SseSerializer serializer);
 
@@ -938,6 +978,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
       sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
           VoiceCallOpusEncoder self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+          VoiceCallRingtone self, SseSerializer serializer);
 
   @protected
   void
@@ -953,6 +998,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
           VoiceCallOpusEncoder self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+          VoiceCallRingtone self, SseSerializer serializer);
 
   @protected
   void
@@ -1477,6 +1527,38 @@ class RustLibWire implements BaseWire {
           'frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder');
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoderPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtonePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_mosh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtonePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtonePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_mosh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtonePtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

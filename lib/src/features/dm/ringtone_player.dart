@@ -1,17 +1,6 @@
-// RingtonePlayer -- the seam between the call modals and an actual audio
-// synth. React's `ringtone.ts` builds a two-tone trill (440/480 Hz sine,
-// 0.4 s on / 0.6 s off, 30 s backstop) with Web Audio. Flutter has no
-// in-tree Web-Audio equivalent; the real synth (oscillator via
-// `flutter_soloud` / `audioplayers` looping a generated WAV) is a later
-// slice. To keep the call-modal widgets parity-first and unit-testable
-// without a native audio backend, the modals take a [RingtonePlayer]
-// and call `start()` on mount + `stop()` on dispose -- exactly mirroring
-// React's `ringtoneRef.current = startRingtone()` / `ringtoneRef.current
-// ?.stop()` lifecycle.
-//
-// The default [NoopRingtonePlayer] does nothing (no audio device in the
-// headless test harness); the real impl will land in a later atomic and
-// be injected from DmScreen.
+// RingtonePlayer is the testable seam between call modals and the native
+// CPAL synth. The production binding lives in cpal_ringtone.dart; this file
+// keeps the inert default used by isolated widget tests.
 
 library;
 
@@ -39,7 +28,6 @@ class _NoopHandle implements RingtoneHandle {
 }
 
 /// Default [RingtonePlayer]: starts nothing, returns an inert handle.
-/// Used by tests + as the fallback before the real audio synth lands.
 class NoopRingtonePlayer implements RingtonePlayer {
   const NoopRingtonePlayer();
   @override
