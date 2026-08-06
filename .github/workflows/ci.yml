@@ -113,6 +113,18 @@ jobs:
       - name: Regenerate bindings
         run: flutter_rust_bridge_codegen generate --no-dart-fix --no-dart-format --no-deps-check --no-build-runner --no-rust-format
 
+      # Format the regenerated Rust binding with the crate's own `cargo fmt`
+      # (canonical rustfmt, no rustfmt.toml = default config) so the drift
+      # check compares apples-to-apples against the committed, cargo-fmt-
+      # formatted `frb_generated.rs`. FRB's `--no-rust-format` keeps codegen
+      # fast; this step is the single source of formatting truth so the
+      # `Rustfmt check` gate (cargo fmt --check on ALL .rs, incl. this
+      # generated file) and this drift gate never disagree on style. Dart
+      # bindings (lib/src/rust/**) are intentionally left as the codegen
+      # `--no-dart-format` output (not touched by cargo fmt).
+      - name: Format regenerated Rust binding
+        run: cargo fmt --manifest-path mosh-core/Cargo.toml -- mosh-core/src/frb_generated.rs
+
       # The committed frb_generated.* (lib/src/rust/** +
       # mosh-core/src/frb_generated.rs) are tracked, so a non-empty diff means
       # the committed bindings drifted from the Rust signatures. Drift fails

@@ -74,7 +74,9 @@ pub fn voice_call_opus_encode(
         .encoder
         .lock()
         .map_err(|e| format!("opus encode: mutex poisoned: {e}"))?;
-    let written = guard.encode(&samples, &mut out).map_err(|e| format!("opus encode: {e:?}"))?;
+    let written = guard
+        .encode(&samples, &mut out)
+        .map_err(|e| format!("opus encode: {e:?}"))?;
     out.truncate(written);
     Ok(out)
 }

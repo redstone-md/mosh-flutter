@@ -41,8 +41,7 @@ use cpal::{
 };
 use flutter_rust_bridge::frb;
 use ringbuf::{
-    traits::Consumer, traits::Observer, traits::Producer, traits::Split, HeapCons, HeapProd,
-    HeapRb,
+    traits::Consumer, traits::Observer, traits::Producer, traits::Split, HeapCons, HeapProd, HeapRb,
 };
 
 /// Drift-resync threshold in seconds. Mirrors React's
