@@ -1091,10 +1091,9 @@ packages:
   super_native_extensions:
     dependency: "direct dev"
     description:
-      name: super_native_extensions
-      sha256: "14c91b510baa58135d11136c17feef802cff320e72f9f3d3673eb64baf901af2"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/super_native_extensions"
+      relative: true
+    source: path
     version: "0.1.8+2"
   sync_http:
     dependency: transitive
@@ -1332,10 +1331,10 @@ packages:
     dependency: transitive
     description:
       name: win32
-      sha256: ba6f4bba816c8d7e3c1580e170f3786d216951cc6b94babc3b814c08d2cb2738
+      sha256: a0b93865d5644f11cf6a8c3f6db909f1ec168958b5805f6cc684adea957cd63d
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.0"
+    version: "6.4.0"
   win32_registry:
     dependency: "direct main"
     description:
