@@ -1220,11 +1220,19 @@
   "@callStart": {
     "description": "Tooltip/aria-label for the start-call button in the DM AppBar (React private-dm-screen.tsx onStartCall)"
   },
-  "callPeerFallback": "Peer",
-  "@callPeerFallback": {
-    "description": "Fallback peer label for a call modal/overlay when the session's peerDisplayName is empty (React `peer_display_name || 'Peer'`)"
+ "callPeerFallback": "Peer",
+ "@callPeerFallback": {
+   "description": "Fallback peer label for a call modal/overlay when the session's peerDisplayName is empty (React `peer_display_name || 'Peer'`)"
+ },
+  "peerLabelInviteSent": "invite sent",
+  "@peerLabelInviteSent": {
+    "description": "DM rail/header fallback label when the local role is alice and the session is not yet ready (React `peerLabel` role branch, private-dm-screen.tsx:542)"
   },
-  "vpnConsentTitle": "A VPN is carrying Mosh's traffic",
+  "peerLabelJoining": "joining",
+  "@peerLabelJoining": {
+    "description": "DM rail/header fallback label when the local role is bob and the session is not yet ready (React `peerLabel` role branch, private-dm-screen.tsx:542)"
+  },
+ "vpnConsentTitle": "A VPN is carrying Mosh's traffic",
   "@vpnConsentTitle": {
     "description": "Title of the VPN-bypass consent modal (React VpnConsentModal.tsx h2#vpn-consent-title)"
   },

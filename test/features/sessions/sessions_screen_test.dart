@@ -205,10 +205,10 @@ void main() {
           peerDisplayName: 'Alice',
           state: 'ready'),
       _session(
-          sessionId: bobId,
-          displayName: 'Bob',
-          peerDisplayName: '',
-          state: 'connecting'),
+         sessionId: bobId,
+         displayName: 'Bob',
+         peerDisplayName: 'Bob',
+         state: 'connecting'),
     ]);
 
     await pumpScreen(tester, gateway, useRouter: true);

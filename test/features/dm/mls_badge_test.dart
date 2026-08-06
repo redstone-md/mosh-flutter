@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
+import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
@@ -120,8 +121,16 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // The sender name renders (so the badge sits next to it, not alone).
-      expect(find.text('bob'), findsOneWidget);
+      // The sender name renders in a message row (so the badge sits next
+      // to it, not alone). Scoped to DmMessageRow because the DM AppBar
+      // title now also shows the peer name (React `peerLabel` parity).
+      expect(
+        find.descendant(
+          of: find.byType(DmMessageRow),
+          matching: find.text('bob'),
+        ),
+        findsOneWidget,
+      );
       // The MLS badge renders in the meta row.
       expect(find.text('MLS'), findsOneWidget);
     });
@@ -154,8 +163,17 @@ void main() {
       expect(find.text('first'), findsOneWidget);
       expect(find.text('second'), findsOneWidget);
 
-      // The sender name renders exactly once (grouped row omits the meta).
-      expect(find.text('bob'), findsOneWidget);
+      // The sender name renders exactly once in a message row (the
+      // grouped row omits its meta). Scoped to DmMessageRow because the DM
+      // AppBar title now also shows the peer name (React `peerLabel`
+      // parity), so an unscoped find.text('bob') would match the header.
+      expect(
+        find.descendant(
+          of: find.byType(DmMessageRow),
+          matching: find.text('bob'),
+        ),
+        findsOneWidget,
+      );
 
       // The MLS badge renders EXACTLY ONCE: the grouped row omits the whole
       // meta (so its badge is absent), matching React's DmMessageRow.

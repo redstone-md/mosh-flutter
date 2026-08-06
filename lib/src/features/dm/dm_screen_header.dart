@@ -32,6 +32,7 @@ import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/fingerprint_badge.dart';
 import 'package:mosh/src/features/dm/chat_header_menu.dart';
+import 'package:mosh/src/features/dm/peer_label.dart';
 
 /// The DmScreen AppBar header: the two-line title Column (peer display name
 /// + subtitle) plus the `actions:` row (FingerprintBadge, MobileSearchToggle,
@@ -124,10 +125,12 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(s == null || s.peerDisplayName.isEmpty
-                ? widget.sessionId
-                : s.peerDisplayName),
+         children: [
+            // React `peerLabel` (private-dm-screen.tsx:535-543): peer
+            // name -> "peer" -> "invite sent"/"joining", with the Flutter
+            // `peerDisplayName` short-circuit. A null snapshot (not loaded
+            // yet) keeps the bare sessionId like before.
+            Text(s == null ? widget.sessionId : peerLabel(l, s)),
             Text(
                 confirmed
                     ? l.dmSubtitleConfirmed(mlsState)
