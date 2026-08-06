@@ -1224,6 +1224,18 @@
  "@callPeerFallback": {
    "description": "Fallback peer label for a call modal/overlay when the session's peerDisplayName is empty (React `peer_display_name || 'Peer'`)"
  },
+  "deliveryDelivered": "\u2713\u2713 delivered",
+  "@deliveryDelivered": {
+    "description": "Delivery-ticks label for a delivered own-message (React MessageLists.tsx DeliveryTicks)."
+  },
+  "deliverySent": "\u2713 sent",
+  "@deliverySent": {
+    "description": "Delivery-ticks label for a sent (server-acknowledged, not yet peer-acknowledged) own-message."
+  },
+  "deliverySending": "sending\u2026",
+  "@deliverySending": {
+    "description": "Delivery-ticks label for a pending (in-flight) own-message."
+  },
   "peerLabelInviteSent": "invite sent",
   "@peerLabelInviteSent": {
     "description": "DM rail/header fallback label when the local role is alice and the session is not yet ready (React `peerLabel` role branch, private-dm-screen.tsx:542)"

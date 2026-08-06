@@ -27,17 +27,29 @@ class DeliveryTicks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Localized full label, 1-в-1 with React`s DeliveryTicks visible text
+    // (src/features/private-dm/MessageLists.tsx): "✓✓ delivered" / "✓ sent" /
+    // "sending…". The visible text IS the label (glyph + word), matching
+    // React`s <small>{label}</small>.
+    final l = AppLocalizations.of(context)!;
     final label = switch (status) {
-      MessageDeliveryStatus.delivered => '\u2713\u2713',
-      MessageDeliveryStatus.sent => '\u2713',
-      MessageDeliveryStatus.pending => '\u2026',
+      MessageDeliveryStatus.delivered => l.deliveryDelivered,
+      MessageDeliveryStatus.sent => l.deliverySent,
+      MessageDeliveryStatus.pending => l.deliverySending,
       MessageDeliveryStatus.failed || null => null,
     };
     if (label == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 2),
-      child: Text(label,
-          style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
+      // `Semantics(label: 'Delivery: $label')` mirrors React`s
+      // `aria-label={`Delivery: ${label}`}` (label already includes the
+      // glyph + word, so the a11y string is "Delivery: ✓✓ delivered" etc.).
+      child: Semantics(
+        label: 'Delivery: $label',
+        excludeSemantics: true,
+        child: Text(label,
+            style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
+      ),
     );
   }
 }
@@ -298,18 +310,19 @@ class SenderMeta extends StatelessWidget {
 /// fingerprint badges), with `head = 6` to match React's
 /// `shorten(message.from_fingerprint, 6)`.
 class MultiPartySenderMeta extends StatelessWidget {
-const MultiPartySenderMeta({
-  super.key,
-  required this.fromDevice,
-  required this.fromFingerprint,
-  required this.sentAtMs,
-   this.peer,
-   this.showMlsBadge = true,
-});
+  const MultiPartySenderMeta({
+    super.key,
+    required this.fromDevice,
+    required this.fromFingerprint,
+    required this.sentAtMs,
+    this.peer,
+    this.showMlsBadge = true,
+  });
 
-final String fromDevice;
-final String fromFingerprint;
-final BigInt? sentAtMs;
+  final String fromDevice;
+  final String fromFingerprint;
+  final BigInt? sentAtMs;
+
   /// Optional per-conversation peer actions (React `PeerActions` in
   /// MessageLists.tsx:31-35). `null` (the default) renders `fromDevice`
   /// as plain bold `Text` -- the DM-row + existing-tests case. When set
@@ -350,12 +363,12 @@ final BigInt? sentAtMs;
               color: theme.hintColor,
             ),
           ),
-         const SizedBox(width: 6),
+          const SizedBox(width: 6),
           if (showMlsBadge) ...[
             const SizedBox(width: 6),
             const MlsBadge(),
           ],
-         if (clock != null && full != null) ...[
+          if (clock != null && full != null) ...[
             const SizedBox(width: 6),
             Tooltip(
               message: full,
@@ -379,8 +392,7 @@ final BigInt? sentAtMs;
   Widget _peerName(BuildContext context, ThemeData theme) {
     final text = Text(
       fromDevice,
-      style: theme.textTheme.labelSmall
-          ?.copyWith(fontWeight: FontWeight.bold),
+      style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
       overflow: TextOverflow.ellipsis,
     );
     final p = peer;
@@ -499,7 +511,8 @@ class _PeerNickname extends StatelessWidget {
                     Navigator.of(dialogContext).pop();
                     peer.onMessage(fingerprint);
                   },
-            child: Text(alreadyOffered ? l.peerInviteSent : l.peerMessageAction),
+            child:
+                Text(alreadyOffered ? l.peerInviteSent : l.peerMessageAction),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
