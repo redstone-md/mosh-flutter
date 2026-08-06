@@ -7,7 +7,7 @@
 //   - kind === "missed" -> "Missed call" + IconPhoneOff, `call-log-missed`
 //     class tints the text red (#e5484d).
 //   - otherwise ("completed") -> "Call ended" + IconPhone, neutral tint.
-// A non-zero `duration_ms` appends ` - m:ss` (e.g. "Call ended - 1:05");
+// A non-zero `duration_ms` appends ` · m:ss` (e.g. "Call ended · 1:05");
 // zero duration omits the suffix.
 //
 // Flutter port: an inline `Container` pill (React `.call-log-entry`:
@@ -71,7 +71,9 @@ class CallLogEntry extends StatelessWidget {
     // React `.call-log-entry` background `rgba(127, 127, 127, 0.15)`.
     final pillBg = const Color(0xFF7F7F7F).withValues(alpha: 0.15);
     final label = missed ? l.callLogMissedLabel : l.callLogEndedLabel;
-    final text = duration.isEmpty ? label : '$label - $duration';
+    // React CallLogEntry.tsx:22 uses ` · ` (U+00B7 MIDDLE DOT + space on
+    // each side) as the duration separator; mirror it exactly.
+    final text = duration.isEmpty ? label : '$label \u00B7 $duration';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
