@@ -1,9 +1,11 @@
 import com.android.build.api.dsl.LibraryExtension
+import com.android.build.api.variant.LibraryAndroidComponentsExtension
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 import javax.xml.parsers.DocumentBuilderFactory
 
 private val validJavaPackage = Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*")
+private val androidLibraryCompileSdkFloor = 34
 
 private fun String.asJavaPackage(): String =
     split('.')
@@ -65,6 +67,13 @@ subprojects {
         extensions.configure<LibraryExtension> {
             if (namespace == null) {
                 namespace = project.androidLibraryNamespace()
+            }
+        }
+        extensions.configure<LibraryAndroidComponentsExtension> {
+            finalizeDsl {
+                if (it.compileSdkPreview == null && (it.compileSdk ?: 0) < androidLibraryCompileSdkFloor) {
+                    it.compileSdk = androidLibraryCompileSdkFloor
+                }
             }
         }
     }
