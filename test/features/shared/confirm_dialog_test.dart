@@ -3,10 +3,12 @@
 // `src/features/private-dm/ConfirmDialog.tsx`. Pins the prop shape, the
 // danger-color confirm button, the close-X cancel, the ghost cancel button,
 // and the `showConfirmDialog` helper's return contract (true on confirm,
-// false on cancel/barrier/Esc). No ARB dependency: the dialog takes labels
-// as props (React inlined `"Cancel"`; the Flutter port defaults to the same
-// literal when `cancelLabel` is null), so the tests pass explicit strings.
+// false on cancel/Esc/back; scrim tap is a no-op). No ARB dependency: the
+// dialog takes labels as props (React inlined `"Cancel"`; the Flutter port
+// defaults to the same literal when `cancelLabel` is null), so the tests
+// pass explicit strings.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
@@ -264,18 +266,67 @@ void main() {
     expect(await result, isFalse);
   });
 
-  // Pins the helper returns `false` when the modal barrier (outside-tap)
-  // dismisses the dialog (barrierDismissible: true -> Navigator pops null ->
-  // helper coerces to false). The dismissible `ModalBarrier` is the one
-  // whose `dismissible` semantics is true (the route barrier); tapping the
-  // top-left corner of the screen (outside the centered dialog) hits it.
-  testWidgets('showConfirmDialog returns false on barrier dismiss',
+  // React parity: the backdrop is `role="presentation"` with NO `onClick`,
+  // so a stray tap on the scrim does NOTHING. Pins that a tap on the modal
+  // barrier (the dim scrim outside the centered card) does NOT dismiss the
+  // dialog -- `barrierDismissible: false` makes the scrim a no-op. After
+  // the tap + a pump, the dialog is still shown and the helper's
+  // `Future<bool>` is still pending (no `onCancel` -> no pop -> no result).
+  testWidgets('showConfirmDialog scrim tap is a no-op (dialog stays open)',
       (tester) async {
     final result = await _pumpHelper(tester);
 
+    // Track whether the helper future has resolved (it should NOT after a
+    // scrim tap, since the scrim is a no-op and no button was pressed).
+    var completed = false;
+    result.then((_) => completed = true);
+
     // Tap the screen's top-left corner -- outside the centered dialog, on
-    // the dismissible modal barrier (showDialog's scrim).
+    // the modal barrier (showDialog's scrim). With
+    // `barrierDismissible: false` this is a no-op (the dim scrim still
+    // shows; it just does not pop).
     await tester.tapAt(const Offset(1, 1));
+    // A single pump (not pumpAndSettle) is enough to dispatch the pointer;
+    // we do NOT want to wait for any pop animation (there should be none).
+    await tester.pump();
+
+    // The dialog card is still on screen...
+    expect(find.text('Delete chat?'), findsOneWidget);
+    expect(find.text('Delete'), findsOneWidget);
+    // ...and the helper future has NOT completed (scrim was a no-op).
+    expect(completed, isFalse);
+  });
+
+  // React parity: `useModalFocus(onCancel)` -> Esc cancels. Pins that Esc
+  // (via the `KeyboardListener`) resolves the helper with `false` -- the
+  // same path the call modals + `PeerStatusDrawer` use for the Esc-trap.
+  testWidgets('showConfirmDialog returns false on Esc (useModalFocus parity)',
+      (tester) async {
+    final result = await _pumpHelper(tester);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(await result, isFalse);
+  });
+
+  // Android parity: React web has no back button, but the Android
+  // expectation for a modal is back=cancel (so the user is never trapped
+  // in a destructive confirm). Pins that a system-back pop (gated by the
+  // `PopScope(canPop: false, onPopInvokedWithResult:)`) cancels -- the
+  // helper resolves with `false`. `barrierDismissible: false` blocks the
+  // default pop; the `PopScope`'s `onPopInvokedWithResult` fires
+  // `onCancel` (which pops `false`). Invoked via the test binding's
+  // `handlePopRoute`, the same way Flutter's system-back dispatch reaches
+  // a route's `PopScope`.
+  testWidgets('showConfirmDialog returns false on Android system-back',
+      (tester) async {
+    final result = await _pumpHelper(tester);
+
+    // Dispatch a system-back: the route's `PopScope` (canPop: false)
+    // intercepts it, fires `onCancel` -> Navigator.pop(false).
+    final binding = tester.binding;
+    await binding.handlePopRoute();
     await tester.pumpAndSettle();
 
     expect(await result, isFalse);
