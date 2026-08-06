@@ -4,9 +4,19 @@
 // confirmation is the first caller; later atomics reuse this primitive for
 // any "are you sure" prompt). The dialog is rendered via Flutter's
 // `showDialog`, which provides the modal barrier + focus trap natively
-// (better than React's manual `useModalFocus` Esc-trap): `showDialog` with
-// `barrierDismissible: true` dismisses on outside-tap + Esc by default, and
-// Flutter's `FocusScope` handles the focus-cycle within the dialog.
+// (better than React's manual `useModalFocus` Esc-trap). React's
+// `ConfirmDialog` backdrop is `role="presentation"` with NO `onClick`, so a
+// stray tap on the scrim does nothing -- cancel only happens via the Cancel
+// button, the close-X, or Esc (`useModalFocus(onCancel)`). The Flutter port
+// matches that 1-в-1: `showDialog` is `barrierDismissible: false` (scrim tap
+// is a no-op but the dim `barrierColor` still shows), Esc is wired through a
+// `KeyboardListener` (the same pattern the call modals +
+// `PeerStatusDrawer` use for the `useModalFocus` Esc-trap), and Android
+// system-back cancels through `PopScope(canPop: false,
+// onPopInvokedWithResult:)` so a back press is not trapped in the confirm
+// (Esc/back parity -- React web has no back, but the Android expectation is
+// back=cancel for a modal). Flutter's `FocusScope` handles the focus-cycle
+// within the dialog.
 //
 // This atomic is JUST the widget + the `showConfirmDialog` helper -- NOT the
 // close-flow wiring (that is a later atomic that will pass `title` / `body`
@@ -14,9 +24,9 @@
 // `onConfirm`).
 //
 // React structure (ConfirmDialog.tsx):
-//   confirm-dialog-backdrop (role=presentation)
+//   confirm-dialog-backdrop (role=presentation)  <-- NO onClick (scrim tap = no-op)
 //     -> confirm-dialog (role=dialog, aria-modal=true, aria-labelledby,
-//        aria-describedby, tabIndex=-1) + useModalFocus(onCancel)
+//        aria-describedby, tabIndex=-1) + useModalFocus(onCancel)  <-- Esc -> onCancel
 //        -> close button (IconX, aria-label=cancelLabel) in the corner
 //        -> alert icon (IconAlertTriangle, aria-hidden) in a tinted square
 //        -> copy: h2 title (confirm-dialog-title) + p body
@@ -25,8 +35,9 @@
 //           (confirmLabel)
 //
 // Flutter port: `showDialog` provides the `confirm-dialog-backdrop` (modal
-// barrier, dismiss-on-tap-outside + Esc). The dialog card mirrors
-// `confirm-dialog`: a `Dialog`-shaped card with a Stack so the close-X can
+// barrier; scrim tap is a no-op via `barrierDismissible: false`). The dialog
+// card mirrors `confirm-dialog`: a `Dialog`-shaped card with a Stack so the
+// close-X can
 // be absolutely positioned in the corner (React `position: absolute; top:
 // 12px; right: 12px`), an alert icon in a tinted rounded square (React
 // `.confirm-dialog-icon`), the title (h2 -> `titleMedium`, bold) + body (p
@@ -50,6 +61,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// A centered modal confirmation dialog -- 1-в-1 with React's
 /// `ConfirmDialog`. Construct directly and pass to `showDialog`, or use
@@ -63,10 +75,16 @@ import 'package:flutter/material.dart';
 /// - `cancelLabel`  -> the ghost button text + the close-X aria-label
 ///   (React default `"Cancel"`; here defaults to [defaultCancelLabel] when
 ///   null so callers without a localized "Cancel" still get a sane label)
-/// - `onCancel`     -> invoked on close-X, ghost button, or barrier/Esc
-///   dismiss (the host wires barrier/Esc through [showConfirmDialog])
+/// - `onCancel`     -> invoked on close-X, ghost button, or Esc /
+///   Android system-back (the host wires scrim-no-op through
+///   [showConfirmDialog])
 /// - `onConfirm`    -> invoked on the danger button
-class ConfirmDialog extends StatelessWidget {
+///
+/// The widget is a [StatefulWidget] only because it owns the `FocusNode`
+/// the `KeyboardListener` (Esc -> `onCancel`) attaches to -- mirroring the
+/// call modals' + `PeerStatusDrawer`'s `useModalFocus` Esc-trap pattern.
+/// The card itself is pure; [build] delegates to [_ConfirmDialogCard].
+class ConfirmDialog extends StatefulWidget {
   const ConfirmDialog({
     super.key,
     required this.title,
@@ -111,9 +129,96 @@ class ConfirmDialog extends StatelessWidget {
   static const String defaultCancelLabel = 'Cancel';
 
   @override
+  State<ConfirmDialog> createState() => _ConfirmDialogState();
+}
+
+class _ConfirmDialogState extends State<ConfirmDialog> {
+  // React `useModalFocus` keeps a single focus target for the modal; the
+  // Flutter equivalent is a [FocusNode] owned here and attached to a
+  // [KeyboardListener] wrapping the card. `autofocus: true` pulls focus
+  // into the dialog on mount (React `first.focus()`), and the key handler
+  // forwards Esc to `onCancel` (React `onKeyDown` Escape branch). The call
+  // modals (`IncomingCallModal` / `OutgoingCallModal`) +
+  // `PeerStatusDrawer` use the same `KeyboardListener`-Esc pattern; this
+  // dialog matches them.
+  late final FocusNode _focusNode = FocusNode(debugLabel: 'ConfirmDialog');
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // The `KeyboardListener` is the outermost node so Esc is caught before
+    // any child focusables; `autofocus: true` pulls focus into the dialog on
+    // open (React `first.focus()`). The `PopScope` gates Android
+    // system-back: `canPop: false` blocks the default pop (the scrim is
+    // already a no-op via `barrierDismissible: false`), and
+    // `onPopInvokedWithResult` fires `onCancel` when a back press is
+    // attempted -- Esc/back parity so the user is never trapped in a
+    // destructive confirm with no escape. React web has no back button, but
+    // on Android the expectation for a modal is back=cancel.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        widget.onCancel();
+      },
+      child: KeyboardListener(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: (event) {
+          // React: `if (event.key === 'Escape') { stopPropagation();
+          // onEscape(); }` -> `useModalFocus(onCancel)`. `KeyDownEvent`
+          // only -- not `KeyRepeatEvent`/`KeyUpEvent` -- so a held Esc does
+          // not fire `onCancel` repeatedly (matches the call modals).
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            widget.onCancel();
+          }
+        },
+        child: _ConfirmDialogCard(
+          title: widget.title,
+          body: widget.body,
+          confirmLabel: widget.confirmLabel,
+          cancelLabel: widget.cancelLabel,
+          onCancel: widget.onCancel,
+          onConfirm: widget.onConfirm,
+          dangerColor: widget.dangerColor,
+        ),
+      ),
+    );
+  }
+}
+
+/// The pure card body of [ConfirmDialog], factored out so the
+/// `StatefulWidget`'s `build` stays focused on the Esc/back wiring.
+/// Mirrors React's `confirm-dialog` element.
+class _ConfirmDialogCard extends StatelessWidget {
+  const _ConfirmDialogCard({
+    required this.title,
+    required this.body,
+    required this.confirmLabel,
+    required this.cancelLabel,
+    required this.onCancel,
+    required this.onConfirm,
+    required this.dangerColor,
+  });
+
+  final String title;
+  final String body;
+  final String confirmLabel;
+  final String? cancelLabel;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+  final Color dangerColor;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cancel = cancelLabel ?? defaultCancelLabel;
+    final cancel = cancelLabel ?? ConfirmDialog.defaultCancelLabel;
     return Semantics(
       label: title,
       container: true,
@@ -288,16 +393,21 @@ class _AlertIcon extends StatelessWidget {
 }
 
 /// Shows a [ConfirmDialog] modally and returns `true` if the user
-/// confirmed, `false` if they cancelled (close-X, ghost button, or
-/// barrier/Esc dismiss). Mirrors the React close-flow's
+/// confirmed, `false` if they cancelled (close-X, ghost button, or Esc /
+/// Android system-back). Mirrors the React close-flow's
 /// `closeFlow.confirmCloseActive` / `closeFlow.cancelClose` seam so the
 /// later close-flow atomic can wire its callbacks with a single
 /// `await showConfirmDialog(...)` call.
 ///
-/// The dialog is `barrierDismissible: true` (outside-tap + Esc both
-/// cancel), and `barrierLabel` is the [cancelLabel] (or
-/// [ConfirmDialog.defaultCancelLabel]) so the modal scrim announces itself
-/// as a cancel affordance to assistive tech.
+/// The dialog is `barrierDismissible: false` -- a scrim tap is a NO-OP
+/// (React's `role="presentation"` backdrop has no `onClick`), so a stray
+/// tap on Android cannot silently cancel a destructive confirm. The dim
+/// `barrierColor` still shows (the scrim is visible, just not dismissible).
+/// Esc (via the `KeyboardListener`) and Android system-back (via the
+/// `PopScope`) both cancel, matching React's `useModalFocus(onCancel)` Esc
+/// branch + the Android back=cancel modal expectation. `barrierLabel` is
+/// the [cancelLabel] (or [ConfirmDialog.defaultCancelLabel]) so the modal
+/// scrim announces itself as a cancel affordance to assistive tech.
 ///
 /// Returns `bool?` so the caller can distinguish null (dismissed without a
 /// button tap) if needed; the convenience maps cancel/dismiss to `false`.
@@ -311,7 +421,9 @@ Future<bool> showConfirmDialog({
   final cancel = cancelLabel ?? ConfirmDialog.defaultCancelLabel;
   final result = await showDialog<bool>(
     context: context,
-    barrierDismissible: true,
+    // React: the backdrop is `role="presentation"` with NO `onClick`, so a
+    // scrim tap is a no-op (the dim scrim still shows via `barrierColor`).
+    barrierDismissible: false,
     barrierLabel: cancel,
     builder: (dialogContext) => ConfirmDialog(
       title: title,
