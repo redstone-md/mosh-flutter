@@ -155,7 +155,7 @@ fn build_runtime() -> Option<PrivateDmRuntime> {
 /// it.
 fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     let resources = crate::api::shared_runtime::ensure_shared_resources()
-        .map_err(|error| PrivateDmRuntimeError::Moss(error))?;
+        .map_err(PrivateDmRuntimeError::Moss)?;
     let mut runtime = PrivateDmRuntime::from_shared_node(
         resources.shared_node,
         resources.attachment_store,

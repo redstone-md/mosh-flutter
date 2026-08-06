@@ -97,8 +97,8 @@ fn build_runtime() -> Option<ChannelRuntime> {
 /// saved channels from the encrypted store. Mirrors the Tauri shell's
 /// `ChannelState::ready` (lib.rs L139-160) including the `rehydrate()` call.
 fn construct_runtime() -> Result<ChannelRuntime, ChannelRuntimeError> {
-    let resources = crate::api::shared_runtime::ensure_shared_resources()
-        .map_err(|error| ChannelRuntimeError::Moss(error))?;
+    let resources =
+        crate::api::shared_runtime::ensure_shared_resources().map_err(ChannelRuntimeError::Moss)?;
     let mut runtime = ChannelRuntime::from_shared_node(
         resources.shared_node,
         resources.attachment_store,

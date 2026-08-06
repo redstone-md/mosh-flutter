@@ -95,7 +95,7 @@ fn build_stream(
         SampleFormat::F32 => {
             let mut generator = generator;
             device.build_output_stream(
-                config.clone(),
+                *config,
                 move |data: &mut [f32], _info: &OutputCallbackInfo| {
                     write_f32(data, channels, &mut generator);
                 },
@@ -106,7 +106,7 @@ fn build_stream(
         SampleFormat::I16 => {
             let mut generator = generator;
             device.build_output_stream(
-                config.clone(),
+                *config,
                 move |data: &mut [i16], _info: &OutputCallbackInfo| {
                     write_i16(data, channels, &mut generator);
                 },
@@ -117,7 +117,7 @@ fn build_stream(
         SampleFormat::U16 => {
             let mut generator = generator;
             device.build_output_stream(
-                config.clone(),
+                *config,
                 move |data: &mut [u16], _info: &OutputCallbackInfo| {
                     write_u16(data, channels, &mut generator);
                 },

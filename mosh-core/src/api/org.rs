@@ -114,8 +114,8 @@ fn build_runtime() -> Option<OrgRuntime> {
 /// the encrypted store. Mirrors the Tauri shell's `OrgState::ready`
 /// (lib.rs L245-264) including the `rehydrate()` call.
 fn construct_runtime() -> Result<OrgRuntime, OrgError> {
-    let resources = crate::api::shared_runtime::ensure_shared_resources()
-        .map_err(|error| OrgError::Moss(error))?;
+    let resources =
+        crate::api::shared_runtime::ensure_shared_resources().map_err(OrgError::Moss)?;
     let mut runtime = OrgRuntime::from_shared_node(resources.shared_node, resources.persistence);
     // Rehydrate saved orgs from the encrypted store; with persistence wired
     // it now rebuilds joined orgs + their rosters instead of the slice-one
