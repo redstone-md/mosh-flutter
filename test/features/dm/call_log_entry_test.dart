@@ -1,7 +1,7 @@
 // Parity tests for `CallLogEntry` (lib/src/features/dm/call_log_entry.dart)
 // -- the 1-в-1 port of React's `CallLogEntry.tsx`. Asserts the missed and
 // completed variants render the right icon + localized label, and that a
-// non-zero duration appends ` - m:ss`; zero duration omits the suffix.
+// non-zero duration appends ` · m:ss`; zero duration omits the suffix.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,8 +20,7 @@ Future<void> _pump(WidgetTester tester, CallLogEntry card) async {
   await tester.pumpAndSettle();
 }
 
-CallEvent _event({required String kind, required int durationMs}) =>
-    CallEvent(
+CallEvent _event({required String kind, required int durationMs}) => CallEvent(
       kind: kind,
       durationMs: BigInt.from(durationMs),
       callId: 'call-1',
@@ -57,7 +56,7 @@ void main() {
   );
 
   testWidgets(
-    'a non-zero duration appends - m:ss with zero-padded seconds',
+    'a non-zero duration appends · m:ss with zero-padded seconds',
     (tester) async {
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       // 65000 ms -> 1:05.
@@ -68,7 +67,7 @@ void main() {
           l: l,
         ),
       );
-      expect(find.text('Call ended - 1:05'), findsOneWidget);
+      expect(find.text('Call ended · 1:05'), findsOneWidget);
     },
   );
 
@@ -82,7 +81,9 @@ void main() {
       );
       // Missed with 0 ms -> no suffix, just "Missed call".
       expect(find.text('Missed call'), findsOneWidget);
-      expect(find.textContaining(' - '), findsNothing);
+      // React uses ` · ` (U+00B7), so a zero-duration entry must not
+      // contain the middle-dot separator.
+      expect(find.textContaining(' · '), findsNothing);
     },
   );
 
