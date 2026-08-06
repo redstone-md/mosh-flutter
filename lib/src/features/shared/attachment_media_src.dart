@@ -2,10 +2,8 @@
 // `src/features/private-dm/attachment-utils.ts`. React uses Tauri's
 // `convertFileSrc` (a custom scheme) for local files; Flutter has no such
 // scheme, so a downloaded attachment is served via `file://` + the absolute
-// path (see [localFileSrc]). The streaming URL shape
-// (`http://moshmedia.localhost/...`) is reserved here to match the slice-3
-// Rust moshmedia:// streaming protocol; the viewer just needs the URL
-// string, the protocol server itself is slice-3 Rust work.
+// path (see [localFileSrc]). Streaming media is served by the local
+// ephemeral HTTP server below.
 //
 // [resolveMediaOpen] is the pure decision function ported from React
 // `use-chat-orchestration.ts` L243-265 `openAttachment`: given a descriptor,
@@ -16,6 +14,7 @@ library;
 
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
+import 'package:mosh/src/features/shared/media_stream_server.dart';
 
 /// React `isViewableMedia` -- image/video/audio. Drives the open affordance.
 bool isViewableMedia(String mime) =>
@@ -51,12 +50,12 @@ AttachmentOpenIntent resolveLocalAttachmentOpen({
 /// absolute path. `Uri.file` normalizes Windows backslashes to forward
 /// slashes and percent-encodes as needed. A path that already starts with a
 /// known URL scheme (`http://`, `https://`, `file://` -- e.g. the
-/// `moshmedia.localhost` streaming URL) is returned verbatim. A Windows
+/// local streaming URL) is returned verbatim. A Windows
 /// drive-letter path (`C:\...`) is NOT treated as a URL (its `C:` would
 /// otherwise parse as a scheme), so it is wrapped in `file://`.
 String localFileSrc(String path) {
   if (path.isEmpty) return path;
-  // Already a URL (http/https/file -- e.g. the moshmedia streaming URL) --
+  // Already a URL (http/https/file -- e.g. a local streaming URL) --
   // pass through. A Windows drive-letter path `C:\...` is NOT a URL here;
   // `Uri.tryParse` would mis-read `C:` as a scheme, so the check is by
   // explicit prefix, not `hasScheme`.
@@ -68,13 +67,24 @@ String localFileSrc(String path) {
   return Uri.file(path).toString();
 }
 
-/// React `streamingMediaSrc` -- the moshmedia streaming URL. Same shape as
-/// React for parity: `http://moshmedia.localhost/${kind}/${host}/${id}` with
-/// host + id percent-encoded. Matches the slice-3 Rust moshmedia://
-/// streaming protocol; the viewer only needs the URL string.
-String streamingMediaSrc(String kind, String host, String attachmentId) {
-  return 'http://moshmedia.localhost/$kind/'
-      '${Uri.encodeComponent(host)}/${Uri.encodeComponent(attachmentId)}';
+/// Builds the loopback media URL. [baseUri] keeps the helper deterministic in
+/// tests; the running app uses the ephemeral port owned by
+/// [MediaStreamServer].
+String streamingMediaSrc(
+  String kind,
+  String host,
+  String attachmentId, {
+  Uri? baseUri,
+}) {
+  final base = baseUri ?? MediaStreamServer.instance.baseUri;
+  if (base == null) {
+    throw StateError('Media stream server is not started');
+  }
+  return base.replace(
+    pathSegments: <String>[kind, host, attachmentId],
+    query: null,
+    fragment: null,
+  ).toString();
 }
 
 /// The open decision returned by [resolveMediaOpen]. Mirrors the three
@@ -103,6 +113,7 @@ MediaOpenDecision resolveMediaOpen({
   AttachmentView? view,
   required String kind,
   required String host,
+  Uri? mediaBaseUri,
 }) {
   final localPath = view?.localPath;
   if (localPath != null && localPath.isNotEmpty) {
@@ -114,7 +125,12 @@ MediaOpenDecision resolveMediaOpen({
   }
   if (isStreamableMedia(descriptor.mime)) {
     return MediaOpenDecision(
-      src: streamingMediaSrc(kind, host, descriptor.attachmentId),
+      src: streamingMediaSrc(
+        kind,
+        host,
+        descriptor.attachmentId,
+        baseUri: mediaBaseUri,
+      ),
       download: true,
       wait: false,
     );

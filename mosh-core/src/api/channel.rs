@@ -64,7 +64,7 @@ static LOAD_ERROR: OnceLock<String> = OnceLock::new();
 /// and store it. On every later call: just lock. Returns a guard the
 /// public functions can drive the `&mut self` runtime through, or an error
 /// string matching the Tauri shell's `unavailable_message` shape.
-fn ensure_runtime() -> Result<MutexGuard<'static, Option<ChannelRuntime>>, String> {
+pub(crate) fn ensure_runtime() -> Result<MutexGuard<'static, Option<ChannelRuntime>>, String> {
     let mutex = RUNTIME.get_or_init(|| Mutex::new(build_runtime()));
     let guard = mutex.lock().map_err(|_| LOCK_POISONED.to_string())?;
     if guard.is_none() {

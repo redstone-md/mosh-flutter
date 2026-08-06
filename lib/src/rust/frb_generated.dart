@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/attachment_stream.dart';
 import 'api/channel.dart';
 import 'api/diagnostics.dart';
 import 'api/network.dart';
@@ -90,7 +91,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1238784315;
+  int get rustContentHash => -1677708376;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -307,6 +308,13 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiSharedRuntimeSetHistoryDek({required List<int> dek});
 
   Future<void> crateApiVpnSetVpnBypassConsent({String? interface_});
+
+  Future<AttachmentStreamRange> crateApiAttachmentStreamStreamAttachmentRange(
+      {required String kind,
+      required String host,
+      required String attachmentId,
+      required BigInt start,
+      required BigInt end});
 
   Uint8List crateApiVoiceCallOpusEncodeVoiceCallOpusEncode(
       {required VoiceCallOpusEncoder encoder, required List<int> pcm16});
@@ -2096,6 +2104,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<AttachmentStreamRange> crateApiAttachmentStreamStreamAttachmentRange({
+    required String kind,
+    required String host,
+    required String attachmentId,
+    required BigInt start,
+    required BigInt end,
+  }) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(kind, serializer);
+        sse_encode_String(host, serializer);
+        sse_encode_String(attachmentId, serializer);
+        sse_encode_u_64(start, serializer);
+        sse_encode_u_64(end, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 63, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_attachment_stream_range,
+        decodeErrorData: sse_decode_String,
+      ),
+      constMeta: kCrateApiAttachmentStreamStreamAttachmentRangeConstMeta,
+      argValues: [kind, host, attachmentId, start, end],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiAttachmentStreamStreamAttachmentRangeConstMeta =>
+      const TaskConstMeta(
+        debugName: "stream_attachment_range",
+        argNames: ["kind", "host", "attachmentId", "start", "end"],
+      );
+
+  @override
   Uint8List crateApiVoiceCallOpusEncodeVoiceCallOpusEncode(
       {required VoiceCallOpusEncoder encoder, required List<int> pcm16}) {
     return handler.executeSync(SyncTask(
@@ -2104,7 +2147,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
             encoder, serializer);
         sse_encode_list_prim_u_8_loose(pcm16, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 63)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 64)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_prim_u_8_strict,
@@ -2127,7 +2170,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 64)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2159,7 +2202,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             p, serializer);
         sse_encode_U128(seq, serializer);
         sse_encode_list_prim_u_8_loose(opus, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 66)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2183,7 +2226,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 66)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 67)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2210,7 +2253,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
             p, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 67)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 68)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2233,7 +2276,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 68)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 69)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2260,7 +2303,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
             ringtone, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 69)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 70)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -3816,6 +3859,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sessionId: var_sessionId,
         attachmentId: var_attachmentId,
         contentHash: var_contentHash);
+  }
+
+  @protected
+  AttachmentStreamRange sse_decode_attachment_stream_range(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_attachment_stream_state(deserializer);
+    var var_bytes = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_totalSize = sse_decode_u_64(deserializer);
+    var var_mime = sse_decode_String(deserializer);
+    return AttachmentStreamRange(
+        state: var_state,
+        bytes: var_bytes,
+        totalSize: var_totalSize,
+        mime: var_mime);
+  }
+
+  @protected
+  AttachmentStreamState sse_decode_attachment_stream_state(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return AttachmentStreamState.values[inner];
   }
 
   @protected
@@ -5387,6 +5453,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.sessionId, serializer);
     sse_encode_String(self.attachmentId, serializer);
     sse_encode_String(self.contentHash, serializer);
+  }
+
+  @protected
+  void sse_encode_attachment_stream_range(
+      AttachmentStreamRange self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_attachment_stream_state(self.state, serializer);
+    sse_encode_list_prim_u_8_strict(self.bytes, serializer);
+    sse_encode_u_64(self.totalSize, serializer);
+    sse_encode_String(self.mime, serializer);
+  }
+
+  @protected
+  void sse_encode_attachment_stream_state(
+      AttachmentStreamState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

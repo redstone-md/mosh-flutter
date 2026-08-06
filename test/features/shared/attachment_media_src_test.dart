@@ -36,6 +36,12 @@ AttachmentView _view({
       localPath: localPath,
     );
 
+final _testMediaBaseUri = Uri(
+  scheme: 'http',
+  host: '127.0.0.1',
+  port: 12345,
+);
+
 void main() {
   group('isStreamableMedia', () {
     test('true for video/* and audio/*', () {
@@ -85,7 +91,7 @@ void main() {
     });
 
     test('passes an already-schemed URL through verbatim', () {
-      const url = 'http://moshmedia.localhost/dm/sess/att-1';
+      const url = 'http://127.0.0.1:12345/dm/sess/att-1';
       expect(localFileSrc(url), url);
       const fileUrl = 'file:///tmp/mosh/abc.bin';
       expect(localFileSrc(fileUrl), fileUrl);
@@ -97,25 +103,42 @@ void main() {
   });
 
   group('streamingMediaSrc', () {
-    test('builds the moshmedia.localhost shape with encoded components', () {
-      final src = streamingMediaSrc('dm', 'session with space', 'att/1');
+    test('fails loudly when the production server is not started', () {
+      expect(
+        () => streamingMediaSrc('dm', 'session', 'attachment'),
+        throwsStateError,
+      );
+    });
+
+    test('builds the local server shape with encoded components', () {
+      final src = streamingMediaSrc(
+        'dm',
+        'session with space',
+        'att/1',
+        baseUri: _testMediaBaseUri,
+      );
       expect(
         src,
-        'http://moshmedia.localhost/dm/'
+        'http://127.0.0.1:12345/dm/'
         'session%20with%20space/att%2F1',
       );
     });
 
     test('leaves simple ASCII components unencoded', () {
-      final src = streamingMediaSrc('channel', 'general', 'att-42');
-      expect(src, 'http://moshmedia.localhost/channel/general/att-42');
+      final src = streamingMediaSrc(
+        'channel',
+        'general',
+        'att-42',
+        baseUri: _testMediaBaseUri,
+      );
+      expect(src, 'http://127.0.0.1:12345/channel/general/att-42');
     });
 
     test('kind is interpolated verbatim (not encoded)', () {
       // kind is the path segment, not a user value; React keeps it raw too.
       expect(
-        streamingMediaSrc('group', 'g', 'a'),
-        'http://moshmedia.localhost/group/g/a',
+        streamingMediaSrc('group', 'g', 'a', baseUri: _testMediaBaseUri),
+        'http://127.0.0.1:12345/group/g/a',
       );
     });
   });
@@ -142,8 +165,9 @@ void main() {
         view: null,
         kind: 'channel',
         host: 'general',
+        mediaBaseUri: _testMediaBaseUri,
       );
-      expect(dec.src, 'http://moshmedia.localhost/channel/general/a2');
+      expect(dec.src, 'http://127.0.0.1:12345/channel/general/a2');
       expect(dec.download, isTrue);
       expect(dec.wait, isFalse);
     });
@@ -155,8 +179,9 @@ void main() {
         view: null,
         kind: 'group',
         host: 'g-1',
+        mediaBaseUri: _testMediaBaseUri,
       );
-      expect(dec.src, 'http://moshmedia.localhost/group/g-1/a3');
+      expect(dec.src, 'http://127.0.0.1:12345/group/g-1/a3');
       expect(dec.download, isTrue);
       expect(dec.wait, isFalse);
     });
