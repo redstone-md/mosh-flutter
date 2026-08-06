@@ -33,6 +33,9 @@ pub mod channel;
 /// Facade for the `private_group_*` family of Tauri commands.
 pub mod private_group;
 
+/// Unified attachment range facade used by the local media HTTP server.
+pub mod attachment_stream;
+
 /// Facade for the `org_*` family of Tauri commands.
 pub mod org;
 

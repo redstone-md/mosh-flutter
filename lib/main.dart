@@ -30,6 +30,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
+import 'package:mosh/src/features/shared/media_stream_server.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
 
 void main(List<String> args) async {
@@ -63,6 +64,11 @@ void main(List<String> args) async {
   // environments without the native cdylib this throws; main() is only
   // exercised in real device/desktop runs, not in `flutter test`.
   await RustLib.init();
+  if (Platform.isWindows || Platform.isAndroid) {
+    // The owner retains the process-lifetime singleton and its observer.
+    // MediaStreamLifecycleOwner.start stores the owner for this purpose.
+    await MediaStreamLifecycleOwner.start();
+  }
   // Slice-3 media viewer: initialize media_kit (the Player/Video engine
   // behind MediaViewer video + audio playback) before any Player is
   // constructed. Idempotent; skipped harmlessly under `flutter test` (no

@@ -29,6 +29,7 @@
 use crate::api::voice_call_ringtone::*;
 use crate::api::voice_call_playback::*;
 use crate::api::voice_call_opus_encode::*;
+use crate::api::attachment_stream::*;
 use crate::api::shared_runtime::*;use flutter_rust_bridge::{Handler, IntoIntoDart};
 use flutter_rust_bridge::for_generated::{Lockable, transform_result_dco, Lifetimeable};
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, WriteBytesExt, ReadBytesExt};
@@ -52,7 +53,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
                     default_rust_auto_opaque = RustAutoOpaqueMoi,
                 );
                 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-                pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1238784315;
+                pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1677708376;
 
 
 // Section: executor
@@ -681,6 +682,19 @@ let api_body = <String>::sse_decode(&mut deserializer);deserializer.end(); move 
                          let output_ok = crate::api::vpn::set_vpn_bypass_consent(api_interface)?;   Ok(output_ok)
                     })())
                 } })
+            }fn wire__crate__api__attachment_stream__stream_attachment_range_impl(port_: flutter_rust_bridge::for_generated::MessagePort,ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32)  {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "stream_attachment_range", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_kind = <String>::sse_decode(&mut deserializer);
+let api_host = <String>::sse_decode(&mut deserializer);
+let api_attachment_id = <String>::sse_decode(&mut deserializer);
+let api_start = <u64>::sse_decode(&mut deserializer);
+let api_end = <u64>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+                    transform_result_sse::<_, String>((move ||  {
+                         let output_ok = crate::api::attachment_stream::stream_attachment_range(api_kind, api_host, api_attachment_id, api_start, api_end)?;   Ok(output_ok)
+                    })())
+                } })
             }fn wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
                 FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "voice_call_opus_encode", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || {
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
@@ -887,6 +901,26 @@ let mut var_totalSize = <u64>::sse_decode(deserializer);
 let mut var_thumbnailB64 = <Option<String>>::sse_decode(deserializer);
 let mut var_voice = <Option<crate::attachment_runtime::VoiceMeta>>::sse_decode(deserializer);
 return crate::private_dm_runtime::contracts::AttachmentDescriptor{attachment_id: var_attachmentId, content_hash: var_contentHash, file_name: var_fileName, mime: var_mime, total_size: var_totalSize, thumbnail_b64: var_thumbnailB64, voice: var_voice};}
+                }
+
+                impl SseDecode for crate::api::attachment_stream::AttachmentStreamRange {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut var_state = <crate::api::attachment_stream::AttachmentStreamState>::sse_decode(deserializer);
+let mut var_bytes = <Vec<u8>>::sse_decode(deserializer);
+let mut var_totalSize = <u64>::sse_decode(deserializer);
+let mut var_mime = <String>::sse_decode(deserializer);
+return crate::api::attachment_stream::AttachmentStreamRange{state: var_state, bytes: var_bytes, total_size: var_totalSize, mime: var_mime};}
+                }
+
+                impl SseDecode for crate::api::attachment_stream::AttachmentStreamState {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::attachment_stream::AttachmentStreamState::Ready,
+1 => crate::api::attachment_stream::AttachmentStreamState::Pending,
+2 => crate::api::attachment_stream::AttachmentStreamState::Unknown,
+            _ => unreachable!("Invalid variant for AttachmentStreamState: {}", inner),
+        };}
                 }
 
                 impl SseDecode for crate::private_dm_runtime::contracts::AttachmentSendResult {
@@ -1807,6 +1841,7 @@ return crate::api::vpn::VpnDetection{vpn_likely: var_vpnLikely, suspect_interfac
 60 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
 61 => wire__crate__api__shared_runtime__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
 62 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+63 => wire__crate__api__attachment_stream__stream_attachment_range_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
                 }
@@ -1819,13 +1854,13 @@ return crate::api::vpn::VpnDetection{vpn_likely: var_vpnLikely, suspect_interfac
                 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
                     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
                     match func_id {
-                        63 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(ptr, rust_vec_len, data_len),
-64 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(ptr, rust_vec_len, data_len),
-65 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(ptr, rust_vec_len, data_len),
-66 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(ptr, rust_vec_len, data_len),
-67 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(ptr, rust_vec_len, data_len),
-68 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(ptr, rust_vec_len, data_len),
-69 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(ptr, rust_vec_len, data_len),
+                        64 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(ptr, rust_vec_len, data_len),
+65 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(ptr, rust_vec_len, data_len),
+66 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(ptr, rust_vec_len, data_len),
+67 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(ptr, rust_vec_len, data_len),
+68 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(ptr, rust_vec_len, data_len),
+69 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(ptr, rust_vec_len, data_len),
+70 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
                 }
@@ -1962,6 +1997,40 @@ self.voice.into_into_dart().into_dart()
             impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::private_dm_runtime::contracts::AttachmentDescriptor {}
 impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::AttachmentDescriptor> for crate::private_dm_runtime::contracts::AttachmentDescriptor {
             fn into_into_dart(self) -> crate::private_dm_runtime::contracts::AttachmentDescriptor {
+                self
+            }
+        }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+            impl flutter_rust_bridge::IntoDart for crate::api::attachment_stream::AttachmentStreamRange {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    [
+                    self.state.into_into_dart().into_dart(),
+self.bytes.into_into_dart().into_dart(),
+self.total_size.into_into_dart().into_dart(),
+self.mime.into_into_dart().into_dart()
+                ].into_dart()
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::attachment_stream::AttachmentStreamRange {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::attachment_stream::AttachmentStreamRange> for crate::api::attachment_stream::AttachmentStreamRange {
+            fn into_into_dart(self) -> crate::api::attachment_stream::AttachmentStreamRange {
+                self
+            }
+        }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+            impl flutter_rust_bridge::IntoDart for crate::api::attachment_stream::AttachmentStreamState {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    match self {
+                    Self::Ready => 0.into_dart(),
+Self::Pending => 1.into_dart(),
+Self::Unknown => 2.into_dart(),
+                    _ => unreachable!(),
+                }
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::attachment_stream::AttachmentStreamState {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::attachment_stream::AttachmentStreamState> for crate::api::attachment_stream::AttachmentStreamState {
+            fn into_into_dart(self) -> crate::api::attachment_stream::AttachmentStreamState {
                 self
             }
         }
@@ -2983,6 +3052,22 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::vpn::VpnDetection> for crate:
 <u64>::sse_encode(self.total_size, serializer);
 <Option<String>>::sse_encode(self.thumbnail_b64, serializer);
 <Option<crate::attachment_runtime::VoiceMeta>>::sse_encode(self.voice, serializer);}
+                }
+
+                impl SseEncode for crate::api::attachment_stream::AttachmentStreamRange {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<crate::api::attachment_stream::AttachmentStreamState>::sse_encode(self.state, serializer);
+<Vec<u8>>::sse_encode(self.bytes, serializer);
+<u64>::sse_encode(self.total_size, serializer);
+<String>::sse_encode(self.mime, serializer);}
+                }
+
+                impl SseEncode for crate::api::attachment_stream::AttachmentStreamState {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<i32>::sse_encode(match self {crate::api::attachment_stream::AttachmentStreamState::Ready => { 0 }
+crate::api::attachment_stream::AttachmentStreamState::Pending => { 1 }
+crate::api::attachment_stream::AttachmentStreamState::Unknown => { 2 }
+ _ => { unimplemented!(""); }}, serializer);}
                 }
 
                 impl SseEncode for crate::private_dm_runtime::contracts::AttachmentSendResult {

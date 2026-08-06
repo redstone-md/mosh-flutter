@@ -13,6 +13,7 @@ import 'api/org.dart';
 import 'api/private_dm.dart';
 import 'api/private_group.dart';
 import 'api/shared_runtime.dart';
+import 'api/attachment_stream.dart';
 import 'api/voice_call_opus_encode.dart';
 import 'api/voice_call_playback.dart';
 import 'api/voice_call_ringtone.dart';
@@ -563,6 +564,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  AttachmentStreamRange sse_decode_attachment_stream_range(
+      SseDeserializer deserializer);
+
+  @protected
+  AttachmentStreamState sse_decode_attachment_stream_state(
+      SseDeserializer deserializer);
+
+  @protected
   AttachmentState sse_decode_attachment_state(SseDeserializer deserializer);
 
   @protected
@@ -1035,6 +1044,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_attachment_send_result(
       AttachmentSendResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_attachment_stream_range(
+      AttachmentStreamRange self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_attachment_stream_state(
+      AttachmentStreamState self, SseSerializer serializer);
 
   @protected
   void sse_encode_attachment_state(
