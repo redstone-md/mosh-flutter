@@ -6,6 +6,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
 
+import 'package:flutter/material.dart';
+import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/rust/outbound_delivery.dart';
+
+Widget _localized(Widget child) => MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: child),
+    );
+
 void main() {
   group('avatarInitials', () {
     // --- Parity cases (React Avatar.tsx behavior) ---
@@ -75,6 +85,60 @@ void main() {
 
     test('two-word name with extra spacing -> two initials', () {
       expect(avatarInitials('  alice  bob  '), 'AB');
+    });
+  });
+
+  // Widget tests for [DeliveryTicks] -- the Flutter port of React's
+  // `DeliveryTicks` (src/features/private-dm/MessageLists.tsx:411-432).
+  // React renders the FULL readable label (glyph + word) inside
+  // `<small className="delivery-ticks" aria-label="Delivery: {label}">`:
+  //   delivered -> "✓✓ delivered"
+  //   sent      -> "✓ sent"
+  //   pending   -> "sending…"
+  //   failed/null -> renders nothing (return null).
+  // Each case pumps [DeliveryTicks] in a localized `MaterialApp` (en) and
+  // asserts BOTH the visible `Text` matches the localized label AND the
+  // `Semantics` label is "Delivery: <label>" (mirroring React's aria-label).
+  group('DeliveryTicks', () {
+    testWidgets(
+        'delivered -> "✓✓ delivered" text + "Delivery: ✓✓ delivered" semantics',
+        (tester) async {
+      await tester.pumpWidget(_localized(
+          const DeliveryTicks(status: MessageDeliveryStatus.delivered)));
+      await tester.pumpAndSettle();
+      expect(find.text('✓✓ delivered'), findsOneWidget);
+      expect(find.bySemanticsLabel('Delivery: ✓✓ delivered'), findsOneWidget);
+    });
+
+    testWidgets('sent -> "✓ sent" text + "Delivery: ✓ sent" semantics',
+        (tester) async {
+      await tester.pumpWidget(
+          _localized(const DeliveryTicks(status: MessageDeliveryStatus.sent)));
+      await tester.pumpAndSettle();
+      expect(find.text('✓ sent'), findsOneWidget);
+      expect(find.bySemanticsLabel('Delivery: ✓ sent'), findsOneWidget);
+    });
+
+    testWidgets('pending -> "sending…" text + "Delivery: sending…" semantics',
+        (tester) async {
+      await tester.pumpWidget(_localized(
+          const DeliveryTicks(status: MessageDeliveryStatus.pending)));
+      await tester.pumpAndSettle();
+      expect(find.text('sending…'), findsOneWidget);
+      expect(find.bySemanticsLabel('Delivery: sending…'), findsOneWidget);
+    });
+
+    testWidgets('failed -> renders nothing (no Text)', (tester) async {
+      await tester.pumpWidget(_localized(
+          const DeliveryTicks(status: MessageDeliveryStatus.failed)));
+      await tester.pumpAndSettle();
+      expect(find.byType(Text), findsNothing);
+    });
+
+    testWidgets('null status -> renders nothing (no Text)', (tester) async {
+      await tester.pumpWidget(_localized(const DeliveryTicks(status: null)));
+      await tester.pumpAndSettle();
+      expect(find.byType(Text), findsNothing);
     });
   });
 }

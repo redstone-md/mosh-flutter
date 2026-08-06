@@ -697,6 +697,12 @@
   "callStart": "Позвонить",
  "callPeerFallback": "Собеседник"
  ,
+  "deliveryDelivered": "✓✓ доставлено"
+  ,
+  "deliverySent": "✓ отправлено"
+  ,
+  "deliverySending": "отправка…"
+  ,
   "peerLabelInviteSent": "Приглашение отправлено"
   ,
   "peerLabelJoining": "Подключение"
