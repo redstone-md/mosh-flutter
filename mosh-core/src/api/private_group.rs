@@ -100,8 +100,8 @@ fn build_runtime() -> Option<PrivateGroupRuntime> {
 /// `PrivateGroupState::ready` (lib.rs L203-224) including the `rehydrate()`
 /// call.
 fn construct_runtime() -> Result<PrivateGroupRuntime, PrivateGroupError> {
-    let resources = crate::api::shared_runtime::ensure_shared_resources()
-        .map_err(|error| PrivateGroupError::Moss(error))?;
+    let resources =
+        crate::api::shared_runtime::ensure_shared_resources().map_err(PrivateGroupError::Moss)?;
     let mut runtime = PrivateGroupRuntime::from_shared_node(
         resources.shared_node,
         resources.attachment_store,

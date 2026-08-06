@@ -132,7 +132,7 @@ fn panic_payload_to_string(payload: Box<dyn Any + Send>) -> String {
 /// stringify and discard; no shared mutable state is observed post-unwind on
 /// the success path.
 fn openmls_smoke_runtime_status() -> OpenMlsSmokeRuntimeStatus {
-    match catch_unwind(AssertUnwindSafe(|| run_openmls_smoke_test())) {
+    match catch_unwind(AssertUnwindSafe(run_openmls_smoke_test)) {
         Ok(Ok(ok)) => OpenMlsSmokeRuntimeStatus {
             ok: Some(ok),
             error: None,
@@ -152,7 +152,7 @@ fn openmls_smoke_runtime_status() -> OpenMlsSmokeRuntimeStatus {
 /// bridge-friendly `OpenMlsRoundTripRuntimeStatus` (see struct doc). Panic-safe
 /// for the same reason as `openmls_smoke_runtime_status` (see its doc).
 fn openmls_roundtrip_runtime_status() -> OpenMlsRoundTripRuntimeStatus {
-    match catch_unwind(AssertUnwindSafe(|| run_openmls_alice_bob_roundtrip())) {
+    match catch_unwind(AssertUnwindSafe(run_openmls_alice_bob_roundtrip)) {
         Ok(Ok(ok)) => OpenMlsRoundTripRuntimeStatus {
             ok: Some(ok),
             error: None,
