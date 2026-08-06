@@ -21,6 +21,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/channel_group_diagnostics.dart';
@@ -46,7 +47,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart';
 /// `error` is a runtime error string to surface via `RuntimeError`, or null.
 /// `refreshing` toggles the refresh button (disabled while a refresh is
 /// in flight). `onRefresh` / `onClose` are the header button callbacks.
-class PeerStatusDrawer extends StatelessWidget {
+class PeerStatusDrawer extends StatefulWidget {
   const PeerStatusDrawer({
     super.key,
     this.session,
@@ -82,6 +83,27 @@ class PeerStatusDrawer extends StatelessWidget {
   final VoidCallback onClose;
 
   @override
+  State<PeerStatusDrawer> createState() => _PeerStatusDrawerState();
+}
+
+class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
+  // React `useModalFocus` keeps a single focus target for the modal; the
+  // Flutter equivalent is a [FocusNode] owned here and attached to a
+  // [KeyboardListener] wrapping the overlay. Autofocus pulls focus into
+  // the drawer on mount (React `first.focus()`), and the key handler
+  // forwards Esc to `onClose` (React `onKeyDown` Escape branch). The call
+  // modals (`IncomingCallModal` / `OutgoingCallModal`) use the same
+  // `KeyboardListener`-Esc pattern; this drawer matches them because it
+  // is a `Positioned.fill` overlay (no `showDialog` route to lean on).
+  late final FocusNode _focusNode = FocusNode(debugLabel: 'PeerStatusDrawer');
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
@@ -89,54 +111,76 @@ class PeerStatusDrawer extends StatelessWidget {
     // onClick={onClose}. A `GestureDetector` on the backdrop is the Flutter
     // idiom; the aside swallows taps so they do not close the drawer
     // (React `onClick={(e) => e.stopPropagation()}`).
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onClose,
-      child: ColoredBox(
-        color: Colors.black.withValues(alpha: 0.45),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: GestureDetector(
-            // Swallow taps inside the panel so only the backdrop closes.
-            onTap: () {},
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 384),
-              child: Semantics(
-                label: l.peerStatusTitle,
-                container: true,
-                // `scopesRoute: true` mirrors React `aria-modal="true"`
-                // (it scopes the route so the drawer is announced as a
-                // modal boundary); `label` is the `aria-labelledby` title.
-                // `explicitChildNodes: true` is REQUIRED by the framework
-                // when `scopesRoute` is true (RenderObject assertion), so
-                // the drawer's own semantics children stay visible under
-                // the scoped node instead of being merged up.
-                explicitChildNodes: true,
-                scopesRoute: true,
-                child: Material(
-                  color: theme.scaffoldBackgroundColor,
-                  elevation: 0,
-                  shape: Border(
-                    left: BorderSide(color: theme.dividerColor),
-                  ),
-                  child: SizedBox.expand(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _DrawerHeader(
-                          title: l.peerStatusTitle,
-                          refreshTooltip: l.refreshStatus,
-                          closeTooltip: l.closePeerStatus,
-                          refreshing: refreshing,
-                          onRefresh: onRefresh,
-                          onClose: onClose,
-                        ),
-                        Expanded(child: _DrawerContent(
-                          session: session,
-                          channel: channel,
-                          group: group,
-                          error: error)),
-                      ],
+    //
+    // The `KeyboardListener` is the outermost node so Esc is caught
+    // before the backdrop's `GestureDetector` (and before any child
+    // focusables) -- it is the `useModalFocus` keydown equivalent.
+    // `autofocus: true` pulls focus into the drawer on open (React
+    // `first.focus()`); the `FocusScope` is implicit in `KeyboardListener`.
+    return KeyboardListener(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: (event) {
+        // React: `if (event.key === 'Escape') { stopPropagation(); onEscape(); }`.
+        // `KeyDownEvent` only -- not `KeyRepeatEvent`/`KeyUpEvent` -- so a
+        // held Esc does not fire `onClose` repeatedly.
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          widget.onClose();
+        }
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onClose,
+        child: ColoredBox(
+          color: Colors.black.withValues(alpha: 0.45),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              // Swallow taps inside the panel so only the backdrop closes.
+              onTap: () {},
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 384),
+                child: Semantics(
+                  label: l.peerStatusTitle,
+                  container: true,
+                  // `scopesRoute: true` mirrors React `aria-modal="true"`
+                  // (it scopes the route so the drawer is announced as a
+                  // modal boundary); `label` is the `aria-labelledby` title.
+                  // `explicitChildNodes: true` is REQUIRED by the framework
+                  // when `scopesRoute` is true (RenderObject assertion), so
+                  // the drawer's own semantics children stay visible under
+                  // the scoped node instead of being merged up.
+                  explicitChildNodes: true,
+                  scopesRoute: true,
+                  child: Material(
+                    color: theme.scaffoldBackgroundColor,
+                    elevation: 0,
+                    shape: Border(
+                      left: BorderSide(color: theme.dividerColor),
+                    ),
+                    child: SizedBox.expand(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _DrawerHeader(
+                            title: l.peerStatusTitle,
+                            refreshTooltip: l.refreshStatus,
+                            closeTooltip: l.closePeerStatus,
+                            refreshing: widget.refreshing,
+                            onRefresh: widget.onRefresh,
+                            onClose: widget.onClose,
+                          ),
+                          Expanded(
+                            child: _DrawerContent(
+                              session: widget.session,
+                              channel: widget.channel,
+                              group: widget.group,
+                              error: widget.error,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
