@@ -84,7 +84,19 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   void _onStaticPeerChanged(String value) =>
       ref.read(inviteFlowProvider.notifier).setStaticPeer(value.isEmpty ? null : value);
   void _onListenPortChanged(String value) {
-    final n = int.tryParse(value) ?? 0;
+    // React parity: NewSessionPanelMenu.tsx renders `<input type="number"
+    // min={0} max={65535} ...>` so the browser rejects/flags out-of-range
+    // values and `Number(e.target.value) || 0` coerces non-numeric to 0.
+    // Flutter has no native ranged numeric input, so the range constraint
+    // is enforced here by clamping the STORED value to 0..65535 before it
+    // reaches inviteFlow (and onward to Rust as listen_port). The field
+    // text is intentionally NOT rewritten: a mid-typing rewrite (e.g.
+    // "999" -> "65535") is jarring and fights the user. The displayed text
+    // may therefore transiently show an out-of-range value, but only the
+    // clamped stored value crosses the seam -- mirroring the conservative
+    // reading of the React `<input min/max>` behavior.
+    final parsed = int.tryParse(value) ?? 0;
+    final n = parsed.clamp(0, 65535);
     ref.read(inviteFlowProvider.notifier).setListenPort(n);
   }
 
