@@ -47,6 +47,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/features/dm/peer_label.dart';
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
 import 'package:mosh/src/features/sessions/channel_rail_item.dart';
@@ -316,16 +317,16 @@ class _SessionRow extends StatelessWidget {
   /// navigate-only behavior.
   final VoidCallback? onSelect;
 
-  String _label() {
-    if (session.peerDisplayName.isNotEmpty) return session.peerDisplayName;
-    if (session.displayName.isNotEmpty) return session.displayName;
-    return session.sessionId;
-  }
+  // React `peerLabel` (private-dm-screen.tsx:535-543): peer name from a
+  // message -> "peer" -> "invite sent"/"joining", with the Flutter
+  // `peerDisplayName` short-circuit. Shares the helper used by the DM
+  // header so the rail + the chat title agree on the fallback label.
+  String _label(AppLocalizations l) => peerLabel(l, session);
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final label = _label();
+    final label = _label(l);
     final stateText = stateLabel(l, session.state);
     // React `<Avatar name={label} />` hashes the LABEL (peer display name),
     // not the session id -- so two sessions with the same peer get the same

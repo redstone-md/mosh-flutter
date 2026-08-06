@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/dm/dm_message_list.dart';
+import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
@@ -201,10 +202,19 @@ void main() {
     expect(find.text('first'), findsOneWidget);
     expect(find.text('second'), findsOneWidget);
 
-    // Exactly one sender-meta row: the device name 'bob' appears once (it
-    // would appear twice -- once per row -- without grouping) and the
-    // HH:mm clock appears exactly once for the first message.
-    expect(find.text('bob'), findsOneWidget);
+    // Exactly one sender-meta row: the device name 'bob' appears once in a
+    // message row (it would appear twice -- once per row -- without
+    // grouping) and the HH:mm clock appears exactly once for the first
+    // message. Scoped to DmMessageRow because the DM AppBar title now also
+    // shows the peer name (React `peerLabel` parity), so an unscoped
+    // find.text('bob') would also match the header title.
+    expect(
+      find.descendant(
+        of: find.byType(DmMessageRow),
+        matching: find.text('bob'),
+      ),
+      findsOneWidget,
+    );
 
     // The HH:mm clock is locale-aware + in the LOCAL timezone (1-1 with
     // React's `toLocaleTimeString`), so the expected string is derived

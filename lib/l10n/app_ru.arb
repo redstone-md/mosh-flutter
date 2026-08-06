@@ -695,9 +695,13 @@
   "callActiveHangUp": "Завершить звонок"
   ,
   "callStart": "Позвонить",
-  "callPeerFallback": "Собеседник"
+ "callPeerFallback": "Собеседник"
+ ,
+  "peerLabelInviteSent": "Приглашение отправлено"
   ,
-  "vpnConsentTitle": "Через VPN идёт трафик Mosh",
+  "peerLabelJoining": "Подключение"
+  ,
+ "vpnConsentTitle": "Через VPN идёт трафик Mosh",
   "vpnConsentBody": "Весь трафик Mosh проходит через ваш VPN, что мешает другим найти вас. Mosh может использовать {adapter} вместо него.",
   "vpnConsentCaveat": "Пиры увидят ваш реальный сетевой адрес, а не адрес VPN. Mosh перезапустится, чтобы применить это; позже это можно изменить в разделе «Дополнительно».",
   "vpnConsentDecline": "Продолжить через VPN",

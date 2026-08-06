@@ -183,6 +183,10 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     }
   }
 
+  // Call modals use the runtime peer_display_name with the "Peer" fallback
+  // (React `peer_display_name || "Peer"`, private-dm-screen.tsx:462/481/494)
+  // -- NOT the full `peerLabel` ("invite sent"/"joining") used by the DM
+  // rail + header, because a call only exists once a peer is connected.
   String _peerLabel(SessionSnapshot? s) =>
       (s == null || s.peerDisplayName.isEmpty)
           ? widget.l.callPeerFallback
