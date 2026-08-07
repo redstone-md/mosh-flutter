@@ -113,7 +113,7 @@ void main() {
     // Type a body into the composer and tap Send.
     await tester.enterText(_composerField(), 'hello there');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send'));
+    await tester.tap(find.byKey(kComposerSendButtonKey));
     await tester.pumpAndSettle();
 
     // The Gateway send was attempted once with the body.
@@ -139,7 +139,7 @@ void main() {
 
     await tester.enterText(_composerField(), 'hello there');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send'));
+    await tester.tap(find.byKey(kComposerSendButtonKey));
     await tester.pumpAndSettle();
 
     // Banner + Retry are present after the failed first send.

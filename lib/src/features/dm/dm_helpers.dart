@@ -20,6 +20,14 @@ import 'package:mosh/src/util/format.dart' show shorten;
 /// React `.message-meta { gap: 8px }`.
 const double kMessageMetaGap = 8;
 
+/// React `.chat-title-block p { margin: 4px 0 0; color: var(--fg-3);
+/// font-size: 12px }` -- the line under a chat header's title.
+const TextStyle kChatSubtitleStyle =
+    TextStyle(fontSize: 12, color: MoshColors.fg3);
+
+/// The `margin-top: 4px` that separates it from the title.
+const double kChatSubtitleGap = 4;
+
 /// React `.message-row { gap: 12px }` -- avatar to body.
 const double kMessageRowGap = 12;
 

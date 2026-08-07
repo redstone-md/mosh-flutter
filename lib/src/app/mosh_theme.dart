@@ -182,11 +182,17 @@ ThemeData buildMoshTheme() {
     fontFamily: _kSansFamily,
     fontFamilyFallback: const ['Geist', 'IBM Plex Sans', 'system-ui'],
     textTheme: _moshTextTheme(),
+    // React `.chat-header { padding: 14px 22px; border-bottom: 1px solid
+    // var(--line) }` over the --bg-1 chat pane. Material's default is a
+    // 56px bar with 16px title spacing and no rule under it.
     appBarTheme: const AppBarTheme(
-      backgroundColor: MoshColors.bg0, // --bg-0 (window top)
+      backgroundColor: MoshColors.bg1,
       foregroundColor: MoshColors.fg1, // --fg-1
       elevation: 0,
       scrolledUnderElevation: 0,
+      toolbarHeight: 70,
+      titleSpacing: 22,
+      shape: Border(bottom: BorderSide(color: MoshColors.line)),
       // React `.chat-title-block h1` — 15px/700, letter-spacing 0.02em.
       titleTextStyle: TextStyle(
         fontFamily: _kSansFamily,
