@@ -41,6 +41,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/dm/call_button.dart';
 import 'package:mosh/src/features/dm/call_state.dart' show kNoAnswerTimeoutMs;
 import 'package:mosh/src/features/dm/ringtone_player.dart';
@@ -153,57 +154,62 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
       child: Semantics(
         label: widget.l.callIncomingAriaLabel,
         container: true,
-        child: Dialog(
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          backgroundColor: const Color(0xFF1D1F24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 280),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // React strong.call-modal-peer (18px).
-                  Text(
-                    widget.peerLabel,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  // React span.call-modal-status (14px, opacity .75).
-                  Text(
-                    widget.l.callIncomingStatus,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xBFFFFFFF),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  // React .call-modal-actions (row, gap 16).
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CallButton(
-                        icon: Icons.phone_disabled,
-                        tooltip: widget.l.callIncomingDecline,
-                        color: const Color(0xFFE5484D),
-                        onPressed: () => _decline(kCallDeclineReasonUser),
+        // ModalFocusTrap goes inside Semantics and KeyboardListener so Tab key events are handled
+        // by the trap, while Escape is caught first by the outer KeyboardListener.
+        child: ModalFocusTrap(
+          child: Dialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            backgroundColor: const Color(0xFF1D1F24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 280),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // React strong.call-modal-peer (18px).
+                    Text(
+                      widget.peerLabel,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(width: 16),
-                      CallButton(
-                        icon: Icons.phone,
-                        tooltip: widget.l.callIncomingAccept,
-                        color: const Color(0xFF2EA043),
-                        onPressed: widget.onAccept,
+                    ),
+                    const SizedBox(height: 18),
+                    // React span.call-modal-status (14px, opacity .75).
+                    Text(
+                      widget.l.callIncomingStatus,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xBFFFFFFF),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 18),
+                    // React .call-modal-actions (row, gap 16).
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CallButton(
+                          icon: Icons.phone_disabled,
+                          tooltip: widget.l.callIncomingDecline,
+                          color: const Color(0xFFE5484D),
+                          onPressed: () => _decline(kCallDeclineReasonUser),
+                        ),
+                        const SizedBox(width: 16),
+                        CallButton(
+                          icon: Icons.phone,
+                          tooltip: widget.l.callIncomingAccept,
+                          color: const Color(0xFF2EA043),
+                          onPressed: widget.onAccept,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

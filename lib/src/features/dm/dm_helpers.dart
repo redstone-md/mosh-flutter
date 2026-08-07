@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -496,29 +497,31 @@ class _PeerNickname extends StatelessWidget {
       BuildContext context, AppLocalizations l, bool alreadyOffered) async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(name),
-        // The Message button mirrors React's `nick-popover` primary button:
-        // disabled when alreadyOffered || busy, labelled "Invite sent" when
-        // already offered, otherwise "Message". Tapping it calls
-        // `peer.onMessage(fingerprint)` then closes the popover (React
-        // `peer.onMessage(fingerprint); setOpen(false)`).
-        actions: [
-          TextButton(
-            onPressed: (alreadyOffered || peer.busy)
-                ? null
-                : () {
-                    Navigator.of(dialogContext).pop();
-                    peer.onMessage(fingerprint);
-                  },
-            child:
-                Text(alreadyOffered ? l.peerInviteSent : l.peerMessageAction),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l.dialogCancel),
-          ),
-        ],
+      builder: (dialogContext) => ModalFocusTrap(
+        child: AlertDialog(
+          title: Text(name),
+          // The Message button mirrors React's `nick-popover` primary button:
+          // disabled when alreadyOffered || busy, labelled "Invite sent" when
+          // already offered, otherwise "Message". Tapping it calls
+          // `peer.onMessage(fingerprint)` then closes the popover (React
+          // `peer.onMessage(fingerprint); setOpen(false)`).
+          actions: [
+            TextButton(
+              onPressed: (alreadyOffered || peer.busy)
+                  ? null
+                  : () {
+                      Navigator.of(dialogContext).pop();
+                      peer.onMessage(fingerprint);
+                    },
+              child:
+                  Text(alreadyOffered ? l.peerInviteSent : l.peerMessageAction),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l.dialogCancel),
+            ),
+          ],
+        ),
       ),
     );
   }

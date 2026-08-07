@@ -62,6 +62,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 
 /// A centered modal confirmation dialog -- 1-в-1 with React's
 /// `ConfirmDialog`. Construct directly and pass to `showDialog`, or use
@@ -179,14 +180,18 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
             widget.onCancel();
           }
         },
-        child: _ConfirmDialogCard(
-          title: widget.title,
-          body: widget.body,
-          confirmLabel: widget.confirmLabel,
-          cancelLabel: widget.cancelLabel,
-          onCancel: widget.onCancel,
-          onConfirm: widget.onConfirm,
-          dangerColor: widget.dangerColor,
+        // ModalFocusTrap goes inside KeyboardListener so Escape is caught first by the
+        // outer KeyboardListener, while Tab key events are handled by the trap.
+        child: ModalFocusTrap(
+          child: _ConfirmDialogCard(
+            title: widget.title,
+            body: widget.body,
+            confirmLabel: widget.confirmLabel,
+            cancelLabel: widget.cancelLabel,
+            onCancel: widget.onCancel,
+            onConfirm: widget.onConfirm,
+            dangerColor: widget.dangerColor,
+          ),
         ),
       ),
     );
@@ -283,39 +288,39 @@ class _ConfirmDialogCard extends StatelessWidget {
                   ),
                   textAlign: TextAlign.left,
                 ),
-               const SizedBox(height: 16),
-               // React `.confirm-dialog-actions`: ghost Cancel +
-               // danger Confirm, right-aligned.
-               // React `.confirm-dialog-actions` is `display:flex;
-               // justify-content:flex-end; gap:8px` with no explicit
-               // flex-wrap on desktop (it relies on the 380px cap being
-               // wide enough). The Flutter port renders under the wider
-               // Ahem test font, where the close-flow's longer labels
-               // ("Cancel" + "Leave channel") overflow a fixed `Row`.
-               // `Wrap` with `alignment: end` + `spacing: 8` reproduces
-               // the right-aligned single-line layout when the buttons
-               // fit (visually identical to React's flex row) and degrades
-               // to a wrapped stack when they don't -- mirroring React's
-               // `@media (max-width:480px) { flex-direction:column-reverse;
-               // width:100% }` fallback for narrow surfaces.
-               Wrap(
-                 alignment: WrapAlignment.end,
-                 spacing: 8,
-                 children: [
-                   // React `btn btn-ghost` -> Material TextButton (no
-                   // background, primary-foreground text).
-                   TextButton(
-                     onPressed: onCancel,
-                     child: Text(cancel),
-                   ),
-                   // React `btn btn-danger` -> Material FilledButton with
-                   // the danger background. No `autofocus` -- the close-X gets
-                   // initial focus (see file header); confirm requires an
-                   // explicit Tab/click so an accidental Enter can't trigger the
-                   // destructive action.
-                   FilledButton(
-                  onPressed: onConfirm,
-                  style: FilledButton.styleFrom(
+                const SizedBox(height: 16),
+                // React `.confirm-dialog-actions`: ghost Cancel +
+                // danger Confirm, right-aligned.
+                // React `.confirm-dialog-actions` is `display:flex;
+                // justify-content:flex-end; gap:8px` with no explicit
+                // flex-wrap on desktop (it relies on the 380px cap being
+                // wide enough). The Flutter port renders under the wider
+                // Ahem test font, where the close-flow's longer labels
+                // ("Cancel" + "Leave channel") overflow a fixed `Row`.
+                // `Wrap` with `alignment: end` + `spacing: 8` reproduces
+                // the right-aligned single-line layout when the buttons
+                // fit (visually identical to React's flex row) and degrades
+                // to a wrapped stack when they don't -- mirroring React's
+                // `@media (max-width:480px) { flex-direction:column-reverse;
+                // width:100% }` fallback for narrow surfaces.
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  children: [
+                    // React `btn btn-ghost` -> Material TextButton (no
+                    // background, primary-foreground text).
+                    TextButton(
+                      onPressed: onCancel,
+                      child: Text(cancel),
+                    ),
+                    // React `btn btn-danger` -> Material FilledButton with
+                    // the danger background. No `autofocus` -- the close-X gets
+                    // initial focus (see file header); confirm requires an
+                    // explicit Tab/click so an accidental Enter can't trigger the
+                    // destructive action.
+                    FilledButton(
+                      onPressed: onConfirm,
+                      style: FilledButton.styleFrom(
                         backgroundColor: dangerColor,
                         foregroundColor: Colors.white,
                       ),

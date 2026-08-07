@@ -28,6 +28,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/dm/call_button.dart';
 import 'package:mosh/src/features/dm/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -107,42 +108,47 @@ class _OutgoingCallModalState extends State<OutgoingCallModal> {
       child: Semantics(
         label: widget.l.callOutgoingAriaLabel,
         container: true,
-        child: Dialog(
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          backgroundColor: const Color(0xFF1D1F24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 280),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    widget.peerLabel,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+        // ModalFocusTrap goes inside Semantics and KeyboardListener so Tab key events are handled
+        // by the trap, while Escape is caught first by the outer KeyboardListener.
+        child: ModalFocusTrap(
+          child: Dialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            backgroundColor: const Color(0xFF1D1F24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 280),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      widget.peerLabel,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    widget.l.callOutgoingStatus,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xBFFFFFFF),
+                    const SizedBox(height: 18),
+                    Text(
+                      widget.l.callOutgoingStatus,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xBFFFFFFF),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  CallButton(
-                    icon: Icons.phone_disabled,
-                    tooltip: widget.l.callOutgoingCancel,
-                    color: const Color(0xFFE5484D),
-                    onPressed: _cancel,
-                  ),
-                ],
+                    const SizedBox(height: 18),
+                    CallButton(
+                      icon: Icons.phone_disabled,
+                      tooltip: widget.l.callOutgoingCancel,
+                      color: const Color(0xFFE5484D),
+                      onPressed: _cancel,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
