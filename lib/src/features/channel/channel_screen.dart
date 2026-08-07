@@ -48,6 +48,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
+import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
 import 'package:mosh/src/routing/app_router.dart';
@@ -305,6 +306,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: AppBar(
+        leading: railBackButton(context),
         title: Text(widget.name),
         actions: [
           // Mobile search toggle -- 1-1 with React `MobileSearchToggle`

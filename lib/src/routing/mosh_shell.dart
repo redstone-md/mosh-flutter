@@ -47,6 +47,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
+import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart' show kRailWidth;
 import 'package:mosh/src/routing/mosh_title_bar.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
@@ -261,7 +263,18 @@ class ChatPaneWelcome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = isMobileBreakpoint(context);
     return Scaffold(
+      // On mobile this pane fills the window and the rail is offstage, so
+      // without a header there is no way back to the conversation list --
+      // the panel's own Back only returns to its step menu. Desktop keeps
+      // the pane chrome-less: it is the right half of the two-pane shell.
+      appBar: mobile
+          ? AppBar(
+              leading: railBackButton(context),
+              title: Text(AppLocalizations.of(context)!.shellNewSession),
+            )
+          : null,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

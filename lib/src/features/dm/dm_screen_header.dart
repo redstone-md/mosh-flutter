@@ -33,6 +33,7 @@ import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/fingerprint_badge.dart';
 import 'package:mosh/src/features/dm/chat_header_menu.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/dm/peer_label.dart';
 
 /// The DmScreen AppBar header: the two-line title Column (peer display name
@@ -123,6 +124,7 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final confirmed = fingerprint.isNotEmpty &&
         widget.confirmedFingerprints.contains(widget.sessionId);
     return AppBar(
+      leading: railBackButton(context),
       title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,

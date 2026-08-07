@@ -55,6 +55,7 @@
   "stateWaiting": "Ожидание",
   "stateReady": "Подключено",
   "sessionsListTitle": "Диалоги",
+  "backToConversations": "К диалогам",
   "sessionsError": "Не удалось загрузить сессии.",
   "sessionsRetry": "Повторить",
   "cryptoNoticeTitle": "Сквозное шифрование",
