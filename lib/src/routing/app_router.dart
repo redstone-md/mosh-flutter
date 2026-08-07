@@ -92,7 +92,15 @@ class AppRoutes {
 /// only declarative route -> screen mappings. `MoshApp` passes it to
 /// `MaterialApp.router` (which preserves locale/theme/localization wiring).
 final GoRouter appRouter = GoRouter(
-  initialLocation: AppRoutes.onboarding,
+  // App opens directly inside the StatefulShellRoute (mosh_shell.dart):
+  // branch A (/sessions, the SessionRail) on the left and branch B
+  // (/chat, ChatPaneWelcome with the inline NewSessionPanel) on the right
+  // on desktop, branch A alone on mobile. This mirrors the React app,
+  // where App.tsx renders <PrivateDmScreen/> immediately with no
+  // onboarding gate. The `/` onboarding route (OnboardingScreen with its
+  // tiles + the AppBar diagnostics action) remains reachable by
+  // navigation -- it is just no longer the initial location.
+  initialLocation: AppRoutes.sessions,
   routes: <RouteBase>[
     GoRoute(
       path: AppRoutes.onboarding,
