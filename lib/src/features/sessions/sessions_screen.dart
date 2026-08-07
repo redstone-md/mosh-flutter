@@ -124,14 +124,10 @@ class SessionsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l.sessionsListTitle),
-        actions: [
-          IconButton(
-            // Match the onboarding AppBar action (cable_outlined -> /diagnostics).
-            icon: const Icon(Icons.cable_outlined),
-            tooltip: l.diagnosticsDiagnostics,
-            onPressed: () => context.go(AppRoutes.diagnostics),
-          ),
-        ],
+        // No AppBar actions: React's SessionRail (the rail this screen ports)
+        // has no per-rail diagnostics / peer-status button -- the only entry
+        // is the shell titlebar's "Peer status" button (MoshTitleBar ->
+        // shell-level PeerStatusDrawer), 1:1 with React's header.titlebar.
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),

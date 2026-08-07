@@ -9,7 +9,6 @@
 //   /join             InvitePasteScreen
 //   /sessions         SessionsScreen (DM sessions list; React SessionRail)
 //   /dm/:sessionId    DmScreen(sessionId = state.pathParameters['sessionId'])
-//   /diagnostics      DiagnosticsScreen
 //
 // Two-pane shell (React private-dm-screen desktop-body parity): the
 // /sessions, /dm/:id, /channel/:name, /group/:groupId, and /chat (welcome)
@@ -28,7 +27,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:mosh/src/features/diagnostics/diagnostics_screen.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
@@ -49,7 +47,6 @@ class AppRoutes {
 
   static const String onboarding = '/';
   static const String join = '/join';
-  static const String diagnostics = '/diagnostics';
   static const String sessions = '/sessions';
   // Branch B (chat) default location -- the welcome pane shown when no
   // conversation is open (desktop right pane / mobile chat branch initial).
@@ -118,11 +115,6 @@ final GoRouter appRouter = GoRouter(
         final initialInviteUri = extra is String ? extra : null;
         return InvitePasteScreen(initialInviteUri: initialInviteUri);
       },
-    ),
-    GoRoute(
-      path: AppRoutes.diagnostics,
-      builder: (BuildContext context, GoRouterState state) =>
-          const DiagnosticsScreen(),
     ),
     GoRoute(
       // Chat-create step (1-в-1 with React's ChatCreateStep). Reached from

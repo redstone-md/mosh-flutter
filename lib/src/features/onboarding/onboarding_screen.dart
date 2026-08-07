@@ -2,20 +2,18 @@
 // The full menu body (identity chip -> head -> Start tiles -> Join tiles ->
 // Advanced + About disclosures) lives in OnboardMenu (onboard_menu.dart) so
 // atomic #3 can embed the same widget inline in the desktop chat-pane. This
-// screen keeps only the Scaffold + AppBar(diagnostics action) and decides
-// routing for the four tiles via context.go (1:1 with React's NewSessionPanel
+// screen keeps only the Scaffold + a bare AppBar and decides routing for
+// the four tiles via context.go (1:1 with React's NewSessionPanel
 // onPick, which the screen maps to route navigation rather than a step switch).
 //
 // S2-1: the Join tile navigates to /join (InvitePasteScreen); Group/Chat/
-// Channel navigate to their create/join steps. Diagnostics is reachable from
-// the AppBar action (cable_outlined -> /diagnostics), not a tile, so the four
+// Channel navigate to their create/join steps. The four
 // React tiles stay 1:1 with the upstream design. Only existing ARB keys are
-// reused (diagnosticsDiagnostics for the action tooltip).
+// reused.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
@@ -37,25 +35,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _goJoin() => context.go(AppRoutes.join);
   void _goChatCreate() => context.go(AppRoutes.chatCreate);
   void _goChannelJoin() => context.go(AppRoutes.channelJoin);
-  void _goDiagnostics() => context.go(AppRoutes.diagnostics);
   void _goGroupCreate() => context.go(AppRoutes.groupCreate);
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     // Banner mirrors NewSessionPanel: renders above the menu (React parity;
     // OnboardMenu itself has no banner so a single surface shows it once).
     final warning = ref.watch(persistenceWarningProvider);
     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.cable_outlined),
-            tooltip: l.diagnosticsDiagnostics,
-            onPressed: _goDiagnostics,
-          ),
-        ],
-      ),
+      // AppBar has no actions: React's NewSessionPanel (the panel this
+      // screen mirrors) has no diagnostics action -- peer status lives in
+      // the shell titlebar (MoshTitleBar's "Peer status" button -> the
+      // shell-level PeerStatusDrawer), 1:1 with React's header.titlebar.
+      appBar: AppBar(),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
@@ -64,7 +56,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (warning case AsyncData(:final value) when value != null) ...[
+                if (warning case AsyncData(:final value)
+                    when value != null) ...[
                   PersistenceWarningBanner(warning: value),
                   const SizedBox(height: 12),
                 ],
