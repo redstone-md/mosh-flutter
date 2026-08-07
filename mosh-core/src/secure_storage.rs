@@ -2,7 +2,19 @@ use flutter_rust_bridge::frb;
 use keyring_core::Entry;
 use std::sync::OnceLock;
 
-const SERVICE_NAME: &str = "app.mosh.desktop";
+/// This app's keyring namespace. It is deliberately NOT the Tauri shell's
+/// `app.mosh.desktop`: the two apps keep separate databases
+/// (`app.mosh.desktop/mosh-history.redb` vs the Flutter
+/// `app.mosh/mosh/mosh/history.redb`) but used to share one credential slot,
+/// so whichever app rotated or deleted the DEK silently orphaned the other
+/// one's history behind the fail-closed guard in `Persistence::open`.
+const SERVICE_NAME: &str = "app.mosh.flutter";
+
+/// The slot this app used to share with the Tauri shell. Reads fall back to
+/// it once and migrate the secret forward, so an install that already holds a
+/// working DEK there keeps its history instead of hitting the same
+/// fail-closed error the rename was meant to prevent.
+const LEGACY_SERVICE_NAME: &str = "app.mosh.desktop";
 const BACKEND_NAME: &str = "os-keychain";
 const NATIVE_STORE_ERROR: &str = "native secure store is unavailable";
 
@@ -47,9 +59,23 @@ impl OsSecureSecretStore {
     }
 
     fn entry(key: &str) -> Result<Entry, SecureStorageError> {
+        Self::entry_in(SERVICE_NAME, key)
+    }
+
+    fn entry_in(service: &str, key: &str) -> Result<Entry, SecureStorageError> {
         ensure_native_store()?;
 
-        Entry::new(SERVICE_NAME, key).map_err(|error| SecureStorageError::Entry(error.to_string()))
+        Entry::new(service, key).map_err(|error| SecureStorageError::Entry(error.to_string()))
+    }
+
+    /// Reads `key` from the legacy slot. Any failure means "nothing to
+    /// migrate" -- the caller keeps the error from the current slot, which is
+    /// the one worth surfacing.
+    fn load_legacy(key: &str) -> Option<Vec<u8>> {
+        Self::entry_in(LEGACY_SERVICE_NAME, key)
+            .ok()?
+            .get_secret()
+            .ok()
     }
 }
 
@@ -63,9 +89,28 @@ pub fn storage_status_for(_store: &dyn SecureSecretStore) -> SecureStorageStatus
 
 impl SecureSecretStore for OsSecureSecretStore {
     fn load_secret(&self, key: &str) -> Result<Vec<u8>, SecureStorageError> {
-        Self::entry(key)?
+        let current = Self::entry(key)?
             .get_secret()
-            .map_err(|error| SecureStorageError::Backend(error.to_string()))
+            .map_err(|error| SecureStorageError::Backend(error.to_string()));
+        let Err(error) = current else {
+            return current;
+        };
+
+        // Nothing under this app's own slot. Before surfacing the failure --
+        // which fails the whole runtime closed when a database exists -- take
+        // the one-time hand-off from the slot this app used to share with the
+        // Tauri shell. Falling back on ANY error, not just a typed
+        // not-found, keeps this independent of the backend's error taxonomy;
+        // if the legacy slot is empty too, the original error is returned
+        // unchanged.
+        let Some(secret) = Self::load_legacy(key) else {
+            return Err(error);
+        };
+        // Best-effort migration: a write failure still lets this run proceed
+        // with the recovered secret, and the next start retries the copy.
+        let _ = self.save_secret(key, &secret);
+
+        Ok(secret)
     }
 
     fn save_secret(&self, key: &str, value: &[u8]) -> Result<(), SecureStorageError> {
@@ -140,6 +185,41 @@ mod tests {
             panic!("init must not run once cached")
         })
         .is_ok());
+    }
+
+    /// The rename is only safe because a DEK already sitting in the shared
+    /// Tauri slot is handed forward. Without this the fail-closed guard in
+    /// `Persistence::open` would brick every install that had one.
+    #[test]
+    fn load_falls_back_to_the_legacy_slot_and_migrates_it() {
+        const KEY: &str = "adapter-contract-legacy-migration";
+        let store = OsSecureSecretStore;
+        let secret = [7u8, 8, 9, 250];
+
+        // Seed ONLY the legacy slot, exactly like an install predating the
+        // rename.
+        OsSecureSecretStore::entry_in(LEGACY_SERVICE_NAME, KEY)
+            .expect("legacy entry")
+            .set_secret(&secret)
+            .expect("legacy slot should accept the secret");
+
+        let loaded = store
+            .load_secret(KEY)
+            .expect("a legacy secret must still be readable after the rename");
+        assert_eq!(loaded, secret);
+
+        // ...and it is copied into this app's own slot, so the next read no
+        // longer depends on the legacy one.
+        let migrated = OsSecureSecretStore::entry_in(SERVICE_NAME, KEY)
+            .expect("current entry")
+            .get_secret()
+            .expect("the secret should have been migrated forward");
+        assert_eq!(migrated, secret);
+
+        let _ = store.delete_secret(KEY);
+        let _ = OsSecureSecretStore::entry_in(LEGACY_SERVICE_NAME, KEY)
+            .expect("legacy entry")
+            .delete_credential();
     }
 
     #[test]
