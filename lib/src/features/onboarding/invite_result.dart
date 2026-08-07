@@ -15,6 +15,8 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 
 /// Renders an invite URI plus a Copy affordance, mirroring React
 /// `InviteResult`.
@@ -48,43 +50,60 @@ class InviteResult extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
+    // React `.invite-ready { gap: 8px; padding: 12px; border-radius: 12px;
+    // border: 1px solid rgba(183,216,74,0.3); background: var(--moss-glow) }`
+    // -- the whole result reads as a moss-tinted success block.
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-        color: theme.colorScheme.surfaceContainerLowest,
+        border: Border.all(color: MoshColors.moss.withValues(alpha: 0.3)),
+        color: MoshColors.mossGlow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
+              // `.invite-ready-note { gap: 6px; color: var(--moss);
+              // font-size: 11.5px; font-weight: 600 }`.
+              const Icon(Icons.check, size: 16, color: MoshColors.moss),
+              const SizedBox(width: 6),
               Expanded(
-                child: Text(note, style: theme.textTheme.bodySmall),
+                child: Text(
+                  note,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: MoshColors.moss,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          // `.invite-code { padding: 10px 12px; border-radius: 8px;
+          // background: var(--bg-0); color: var(--fg-2); font-family: mono;
+          // font-size: 11px; line-height: 1.5; border: 1px solid --line }`.
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              color: theme.colorScheme.surfaceContainerHighest,
+              color: MoshColors.bg0,
+              border: Border.all(color: MoshColors.line),
             ),
             child: SelectableText(
               uri,
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: const TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12.5,
+                fontSize: 11,
+                height: 1.5,
+                color: MoshColors.fg2,
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: onCopy,
             icon: Icon(copied ? Icons.check : Icons.copy, size: 16),
