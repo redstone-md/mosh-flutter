@@ -20,6 +20,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 
 import 'package:mosh/l10n/app_localizations.dart';
 
@@ -57,14 +59,15 @@ class FingerprintBadge extends StatelessWidget {
         .take(4)
         .map((m) => m[0]!)
         .join(' ');
-    final scheme = Theme.of(context).colorScheme;
-    // React `--moss` is a green; map to the M3 primary when confirmed
-    // (green-ish on most palettes), neutral outline otherwise. Keeps
-    // light/dark parity without a hard-coded color.
-    final accent = confirmed ? scheme.primary : scheme.outline;
-   final bg = confirmed
-        ? scheme.primaryContainer.withValues(alpha: 0.35)
-        : scheme.surfaceContainerHighest;
+    // React `.fingerprint-badge { border: 1px solid var(--line);
+    // background: var(--bg-2); color: var(--warn) }`, with
+    // `.fingerprint-badge-confirmed` swapping the text to --moss over a
+    // rgba(moss,0.3) border. The unconfirmed state is a WARNING, so it is
+    // --warn rather than a neutral outline.
+    final accent = confirmed ? MoshColors.moss : MoshColors.warn;
+    final border = confirmed
+        ? MoshColors.moss.withValues(alpha: 0.3)
+        : MoshColors.line;
     return Semantics(
       label: confirmed ? l.inviteConfirmedButton : l.inviteConfirmButton,
       button: true,
@@ -77,9 +80,9 @@ class FingerprintBadge extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: bg,
+              color: MoshColors.bg2,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: accent.withValues(alpha: 0.5)),
+              border: Border.all(color: border),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

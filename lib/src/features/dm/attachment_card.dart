@@ -431,30 +431,30 @@ class _MediaPreviewCard extends StatelessWidget {
             // media shell itself has no padding, so the bar carries it.
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: _buildBar(
-                  l: l,
-                  fileName: descriptor.fileName,
-                  totalSize: descriptor.totalSize,
-                  state: state,
-                  percent: percent,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: _buildBar(
+                    l: l,
+                    fileName: descriptor.fileName,
+                    totalSize: descriptor.totalSize,
+                    state: state,
+                    percent: percent,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              AttachmentActions(
-                descriptor: descriptor,
-                view: view,
-                state: state,
-                outgoing: outgoing,
-                busy: busy,
-                onDownload: onDownload,
-                onCancel: onCancel,
-                onOpen: onOpen,
-                l: l,
-              ),
-            ],
+                const SizedBox(width: 10),
+                AttachmentActions(
+                  descriptor: descriptor,
+                  view: view,
+                  state: state,
+                  outgoing: outgoing,
+                  busy: busy,
+                  onDownload: onDownload,
+                  onCancel: onCancel,
+                  onOpen: onOpen,
+                  l: l,
+                ),
+              ],
             ),
           ),
         ],

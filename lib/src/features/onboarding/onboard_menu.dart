@@ -278,21 +278,23 @@ class _IdentityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-        color: theme.colorScheme.surfaceContainerLowest,
+        border: Border.all(color: MoshColors.line),
+        // `.onboard-identity { background: var(--bg-2) }`.
+        color: MoshColors.bg2,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CircleAvatar(
+          // The identity glyph is a --moss-glow tile like every other
+          // icon surface, not a solid --moss disc.
+          const CircleAvatar(
             radius: 18,
-            backgroundColor: theme.colorScheme.primaryContainer,
-            child: const Icon(Icons.person, size: 20),
+            backgroundColor: MoshColors.mossGlow,
+            child: Icon(Icons.person, size: 20, color: MoshColors.moss),
           ),
           const SizedBox(width: 10),
           Expanded(

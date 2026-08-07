@@ -1,10 +1,12 @@
 // DM message row extracted from `dm_screen.dart` to keep that screen under
 // the 500-line ceiling. Ports the React `DmMessageRow` (src/features/
-// private-dm/MessageLists.tsx) 1-1: alignment/color by `own`, an avatar
-// slot (or a same-width spacer when grouped under the previous row),
-// sender-meta + body + optional AttachmentCard + own DeliveryTicks. This
-// widget owns the avatar diameter const so the spacer stays visually
-// indented under a real avatar.
+// private-dm/MessageLists.tsx) 1-1: a flat left-aligned `.message-row` --
+// an avatar (or a same-width spacer when grouped under the previous row),
+// then sender-meta + body + optional AttachmentCard + own DeliveryTicks.
+// There is no bubble and no own-vs-peer side; `own` only gates the
+// delivery ticks and the retry affordance. This widget owns the avatar
+// diameter const so the spacer stays visually indented under a real
+// avatar.
 //
 // Server state lives in the parent `_MessageListView`; this row is a pure
 // `StatelessWidget` driven by its ctor args (no providers, no async).
@@ -72,48 +74,48 @@ class DmMessageRow extends StatelessWidget {
           const SizedBox(width: kMessageRowGap),
           Expanded(
             child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!grouped) SenderMeta(message: message),
-                  if (message.body.isNotEmpty)
-                    Text(message.body, style: kMessageBodyStyle),
-                 if (message.attachment != null)
-                   AttachmentCard(
-                     descriptor: message.attachment!,
-                     view: attachmentView,
-                     own: own,
-                     busy: busy,
-                     onDownload: onAttachmentDownload,
-                     onCancel: onAttachmentCancel,
-                     onOpen: onAttachmentOpen,
-                   ),
-                 // React MessageLists.tsx L342:
-                 //   {message.call_event ? <CallLogEntry event={...} /> : null}
-                 // Renders BELOW the AttachmentCard + ABOVE DeliveryTicks,
-                 // mirroring React's child order.
-                 if (message.callEvent != null)
-                   CallLogEntry(event: message.callEvent!, l: l),
-                 if (own) DeliveryTicks(status: message.deliveryStatus),
-                 // FailedMessageRetry row (React FailedMessageRetry,
-                 // MessageLists.tsx L354-357) -- renders BELOW the body + AttachmentCard +
-                 // DeliveryTicks, mirroring React's message-body order (FailedMessageRetry
-                 // last child). Gate is the 1-1 port of React's render condition:
-                 // outbound && delivery_status === 'failed' && retryable && message_id
-                 // (outbound == own == from_device == ownDeviceName). The onRetry
-                 // callback fires the Gateway retry seam (retryDmMessage -> frb
-                 // private_dm_retry_message); the gate guarantees message.messageId is
-                 // non-null, so the bang (!) is safe.
-                 if (own &&
-                     message.deliveryStatus == MessageDeliveryStatus.failed &&
-                     message.retryable == true &&
-                     message.messageId != null)
-                   FailedMessageRetry(
-                     deliveryError: message.deliveryError,
-                     onRetry: () => onRetry(message.messageId!),
-                     l: l.toFailedMessageRetryL10n(),
-                   ),
-                ],
-              ),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!grouped) SenderMeta(message: message),
+                if (message.body.isNotEmpty)
+                  Text(message.body, style: kMessageBodyStyle),
+                if (message.attachment != null)
+                  AttachmentCard(
+                    descriptor: message.attachment!,
+                    view: attachmentView,
+                    own: own,
+                    busy: busy,
+                    onDownload: onAttachmentDownload,
+                    onCancel: onAttachmentCancel,
+                    onOpen: onAttachmentOpen,
+                  ),
+                // React MessageLists.tsx L342:
+                //   {message.call_event ? <CallLogEntry event={...} /> : null}
+                // Renders BELOW the AttachmentCard + ABOVE DeliveryTicks,
+                // mirroring React's child order.
+                if (message.callEvent != null)
+                  CallLogEntry(event: message.callEvent!, l: l),
+                if (own) DeliveryTicks(status: message.deliveryStatus),
+                // FailedMessageRetry row (React FailedMessageRetry,
+                // MessageLists.tsx L354-357) -- renders BELOW the body + AttachmentCard +
+                // DeliveryTicks, mirroring React's message-body order (FailedMessageRetry
+                // last child). Gate is the 1-1 port of React's render condition:
+                // outbound && delivery_status === 'failed' && retryable && message_id
+                // (outbound == own == from_device == ownDeviceName). The onRetry
+                // callback fires the Gateway retry seam (retryDmMessage -> frb
+                // private_dm_retry_message); the gate guarantees message.messageId is
+                // non-null, so the bang (!) is safe.
+                if (own &&
+                    message.deliveryStatus == MessageDeliveryStatus.failed &&
+                    message.retryable == true &&
+                    message.messageId != null)
+                  FailedMessageRetry(
+                    deliveryError: message.deliveryError,
+                    onRetry: () => onRetry(message.messageId!),
+                    l: l.toFailedMessageRetryL10n(),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
