@@ -123,6 +123,12 @@ pub fn ensure_shared_resources() -> Result<SharedResources, String> {
 
 /// Resolve the data dir: `<app_data_dir>/mosh` when injected, else the
 /// temp-dir `mosh` dir the Tauri shell used.
+/// The at-rest history database. Single definition so the diagnostics facade
+/// reports the same path `construct_resources` opens.
+pub(crate) fn database_path() -> PathBuf {
+    resolve_data_dir(APP_DATA_DIR.get().map(PathBuf::as_path)).join("history.redb")
+}
+
 pub(crate) fn resolve_data_dir(app_data_dir: Option<&std::path::Path>) -> PathBuf {
     match app_data_dir {
         Some(dir) => dir.join("mosh"),
@@ -149,7 +155,7 @@ fn construct_resources() -> Result<SharedResources, String> {
     let moss = MossFfiRuntime::load_default().map_err(|error| error.to_string())?;
     let data_dir = resolve_data_dir(APP_DATA_DIR.get().map(PathBuf::as_path));
     std::fs::create_dir_all(&data_dir).map_err(|error| format!("mkdir data dir: {error}"))?;
-    let db_path = data_dir.join("history.redb");
+    let db_path = database_path();
     let persistence = match INJECTED_DEK.get() {
         Some(dek) => Persistence::open_with_dek(&db_path, *dek),
         None => Persistence::open(&db_path),

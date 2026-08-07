@@ -9,6 +9,7 @@
 //! structs and constants so the bridge (ADR 0010) can serialize them without
 //! touching a Tauri-typed type.
 
+use crate::api::shared_runtime::{database_path, ensure_shared_resources};
 use crate::moss_runtime::{MossDynamicRuntime, MossRuntime, MossRuntimeStatus};
 pub use crate::openmls_crypto::{
     run_openmls_alice_bob_roundtrip, run_openmls_smoke_test, OpenMlsRoundTripStatus,
@@ -28,13 +29,17 @@ const DISCOVERY_MODEL: &str = "default public Moss trackers";
 const MOSS_LINK_MODE: &str = "dynamic";
 
 // Persistence status: the Tauri shell pulled this from a managed
-// `PersistenceStatusState` that tracked the live redb instance. The api facade
-// has no process owner for persistence (ADR 0010: Tauri-free), and
-// `mosh-core::persistence` exposes only `Persistence::open(path)`, which opens
-// a real DB — there is no standalone status constructor. The honest standalone
-// answer for the bridge smoke call (S2) is therefore "available: false, no
-// instance running here". A host that owns a running persistence instance will
-// report the richer status out-of-band.
+// `PersistenceStatusState` that tracked the live redb instance. When this
+// facade was written it had no equivalent owner, so it answered a flat
+// "available: false, no instance running here".
+//
+// It does have one now: `api::shared_runtime::SHARED_RESOURCES` opens the
+// encrypted store once per process and hands `Arc<Persistence>` to every
+// runtime. The flat answer therefore stopped being honest and became a
+// permanent false alarm -- `persistenceWarningProvider` shows its banner
+// whenever `available && encrypted_at_rest` is not true, so every session
+// was told its history "may be lost after restart" while the DM runtime was
+// persisting it perfectly well.
 const PERSISTENCE_BACKEND: &str = "redb+aes-256-gcm+os-keychain";
 const PERSISTENCE_UNAVAILABLE: &str = "no persistence instance running in this api call";
 
@@ -91,15 +96,45 @@ pub struct OpenMlsRoundTripRuntimeStatus {
     pub error: Option<String>,
 }
 
-/// Builds the not-available persistence status used when no host owns a running
-/// redb instance for this api call.
-fn persistence_status_without_instance() -> PersistenceRuntimeStatus {
-    PersistenceRuntimeStatus {
-        backend: PERSISTENCE_BACKEND.to_string(),
-        database: "unavailable".to_string(),
-        available: false,
-        encrypted_at_rest: false,
-        error: Some(PERSISTENCE_UNAVAILABLE.to_string()),
+/// Reports the process-wide persistence store.
+///
+/// Goes through `ensure_shared_resources`, the same accessor every runtime
+/// uses, so this reports the store the app actually runs on rather than a
+/// guess. It is the idempotent `OnceLock` initialiser: the first caller pays
+/// for opening the DB (which the first session-list call would have paid
+/// anyway) and the rest just clone `Arc`s.
+///
+/// `encrypted_at_rest` tracks `available`: `Persistence::open` has no
+/// unencrypted mode -- it either resolves an AES-256-GCM DEK from the
+/// keychain or fails -- so a live instance is always an encrypted one.
+fn persistence_status() -> PersistenceRuntimeStatus {
+    let database = database_path().display().to_string();
+
+    match ensure_shared_resources() {
+        Ok(resources) if resources.persistence.is_some() => PersistenceRuntimeStatus {
+            backend: PERSISTENCE_BACKEND.to_string(),
+            database,
+            available: true,
+            encrypted_at_rest: true,
+            error: None,
+        },
+        // Resources built, but without a store: nothing owns a DB here.
+        Ok(_) => PersistenceRuntimeStatus {
+            backend: PERSISTENCE_BACKEND.to_string(),
+            database,
+            available: false,
+            encrypted_at_rest: false,
+            error: Some(PERSISTENCE_UNAVAILABLE.to_string()),
+        },
+        // Construction failed -- surface the real cause, which is what the
+        // warning banner is for.
+        Err(error) => PersistenceRuntimeStatus {
+            backend: PERSISTENCE_BACKEND.to_string(),
+            database,
+            available: false,
+            encrypted_at_rest: false,
+            error: Some(error),
+        },
     }
 }
 
@@ -180,12 +215,13 @@ pub fn app_diagnostics() -> AppDiagnostics {
 }
 
 /// Per-runtime readiness diagnostics. Delegates to the mosh-core runtimes;
-/// persistence reports not-available because the api facade owns no DB handle.
+/// persistence reports the process-wide shared store (see
+/// [`persistence_status`]).
 pub fn native_runtime_status() -> NativeRuntimeStatus {
     NativeRuntimeStatus {
         moss: MossDynamicRuntime::from_default_candidates().status(),
         secure_storage: OsSecureSecretStore::status(),
-        persistence: persistence_status_without_instance(),
+        persistence: persistence_status(),
         openmls_smoke: openmls_smoke_runtime_status(),
         openmls_roundtrip: openmls_roundtrip_runtime_status(),
     }
@@ -210,7 +246,19 @@ mod tests {
         assert_eq!(status.moss.link_mode, MOSS_LINK_MODE);
         assert!(!status.moss.checked_paths.is_empty());
         assert!(!status.secure_storage.backend.is_empty());
-        assert!(!status.persistence.available);
+        // `available` now depends on whether the shared store opened in this
+        // environment, so pin the invariants instead of the value: a live
+        // store is always an encrypted one (`Persistence::open` has no
+        // unencrypted mode), and exactly one of available/error holds.
+        assert_eq!(
+            status.persistence.encrypted_at_rest, status.persistence.available,
+            "a live persistence instance is always encrypted at rest"
+        );
+        assert!(
+            status.persistence.available ^ status.persistence.error.is_some(),
+            "persistence must carry exactly one of available/error"
+        );
+        assert!(!status.persistence.database.is_empty());
         // The OpenMLS results are flattened into bridge-friendly wrappers:
         // exactly one of `ok`/`error` is set per runtime.
         assert!(
