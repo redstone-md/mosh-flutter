@@ -93,6 +93,24 @@ install(DIRECTORY "${NATIVE_ASSETS_DIR}"
    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
    COMPONENT Runtime)
 
+# === moss.dll: FFI runtime layer for mosh_core.dll ===
+# moss_runtime.rs (mosh-core) uses libloading::Library to dlopen a SECONDARY
+# dynamic library `moss.dll` at startup. This DLL exposes the FFI symbols
+# (Moss_Init / Moss_Start / ...) that the Rust core calls into. It is a
+# separate FFI layer on top of mosh_core.dll (which is statically linked).
+# Without moss.dll next to mosh.exe, dlopen fails and the channel reports
+# "moss dynamic load error library not found" / "channel runtime unavailable".
+# The file is a committed build artifact under src-tauri/moss-runtime/ (kept
+# in-tree because it is produced by a separate toolchain step outside this
+# Flutter project). Guard with EXISTS so a clean checkout without the prebuilt
+# DLL still builds the Flutter app; the runtime simply falls back to its
+# "unavailable" behavior in that case (existing fallback, no hard failure).
+set(MOSS_RUNTIME_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../src-tauri/moss-runtime/moss.dll")
+if(EXISTS "${MOSS_RUNTIME_DLL}")
+  install(FILES "${MOSS_RUNTIME_DLL}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()
+
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.
 set(FLUTTER_ASSET_DIR_NAME "flutter_assets")
