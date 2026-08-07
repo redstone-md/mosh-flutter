@@ -30,6 +30,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
 
@@ -302,8 +303,11 @@ class MoshApp extends ConsumerWidget {
       locale: ref.watch(localeProvider),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      theme:
-          ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
+      // feat(theme): 1:1 React dark palette (mosh/src/shared/styles/theme.css
+      // `:root`). Centralized in lib/src/app/mosh_theme.dart so this stays a
+      // thin `MaterialApp.router` call. The previous fromSeed(teal) was a
+      // Material seed-color theme that did NOT match the React UI.
+      theme: moshThemeData,
       // S2-1: route shell. Home is OnboardingScreen; tiles reach invite-paste,
       // diagnostics, and dm (via path param). The static diagnostics smoke
       // screen (MoshHome + its FutureBuilder) is gone; the bridge smoke proof
