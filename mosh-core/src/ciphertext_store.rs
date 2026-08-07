@@ -221,7 +221,12 @@ mod tests {
 
     #[test]
     fn ciphertext_store_returns_empty_for_missing_history() {
-        let store = JsonlCiphertextHistoryStore::new(test_root());
+        // Own directory — this test removes the store file to prove the missing
+        // case, and must not delete the file the parallel indexing test reads.
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("ciphertext-store-empty-test");
+        let store = JsonlCiphertextHistoryStore::new(root);
         cleanup_store(&store);
 
         let records = store

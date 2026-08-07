@@ -16,10 +16,10 @@ permissions:
 
 # Slice-one CI matrix (ADR 0015). Five jobs, all on windows-latest: the
 # integration test needs mosh_core.dll (Windows-built via cargokit), and the
-# cargo jobs need moss.dll built by `npm run moss:prepare` (which pins
-# GOTOOLCHAIN=go1.25.9). One OS keeps the matrix simple and avoids running the
-# moss build twice. Mobile cross-build and cross-OS integration tests are an
-# explicit later-slice CI step, not slice one.
+# cargo jobs need moss.dll built by `node scripts/moss-prepare.mjs` (which
+# pins GOTOOLCHAIN=go1.25.9). One OS keeps the matrix simple and avoids
+# running the moss build twice. Mobile cross-build and cross-OS integration
+# tests are an explicit later-slice CI step, not slice one.
 #
 # Job order: the four cheap gates (rust-core, codegen-drift, flutter-test,
 # l10n-drift) run in parallel; the expensive integration-test job runs last and
@@ -51,13 +51,10 @@ jobs:
           workspaces: mosh-core
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Install dependencies
-        run: npm ci
-
-      # Adapter tests dlopen moss.dll, so the shared library must exist even
-      # though nothing here links Tauri.
+      # Adapter tests dlopen moss.dll, so the shared library must exist
+      # before cargo test.
       - name: Build Moss shared library
-        run: npm run moss:prepare
+        run: node scripts/moss-prepare.mjs
 
       - name: Rustfmt check
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
@@ -91,13 +88,10 @@ jobs:
           workspaces: mosh-core
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Install dependencies
-        run: npm ci
-
       # The codegen parses compiled Rust api signatures, so mosh-core must
       # build -- which means moss.dll must exist first.
       - name: Build Moss shared library
-        run: npm run moss:prepare
+        run: node scripts/moss-prepare.mjs
 
       - name: Install flutter_rust_bridge_codegen
         run: cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked
@@ -204,11 +198,8 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Build Moss shared library
-        run: npm run moss:prepare
+        run: node scripts/moss-prepare.mjs
 
       - name: flutter pub get
         run: flutter pub get

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Project: Mosh
-Stack: Desktop-first Tauri v2 application with React, TypeScript, Rust, Moss shared library integration, and OpenMLS-oriented private messaging architecture.
+Stack: Desktop-first Flutter application with Dart, a shared Rust core (mosh-core) exposed via flutter_rust_bridge, a Moss (Go) shared library dlopened by mosh-core, and OpenMLS-oriented private messaging architecture.
 
 Follows [MCAF](https://mcaf.managed-code.com/)
 
@@ -17,9 +17,13 @@ This file defines how AI agents work in this solution.
 
 ## Solution Topology
 
-- Solution root: `mosh`
+- Solution root: `mosh-flutter` (this repo).
+- Rust core module: `mosh-core/` — the shared `cdylib` crate; its `api::` free functions are the single bridge surface.
+- Moss core submodule: `moss/` — vendored Go checkout (https://github.com/redstone-md/moss). Source of the shared library; do not edit its source as part of Mosh tasks.
+- `mosh-probe/` — headless probe crate used by `scripts/probe-e2e.mjs`.
 - Projects or modules with local `AGENTS.md` files: none yet.
-- Sibling directories such as `../moss` and `../mosh-design` are outside this repository root. Do not modify them from Mosh tasks unless the user explicitly expands scope.
+- Sibling directories `../mosh` (the original React/Tauri app, now historical) and `../mosh-design` (visual design source) are outside this repository root. Do not modify them from Mosh tasks unless the user explicitly expands scope.
+- The root `moss/` submodule is inside this repo; its generated artifacts land in ignored `moss-runtime/` (see native build chain below).
 
 ## Rule Precedence
 
@@ -81,6 +85,17 @@ Rule format:
 - capture the why, not only the literal wording
 - remove obsolete rules when a better one replaces them
 
+## Native Build Chain
+
+The Rust core dlopens the Moss shared library at runtime; it is never statically linked.
+
+1. `node scripts/moss-prepare.mjs` builds the Go FFI (`go build -buildmode=c-shared` from `moss/`, GOTOOLCHAIN pin `go1.25.9`) into ignored `moss-runtime/moss.dll` (or `.so`/`.dylib`). This is the canonical candidate path.
+2. `mosh-core/src/moss_runtime.rs::default_candidate_paths()` locates the library (current dir, `moss-runtime/`, `../moss-runtime/`, next to the exe). Do not reintroduce `src-tauri`-style paths from the dead React app.
+3. CI (`codegen-drift`, `rust-core`, `integration-test`) runs `node scripts/moss-prepare.mjs` before cargo commands because adapter tests dlopen the library.
+4. Android: `node scripts/moss-prepare-android.mjs` produces `android/app/src/main/jniLibs/arm64-v8a/libmoss.so` (ignored; regenerable).
+
+Never check in, `git add`, or commit artifacts under `moss-runtime/` except `.gitkeep`. They are regenerable.
+
 ## Global Skills
 
 List only the skills this solution actually uses.
@@ -92,48 +107,27 @@ Do not paste the whole framework catalog here.
 - `mcaf-architecture-overview` — use when creating or updating the architecture map.
 - `mcaf-adr-writing` — use for durable architecture decisions such as crypto, native bridge, storage, and Moss release pinning.
 - `mcaf-security-baseline` — use for security-sensitive work, especially E2EE, key storage, invite links, and native boundary design.
-- `mcaf-testing` — use when planning or adding test coverage.
+- `mcaf-testing` — use when planning or updating test coverage.
 - `mcaf-ui-ux` — use for product UI work and design-system alignment.
 - `mcaf-source-control` — use for branching, commit hygiene, and release/versioning policy.
 - `mcaf-documentation` — use for user-facing or developer documentation.
 - `mcaf-ci-cd` — use when adding build, packaging, or release automation.
 
-If the stack is `.NET`, install the needed `.NET` skills from the [Managed Code Skills catalog](https://skills.managed-code.com/).
-The usual baseline often includes:
-
-- `mcaf-dotnet`
-- `mcaf-dotnet-features`
-- `mcaf-testing`
-- exactly one of `mcaf-dotnet-xunit`, `mcaf-dotnet-tunit`, or `mcaf-dotnet-mstest`
-- `mcaf-dotnet-quality-ci`
-- `mcaf-dotnet-complexity`
-- `mcaf-solid-maintainability`
-- `mcaf-architecture-overview` if the repo keeps a maintained architecture map
-- `mcaf-ci-cd`
-
-If the stack is `.NET`, document skill-management rules explicitly:
-
-- `.NET` skills are sourced from `https://skills.managed-code.com/`.
-- `mcaf-dotnet` is the entry skill and routes to specialized `.NET` skills.
-- Keep exactly one framework skill: `mcaf-dotnet-xunit` or `mcaf-dotnet-tunit` or `mcaf-dotnet-mstest`.
-- Add tool-specific `.NET` skills only when the repository actually uses those tools in CI or local verification.
-- Keep only `mcaf-*` skills in agent skill directories.
-- When upgrading skills, recheck `build`, `test`, `format`, `analyze`, `complexity`, and `coverage` commands against the repo toolchain.
-
 ## Rules to Follow (Mandatory)
 
 ### Commands
 
-- `build`: `npm run build`
-- `test`: `npm test`
-- `format`: `npm run format`
-
-If the stack is `.NET`, also document:
-
-- whether tests run on `VSTest` or `Microsoft.Testing.Platform`
-- whether `format` is `dotnet format --verify-no-changes` or a checked-in wrapper over it
-- whether coverage uses a VSTest collector, `coverlet.MTP`, or an MSTest SDK extension
-- explicit `LangVersion` only when the repo intentionally differs from the SDK default
+- Rust core, `build`: `cargo build --manifest-path mosh-core/Cargo.toml`
+- Rust core, `test`: `cargo test --manifest-path mosh-core/Cargo.toml`
+- Rust core, `format`: `cargo fmt --manifest-path mosh-core/Cargo.toml`
+- Rust core, `lint`: `cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings`
+- Flutter, `pub get`: `flutter pub get`
+- Flutter, `analyze`: `flutter analyze`
+- Flutter, `test`: `flutter test` (widget/unit; CI adds `--dart-define=MOSH_FAKE_GATEWAY=true`)
+- Flutter, `format`: `dart format lib test integration_test`
+- Flutter, `gen-l10n`: `flutter gen-l10n` (generated `lib/l10n/app_localizations*.dart` are gitignored)
+- Bindings, `codegen`: `flutter_rust_bridge_codegen generate` (kept drift-free in CI; regenerate and commit when the Rust `api` surface changes)
+- Full native dependency prep: `node scripts/moss-prepare.mjs` before any `cargo test`/`flutter build windows --debug` run that touches Moss.
 
 ### Project AGENTS Policy
 
@@ -142,10 +136,10 @@ If the stack is `.NET`, also document:
   - project purpose
   - entry points
   - boundaries
-  - project-local commands
+  - module-local commands
   - applicable skills
   - local risks or protected areas
-- If a project grows enough that the root file becomes vague, add or tighten the local `AGENTS.md` before continuing implementation.
+- If a module grows enough that the root file becomes vague, add or tighten the local `AGENTS.md` before continuing implementation.
 
 ### Maintainability Limits
 
@@ -217,7 +211,7 @@ Local `AGENTS.md` files may tighten these values, but they must not loosen them 
   - broader required regressions
 - If `build` is separate from `test`, run `build` before `test`.
 - After tests pass, run `format`, then the final required verification commands.
-- Run every repo-defined quality gate that is available for the stack and change scope, including analyzers, linters, complexity checks, coverage, architecture checks, security checks, and any other configured tools.
+- Run every repo-defined quality gate that is available for the stack and change scope (analyze, lint, complexity, coverage, codegen drift).
 - The task is complete only when every planned checklist item is done and all relevant tests are green.
 - Summarize the change, risks, and verification before marking the task complete.
 
@@ -230,7 +224,7 @@ Local `AGENTS.md` files may tighten these values, but they must not loosen them 
   - interfaces or contracts between boundaries
   - key classes or types for the changed area
 - Keep one canonical source for each important fact. Link instead of duplicating.
-- Public bootstrap templates are limited to root-level agent files. Authoring scaffolds for architecture, features, ADRs, and other workflows live in skills.
+- Public bootstrap templates are limited to root-level agent files. Authoring scaffolds live in skills.
 - Update feature docs when behaviour changes.
 - Update ADRs when architecture, boundaries, or standards change.
 - For non-trivial work, the plan file, feature doc, or ADR MUST document the testing methodology:
@@ -247,7 +241,7 @@ Local `AGENTS.md` files may tighten these values, but they must not loosen them 
 
 - TDD is the default for new behaviour and bug fixes: write the failing test first, make it pass, then refactor.
 - Bug fixes start with a failing regression test that reproduces the issue.
-- Every behaviour change needs new or updated automated tests with meaningful assertions. New tests are mandatory for new behaviour and bug fixes.
+- Every behaviour change needs new or updated automated tests with meaningful assertions.
 - Tests must prove the real user flow or caller-visible system flow, not only internal implementation details.
 - Tests should be as realistic as possible and exercise the system through real flows, contracts, and dependencies.
 - Tests must cover positive flows, negative flows, edge cases, and unexpected paths from multiple relevant angles when the behaviour can fail in different ways.
@@ -257,28 +251,19 @@ Local `AGENTS.md` files may tighten these values, but they must not loosen them 
 - Exercise internal and external dependencies through real containers, test instances, or sandbox environments that match the real contract.
 - Flaky tests are failures. Fix the cause.
 - Changed production code MUST reach at least 80% line coverage, and at least 70% branch coverage where branch coverage is available.
-- Critical flows and public contracts MUST reach at least 90% line coverage with explicit success and failure assertions.
-- Repository or module coverage must not decrease without an explicit written exception. Coverage after the change must stay at least at the previous baseline or improve.
-- Coverage is for finding gaps, not gaming a number. Coverage numbers do not replace scenario coverage or user-flow verification.
 - The task is not done until the full relevant test suite is green, not only the newly added tests.
-- If the stack is `.NET`, document the active framework and runner model explicitly so agents do not mix VSTest and Microsoft.Testing.Platform assumptions.
-- If the stack is `.NET`, after changing production code run the repo-defined quality pass: format, build, analyze, focused tests, broader tests, complexity, coverage, and any configured extra gates such as architecture, security, or mutation checks.
 
 ### Code and Design
 
-- Everything in this solution MUST follow SOLID principles by default.
+- Everything in this solution MUST follow SOLID by default.
 - Every class, object, module, and service MUST have a clear single responsibility and explicit boundaries.
-- SOLID is mandatory.
 - SRP and strong cohesion are mandatory for files, types, and functions.
 - Vertical-slice architecture is mandatory unless a local rule or ADR documents an exception.
-- Each feature MUST live in its own isolated folder tree with all slice-local dependencies kept together.
 - Prefer composition over inheritance unless inheritance is explicitly justified.
 - Large files, types, functions, and deep nesting are design smells. Split them or document a justified exception under `exception_policy`.
-- Hardcoded values are forbidden.
-- String literals are forbidden in implementation code. Declare them once as named constants, enums, configuration entries, or dedicated value objects, then reuse those symbols.
-- Avoid magic literals. Extract shared values into constants, enums, configuration, or dedicated types.
+- Prefer named constants, enums, configuration, or dedicated value objects over magic literals. String literals are forbidden in implementation code.
 - Design boundaries so real behaviour can be tested through public interfaces.
-- If the stack is `.NET`, the repo-root `.editorconfig` is the source of truth for formatting, naming, style, and analyzer severity. Use nested `.editorconfig` files when they serve a clear subtree-specific purpose. Do not let IDE defaults, pipeline flags, and repo config disagree.
+- The Rust `api::` signature surface is a public contract with the Dart side: changes require a cross-FFI review, codegen rerun + commit, and drift gate revalidation.
 
 ### Critical
 
@@ -286,14 +271,14 @@ Local `AGENTS.md` files may tighten these values, but they must not loosen them 
 - Never skip tests to make a branch green.
 - Never weaken a test or analyzer without explicit justification.
 - Never introduce mocks, fakes, stubs, or service doubles to hide real behaviour in tests or local flows.
-- Never introduce a non-SOLID design unless the exception is explicitly documented under `exception_policy`.
+- Never introduce a non-SOLID design unless the exception is explicitly documented.
 - Never spread one feature across unrelated folders when a vertical slice can keep it isolated.
 - Never force-push to `main`.
 - Never approve or merge on behalf of a human maintainer.
 
 ### Boundaries
 
-Always:
+ALWAYS:
 
 - Read root and local `AGENTS.md` files before editing code.
 - Read the relevant docs before changing behaviour or architecture.
@@ -304,18 +289,20 @@ Ask first:
 - changing public API contracts
 - adding new dependencies
 - modifying database schema
-- deleting code files
+- deleting tracked files or code
+- committing build artifacts (never `git add` via `moss-runtime/`)
 
 ## Preferences
 
 ### Likes
 
-- The product name is Mosh. Do not use Quiver/Quier naming for this application.
+- The product name is Mosh. Do not use Quiver/Quier naming.
 - Existing visual direction lives in sibling `../mosh-design`; use it as read-only design source material unless the user explicitly expands scope.
 - Build the desktop app first, then Android, then iOS.
-- Prefer a real Tauri application with the smallest needed screens over building a full design-system library first.
+- Prefer an actual Flutter app with the smallest needed screens over building a full design-system library first.
 
 ### Dislikes
 
 - Do not treat `../quiver` or `../quiver-design` as the Mosh product source.
-- Do not expose manual peer `host:port` or local listen-port fields in the primary user flow; Moss discovery must use default/public trackers automatically unless a separate diagnostics-only tool is explicitly requested.
+- Do not rewrite the dead React/Tauri app (`src/`, `src-tauri/`, npm build chain) except to remove it.
+- Do not expose manual peer `host:port` or local listen-port fields; Moss discovery must use default/public trackers automatically.

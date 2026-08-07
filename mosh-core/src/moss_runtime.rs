@@ -124,34 +124,13 @@ fn default_candidate_paths() -> Vec<PathBuf> {
 
     if let Ok(current_dir) = std::env::current_dir() {
         candidates.push(current_dir.join(MOSS_LIBRARY_NAME));
+        // The canonical output of `scripts/moss-prepare.mjs`.
         candidates.push(current_dir.join("moss-runtime").join(MOSS_LIBRARY_NAME));
-        candidates.push(
-            current_dir
-                .join("src-tauri")
-                .join("target")
-                .join("moss-test")
-                .join(MOSS_LIBRARY_NAME),
-        );
-        candidates.push(
-            current_dir
-                .join("src-tauri")
-                .join("moss-runtime")
-                .join(MOSS_LIBRARY_NAME),
-        );
-        // Same two locations seen from a sibling crate directory (mosh-core,
-        // and any future headless binary), where the repo root is one level up.
+        // Same location seen from a sibling crate directory (mosh-core, and
+        // any future headless binary), where the repo root is one level up.
         candidates.push(
             current_dir
                 .join("..")
-                .join("src-tauri")
-                .join("target")
-                .join("moss-test")
-                .join(MOSS_LIBRARY_NAME),
-        );
-        candidates.push(
-            current_dir
-                .join("..")
-                .join("src-tauri")
                 .join("moss-runtime")
                 .join(MOSS_LIBRARY_NAME),
         );

@@ -4,7 +4,10 @@ import { mkdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-const TARGET_DIR = path.resolve("src-tauri", "moss-runtime");
+// Build output lands at the repo root `moss-runtime/` -- the canonical
+// candidate `moss_runtime.rs::default_candidate_paths` resolves from the
+// repo root (current_dir/moss-runtime/moss.dll).
+const TARGET_DIR = path.resolve("moss-runtime");
 const MOSS_DIR = path.resolve("moss");
 const OUTPUT_NAME = process.platform === "win32" ? "moss.dll" : process.platform === "darwin" ? "libmoss.dylib" : "libmoss.so";
 const OUTPUT_PATH = path.join(TARGET_DIR, OUTPUT_NAME);

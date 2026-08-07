@@ -1,8 +1,0 @@
-[build]
-target-dir = "target"
-
-[profile.dev]
-incremental = true
-
-[profile.test]
-incremental = true

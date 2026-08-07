@@ -958,8 +958,8 @@ mod tests {
         let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let output_dir = manifest_dir.join("target").join("moss-test");
         let output_path = output_dir.join(TEST_LIBRARY_NAME);
-        // The Moss submodule lives at <repo>/moss, i.e. one level up from the
-        // crate manifest dir (src-tauri). A previous extra `..` only resolved
+        // The Moss checkout lives at <repo>/moss, i.e. one level up from the
+        // crate manifest dir (mosh-core). A previous extra `..` only resolved
         // by accident when a sibling moss/ checkout existed next to the repo.
         let moss_dir = manifest_dir.join("..").join("moss");
 
