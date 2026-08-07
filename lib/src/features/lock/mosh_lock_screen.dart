@@ -1,33 +1,27 @@
-// Atomic: biometric-cancel retry UI. ADR 0011 wants fail-CLOSED when there
-// is no DEK (no access to encrypted history), but the prior behavior --
-// `initMobileDek()`'s `PlatformException` (BiometricPrompt cancel from
-// `flutter_secure_storage`'s `read()` with `AndroidOptions.biometric`)
-// propagating unhandled through `main()`'s `await`, so `runApp` was never
-// reached -- left a blank screen the user could not retry, quit, or
-// understand. `main()` now catches ONLY that `PlatformException` and runs
-// a `MoshLockScreen` instead; retry re-runs `initMobileDek` (re-prompting
+// Biometric-cancel retry UI. ADR 0011 wants fail-CLOSED when there is no
+// DEK, but the prior behavior -- `initMobileDek()`'s `PlatformException`
+// (BiometricPrompt cancel from `flutter_secure_storage`'s biometric
+// `read()`) propagating unhandled through `main()`'s `await`, so `runApp`
+// was never reached -- left a blank screen the user could not retry or
+// quit. `main()` now catches ONLY that `PlatformException` and runs a
+// `MoshLockScreen` instead; retry re-runs `initMobileDek` (re-prompting
 // biometric per ADR 0011), and on success the root swaps to `MoshApp`.
 //
-// No React equivalent: this is a Flutter-native fail-closed surface. The
+// No React equivalent: this is a Flutter-native fail-closed surface (the
 // React app loads its DEK over IPC and surfaces a JS error boundary; there
-// is no OS biometric prompt in that flow. Keep this comment when editing.
+// is no OS biometric prompt in that flow).
 //
-// SWAP MECHANISM: hot-swapping `runApp`'s root at runtime is not the
-// idiomatic Flutter path. The simplest correct pattern (chosen here) is a
-// top-level `ValueNotifier<Widget>` owned by `main()` (see `_appRoot` in
-// `lib/main.dart`) that `runApp` mounts via `ValueListenableBuilder`.
-// `MoshLockScreen` is constructed by `main()` with the success target
-// widget (`nextApp`, the real `const MoshApp()`) and a `swapTo` callback
-// that flips the notifier; retry success calls `widget.swapTo(widget.nextApp)`,
-// which re-renders the whole tree under the existing `ProviderScope`. This
-// avoids widget-tree gymnastics inside `MoshApp`'s router (no
-// `Navigator.pushReplacement` from below the `MaterialApp.router`) and
-// keeps the lock screen's retry state local to its own `ConsumerState`.
-// Picked over a `FutureBuilder` at the root because the retry must own its
-// own multi-attempt state (canceled / authenticating / failed) without
-// re-creating the widget tree on each attempt. The lock screen takes the
-// success target as a constructor arg (rather than importing `MoshApp`)
-// so this file has no dependency on `lib/main.dart` and no import cycle.
+// SWAP MECHANISM: a top-level `ValueNotifier<Widget>` owned by `main()`
+// (`_appRoot` in `lib/main.dart`) that `runApp` mounts via
+// `ValueListenableBuilder`. `MoshLockScreen` is constructed by `main()`
+// with the success target (`nextApp`, the real `const MoshApp()`) and a
+// `swapTo` callback that flips the notifier; retry success calls
+// `widget.swapTo(widget.nextApp)`, re-rendering the whole tree under the
+// existing `ProviderScope`. Chosen over a root `FutureBuilder` because the
+// retry must own its own multi-attempt state (canceled / authenticating /
+// failed) without re-creating the tree on each attempt. `nextApp` is a
+// constructor arg (not an import of `MoshApp`) so this file stays free of
+// a `lib/main.dart` dependency and import cycle.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,17 +29,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/platform/mobile_dek.dart' show initMobileDek;
 
-/// Visual state of [MoshLockScreen]. `authenticating` is the spinner shown
-/// while a retry is in flight; `canceled` is the rest state after a
-/// biometric cancel; `failed` is the defensive state for a
-/// non-`PlatformException` DEK error that slipped past the `main()` gate
-/// (rare -- `main()` only catches `PlatformException`, so a fail-closed
-/// `StateError` or a corrupt Keystore would normally crash `main()`; this
-/// branch is belt-and-braces so a future caller of the lock screen can
-/// still render rather than blank).
-/// `insecureDevice` is the NOT-recoverable state for
-/// `BIOMETRIC_UNAVAILABLE` (no enrolled device credential) -- see the
-/// doc on `MoshLockScreen.initialState`.
+/// Visual state of [MoshLockScreen]: `authenticating` is the spinner while
+/// a retry is in flight; `canceled` is the rest state after a biometric
+/// cancel; `failed` is the belt-and-braces state for a
+/// non-`PlatformException` DEK error that slipped past `main()`'s gate
+/// (rare -- such errors would normally crash `main()`); `insecureDevice`
+/// is the NOT-recoverable `BIOMETRIC_UNAVAILABLE` state (no enrolled
+/// device credential) -- see `MoshLockScreen.initialState`.
 enum LockState { authenticating, canceled, failed, insecureDevice }
 
 /// Fail-closed retry UI shown when Android biometric auth is canceled at
@@ -86,14 +76,12 @@ class MoshLockScreen extends ConsumerStatefulWidget {
   final LockState initialState;
 
   /// `main()` pumps this state directly when `initMobileDek()` throws a
-  /// `PlatformException` whose message contains `BIOMETRIC_UNAVAILABLE`
-  /// -- the device has NO enrolled PIN/pattern/password/biometric, so
-  /// re-prompting cannot help (the device itself must be secured first).
-  /// Unlike `canceled`, this state is NOT recoverable by Retry, so the
-  /// body renders the explanatory message with no Retry button. ADR 0011
-  /// fail-closed still holds: no DEK = no history access; the UI just
-  /// tells the user what is wrong instead of silently hanging on the
-  /// `authenticating` spinner (the prior default-init hang).
+  /// `BIOMETRIC_UNAVAILABLE` `PlatformException` -- the device has NO
+  /// enrolled PIN/pattern/password/biometric, so re-prompting cannot help.
+  /// Unlike `canceled`, it is NOT recoverable by Retry, so the body
+  /// renders the explanatory message with no Retry button. ADR 0011
+  /// fail-closed still holds; the UI just explains instead of hanging on
+  /// the `authenticating` spinner (the prior default-init hang).
 
   @override
   ConsumerState<MoshLockScreen> createState() => _MoshLockScreenState();
@@ -134,27 +122,27 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
             constraints: const BoxConstraints(maxWidth: 360),
             child: switch (_state) {
               LockState.authenticating => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    Text(l.lockScreenUnlocking),
-                  ],
-                ),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(l.lockScreenUnlocking),
+                ],
+              ),
               LockState.canceled => _LockBody(
-                  icon: Icons.lock_outline,
-                  title: l.lockScreenTitle,
-                  message: l.lockScreenCanceledMessage,
-                  retryLabel: l.lockScreenRetry,
-                  onRetry: _retry,
-                ),
+                icon: Icons.lock_outline,
+                title: l.lockScreenTitle,
+                message: l.lockScreenCanceledMessage,
+                retryLabel: l.lockScreenRetry,
+                onRetry: _retry,
+              ),
               LockState.failed => _LockBody(
-                  icon: Icons.error_outline,
-                  title: l.lockScreenTitle,
-                  message: l.lockScreenFailedMessage,
-                  retryLabel: l.lockScreenRetry,
-                  onRetry: _retry,
-                ),
+                icon: Icons.error_outline,
+                title: l.lockScreenTitle,
+                message: l.lockScreenFailedMessage,
+                retryLabel: l.lockScreenRetry,
+                onRetry: _retry,
+              ),
               // `BIOMETRIC_UNAVAILABLE`: the device has no enrolled
               // PIN/pattern/password/biometric. NOT recoverable by Retry
               // (re-prompting cannot mint a Keystore key without a device
@@ -166,10 +154,10 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
               // new dep, so the message points at Settings -> Security
               // in prose.
               LockState.insecureDevice => _LockBody(
-                  icon: Icons.security_update_warning_outlined,
-                  title: l.lockScreenInsecureDeviceTitle,
-                  message: l.lockScreenInsecureDeviceMessage,
-                ),
+                icon: Icons.security_update_warning_outlined,
+                title: l.lockScreenInsecureDeviceTitle,
+                message: l.lockScreenInsecureDeviceMessage,
+              ),
             },
           ),
         ),
@@ -197,9 +185,11 @@ class _LockBody extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
+
   /// Retry button label; when `null` the button is omitted (used by the
   /// `insecureDevice` state, which is NOT retry-recoverable).
   final String? retryLabel;
+
   /// Retry callback; when `null` the button is omitted. Must be non-null
   /// whenever [retryLabel] is non-null.
   final VoidCallback? onRetry;

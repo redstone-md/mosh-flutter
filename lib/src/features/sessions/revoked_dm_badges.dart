@@ -3,11 +3,6 @@
 // (mosh/src/features/private-dm/org/use-orgs.ts L228-253) consumed by the
 // React `SessionRail` subtitle branch (SessionRail.tsx L36-38).
 //
-// Given the polled joined-orgs list, returns a map of session-id -> org-name
-// for every org-bound DM whose linked peer is NO LONGER in that org's
-// verified roster. The React rail swaps the session's state subtitle for
-// `${orgText.revokedBadge} ${orgName}` when this map has the session id.
-//
 // Safety rule (mirrors React): an org whose roster has not yet been verified
 // (`rosterVersion == null` -- fresh join, restart before first gossip) is
 // skipped entirely. Absence of a member proves nothing in that state, so we
@@ -33,8 +28,7 @@ Map<String, String> computeRevokedDmBadges(List<OrgSnapshot> orgs) {
       if (link.sessionId == null) {
         continue;
       }
-      final stillMember =
-          org.members.any((m) => m.mossPeerId == link.peerId);
+      final stillMember = org.members.any((m) => m.mossPeerId == link.peerId);
       if (!stillMember) {
         badges[link.sessionId!] = org.orgName;
       }

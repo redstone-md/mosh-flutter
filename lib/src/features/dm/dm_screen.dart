@@ -1,4 +1,4 @@
-// S4.7: DM screen for slice-one. App bar (peer display name) + scrolling
+// DM screen. App bar (peer display name) + scrolling
 // message list (own vs peer by alignment/color; own = `fromDevice ==
 // snapshot.displayName`, the React `from_device === ownDeviceName` rule) +
 // composer + crypto footer. Mirrors the React ActiveDmChat
@@ -19,7 +19,7 @@
 // `openAttachment`): already-downloaded opens show the local file,
 // streamable media streams `moshmedia.localhost` while downloading, and
 // image/other arms a pending-open resolved by the `ref.listen` once the
-// download finishes. Deferred: call events, the full poll loop.
+// download finishes.
 //
 // Server state: activeSessionProvider (ADR 0010); send calls
 // gateway.sendMessage via gatewayProvider (ADR 0013) and invalidates the
@@ -157,9 +157,9 @@ class _DmScreenState extends ConsumerState<DmScreen> with DmScreenActions {
           final err = await startVoiceCall(ref, widget.sessionId);
           if (!context.mounted) return;
           if (err != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(readableError(err))),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(readableError(err))));
           }
         },
         confirmedFingerprints: _confirmedFingerprints,

@@ -3,15 +3,9 @@
 //! Surfaces the former `private_dm_*` Tauri command group: invite
 //! create/accept, message send/retry, session poll/list/close,
 //! attachment send/download/cancel, and voice-call start/accept/decline/
-//! end/send-frame/drain-frames. Call-start and frame-drain map to
-//! `StreamSink`-returning facade functions, mirroring the former Tauri
-//! events that streamed call signaling and media frames.
-//!
-//! Slice one (S1.4) ports only the poll-based subset: invite create/accept,
-//! message send, session poll/list/close. There were no Tauri events for
-//! private_dm — the React frontend polled snapshots every AUTO_POLL_MS — so
-//! this slice has NO StreamSink function. Attachment and voice-call slices
-//! (which DID stream frames in the Tauri shell) arrive later.
+//! end/send-frame/drain-frames. Everything is call/response over the
+//! bridge — poll-based, no StreamSink (the React frontend polled snapshots
+//! every AUTO_POLL_MS, and the Dart side polls the same way).
 //!
 //! OWNERSHIP (ADR 0016 — api runtime ownership, OnceLock singleton): the
 //! runtime is held in a process-global
@@ -49,11 +43,10 @@
 //! every conversation on restart is worse than a surfaced error.
 //!
 //! TESTING: `ensure_runtime()` calls `MossFfiRuntime::load_default()`, which
-//! loads the Moss shared library. There is no way to exercise ANY of the
-//! six public functions without triggering that load, so a unit test here
-//! would require the Moss lib to be present and would fail in CI without
-//! it. The six public functions are integration-tested in S2/S5 (live
-//! Moss). The persistence + keystore wiring IS unit/integration-tested
+//! loads the Moss shared library. There is no way to exercise any public
+//! function without triggering that load, so a unit test here would require
+//! the Moss to be present and would fail in CI without it. The persistence
+//! + keystore wiring IS unit/integration-tested
 //! here (`persistence_and_identity_survive_restart`): it loads the live
 //! Moss lib, opens a real `Persistence` via the `OsSecureSecretStore`
 //! (Windows Credential Manager on this host), and proves the transport

@@ -1,30 +1,24 @@
 // Embeddable channel-join step body -- 1:1 with React `ChannelJoinStep`
-// (src/features/private-dm/NewSessionPanelSteps.tsx). Renders the step
-// CONTENT ONLY: the body paragraph, the `.step-channel-input` box (`#`
-// prefix + borderless TextField), the Join button, and InlineError. NO
-// frame, NO back affordance, NO title -- the caller wraps this in the
-// frame (OnboardStepFrame for the full-screen route, OnboardStepBody when
-// the desktop chat-pane composes it inline in atomic #8). One step content,
-// two frames -- DRY, matching atomic #1/#2 (OnboardStepBody/OnboardMenu).
+// (src/features/private-dm/NewSessionPanelSteps.tsx): body, the
+// `.step-channel-input` box (`#` prefix + borderless TextField), Join
+// button, InlineError. NO frame, NO back affordance, NO title -- the
+// caller wraps this in [OnboardStepFrame] (full screen) or OnboardStepBody
+// (inline, atomic #8).
 //
-// Scope: the channel-join step UI + the joinChannel Gateway seam (slice-3).
-// Tapping Join calls `gateway.joinChannel` with a JoinChannelRequest built
-// from the entered name + the displayName/listenPort/staticPeer that
-// [inviteFlowProvider] already sources for createInvite (ADR 0010 DRY: one
-// settings source for both flows), then navigates to the channel screen on
-// success. The name is ephemeral to this step visit (React keeps it as
-// per-step `useState`), so the TextEditingController stays widget-local and
-// is not lifted to a store.
+// Scope: the step UI + the joinChannel Gateway seam (slice-3). Join calls
+// `gateway.joinChannel` with the entered name + the
+// displayName/listenPort/staticPeer from [inviteFlowProvider] (ADR 0010
+// DRY: one settings source for both flows), then navigates to the channel
+// screen on success. The name is ephemeral to this step visit (React
+// per-step `useState`), so the controller stays widget-local.
 //
 // Navigation split (differs from atomic #4/#5): the SUCCESS navigation
 // (`context.go(AppRoutes.channelFor(name))`) stays INSIDE this step -- the
-// same destination for both the full-screen route (ChannelJoinScreen) and
-// the inline desktop panel (opening the channel in branch B). Only `onBack`
-// is injected (1:1 with React `props.onBack`): the caller decides where Back
-// goes (route screen -> AppRoutes.onboarding, inline panel -> back to menu).
-// In atomic #4/#5 the steps had NO navigation; here the step navigates on
-// success but the caller decides on back. Hence go_router + app_router stay
-// imported here for the success hop.
+// same destination for the full-screen route and the inline desktop panel.
+// Only `onBack` is injected (1:1 with React `props.onBack`): the caller
+// decides where Back goes (route screen -> AppRoutes.onboarding, inline
+// panel -> back to menu). Hence go_router + app_router stay imported here
+// for the success hop.
 library;
 
 import 'package:flutter/material.dart';
@@ -41,18 +35,13 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/util/format.dart' show readableError;
 
-/// Embeddable channel-join step body -- the step CONTENT only.
-///
-/// Renders the body paragraph, the `.step-channel-input` box (`#` + borderless
-/// TextField), the Join button, and the persistent [InlineError]. Caller
-/// wraps this in [OnboardStepFrame] (full-screen route, e.g.
-/// ChannelJoinScreen) or OnboardStepBody (inline, atomic #8).
-///
-/// Mirrors React `ChannelJoinStep` (NewSessionPanelSteps.tsx) which renders
-/// its body inside an `OnboardStepFrame` -- there the frame and content are
-/// coupled; here they are split so the same content composes into two frames
-/// (route + inline). State stays in this widget (name/canJoin/busy/error are
-/// ephemeral UI).
+/// Embeddable channel-join step body -- the step CONTENT only: body
+/// paragraph, `.step-channel-input` box (`#` + borderless TextField), Join
+/// button, persistent [InlineError]. Caller wraps this in
+/// [OnboardStepFrame] (full-screen route, e.g. ChannelJoinScreen) or
+/// OnboardStepBody (inline, atomic #8). Mirrors React `ChannelJoinStep`
+/// (NewSessionPanelSteps.tsx). State stays in this widget
+/// (name/canJoin/busy/error are ephemeral UI).
 ///
 /// [onBack] is an injected VoidCallback (1:1 with React `props.onBack`)
 /// reserved for caller parity -- the step body renders no back affordance
@@ -115,7 +104,9 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
       _error = null;
     });
     try {
-      await ref.read(gatewayProvider).joinChannel(
+      await ref
+          .read(gatewayProvider)
+          .joinChannel(
             request: JoinChannelRequest(
               name: name,
               displayName: settings.displayName,
@@ -171,7 +162,9 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 14,
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.7,
+                  ),
                 ),
               ),
               const SizedBox(width: 2),
@@ -197,9 +190,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
         // ChatCreateScreen's FilledButton with minimumSize 48h).
         FilledButton(
           onPressed: (_canJoin && !_busy) ? _onJoin : null,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           child: _busy
               ? const SizedBox(
                   width: 22,
@@ -216,4 +207,3 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
     );
   }
 }
-

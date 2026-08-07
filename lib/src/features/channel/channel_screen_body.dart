@@ -6,14 +6,6 @@
 // callbacks the block closed over are threaded through the constructor so
 // this stays a plain presentational [StatelessWidget] (no `ref`, no
 // `setState`; the screen owns mutation and passes closures in).
-//
-// The async snapshot, search/filter (+ setters), mobile-search-open flag
-// (+ close), chat error (+ can-retry + retry), attachment-callbacks
-// builder, retry-message, peer-DM pieces (offered set + busy + on-message),
-// composer fields (controller + sending + send/send-attachment/pick-error/
-// send-voice/voice-error + labels), show-peer-status flag (+ close), and
-// the drawer's channel/error/refresh are all constructor params -- the
-// verbatim block references them by the same names via local finals.
 library;
 
 import 'package:flutter/material.dart';
@@ -86,7 +78,7 @@ class ChannelScreenBody extends StatelessWidget {
   final bool mobileSearchOpen;
   final VoidCallback onCloseMobileSearch;
   final ChannelAttachmentCallbacks Function(AttachmentView? view)
-      attachmentCallbacks;
+  attachmentCallbacks;
   final void Function(String messageId) onRetryMessage;
   final Set<String> offeredFingerprints;
   final bool offerBusy;
@@ -272,12 +264,16 @@ class _Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(l.channelEmptyTitle,
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l.channelEmptyTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
-            Text(l.channelEmptyBody,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              l.channelEmptyBody,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ],
         ),
       ),

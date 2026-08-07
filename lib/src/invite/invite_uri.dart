@@ -81,9 +81,7 @@ class MoshGroupInvite {
   int get hashCode => Object.hash(meshId, groupId, label, fingerprint);
 }
 
-// ---------------------------------------------------------------------------
 // Constants (mirrors the TS module-level consts).
-// ---------------------------------------------------------------------------
 
 const String _moshInviteScheme = 'mosh';
 const String _inviteHost = 'invite';
@@ -105,9 +103,7 @@ final RegExp _tokenPattern = RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*$');
 // Hex + dashes (before dash-stripping); mirrors /^[a-f0-9-]+$/i.
 final RegExp _fingerprintPattern = RegExp(r'^[a-fA-F0-9-]+$');
 
-// ---------------------------------------------------------------------------
 // Public parsing entry points (top-level pure functions).
-// ---------------------------------------------------------------------------
 
 /// Parses a single-DM Mosh invite URI. Throws [InviteParseError] on any
 /// contract violation.
@@ -119,8 +115,11 @@ MoshInvite parseMoshInvite(String rawInvite) {
   }
 
   final meshId = _readToken(uri, _meshParam, InviteParseErrorCode.missingMesh);
-  final sessionId =
-      _readToken(uri, _sessionParam, InviteParseErrorCode.missingSession);
+  final sessionId = _readToken(
+    uri,
+    _sessionParam,
+    InviteParseErrorCode.missingSession,
+  );
   final peerHint = _readOptionalToken(uri, _peerParam);
   final fingerprint = _readFingerprint(uri, _minFingerprintLength, false);
 
@@ -142,8 +141,11 @@ MoshGroupInvite parseMoshGroupInvite(String rawInvite) {
   }
 
   final meshId = _readToken(uri, _meshParam, InviteParseErrorCode.missingMesh);
-  final groupId =
-      _readToken(uri, _groupParam, InviteParseErrorCode.missingGroup);
+  final groupId = _readToken(
+    uri,
+    _groupParam,
+    InviteParseErrorCode.missingGroup,
+  );
   final label = _readLabel(uri);
   final fingerprint = _readFingerprint(uri, _groupFingerprintLength, true);
 
@@ -155,9 +157,7 @@ MoshGroupInvite parseMoshGroupInvite(String rawInvite) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Helpers (private).
-// ---------------------------------------------------------------------------
 
 /// Mirrors TS parseUrl: trim, then Uri.parse; FormatException -> invalid_url.
 /// Dart nuance: Uri.parse is far more lenient than the WHATWG URL constructor

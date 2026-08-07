@@ -1,24 +1,17 @@
 // Inline NewSessionPanel -- 1-to-1 with React `NewSessionPanel`
-// (src/features/private-dm/NewSessionPanel.tsx:18-67). React renders this
-// INLINE in the desktop chat-pane when no conversation is open: a local
-// `step` state enum, the PersistenceWarningBanner, OnboardMenu(onPick ->
-// setStep), and the four steps each with onBack: backToMenu. The rail stays
-// mounted throughout (menu -> pick chat -> step inline -> back to menu).
+// (src/features/private-dm/NewSessionPanel.tsx:18-67), rendered in the
+// desktop chat-pane welcome when no conversation is open: an `OnboardStep`
+// enum, the PersistenceWarningBanner, OnboardMenu(onPick -> setStep), and
+// the four steps each with onBack: backToMenu. The rail stays mounted.
 //
-// Flutter parity: a single `OnboardStep` enum + an [IndexedStack] that keeps
-// all five step widgets MOUNTED simultaneously. The stack swaps the visible
-// child via `index`, so each step's own controllers/state survive a menu
-// round-trip (e.g. the chat step's created invite is still there after a
-// menu -> chat -> menu detour). This mirrors React's lifted per-step state
-// (joinValue / channelValue / groupLabelValue) -- Flutter keeps the widgets
-// alive instead of lifting the text values; equivalent UX.
+// Flutter parity: an [IndexedStack] keeps all five step widgets MOUNTED
+// simultaneously, so each step's controllers/state survive a menu
+// round-trip -- mirrors React's lifted per-step state (joinValue /
+// channelValue / groupLabelValue) by keeping the widgets alive instead of
+// lifting the text values; equivalent UX.
 //
-// The PersistenceWarningBanner renders INSIDE the scroll (React renders it
-// inside `.onboard-shell` before the step branch, NewSessionPanel.tsx:46),
-// so it scrolls with the step body. The success navigation
-// (ChannelJoinStep's context.go channelFor, OnboardJoinStep's context.go
-// groupFor/sessions) fires from within the step -- it leaves the welcome
-// pane entirely (opens the chat in branch B), which is correct.
+// The banner renders inside the scroll (like React's `.onboard-shell`
+// placement, NewSessionPanel.tsx:46) so it scrolls with the step body.
 library;
 
 import 'package:flutter/material.dart';
@@ -45,17 +38,13 @@ enum OnboardStep { menu, chat, group, join, channel }
 /// PersistenceWarningBanner at the top of the scroll, then the active step.
 ///
 /// The caller composes the outer body (Center > SingleChildScrollView >
-/// ConstrainedBox(maxWidth: 460)) -- the same composition the
-/// OnboardingScreen uses -- so the inline panel renders identically to the
-/// onboarding screen's menu. The banner sits inside the scroll above the
-/// IndexedStack (React puts it inside `.onboard-shell` before the step
-/// branch).
+/// ConstrainedBox(maxWidth: 460)), the same composition OnboardingScreen
+/// uses, so the inline panel renders identically to the onboarding menu.
 ///
 /// Per-step state survives a menu round-trip via the [IndexedStack] keep-
-/// alive: all five step widgets stay mounted (the chat step's created
-/// invite, the join step's pasted link, the channel step's name all
-/// survive). React lifts those text values; Flutter keeps the widgets alive
-/// -- equivalent UX. Document this here so the keep-alive is not removed.
+/// alive (all five widgets stay mounted: the create step's invite, the join
+/// step's pasted link all survive -- React lifts them, Flutter keeps the
+/// widgets). Do NOT remove the keep-alive.
 class NewSessionPanel extends ConsumerStatefulWidget {
   const NewSessionPanel({super.key});
 
@@ -79,27 +68,25 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (warning case AsyncData(:final value) when value != null) ...<Widget>[
+        if (warning case AsyncData(
+          :final value,
+        ) when value != null) ...<Widget>[
           PersistenceWarningBanner(warning: value),
           const SizedBox(height: 12),
         ],
         // IndexedStack keep-alive: all five step widgets stay mounted, so
-        // each step's controllers/state survive a menu round-trip (React
-        // lifts the text values; Flutter keeps the widgets -- equivalent).
-        // No Expanded: the desktop ChatPaneWelcome wraps this panel in a
-        // SingleChildScrollView, so the Column height is unbounded. An
-        // Expanded (non-zero flex) in an unbounded column throws -- the
-        // IndexedStack instead sizes to its tallest step and scrolls with
-        // the banner. Keep-alive is inherent to IndexedStack (all children
-        // stay mounted), not Expanded, so the round-trip guarantee holds.
+        // each step's controllers/state survive a menu round-trip. No
+        // Expanded: the wrapping SingleChildScrollView makes this Column
+        // unbounded, and an Expanded (non-zero flex) there would throw --
+        // the IndexedStack instead sizes to its tallest step and scrolls
+        // with the banner.
         IndexedStack(
           index: _step.index,
           children: <Widget>[
             OnboardMenu(
               onPickChat: () => setState(() => _step = OnboardStep.chat),
               onPickGroup: () => setState(() => _step = OnboardStep.group),
-              onPickChannel: () =>
-                  setState(() => _step = OnboardStep.channel),
+              onPickChannel: () => setState(() => _step = OnboardStep.channel),
               onPickJoin: () => setState(() => _step = OnboardStep.join),
             ),
             OnboardStepBody(

@@ -2,10 +2,6 @@
 /// with React's `SummaryCard` and `RuntimeError` in
 /// `src/features/private-dm/DiagnosticsDrawerSummary.tsx`.
 ///
-/// This atomic only adds the summary primitives -- wiring them into
-/// `DiagnosticsScreen` is a LATER atomic. `DiagnosticsScreen` itself is
-/// unchanged here.
-///
 /// Colors mirror the React `diagnostic-summary-${tone}` classes from
 /// `middle-column.css`:
 ///   - ready  -> `--moss`    #b7d84a (green)
@@ -100,7 +96,11 @@ class _Heading extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        _StatusBadge(state: summary.state, tone: summary.tone, toneColor: toneColor),
+        _StatusBadge(
+          state: summary.state,
+          tone: summary.tone,
+          toneColor: toneColor,
+        ),
       ],
     );
   }
@@ -125,8 +125,8 @@ class _StatusBadge extends StatelessWidget {
     final badgeBg = tone == DiagnosticSummaryTone.error
         ? toneColor.withValues(alpha: 0.06)
         : (tone == DiagnosticSummaryTone.ready
-            ? const Color(0x24B7D84A).withValues(alpha: 0.14)
-            : theme.colorScheme.surfaceContainerHighest);
+              ? const Color(0x24B7D84A).withValues(alpha: 0.14)
+              : theme.colorScheme.surfaceContainerHighest);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(

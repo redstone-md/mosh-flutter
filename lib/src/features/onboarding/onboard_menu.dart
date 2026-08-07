@@ -1,16 +1,16 @@
 // Embeddable OnboardMenu body -- 1:1 with React `OnboardMenu`
-// (src/features/private-dm/NewSessionPanelMenu.tsx:19-94). Renders the
-// identity chip -> head -> Start tiles -> Join tiles -> Advanced + About
-// disclosures WITHOUT a Scaffold so a caller can embed it (OnboardingScreen
-// wraps it in Center>SingleChildScrollView>ConstrainedBox; atomic #3 will
-// embed the same widget inline in the desktop chat-pane).
+// (src/features/private-dm/NewSessionPanelMenu.tsx:19-94): identity chip,
+// Start tiles, Join tiles, Advanced + About disclosures. No Scaffold so a
+// caller embeds it (OnboardingScreen wraps in Center >
+// SingleChildScrollView > ConstrainedBox; atomic #3 embeds the same widget
+// inline in the desktop chat-pane).
 //
 // Owns the 3 TextEditingControllers + inviteFlow handlers verbatim from the
 // former inline OnboardingScreen body. Tile taps call injected VoidCallbacks
-// (onPickChat/Group/Channel/Join) -- the menu does NOT context.go itself; the
-// caller decides routing (OnboardingScreen -> context.go; chat-pane -> step
-// switch). Diagnostics lives in the caller's AppBar / peer-status button, not
-// here (mirrors React, which has no diagnostics surface in OnboardMenu).
+// (onPickChat/Group/Channel/Join) -- the menu does NOT context.go itself;
+// the caller decides routing. Diagnostics lives in the caller's AppBar /
+// peer-status button, not here (React has no diagnostics surface in
+// OnboardMenu).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -36,10 +36,13 @@ class OnboardMenu extends ConsumerStatefulWidget {
 
   /// Start-section chat tile (React onPick("chat"), NewSessionPanelMenu.tsx:44).
   final VoidCallback onPickChat;
+
   /// Start-section group tile (React onPick("group"), NewSessionPanelMenu.tsx:50).
   final VoidCallback onPickGroup;
+
   /// Join-section join tile (React onPick("join"), NewSessionPanelMenu.tsx:60).
   final VoidCallback onPickJoin;
+
   /// Join-section channel tile (React onPick("channel"), NewSessionPanelMenu.tsx:66).
   final VoidCallback onPickChannel;
 
@@ -56,14 +59,17 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   void initState() {
     super.initState();
     // Seed from the provider so a rebuild does not clobber an entered name.
-    _nameController =
-        TextEditingController(text: ref.read(inviteFlowProvider).displayName);
+    _nameController = TextEditingController(
+      text: ref.read(inviteFlowProvider).displayName,
+    );
     // Advanced disclosure fields -- seeded from inviteFlow (staticPeer is
     // nullable String, listenPort defaults to 8765) so they survive rebuilds.
-    _staticPeerController =
-        TextEditingController(text: ref.read(inviteFlowProvider).staticPeer ?? '');
+    _staticPeerController = TextEditingController(
+      text: ref.read(inviteFlowProvider).staticPeer ?? '',
+    );
     _listenPortController = TextEditingController(
-        text: ref.read(inviteFlowProvider).listenPort.toString());
+      text: ref.read(inviteFlowProvider).listenPort.toString(),
+    );
   }
 
   @override
@@ -81,8 +87,9 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   // staticPeer mirrors `props.onStaticPeer(e.target.value)` (null when empty to
   // match the String? state); listenPort mirrors `Number(e.target.value) || 0`
   // via tryParse with a 0 fallback on non-numeric input.
-  void _onStaticPeerChanged(String value) =>
-      ref.read(inviteFlowProvider.notifier).setStaticPeer(value.isEmpty ? null : value);
+  void _onStaticPeerChanged(String value) => ref
+      .read(inviteFlowProvider.notifier)
+      .setStaticPeer(value.isEmpty ? null : value);
   void _onListenPortChanged(String value) {
     // React parity: NewSessionPanelMenu.tsx renders `<input type="number"
     // min={0} max={65535} ...>` so the browser rejects/flags out-of-range
@@ -101,9 +108,9 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   }
 
   TextStyle? _sectionStyle(ThemeData t) => t.textTheme.labelSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.3,
-      );
+    fontWeight: FontWeight.w700,
+    letterSpacing: 1.3,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -122,8 +129,10 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
         const SizedBox(height: 18),
         Text(l.onboardTitle, style: theme.textTheme.headlineSmall),
         const SizedBox(height: 6),
-        Text(l.onboardSubtitle,
-            style: theme.textTheme.bodySmall?.copyWith(height: 1.55)),
+        Text(
+          l.onboardSubtitle,
+          style: theme.textTheme.bodySmall?.copyWith(height: 1.55),
+        ),
         const SizedBox(height: 18),
         Text(l.onboardStartLabel, style: _sectionStyle(theme)),
         const SizedBox(height: 8),
@@ -174,45 +183,47 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
                     border: const OutlineInputBorder(),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 11, vertical: 9),
+                      horizontal: 11,
+                      vertical: 9,
+                    ),
                   ),
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontSize: 12.5),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12.5),
                   onChanged: _onStaticPeerChanged,
                 ),
               ),
               const SizedBox(height: 12),
-             Field(
-               label: l.setupListenPortLabel,
-               hint: l.setupListenPortHint,
-               child: TextField(
-                 controller: _listenPortController,
-                 keyboardType: TextInputType.number,
-                 decoration: InputDecoration(
-                   border: const OutlineInputBorder(),
-                   isDense: true,
-                   contentPadding: const EdgeInsets.symmetric(
-                       horizontal: 11, vertical: 9),
-                 ),
-                 style: theme.textTheme.bodyMedium
-                     ?.copyWith(fontSize: 12.5),
-                 onChanged: _onListenPortChanged,
-               ),
-             ),
-             const SizedBox(height: 12),
-             // Bind-interface override -- 1:1 with React's
-             // NewSessionPanelMenu.tsx Advanced disclosure child
-             // (L93 <BindInterfaceField gateway={props.gateway} />).
-             // Writes the same stored VPN-bypass answer the
-             // startup question does + relaunches via onAccept
-             BindInterfaceField(
-               gateway: ref.read(gatewayProvider),
-               l: l,
-               onAccept: DesktopAppRelauncherScope.of(context).relaunch,
-             ),
-           ],
-         ),
-       ),
+              Field(
+                label: l.setupListenPortLabel,
+                hint: l.setupListenPortHint,
+                child: TextField(
+                  controller: _listenPortController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 9,
+                    ),
+                  ),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12.5),
+                  onChanged: _onListenPortChanged,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Bind-interface override -- 1:1 with React's
+              // NewSessionPanelMenu.tsx Advanced disclosure child
+              // (L93 <BindInterfaceField gateway={props.gateway} />).
+              // Writes the same stored VPN-bypass answer the
+              // startup question does + relaunches via onAccept
+              BindInterfaceField(
+                gateway: ref.read(gatewayProvider),
+                l: l,
+                onAccept: DesktopAppRelauncherScope.of(context).relaunch,
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 6),
         Disclosure(
           icon: Icons.verified_user,
@@ -305,8 +316,10 @@ class _OnboardTile extends StatelessWidget {
         side: BorderSide(color: theme.dividerColor),
       ),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
         leading: Container(
           width: 38,
           height: 38,
@@ -318,8 +331,11 @@ class _OnboardTile extends StatelessWidget {
           child: Icon(icon, size: 20),
         ),
         title: Text(title, style: const TextStyle(fontSize: 13.5)),
-        subtitle:
-            Text(desc, style: const TextStyle(fontSize: 11.5), maxLines: 2),
+        subtitle: Text(
+          desc,
+          style: const TextStyle(fontSize: 11.5),
+          maxLines: 2,
+        ),
         trailing: const Icon(Icons.chevron_right, size: 18),
         onTap: onTap,
       ),

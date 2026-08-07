@@ -1,9 +1,7 @@
-// Shared MediaViewer -- the 1-в-1 port of React MediaViewer.tsx. A
-// fullscreen in-app viewer for image/video/audio/other attachments. The
-// caller (the slice-3 attachment transfer seam) resolves the URL and
-// invokes [showMediaViewer]. Image uses Image.network; video + audio use
-// media_kit (Player + VideoController). See the commit message for the
-// React-structure map + the Flutter translation rationale.
+// Shared MediaViewer -- the 1-в-1 port of React MediaViewer.tsx. The caller
+// (the slice-3 attachment transfer seam) resolves the URL and invokes
+// [showMediaViewer]. Image uses Image.network; video + audio use media_kit
+// (Player + VideoController).
 library;
 
 import 'package:flutter/material.dart';
@@ -99,9 +97,7 @@ class MediaViewer extends StatelessWidget {
                   // to blur what is *behind* the route -- a nicety deferred;
                   // the 0.92 scrim is a faithful-enough port.)
                   Positioned.fill(
-                    child: ColoredBox(
-                      color: const Color(0xEB08090A),
-                    ),
+                    child: ColoredBox(color: const Color(0xEB08090A)),
                   ),
                   // React `.media-viewer`: flex column, center, gap 14px,
                   // padding 48px 32px 32px. The Column is centered + padded;
@@ -210,26 +206,26 @@ class _MediaStage extends StatelessWidget {
                 bg0: theme.colorScheme.surface,
               )
             : isVideo
-                ? _VideoStage(
-                    descriptor: descriptor,
-                    src: src,
-                    maxStageWidth: maxStageWidth,
-                    maxStageHeight: maxStageHeight,
-                  )
-                : isAudio
-                    ? _AudioStage(
-                        descriptor: descriptor,
-                        src: src,
-                        maxStageWidth: maxStageWidth,
-                      )
-                    : _PlaybackPlaceholderCard(
-                        fileName: descriptor.fileName,
-                        // React `IconFile` -> Material
-                        // `Icons.insert_drive_file_outlined` (matches the
-                        // attachment_card file-card icon choice).
-                        icon: Icons.insert_drive_file_outlined,
-                        bg2: theme.colorScheme.surface,
-                      ),
+            ? _VideoStage(
+                descriptor: descriptor,
+                src: src,
+                maxStageWidth: maxStageWidth,
+                maxStageHeight: maxStageHeight,
+              )
+            : isAudio
+            ? _AudioStage(
+                descriptor: descriptor,
+                src: src,
+                maxStageWidth: maxStageWidth,
+              )
+            : _PlaybackPlaceholderCard(
+                fileName: descriptor.fileName,
+                // React `IconFile` -> Material
+                // `Icons.insert_drive_file_outlined` (matches the
+                // attachment_card file-card icon choice).
+                icon: Icons.insert_drive_file_outlined,
+                bg2: theme.colorScheme.surface,
+              ),
       ),
     );
   }
@@ -458,27 +454,35 @@ class _AudioStageState extends State<_AudioStage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(Icons.play_circle_filled,
-                size: 32, color: theme.colorScheme.primary),
+            Icon(
+              Icons.play_circle_filled,
+              size: 32,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(height: 14),
-            Text(widget.descriptor.fileName,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: theme.colorScheme.onSurface)),
+            Text(
+              widget.descriptor.fileName,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
             const SizedBox(height: 14),
             Row(
               children: [
                 IconButton(
-                    icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-                    onPressed: () => player.playOrPause()),
+                  icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+                  onPressed: () => player.playOrPause(),
+                ),
                 Expanded(
                   child: Slider(
                     value: _position.inMilliseconds.toDouble(),
                     min: 0,
-                    max: _duration.inMilliseconds
-                        .toDouble()
-                        .clamp(1, double.infinity),
+                    max: _duration.inMilliseconds.toDouble().clamp(
+                      1,
+                      double.infinity,
+                    ),
                     onChanged: (value) =>
                         player.seek(Duration(milliseconds: value.round())),
                   ),

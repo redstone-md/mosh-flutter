@@ -1,16 +1,8 @@
 // Org-roster rail action helpers -- the Flutter mirror of React's
 // `use-orgs.ts` callbacks that SessionScreen wires into [OrgSection]. Each
 // helper hits the Gateway seam, refreshes the org-roster + session/group
-// lists, and navigates to the resulting chat (DM or group). Mirrors React:
-//   - leaveOrg        -> gateway.leaveOrg + refreshOrgs + refresh(quiet)
-//   - openMemberDm     -> use the existing dm_link session_id or
-//                        sendOrgDmOffer, then setActive(dm)
-//   - acceptDmOffer   -> gateway.acceptOrgDmOffer + setActive(dm)
-//   - dismissDmOffer  -> gateway.dismissOrgDmOffer + refreshOrgs
-//   - acceptGroupOffer-> gateway.acceptOrgGroupOffer + setActive(group)
-//   - dismissGroupOffer-> gateway.dismissOrgGroupOffer + refreshOrgs
-//   - createOrgGroup  -> gateway.createOrgGroup (invite all non-self
-//                        roster members) + setActive(group)
+// lists, and navigates to the resulting chat (DM or group). Mirrors React's
+// per-helper callbacks (leaveOrg, openMemberDm, acceptDmOffer, ...) 1:1.
 //
 // The `requestBase` (displayName/listenPort/staticPeer) comes from
 // inviteFlowProvider, the same settings source onboarding uses (DRY). A
@@ -23,11 +15,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
-import 'package:mosh/src/rust/org_runtime.dart'
-    show OrgSnapshot, OrgMemberView;
+import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot, OrgMemberView;
 import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/state/org_providers.dart' show orgsProvider,
-    orgOperationBusProvider;
+import 'package:mosh/src/state/org_providers.dart'
+    show orgsProvider, orgOperationBusProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show inviteFlowProvider, sessionListProvider;
 import 'package:mosh/src/state/channel_group_providers.dart'
@@ -44,7 +35,9 @@ Future<void> _refreshAll(WidgetRef ref) async {
 
 void _error(BuildContext context, Object e) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(e.toString())));
 }
 
 /// Leave an org (React leaveOrg).
@@ -116,10 +109,14 @@ Future<void> acceptOrgDmOfferAction(
   final flow = ref.read(inviteFlowProvider);
   ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
-    final session = await ref.read(gatewayProvider).acceptOrgDmOffer(
+    final session = await ref
+        .read(gatewayProvider)
+        .acceptOrgDmOffer(
           orgPubkey: orgPubkey,
           offerId: offerId,
-          displayName: flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
+          displayName: flow.displayName.isEmpty
+              ? 'anonymous'
+              : flow.displayName,
           listenPort: flow.listenPort,
           staticPeer: flow.staticPeer,
         );
@@ -142,7 +139,8 @@ Future<void> dismissOrgDmOfferAction(
 ) async {
   ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
-    await ref.read(gatewayProvider)
+    await ref
+        .read(gatewayProvider)
         .dismissOrgDmOffer(orgPubkey: orgPubkey, offerId: offerId);
     await ref.read(orgsProvider.notifier).refresh();
   } catch (e) {
@@ -163,10 +161,14 @@ Future<void> acceptOrgGroupOfferAction(
   final flow = ref.read(inviteFlowProvider);
   ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
-    final group = await ref.read(gatewayProvider).acceptOrgGroupOffer(
+    final group = await ref
+        .read(gatewayProvider)
+        .acceptOrgGroupOffer(
           orgPubkey: orgPubkey,
           offerId: offerId,
-          displayName: flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
+          displayName: flow.displayName.isEmpty
+              ? 'anonymous'
+              : flow.displayName,
           listenPort: flow.listenPort,
           staticPeer: flow.staticPeer,
         );
@@ -189,7 +191,8 @@ Future<void> dismissOrgGroupOfferAction(
 ) async {
   ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
-    await ref.read(gatewayProvider)
+    await ref
+        .read(gatewayProvider)
         .dismissOrgGroupOffer(orgPubkey: orgPubkey, offerId: offerId);
     await ref.read(orgsProvider.notifier).refresh();
   } catch (e) {
@@ -215,11 +218,15 @@ Future<void> createOrgGroupAction(
         .where((m) => !m.isSelf)
         .map((m) => m.mossPeerId)
         .toList(growable: false);
-    final created = await ref.read(gatewayProvider).createOrgGroup(
+    final created = await ref
+        .read(gatewayProvider)
+        .createOrgGroup(
           orgPubkey: org.orgPubkey,
           label: label.trim().isEmpty ? null : label.trim(),
           memberPeerIds: invited,
-          displayName: flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
+          displayName: flow.displayName.isEmpty
+              ? 'anonymous'
+              : flow.displayName,
           listenPort: flow.listenPort,
           staticPeer: flow.staticPeer,
         );

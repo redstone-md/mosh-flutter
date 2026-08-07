@@ -1,21 +1,18 @@
 // Embeddable invite-join step body -- 1-to-1 with React OnboardJoinStep
 // (src/features/private-dm/NewSessionPanelSteps.tsx). Renders the step
-// CONTENT ONLY: the body paragraph, the invite Semantics+TextField
-// (aria-label="Invite link" + aria-invalid), the live 3-state detection
-// badge, the full-width primary Connect button (disabled until detection is
-// valid), the inline accepted-session text, and the inline error. NO frame,
-// NO back affordance, NO title -- the caller wraps this in the frame
-// (OnboardStepFrame for the full-screen route, OnboardStepBody when the
-// desktop chat-pane composes it inline in atomic #8). One step content,
-// two frames -- DRY, matching atomic #1/#2 (OnboardStepBody/OnboardMenu)
-// and atomic #4/#5/#6 (ChatCreateStep/GroupCreateStep/ChannelJoinStep).
+// CONTENT ONLY: body paragraph, invite Semantics+TextField
+// (aria-label="Invite link" + aria-invalid), live 3-state detection badge,
+// full-width primary Connect button (disabled until detection is valid),
+// inline accepted-session text, inline error. NO frame, NO back affordance,
+// NO title -- the caller wraps this in [OnboardStepFrame] (full screen) or
+// OnboardStepBody (inline, atomic #8).
 //
-// Scope: the invite-join step UI + the acceptInvite/joinGroup/joinOrg Gateway
-// seams (slice-3). Live detection re-runs [detectInvite] on every keystroke
-// (the ported pure function; detection is NOT re-implemented here). Connect
-// is enabled for every detected kind (dm + group + org -- all three have a
-// wired Gateway seam). The detection badge is 1-to-1 with React (ok for any
-// detected kind, bad for unknown, neutral for empty).
+// Scope: the invite-join step UI + the acceptInvite/joinGroup/joinOrg
+// Gateway seams (slice-3). Live detection re-runs [detectInvite] on every
+// keystroke (the ported pure function; detection is NOT re-implemented
+// here). Connect is enabled for every detected kind (dm + group + org -- all
+// three have a wired Gateway seam). The detection badge is 1-to-1 with React
+// (ok for any detected kind, bad for unknown, neutral for empty).
 //
 // Navigation split (mirrors atomic #6 ChannelJoinStep): the SUCCESS
 // navigation stays INSIDE this step -- context.go(AppRoutes.groupFor(id))
@@ -50,30 +47,24 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
-/// Embeddable invite-join step body -- the step CONTENT only.
-///
-/// Renders the body paragraph, the invite Semantics+TextField, the live
-/// 3-state detection badge ([_DetectBadge]), the full-width primary Connect
-/// button (disabled until detection is valid), the inline accepted-session
-/// text, and the inline error. Caller wraps this in [OnboardStepFrame]
-/// (full-screen route, e.g. [InvitePasteScreen]) or OnboardStepBody (inline,
-/// atomic #8).
-///
-/// Mirrors React OnboardJoinStep (NewSessionPanelSteps.tsx) which renders
-/// its body inside an OnboardStepFrame -- there the frame and content are
-/// coupled; here they are split so the same content composes into two frames
-/// (route + inline). State stays in this widget (the controller + live
+/// Embeddable invite-join step body -- the step CONTENT only: body
+/// paragraph, invite Semantics+TextField, live 3-state detection badge
+/// ([_DetectBadge]), full-width primary Connect button, inline
+/// accepted-session/error text. The caller wraps this in
+/// [OnboardStepFrame] (full-screen route) or OnboardStepBody (inline,
+/// atomic #8) -- mirrors React OnboardJoinStep (NewSessionPanelSteps.tsx),
+/// which coupled frame + content where here the split lets the same content
+/// compose into both frames. State stays in this widget (controller + live
 /// detection value + busy/acceptedSessionId/error are ephemeral UI).
 ///
-/// [onBack] is an injected VoidCallback (1-to-1 with React props.onBack)
-/// reserved for caller parity -- the step body renders no back affordance
-/// itself; the framing widget owns the Back button and wires it to this
-/// callback. Unlike atomic #4/#5, this step KEEPS the success navigation
-/// inside itself because both the route screen and the inline panel land on
-/// the same destinations: group -> context.go(AppRoutes.groupFor(id)),
-/// org -> context.go(AppRoutes.sessions), dm -> the accepted session id
-/// stored inline (no navigation; React shows it inline too). Only Back
-/// routing is delegated to the caller.
+/// [onBack] is injected (1-to-1 with React props.onBack): the step renders
+/// no back affordance itself; the framing widget owns the Back button.
+/// Unlike atomic #4/#5, this step KEEPS the success navigation inside itself
+/// because both the route screen and the inline panel land on the same
+/// destinations: group -> context.go(AppRoutes.groupFor(id)), org ->
+/// context.go(AppRoutes.sessions), dm -> the accepted session id stored
+/// inline (no navigation; React shows it inline too). Only Back routing is
+/// delegated to the caller.
 ///
 /// [initialInviteUri] seeds the field on first build (1-to-1 with the
 /// deep-link seed -- the /join route passes the mosh:// URI here via
@@ -81,7 +72,11 @@ import 'package:mosh/src/state/session_providers.dart';
 /// constructs the step with an empty field. The route wrapper
 /// ([InvitePasteScreen]) reads state.extra and forwards it here.
 class OnboardJoinStep extends ConsumerStatefulWidget {
-  const OnboardJoinStep({super.key, required this.onBack, this.initialInviteUri});
+  const OnboardJoinStep({
+    super.key,
+    required this.onBack,
+    this.initialInviteUri,
+  });
 
   /// Back-navigation callback (1-to-1 with React props.onBack). The step
   /// body does not render a back affordance itself; the framing widget owns
@@ -99,8 +94,9 @@ class OnboardJoinStep extends ConsumerStatefulWidget {
 
 class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
   late final TextEditingController _controller;
-  InviteDetection _detection =
-      const InviteDetection(kind: InviteDetectionKind.empty);
+  InviteDetection _detection = const InviteDetection(
+    kind: InviteDetectionKind.empty,
+  );
   bool _busy = false;
   String? _acceptedSessionId;
   String? _error;
@@ -166,8 +162,9 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     }
     final uri = _controller.text.trim();
     final flow = ref.read(inviteFlowProvider);
-    final displayName =
-        flow.displayName.isEmpty ? 'anonymous' : flow.displayName;
+    final displayName = flow.displayName.isEmpty
+        ? 'anonymous'
+        : flow.displayName;
     setState(() {
       _busy = true;
       _error = null;
@@ -175,7 +172,9 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     });
     try {
       if (kind == InviteDetectionKind.dm) {
-        final snapshot = await ref.read(gatewayProvider).acceptInvite(
+        final snapshot = await ref
+            .read(gatewayProvider)
+            .acceptInvite(
               request: AcceptInviteRequest(
                 inviteUri: uri,
                 displayName: displayName,
@@ -190,7 +189,9 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         // (1-to-1 with React setActive({type:"group", id}) +
         // setShowSetup(false)). orgPubkey is null -- a paste/deep-link
         // join is a direct group invite, not an org group-offer.
-        final snapshot = await ref.read(gatewayProvider).joinGroup(
+        final snapshot = await ref
+            .read(gatewayProvider)
+            .joinGroup(
               request: JoinGroupRequest(
                 inviteUri: uri,
                 displayName: displayName,
@@ -208,7 +209,9 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         // leaves setup + refreshes the orgs list, so the user lands back on
         // the rail. Flutter has no org screen yet, so navigate to the
         // sessions list (mirrors how leaveChannel/closeGroup return there).
-        await ref.read(gatewayProvider).joinOrg(
+        await ref
+            .read(gatewayProvider)
+            .joinOrg(
               request: JoinOrgRequest(
                 bundleUri: uri,
                 displayName: displayName,
@@ -243,22 +246,22 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
           style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
         ),
         const SizedBox(height: 16),
-       // aria-label="Invite link" + aria-invalid={kind === "unknown"}
-       // (React). The literal 'Invite link' is non-localized, matching
-       // React's literal aria-label (not in onboardText). The
-       // aria-invalid equivalent is Semantics.validationResult
-       // (SemanticsValidationResult.invalid for the unknown kind); the
-       // border stays neutral (only the badge reflects the error
-       // visually), and the badge's liveRegion also announces the
-       // error to assistive tech (the polite announcement matches
-       // React's aria-live intent).
-       Semantics(
-         textField: true,
-         label: 'Invite link',
-         validationResult: _detection.kind == InviteDetectionKind.unknown
-             ? SemanticsValidationResult.invalid
-             : SemanticsValidationResult.none,
-         child: TextField(
+        // aria-label="Invite link" + aria-invalid={kind === "unknown"}
+        // (React). The literal 'Invite link' is non-localized, matching
+        // React's literal aria-label (not in onboardText). The
+        // aria-invalid equivalent is Semantics.validationResult
+        // (SemanticsValidationResult.invalid for the unknown kind); the
+        // border stays neutral (only the badge reflects the error
+        // visually), and the badge's liveRegion also announces the
+        // error to assistive tech (the polite announcement matches
+        // React's aria-live intent).
+        Semantics(
+          textField: true,
+          label: 'Invite link',
+          validationResult: _detection.kind == InviteDetectionKind.unknown
+              ? SemanticsValidationResult.invalid
+              : SemanticsValidationResult.none,
+          child: TextField(
             controller: _controller,
             maxLines: 4,
             minLines: 2,
@@ -278,9 +281,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         const SizedBox(height: 20),
         FilledButton(
           onPressed: ready ? _connect : null,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           child: _busy
               ? const SizedBox(
                   width: 22,
@@ -291,8 +292,10 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         ),
         if (_acceptedSessionId != null) ...[
           const SizedBox(height: 16),
-          Text('Accepted session: $_acceptedSessionId',
-              style: theme.textTheme.bodySmall),
+          Text(
+            'Accepted session: $_acceptedSessionId',
+            style: theme.textTheme.bodySmall,
+          ),
         ],
         if (_error != null) ...[
           const SizedBox(height: 16),
@@ -331,8 +334,8 @@ class _DetectBadge extends StatelessWidget {
     final color = detected
         ? scheme.primary
         : isBad
-            ? scheme.error
-            : scheme.outline;
+        ? scheme.error
+        : scheme.outline;
     return Semantics(
       liveRegion: true,
       child: Row(

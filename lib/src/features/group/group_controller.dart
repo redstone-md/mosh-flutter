@@ -1,23 +1,21 @@
-// Group orchestration state -- the Riverpod Notifier that owns the group
-// screen's BUSINESS state + the send/retry/attachment/voice/leave/peer-DM/
-// open-attachment/org-invite methods. Extracted from `group_screen.dart` so
+// Group orchestration state -- the Riverpod Notifier owning the group
+// screen's BUSINESS state (send/retry/attachment/voice/leave/peer-DM/
+// org-invite methods), extracted from `group_screen.dart`.
 //
-// AGENTS.md state separation (controller = business state, screen = UI state):
-// the controller owns `sending` / `offerBusy` / `offeredFingerprints` /
-// `chatError` / `pendingOpen` / `_lastFailedSend` and does the gateway +
-// invalidation work; the screen keeps ONLY UI state (`_composer` /
-// `_showPeerStatus` / `_mobileSearchOpen` / `_search` / `_filter`) +
-// navigation (the controller returns results, the screen does `context.go`)
-// + the composer-clear-on-success (the controller returns the sent body, the
-// screen clears `_composer` iff it still equals it -- React parity).
+// AGENTS.md state separation: the controller owns `sending` / `offerBusy` /
+// `offeredFingerprints` / `chatError` / `pendingOpen` / `_lastFailedSend`
+// and does the gateway + invalidation work; the screen keeps ONLY UI state
+// (`_composer` / `_showPeerStatus` / `_mobileSearchOpen` / `_search` /
+// `_filter`) + navigation + the composer-clear-on-success (the controller
+// returns the sent body, the screen clears `_composer` iff it still equals
+// it -- React parity).
 //
-// The controller reads `gatewayProvider`, invalidates
-// `groupSnapshotProvider(groupId)` + `sessionListProvider` + `orgsProvider`,
-// reads `inviteFlowProvider` + the org-invite providers
-// (`invitingGroupsProvider` / `offeredGroupInvitesProvider`) -- the SAME
-// providers the screen read before, so the existing fake-gateway test
-// overrides still apply unchanged. The controller's [build] does NOT read
-// the gateway (only the methods do), so render-only tests that do not
+// The controller reads the SAME providers the screen read before
+// (`gatewayProvider`, `groupSnapshotProvider(groupId)`,
+// `sessionListProvider`, `orgsProvider`, `inviteFlowProvider`,
+// `invitingGroupsProvider`, `offeredGroupInvitesProvider`), so the existing
+// fake-gateway test overrides still apply unchanged. Its [build] does NOT
+// read the gateway (only the methods do), so render-only tests that do not
 // override `gatewayProvider` stay green.
 library;
 
@@ -103,22 +101,21 @@ class GroupControllerState {
     Object? chatError = _sentinel,
     Object? lastFailedSend = _sentinel,
     Object? pendingOpen = _sentinel,
-  }) =>
-      GroupControllerState(
-        sending: sending ?? this.sending,
-        transferOperations: transferOperations ?? this.transferOperations,
-        offerBusy: offerBusy ?? this.offerBusy,
-        offeredFingerprints: offeredFingerprints ?? this.offeredFingerprints,
-        chatError: identical(chatError, _sentinel)
-            ? this.chatError
-            : chatError as String?,
-        lastFailedSend: identical(lastFailedSend, _sentinel)
-            ? this.lastFailedSend
-            : lastFailedSend as ({ChatTarget target, String body})?,
-        pendingOpen: identical(pendingOpen, _sentinel)
-            ? this.pendingOpen
-            : pendingOpen as AttachmentDescriptor?,
-      );
+  }) => GroupControllerState(
+    sending: sending ?? this.sending,
+    transferOperations: transferOperations ?? this.transferOperations,
+    offerBusy: offerBusy ?? this.offerBusy,
+    offeredFingerprints: offeredFingerprints ?? this.offeredFingerprints,
+    chatError: identical(chatError, _sentinel)
+        ? this.chatError
+        : chatError as String?,
+    lastFailedSend: identical(lastFailedSend, _sentinel)
+        ? this.lastFailedSend
+        : lastFailedSend as ({ChatTarget target, String body})?,
+    pendingOpen: identical(pendingOpen, _sentinel)
+        ? this.pendingOpen
+        : pendingOpen as AttachmentDescriptor?,
+  );
 
   static const _sentinel = Object();
 }
@@ -153,7 +150,8 @@ class GroupPeerDmResult {
 /// field (mirrors `voiceCallOrchestratorProvider`).
 final groupControllerProvider =
     NotifierProvider.family<GroupController, GroupControllerState, String>(
-        GroupController.new);
+      GroupController.new,
+    );
 
 /// Owns the group screen's business state + orchestration methods. Mirrors
 /// [ChannelController] 1-1 on the shared surface; the group-specific addition
@@ -182,8 +180,9 @@ class GroupController extends Notifier<GroupControllerState> {
     } finally {
       if (ref.mounted) {
         state = state.copyWith(
-          transferOperations:
-              state.transferOperations > 0 ? state.transferOperations - 1 : 0,
+          transferOperations: state.transferOperations > 0
+              ? state.transferOperations - 1
+              : 0,
         );
       }
     }
@@ -243,14 +242,16 @@ class GroupController extends Notifier<GroupControllerState> {
     if (state.sending) return;
     state = state.copyWith(sending: true);
     try {
-      await _runTransfer(() => sendChatAttachment(
-            gateway: ref.read(gatewayProvider),
-            target: _target,
-            fileName: attachment.fileName,
-            mime: attachment.mime,
-            dataBase64: attachment.dataBase64,
-            thumbnailBase64: attachment.thumbnailBase64,
-          ));
+      await _runTransfer(
+        () => sendChatAttachment(
+          gateway: ref.read(gatewayProvider),
+          target: _target,
+          fileName: attachment.fileName,
+          mime: attachment.mime,
+          dataBase64: attachment.dataBase64,
+          thumbnailBase64: attachment.thumbnailBase64,
+        ),
+      );
       ref.invalidate(groupSnapshotProvider(groupId));
     } finally {
       state = state.copyWith(sending: false);
@@ -297,30 +298,39 @@ class GroupController extends Notifier<GroupControllerState> {
     void Function(AttachmentDescriptor descriptor, AttachmentView? view) onOpen,
   ) =>
       (view) => GroupAttachmentCallbacks(
-            busy: state.transferBusy,
-            onDownload: (id) => unawaited(_runTransfer(() =>
-                downloadChatAttachment(
-                  gateway: ref.read(gatewayProvider),
-                  target: _target,
-                  attachmentId: id,
-                ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))))),
-            onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
-                  gateway: ref.read(gatewayProvider),
-                  target: _target,
-                  attachmentId: id,
-                ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))))),
-            onOpen: (descriptor) => onOpen(descriptor, view),
-          );
+        busy: state.transferBusy,
+        onDownload: (id) => unawaited(
+          _runTransfer(
+            () => downloadChatAttachment(
+              gateway: ref.read(gatewayProvider),
+              target: _target,
+              attachmentId: id,
+            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
+          ),
+        ),
+        onCancel: (id) => unawaited(
+          _runTransfer(
+            () => cancelChatAttachment(
+              gateway: ref.read(gatewayProvider),
+              target: _target,
+              attachmentId: id,
+            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
+          ),
+        ),
+        onOpen: (descriptor) => onOpen(descriptor, view),
+      );
 
   /// Retry a failed outbound message (React `retryGroupMessage`). Fire-and-
   /// forget via `unawaited`, then invalidate the group snapshot so the next
   /// poll re-renders the row's delivery status.
   void retryMessage(String messageId) {
-    unawaited(retryChatMessage(
-      gateway: ref.read(gatewayProvider),
-      target: _target,
-      messageId: messageId,
-    ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))));
+    unawaited(
+      retryChatMessage(
+        gateway: ref.read(gatewayProvider),
+        target: _target,
+        messageId: messageId,
+      ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
+    );
   }
 
   /// Opens an attachment -- 1-1 with React `openAttachment`. The decision
@@ -329,7 +339,9 @@ class GroupController extends Notifier<GroupControllerState> {
   /// download (business state + gateway), then returns an immutable intent for
   /// the screen to interpret.
   AttachmentOpenIntent openAttachment(
-      AttachmentDescriptor descriptor, AttachmentView? view) {
+    AttachmentDescriptor descriptor,
+    AttachmentView? view,
+  ) {
     final localIntent = resolveLocalAttachmentOpen(
       descriptor: descriptor,
       view: view,
@@ -348,11 +360,15 @@ class GroupController extends Notifier<GroupControllerState> {
       state = state.copyWith(pendingOpen: descriptor);
     }
     if (decision.download) {
-      unawaited(_runTransfer(() => downloadChatAttachment(
+      unawaited(
+        _runTransfer(
+          () => downloadChatAttachment(
             gateway: ref.read(gatewayProvider),
             target: _target,
             attachmentId: descriptor.attachmentId,
-          ).then((_) => ref.invalidate(groupSnapshotProvider(groupId)))));
+          ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
+        ),
+      );
     }
     if (decision.src != null) {
       return AttachmentMediaOpenIntent(
@@ -407,14 +423,18 @@ class GroupController extends Notifier<GroupControllerState> {
     state = state.copyWith(offerBusy: true);
     try {
       final flow = ref.read(inviteFlowProvider);
-      final invite = await ref.read(gatewayProvider).createInvite(
+      final invite = await ref
+          .read(gatewayProvider)
+          .createInvite(
             request: StartSessionRequest(
               displayName: flow.displayName,
               listenPort: flow.listenPort,
               staticPeer: flow.staticPeer,
             ),
           );
-      await ref.read(gatewayProvider).sendGroupDmOffer(
+      await ref
+          .read(gatewayProvider)
+          .sendGroupDmOffer(
             groupId: groupId,
             peerFingerprint: peerFingerprint,
             inviteUri: invite.inviteUri,
@@ -438,24 +458,26 @@ class GroupController extends Notifier<GroupControllerState> {
     final peerIds = prompt.missingPeerIds;
     if (peerIds.isEmpty) return;
     ref.read(invitingGroupsProvider.notifier).start(groupId);
-    unawaited(ref
-        .read(gatewayProvider)
-        .orgGroupInviteMembers(
-          orgPubkey: prompt.orgPubkey,
-          groupId: groupId,
-          memberPeerIds: peerIds,
-        )
-        .then((_) {
-          ref
-              .read(offeredGroupInvitesProvider.notifier)
-              .markInvited(groupId, peerIds);
-        })
-        .catchError((_) {})
-        .whenComplete(() {
-          ref.read(invitingGroupsProvider.notifier).finish(groupId);
-          ref.invalidate(orgsProvider);
-          ref.invalidate(groupSnapshotProvider(groupId));
-        }));
+    unawaited(
+      ref
+          .read(gatewayProvider)
+          .orgGroupInviteMembers(
+            orgPubkey: prompt.orgPubkey,
+            groupId: groupId,
+            memberPeerIds: peerIds,
+          )
+          .then((_) {
+            ref
+                .read(offeredGroupInvitesProvider.notifier)
+                .markInvited(groupId, peerIds);
+          })
+          .catchError((_) {})
+          .whenComplete(() {
+            ref.read(invitingGroupsProvider.notifier).finish(groupId);
+            ref.invalidate(orgsProvider);
+            ref.invalidate(groupSnapshotProvider(groupId));
+          }),
+    );
   }
 
   /// Leaves the group -- the gateway close + invalidation + failed-send
@@ -468,10 +490,7 @@ class GroupController extends Notifier<GroupControllerState> {
   /// method does only the gateway close + invalidation + failed-send clear.
   Future<GroupLeaveResult> leave() async {
     state = state.copyWith(lastFailedSend: null, chatError: null);
-    await closeChatTarget(
-      gateway: ref.read(gatewayProvider),
-      target: _target,
-    );
+    await closeChatTarget(gateway: ref.read(gatewayProvider), target: _target);
     ref.invalidate(groupSnapshotProvider(groupId));
     return const GroupLeaveResult();
   }
