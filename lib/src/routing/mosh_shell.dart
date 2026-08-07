@@ -19,8 +19,9 @@
 //   - Desktop (width > 580, the React @media (max-width: 580px) inverse):
 //     a Column with the shared desktop titlebar (mosh_title_bar.dart -- the
 //     React header.titlebar port: brand + subtitle + Peer status button +
-//     live StatePill) ABOVE a Row of the rail branch (fixed width 300, the
-//     React rail width) + a VerticalDivider + an Expanded chat branch.
+//     live StatePill) ABOVE a Row of the rail branch (kRailWidth, React's
+//     268px expanded rail column) + a VerticalDivider + an Expanded chat
+//     branch.
 //     Both branches are ALWAYS mounted (the rail stays while a DM is open
 //     -- the parity gap). The titlebar's Peer status button opens the
 //     shell-level PeerStatusDrawer as a Positioned.fill overlay over the
@@ -46,6 +47,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
+import 'package:mosh/src/features/sessions/rail_item.dart' show kRailWidth;
 import 'package:mosh/src/routing/mosh_title_bar.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -53,11 +55,6 @@ import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
-
-/// Desktop rail pane width -- the React SessionRail fixed width. Kept
-/// fixed (not responsive) so the chat pane gets the remaining space, 1-1
-/// with the React desktop-body rail column.
-const double _kRailWidth = 300.0;
 
 /// The two-pane shell container -- wired as the StatefulShellRoute
 /// navigatorContainerBuilder. Receives the two branch Navigator widgets
@@ -128,7 +125,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
                 children: <Widget>[
                   // Branch A (the rail). Fixed width so the chat pane gets
                   // the rest.
-                  SizedBox(width: _kRailWidth, child: widget.children[0]),
+                  SizedBox(width: kRailWidth, child: widget.children[0]),
                   const VerticalDivider(width: 1, thickness: 1),
                   // Branch B (the chat). Expanded so it fills the remaining
                   // width.

@@ -16,7 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
-import 'package:mosh/src/features/sessions/state_dot.dart';
+import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/util/format.dart';
 
@@ -67,24 +67,15 @@ class GroupRailItem extends StatelessWidget {
       label: l.openGroupAria(label),
       button: true,
       selected: active,
-      child: ListTile(
-        leading: const Icon(Icons.group, size: 18),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(l.membersCount(group.memberCount.toInt())),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (group.isAdmin)
-              Tooltip(
-                message: l.groupAdminBadge,
-                child: const Icon(Icons.workspace_premium, size: 14),
-              ),
-            StateDot(state: group.state),
-            const SizedBox(width: 8),
-            UnreadBadge(count: unreadCount),
-          ],
-        ),
-        selected: active,
+      child: RailItem(
+        kind: RailItemKind.group,
+        leading: const Icon(Icons.group),
+        title: label,
+        subtitle: l.membersCount(group.memberCount.toInt()),
+        // The expanded rail hides `.rail-admin-crown` and `.rail-dot`
+        // outright, so the badge is the only trailing element.
+        trailing: UnreadBadge(count: unreadCount),
+        active: active,
         // Open the group screen for this group (mirrors React
         // `onSelect({ type: "group", id })`). Keyed by `groupId` (the group
         // identity), not a name.

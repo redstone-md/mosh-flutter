@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 
@@ -59,15 +60,13 @@ class ChannelRailItem extends StatelessWidget {
       label: l.openChannelAria(channel.name),
       button: true,
       selected: active,
-      child: ListTile(
-        leading: const Icon(Icons.tag, size: 18),
-        title: Text(
-          '#${channel.name}',
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(channel.topic),
+      child: RailItem(
+        kind: RailItemKind.channel,
+        leading: const Icon(Icons.tag),
+        title: '#${channel.name}',
+        subtitle: channel.topic,
         trailing: UnreadBadge(count: unreadCount),
-        selected: active,
+        active: active,
         onTap: () {
           onSelect?.call();
           context.go(AppRoutes.channelFor(channel.name));
