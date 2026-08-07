@@ -240,6 +240,9 @@ class _DmScreenBodyState extends ConsumerState<DmScreenBody> {
                   onAttach: widget.onAttach,
                   onError: widget.onAttachmentPickError,
                   child: async.when(
+                    // The 1 s auto-poll reloads this family entry; without
+                    // this the list would blink to a spinner every tick.
+                    skipLoadingOnReload: true,
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(child: Text(e.toString())),

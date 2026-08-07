@@ -53,38 +53,6 @@ const Color _kFg3 = Color(0xFF6B7075); // --fg-3 (idle dot)
 // file mirrors that exact recipe.
 final Color _kMossGlow = const Color(0x24B7D84A).withValues(alpha: 0.14);
 
-/// The active-conversation kind, parsed from the active key prefix
-/// ('dm:' / 'channel:' / 'group:'). Mirrors React's branch test on
-/// `activeSession` / `activeChannel` / `activeGroup` (private-dm-
-/// screen.tsx L282-292). null when no conversation is open.
-enum _ActiveKind { dm, channel, group }
-
-/// Parsed active key + its kind. The raw key is kept so the snapshot
-/// family argument is the original id/name (the prefix is only a
-/// discriminator, not part of the family arg).
-class _ActiveKey {
-  const _ActiveKey({required this.kind, required this.arg});
-  final _ActiveKind kind;
-
-  /// The family argument: sessionId for dm, name for channel, groupId
-  /// for group (the suffix after the ':' prefix).
-  final String arg;
-
-  static _ActiveKey? parse(String? key) {
-    if (key == null) return null;
-    if (key.startsWith('dm:')) {
-      return _ActiveKey(kind: _ActiveKind.dm, arg: key.substring(3));
-    }
-    if (key.startsWith('channel:')) {
-      return _ActiveKey(kind: _ActiveKind.channel, arg: key.substring(8));
-    }
-    if (key.startsWith('group:')) {
-      return _ActiveKey(kind: _ActiveKind.group, arg: key.substring(6));
-    }
-    return null;
-  }
-}
-
 /// Desktop titlebar -- React header.titlebar (private-dm-screen.tsx
 /// L252-292). A stateless-ish ConsumerWidget: it watches
 /// activeConversationKeyProvider + the matching snapshot family only for
@@ -110,9 +78,7 @@ class MoshTitleBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final activeKey = _ActiveKey.parse(
-      ref.watch(activeConversationKeyProvider),
-    );
+    final activeKey = ref.watch(activeConversationProvider);
     // React titlebar: height 44, row, gap 14, padding 0 18, bg-0, bottom
     // border line (desktop-shell.css L16-26). Mapped to a 44-tall
     // Container with a bottom BorderSide.
@@ -234,7 +200,7 @@ class _PeerStatusButton extends StatelessWidget {
 class _StatePillSlot extends ConsumerWidget {
   const _StatePillSlot({required this.activeKey});
 
-  final _ActiveKey? activeKey;
+  final ActiveConversation? activeKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -242,17 +208,17 @@ class _StatePillSlot extends ConsumerWidget {
     if (activeKey == null) return const SizedBox.shrink(); // React `: null`
     final l = AppLocalizations.of(context)!;
     switch (activeKey.kind) {
-      case _ActiveKind.dm:
+      case ActiveConversationKind.dm:
         final async = ref.watch(activeSessionProvider(activeKey.arg));
         final state = async.value?.state;
         if (state == null) return const SizedBox.shrink();
         return StatePill(state: state, label: stateLabel(l, state));
-      case _ActiveKind.channel:
+      case ActiveConversationKind.channel:
         // React: fixed ready pill + channelBroadcastBadge text
         // (private-dm-screen.tsx L286-290) -- channels are always in the
         // Broadcast state; ChannelSnapshot has no .state.
         return StatePill(state: 'ready', label: l.channelBroadcastBadge);
-      case _ActiveKind.group:
+      case ActiveConversationKind.group:
         final async = ref.watch(groupSnapshotProvider(activeKey.arg));
         final state = async.value?.state;
         if (state == null) return const SizedBox.shrink();

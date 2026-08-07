@@ -20,6 +20,7 @@ import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
+import 'package:mosh/src/state/auto_poll_provider.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/state/production_provider_overrides.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
@@ -112,7 +113,7 @@ void main(List<String> args) async {
   // synchronously.
   runApp(
     ProviderScope(
-      overrides: productionVoiceOverrides,
+      overrides: productionOverrides,
       child: ValueListenableBuilder<Widget>(
         valueListenable: _appRoot,
         builder: (BuildContext context, Widget value, _) => value,
@@ -250,6 +251,11 @@ class MoshApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Start the app-wide auto-poll loop (React AUTO_POLL_MS). Mounted at the
+    // root, not in the shell, so a session created during onboarding starts
+    // draining its inbound queue immediately -- the MLS handshake only
+    // advances while something polls.
+    ref.watch(autoPollProvider);
     final app = MaterialApp.router(
       title: 'Mosh',
       locale: ref.watch(localeProvider),

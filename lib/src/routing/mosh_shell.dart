@@ -158,66 +158,43 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     );
   }
 
-  // The active-conversation kind, parsed from the active key prefix
-  // ('dm:' / 'channel:' / 'group:'), or null when no conversation is
-  // open. Defined here because the titlebar's copy is file-private.
-  _ActiveKind? _activeKind(WidgetRef ref) {
-    final key = ref.watch(activeConversationKeyProvider);
-    if (key == null) return null;
-    if (key.startsWith('dm:')) return _ActiveKind.dm;
-    if (key.startsWith('channel:')) return _ActiveKind.channel;
-    if (key.startsWith('group:')) return _ActiveKind.group;
-    return null;
-  }
-
-  // The family argument for the active conversation (sessionId / name /
-  // groupId -- the suffix after the ':' prefix), or null when nothing is
-  // open.
-  String? _activeArg(WidgetRef ref) {
-    final key = ref.watch(activeConversationKeyProvider);
-    if (key == null) return null;
-    if (key.startsWith('dm:')) return key.substring(3);
-    if (key.startsWith('channel:')) return key.substring(8);
-    if (key.startsWith('group:')) return key.substring(6);
-    return null;
-  }
-
   // The live DM SessionSnapshot for the active conversation, or null
   // (non-dm or loading/error). PeerStatusDrawer renders NoActiveSession
   // when all three snapshot getters return null.
   SessionSnapshot? _activeDmSession(WidgetRef ref) {
-    final arg = _activeArg(ref);
-    if (_activeKind(ref) != _ActiveKind.dm || arg == null) return null;
-    return ref.watch(activeSessionProvider(arg)).value;
+    final active = ref.watch(activeConversationProvider);
+    if (active?.kind != ActiveConversationKind.dm) return null;
+    return ref.watch(activeSessionProvider(active!.arg)).value;
   }
 
   // The live ChannelSnapshot for the active conversation, or null
   // (non-channel or loading/error).
   ChannelSnapshot? _activeChannelSnapshot(WidgetRef ref) {
-    final arg = _activeArg(ref);
-    if (_activeKind(ref) != _ActiveKind.channel || arg == null) return null;
-    return ref.watch(channelSnapshotProvider(arg)).value;
+    final active = ref.watch(activeConversationProvider);
+    if (active?.kind != ActiveConversationKind.channel) return null;
+    return ref.watch(channelSnapshotProvider(active!.arg)).value;
   }
 
   // The live GroupSnapshot for the active conversation, or null
   // (non-group or loading/error).
   GroupSnapshot? _activeGroupSnapshot(WidgetRef ref) {
-    final arg = _activeArg(ref);
-    if (_activeKind(ref) != _ActiveKind.group || arg == null) return null;
-    return ref.watch(groupSnapshotProvider(arg)).value;
+    final active = ref.watch(activeConversationProvider);
+    if (active?.kind != ActiveConversationKind.group) return null;
+    return ref.watch(groupSnapshotProvider(active!.arg)).value;
   }
 
   // A runtime error string for the active snapshot (mirrors dm_screen.dart
   // L507-508: `async.hasError ? async.error.toString() : null`), or null
   // when the active family is loading/data or no conversation is open.
   String? _activeDrawerError(WidgetRef ref) {
-    final kind = _activeKind(ref);
-    final arg = _activeArg(ref);
-    if (kind == null || arg == null) return null;
-    final async = switch (kind) {
-      _ActiveKind.dm => ref.watch(activeSessionProvider(arg)),
-      _ActiveKind.channel => ref.watch(channelSnapshotProvider(arg)),
-      _ActiveKind.group => ref.watch(groupSnapshotProvider(arg)),
+    final active = ref.watch(activeConversationProvider);
+    if (active == null) return null;
+    final async = switch (active.kind) {
+      ActiveConversationKind.dm => ref.watch(activeSessionProvider(active.arg)),
+      ActiveConversationKind.channel =>
+        ref.watch(channelSnapshotProvider(active.arg)),
+      ActiveConversationKind.group =>
+        ref.watch(groupSnapshotProvider(active.arg)),
     };
     return async.hasError ? async.error.toString() : null;
   }
@@ -227,25 +204,18 @@ class _MoshShellState extends ConsumerState<MoshShell> {
   // `ref.invalidate(activeSessionProvider(...))`). No-op when nothing is
   // open.
   void _invalidateActiveFamily() {
-    final kind = _activeKind(ref);
-    final arg = _activeArg(ref);
-    if (kind == null || arg == null) return;
-    switch (kind) {
-      case _ActiveKind.dm:
-        ref.invalidate(activeSessionProvider(arg));
-      case _ActiveKind.channel:
-        ref.invalidate(channelSnapshotProvider(arg));
-      case _ActiveKind.group:
-        ref.invalidate(groupSnapshotProvider(arg));
+    final active = ref.read(activeConversationProvider);
+    if (active == null) return;
+    switch (active.kind) {
+      case ActiveConversationKind.dm:
+        ref.invalidate(activeSessionProvider(active.arg));
+      case ActiveConversationKind.channel:
+        ref.invalidate(channelSnapshotProvider(active.arg));
+      case ActiveConversationKind.group:
+        ref.invalidate(groupSnapshotProvider(active.arg));
     }
   }
 }
-
-// The active-conversation kind for the shell's drawer build -- mirrors
-// the titlebar's `_ActiveKind` enum (private there). Defined here so the
-// shell can branch the snapshot family without exporting the titlebar's
-// private enum.
-enum _ActiveKind { dm, channel, group }
 
 /// Mobile shell -- the go_router default _IndexedStackedRouteBranchContainer
 /// port (Offstage + TickerMode + IndexedStack) so the inactive branch's
