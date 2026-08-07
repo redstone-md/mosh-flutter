@@ -4,17 +4,12 @@
 //! host network interfaces the runtime can bind to. Plain synchronous
 //! return; no streams.
 //!
-//! Stub: signature laid for the slice-one boundary; body `todo!()` —
-//! implemented in a later slice (S2: bound through the bridge). This stub
-//! compiles only and carries no runtime behavior, so the bridge can be
-//! generated against the command surface before the wiring lands.
-//!
 //! TYPES (ADR 0010 — 1:1 mapping, DRY): the return type is the runtime's
 //! own, re-exported here via `use crate::network_inventory::{...}`. It is
 //! NOT redefined. `Result<Vec<NetworkInterfaceInfo>, String>` matches the
 //! Tauri command shape exactly; the underlying `list_interfaces` already
-//! returns `Result<Vec<NetworkInterfaceInfo>, String>`, so the future impl
-//! is a direct delegate.
+//! returns `Result<Vec<NetworkInterfaceInfo>, String>`, so the body is a
+//! direct delegate.
 
 use crate::network_inventory::NetworkInterfaceInfo;
 
