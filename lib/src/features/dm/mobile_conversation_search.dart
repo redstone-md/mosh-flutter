@@ -126,34 +126,20 @@ class _MobileConversationSearchState extends State<MobileConversationSearch> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: kConversationToolsMargin,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Semantics(
-              label: widget.l.chatSearchPlaceholder,
-              textField: true,
-              child: TextField(
-                focusNode: _focusNode,
-                autofocus: true,
-                controller: TextEditingController(text: widget.search),
-                // Keep the controller in sync with the controlled value
-                // without stealing focus/clobbering the caret every rebuild
-                // -- the host owns the source of truth (same pattern as the
-                // desktop `ConversationTools` row).
-                onChanged: widget.onSearch,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  hintText: widget.l.chatSearchPlaceholder,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
+            child: ConversationSearchBox(
+              search: widget.search,
+              onSearch: widget.onSearch,
+              l: widget.l,
+              autofocus: true,
+              focusNode: _focusNode,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: kConversationToolsGap),
           // Close button -- 1-1 with React L79-90: clears the query THEN
           // closes (order matters; the panel unmounts after the clear).
           IconButton(
