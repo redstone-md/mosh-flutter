@@ -72,6 +72,14 @@ dependencies:
   super_clipboard: ^0.1.7+6
   desktop_drop: ^0.7.1
   url_launcher: ^6.3.2
+  # Atomic #1 (external-open-attachment-on-Android, infra): maintained fork of
+  # open_file that internally builds an ACTION_VIEW Intent with a FileProvider
+  # content URI for app-private storage files -- the one thing url_launcher
+  # cannot do on Android. Used by UrlLauncherAttachmentLauncher for
+  # AttachmentExternalOpenIntent (PDFs/docs/archives, NOT viewable media).
+  # Atomic #2 will wire it into the launcher; this atomic only adds the dep +
+  # the FileProvider config it requires.
+  open_filex: ^4.7.0
 
 dev_dependencies:
   flutter_test:
