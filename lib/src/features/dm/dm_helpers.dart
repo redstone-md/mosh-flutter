@@ -20,13 +20,35 @@ import 'package:mosh/src/util/format.dart' show shorten;
 /// React `.message-meta { gap: 8px }`.
 const double kMessageMetaGap = 8;
 
-/// React `.chat-title-block p { margin: 4px 0 0; color: var(--fg-3);
-/// font-size: 12px }` -- the line under a chat header's title.
-const TextStyle kChatSubtitleStyle =
-    TextStyle(fontSize: 12, color: MoshColors.fg3);
+/// React `.chat-header` is 14/22 padding around a 15px/700 title with a
+/// 12px --fg-3 subtitle 4px under it. Its `@media (max-width: 640px)` rule
+/// shrinks the whole block: `min-height: 54px`, `h1 { font-size: 14px }`,
+/// `p { margin-top: 2px; font-size: 11px }`.
+bool _isCompactChatHeader(BuildContext context) =>
+    MediaQuery.sizeOf(context).width <= 640;
 
-/// The `margin-top: 4px` that separates it from the title.
-const double kChatSubtitleGap = 4;
+/// Toolbar height for a chat AppBar: React's 70px desktop header, 54 under
+/// the 640px breakpoint.
+double chatHeaderHeight(BuildContext context) =>
+    _isCompactChatHeader(context) ? 54 : 70;
+
+/// `.chat-title-block h1` -- 15px/700 at 0.02em, 14px on a narrow header.
+TextStyle chatTitleStyle(BuildContext context) => TextStyle(
+      fontSize: _isCompactChatHeader(context) ? 14 : 15,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.3,
+      color: MoshColors.fg1,
+    );
+
+/// `.chat-title-block p` -- 12px --fg-3, 11px on a narrow header.
+TextStyle chatSubtitleStyle(BuildContext context) => TextStyle(
+      fontSize: _isCompactChatHeader(context) ? 11 : 12,
+      color: MoshColors.fg3,
+    );
+
+/// The gap under the title: `margin-top: 4px`, 2px when compact.
+double chatSubtitleGap(BuildContext context) =>
+    _isCompactChatHeader(context) ? 2 : 4;
 
 /// React `.message-row { gap: 12px }` -- avatar to body.
 const double kMessageRowGap = 12;
