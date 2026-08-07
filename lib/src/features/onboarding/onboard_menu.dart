@@ -12,6 +12,9 @@
 // peer-status button, not here (React has no diagnostics surface in
 // OnboardMenu).
 import 'package:flutter/material.dart';
+
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -308,35 +311,43 @@ class _OnboardTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // React `.onboard-tile { padding: 13px 14px; gap: 13px; border: 1px
+    // solid var(--line); border-radius: 12px; background: var(--bg-2) }`,
+    // with a `.tile-icon` on --moss-glow (NOT a solid moss fill) and a
+    // --fg-4 chevron.
     return Card(
       elevation: 0,
+      margin: EdgeInsets.zero,
+      color: MoshColors.bg2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.dividerColor),
+        side: const BorderSide(color: MoshColors.line),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
-          vertical: 10,
+          vertical: 13,
         ),
+        horizontalTitleGap: 13,
         leading: Container(
           width: 38,
           height: 38,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
+            color: MoshColors.mossGlow,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 20),
+          child: Icon(icon, size: 20, color: MoshColors.moss),
         ),
-        title: Text(title, style: const TextStyle(fontSize: 13.5)),
+        title: Text(title,
+            style: const TextStyle(fontSize: 13.5, color: MoshColors.fg1)),
         subtitle: Text(
           desc,
-          style: const TextStyle(fontSize: 11.5),
+          style: const TextStyle(fontSize: 11.5, color: MoshColors.fg3),
           maxLines: 2,
         ),
-        trailing: const Icon(Icons.chevron_right, size: 18),
+        trailing:
+            const Icon(Icons.chevron_right, size: 18, color: MoshColors.fg4),
         onTap: onTap,
       ),
     );

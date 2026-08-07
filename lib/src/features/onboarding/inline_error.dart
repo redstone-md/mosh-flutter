@@ -21,6 +21,9 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
+
 /// Persistent inline error displayed below the primary button on the
 /// onboarding step screens when a create/join handler fails.
 ///
@@ -39,14 +42,26 @@ class InlineError extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = message;
     if (text == null) return const SizedBox.shrink();
-    final theme = Theme.of(context);
+    // React `.inline-error { padding: 10px 14px; border-radius: 10px;
+    // background: rgba(232,106,90,0.08); border: 1px solid
+    // rgba(232,106,90,0.35); color: var(--danger); font-size: 12px }`.
     return Semantics(
       liveRegion: true,
       container: true,
       label: text,
-      child: Text(
-        text,
-        style: TextStyle(color: theme.colorScheme.error),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: MoshColors.danger.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: MoshColors.danger.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 12, color: MoshColors.danger),
+        ),
       ),
     );
   }
