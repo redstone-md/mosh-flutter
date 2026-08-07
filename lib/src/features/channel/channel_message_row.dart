@@ -149,33 +149,34 @@ class _ChannelSearchable implements SearchableMessage {
 /// omitted meta). The meta renders on every non-grouped row, including
 /// the user's own (React `PeerNickname` bolds the own name; mirrors the
 /// DM port's `if (!grouped)` gate).
-/// Own rows align right with a primaryContainer bubble; others align left
-/// with a surfaceContainerHighest bubble. The [AttachmentCard] renders
+/// The [AttachmentCard] renders
 /// under the body when `message.attachment != null` (display-only: the
 /// transfer callbacks are no-op stubs until the channel attachment-transfer
 /// seam arrives). The avatar slot mirrors `DmMessageRow` (React `.avatar` +
 /// `avatar avatar-spacer`): real `CircleAvatar` on the first row of a group,
-/// a same-width `SizedBox` spacer on grouped rows; own = right, peer = left.
+/// a same-width `SizedBox` spacer on grouped rows. Every row is
+/// left-aligned -- React has no bubbles and no own-vs-peer side.
 class ChannelMessageRow extends StatelessWidget {
- const ChannelMessageRow({
-   super.key,
-   required this.message,
-   required this.ownFingerprint,
-   required this.grouped,
-   this.attachmentView,
-   this.peer,
-   required this.onAttachmentDownload,
-   required this.onAttachmentCancel,
-   required this.onAttachmentOpen,
-   required this.busy,
-   required this.onRetry,
-   required this.l,
- });
+  const ChannelMessageRow({
+    super.key,
+    required this.message,
+    required this.ownFingerprint,
+    required this.grouped,
+    this.attachmentView,
+    this.peer,
+    required this.onAttachmentDownload,
+    required this.onAttachmentCancel,
+    required this.onAttachmentOpen,
+    required this.busy,
+    required this.onRetry,
+    required this.l,
+  });
 
- final ChannelMessage message;
- final String ownFingerprint;
- final bool grouped;
- final AttachmentView? attachmentView;
+  final ChannelMessage message;
+  final String ownFingerprint;
+  final bool grouped;
+  final AttachmentView? attachmentView;
+
   /// Optional per-conversation peer actions (React `PeerActions`). `null`
   /// (the default) keeps the sender name a plain bold `Text` -- the
   /// DM-row + existing-tests case. The screen sets this on non-grouped
@@ -225,54 +226,53 @@ class ChannelMessageRow extends StatelessWidget {
           avatarSlot,
           const SizedBox(width: kMessageRowGap),
           Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                   if (!grouped)
-                     MultiPartySenderMeta(
-                       fromDevice: message.fromDevice,
-                       fromFingerprint: message.fromFingerprint,
-                       sentAtMs: message.sentAtMs,
-                       showMlsBadge: false,
-                       peer: peer,
-                     ),
-                    if (message.body.isNotEmpty)
-                      Text(message.body, style: kMessageBodyStyle),
-                    if (message.attachment != null)
-                      AttachmentCard(
-                        descriptor: message.attachment!,
-                        view: attachmentView,
-                        own: own,
-                        busy: busy,
-                        onDownload: onAttachmentDownload,
-                        onCancel: onAttachmentCancel,
-                        onOpen: onAttachmentOpen,
-                      ),
-                    // FailedMessageRetry row (React FailedMessageRetry,
-                    // MessageLists.tsx L434-468) -- renders BELOW the body +
-                    // AttachmentCard, inside the message bubble's Column,
-                    // mirroring React's `<div className="message-body"> ...
-                    // <FailedMessageRetry/></div>` order. Gate is the 1-в-1
-                    // port of React's render condition: `outbound &&
-                    // delivery_status === "failed" && retryable &&
-                    // message_id` (outbound == own == fromFingerprint ==
-                    // ownFingerprint). The onRetry callback fires the
-                    // Gateway retry seam (`retryChannelMessage` -> frb
-                    // `channel_retry_message`); the gate guarantees
-                    // `message.messageId` is non-null, so the ! is safe.
-                    if (own &&
-                        message.deliveryStatus ==
-                            MessageDeliveryStatus.failed &&
-                        message.retryable == true &&
-                        message.messageId != null)
-                      FailedMessageRetry(
-                        deliveryError: message.deliveryError,
-                        onRetry: () => onRetry(message.messageId!),
-                        l: l.toFailedMessageRetryL10n(),
-                      ),
-                  ],
-                ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!grouped)
+                  MultiPartySenderMeta(
+                    fromDevice: message.fromDevice,
+                    fromFingerprint: message.fromFingerprint,
+                    sentAtMs: message.sentAtMs,
+                    showMlsBadge: false,
+                    peer: peer,
+                  ),
+                if (message.body.isNotEmpty)
+                  Text(message.body, style: kMessageBodyStyle),
+                if (message.attachment != null)
+                  AttachmentCard(
+                    descriptor: message.attachment!,
+                    view: attachmentView,
+                    own: own,
+                    busy: busy,
+                    onDownload: onAttachmentDownload,
+                    onCancel: onAttachmentCancel,
+                    onOpen: onAttachmentOpen,
+                  ),
+                // FailedMessageRetry row (React FailedMessageRetry,
+                // MessageLists.tsx L434-468) -- renders BELOW the body +
+                // AttachmentCard, inside the message bubble's Column,
+                // mirroring React's `<div className="message-body"> ...
+                // <FailedMessageRetry/></div>` order. Gate is the 1-в-1
+                // port of React's render condition: `outbound &&
+                // delivery_status === "failed" && retryable &&
+                // message_id` (outbound == own == fromFingerprint ==
+                // ownFingerprint). The onRetry callback fires the
+                // Gateway retry seam (`retryChannelMessage` -> frb
+                // `channel_retry_message`); the gate guarantees
+                // `message.messageId` is non-null, so the ! is safe.
+                if (own &&
+                    message.deliveryStatus == MessageDeliveryStatus.failed &&
+                    message.retryable == true &&
+                    message.messageId != null)
+                  FailedMessageRetry(
+                    deliveryError: message.deliveryError,
+                    onRetry: () => onRetry(message.messageId!),
+                    l: l.toFailedMessageRetryL10n(),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
