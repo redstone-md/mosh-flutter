@@ -1,4 +1,5 @@
-# Shell scripts must keep LF endings. release.yml runs scripts/release-notes.sh
-# on the Windows runner too, where the default core.autocrlf=true would otherwise
-# check it out with CRLF and bash would fail on every line with $'\r'.
+# Shell scripts must keep LF endings. Where bash runs them on a Windows runner
+# (e.g. the CI jobs that invoke scripts/*.sh), the default core.autocrlf=true
+# would otherwise check them out with CRLF and bash would fail on every line
+# with $'\r'.
 *.sh text eol=lf

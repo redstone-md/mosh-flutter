@@ -3,7 +3,7 @@
 Feature doc for the slice-one private-DM flow under the Flutter + Rust bridge.
 Scope: invite create -> paste -> accept -> fingerprint confirm -> send ->
 snapshot poll. Reference: [ADR 0013](../ADR/0013-fork-topology-and-temporary-fake-gateway.md),
-[Architecture](../Architecture.md), [plan S4-S5](../../flutter-rewrite.plan.md).
+[Architecture](../Architecture.md).
 
 The flow runs through the `Gateway` seam. The default path is
 `RealBridgeGateway` (real `mosh_core` via `flutter_rust_bridge`); the

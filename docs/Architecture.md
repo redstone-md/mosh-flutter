@@ -258,7 +258,7 @@ This domain context is inherited unchanged from upstream; the Flutter rewrite do
 
 ## Slice One Scope
 
-Slice one proves the bridge, the state stack, i18n, and the core DM flow on desktop, behind a temporary fake gateway that is removed (or kept flagged) before the slice closes. Reference: `flutter-rewrite.plan.md`.
+Slice one proves the bridge, the state stack, i18n, and the core DM flow on desktop, behind a temporary fake gateway that is removed (or kept flagged) before the slice closes. Reference: [ADR 0013](ADR/0013-fork-topology-and-temporary-fake-gateway.md).
 - **Status: COMPLETE.** See "Slice One Status" below.
 
 - Onboarding (display name).
@@ -346,5 +346,4 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0015 - fork version line `0.8.0-dev`, deep-link deferral.
 - docs/ADR/0016-api-runtime-ownership-oncelock-singleton.md - api runtime ownership via OnceLock singleton.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
-- flutter-rewrite.plan.md - slice scope and ordered implementation steps.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).
