@@ -24,6 +24,45 @@ final activeConversationKeyProvider =
   _ActiveConversationKeyNotifier.new,
 );
 
+/// The active-conversation kind, parsed from the key prefix ('dm:' /
+/// 'channel:' / 'group:'). Mirrors React's branch test on `activeSession` /
+/// `activeChannel` / `activeGroup` (private-dm-screen.tsx L282-292).
+enum ActiveConversationKind { dm, channel, group }
+
+/// Parsed active key: the kind discriminator plus the snapshot-family
+/// argument (sessionId / channel name / groupId -- the suffix after the
+/// ':' prefix).
+class ActiveConversation {
+  const ActiveConversation({required this.kind, required this.arg});
+
+  final ActiveConversationKind kind;
+  final String arg;
+
+  static ActiveConversation? parse(String? key) {
+    if (key == null) return null;
+    if (key.startsWith('dm:')) {
+      return ActiveConversation(
+          kind: ActiveConversationKind.dm, arg: key.substring(3));
+    }
+    if (key.startsWith('channel:')) {
+      return ActiveConversation(
+          kind: ActiveConversationKind.channel, arg: key.substring(8));
+    }
+    if (key.startsWith('group:')) {
+      return ActiveConversation(
+          kind: ActiveConversationKind.group, arg: key.substring(6));
+    }
+    return null;
+  }
+}
+
+/// The parsed [ActiveConversation] for the current key, or null when no
+/// conversation is open. The single parse site for the titlebar, the shell
+/// drawer, and the auto-poll loop.
+final activeConversationProvider = Provider<ActiveConversation?>(
+  (ref) => ActiveConversation.parse(ref.watch(activeConversationKeyProvider)),
+);
+
 class _ActiveConversationKeyNotifier extends Notifier<String?> {
   @override
   String? build() => null;
