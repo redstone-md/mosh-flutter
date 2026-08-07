@@ -34,6 +34,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 /// Tinted crypto notice banner -- 1-в-1 with React `GroupNotice` /
 /// `PublicNotice`. Renders an icon in a rounded tinted square + a bold
 /// title + a muted body, all inside a bordered/tinted section. The
@@ -72,19 +74,20 @@ class CryptoNoticeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // React's `.crypto-banner` background is a very faint tint of the
-    // accent (rgba(...,0.04-0.06)); approximate with 6% opacity over the
-    // theme surface so it reads on light + dark themes.
-    final bg = accent.withValues(alpha: 0.06);
-    final border = accent.withValues(alpha: 0.25);
-    final iconBg = accent.withValues(alpha: 0.18);
+    // React `.crypto-banner { border: 1px solid rgba(moss,0.18);
+    // background: rgba(moss,0.04) }` with `.crypto-icon` on --moss-glow
+    // (0.14). The group and public variants differ only in the third
+    // decimal of those alphas, so one set covers both.
+    final bg = accent.withValues(alpha: 0.04);
+    final border = accent.withValues(alpha: 0.18);
+    final iconBg = accent.withValues(alpha: 0.14);
     return Semantics(
       label: title,
       container: true,
       excludeSemantics: true,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+        // React `.crypto-banner { margin: 14px 22px 0 }`.
+        margin: const EdgeInsets.fromLTRB(22, 14, 22, 0),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: bg,
@@ -111,17 +114,26 @@ class CryptoNoticeBanner extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // `.crypto-banner strong { font-size: 12.5px; color:
+                  // var(--fg-1); font-weight: 700 }`.
                   Text(
                     title,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: MoshColors.fg1,
                     ),
                   ),
+                  // `.crypto-banner p { margin: 3px 0 0; color: var(--fg-3);
+                  // font-size: 11.5px; line-height: 1.5 }`.
                   const SizedBox(height: 3),
                   Text(
                     body,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.hintColor, height: 1.5),
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      height: 1.5,
+                      color: MoshColors.fg3,
+                    ),
                   ),
                 ],
               ),

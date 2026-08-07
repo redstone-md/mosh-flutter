@@ -41,6 +41,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/dm/conversation_search_box.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 // Re-export the mobile conversation search/filter widgets so the three
@@ -48,6 +49,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 // import that already pulls `ConversationTools` + `ConversationFilter` +
 // `isMobileBreakpoint` also pulls the mobile trio, mirroring how React
 // imports all of `ConversationTools`/`MobileConversation*` from one module.
+export 'package:mosh/src/features/dm/conversation_search_box.dart';
 export 'package:mosh/src/features/dm/mobile_conversation_search.dart';
 
 /// Mirrors the React `ConversationFilter` type
@@ -194,55 +196,25 @@ class ConversationTools extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // React `.conversation-tools { margin: 12px 22px 0; gap: 10px }`.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: kConversationToolsMargin,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Semantics(
-              label: l.chatSearchPlaceholder,
-              textField: true,
-              child: TextField(
-                controller: TextEditingController(text: search),
-                // Keep the controller in sync with the controlled value
-                // without stealing focus / clobbering the caret every
-                // rebuild -- the parent owns the source of truth.
-                onChanged: onSearch,
-                decoration: InputDecoration(
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  hintText: l.chatSearchPlaceholder,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
+            child: ConversationSearchBox(
+              search: search,
+              onSearch: onSearch,
+              l: l,
             ),
           ),
-          const SizedBox(width: 8),
-          Semantics(
-            label: l.chatFilterAttachments,
-            child: SegmentedButton<ConversationFilter>(
-              segments: [
-                ButtonSegment(
-                  value: ConversationFilter.all,
-                  label: Text(l.chatFilterAll),
-                ),
-                ButtonSegment(
-                  value: ConversationFilter.attachments,
-                  icon: const Icon(Icons.attach_file, size: 16),
-                  label: Text(l.chatFilterAttachments),
-                ),
-              ],
-              selected: {filter},
-              onSelectionChanged: (set) {
-                if (set.isNotEmpty) onFilter(set.first);
-              },
-              style: ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                textStyle: WidgetStatePropertyAll(theme.textTheme.labelSmall),
-              ),
-            ),
+          const SizedBox(width: kConversationToolsGap),
+          ConversationFilterToggle(
+            attachmentsActive: filter == ConversationFilter.attachments,
+            onAll: () => onFilter(ConversationFilter.all),
+            onAttachments: () => onFilter(ConversationFilter.attachments),
+            l: l,
           ),
         ],
       ),
