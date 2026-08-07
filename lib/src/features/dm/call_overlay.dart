@@ -33,6 +33,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/dm/call_button.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -43,9 +44,8 @@ const Duration kCallOverlayTickInterval = Duration(milliseconds: 500);
 /// Formats an elapsed duration in milliseconds as `m:ss` with zero-padded
 /// seconds -- 1-в-1 with React's `formatClock` in CallOverlay.tsx.
 String formatCallClock(BigInt elapsedMs) {
-  final total = (elapsedMs <= BigInt.zero)
-      ? 0
-      : (elapsedMs ~/ BigInt.from(1000)).toInt();
+  final total =
+      (elapsedMs <= BigInt.zero) ? 0 : (elapsedMs ~/ BigInt.from(1000)).toInt();
   final clamped = total < 0 ? 0 : total;
   final minutes = clamped ~/ 60;
   final seconds = clamped % 60;
@@ -119,7 +119,7 @@ class _CallOverlayState extends State<CallOverlay> {
     super.dispose();
   }
 
- void _hangUp() {
+  void _hangUp() {
     if (!mounted) return;
     widget.onHangUp();
   }
@@ -134,71 +134,77 @@ class _CallOverlayState extends State<CallOverlay> {
       autofocus: true,
       // React useModalFocus(onHangUp) Esc-trap.
       onKeyEvent: (event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
           _hangUp();
         }
       },
       child: Semantics(
         label: widget.l.callActiveAriaLabel,
         container: true,
-        child: Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          backgroundColor: const Color(0xFF1D1F24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 280),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    widget.peerLabel,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    // React `.call-overlay-timer` (tabular-nums, 14px).
-                    formatCallClock(clampedElapsed),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xBFFFFFFF),
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CallButton(
-                        icon:
-                            widget.muted ? Icons.mic_off : Icons.mic,
-                        tooltip: widget.muted
-                            ? widget.l.callActiveUnmute
-                            : widget.l.callActiveMute,
-                        // React `.call-btn-muted` -> #4f8cff when muted;
-                        // default neutral #2a2d33 when not.
-                        color: widget.muted
-                            ? const Color(0xFF4F8CFF)
-                            : const Color(0xFF2A2D33),
-                        onPressed: widget.onToggleMute,
-                        iconSize: 18,
+        // ModalFocusTrap goes inside Semantics and KeyboardListener so Tab key events are handled
+        // by the trap, while Escape is caught first by the outer KeyboardListener.
+        child: ModalFocusTrap(
+          child: Dialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            backgroundColor: const Color(0xFF1D1F24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 280),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      widget.peerLabel,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(width: 16),
-                      CallButton(
-                        icon: Icons.phone_disabled,
-                        tooltip: widget.l.callActiveHangUp,
-                        color: const Color(0xFFE5484D),
-                        onPressed: _hangUp,
-                        iconSize: 18,
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      // React `.call-overlay-timer` (tabular-nums, 14px).
+                      formatCallClock(clampedElapsed),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xBFFFFFFF),
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CallButton(
+                          icon: widget.muted ? Icons.mic_off : Icons.mic,
+                          tooltip: widget.muted
+                              ? widget.l.callActiveUnmute
+                              : widget.l.callActiveMute,
+                          // React `.call-btn-muted` -> #4f8cff when muted;
+                          // default neutral #2a2d33 when not.
+                          color: widget.muted
+                              ? const Color(0xFF4F8CFF)
+                              : const Color(0xFF2A2D33),
+                          onPressed: widget.onToggleMute,
+                          iconSize: 18,
+                        ),
+                        const SizedBox(width: 16),
+                        CallButton(
+                          icon: Icons.phone_disabled,
+                          tooltip: widget.l.callActiveHangUp,
+                          color: const Color(0xFFE5484D),
+                          onPressed: _hangUp,
+                          iconSize: 18,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

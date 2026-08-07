@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/diagnostics/channel_group_diagnostics.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
@@ -153,33 +154,37 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
                   // the scoped node instead of being merged up.
                   explicitChildNodes: true,
                   scopesRoute: true,
-                  child: Material(
-                    color: theme.scaffoldBackgroundColor,
-                    elevation: 0,
-                    shape: Border(
-                      left: BorderSide(color: theme.dividerColor),
-                    ),
-                    child: SizedBox.expand(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _DrawerHeader(
-                            title: l.peerStatusTitle,
-                            refreshTooltip: l.refreshStatus,
-                            closeTooltip: l.closePeerStatus,
-                            refreshing: widget.refreshing,
-                            onRefresh: widget.onRefresh,
-                            onClose: widget.onClose,
-                          ),
-                          Expanded(
-                            child: _DrawerContent(
-                              session: widget.session,
-                              channel: widget.channel,
-                              group: widget.group,
-                              error: widget.error,
+                  // ModalFocusTrap goes inside the outer backdrop listener and semantics
+                  // so Tab/Shift+Tab focus cycling is applied to the drawer contents.
+                  child: ModalFocusTrap(
+                    child: Material(
+                      color: theme.scaffoldBackgroundColor,
+                      elevation: 0,
+                      shape: Border(
+                        left: BorderSide(color: theme.dividerColor),
+                      ),
+                      child: SizedBox.expand(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _DrawerHeader(
+                              title: l.peerStatusTitle,
+                              refreshTooltip: l.refreshStatus,
+                              closeTooltip: l.closePeerStatus,
+                              refreshing: widget.refreshing,
+                              onRefresh: widget.onRefresh,
+                              onClose: widget.onClose,
                             ),
-                          ),
-                        ],
+                            Expanded(
+                              child: _DrawerContent(
+                                session: widget.session,
+                                channel: widget.channel,
+                                group: widget.group,
+                                error: widget.error,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

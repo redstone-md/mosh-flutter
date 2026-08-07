@@ -11,6 +11,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// Fullscreen in-app media viewer -- 1-в-1 with React's `MediaViewer`.
@@ -76,80 +77,84 @@ class MediaViewer extends StatelessWidget {
         // ConfirmDialog's semantics approach.
         container: true,
         label: descriptor.fileName,
-        child: Dialog(
-          // Fullscreen: no inset padding (React `position: fixed; inset: 0`).
-          insetPadding: EdgeInsets.zero,
-          backgroundColor: Colors.transparent,
-          // No default Material elevation/clip on the fullscreen surface.
-          elevation: 0,
-          child: GestureDetector(
-            // React `onClick=onClose` on `.media-viewer` -- tap the
-            // backdrop (anywhere outside the stage) closes the viewer.
-            behavior: HitTestBehavior.opaque,
-            onTap: onClose,
-            child: Stack(
-              children: [
-                // React `background: rgba(8, 9, 10, 0.92)`. A near-opaque
-                // dark scrim. (React also applies `backdrop-filter:
-                // blur(6px)`; Flutter `BackdropFilter` needs the ImageFilter
-                // to blur what is *behind* the route -- a nicety deferred;
-                // the 0.92 scrim is a faithful-enough port.)
-                Positioned.fill(
-                  child: ColoredBox(
-                    color: const Color(0xEB08090A),
-                  ),
-                ),
-                // React `.media-viewer`: flex column, center, gap 14px,
-                // padding 48px 32px 32px. The Column is centered + padded;
-                // the close button is absolutely positioned over it.
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      top: 48,
-                      left: 32,
-                      right: 32,
-                      bottom: 32,
+        // ModalFocusTrap goes inside Semantics so Tab key events are handled
+        // by the trap, while Escape is caught at the ModalRoute level.
+        child: ModalFocusTrap(
+          child: Dialog(
+            // Fullscreen: no inset padding (React `position: fixed; inset: 0`).
+            insetPadding: EdgeInsets.zero,
+            backgroundColor: Colors.transparent,
+            // No default Material elevation/clip on the fullscreen surface.
+            elevation: 0,
+            child: GestureDetector(
+              // React `onClick=onClose` on `.media-viewer` -- tap the
+              // backdrop (anywhere outside the stage) closes the viewer.
+              behavior: HitTestBehavior.opaque,
+              onTap: onClose,
+              child: Stack(
+                children: [
+                  // React `background: rgba(8, 9, 10, 0.92)`. A near-opaque
+                  // dark scrim. (React also applies `backdrop-filter:
+                  // blur(6px)`; Flutter `BackdropFilter` needs the ImageFilter
+                  // to blur what is *behind* the route -- a nicety deferred;
+                  // the 0.92 scrim is a faithful-enough port.)
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: const Color(0xEB08090A),
                     ),
-                    // Wrapped in a vertical `SingleChildScrollView` so a
-                    // tall image/video never overflows the viewport: when
-                    // the stage + caption fit (the common case) the content
-                    // stays centered; when they exceed the available height
-                    // the column scrolls instead of throwing a layout
-                    // overflow (React's flex column would clip in a browser;
-                    // Flutter errors on overflow, so scroll is the safe
-                    // mirror).
-                    child: Center(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _MediaStage(
-                              descriptor: descriptor,
-                              src: src,
-                              maxStageWidth: maxStageWidth,
-                              maxStageHeight: maxStageHeight,
-                            ),
-                            const SizedBox(height: 14),
-                            _MediaCaption(
-                              fileName: descriptor.fileName,
-                              maxWidth: media.size.width * 0.80,
-                              fg2: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ],
+                  ),
+                  // React `.media-viewer`: flex column, center, gap 14px,
+                  // padding 48px 32px 32px. The Column is centered + padded;
+                  // the close button is absolutely positioned over it.
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        top: 48,
+                        left: 32,
+                        right: 32,
+                        bottom: 32,
+                      ),
+                      // Wrapped in a vertical `SingleChildScrollView` so a
+                      // tall image/video never overflows the viewport: when
+                      // the stage + caption fit (the common case) the content
+                      // stays centered; when they exceed the available height
+                      // the column scrolls instead of throwing a layout
+                      // overflow (React's flex column would clip in a browser;
+                      // Flutter errors on overflow, so scroll is the safe
+                      // mirror).
+                      child: Center(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _MediaStage(
+                                descriptor: descriptor,
+                                src: src,
+                                maxStageWidth: maxStageWidth,
+                                maxStageHeight: maxStageHeight,
+                              ),
+                              const SizedBox(height: 14),
+                              _MediaCaption(
+                                fileName: descriptor.fileName,
+                                maxWidth: media.size.width * 0.80,
+                                fg2: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                // React `.media-viewer-close`: absolute top 16 right 18.
-                Positioned(
-                  top: 16,
-                  right: 18,
-                  child: _MediaCloseButton(onPressed: onClose),
-                ),
-              ],
+                  // React `.media-viewer-close`: absolute top 16 right 18.
+                  Positioned(
+                    top: 16,
+                    right: 18,
+                    child: _MediaCloseButton(onPressed: onClose),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
