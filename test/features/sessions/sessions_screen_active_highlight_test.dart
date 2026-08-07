@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -92,16 +93,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  // Finds the ListTile whose title Text matches label (the DM row label)
-  // and returns its selected flag. Each row's title is the peer display
-  // name, so this reliably resolves the right row.
+  // Finds the RailItem whose title matches label (the DM row label) and
+  // returns its active flag. Each row's title is the peer display name, so
+  // this reliably resolves the right row.
   bool? selectedFor(WidgetTester tester, String label) {
-    final tiles = tester.widgetList<ListTile>(find.byType(ListTile));
-    for (final tile in tiles) {
-      final title = tile.title;
-      if (title is Text && title.data == label) {
-        return tile.selected;
-      }
+    for (final item in tester.widgetList<RailItem>(find.byType(RailItem))) {
+      if (item.title == label) return item.active;
     }
     return null;
   }

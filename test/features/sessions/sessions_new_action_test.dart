@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/main.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
+import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -67,13 +68,13 @@ void main() {
   });
 
   testWidgets(
-      'rail FAB opens NewSessionPanel on desktop without creating an invite',
+      'rail New button opens NewSessionPanel on desktop without creating an invite',
       (tester) async {
     final gateway = _RecordingGateway();
     await _pumpSessions(tester, gateway, physicalSize: const Size(1200, 900));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byType(RailNewButton));
     await tester.pumpAndSettle();
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
@@ -83,13 +84,13 @@ void main() {
   });
 
   testWidgets(
-      'rail FAB opens NewSessionPanel on mobile without creating an invite',
+      'rail New button opens NewSessionPanel on mobile without creating an invite',
       (tester) async {
     final gateway = _RecordingGateway();
     await _pumpSessions(tester, gateway, physicalSize: const Size(400, 800));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byType(RailNewButton));
     await tester.pumpAndSettle();
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
@@ -110,7 +111,7 @@ void main() {
 
     await container.read(inviteFlowProvider.notifier).create();
     expect(gateway.createInviteCalls, 1);
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byType(RailNewButton));
     await tester.pumpAndSettle();
 
     expect(container.read(inviteFlowProvider).lastInvite, isNull);
