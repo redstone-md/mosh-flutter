@@ -147,6 +147,10 @@ const ColorScheme _moshColorScheme = ColorScheme.dark(
   surfaceContainerHighest: MoshColors.bg3,
 );
 
+/// React `--font-sans` head. The font files are not bundled (React ships no
+/// @font-face either), so both stacks fall through to the platform UI font.
+const String _kSansFamily = 'Inter Tight';
+
 /// Builds the canonical Mosh dark `ThemeData`.
 ///
 /// Exposed as a function (vs. a top-level constant) so future atomics can
@@ -155,57 +159,88 @@ const ColorScheme _moshColorScheme = ColorScheme.dark(
 ThemeData buildMoshTheme() {
   // Font family names mirror React's --font-sans / --font-mono. The actual
   // font files are NOT bundled in pubspec.yaml yet — Flutter falls back to
-  // the platform default sans/mono. A later atomic can add the
-  // `flutter: fonts:` assets; nothing here needs to change.
-  const String sansFamily = 'Inter Tight';
-
+  // the platform default sans/mono, exactly as React does (its index.html
+  // ships no @font-face either, so both stacks land on the platform UI
+  // font). A later atomic can add the `flutter: fonts:` assets.
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: _moshColorScheme,
-    scaffoldBackgroundColor: MoshColors.bg0, // --bg-0 (body/window)
-    canvasColor: MoshColors.bg0,
+    // React `.mosh-window { background: var(--bg-1) }` — the window body is
+    // bg-1 and only the titlebar + rail drop to bg-0, which is what gives
+    // the shell its panel separation. A bg-0 default flattens the two.
+    scaffoldBackgroundColor: MoshColors.bg1,
+    canvasColor: MoshColors.bg1,
     dividerColor: MoshColors.line, // --line (hairline)
     splashColor: MoshColors.mossGlow,
     highlightColor: MoshColors.mossGlow,
-    fontFamily: sansFamily,
+    // React sizes its chrome in 10.5–15px steps off a 14px/1.4 root; the
+    // Material defaults (16px titles, 14px body) render every surface a
+    // step too large. VisualDensity.compact takes the same step out of the
+    // Material widget metrics.
+    visualDensity: VisualDensity.compact,
+    fontFamily: _kSansFamily,
     fontFamilyFallback: const ['Geist', 'IBM Plex Sans', 'system-ui'],
-    textTheme: ThemeData.dark().textTheme.copyWith(
-          bodyLarge:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg1),
-          bodyMedium:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg1),
-          bodySmall:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg2),
-          labelLarge:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg1),
-          labelMedium:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg2),
-          labelSmall:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg3),
-          headlineLarge:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg1),
-          headlineMedium:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg1),
-          headlineSmall:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg1),
-          titleLarge:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg1),
-          titleMedium:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg1),
-          titleSmall:
-              const TextStyle(fontFamily: sansFamily, color: MoshColors.fg2),
-        ),
+    textTheme: _moshTextTheme(),
     appBarTheme: const AppBarTheme(
       backgroundColor: MoshColors.bg0, // --bg-0 (window top)
       foregroundColor: MoshColors.fg1, // --fg-1
       elevation: 0,
       scrolledUnderElevation: 0,
+      // React `.chat-title-block h1` — 15px/700, letter-spacing 0.02em.
+      titleTextStyle: TextStyle(
+        fontFamily: _kSansFamily,
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.02 * 15,
+        color: MoshColors.fg1,
+      ),
     ),
     dividerTheme: const DividerThemeData(
       color: MoshColors.line, // --line
       thickness: 1,
       space: 1,
+    ),
+    // React `.field input` — 9/11 padding, radius 8, 1px --line on --bg-1,
+    // 12.5px text; focus swaps the border to rgba(moss,0.45) over --bg-0.
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: MoshColors.bg1,
+      isDense: true,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      hintStyle: const TextStyle(fontSize: 12.5, color: MoshColors.fg3),
+      labelStyle: const TextStyle(fontSize: 11, color: MoshColors.fg2),
+      border: _fieldBorder(MoshColors.line),
+      enabledBorder: _fieldBorder(MoshColors.line),
+      focusedBorder: _fieldBorder(MoshColors.moss.withValues(alpha: 0.45)),
+      errorBorder: _fieldBorder(MoshColors.danger.withValues(alpha: 0.35)),
+      focusedErrorBorder:
+          _fieldBorder(MoshColors.danger.withValues(alpha: 0.35)),
+    ),
+    // React rail/menu rows sit at 36–48px with 12px text and a 12px radius;
+    // Material's untuned ListTile is a 56px row with 16px text.
+    listTileTheme: const ListTileThemeData(
+      dense: true,
+      horizontalTitleGap: 10,
+      minVerticalPadding: 6,
+      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
+      selectedColor: MoshColors.fg1,
+      selectedTileColor: MoshColors.mossGlow,
+      titleTextStyle: TextStyle(
+        fontSize: 12.5,
+        height: 1.1,
+        fontWeight: FontWeight.w600,
+        color: MoshColors.fg1,
+      ),
+      subtitleTextStyle: TextStyle(
+        fontSize: 10.5,
+        height: 1.1,
+        color: MoshColors.fg4,
+      ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -216,6 +251,84 @@ ThemeData buildMoshTheme() {
     iconTheme: const IconThemeData(color: MoshColors.fg2), // --fg-2 default
   );
 }
+
+/// The `.field input` border recipe: 1px solid, 8px radius.
+OutlineInputBorder _fieldBorder(Color color) => OutlineInputBorder(
+      borderRadius: const BorderRadius.all(Radius.circular(8)),
+      borderSide: BorderSide(color: color),
+    );
+
+/// The React type scale, mapped onto the Material slots.
+///
+/// React sets a 14px/1.4 root (`.mosh-window`) and steps each surface off
+/// it; the sizes below are the literal CSS values, so a widget that just
+/// reads `theme.textTheme.X` lands on the React metric instead of the
+/// Material one:
+///   bodyLarge   14/1.4   `.mosh-window` root
+///   bodyMedium  13.5/1.5 `.message-body p`
+///   bodySmall   12.5/1.55 `.chat-empty p`, `.field input`
+///   titleLarge  15/700   `.chat-title-block h1`
+///   titleMedium 14/600   `.chat-empty strong`
+///   titleSmall  12.5/700 `.crypto-banner strong`, `.rail-text strong`
+///   labelLarge  12/650   `.chat-more-item`
+///   labelMedium 11.5/600 `.state-pill`, `.crypto-banner p`
+///   labelSmall  10.5/-   `.rail-text small`, `.field-hint`
+TextTheme _moshTextTheme() => ThemeData.dark()
+    .textTheme
+    .apply(
+      fontFamily: _kSansFamily,
+      bodyColor: MoshColors.fg1,
+      displayColor: MoshColors.fg1,
+    )
+    // copyWith runs AFTER apply: apply() rewrites the colour of every slot,
+    // so the muted slots below would be overwritten the other way round.
+    .copyWith(
+      bodyLarge: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 14,
+          height: 1.4,
+          color: MoshColors.fg1),
+      bodyMedium: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 13.5,
+          height: 1.5,
+          color: MoshColors.fg1),
+      bodySmall: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 12.5,
+          height: 1.55,
+          color: MoshColors.fg2),
+      titleLarge: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+          color: MoshColors.fg1),
+      titleMedium: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: MoshColors.fg1),
+      titleSmall: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: MoshColors.fg1),
+      labelLarge: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: MoshColors.fg1),
+      labelMedium: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: MoshColors.fg2),
+      labelSmall: const TextStyle(
+          fontFamily: _kSansFamily,
+          fontSize: 10.5,
+          color: MoshColors.fg3),
+    );
 
 /// Convenience top-level handle for `MaterialApp.router(theme: moshThemeData)`.
 /// `lib/main.dart` uses this to keep the `MaterialApp.router` call thin.

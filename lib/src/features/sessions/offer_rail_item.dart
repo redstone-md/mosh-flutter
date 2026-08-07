@@ -30,7 +30,6 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/state/dm_offer_providers.dart';
 
@@ -56,7 +55,6 @@ class OfferRailItem extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final fromDevice = pending.offer.fromDevice;
-    final bg = avatarColor(fromDevice);
     // React `kind === "channel" ? `#${host}` : "group invite"`.
     final subtitle = pending.kind == PendingDmOfferKind.channel
         ? '#${pending.host}'
@@ -72,15 +70,7 @@ class OfferRailItem extends StatelessWidget {
             // layout consistent with _SessionRow/ChannelRailItem/GroupRailItem.
             child: ListTile(
               dense: true,
-              leading: Avatar(
-                name: fromDevice,
-                radius: 20,
-                fontSize: 13,
-                foregroundColor:
-                    ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
-                        ? Colors.white
-                        : Colors.black,
-              ),
+              leading: Avatar(name: fromDevice),
               title: Text(
                 fromDevice,
                 style: theme.textTheme.bodyMedium

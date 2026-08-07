@@ -215,46 +215,25 @@ class GroupMessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final own = message.fromFingerprint == ownFingerprint;
-    final theme = Theme.of(context);
-    final bubble = own
-        ? theme.colorScheme.primaryContainer
-        : theme.colorScheme.surfaceContainerHighest;
-    final alignment = own ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    // Avatar slot mirrors `DmMessageRow`: a real `CircleAvatar` on the
-    // first row of a group, an invisible same-width `SizedBox` spacer on
-    // grouped rows (preserves the indent). Own rows put the avatar on the
-    // right (after the bubble), peer rows on the left (before it),
-    // matching React's `message-row` flex layout where the avatar sits
-    // outside `message-body`.
+    // React renders every row identically -- avatar (or a hidden spacer on a
+    // grouped continuation) then the body, always left-aligned. There is no
+    // bubble and no own-vs-peer side; `own` only gates the retry affordance.
     final avatarSlot = grouped
         ? const SizedBox(width: dmMessageAvatarSize)
         : Avatar(
             name: message.fromDevice,
             radius: dmMessageAvatarSize / 2,
           );
-    // The avatar is OUTSIDE the bubble's 75%-width `ConstrainedBox`, as
-    // a separate flex item (React `message-row { display:flex; gap:12px }`).
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (!own) ...[avatarSlot, const SizedBox(width: 12)],
-        Flexible(
-          child: Align(
-            alignment: own ? Alignment.centerRight : Alignment.centerLeft,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              child: Container(
-                margin: EdgeInsets.symmetric(vertical: grouped ? 1 : 4),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: bubble,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+    return Padding(
+      padding: EdgeInsets.only(top: messageRowSpacing(grouped)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          avatarSlot,
+          const SizedBox(width: kMessageRowGap),
+          Expanded(
                 child: Column(
-                  crossAxisAlignment: alignment,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                    if (!grouped)
@@ -264,7 +243,8 @@ class GroupMessageRow extends StatelessWidget {
                        sentAtMs: message.sentAtMs,
                        peer: peer,
                      ),
-                    Text(message.body),
+                    if (message.body.isNotEmpty)
+                      Text(message.body, style: kMessageBodyStyle),
                     if (message.attachment != null)
                       AttachmentCard(
                         descriptor: message.attachment!,
@@ -299,12 +279,9 @@ class GroupMessageRow extends StatelessWidget {
                       ),
                   ],
                 ),
-              ),
-            ),
           ),
-        ),
-        if (own) ...[const SizedBox(width: 12), avatarSlot],
-      ],
+        ],
+      ),
     );
   }
 }
