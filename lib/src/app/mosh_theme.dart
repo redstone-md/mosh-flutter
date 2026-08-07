@@ -248,6 +248,16 @@ ThemeData buildMoshTheme() {
         color: MoshColors.fg4,
       ),
     ),
+    // React's modal cards (`.confirm-dialog`, `.call-modal-card`) are
+    // radius-14 plates on --bg-2; Material's default is a radius-28 card
+    // with an elevation tint over the surface.
+    dialogTheme: DialogThemeData(
+      backgroundColor: MoshColors.bg2,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: MoshColors.moss, // --moss

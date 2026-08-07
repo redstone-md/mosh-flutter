@@ -36,6 +36,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:flutter/services.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 
@@ -197,7 +198,6 @@ class _ConfirmDialogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final cancel = cancelLabel ?? ConfirmDialog.defaultCancelLabel;
     return Semantics(
       label: title,
@@ -216,6 +216,13 @@ class _ConfirmDialogCard extends StatelessWidget {
         // the card. `insetPadding` mirrors React's `padding: 24px` on the
         // backdrop.
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        // `.confirm-dialog { border: 1px solid var(--line-strong) }` -- the
+        // call cards carry no border, so this sits on the dialog rather
+        // than in the shared dialogTheme.
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: MoshColors.lineStrong),
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 380),
           child: Padding(
@@ -243,19 +250,26 @@ class _ConfirmDialogCard extends StatelessWidget {
                 _AlertIcon(dangerColor: dangerColor),
                 const SizedBox(height: 16),
                 // React `.confirm-dialog-copy`: h2 title + p body.
+                // `.confirm-dialog-copy h2 { font-size: 16px; line-height:
+                // 1.25; color: var(--fg-1) }`.
                 Text(
                   title,
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.25,
                     fontWeight: FontWeight.w700,
+                    color: MoshColors.fg1,
                   ),
                   textAlign: TextAlign.left,
                 ),
                 const SizedBox(height: 8),
+                // `.confirm-dialog-copy p { color: var(--fg-2); font-size:
+                // 12.5px; line-height: 1.55 }`.
                 Text(
                   body,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    // React `.confirm-dialog-copy p` color `--fg-2` (muted).
-                    color: theme.colorScheme.onSurfaceVariant,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: MoshColors.fg2,
                     height: 1.55,
                   ),
                   textAlign: TextAlign.left,
