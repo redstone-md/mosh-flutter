@@ -208,6 +208,10 @@
   "@sessionsListTitle": {
     "description": "AppBar title of the DM sessions list screen"
   },
+  "backToConversations": "Back to conversations",
+  "@backToConversations": {
+    "description": "Mobile back control that returns from a chat pane to the conversation rail"
+  },
   "sessionsError": "Could not load sessions.",
   "@sessionsError": {
     "description": "Error message shown when loading the session list fails"

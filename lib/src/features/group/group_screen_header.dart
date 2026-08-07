@@ -27,6 +27,7 @@ import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/chat_header_menu.dart';
 import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/shared/rail_back_button.dart';
 
 /// The GroupScreen AppBar header: the two-line title Column (group label +
 /// subtitle) plus the `actions:` row (admin-pill, copy-invite, peer-status,
@@ -120,6 +121,7 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
 // plural`) broke ("2 участников" -> "2 участника"); then the
 // " · MLS {state}" suffix via groupScreenMlsStateSuffix.
 return AppBar(
+      leading: railBackButton(context),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
