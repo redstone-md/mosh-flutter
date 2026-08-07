@@ -110,9 +110,12 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
     ref.read(inviteFlowProvider.notifier).setListenPort(n);
   }
 
+  // `.onboard-section-label { font-size: 10.5px; font-weight: 700;
+  // letter-spacing: 0.13em; color: var(--fg-4) }`.
   TextStyle? _sectionStyle(ThemeData t) => t.textTheme.labelSmall?.copyWith(
+    color: MoshColors.fg4,
     fontWeight: FontWeight.w700,
-    letterSpacing: 1.3,
+    letterSpacing: 1.365,
   );
 
   @override
@@ -130,11 +133,25 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
           onChanged: _onNameChanged,
         ),
         const SizedBox(height: 18),
-        Text(l.onboardTitle, style: theme.textTheme.headlineSmall),
+        // `.onboard-head h1 { font-size: 23px; letter-spacing: -0.01em }`
+        // over `p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.55;
+        // color: var(--fg-3) }`.
+        Text(
+          l.onboardTitle,
+          style: const TextStyle(
+            fontSize: 23,
+            letterSpacing: -0.23,
+            color: MoshColors.fg1,
+          ),
+        ),
         const SizedBox(height: 6),
         Text(
           l.onboardSubtitle,
-          style: theme.textTheme.bodySmall?.copyWith(height: 1.55),
+          style: const TextStyle(
+            fontSize: 12.5,
+            height: 1.55,
+            color: MoshColors.fg3,
+          ),
         ),
         const SizedBox(height: 18),
         Text(l.onboardStartLabel, style: _sectionStyle(theme)),
