@@ -5,12 +5,6 @@
 //! `set_vpn_bypass_consent` consent pair. Plain synchronous returns; no
 //! streams.
 //!
-//! Stub: signatures laid for the slice-one boundary; bodies `todo!()` —
-//! implemented in a later slice (S2: bound through the bridge). No
-//! `OnceLock` / `ensure_runtime` here yet — these stubs compile only and
-//! carry no runtime behavior, so the bridge can be generated against the
-//! VPN command surface before the wiring lands.
-//!
 //! TYPES (ADR 0010 — 1:1 mapping, DRY): the consent type is the runtime's
 //! own, re-exported here via `use crate::vpn_consent::{...}`. `VpnDetection`
 //! was defined inline in the former Tauri shell (`src-tauri/src/lib.rs`),
@@ -18,10 +12,6 @@
 //! struct — the same ownership posture `api::diagnostics` takes for
 //! `AppDiagnostics` / `NativeRuntimeStatus`. It is NOT redefined elsewhere.
 //! `Result<T, String>` matches the Tauri command shape exactly.
-
-// Stub api signatures mirror the future runtime contract (ADR 0010); params
-// are intentionally unused until the runtime lands.
-#![allow(unused_variables)]
 
 use crate::vpn_consent::VpnBypassConsent;
 
@@ -80,9 +70,9 @@ pub fn get_vpn_bypass_consent() -> Option<VpnBypassConsent> {
 
 /// Record the VPN-bypass consent (1:1 port of `set_vpn_bypass_consent`).
 /// `Some(name)` is a yes (remembered); `None` is a refusal (deliberately not
-/// stored, so the question returns next launch). The future impl validates
-/// the interface against `network_inventory::list_interfaces` before
-/// saving, exactly as the Tauri command did.
+/// stored, so the question returns next launch). Validates the interface
+/// against `network_inventory::list_interfaces` before saving, exactly as
+/// the Tauri command did.
 pub fn set_vpn_bypass_consent(interface: Option<String>) -> Result<(), String> {
     let dir = crate::api::shared_runtime::resolved_data_dir();
     let Some(name) = interface.filter(|name| !name.is_empty()) else {

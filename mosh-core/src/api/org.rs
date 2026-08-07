@@ -28,19 +28,6 @@
 //! They are NOT redefined. `Result<T, String>` matches the Tauri command
 //! shape exactly; this facade maps `OrgError` to a plain `String` so the
 //! bridge surfaces it as a Dart exception.
-//!
-//! CROSS-RUNTIME NOTE: the Tauri `org_send_dm_offer` / `org_accept_dm_offer`
-//! and `org_create_group` / `org_accept_group_offer` commands touched TWO
-//! managed states (`OrgState` + `PrivateDmState` or `PrivateGroupState`).
-//! The api facade collapses both into one function per command (ADR 0010
-//! 1:1 rule); the future impl drives both singletons from inside the one
-//! function. The simple single-runtime bodies (join_org, poll, list,
-//! dismiss_dm_offer, dismiss_group_offer) ARE implemented here; the
-//! cross-runtime bodies (leave_org, send_dm_offer, accept_dm_offer,
-//! create_group, accept_group_offer, group_invite_members) stay `todo!()`
-//! -- they need access to the DM/group OnceLock singletons, a later atomic.
-
-#![allow(unused_variables)]
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -134,13 +121,8 @@ pub fn join_org(request: JoinOrgRequest) -> Result<OrgSnapshot, String> {
 }
 
 /// Leave an org and close its bound groups (1:1 port of `org_leave`). The
-/// Tauri command also closed the org's bound private groups; the future impl
-/// drives both the org and group singletons from this one function.
-//
-// CROSS-RUNTIME (org + private_group): needs access to the PrivateGroup
-// OnceLock singleton to call `close_org_groups`. Deferred to a later atomic
-// that wires the cross-runtime access; the simple single-runtime bodies
-// land first (this file's join_org/poll/list/dismiss_*).
+/// Tauri command also closed the org's bound private groups; this function
+/// drives both the org and group singletons from one place.
 pub fn leave_org(org_pubkey: String) -> Result<(), String> {
     // Drop the org from the org runtime; close its bound private groups so
     // they do not linger frozen (mirrors Tauri lib.rs L966-984). The group
@@ -182,11 +164,7 @@ pub fn poll(org_pubkey: String) -> Result<OrgSnapshot, String> {
 
 /// Send a private-DM invitation to one org member (1:1 port of
 /// `org_send_dm_offer`). Mints the invite via the private-DM runtime and
-/// records the offer in the org runtime; the future impl drives both.
-//
-// CROSS-RUNTIME (org + private_dm): mints the invite via the PrivateDm
-// OnceLock singleton, then records + links in the org singleton. Deferred
-// to a later atomic.
+/// records the offer in the org runtime.
 pub fn send_dm_offer(
     org_pubkey: String,
     target_peer_id: String,
@@ -231,9 +209,7 @@ pub fn send_dm_offer(
 
 /// Accept an org-carried DM offer (1:1 port of `org_accept_dm_offer`).
 /// Accepts the invite via the private-DM runtime and clears the offer in the
-/// org runtime; the future impl drives both.
-//
-// CROSS-RUNTIME (org + private_dm). Deferred to a later atomic.
+/// org runtime.
 pub fn accept_dm_offer(
     org_pubkey: String,
     offer_id: String,
@@ -287,9 +263,7 @@ pub fn dismiss_dm_offer(org_pubkey: String, offer_id: String) -> Result<(), Stri
 
 /// Create an org-bound private group (1:1 port of `org_create_group`).
 /// Creates the group via the private-group runtime and records the binding in
-/// the org runtime; the future impl drives both.
-//
-// CROSS-RUNTIME (org + private_group). Deferred to a later atomic.
+/// the org runtime.
 pub fn create_group(
     org_pubkey: String,
     label: Option<String>,
@@ -334,9 +308,7 @@ pub fn create_group(
 
 /// Accept an org-carried group offer (1:1 port of `org_accept_group_offer`).
 /// Joins the group via the private-group runtime and clears the offer in the
-/// org runtime; the future impl drives both.
-//
-// CROSS-RUNTIME (org + private_group). Deferred to a later atomic.
+/// org runtime.
 pub fn accept_group_offer(
     org_pubkey: String,
     offer_id: String,
@@ -384,9 +356,6 @@ pub fn dismiss_group_offer(org_pubkey: String, offer_id: String) -> Result<(), S
 /// One-click invite the roster members not yet in a group (1:1 port of
 /// `org_group_invite_members`). Re-offers the group's invite URI to each
 /// listed peer via the org runtime's group-offer path.
-//
-// CROSS-RUNTIME (org + private_group: needs the group's invite URI).
-// Deferred to a later atomic.
 pub fn group_invite_members(
     org_pubkey: String,
     group_id: String,
