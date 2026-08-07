@@ -14,16 +14,20 @@ concurrency:
 permissions:
   contents: read
 
-# Slice-one CI matrix (ADR 0015). Five jobs, all on windows-latest: the
+# CI matrix (ADR 0015). The desktop jobs all run on windows-latest: the
 # integration test needs mosh_core.dll (Windows-built via cargokit), and the
 # cargo jobs need moss.dll built by `node scripts/moss-prepare.mjs` (which
 # pins GOTOOLCHAIN=go1.25.9). One OS keeps the matrix simple and avoids
-# running the moss build twice. Mobile cross-build and cross-OS integration
-# tests are an explicit later-slice CI step, not slice one.
+# running the moss build twice.
+#
+# The android-build job is the exception: it runs on ubuntu-latest, whose
+# runner image ships the Android SDK + NDK. Cross-OS integration tests are
+# still a later-slice step -- this job only proves the APK links.
 #
 # Job order: the four cheap gates (rust-core, codegen-drift, flutter-test,
-# l10n-drift) run in parallel; the expensive integration-test job runs last and
-# only if all four pass, so a cheap failure never pays for a windows build.
+# l10n-drift) run in parallel; the two expensive build jobs (integration-test,
+# android-build) run last and only if all four pass, so a cheap failure never
+# pays for a platform build.
 jobs:
   rust-core:
     name: Rust core (cargo fmt + test, mosh-core)
@@ -211,3 +215,74 @@ jobs:
 
       - name: Integration test (slice one)
         run: flutter test integration_test/slice_one_test.dart -d windows
+
+  android-build:
+    name: Android APK (arm64, debug)
+    runs-on: ubuntu-latest
+    needs: [rust-core, codegen-drift, flutter-test, l10n-drift]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Gradle needs a JDK; Flutter's Android toolchain expects 17+.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.9'
+          cache-dependency-path: moss/go.sum
+
+      - name: Install pinned Rust toolchain
+        run: rustup show
+
+      # Cargokit builds libmosh_core.so for the device ABI; the target has to
+      # exist before Gradle invokes it. android/app/build.gradle.kts pins
+      # abiFilters to arm64-v8a, so this is the only target needed.
+      - name: Add Rust android target
+        run: rustup target add aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mosh-core
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      # Cross-compiles moss to android/app/src/main/jniLibs/arm64-v8a/
+      # libmoss.so, which AGP packages into the APK. The script resolves the
+      # NDK through ANDROID_NDK_HOME; the runner image exposes its NDK as
+      # ANDROID_NDK_LATEST_HOME, so pin it explicitly rather than relying on
+      # whichever NDK the image happens to default to.
+      #
+      # Exported in the shell, NOT via `env: ${{ env.ANDROID_NDK_LATEST_HOME }}`
+      # -- the `env` context only holds workflow/job/step-declared variables,
+      # so reading a runner-image variable through it yields an empty string
+      # and the script fails with "ANDROID_NDK_HOME not set".
+      - name: Build Moss shared library (android/arm64)
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          echo "Using NDK: $ANDROID_NDK_HOME"
+          node scripts/moss-prepare-android.mjs
+
+      # --target-platform is REQUIRED, not an optimisation: jniLibs only
+      # carries an arm64-v8a libmoss.so, so a default all-ABI build would
+      # emit x86_64/armeabi APK slices whose dlopen("libmoss.so") fails at
+      # runtime with no build-time error.
+      - name: Build APK (debug, arm64)
+        run: flutter build apk --debug --target-platform android-arm64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-debug-arm64-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

@@ -128,6 +128,9 @@ Do not paste the whole framework catalog here.
 - Flutter, `gen-l10n`: `flutter gen-l10n` (generated `lib/l10n/app_localizations*.dart` are gitignored)
 - Bindings, `codegen`: `flutter_rust_bridge_codegen generate` (kept drift-free in CI; regenerate and commit when the Rust `api` surface changes)
 - Full native dependency prep: `node scripts/moss-prepare.mjs` before any `cargo test`/`flutter build windows --debug` run that touches Moss.
+- Windows app, `build`: `flutter build windows --debug` -> `build/windows/x64/runner/Debug/mosh.exe` (auto-deploys `mosh_core.dll`; `moss.dll` is dlopened from `moss-runtime/`).
+- Android prep: `node scripts/moss-prepare-android.mjs` with `ANDROID_NDK_HOME` set -> `android/app/src/main/jniLibs/arm64-v8a/libmoss.so`.
+- Android app, `build`: `flutter build apk --debug --target-platform android-arm64` -> `build/app/outputs/flutter-apk/app-debug.apk`. The `--target-platform` flag is REQUIRED: `jniLibs` carries only an arm64-v8a `libmoss.so`, so a default all-ABI build emits slices whose `dlopen` fails at runtime with no build-time error.
 
 ### Project AGENTS Policy
 
