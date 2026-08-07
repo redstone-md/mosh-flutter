@@ -100,12 +100,19 @@ install(DIRECTORY "${NATIVE_ASSETS_DIR}"
 # separate FFI layer on top of mosh_core.dll (which is statically linked).
 # Without moss.dll next to mosh.exe, dlopen fails and the channel reports
 # "moss dynamic load error library not found" / "channel runtime unavailable".
-# The file is a committed build artifact under src-tauri/moss-runtime/ (kept
-# in-tree because it is produced by a separate toolchain step outside this
-# Flutter project). Guard with EXISTS so a clean checkout without the prebuilt
-# DLL still builds the Flutter app; the runtime simply falls back to its
+# The file is produced by `node scripts/moss-prepare.mjs` into the repo-root
+# moss-runtime/ directory (a separate Go toolchain step outside this Flutter
+# project). Guard with EXISTS so a clean checkout without the prebuilt DLL
+# still builds the Flutter app; the runtime simply falls back to its
 # "unavailable" behavior in that case (existing fallback, no hard failure).
-set(MOSS_RUNTIME_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../src-tauri/moss-runtime/moss.dll")
+#
+# The path used to point at ../src-tauri/moss-runtime/, which is where the
+# DLL lived in the Tauri repo this app was ported from. That directory does
+# not exist here, so the EXISTS guard silently skipped the install and no
+# moss.dll was ever copied next to mosh.exe -- the app only found one via
+# the cwd-relative candidates in moss_runtime.rs, i.e. only when launched
+# from the repo root. A copied-out bundle had no networking at all.
+set(MOSS_RUNTIME_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../moss-runtime/moss.dll")
 if(EXISTS "${MOSS_RUNTIME_DLL}")
   install(FILES "${MOSS_RUNTIME_DLL}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
