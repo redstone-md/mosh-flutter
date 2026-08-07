@@ -43,6 +43,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart';
@@ -127,7 +129,6 @@ class AttachmentCard extends StatelessWidget {
     final percent = _progressPercent(view);
     final failed = state == AttachmentState.failed;
     final bar = _buildBar(
-      theme: theme,
       l: l,
       fileName: descriptor.fileName,
       totalSize: descriptor.totalSize,
@@ -146,11 +147,11 @@ class AttachmentCard extends StatelessWidget {
             failed: failed,
             onOpen: onOpen,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(child: bar),
           // React `attachment-bar`: `attachment-info` (flex-1) + actions
           // row to the right of name+meta+progress.
-          const SizedBox(width: 4),
+          const SizedBox(width: 10),
           AttachmentActions(
             descriptor: descriptor,
             view: view,
@@ -186,28 +187,60 @@ class AttachmentCard extends StatelessWidget {
   }
 }
 
-/// Card chrome shared by both branches: the rounded, tinted container
-/// matching React's `attachment-card` shell (failed tints `errorContainer`).
+/// React `.attachment-card { max-width: 360px }`.
+const double kAttachmentCardMaxWidth = 360;
+
+/// React `.attachment-card-media { width: 320px; max-width: 320px }`.
+const double kAttachmentMediaWidth = 320;
+
+/// Preview height. React lets `.attachment-preview img` take the
+/// thumbnail's intrinsic height under a `max-height: 260px` cap; a Flutter
+/// `Image.memory` reports no height until it decodes (and none at all when
+/// it fails), which collapses the preview to a zero-height, untappable
+/// box. A definite height keeps the surface hittable in every state.
+const double kAttachmentPreviewHeight = 160;
+
+/// React `.attachment-card { margin-top: 6px; padding: 8px 10px; border: 1px
+/// solid var(--line); border-radius: 10px; background: var(--bg-2);
+/// max-width: 360px }`, with `.attachment-card-failed` recolouring the
+/// BORDER (not the fill) to --danger.
+///
+/// The media variant is the same shell under
+/// `.attachment-card-media { padding: 0; width: 320px; overflow: hidden }`
+/// -- the preview bleeds to the card edge, so the padding moves onto the
+/// bar and the corners clip.
 class _FileCardShell extends StatelessWidget {
   const _FileCardShell({
     required this.failed,
     required this.theme,
     required this.child,
+    this.media = false,
   });
 
   final bool failed;
   final ThemeData theme;
   final Widget child;
+  final bool media;
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(10);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      margin: const EdgeInsets.only(top: 6),
+      constraints: BoxConstraints(
+        maxWidth: media ? kAttachmentMediaWidth : kAttachmentCardMaxWidth,
+      ),
+      width: media ? kAttachmentMediaWidth : null,
+      clipBehavior: media ? Clip.antiAlias : Clip.none,
+      padding: media
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: failed
-            ? theme.colorScheme.errorContainer.withValues(alpha: 0.35)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
+        color: MoshColors.bg2,
+        borderRadius: radius,
+        border: Border.all(
+          color: failed ? MoshColors.danger : MoshColors.line,
+        ),
       ),
       child: child,
     );
@@ -220,7 +253,6 @@ class _FileCardShell extends StatelessWidget {
 /// `LinearProgressIndicator` while downloading. A tight `Column` (no icon)
 /// so the file card wraps it in an icon `Row` and the media card stacks it.
 Widget _buildBar({
-  required ThemeData theme,
   required AppLocalizations l,
   required String fileName,
   required BigInt totalSize,
@@ -241,23 +273,27 @@ Widget _buildBar({
         fileName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style:
-            theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
       ),
+      // `.attachment-info { gap: 2px }`.
       const SizedBox(height: 2),
       Text(
         meta,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor),
+        style: const TextStyle(fontSize: 11, color: MoshColors.fg3),
       ),
+      // `.attachment-progress { margin-top: 4px; height: 4px; border-radius:
+      // 2px; background: var(--bg-3) }` with a --moss fill.
       if (state == AttachmentState.downloading) ...[
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(2),
           child: LinearProgressIndicator(
             value: percent / 100,
             minHeight: 4,
+            backgroundColor: MoshColors.bg3,
+            color: MoshColors.moss,
             semanticsLabel: l.attachmentStateDownloading(percent),
           ),
         ),
@@ -316,6 +352,7 @@ class _MediaPreviewCard extends StatelessWidget {
     return _FileCardShell(
       failed: failed,
       theme: theme,
+      media: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -330,62 +367,68 @@ class _MediaPreviewCard extends StatelessWidget {
             button: true,
             child: GestureDetector(
               onTap: () => onOpen(descriptor),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.memory(
-                        bytes,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                        errorBuilder: (context, _, __) => SizedBox(
-                          height: 160,
-                          width: double.infinity,
-                          child: ColoredBox(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.broken_image_outlined,
-                              size: 32,
-                              color: theme.hintColor,
-                            ),
+              // `.attachment-preview { width: 100%; background: var(--bg-0);
+              // max-height: 260px }` -- the shell already clips the corners.
+              child: Container(
+                width: double.infinity,
+                height: kAttachmentPreviewHeight,
+                color: MoshColors.bg0,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Image.memory(
+                      bytes,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      errorBuilder: (context, _, __) => const SizedBox(
+                        height: kAttachmentPreviewHeight,
+                        width: double.infinity,
+                        child: ColoredBox(
+                          color: MoshColors.bg3,
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            size: 32,
+                            color: MoshColors.fg3,
                           ),
                         ),
                       ),
-                      if (isVideo)
-                        // Decorative play overlay (React's
-                        // `attachment-play` span); excluded from semantics.
-                        Positioned.fill(
-                          child: Center(
-                            child: Semantics(
-                              excludeSemantics: true,
-                              child: Icon(
-                                Icons.play_circle_filled,
-                                size: 40,
-                                color: Colors.white70,
-                              ),
-                            ),
+                    ),
+                    if (isVideo)
+                      // `.attachment-play { width: 48px; height: 48px;
+                      // border-radius: 999px; background: rgba(11,12,13,0.62);
+                      // color: #fff }` -- decorative, so no semantics.
+                      Semantics(
+                        excludeSemantics: true,
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: MoshColors.bg0.withValues(alpha: 0.62),
                           ),
+                          child: const Icon(Icons.play_arrow,
+                              size: 24, color: Colors.white),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 6),
           // React `attachment-bar` (flex row): `attachment-info` (flex-1)
           // + `attachment-actions`. The bar takes the expanding slot; the
           // actions row sits to its right.
-          Row(
+          Padding(
+            // `.attachment-bar { padding: 8px 10px; gap: 10px }` -- the
+            // media shell itself has no padding, so the bar carries it.
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: _buildBar(
-                  theme: theme,
                   l: l,
                   fileName: descriptor.fileName,
                   totalSize: descriptor.totalSize,
@@ -393,7 +436,7 @@ class _MediaPreviewCard extends StatelessWidget {
                   percent: percent,
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 10),
               AttachmentActions(
                 descriptor: descriptor,
                 view: view,
@@ -406,6 +449,7 @@ class _MediaPreviewCard extends StatelessWidget {
                 l: l,
               ),
             ],
+            ),
           ),
         ],
       ),

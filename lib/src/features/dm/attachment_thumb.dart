@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
-/// The file-card leading surface, matching React's `attachment-thumb`.
+/// The file-card leading surface: React `.attachment-thumb { width: 40px;
+/// height: 40px; border-radius: 8px; background: var(--bg-3); color:
+/// var(--fg-3) }`.
+///
 /// Viewable MIME types keep an open affordance even when no thumbnail exists;
 /// other files remain a decorative file/error icon. The play glyph is the
 /// shared React `IconPlayerPlayFilled` affordance for all viewable types.
 /// The outer semantics node owns the full accessible label and excludes the
 /// IconButton's child semantics, while its tooltip remains a visual hint.
+/// React `.attachment-thumb { width: 40px; height: 40px }`.
+const double kAttachmentThumbSize = 40;
+
 class AttachmentThumb extends StatelessWidget {
   const AttachmentThumb({
     super.key,
@@ -35,22 +42,38 @@ class AttachmentThumb extends StatelessWidget {
         // subtree so only this full "Open <file>" action is announced.
         excludeSemantics: true,
         onTap: onOpenPressed,
-        child: IconButton(
-          icon: const Icon(Icons.play_arrow, size: 20),
-          tooltip: l.attachmentOpen,
-          onPressed: onOpenPressed,
-          visualDensity: VisualDensity.compact,
-          splashRadius: 18,
-          constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-          padding: EdgeInsets.zero,
+        child: Material(
+          color: MoshColors.bg3,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onOpenPressed,
+            // `.attachment-thumb-button { color: var(--moss) }` with a
+            // --bg-4 hover.
+            hoverColor: MoshColors.bg4,
+            child: const SizedBox(
+              width: kAttachmentThumbSize,
+              height: kAttachmentThumbSize,
+              child: Icon(Icons.play_arrow, size: 20, color: MoshColors.moss),
+            ),
+          ),
         ),
       );
     }
 
-    return Icon(
-      failed ? Icons.error_outline : Icons.insert_drive_file_outlined,
-      size: 22,
-      color: failed ? Theme.of(context).colorScheme.error : null,
+    return Container(
+      width: kAttachmentThumbSize,
+      height: kAttachmentThumbSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: MoshColors.bg3,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(
+        failed ? Icons.error_outline : Icons.insert_drive_file_outlined,
+        size: 20,
+        color: failed ? MoshColors.danger : MoshColors.fg3,
+      ),
     );
   }
 }

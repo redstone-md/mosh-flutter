@@ -98,9 +98,9 @@ void main() {
 
     // The media-preview branch mounts the decoded thumbnail Image.memory.
     expect(find.byType(Image), findsOneWidget);
-    // The centered play overlay (React's IconPlayerPlayFilled) is present
-    // for a video mime.
-    expect(find.byIcon(Icons.play_circle_filled), findsOneWidget);
+    // The centered play overlay is present for a video mime: React's
+    // `.attachment-play` circle holding the play glyph.
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
   });
 
   testWidgets('image with thumbnail does NOT render a play overlay',
@@ -129,7 +129,7 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
     // No play overlay for an image mime (React renders the overlay only
     // when `isVideo`).
-    expect(find.byIcon(Icons.play_circle_filled), findsNothing);
+    expect(find.byIcon(Icons.play_arrow), findsNothing);
   });
 
   testWidgets('video without thumbnail renders an open thumb (no overlay)',
@@ -157,9 +157,9 @@ void main() {
     );
 
     // Pins that the overlay only appears on the media branch (hasPreview
-    // requires a thumbnail): no Image.memory or overlay icon.
+    // requires a thumbnail): with no thumbnail there is no preview at all,
+    // so the single play glyph on screen is the file card's open thumb.
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.play_circle_filled), findsNothing);
     expect(find.byIcon(Icons.play_arrow), findsOneWidget);
     expect(find.text('clip2.mp4'), findsOneWidget);
   });
