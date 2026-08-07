@@ -20,7 +20,10 @@
 // while it is open.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:flutter/services.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -107,7 +110,6 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     // React: `diagnostics-drawer-backdrop` + `role="presentation"`
     // onClick={onClose}. A `GestureDetector` on the backdrop is the Flutter
     // idiom; the aside swallows taps so they do not close the drawer
@@ -134,14 +136,21 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
         behavior: HitTestBehavior.opaque,
         onTap: widget.onClose,
         child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.45),
+          // `.diagnostics-drawer-backdrop { background: rgba(0,0,0,0.34) }`.
+          color: Colors.black.withValues(alpha: 0.34),
           child: Align(
             alignment: Alignment.centerRight,
             child: GestureDetector(
               // Swallow taps inside the panel so only the backdrop closes.
               onTap: () {},
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 384),
+                // `.diagnostics-drawer { width: min(392px, 100vw - 24px) }`.
+                constraints: BoxConstraints(
+                  maxWidth: math.min(
+                    392,
+                    MediaQuery.sizeOf(context).width - 24,
+                  ),
+                ),
                 child: Semantics(
                   label: l.peerStatusTitle,
                   container: true,
@@ -158,10 +167,13 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
                   // so Tab/Shift+Tab focus cycling is applied to the drawer contents.
                   child: ModalFocusTrap(
                     child: Material(
-                      color: theme.scaffoldBackgroundColor,
+                      // `.diagnostics-drawer { background: var(--bg-0);
+                      // border-left: 1px solid var(--line) }` -- the panel
+                      // drops below the --bg-1 window, it does not match it.
+                      color: MoshColors.bg0,
                       elevation: 0,
-                      shape: Border(
-                        left: BorderSide(color: theme.dividerColor),
+                      shape: const Border(
+                        left: BorderSide(color: MoshColors.line),
                       ),
                       child: SizedBox.expand(
                         child: Column(
@@ -220,11 +232,10 @@ class _DrawerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: MoshColors.line)),
       ),
       child: Row(
         children: [
@@ -236,10 +247,22 @@ class _DrawerHeader extends StatelessWidget {
           const SizedBox(width: 8),
           // React: <h2 id="diagnostics-title">Peer status</h2>.
           Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+            // `.diagnostics-drawer > header h2 { font-size: 12px;
+            // text-transform: uppercase; letter-spacing: 0.08em; color:
+            // var(--fg-2) }`.
+            // Flutter has no text-transform, so the string itself is
+            // uppercased; the Semantics label keeps the natural-case name
+            // the DOM text carries in React.
+            child: Semantics(
+              label: title,
+              excludeSemantics: true,
+              child: Text(
+                title.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 0.08 * 12,
+                  color: MoshColors.fg2,
+                ),
               ),
             ),
           ),

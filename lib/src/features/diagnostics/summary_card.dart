@@ -12,6 +12,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
@@ -200,8 +201,9 @@ class _FactCell extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          border: Border.all(color: theme.dividerColor),
+          // `.diagnostic-summary-fact { background: var(--bg-2) }`.
+          color: MoshColors.bg2,
+          border: Border.all(color: MoshColors.line),
           borderRadius: BorderRadius.circular(7),
         ),
         child: Column(
