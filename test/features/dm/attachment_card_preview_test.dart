@@ -153,11 +153,11 @@ void main() {
     expect(find.bySemanticsLabel('Open photo2.png'), findsOneWidget);
     final thumbButton = find.ancestor(
       of: find.byIcon(Icons.play_arrow),
-      matching: find.byType(IconButton),
+      matching: find.byType(InkWell),
     );
     expect(thumbButton, findsOneWidget);
+    // React `.attachment-thumb { width: 40px; height: 40px }`.
     expect(tester.getSize(thumbButton), const Size(40, 40));
-    expect(tester.widget<IconButton>(thumbButton).tooltip, 'Open');
     final semanticsHandle = tester.ensureSemantics();
     final thumbSemantics = tester
         .getSemantics(find.byIcon(Icons.play_arrow))
