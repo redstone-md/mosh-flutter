@@ -110,7 +110,7 @@ void main() {
 
     await tester.enterText(_composerField(), 'hello there');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send'));
+    await tester.tap(find.byKey(kComposerSendButtonKey));
     // Do NOT settle: the send is in flight (completer unresolved).
     await tester.pump();
 
@@ -133,7 +133,7 @@ void main() {
 
     await tester.enterText(_composerField(), 'hello there');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send'));
+    await tester.tap(find.byKey(kComposerSendButtonKey));
     // Do NOT settle: the send is in flight (completer unresolved).
     await tester.pump();
 

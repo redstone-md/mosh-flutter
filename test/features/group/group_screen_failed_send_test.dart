@@ -105,7 +105,7 @@ void main() {
 
     await tester.enterText(_composerField(), 'hello there');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send'));
+    await tester.tap(find.byKey(kComposerSendButtonKey));
     await tester.pumpAndSettle();
 
     expect(gateway.bodies, ['hello there']);
@@ -125,7 +125,7 @@ void main() {
 
     await tester.enterText(_composerField(), 'hello there');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send'));
+    await tester.tap(find.byKey(kComposerSendButtonKey));
     await tester.pumpAndSettle();
 
     final l = AppLocalizations.of(tester.element(find.byType(GroupScreen)))!;

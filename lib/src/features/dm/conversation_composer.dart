@@ -16,9 +16,21 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
-import 'package:mosh/src/features/dm/clipboard_paste_handler.dart' show PasteImageAction;
+import 'package:mosh/src/features/dm/clipboard_paste_handler.dart'
+    show PasteImageAction;
 import 'package:mosh/src/features/shared/voice_composer.dart';
+
+/// React `.composer-box { gap: 8px }`.
+const double kComposerGap = 8;
+
+/// React `.send-button` / `.composer-attach` are both 32x32 squares.
+const double kComposerButtonSize = 32;
+
+/// The send square's key. React's `.send-button` holds an icon, not a
+/// label, so widget tests address it by key rather than by text.
+const Key kComposerSendButtonKey = Key('composer-send-button');
 
 /// The shared DM + channel + group composer. Stateless because all state is
 /// transient or owned by the screen (`controller` + `sending` are passed in;
@@ -26,10 +38,10 @@ import 'package:mosh/src/features/shared/voice_composer.dart';
 class ConversationComposer extends StatelessWidget {
   const ConversationComposer({
     super.key,
-   required this.controller,
-   required this.sending,
+    required this.controller,
+    required this.sending,
     this.disabled = false,
-   required this.placeholder,
+    required this.placeholder,
     required this.sendLabel,
     required this.onSend,
     required this.attachLabel,
@@ -44,8 +56,9 @@ class ConversationComposer extends StatelessWidget {
     required this.onVoiceError,
   });
 
- final TextEditingController controller;
- final bool sending;
+  final TextEditingController controller;
+  final bool sending;
+
   /// Mirrors React `ChatComposer` `disabled` prop (ChatComposer.tsx L58):
   /// a hard gate that disables the picker, voice mic, text input, and send
   /// button INDEPENDENTLY of an in-flight send. `sending` separately swaps
@@ -56,7 +69,7 @@ class ConversationComposer extends StatelessWidget {
   /// showing a spinner had no seam. Defaults to false so existing callers
   /// (which pass only `sending`) are unchanged.
   final bool disabled;
- final String placeholder;
+  final String placeholder;
   final String sendLabel;
   final VoidCallback onSend;
   final String attachLabel;
@@ -71,83 +84,128 @@ class ConversationComposer extends StatelessWidget {
   final void Function(String message) onVoiceError;
 
   @override
- Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     final canSend = !sending && !disabled && controller.text.trim().isNotEmpty;
-   return Padding(
-     padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-     child: ValueListenableBuilder<TextEditingValue>(
-       valueListenable: controller,
-       builder: (context, value, _) {
+    // React `.composer { padding: 12px 22px 18px; background: var(--bg-1);
+    // border-top: 1px solid var(--line) }`.
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+      decoration: const BoxDecoration(
+        color: MoshColors.bg1,
+        border: Border(top: BorderSide(color: MoshColors.line)),
+      ),
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, value, _) {
           final enabled = !sending && !disabled && value.text.trim().isNotEmpty;
-         return Row(
-           children: [
-             // React Composer renders AttachmentPicker before the input
-              // (ChatComposer.tsx L86-90). The picker is disabled while a
-              // send is in flight OR when the hard `disabled` gate is set
-              // (mirrors React's `disabled` prop).
-             AttachmentPicker(
-                disabled: sending || disabled,
-               ariaLabel: attachLabel,
-               onPick: onAttach,
-               onError: onAttachmentPickError,
-             ),
-             const SizedBox(width: 4),
-             // React Composer renders VoiceComposer after AttachmentPicker
-              // (ChatComposer.tsx L93-99). The mic is disabled while a send
-              // is in flight OR when the hard `disabled` gate is set.
-             VoiceComposer(
-                disabled: sending || disabled,
-               onSend: onSendVoice,
-               onError: onVoiceError,
-               recordLabel: voiceRecordLabel,
-               discardLabel: voiceDiscardLabel,
-               stopLabel: voiceStopLabel,
-               playLabel: voicePlayLabel,
-               sendLabel: voiceSendLabel,
-             ),
-             const SizedBox(width: 4),
-            Expanded(
-              child: Actions(
-                // Paste-to-attach (React ChatComposer.tsx:71-82 handlePaste):
-                // intercept the paste [Intent] so an image on the clipboard is
-                // attached instead of pasted as text. No `onPaste` callback
-                // exists on Flutter 3.44 `TextField`, so the ancestor `Actions`
-                // override is the interception point (the same `Action.
-                // overridable` pattern EditableTextState uses, editable_text
-                // .dart:5709). On no image the action defers to `callingAction`
-                // so the default text paste runs.
-                actions: <Type, Action<Intent>>{
-                  PasteTextIntent: PasteImageAction(
-                    onAttach: onAttach,
-                    onAttachmentPickError: onAttachmentPickError,
-                    gate: () => !sending && !disabled,
-                  ) as Action<Intent>,
-                },
-                child: TextField(
-                  controller: controller,
-                   enabled: !sending && !disabled,
-                  onSubmitted: (_) {
-                    if (canSend) onSend();
-                  },
-                   decoration: InputDecoration(
-                     hintText: placeholder,
-                     border: const OutlineInputBorder(),
-                     isDense: true,
-                   ),
-                ),
-              ),
+          // React `.composer-box { min-height: 46px; padding: 6px 6px 6px
+          // 14px; border: 1px solid var(--line); border-radius: 10px;
+          // background: var(--bg-2); gap: 8px }`.
+          return Container(
+            constraints: const BoxConstraints(minHeight: 46),
+            padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+            decoration: BoxDecoration(
+              color: MoshColors.bg2,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: MoshColors.line),
             ),
-            const SizedBox(width: 8),
-              FilledButton(
-                onPressed: enabled ? onSend : null,
-                child: sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(sendLabel),
-              ),
-            ],
+            child: Row(
+              children: [
+                // React Composer renders AttachmentPicker before the input
+                // (ChatComposer.tsx L86-90). The picker is disabled while a
+                // send is in flight OR when the hard `disabled` gate is set
+                // (mirrors React's `disabled` prop).
+                AttachmentPicker(
+                  disabled: sending || disabled,
+                  ariaLabel: attachLabel,
+                  onPick: onAttach,
+                  onError: onAttachmentPickError,
+                ),
+                const SizedBox(width: kComposerGap),
+                // React Composer renders VoiceComposer after AttachmentPicker
+                // (ChatComposer.tsx L93-99). The mic is disabled while a send
+                // is in flight OR when the hard `disabled` gate is set.
+                VoiceComposer(
+                  disabled: sending || disabled,
+                  onSend: onSendVoice,
+                  onError: onVoiceError,
+                  recordLabel: voiceRecordLabel,
+                  discardLabel: voiceDiscardLabel,
+                  stopLabel: voiceStopLabel,
+                  playLabel: voicePlayLabel,
+                  sendLabel: voiceSendLabel,
+                ),
+                const SizedBox(width: kComposerGap),
+                Expanded(
+                  child: Actions(
+                    // Paste-to-attach (React ChatComposer.tsx:71-82 handlePaste):
+                    // intercept the paste [Intent] so an image on the clipboard is
+                    // attached instead of pasted as text. No `onPaste` callback
+                    // exists on Flutter 3.44 `TextField`, so the ancestor `Actions`
+                    // override is the interception point (the same `Action.
+                    // overridable` pattern EditableTextState uses, editable_text
+                    // .dart:5709). On no image the action defers to `callingAction`
+                    // so the default text paste runs.
+                    actions: <Type, Action<Intent>>{
+                      PasteTextIntent: PasteImageAction(
+                        onAttach: onAttach,
+                        onAttachmentPickError: onAttachmentPickError,
+                        gate: () => !sending && !disabled,
+                      ) as Action<Intent>,
+                    },
+                    child: TextField(
+                      controller: controller,
+                      enabled: !sending && !disabled,
+                      onSubmitted: (_) {
+                        if (canSend) onSend();
+                      },
+                      // React `.composer input` is a bare 13px field on the
+                      // box's own background -- no border, no fill of its own.
+                      style:
+                          const TextStyle(fontSize: 13, color: MoshColors.fg1),
+                      decoration: InputDecoration(
+                        hintText: placeholder,
+                        hintStyle: const TextStyle(
+                            fontSize: 13, color: MoshColors.fg3),
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: kComposerGap),
+                // React `.send-button { width: 32px; height: 32px;
+                // border-radius: 8px; background: var(--moss); color:
+                // var(--moss-ink) }`, dropping to --bg-3/--fg-4 when disabled.
+                Tooltip(
+                  message: sendLabel,
+                  child: FilledButton(
+                    key: kComposerSendButtonKey,
+                    onPressed: enabled ? onSend : null,
+                    style: FilledButton.styleFrom(
+                      fixedSize: const Size.square(kComposerButtonSize),
+                      minimumSize: const Size.square(kComposerButtonSize),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      disabledBackgroundColor: MoshColors.bg3,
+                      disabledForegroundColor: MoshColors.fg4,
+                    ),
+                    child: sending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.send, size: 16),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),

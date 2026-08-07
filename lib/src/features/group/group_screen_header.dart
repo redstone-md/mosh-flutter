@@ -26,6 +26,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/features/dm/conversation_tools.dart';
 import 'package:mosh/src/features/dm/chat_header_menu.dart';
+import 'package:mosh/src/features/dm/dm_helpers.dart';
 
 /// The GroupScreen AppBar header: the two-line title Column (group label +
 /// subtitle) plus the `actions:` row (admin-pill, copy-invite, peer-status,
@@ -127,12 +128,13 @@ return AppBar(
             data: (group) => group.label ?? l.groupUntitled,
             orElse: () => widget.groupId,
           )),
+          const SizedBox(height: kChatSubtitleGap),
           Text(
             async.maybeWhen(
               data: (group) => _groupSubtitle(group, l),
               orElse: () => '',
             ),
-            style: Theme.of(context).textTheme.bodySmall,
+            style: kChatSubtitleStyle,
           ),
         ],
       ),
