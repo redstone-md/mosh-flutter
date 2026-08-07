@@ -35,6 +35,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bypass_adapter.dart';
@@ -138,16 +140,20 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
     final l = widget.l;
     final candidates = bypassCandidates(_interfaces);
     final enabled = _current != null && _current!.isNotEmpty;
-    final moss = const Color(0xFFB7D84A);
+    // React `.bind-interface-field { padding: 12px; border: 1px solid
+    // var(--line); border-radius: 12px; background: var(--bg-1) }`, with
+    // `.bind-interface-on` swapping to a rgba(moss,0.3) border over
+    // --moss-glow.
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(
-          // React .bind-interface-on: green-tinted border.
-          color: enabled ? moss.withValues(alpha: 0.3) : theme.dividerColor,
+          color: enabled
+              ? MoshColors.moss.withValues(alpha: 0.3)
+              : MoshColors.line,
         ),
         borderRadius: BorderRadius.circular(12),
-        color: enabled ? moss.withValues(alpha: 0.08) : null,
+        color: enabled ? MoshColors.mossGlow : MoshColors.bg1,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,16 +168,27 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l.bindAdapterTitle,
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    // `.bind-interface-head strong { font-size: 12.5px;
+                    // color: var(--fg-1) }` over `p { margin-top: 2px;
+                    // font-size: 11px; line-height: 1.35; color: --fg-3 }`.
+                    Text(
+                      l.bindAdapterTitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: MoshColors.fg1,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       enabled
                           ? l.bindAdapterBoundBody(_current ?? '')
                           : l.bindAdapterUnboundBody,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(fontSize: 11, height: 1.35),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        height: 1.35,
+                        color: MoshColors.fg3,
+                      ),
                     ),
                   ],
                 ),
@@ -229,11 +246,17 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.check, size: 13, color: moss),
+                // `.bind-interface-active { gap: 5px; color: var(--moss);
+                // font-size: 11px }`.
+                const Icon(Icons.check, size: 13, color: MoshColors.moss),
                 const SizedBox(width: 5),
-                Text(l.bindAdapterActive(_current!),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(fontSize: 11, color: moss)),
+                Text(
+                  l.bindAdapterActive(_current!),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: MoshColors.moss,
+                  ),
+                ),
               ],
             ),
           ],

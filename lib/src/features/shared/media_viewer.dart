@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
@@ -44,7 +46,6 @@ class MediaViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final media = MediaQuery.of(context);
     // React `.media-viewer`: max-width 92vw, max-height 82vh on the stage
     // and the image/video. `MediaQuery` gives the viewport; 0.92/0.82 map
@@ -135,7 +136,7 @@ class MediaViewer extends StatelessWidget {
                               _MediaCaption(
                                 fileName: descriptor.fileName,
                                 maxWidth: media.size.width * 0.80,
-                                fg2: theme.colorScheme.onSurfaceVariant,
+                                fg2: MoshColors.fg2,
                               ),
                             ],
                           ),
@@ -180,7 +181,6 @@ class _MediaStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final mime = descriptor.mime;
     // React: `isImage = mime.startsWith("image/")`, etc.
     final isImage = mime.startsWith('image/');
@@ -203,7 +203,7 @@ class _MediaStage extends StatelessWidget {
                 src: src,
                 maxStageWidth: maxStageWidth,
                 maxStageHeight: maxStageHeight,
-                bg0: theme.colorScheme.surface,
+                bg0: MoshColors.bg0,
               )
             : isVideo
             ? _VideoStage(
@@ -224,7 +224,7 @@ class _MediaStage extends StatelessWidget {
                 // `Icons.insert_drive_file_outlined` (matches the
                 // attachment_card file-card icon choice).
                 icon: Icons.insert_drive_file_outlined,
-                bg2: theme.colorScheme.surface,
+                bg2: MoshColors.bg2,
               ),
       ),
     );
@@ -343,7 +343,7 @@ class _VideoStageState extends State<_VideoStage> {
       return _PlaybackPlaceholderCard(
         fileName: widget.descriptor.fileName,
         icon: Icons.play_circle_filled,
-        bg2: Theme.of(context).colorScheme.surface,
+        bg2: MoshColors.bg2,
       );
     }
     return ConstrainedBox(
@@ -438,16 +438,18 @@ class _AudioStageState extends State<_AudioStage> {
       return _PlaybackPlaceholderCard(
         fileName: widget.descriptor.fileName,
         icon: Icons.play_circle_filled,
-        bg2: theme.colorScheme.surface,
+        bg2: MoshColors.bg2,
       );
     }
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: widget.maxStageWidth),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+        // `.media-viewer-audio { padding: 32px 40px; border: 1px solid
+        // var(--line); border-radius: 14px; background: var(--bg-2) }`.
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border.all(color: theme.dividerColor),
+          color: MoshColors.bg2,
+          border: Border.all(color: MoshColors.line),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(

@@ -19,6 +19,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 
 import 'package:mosh/l10n/app_localizations.dart';
 
@@ -65,8 +67,13 @@ class OnboardStepBody extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: onBack,
                 icon: const Icon(Icons.arrow_back, size: 16),
-                label: Text(l.onboardBack),
+                // `.step-back { font-size: 12px; color: var(--fg-3) }`.
+                label: Text(
+                  l.onboardBack,
+                  style: const TextStyle(fontSize: 12, color: MoshColors.fg3),
+                ),
                 style: TextButton.styleFrom(
+                  foregroundColor: MoshColors.fg3,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 4,
@@ -75,8 +82,18 @@ class OnboardStepBody extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 16),
+            // `.step-title { font-size: 19px; letter-spacing: -0.01em;
+            // color: var(--fg-1) }` -- not Material's 24px headlineSmall.
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 19,
+                letterSpacing: -0.19,
+                color: MoshColors.fg1,
+              ),
+            ),
+            // `.step-frame { gap: 14px }`.
+            const SizedBox(height: 14),
             child,
           ],
         ),
