@@ -22,7 +22,7 @@ This file defines how AI agents work in this solution.
 - Moss core submodule: `moss/` — vendored Go checkout (https://github.com/redstone-md/moss). Source of the shared library; do not edit its source as part of Mosh tasks.
 - `mosh-probe/` — headless probe crate used by `scripts/probe-e2e.mjs`.
 - Projects or modules with local `AGENTS.md` files: none yet.
-- Sibling directories `../mosh` (the original React/Tauri app, now historical) and `../mosh-design` (visual design source) are outside this repository root. Do not modify them from Mosh tasks unless the user explicitly expands scope.
+- Sibling directory `../mosh` (the original React/Tauri app, now historical) is outside this repository root. Do not modify it from Mosh tasks unless the user explicitly expands scope.
 - The root `moss/` submodule is inside this repo; its generated artifacts land in ignored `moss-runtime/` (see native build chain below).
 
 ## Rule Precedence
@@ -297,7 +297,6 @@ Ask first:
 ### Likes
 
 - The product name is Mosh. Do not use Quiver/Quier naming.
-- Existing visual direction lives in sibling `../mosh-design`; use it as read-only design source material unless the user explicitly expands scope.
 - Build the desktop app first, then Android, then iOS.
 - Prefer an actual Flutter app with the smallest needed screens over building a full design-system library first.
 
