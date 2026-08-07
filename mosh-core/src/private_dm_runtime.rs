@@ -281,9 +281,9 @@ enum SessionRole {
 }
 
 /// Which transport a session's outbound control/data/blob frames take.
-/// Task 5 only ever leaves this at `Discover` (init) — every path routes
-/// identically to today's direct pubsub publish. Task 6 adds the transitions
-/// to `Relayed` for hard-NAT peers.
+/// `next_path` moves a session between these states as the direct path is
+/// discovered, stabilises, or fails (`T_FALLBACK_MS`, hysteresis rules in
+/// `next_path`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DmPath {
     /// Direct not yet decided; still hole-punching. Send goes direct (best

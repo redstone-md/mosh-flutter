@@ -1,15 +1,11 @@
-// S4.4: slice-one onboarding screen -- now a thin shell over OnboardMenu.
-// The full menu body (identity chip -> head -> Start tiles -> Join tiles ->
-// Advanced + About disclosures) lives in OnboardMenu (onboard_menu.dart) so
-// atomic #3 can embed the same widget inline in the desktop chat-pane. This
-// screen keeps only the Scaffold + a bare AppBar and decides routing for
-// the four tiles via context.go (1:1 with React's NewSessionPanel
-// onPick, which the screen maps to route navigation rather than a step switch).
-//
-// S2-1: the Join tile navigates to /join (InvitePasteScreen); Group/Chat/
-// Channel navigate to their create/join steps. The four
-// React tiles stay 1:1 with the upstream design. Only existing ARB keys are
-// reused.
+// Onboarding screen -- a thin shell over OnboardMenu. The full menu body
+// (identity chip, Start tiles, Join tiles, Advanced + About disclosures)
+// lives in OnboardMenu (onboard_menu.dart) so atomic #3 can embed the same
+// widget inline in the desktop chat-pane. This screen keeps only the
+// Scaffold + a bare AppBar and decides routing for the four tiles via
+// context.go (1:1 with React's NewSessionPanel onPick, mapped to route
+// navigation rather than a step switch). The Join tile goes to /join
+// (InvitePasteScreen); Group/Chat/Channel go to their create/join steps.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,11 +23,9 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  // S2-1: navigate via go_router. The home route is '/', so these are
-  // push-style destinations (back returns here). go_router resolves the
-  // declarative route table in app_router.dart; no Navigator.pushNamed hand-
-  // rolling, and S2-3 deep-link intake reuses the same paths. The menu's
-  // onPick* callbacks route to these; OnboardMenu does NOT context.go itself.
+  // go_router push-style destinations (back returns here); the menu's
+  // onPick* callbacks route to these -- OnboardMenu does NOT context.go
+  // itself.
   void _goJoin() => context.go(AppRoutes.join);
   void _goChatCreate() => context.go(AppRoutes.chatCreate);
   void _goChannelJoin() => context.go(AppRoutes.channelJoin);
@@ -39,14 +33,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Banner mirrors NewSessionPanel: renders above the menu (React parity;
-    // OnboardMenu itself has no banner so a single surface shows it once).
+    // Banner above the menu (React parity; OnboardMenu has no banner, so a
+    // single surface shows it once).
     final warning = ref.watch(persistenceWarningProvider);
     return Scaffold(
-      // AppBar has no actions: React's NewSessionPanel (the panel this
-      // screen mirrors) has no diagnostics action -- peer status lives in
-      // the shell titlebar (MoshTitleBar's "Peer status" button -> the
-      // shell-level PeerStatusDrawer), 1:1 with React's header.titlebar.
+      // No AppBar actions: peer status lives in the shell titlebar
+      // (MoshTitleBar's "Peer status" button), 1:1 with React.
       appBar: AppBar(),
       body: Center(
         child: SingleChildScrollView(
@@ -56,8 +48,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (warning case AsyncData(:final value)
-                    when value != null) ...[
+                if (warning case AsyncData(
+                  :final value,
+                ) when value != null) ...[
                   PersistenceWarningBanner(warning: value),
                   const SizedBox(height: 12),
                 ],

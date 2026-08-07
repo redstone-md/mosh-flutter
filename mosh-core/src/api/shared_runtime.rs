@@ -1,7 +1,7 @@
 //! Shared process-global runtime resources for the `api` facade (ADR 0016).
 //
-// The three runtimes (`PrivateDmRuntime`, `ChannelRuntime`,
-// `PrivateGroupRuntime`, plus the future `OrgRuntime`) all share ONE Moss
+// The four runtimes (`PrivateDmRuntime`, `ChannelRuntime`,
+// `PrivateGroupRuntime`, `OrgRuntime`) all share ONE Moss
 // node + ONE attachment store + ONE persistence store -- the Tauri shell
 // handed the same `Arc<SharedMossNode>` to each `*State::ready`. This module
 // is the api-facade analogue: a single `SharedResources` constructed once

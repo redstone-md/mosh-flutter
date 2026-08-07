@@ -1,12 +1,9 @@
-// Chat-create step route wrapper -- thin Scaffold-free shell over
-// [ChatCreateStep]. The step CONTENT (body paragraph, Create/Recreate
-// button, InlineError, InviteResult + the busy/copied/error state and
-// the create/copy handlers) was extracted to [ChatCreateStep] so atomic
-// #8 can compose the SAME content inline in the desktop chat-pane. This
-// screen now owns only the routing decision (Back -> AppRoutes.onboarding)
-// and wraps the content in [OnboardStepFrame] (full-screen: Scaffold +
-// SafeArea + Center + Back + title). One step content, two frames -- DRY,
-// matching atomic #1/#2 (OnboardStepBody/OnboardMenu).
+// Chat-create route wrapper -- thin shell over [ChatCreateStep]. The step
+// CONTENT (body, Create/Recreate button, InlineError, InviteResult +
+// busy/copied/error state + create/copy handlers) was extracted to
+// [ChatCreateStep] so atomic #8 can compose the same content inline in the
+// desktop chat-pane; this screen owns only the routing decision (Back ->
+// AppRoutes.onboarding) and wraps the content in [OnboardStepFrame].
 library;
 
 import 'package:flutter/material.dart';
@@ -19,14 +16,9 @@ import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
 /// The chat-create step screen -- thin route wrapper over [ChatCreateStep].
-///
-/// Reached from the onboarding Chat tile (`context.go(AppRoutes.chatCreate)`).
-/// Owns only the routing decision (Back -> `AppRoutes.onboarding`): it wraps
-/// [OnboardStepFrame] (full-screen frame: Scaffold + SafeArea + Center + Back
-/// + title) around [ChatCreateStep] (the embeddable step CONTENT). The step
-/// body, busy/copied/error state, and create/copy handlers all live in
-/// [ChatCreateStep] so atomic #8 can compose the SAME content inline in the
-/// desktop chat-pane (wrapped in OnboardStepBody instead of a route).
+/// Reached from the onboarding Chat tile; wraps the step content in
+/// [OnboardStepFrame] (full-screen frame) and owns Back routing. All step
+/// state + create/copy handlers live in [ChatCreateStep].
 class ChatCreateScreen extends ConsumerWidget {
   const ChatCreateScreen({super.key});
 
@@ -36,9 +28,7 @@ class ChatCreateScreen extends ConsumerWidget {
     return OnboardStepFrame(
       title: l.onboardTileChatTitle,
       onBack: () => context.go(AppRoutes.onboarding),
-      child: ChatCreateStep(
-        onBack: () => context.go(AppRoutes.onboarding),
-      ),
+      child: ChatCreateStep(onBack: () => context.go(AppRoutes.onboarding)),
     );
   }
 }

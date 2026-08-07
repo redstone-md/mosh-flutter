@@ -5,22 +5,17 @@
 //
 // Two widgets live here:
 //  - `OnboardStepFrame`: full-screen route wrapper -- Scaffold + SafeArea +
-//    Center + the body. Used by the chat / group / join / channel step
-//    screens that push as full routes.
+//    Center + the body, used by the chat / group / join / channel step
+//    screens pushed as full routes.
 //  - `OnboardStepBody`: the Scaffold-free body (SingleChildScrollView +
-//    ConstrainedBox + Column). Exposed so the desktop chat-pane can compose
+//    ConstrainedBox + Column), exposed so the desktop chat-pane can compose
 //    a step INLINE (inside its own scroll container) instead of pushing a
 //    full-screen route.
 //
-// Extracted as its own widget so the chat / group / join / channel step
-// screens all reuse the same frame. Only the chat-create step is wired in
-// this atomic; the group / join / channel steps are deferred and will
-// compose this same frame when they land (DRY: one frame, many steps).
-//
 // The frame is intentionally presentation-only: it owns no state and calls
 // back through `onBack` -- the parent owns the busy / copied / lastInvite
-// state and the routing decisions. Keeping it stateless matches the React
-// component (a pure render with `title` + `onBack` + `children`).
+// state and the routing decisions, matching the React component (a pure
+// render with `title` + `onBack` + `children`).
 library;
 
 import 'package:flutter/material.dart';
@@ -73,15 +68,14 @@ class OnboardStepBody extends StatelessWidget {
                 label: Text(l.onboardBack),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
+            Text(title, style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 16),
             child,
           ],
@@ -120,11 +114,7 @@ class OnboardStepFrame extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: OnboardStepBody(
-            title: title,
-            onBack: onBack,
-            child: child,
-          ),
+          child: OnboardStepBody(title: title, onBack: onBack, child: child),
         ),
       ),
     );

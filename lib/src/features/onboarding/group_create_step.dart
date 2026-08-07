@@ -1,28 +1,21 @@
 // Embeddable group-create step body -- 1:1 with React `GroupCreateStep`
-// (src/features/private-dm/NewSessionPanelSteps.tsx). Renders the step
-// CONTENT ONLY: the body paragraph, an OPTIONAL label input, the
-// Create/Recreate button (label flips once an invite exists), InlineError,
-// and InviteResult. NO frame, NO back affordance, NO title -- the caller
-// wraps this in the frame (OnboardStepFrame for the full-screen route,
-// OnboardStepBody when the desktop chat-pane composes it inline in atomic
-// #8). One step content, two frames -- DRY, matching atomic #1/#2
-// (OnboardStepBody/OnboardMenu) and atomic #4 (ChatCreateStep).
+// (src/features/private-dm/NewSessionPanelSteps.tsx): body, OPTIONAL label
+// input, Create/Recreate button (label flips once an invite exists),
+// InlineError, InviteResult. NO frame, NO back affordance, NO title -- the
+// caller wraps this in [OnboardStepFrame] (full screen) or OnboardStepBody
+// (inline, atomic #8).
 //
-// State split (ADR 0010): the entered group label and the GroupCreated
-// result are per-step widget-local state (React keeps the label as
-// per-step `value` and `groupCreateState` in `usePrivateDmSetup`, NOT in
-// the DM inviteFlowProvider). Only `_busy` (create in flight) and
-// `_copied` (just-copied) + `_error` (persistent inline error) are also
-// ephemeral UI state. The displayName/listenPort/staticPeer come from
-// [inviteFlowProvider] -- the same settings source createInvite uses.
+// State split (ADR 0010): the group label + GroupCreated result are
+// per-step widget-local (React keeps the label as per-step `value` and
+// `groupCreateState` in `usePrivateDmSetup`, NOT in the DM
+// inviteFlowProvider). Only `_busy`/`_copied`/`_error` are also ephemeral
+// UI. The displayName/listenPort/staticPeer come from [inviteFlowProvider]
+// -- the same settings source createInvite uses.
 //
-// `onBack` is an injected VoidCallback (1:1 with React `props.onBack`)
-// reserved for caller parity. The step body itself renders no back
-// affordance -- the framing widget (OnboardStepFrame/OnboardStepBody)
-// owns the Back button and wires it to the same callback the caller
-// passes here. The step does NOT context.go itself; the caller decides
-// routing (route navigation for GroupCreateScreen, inline step-switch
-// for the chat-pane in atomic #8).
+// `onBack` is injected (1:1 with React `props.onBack`): the step renders no
+// back affordance itself; the framing widget owns the Back button. The step
+// does NOT context.go itself; the caller decides routing (route for
+// GroupCreateScreen, inline step-switch for the chat-pane in atomic #8).
 library;
 
 import 'package:flutter/material.dart';
@@ -39,21 +32,15 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/util/format.dart' show readableError;
 
-/// Embeddable group-create step body -- the step CONTENT only.
-///
-/// Renders the body paragraph, an OPTIONAL label TextField, the
-/// Create/Recreate button (label flips once `_created` is set), the
-/// persistent [InlineError], and the [InviteResult] card shown only after
-/// the first successful create. Caller wraps this in [OnboardStepFrame]
-/// (full-screen route, e.g. GroupCreateScreen) or OnboardStepBody (inline,
-/// atomic #8).
-///
-/// Mirrors React `GroupCreateStep` (NewSessionPanelSteps.tsx) which renders
-/// its body inside an `OnboardStepFrame` -- there the frame and content are
-/// coupled; here they are split so the same content composes into two
-/// frames (route + inline). State stays in this widget (the label,
+/// Embeddable group-create step body -- the step CONTENT only: body,
+/// OPTIONAL label TextField, Create/Recreate button (label flips once
+/// `_created` is set), persistent [InlineError], and [InviteResult] card
+/// shown after the first successful create. Caller wraps this in
+/// [OnboardStepFrame] (full-screen route, e.g. GroupCreateScreen) or
+/// OnboardStepBody (inline, atomic #8). Mirrors React `GroupCreateStep`
+/// (NewSessionPanelSteps.tsx). State stays in this widget (label,
 /// GroupCreated, busy/copied/error are ephemeral UI); the
-/// displayName/listenPort/staticPeer settings are server-derived via
+/// displayName/listenPort/staticPeer settings come from
 /// [inviteFlowProvider].
 class GroupCreateStep extends ConsumerStatefulWidget {
   const GroupCreateStep({super.key, required this.onBack});
@@ -113,7 +100,9 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
       _error = null;
     });
     try {
-      final created = await ref.read(gatewayProvider).createGroup(
+      final created = await ref
+          .read(gatewayProvider)
+          .createGroup(
             request: CreateGroupRequest(
               label: label.isEmpty ? null : label,
               displayName: settings.displayName,
@@ -173,11 +162,11 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
           controller: _labelController,
           decoration: InputDecoration(
             hintText: l.onboardGroupNamePlaceholder,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
           style: const TextStyle(fontSize: 12.5),
           textInputAction: TextInputAction.done,
@@ -190,18 +179,18 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
         // NOT disabled by an empty label (React `disabled={busy}` only).
         FilledButton(
           onPressed: _busy ? null : _onCreate,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           child: _busy
               ? const SizedBox(
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(_created != null
-                  ? l.onboardGroupRecreate
-                  : l.onboardGroupCreate),
+              : Text(
+                  _created != null
+                      ? l.onboardGroupRecreate
+                      : l.onboardGroupCreate,
+                ),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),

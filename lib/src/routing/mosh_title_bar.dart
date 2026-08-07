@@ -6,41 +6,30 @@
 // button, so the titlebar is NOT mounted on mobile (documented deviation
 // in mosh_shell.dart).
 //
-// What this mirrors 1-1 from React (private-dm-screen.tsx L252-292):
+// Mirrored 1-1 from React (private-dm-screen.tsx L252-292):
 //   1. rail toggle button (IconMenu2) -- SKIPPED: Flutter's rail is a
-//      fixed 300px pane with no collapse mode (mosh_shell.dart), so a
-//      toggle would be a dead/fake control. React's rail.toggle /
-//      rail.expanded pair has no Flutter analogue.
+//      fixed 300px pane with no collapse mode, so the toggle would be a
+//      dead control.
 //   2. brand: shield-check icon (18) + strong "MOSH" (shellProductName).
 //   3. subtitle: "Private DM . OpenMLS over Moss" (shellWindowSubtitle),
 //      flex-1, ellipsized, fg-3, 12px.
 //   4. "Peer status" button (plug icon 14 + text, aria-label
-//      openPeerStatus) -- opens the existing PeerStatusDrawer for the
-//      active conversation.
-//   5. StatePill branch (L282-292):
-//        activeSession (key 'dm:<id>') -> StatePill(state, label)
-//        activeChannel (key 'channel:<name>') -> ready pill +
-//          channelBroadcastBadge text (channels render a fixed ready
-//          pill regardless of state -- ChannelSnapshot has no .state).
-//        activeGroup (key 'group:<id>') -> StatePill(state, label).
-//        no active key -> no pill (React `: null`).
+//      openPeerStatus) -- opens the PeerStatusDrawer for the active
+//      conversation.
+//   5. StatePill branch (L282-292): dm -> StatePill(state, label);
+//      channel -> fixed ready pill + channelBroadcastBadge (Channel
+//      snapshots have no .state); group -> StatePill(state, label); no
+//      active key -> no pill.
 //
-// State (all live, no inventing): activeConversationKeyProvider
-// (active_conversation_key_provider.dart) -> String?; the matching
-// snapshot family is watched for the live .state:
-//   dm:      activeSessionProvider(id)    (session_providers.dart)
-//   channel: channelSnapshotProvider(name) (channel_group_providers.dart)
-//   group:   groupSnapshotProvider(groupId) (channel_group_providers.dart)
-// Label mapper: stateLabel(AppLocalizations, state)
-// (features/diagnostics/state_label.dart) -- REUSED, not re-implemented
-// (DRY).
+// State (all live): activeConversationKeyProvider -> key; the matching
+// snapshot family is watched for the live .state (activeSessionProvider /
+// channelSnapshotProvider / groupSnapshotProvider). Label mapper:
+// stateLabel() (features/diagnostics/state_label.dart) -- reused, DRY.
 //
-// Colors: React's `--moss` (#B7D84A) + `--warn` (#E8B65A) + `--fg-3`
-// (#6B7075) tokens are already literal constants in summary_card.dart /
-// bind_interface_field.dart; this file reuses the same literals (no new
-// ColorScheme constants, no new deps). Neutral pill chrome (bg-2/line)
-// maps to theme.surfaceContainerHighest / theme.dividerColor, matching
-// summary_card.dart's established mapping.
+// Colors: React's `--moss` (#B7D84A) / `--warn` (#E8B65A) / `--fg-3`
+// (#6B7075) tokens are the same literals summary_card.dart /
+// bind_interface_field.dart use; neutral pill chrome maps to
+// theme.surfaceContainerHighest / theme.dividerColor.
 library;
 
 import 'package:flutter/material.dart';
@@ -122,7 +111,8 @@ class MoshTitleBar extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final activeKey = _ActiveKey.parse(
-        ref.watch(activeConversationKeyProvider));
+      ref.watch(activeConversationKeyProvider),
+    );
     // React titlebar: height 44, row, gap 14, padding 0 18, bg-0, bottom
     // border line (desktop-shell.css L16-26). Mapped to a 44-tall
     // Container with a bottom BorderSide.
@@ -137,7 +127,8 @@ class MoshTitleBar extends ConsumerWidget {
         decoration: BoxDecoration(
           color: theme.scaffoldBackgroundColor, // --bg-0
           border: Border(
-              bottom: BorderSide(color: theme.dividerColor)), // --line
+            bottom: BorderSide(color: theme.dividerColor),
+          ), // --line
         ),
         child: Row(
           children: <Widget>[
@@ -213,8 +204,11 @@ class _PeerStatusButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(Icons.electrical_services,
-                    size: 14, color: theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.electrical_services,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   l.peerStatusTitle,

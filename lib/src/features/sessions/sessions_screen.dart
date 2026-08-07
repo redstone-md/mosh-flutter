@@ -1,44 +1,22 @@
-// Sessions list screen -- the Flutter port of the React SessionRail sessions
-// section (src/features/private-dm/SessionRail.tsx, SessionRailItem). This is
-// the slice that makes a DM session reachable from in-app navigation: a
-// ListView of one row per SessionSnapshot, a FAB to start a new session, and
-// an empty state when no sessions exist.
-//
-// Scope (this atomic): the combined sessions rail (React SessionRail). DM
-// sessions, groups, channels, offers, and orgs are all wired now -- the
-// React SessionRail composes them into one rail, and the Flutter side ports
-// them surface-by-surface to keep each change small and reviewable.
-// The unread badge is wired for DM sessions via `unreadDmCountsProvider`
-// (counts not-own messages per session, keyed `'dm:<sessionId>'`, mirroring
-// React's `useUnreadNotifications`). The full poll-diff lifecycle
-// (notifications, window-focus, clearOnActive, `diffConversations`,
-// `lastSeen` persistence) is a later atomic -- here the count shown is the
-// number of not-own messages currently in the session.
-//
-// Channel/group rail items are now wired in too (this atomic): the screen
-// lays out DM sessions, then groups, then channels, with thin `rail-divider`
-// lines between two non-empty adjacent sections -- 1-в-1 with the React
-// `SessionRail` combined rail order (offers -> sessions -> groups -> channels
-// -> orgs). Channel and group unread counts are wired via
-// `unreadChannelCountsProvider` /
-// `unreadGroupCountsProvider` (mirrors the DM provider, fingerprint
-// comparison; keyed `'channel:<name>'` / `'group:<groupId>'`). Channel/group
-// `onTap` stay no-ops (no channel/group screen route).
-// Org sections are wired in too (this atomic): each org renders via
-// `OrgSection` after the channels loop, separated by a `rail-divider` when
-// the prior slices are non-empty. `orgsProvider` (the polled joined-orgs
-// list) is watched the same way as channels/groups; the org action helpers
-// in `org_actions.dart` (gateway + refresh + navigation) back the 9
-// callbacks. `busy` mirrors React's `org.busy = offerBusy || setupBusy` via
-// the per-org operation-bus `orgOperationBusProvider` (Set<orgPubkey>): only
-// the org being operated on disables, not unrelated orgs.
+// Sessions list screen -- the Flutter port of the React SessionRail sections
+// (SessionRail.tsx). One row per SessionSnapshot, a FAB to start a new
+// session, and an empty state. The combined rail order is 1-в-1 with React
+// (offers -> sessions -> groups -> channels -> orgs), separated by
+// `rail-divider` lines between two non-empty adjacent sections.
+// Unread counts: DM via `unreadDmCountsProvider` (keyed `'dm:sessionId'`),
+// channels/groups via `unreadChannelCountsProvider` /
+// `unreadGroupCountsProvider` (keyed `'channel:name'` / `'group:groupId'`,
+// mirrors the DM provider). Channel/group `onTap` stay no-ops (no room
+// screen route). Orgs render via `OrgSection` after the channels loop;
+// `org_actions.dart` (gateway + refresh + navigation) backs the 9
+// callbacks, and `busy` mirrors React's `org.busy = offerBusy || setupBusy`
+// via `orgOperationBusProvider` (Set<orgPubkey>).
 //
 // State split (ADR 0010): server state lives in `sessionListProvider`
 // (AsyncNotifierProvider<SessionListSnapshot>) -- the TanStack-Query
 // analogue; loading/data/error flows through AsyncValue. The new-session
-// flow reuses the cross-screen `inviteFlowProvider` Notifier (the same one
-// onboarding uses) so display-name + listen-port stay DRY and consistent.
-// No widget-local state is needed, so a ConsumerWidget is sufficient.
+// flow reuses the cross-screen `inviteFlowProvider` Notifier so display-name
+// + listen-port stay DRY. No widget-local state, so a ConsumerWidget.
 library;
 
 import 'package:flutter/material.dart';
@@ -153,7 +131,8 @@ class SessionsScreen extends ConsumerWidget {
               groups.isEmpty &&
               orgs.isEmpty) {
             return _EmptyState(
-                onStart: () => openNewSessionAction(context, ref));
+              onStart: () => openNewSessionAction(context, ref),
+            );
           }
           // React SessionRail order: sessions, [divider if groups && sessions],
           // groups, [divider if channels && (sessions || groups)], channels.
@@ -235,8 +214,9 @@ class SessionsScreen extends ConsumerWidget {
               const Divider(height: 1, thickness: 1),
               OrgSection(
                 org: org,
-                busy:
-                    ref.watch(orgOperationBusProvider).contains(org.orgPubkey),
+                busy: ref
+                    .watch(orgOperationBusProvider)
+                    .contains(org.orgPubkey),
                 onMember: (o, m) => openMemberDmAction(context, ref, o, m),
                 onAcceptDmOffer: (pubkey, id) =>
                     acceptOrgDmOfferAction(context, ref, pubkey, id),
@@ -338,8 +318,8 @@ class _SessionRow extends StatelessWidget {
           radius: 20,
           foregroundColor:
               ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
-                  ? Colors.white
-                  : Colors.black87,
+              ? Colors.white
+              : Colors.black87,
         ),
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
@@ -389,12 +369,17 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(l.chatNoSessionTitle,
-                style: theme.textTheme.titleMedium,
-                textAlign: TextAlign.center),
+            Text(
+              l.chatNoSessionTitle,
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
-            Text(l.chatNoSessionBody,
-                textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+            Text(
+              l.chatNoSessionBody,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: onStart,
@@ -425,12 +410,17 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(l.sessionsError,
-                style: theme.textTheme.titleMedium,
-                textAlign: TextAlign.center),
+            Text(
+              l.sessionsError,
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
-            Text(error.toString(),
-                textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
+            Text(
+              error.toString(),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall,
+            ),
             const SizedBox(height: 18),
             FilledButton(
               onPressed: () => ref.read(sessionListProvider.notifier).refresh(),

@@ -1,11 +1,9 @@
-// Two-pane desktop shell -- the Flutter port of React's private-dm-screen
-// desktop-body (private-dm-screen.tsx:243-343): the SessionRail stays
-// ALWAYS visible beside the active chat-pane on desktop, and collapses
-// to a single-pane on mobile (use-conversation-rail-state.ts:1-38). Until
-// now Flutter used flat go-routes (/sessions <-> /dm/:id), so selecting
-// a session did a full route swap and the rail DISAPPEARED while reading
-// a DM -- the user could not see the inbox while chatting. This shell
-// closes that gap by mounting the two StatefulShellRoute branches
+// Two-pane desktop shell -- the Flutter port of React's private-dm desktop
+// body. The SessionRail stays ALWAYS visible beside the active chat pane
+// on desktop and collapses to a single pane on mobile. Until now Flutter
+// used flat go-routes (/sessions <-> /dm/:id), so selecting a session did
+// a full route swap and the rail DISAPPEARED while reading a DM. This
+// shell closes that gap by mounting the two StatefulShellRoute branches
 // side-by-side on desktop and switching between them on mobile.
 //
 // The shell is a pure layout widget: it owns NO state. It is wired as the
@@ -13,10 +11,9 @@
 // branch Navigator widgets (children) + the currentIndex and lays them
 // out. Branch A (index 0) is the rail (/sessions -> SessionsScreen);
 // branch B (index 1) is the chat (/dm/:id, /channel/:name, /group/:groupId,
-// and the /chat welcome default). The rail active-highlight (8f34256)
-// already tracks the open conversation via activeConversationKeyProvider,
-// so the shell only needs to keep the rail mounted -- it does not touch
-// the highlight logic.
+// and the /chat welcome default). The rail's active-highlight already
+// tracks the open conversation via activeConversationKeyProvider, so the
+// shell only needs to keep the rail mounted.
 //
 // Layout:
 //   - Desktop (width > 580, the React @media (max-width: 580px) inverse):
@@ -33,17 +30,14 @@
 //     _IndexedStackedRouteBranchContainer: Offstage + TickerMode + stack)
 //     so only the ACTIVE branch renders but the inactive branch's
 //     Navigator state is preserved (keep-alive). The rail's onTap does
-//     context.go(AppRoutes.dmFor(...)); go_router auto-activates branch B
-//     (the route lives in branch B), so the rail swaps to the chat. The
-//     chat's back/leave does context.go(AppRoutes.sessions) -> branch A,
-//     swapping back to the rail. Mirrors React's useConversationRailState
-//     rail-or-chat toggle (the rail is NOT shown over the chat on mobile).
-//     DEVIATION: the shared desktop titlebar is NOT mounted on mobile --
-//     the mobile screens already carry their own AppBar + peer-status
-//     button (dm_screen.dart / channel_screen.dart / group_screen.dart),
-//     so a second titlebar would duplicate the Peer status entry. React's
-//     titlebar is desktop-only too (it sits in the desktop-body above the
-//     rail+chat row; mobile renders the per-screen header instead).
+//     context.go(AppRoutes.dmFor(...)); go_router auto-activates branch B,
+//     so the rail swaps to the chat; the chat's back does
+//     context.go(AppRoutes.sessions) -> branch A. Mirrors React's
+//     useConversationRailState rail-or-chat toggle. DEVIATION: the shared
+//     desktop titlebar is NOT mounted on mobile -- the mobile screens
+//     already carry their own AppBar + peer-status button, so a second
+//     titlebar would duplicate the Peer status entry (React's titlebar is
+//     desktop-only too).
 library;
 
 import 'package:flutter/material.dart';
@@ -71,22 +65,17 @@ const double _kRailWidth = 300.0;
 /// See the file header for the desktop vs mobile behavior and the React
 /// parity rationale.
 ///
-/// Branch indices are fixed by the router (branch 0 = rail, branch 1 =
-/// chat). The shell never calls goBranch itself -- navigation is driven
-/// by context.go(...) from the rail rows + chat screens, and go_router
+/// The shell never calls goBranch itself -- navigation is driven by
+/// context.go(...) from the rail rows + chat screens, and go_router
 /// auto-activates the matched branch. The shell only LAYS OUT whatever
 /// branch is active (mobile) or both (desktop).
+///
 /// A ConsumerStatefulWidget so the desktop titlebar's shell-level
-/// PeerStatusDrawer toggle (`_showPeerStatus`) lives here -- the shell
-/// both flips the toggle AND mounts the Positioned.fill overlay over the
-/// desktop Column, mirroring dm_screen.dart L83 + L683-691 exactly (the
-/// SAME widget owns the toggle AND mounts the overlay). The titlebar is
-/// now a stateless-ish leaf that fires the shell-supplied
-/// `onOpenPeerStatus` VoidCallback; it no longer holds the toggle or
-/// exposes an overlay builder. This is what makes the drawer actually
-/// appear: the shell rebuilds when it flips `_showPeerStatus` (the prior
-/// titlebar-owned toggle did not, so the shell never re-rendered and the
-/// tap silently no-opped).
+/// PeerStatusDrawer toggle lives here: the shell both flips
+/// `_showPeerStatus` AND mounts the Positioned.fill overlay (mirroring
+/// dm_screen.dart L83 + L683-691). The titlebar fires the shell-supplied
+/// `onOpenPeerStatus` callback and holds no overlay state; the shell
+/// rebuilds on the flip, which is what makes the drawer appear.
 class MoshShell extends ConsumerStatefulWidget {
   const MoshShell({
     super.key,
@@ -121,7 +110,9 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     // while the inactive branch's Navigator state is preserved.
     if (isMobileBreakpoint(context)) {
       return _MobileShell(
-          currentIndex: widget.currentIndex, children: widget.children);
+        currentIndex: widget.currentIndex,
+        children: widget.children,
+      );
     }
     return Stack(
       children: <Widget>[
@@ -148,14 +139,9 @@ class _MoshShellState extends ConsumerState<MoshShell> {
           ],
         ),
         // Shell-level PeerStatusDrawer overlay (mirrors dm_screen.dart
-        // L683-691): the shell owns the toggle AND mounts the overlay.
-        // Built directly here for the active conversation -- watch
-        // activeConversationKeyProvider, branch on the key prefix
-        // ('dm:' / 'channel:' / 'group:'), ref.watch the matching
-        // FutureProvider.family, unwrap AsyncValue (null while
-        // loading/error -- PeerStatusDrawer renders NoActiveSession when
-        // all three are null), pass onRefresh (invalidate the matching
-        // family entry) + onClose (flip the toggle).
+        // L683-691): branch on the active key prefix to the matching
+        // snapshot family; null -> PeerStatusDrawer renders
+        // NoActiveSession. onRefresh invalidates the family entry.
         if (_showPeerStatus)
           Positioned.fill(
             child: PeerStatusDrawer(
@@ -172,12 +158,9 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     );
   }
 
-  // The active-conversation kind, parsed from the active key prefix.
-  // Mirrors React's branch test on `activeSession` / `activeChannel` /
-  // `activeGroup` (private-dm-screen.tsx L282-292). null when no
-  // conversation is open. Defined here (not re-imported from the titlebar)
-  // because the titlebar's copy is file-private; the shell needs its own
-  // parse to build the drawer in build().
+  // The active-conversation kind, parsed from the active key prefix
+  // ('dm:' / 'channel:' / 'group:'), or null when no conversation is
+  // open. Defined here because the titlebar's copy is file-private.
   _ActiveKind? _activeKind(WidgetRef ref) {
     final key = ref.watch(activeConversationKeyProvider);
     if (key == null) return null;
@@ -294,26 +277,18 @@ class _MobileShell extends StatelessWidget {
   }
 }
 
-/// The chat-pane welcome / empty state -- the Flutter port of React's
+/// The chat-pane welcome / empty-state -- the Flutter port of React's
 /// desktop chat-pane body when no conversation is open
-/// (src/features/private-dm/private-dm-screen.tsx:325-343). Rendered as
-/// branch B's default location so the desktop right pane is never blank
-/// before the user opens a conversation, and so leaving a chat
-/// (context.go(AppRoutes.sessions)) on desktop can reset branch B here
-/// instead of leaving a dead chat mounted.
+/// (private-dm-screen.tsx:325-343). Rendered as branch B's default slot so
+/// the desktop right pane is never blank before a conversation opens, and
+/// so leaving a chat on desktop resets branch B instead of leaving a dead
+/// chat mounted.
 ///
-/// React renders the full NewSessionPanel (menu + the four inline steps)
-/// INLINE in the chat-pane (private-dm-screen.tsx:325-343). The same panel
-/// is used at every viewport size so SessionRail's New action reaches the
-/// complete flow in one tap on mobile as well as desktop.
-/// [NewSessionPanel] owns the local step state + the IndexedStack keep-
-/// alive; the step success navigation (context.go channelFor / groupFor /
-/// sessions) fires from within the steps and leaves the welcome pane.
-///
-/// [NewSessionPanel] reads its own providers (inviteFlowProvider,
-/// gatewayProvider, persistenceWarningProvider) via its
-/// ConsumerStatefulWidget ref; the root ProviderScope supplies the
-/// container.
+/// [NewSessionPanel] owns the local step state + the IndexedStack
+/// keep-alive; the step success navigation (context.go channelFor /
+/// groupFor / sessions) fires from within the steps and leaves the welcome
+/// pane. It reads its own providers (inviteFlowProvider, gatewayProvider,
+/// persistenceWarningProvider) via its ConsumerStatefulWidget ref.
 class ChatPaneWelcome extends StatelessWidget {
   const ChatPaneWelcome({super.key});
 

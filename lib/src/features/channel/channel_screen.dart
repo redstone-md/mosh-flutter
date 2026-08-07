@@ -1,13 +1,10 @@
-// S5-1: ChannelScreen route shell -- the minimal, reachable surface for a
-// public channel. Mirrors how DmScreen (S4.7) was built surface-by-surface:
-// AppBar (channel name + leave IconButton) + a scrolling message list (own
-// vs others by FINGERPRINT, not display name -- channels are multi-party so
-// names are not unique) + a composer. SHELL ONLY.
-//
-// 1-1 with the React channel pane (ActiveChatPanes.tsx ActiveChannelChat):
-// AppBar (channel name + leave IconButton) + PublicNotice banner +
-// ConversationTools (search/filter) + message list (own vs others by
-// FINGERPRINT) + composer + peer-status drawer overlay.
+// ChannelScreen route shell -- the minimal reachable surface for a public
+// channel: AppBar (channel name + leave IconButton) + a scrolling message
+// list (own vs others by FINGERPRINT, not display name -- channels are
+// multi-party so names are not unique) + a composer. 1-1 with the React
+// channel pane (ActiveChatPanes.tsx ActiveChannelChat): PublicNotice
+// banner + ConversationTools (search/filter) + message list + composer +
+// peer-status drawer overlay.
 //
 // Own-vs-others rule (React MessageLists.tsx ChannelChatList):
 // own = message.fromFingerprint == channel.deviceFingerprint. Fingerprint
@@ -141,8 +138,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   Future<void> _send() async {
     final body = _composer.text.trim();
     if (body.isEmpty) return;
-    final controller =
-        ref.read(channelControllerProvider(widget.name).notifier);
+    final controller = ref.read(
+      channelControllerProvider(widget.name).notifier,
+    );
     final outcome = await controller.sendBody(body);
     if (!mounted) return;
     if (outcome.sent && _composer.text.trim() == outcome.body) {
@@ -155,8 +153,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   // composer clear on a successful retry (the composer still holds the failed
   // body, so a successful retry clears it -- 1-1 with React parity).
   Future<void> _retryFailedSend() async {
-    final controller =
-        ref.read(channelControllerProvider(widget.name).notifier);
+    final controller = ref.read(
+      channelControllerProvider(widget.name).notifier,
+    );
     final outcome = await controller.retryFailedSend();
     if (!mounted) return;
     if (outcome.sent && _composer.text.trim() == outcome.body) {
@@ -167,8 +166,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   // Open an attachment -- delegates pending-open/download orchestration to
   // [ChannelController.openAttachment] and interprets its immutable intent.
   void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
-    final controller =
-        ref.read(channelControllerProvider(widget.name).notifier);
+    final controller = ref.read(
+      channelControllerProvider(widget.name).notifier,
+    );
     final result = controller.openAttachment(descriptor, view);
     switch (result) {
       case AttachmentExternalOpenIntent(:final localPath):
@@ -185,9 +185,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       await ref.read(attachmentLauncherProvider).open(localPath);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(readableError(error))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(readableError(error))));
     }
   }
 
@@ -198,8 +198,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   // controller never navigates). A no-op (already-offered peer) returns
   // `sessionId == null` and the screen does nothing.
   Future<void> _onPeerMessage(String peerFingerprint) async {
-    final controller =
-        ref.read(channelControllerProvider(widget.name).notifier);
+    final controller = ref.read(
+      channelControllerProvider(widget.name).notifier,
+    );
     final result = await controller.onPeerMessage(peerFingerprint);
     if (!mounted) return;
     final sessionId = result.sessionId;
@@ -213,9 +214,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   // effect; stays in the screen.
   void _onVoiceError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   // Surfaces the localized 50 MB limit message when the picker rejects an
@@ -226,9 +227,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   void _onAttachmentPickError(AttachmentPickError error) {
     if (!mounted) return;
     final l = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.attachmentTooLargeMessage)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l.attachmentTooLargeMessage)));
   }
 
   // Leave the channel -- the confirm dialog is UI (stays in the screen); on
@@ -238,14 +239,16 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   // navigates back to the sessions list (the controller never navigates).
   Future<void> _leave() async {
     ref.read(activeConversationKeyProvider.notifier).clear();
-    final controller =
-        ref.read(channelControllerProvider(widget.name).notifier);
+    final controller = ref.read(
+      channelControllerProvider(widget.name).notifier,
+    );
     await controller.leave();
     if (!mounted) return;
     // Desktop routes to /chat (branch B initialLocation) so the inline
     // NewSessionPanel reappears; mobile keeps the rail (current behavior).
-    final target =
-        isMobileBreakpoint(context) ? AppRoutes.sessions : AppRoutes.chat;
+    final target = isMobileBreakpoint(context)
+        ? AppRoutes.sessions
+        : AppRoutes.chat;
     context.go(target);
   }
 
@@ -271,8 +274,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(channelSnapshotProvider(widget.name));
-    final controller =
-        ref.watch(channelControllerProvider(widget.name).notifier);
+    final controller = ref.watch(
+      channelControllerProvider(widget.name).notifier,
+    );
     final state = ref.watch(channelControllerProvider(widget.name));
     // Resolve the pending-open descriptor 1-1 with React's `useEffect`
     // (use-chat-orchestration.ts L267-283): when the channel snapshot's

@@ -4,8 +4,6 @@
 /// group label (falling back to a shortened group id), subtitle the
 /// member count, and a trailing admin crown + state dot + `UnreadBadge`.
 ///
-/// Scope (this atomic): the standalone widget only. It is NOT wired into
-/// `SessionsScreen` yet (a later atomic mounts the groups section), and
 /// `onTap` opens `AppRoutes.groupFor(group.groupId)` (the GroupScreen route
 /// shell). Server state for the list lives in `groupListProvider`
 /// (channel_group_providers.dart); the parent passes a resolved
@@ -71,10 +69,7 @@ class GroupRailItem extends StatelessWidget {
       selected: active,
       child: ListTile(
         leading: const Icon(Icons.group, size: 18),
-        title: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(l.membersCount(group.memberCount.toInt())),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,

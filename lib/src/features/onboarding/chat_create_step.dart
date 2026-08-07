@@ -1,25 +1,19 @@
 // Embeddable chat-create step body -- 1:1 with React `ChatCreateStep`
-// (src/features/private-dm/NewSessionPanelSteps.tsx). Renders the step
-// CONTENT ONLY: the body paragraph, the Create/Recreate button (label
-// flips once an invite exists), InlineError, and InviteResult. NO frame,
-// NO back affordance, NO title -- the caller wraps this in the frame
-// (OnboardStepFrame for the full-screen route, OnboardStepBody when the
-// desktop chat-pane composes it inline in atomic #8). One step content,
-// two frames -- DRY, matching atomic #1/#2 (OnboardStepBody/OnboardMenu).
+// (src/features/private-dm/NewSessionPanelSteps.tsx): body, Create/Recreate
+// button (label flips once an invite exists), InlineError, InviteResult.
+// NO frame, NO back affordance, NO title -- the caller wraps this in
+// [OnboardStepFrame] (full screen) or OnboardStepBody (inline, atomic #8).
 //
 // State split (ADR 0010): the invite URI is server-derived state read from
 // `inviteFlowProvider.lastInvite` (the `create()` call stores it there).
 // Only the local `_busy` (create in flight) and `_copied` (just-copied)
-// flags are widget-local -- ephemeral UI state, the shape of React's
-// local `createState` plus a busy flag.
+// flags are widget-local -- ephemeral UI state.
 //
-// `onBack` is an injected VoidCallback (1:1 with React `props.onBack`)
-// reserved for caller parity. The step body itself renders no back
-// affordance -- the framing widget (OnboardStepFrame/OnboardStepBody)
-// owns the Back button and wires it to the same callback the caller
-// passes here. The step does NOT context.go itself; the caller decides
-// routing (route navigation for ChatCreateScreen, inline step-switch for
-// the chat-pane in atomic #8).
+// `onBack` is injected (1:1 with React `props.onBack`): the step body
+// renders no back affordance itself; the framing widget owns the Back
+// button and wires it to the callback the caller passes here. The step
+// does NOT context.go itself; the caller decides routing (route for
+// ChatCreateScreen, inline step-switch for the chat-pane in atomic #8).
 library;
 
 import 'package:flutter/material.dart';
@@ -32,19 +26,15 @@ import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/util/format.dart' show readableError;
 
-/// Embeddable chat-create step body -- the step CONTENT only.
-///
-/// Renders the body paragraph, the Create/Recreate button (label flips
-/// once `inviteFlowProvider.lastInvite` is set), the persistent
-/// [InlineError], and the [InviteResult] card shown only after the first
-/// successful create. Caller wraps this in [OnboardStepFrame] (full-screen
-/// route, e.g. ChatCreateScreen) or OnboardStepBody (inline, atomic #8).
-///
-/// Mirrors React `ChatCreateStep` (NewSessionPanelSteps.tsx) which renders
-/// its body inside an `OnboardStepFrame` -- there the frame and content
-/// are coupled; here they are split so the same content composes into two
-/// frames (route + inline). State stays in this widget (busy/copied/error
-/// are ephemeral UI); the invite URI is server-derived via the provider.
+/// Embeddable chat-create step body -- the step CONTENT only: body
+/// paragraph, Create/Recreate button (label flips once
+/// `inviteFlowProvider.lastInvite` is set), persistent [InlineError], and
+/// the [InviteResult] card shown after the first successful create. Caller
+/// wraps this in [OnboardStepFrame] (full-screen route, e.g.
+/// ChatCreateScreen) or OnboardStepBody (inline, atomic #8). Mirrors React
+/// `ChatCreateStep` (NewSessionPanelSteps.tsx). State stays in this widget
+/// (busy/copied/error are ephemeral UI); the invite URI is server-derived
+/// via the provider.
 class ChatCreateStep extends ConsumerStatefulWidget {
   const ChatCreateStep({super.key, required this.onBack});
 
@@ -109,9 +99,7 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
         const SizedBox(height: 20),
         FilledButton(
           onPressed: _busy ? null : _onCreate,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           child: _busy
               ? const SizedBox(
                   width: 22,

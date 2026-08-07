@@ -1,10 +1,5 @@
 // OrgSection -- 1-в-1 port of React `src/features/private-dm/org/
-// OrgSection.tsx`. Renders one organization in the sessions rail: a
-// header (building icon + org name + leave X), an optional pending
-// confirmation-code block (when not yet in roster), DM-offer rows,
-// group-offer rows, a new-group form (admin + in-roster only), and the
-// member list (avatar + name + shortened peer id + admin crown, self
-// disabled + badged "you"). All 9 callbacks pass through unchanged so the
+// OrgSection.tsx`. All 9 callbacks pass through unchanged so the
 // host wires them to the Gateway seam.
 
 library;
@@ -46,8 +41,7 @@ class OrgSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final selfIsAdmin =
-        org.members.any((m) => m.isSelf && m.role == 'admin');
+    final selfIsAdmin = org.members.any((m) => m.isSelf && m.role == 'admin');
     return Semantics(
       label: 'Organization ${org.orgName}',
       container: true,
@@ -57,14 +51,16 @@ class OrgSection extends StatelessWidget {
           _Header(org: org, busy: busy, onLeave: onLeave, l: l),
           if (!org.inRoster)
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(org.confirmationCode,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    org.confirmationCode,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(l.orgPendingHint, style: theme.textTheme.bodySmall),
                 ],
@@ -124,11 +120,12 @@ class _Header extends StatelessWidget {
           const Icon(Icons.apartment, size: 14),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(org.orgName,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            child: Text(
+              org.orgName,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.close, size: 10),
@@ -170,20 +167,19 @@ class _DmOfferRow extends StatelessWidget {
               onTap: busy ? null : () => onAccept(orgPubkey, offer.offerId),
               child: Row(
                 children: [
-                  Avatar(
-                    name: offer.fromName,
-                    radius: 12,
-                    fontSize: 10,
-                  ),
+                  Avatar(name: offer.fromName, radius: 12, fontSize: 10),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(offer.fromName,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(fontWeight: FontWeight.w600)),
+                        Text(
+                          offer.fromName,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         Text(l.orgDmOffer, style: theme.textTheme.bodySmall),
                       ],
                     ),
@@ -198,8 +194,7 @@ class _DmOfferRow extends StatelessWidget {
             tooltip: l.orgDismissDmAria(offer.fromName),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            onPressed:
-                busy ? null : () => onDismiss(orgPubkey, offer.offerId),
+            onPressed: busy ? null : () => onDismiss(orgPubkey, offer.offerId),
           ),
         ],
       ),
@@ -225,10 +220,9 @@ class _GroupOfferRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label =
-        (offer.groupLabel == null || offer.groupLabel!.isEmpty)
-            ? l.orgGroupOffer
-            : offer.groupLabel!;
+    final label = (offer.groupLabel == null || offer.groupLabel!.isEmpty)
+        ? l.orgGroupOffer
+        : offer.groupLabel!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Row(
@@ -245,11 +239,16 @@ class _GroupOfferRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(label,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(fontWeight: FontWeight.w600)),
-                        Text('${l.orgGroupOfferFrom} ${offer.fromName}',
-                            style: theme.textTheme.bodySmall),
+                        Text(
+                          label,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '${l.orgGroupOfferFrom} ${offer.fromName}',
+                          style: theme.textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
@@ -262,8 +261,7 @@ class _GroupOfferRow extends StatelessWidget {
             tooltip: l.orgDismissGroupAria(offer.fromName),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            onPressed:
-                busy ? null : () => onDismiss(orgPubkey, offer.offerId),
+            onPressed: busy ? null : () => onDismiss(orgPubkey, offer.offerId),
           ),
         ],
       ),
@@ -347,38 +345,43 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final name =
-        member.isSelf ? '${member.name} (${l.orgYouBadge})' : member.name;
+    final name = member.isSelf
+        ? '${member.name} (${l.orgYouBadge})'
+        : member.name;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: InkWell(
         onTap: (busy || member.isSelf) ? null : () => onMember(org, member),
         child: Row(
           children: [
-            Avatar(
-              name: member.name,
-              radius: 12,
-              fontSize: 10,
-            ),
+            Avatar(name: member.name, radius: 12, fontSize: 10),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(name,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  Text(shorten(member.mossPeerId, 6),
-                      style: theme.textTheme.bodySmall),
+                  Text(
+                    name,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    shorten(member.mossPeerId, 6),
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ],
               ),
             ),
             if (member.role == 'admin')
               Padding(
                 padding: const EdgeInsets.only(left: 4),
-                child: Icon(Icons.workspace_premium,
-                    size: 11, color: theme.colorScheme.primary),
+                child: Icon(
+                  Icons.workspace_premium,
+                  size: 11,
+                  color: theme.colorScheme.primary,
+                ),
               ),
           ],
         ),

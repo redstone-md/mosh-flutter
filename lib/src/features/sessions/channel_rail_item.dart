@@ -4,8 +4,6 @@
 /// size 18), title `#<name>` (note the `#` prefix in the title text),
 /// subtitle the channel topic, and a trailing `UnreadBadge`.
 ///
-/// Scope (this atomic): the standalone widget only. It is NOT wired into
-/// `SessionsScreen` yet (a later atomic mounts the channels section), and
 /// `onTap` navigates to `/channel/<name>` via `context.go(AppRoutes.channelFor(name))`
 /// (mirrors React `onSelect({ type: "channel", name })`). Server state for
 /// the list lives in `channelListProvider`
