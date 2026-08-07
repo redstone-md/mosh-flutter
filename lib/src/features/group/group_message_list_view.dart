@@ -16,7 +16,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart' show PeerActions;
+import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -62,7 +62,8 @@ class GroupMessageListView extends StatelessWidget {
      final grouped = groupGroupMessages(messages).reversed.toList();
      final l = AppLocalizations.of(context)!;
      return ListView.builder(
-       padding: const EdgeInsets.all(12),
+       // React `.chat-scroll { padding: 16px 22px }`.
+       padding: kChatScrollPadding,
        reverse: true,
        itemCount: grouped.length,
        itemBuilder: (context, i) {

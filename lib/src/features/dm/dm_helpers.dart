@@ -10,11 +10,74 @@ library;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
+
+/// React `.message-meta { gap: 8px }`.
+const double kMessageMetaGap = 8;
+
+/// React `.message-row { gap: 12px }` -- avatar to body.
+const double kMessageRowGap = 12;
+
+/// React `.chat-scroll { padding: 16px 22px }` -- the message list's own
+/// padding, shared by the DM, channel and group lists.
+const EdgeInsets kChatScrollPadding =
+    EdgeInsets.symmetric(horizontal: 22, vertical: 16);
+
+/// Vertical lead-in for a message row. React stacks rows with
+/// `.message-stack { gap: 12px }` and pulls a grouped row back up with
+/// `.message-row-grouped { margin-top: -6px }`, so a continuation sits 6px
+/// under its predecessor and a fresh sender sits 12px under.
+double messageRowSpacing(bool grouped) => grouped ? 6 : 12;
+
+/// React `.message-meta strong { font-size: 13px; color: var(--fg-1) }`
+/// (`<strong>` carries the UA bold weight).
+const TextStyle kMessageMetaNameStyle = TextStyle(
+  fontSize: 13,
+  fontWeight: FontWeight.w700,
+  color: MoshColors.fg1,
+);
+
+/// React `.message-time { color: var(--fg-4); font-size: 11px }`.
+const TextStyle kMessageTimeStyle =
+    TextStyle(fontSize: 11, color: MoshColors.fg4);
+
+/// React `.message-body p { font-size: 13.5px; line-height: 1.5;
+/// color: var(--fg-1) }` -- the message text itself.
+const TextStyle kMessageBodyStyle =
+    TextStyle(fontSize: 13.5, height: 1.5, color: MoshColors.fg1);
+
+/// React `.device-fp` -- the shortened fingerprint chip in a multi-party
+/// sender meta: `font-family: mono; font-size: 10px; color: var(--fg-4);
+/// padding: 2px 5px; border-radius: 4px; background: var(--bg-2)`.
+class DeviceFingerprintChip extends StatelessWidget {
+  const DeviceFingerprintChip({super.key, required this.fingerprint});
+
+  final String fingerprint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: MoshColors.bg2,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        shorten(fingerprint, 6),
+        style: const TextStyle(
+          fontFamily: 'monospace',
+          fontSize: 10,
+          color: MoshColors.fg4,
+        ),
+      ),
+    );
+  }
+}
 
 /// Delivery-tick glyph row for an own-message row. Renders nothing for
 /// `failed` or null status (matches React's per-state tick rendering),
@@ -40,16 +103,20 @@ class DeliveryTicks extends StatelessWidget {
       MessageDeliveryStatus.failed || null => null,
     };
     if (label == null) return const SizedBox.shrink();
+    // React `.delivery-ticks { font-size: 10px; color: var(--fg-4);
+    // margin-top: 1px }`.
     return Padding(
-      padding: const EdgeInsets.only(top: 2),
+      padding: const EdgeInsets.only(top: 1),
       // `Semantics(label: 'Delivery: $label')` mirrors React`s
       // `aria-label={`Delivery: ${label}`}` (label already includes the
       // glyph + word, so the a11y string is "Delivery: ✓✓ delivered" etc.).
       child: Semantics(
         label: 'Delivery: $label',
         excludeSemantics: true,
-        child: Text(label,
-            style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: MoshColors.fg4),
+        ),
       ),
     );
   }
@@ -85,33 +152,6 @@ String? formatClockFull(BigInt? sentAtMs, {String? locale}) {
   // add_Hm() appends the Hm skeleton to the locale-aware yMMMd DateFormat;
   // the locale is already set on the base, so add_Hm takes no locale arg.
   return DateFormat.yMMMd(locale ?? 'en').add_Hm().format(dt);
-}
-
-/// Stable per-device avatar color: a hash of the device name picks one of a
-/// small fixed palette so the same sender always gets the same tint and
-/// different senders usually get different tints (matching React's
-/// `Avatar` behavior). Shared by the DM message row and the sessions list
-/// row so both screens produce identical colors for the same label (was a
-/// duplicated `_avatarColor` helper in dm_screen.dart + sessions_screen.dart;
-/// consolidated here to fix that DRY violation).
-Color avatarColor(String deviceName) {
-  const palette = [
-    Colors.deepPurple,
-    Colors.indigo,
-    Colors.blue,
-    Colors.teal,
-    Colors.green,
-    Colors.orange,
-    Colors.brown,
-    Colors.pink,
-    Colors.cyan,
-    Colors.amber,
-  ];
-  var hash = 0;
-  for (final code in deviceName.codeUnits) {
-    hash = (hash * 31 + code) & 0x7fffffff;
-  }
-  return palette[hash % palette.length];
 }
 
 /// React `Avatar` initials (src/features/private-dm/Avatar.tsx): split the
@@ -200,13 +240,13 @@ class MlsBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    // Monospace + small to mirror React's `<code className="message-protocol">`
-    // which CSS styles as a small monospace code badge.
-    final base = theme.textTheme.labelSmall ?? const TextStyle();
-    final style = base.copyWith(
+    // React renders a bare `<code class="message-protocol">` with NO CSS
+    // rule of its own, so it lands on the UA `code` default: the browser
+    // fixed font at 13px, inheriting `.mosh-window`'s --fg-1.
+    const style = TextStyle(
       fontFamily: 'monospace',
-      fontSize: 11,
+      fontSize: 13,
+      color: MoshColors.fg1,
     );
     return Semantics(
       label: l.mlsBadgeLabel,
@@ -241,39 +281,37 @@ class SenderMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     // AppLocalizations drives the DateFormat locale (en/ru); falls back to
     // en when the delegate is absent (e.g. a bare unit test harness).
     final locale = AppLocalizations.of(context)?.localeName;
     final clock = formatClock(message.sentAtMs, locale: locale);
     final full = formatClockFull(message.sentAtMs, locale: locale);
+    // React `.message-meta { gap: 8px; margin-bottom: 2px; align-items:
+    // baseline }` with `strong { font-size: 13px; color: --fg-1 }`.
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
         children: [
           Flexible(
             child: Text(
               message.fromDevice,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: kMessageMetaNameStyle,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: kMessageMetaGap),
           const MlsBadge(),
           if (clock != null && full != null) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: kMessageMetaGap),
             Tooltip(
               // Mirrors React's `title={date.toLocaleString()}` on the
               // `<time>` element: the full locale-aware date-time shows on
               // hover (desktop) / long-press (mobile).
               message: full,
-              child: Text(
-                clock,
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: theme.hintColor),
-              ),
+              child: Text(clock, style: kMessageTimeStyle),
             ),
           ],
         ],
@@ -354,30 +392,21 @@ class MultiPartySenderMeta extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
         children: [
           Flexible(child: nameWidget),
-          const SizedBox(width: 6),
-          Text(
-            shorten(fromFingerprint, 6),
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontFamily: 'monospace',
-              color: theme.hintColor,
-            ),
-          ),
-          const SizedBox(width: 6),
+          const SizedBox(width: kMessageMetaGap),
+          DeviceFingerprintChip(fingerprint: fromFingerprint),
           if (showMlsBadge) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: kMessageMetaGap),
             const MlsBadge(),
           ],
           if (clock != null && full != null) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: kMessageMetaGap),
             Tooltip(
               message: full,
-              child: Text(
-                clock,
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: theme.hintColor),
-              ),
+              child: Text(clock, style: kMessageTimeStyle),
             ),
           ],
         ],
@@ -393,7 +422,7 @@ class MultiPartySenderMeta extends StatelessWidget {
   Widget _peerName(BuildContext context, ThemeData theme) {
     final text = Text(
       fromDevice,
-      style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+      style: kMessageMetaNameStyle,
       overflow: TextOverflow.ellipsis,
     );
     final p = peer;

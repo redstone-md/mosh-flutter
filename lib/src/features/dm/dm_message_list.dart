@@ -12,6 +12,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -122,7 +123,8 @@ class DmMessageListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      // React `.chat-scroll { padding: 16px 22px }`.
+      padding: kChatScrollPadding,
       reverse: true,
       itemCount: grouped.length,
       itemBuilder: (context, i) {

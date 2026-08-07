@@ -55,37 +55,28 @@ class DmMessageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bg = own ? scheme.primaryContainer : scheme.surfaceContainerHighest;
-    final align = own ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final mainAxisAlignment =
-        own ? MainAxisAlignment.end : MainAxisAlignment.start;
     final avatarSlot = grouped
+        // React renders `.avatar.avatar-spacer` -- the same box, hidden --
+        // so a grouped row stays indented under the first row's avatar.
         ? const SizedBox(width: dmMessageAvatarSize)
         : Avatar(
             name: message.fromDevice,
             radius: dmMessageAvatarSize / 2,
           );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.only(top: messageRowSpacing(grouped)),
       child: Row(
-        mainAxisAlignment: mainAxisAlignment,
-        crossAxisAlignment: align,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!own) avatarSlot,
-          Flexible(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 360),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: align,
+          avatarSlot,
+          const SizedBox(width: kMessageRowGap),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (!grouped) SenderMeta(message: message),
-                  Text(message.body),
+                  if (message.body.isNotEmpty)
+                    Text(message.body, style: kMessageBodyStyle),
                  if (message.attachment != null)
                    AttachmentCard(
                      descriptor: message.attachment!,
@@ -123,9 +114,7 @@ class DmMessageRow extends StatelessWidget {
                    ),
                 ],
               ),
-            ),
           ),
-          if (own) avatarSlot,
         ],
       ),
     );

@@ -167,7 +167,7 @@ class _DmOfferRow extends StatelessWidget {
               onTap: busy ? null : () => onAccept(orgPubkey, offer.offerId),
               child: Row(
                 children: [
-                  Avatar(name: offer.fromName, radius: 12, fontSize: 10),
+                  Avatar(name: offer.fromName, radius: 12),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -354,7 +354,7 @@ class _MemberRow extends StatelessWidget {
         onTap: (busy || member.isSelf) ? null : () => onMember(org, member),
         child: Row(
           children: [
-            Avatar(name: member.name, radius: 12, fontSize: 10),
+            Avatar(name: member.name, radius: 12),
             const SizedBox(width: 8),
             Expanded(
               child: Column(

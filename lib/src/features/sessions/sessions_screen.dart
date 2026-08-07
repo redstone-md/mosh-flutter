@@ -304,23 +304,12 @@ class _SessionRow extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final label = _label(l);
     final stateText = stateLabel(l, session.state);
-    // React `<Avatar name={label} />` hashes the LABEL (peer display name),
-    // not the session id -- so two sessions with the same peer get the same
-    // color. Hashing sessionId here would diverge (same peer, different colors).
-    final bg = avatarColor(label);
     return Semantics(
       label: 'Open session with $label',
       button: true,
       selected: active,
       child: ListTile(
-        leading: Avatar(
-          name: label,
-          radius: 20,
-          foregroundColor:
-              ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
-              ? Colors.white
-              : Colors.black87,
-        ),
+        leading: Avatar(name: label),
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
           revokedOrgName != null
