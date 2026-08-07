@@ -14,6 +14,8 @@ import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 import 'package:media_kit/media_kit.dart';
 
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -169,23 +171,46 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
         ? _position.inMilliseconds
         : durationMs;
     final playLabel = _playing ? widget.pauseLabel : widget.playLabel;
+    // React `.voice-message { gap: 8px; padding: 6px 8px; border-radius:
+    // 10px; background: rgba(127,127,127,0.12); max-width: 280px }`.
+    final enabled = !(widget.busy && widget.view?.localPath == null);
     return Container(
+      constraints: const BoxConstraints(maxWidth: 280),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF7F7F7F).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon:
-                Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
-            tooltip: playLabel,
-            onPressed:
-                widget.busy && widget.view?.localPath == null ? null : _toggle,
+          // `.voice-message-play { width: 32px; height: 32px; border-radius:
+          // 50%; background: #4f8cff; color: #fff }`, 0.65 opacity while it
+          // waits on the file.
+          Opacity(
+            opacity: enabled ? 1 : 0.65,
+            child: Material(
+              color: const Color(0xFF4F8CFF),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: enabled ? _toggle : null,
+                child: Tooltip(
+                  message: playLabel,
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Icon(
+                      _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
           GestureDetector(
             onTapDown: (details) {
               // React seek: ratio = (clientX - rect.left) / rect.width.
@@ -196,7 +221,7 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
               _seek((details.localPosition.dx / width).clamp(0.0, 1.0));
             },
             child: SizedBox(
-              width: 192,
+              width: 168,
               height: 36,
               child: CustomPaint(
                 painter: _WaveformPainter(
@@ -209,7 +234,14 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
             ),
           ),
           const SizedBox(width: 8),
-          Text(_formatClock(showMs), style: theme.textTheme.bodySmall),
+          // `.voice-message-time { font-size: 12px; opacity: 0.75 }`.
+          Opacity(
+            opacity: 0.75,
+            child: Text(
+              _formatClock(showMs),
+              style: const TextStyle(fontSize: 12, color: MoshColors.fg1),
+            ),
+          ),
         ],
       ),
     );

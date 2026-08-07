@@ -121,6 +121,8 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
 // plural`) broke ("2 участников" -> "2 участника"); then the
 // " · MLS {state}" suffix via groupScreenMlsStateSuffix.
 return AppBar(
+      toolbarHeight: chatHeaderHeight(context),
+      titleTextStyle: chatTitleStyle(context),
       leading: railBackButton(context),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,13 +132,13 @@ return AppBar(
             data: (group) => group.label ?? l.groupUntitled,
             orElse: () => widget.groupId,
           )),
-          const SizedBox(height: kChatSubtitleGap),
+          SizedBox(height: chatSubtitleGap(context)),
           Text(
             async.maybeWhen(
               data: (group) => _groupSubtitle(group, l),
               orElse: () => '',
             ),
-            style: kChatSubtitleStyle,
+            style: chatSubtitleStyle(context),
           ),
         ],
       ),

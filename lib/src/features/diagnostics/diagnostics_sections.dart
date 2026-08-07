@@ -30,6 +30,8 @@
  library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+
 
  import 'package:mosh/l10n/app_localizations.dart';
  import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
@@ -108,7 +110,8 @@ import 'package:flutter/material.dart';
      return Container(
        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
        decoration: BoxDecoration(
-         color: theme.colorScheme.surfaceContainerHighest,
+         // `.diagnostic-metric { background: var(--bg-1) }`.
+          color: MoshColors.bg1,
          border: Border(bottom: BorderSide(color: theme.dividerColor)),
        ),
        child: Row(

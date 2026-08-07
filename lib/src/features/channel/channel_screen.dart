@@ -47,6 +47,7 @@ import 'package:mosh/src/features/dm/chat_header_menu.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
+import 'package:mosh/src/features/dm/dm_helpers.dart';
 import 'package:mosh/src/features/shared/confirm_dialog.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart'
@@ -306,6 +307,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final errorForDrawer = async.hasError ? async.error.toString() : null;
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: chatHeaderHeight(context),
+        titleTextStyle: chatTitleStyle(context),
         leading: railBackButton(context),
         title: Text(widget.name),
         actions: [

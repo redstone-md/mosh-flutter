@@ -124,6 +124,8 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final confirmed = fingerprint.isNotEmpty &&
         widget.confirmedFingerprints.contains(widget.sessionId);
     return AppBar(
+      toolbarHeight: chatHeaderHeight(context),
+      titleTextStyle: chatTitleStyle(context),
       leading: railBackButton(context),
       title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,12 +136,12 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
             // `peerDisplayName` short-circuit. A null snapshot (not loaded
             // yet) keeps the bare sessionId like before.
             Text(s == null ? widget.sessionId : peerLabel(l, s)),
-            const SizedBox(height: kChatSubtitleGap),
+            SizedBox(height: chatSubtitleGap(context)),
             Text(
                 confirmed
                     ? l.dmSubtitleConfirmed(mlsState)
                     : l.dmSubtitleUnverified(mlsState),
-                style: kChatSubtitleStyle),
+                style: chatSubtitleStyle(context)),
           ]),
       actions: [
         FingerprintBadge(

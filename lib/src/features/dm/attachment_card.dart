@@ -193,12 +193,15 @@ const double kAttachmentCardMaxWidth = 360;
 /// React `.attachment-card-media { width: 320px; max-width: 320px }`.
 const double kAttachmentMediaWidth = 320;
 
-/// Preview height. React lets `.attachment-preview img` take the
-/// thumbnail's intrinsic height under a `max-height: 260px` cap; a Flutter
-/// `Image.memory` reports no height until it decodes (and none at all when
-/// it fails), which collapses the preview to a zero-height, untappable
-/// box. A definite height keeps the surface hittable in every state.
-const double kAttachmentPreviewHeight = 160;
+/// React `.attachment-preview { max-height: 260px }` -- the thumbnail keeps
+/// its intrinsic height under that cap.
+const double kAttachmentPreviewMaxHeight = 260;
+
+/// Floor for the same box. A Flutter `Image.memory` reports no height until
+/// it decodes, and none at all when it fails, so an unfloored preview
+/// collapses to a zero-height box that swallows the open tap. React never
+/// hits this because a broken `<img>` still lays out at its alt box.
+const double kAttachmentPreviewMinHeight = 120;
 
 /// React `.attachment-card { margin-top: 6px; padding: 8px 10px; border: 1px
 /// solid var(--line); border-radius: 10px; background: var(--bg-2);
@@ -371,7 +374,10 @@ class _MediaPreviewCard extends StatelessWidget {
               // max-height: 260px }` -- the shell already clips the corners.
               child: Container(
                 width: double.infinity,
-                height: kAttachmentPreviewHeight,
+                constraints: const BoxConstraints(
+                  minHeight: kAttachmentPreviewMinHeight,
+                  maxHeight: kAttachmentPreviewMaxHeight,
+                ),
                 color: MoshColors.bg0,
                 child: Stack(
                   alignment: Alignment.center,
@@ -382,7 +388,7 @@ class _MediaPreviewCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       gaplessPlayback: true,
                       errorBuilder: (context, _, __) => const SizedBox(
-                        height: kAttachmentPreviewHeight,
+                        height: kAttachmentPreviewMinHeight,
                         width: double.infinity,
                         child: ColoredBox(
                           color: MoshColors.bg3,
