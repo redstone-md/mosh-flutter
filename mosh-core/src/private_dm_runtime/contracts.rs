@@ -394,6 +394,14 @@ pub struct PersistedSession {
     pub group_id: Vec<u8>,
     pub listen_port: u16,
     pub static_peer: Option<String>,
+    /// The counterpart's moss peer id, learned from its KeyPackage/Welcome.
+    /// Persisted because it is the ONLY thing separating our peer from the
+    /// unrelated world peers on the shared substrate: a restored session
+    /// without it cannot tell whether the counterpart is online, cannot dial
+    /// it, and cannot address a relayed send. Defaulted so records written
+    /// before this field existed still load.
+    #[serde(default)]
+    pub peer_moss_id: Option<String>,
 }
 
 #[cfg(test)]
