@@ -40,6 +40,14 @@ const OUTBOUND_SCOPE_PRIVATE_DM: &str = "private_dm";
 // KeyPackage on this cadence until he processes the Welcome.
 const HANDSHAKE_RESEND_MS: u64 = 2000;
 
+// Cadence for re-announcing our moss peer id to a joined counterpart that does
+// not know it. Only fires while `peer_moss_id` is unknown, which after a
+// completed handshake means the peer restarted from a record written before it
+// had the id -- a state nothing else recovers from, since KeyPackage/Welcome
+// (the id's only other carriers) stop once both sides have joined. Slower than
+// the handshake cadence: this is a repair path, not a startup path.
+const PEER_ANNOUNCE_RESEND_MS: u64 = 5_000;
+
 // How long a session stays in Discover (best-effort direct) before it gives up
 // on hole-punching and falls back to the shared relay. Sized to the existing
 // direct budget (hole-punch + MLS handshake).
@@ -252,6 +260,7 @@ struct PrivateDmSession {
     // is the only such field: it can arrive, or change on a peer re-handshake,
     // long after the MLS group exists.
     record_dirty: bool,
+    last_peer_announce_ms: u64,
     // The peer id last handed to moss as an explicit connect target. moss
     // retries a registered target on its own, so each id value needs exactly
     // one FFI call; a re-handshake under a fresh id re-registers.
@@ -1217,6 +1226,7 @@ impl PrivateDmRuntime {
             session.pump_attachment_requests(relay);
             session.pump_peer_connect();
             session.pump_handshake(now, relay);
+            session.pump_peer_announce(now);
             session.pump_call_signaling(now, relay);
             for message_id in session.pump_unacked_resends(now, relay) {
                 dirty.push((session_id.clone(), message_id));
@@ -1746,6 +1756,7 @@ impl PrivateDmSession {
             pending_key_package: None,
             pending_welcome: None,
             last_handshake_send_ms: 0,
+            last_peer_announce_ms: 0,
             dirty_outbound: Vec::new(),
             record_dirty: false,
         }
@@ -2060,6 +2071,42 @@ impl PrivateDmSession {
         let _ = self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None);
     }
 
+    /// Tell a joined counterpart our moss peer id while we do not know theirs.
+    /// Symmetric by construction: whichever side is missing the id keeps
+    /// announcing, the other side answers with its own announce on receipt, and
+    /// both stop as soon as they know. Published on the direct pubsub node
+    /// rather than through `route_send`, because a Relayed send has to address
+    /// the peer by the very id this is trying to recover.
+    fn pump_peer_announce(&mut self, now_ms: u64) {
+        if !self.peer_joined || self.peer_moss_id.is_some() {
+            return;
+        }
+        if now_ms.saturating_sub(self.last_peer_announce_ms) < PEER_ANNOUNCE_RESEND_MS {
+            return;
+        }
+        self.last_peer_announce_ms = now_ms;
+        if let Err(error) = self.publish_peer_announce() {
+            eprintln!("peer announce failed for {}: {error}", self.session_id);
+        }
+    }
+
+    fn publish_peer_announce(&self) -> Result<(), PrivateDmRuntimeError> {
+        let Some(moss_peer_id) = self.node.public_key_hex() else {
+            return Ok(());
+        };
+        let envelope = ControlEnvelope::PeerAnnounce {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            from_device: self.device_id.clone(),
+            moss_peer_id,
+        };
+        let payload = serde_json::to_vec(&envelope)
+            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+        self.node
+            .publish_room(&self.mesh_id, &self.control_channel, &payload)
+            .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
+    }
+
     /// Re-send user messages the peer has not acknowledged. Moss pubsub has
     /// no store-and-forward, so a frame published into a dead/half-open link
     /// vanishes; unacked Sent attempts re-publish every AUTO_RESEND_MS until
@@ -2253,6 +2300,25 @@ impl PrivateDmSession {
                 let manifest: AttachmentManifest = decode_json(&manifest_json)?;
                 self.note_verified_peer_activity(&from_device);
                 self.accept_incoming_manifest(from_device, manifest)
+            }
+            ControlEnvelope::PeerAnnounce {
+                session_id,
+                participant_id,
+                from_device,
+                moss_peer_id,
+            } if session_id == self.session_id && participant_id != self.participant_id => {
+                let was_unknown = self.peer_moss_id.is_none();
+                self.note_peer_name(&from_device);
+                self.note_peer_moss_id(Some(moss_peer_id));
+                // Answer once, and only to an announce that told us something
+                // new: the peer announces because IT is missing our id, and
+                // without this reply a pair that both restarted would each wait
+                // for the other. Answering unconditionally would instead ping-
+                // pong forever between two sides that already know each other.
+                if was_unknown {
+                    let _ = self.publish_peer_announce();
+                }
+                Ok(())
             }
             ControlEnvelope::CallOffer {
                 session_id,
@@ -4908,6 +4974,84 @@ mod tests {
             peer_is_live(None, &info),
             "the fallback counts strangers -- losing the id is what fakes Connected"
         );
+    }
+
+    // Sessions restored from a record written before peer_moss_id was persisted
+    // carry None and nothing else recovers it, so the peer must be able to
+    // re-announce out of band. Repairs history rather than requiring a new DM.
+    #[test]
+    fn a_peer_announce_restores_a_lost_peer_id() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let (mut alice, session_id) = lone_session(42163);
+        let session = alice
+            .sessions
+            .get_mut(&session_id)
+            .expect("Alice session should exist");
+
+        // The shape a pre-fix record rehydrates into: joined, but peerless.
+        session.peer_joined = true;
+        session.peer_moss_id = None;
+        session.record_dirty = false;
+
+        let peer_id = "ab".repeat(32);
+        let announce = serde_json::to_vec(&ControlEnvelope::PeerAnnounce {
+            session_id: session_id.clone(),
+            participant_id: "the-other-participant".to_string(),
+            from_device: "Bob".to_string(),
+            moss_peer_id: peer_id.clone(),
+        })
+        .expect("announce should serialize");
+
+        session
+            .handle_control(announce, None)
+            .expect("announce should be accepted");
+        assert_eq!(
+            session.peer_moss_id.as_deref(),
+            Some(peer_id.as_str()),
+            "the announce is what relearns the counterpart"
+        );
+        assert!(
+            session.record_dirty,
+            "the relearned id must be written back, or the next restart loses it again"
+        );
+    }
+
+    // The announce is a repair path: it must fire only while the id is missing,
+    // and must not flood while it is.
+    #[test]
+    fn peer_announce_fires_only_while_the_id_is_missing() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let (mut alice, session_id) = lone_session(42164);
+        let session = alice
+            .sessions
+            .get_mut(&session_id)
+            .expect("Alice session should exist");
+
+        session.peer_joined = true;
+        session.peer_moss_id = Some("ab".repeat(32));
+        session.pump_peer_announce(10_000);
+        assert_eq!(
+            session.last_peer_announce_ms, 0,
+            "a session that knows its peer never announces"
+        );
+
+        session.peer_moss_id = None;
+        session.pump_peer_announce(10_000);
+        assert_eq!(session.last_peer_announce_ms, 10_000);
+
+        session.pump_peer_announce(10_000 + PEER_ANNOUNCE_RESEND_MS - 1);
+        assert_eq!(
+            session.last_peer_announce_ms, 10_000,
+            "announces inside the throttle window are suppressed"
+        );
+
+        let due = 10_000 + PEER_ANNOUNCE_RESEND_MS;
+        session.pump_peer_announce(due);
+        assert_eq!(session.last_peer_announce_ms, due);
     }
 
     // Regression: peer_moss_id was not persisted, and nothing relearns it after

@@ -74,6 +74,19 @@ pub enum ControlEnvelope {
         call_id: String,
         offer_ciphertext_b64: String,
     },
+    /// Re-announces the sender's moss peer id to a counterpart that has lost
+    /// it. The id otherwise rides only KeyPackage/Welcome, which stop once the
+    /// handshake completes, so a session restored from a record written before
+    /// the id was known could never relearn it and stayed unable to tell its
+    /// peer from a stranger. Carries no secret: the moss id is a public key,
+    /// published in the clear in the invite URI. Old clients fail to decode the
+    /// unknown variant and drop the frame -- they simply never re-announce.
+    PeerAnnounce {
+        session_id: String,
+        participant_id: String,
+        from_device: String,
+        moss_peer_id: String,
+    },
     CallAccept {
         session_id: String,
         participant_id: String,
