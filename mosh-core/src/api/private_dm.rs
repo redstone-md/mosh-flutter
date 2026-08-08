@@ -371,12 +371,39 @@ mod tests {
     use crate::secure_storage::{OsSecureSecretStore, SecureSecretStore};
     use std::sync::Arc;
 
-    // The DEK key Persistence::open hardcodes (persistence.rs). The test mints
-    // it on first open and MUST delete it from the host keychain on teardown so
-    // it does not pollute the user's Windows Credential Manager. No other test
-    // uses this key (existing persistence tests use open_with_dek, bypassing the
-    // keychain), so there is no cross-test collision.
-    const DEK_KEY: &str = "history-dek-v1";
+    // A keychain key unique to this test run.
+    //
+    // This test used to mint and then DELETE the production key
+    // ("history-dek-v1") on teardown, meaning any `cargo test` destroyed the
+    // DEK of whoever ran it: their real history.redb stayed on disk encrypted
+    // with a key that no longer existed, so every later app start failed
+    // closed with "DEK unavailable but database exists" and the history was
+    // unrecoverable. Per-run key + `open_with_key` keeps the real keychain
+    // path under test while leaving the production entry alone.
+    /// Deletes itself from the host keychain on drop, so a PANICKING test
+    /// still cleans up. An explicit teardown call is skipped on unwind, which
+    /// would leave one stray credential behind per failed run.
+    struct TestDekKey(String);
+
+    impl TestDekKey {
+        fn new() -> Self {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or_default();
+            Self(format!("history-dek-test-{}-{nanos}", std::process::id()))
+        }
+
+        fn as_str(&self) -> &str {
+            &self.0
+        }
+    }
+
+    impl Drop for TestDekKey {
+        fn drop(&mut self) {
+            let _ = OsSecureSecretStore.delete_secret(&self.0);
+        }
+    }
 
     /// Build a minimal config for a lone node: a random-ish port in a range the
     /// other tests do not use, no static peers. Identity is resolved at init
@@ -411,9 +438,11 @@ mod tests {
         dir: &std::path::Path,
         port: u16,
         mesh_id: &str,
+        dek_key: &str,
     ) -> (Arc<MossFfiRuntime>, Arc<Persistence>, String) {
         let persistence = Arc::new(
-            Persistence::open(&dir.join("history.redb")).expect("persistence should open"),
+            Persistence::open_with_key(&dir.join("history.redb"), dek_key)
+                .expect("persistence should open"),
         );
         let moss = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
         // Register the keystore + install the C callbacks BEFORE init_node, so
@@ -447,11 +476,12 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("test dir should create");
         let mesh_id = "mosh-m2-identity-test";
         let port = 43050u16;
+        let dek_key = TestDekKey::new();
 
         // --- Load #1: first run, keystore empty -> Moss mints an identity,
         // saves it through the keystore into the encrypted redb store. Also
         // persist a history blob so we can prove it round-trips after reopen.
-        let (_moss1, p1, identity_a) = load_identity_at(&dir, port, mesh_id);
+        let (_moss1, p1, identity_a) = load_identity_at(&dir, port, mesh_id, dek_key.as_str());
         p1.put_session("m2-session", b"{\"hello\":\"restart\"}")
             .expect("session record should persist");
         // The keystore MUST have saved the identity for load #2 to reuse it.
@@ -474,7 +504,7 @@ mod tests {
         // existing DB AND the existing DEK in the keychain (it fail-closes if
         // the DEK is missing while the DB exists), then Moss must load -- not
         // mint -- the saved identity.
-        let (moss2, p2, identity_b) = load_identity_at(&dir, port + 1, mesh_id);
+        let (moss2, p2, identity_b) = load_identity_at(&dir, port + 1, mesh_id, dek_key.as_str());
 
         assert_eq!(
             identity_a, identity_b,
@@ -502,12 +532,12 @@ mod tests {
         //      assertions.
         //   2. Clear the Rust keystore global (belt-and-suspenders; inert once
         //      the Go callbacks are gone, but keeps the Rust state clean).
-        //   3. Delete the DEK from the host keychain so the test does not
-        //      pollute the user's Windows Credential Manager.
-        //   4. Remove the unique temp dir.
+        //   3. Remove the unique temp dir.
+        //
+        // This run's DEK is NOT listed: `TestDekKey` deletes it on drop, which
+        // also covers the panicking path this explicit teardown would skip.
         let _ = moss2.uninstall_keystore();
         clear_moss_keystore();
-        let _ = OsSecureSecretStore.delete_secret(DEK_KEY);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

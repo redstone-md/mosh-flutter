@@ -101,9 +101,22 @@ impl Persistence {
     /// Open (or create) the encrypted DB at `path`, loading the DEK from the OS
     /// keychain (creating + storing a new random DEK on first run).
     pub fn open(path: &Path) -> Result<Self, PersistenceError> {
+        Self::open_with_key(path, DEK_KEY)
+    }
+
+    /// [`open`] against an explicit keychain key.
+    ///
+    /// Exists so a test can exercise the real keychain path -- the mint,
+    /// store and reload that `open` performs -- WITHOUT touching the
+    /// production `history-dek-v1` entry. A test that used the production key
+    /// and deleted it on teardown would destroy the DEK of whoever ran
+    /// `cargo test`, leaving their real `history.redb` encrypted with a key
+    /// that no longer exists: the app then fails closed on every later start
+    /// and the history is gone for good.
+    pub(crate) fn open_with_key(path: &Path, dek_key: &str) -> Result<Self, PersistenceError> {
         let store = OsSecureSecretStore;
         let db_exists = path.exists();
-        let dek = match store.load_secret(DEK_KEY) {
+        let dek = match store.load_secret(dek_key) {
             Ok(bytes) if bytes.len() == 32 => {
                 let mut d = [0u8; 32];
                 d.copy_from_slice(&bytes);
@@ -127,7 +140,7 @@ impl Persistence {
                 let mut d = [0u8; 32];
                 rand::rngs::OsRng.fill_bytes(&mut d);
                 store
-                    .save_secret(DEK_KEY, &d)
+                    .save_secret(dek_key, &d)
                     .map_err(|err| PersistenceError::Keychain(err.to_string()))?;
                 d
             }
