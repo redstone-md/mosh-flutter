@@ -128,7 +128,8 @@ Do not paste the whole framework catalog here.
 - Flutter, `gen-l10n`: `flutter gen-l10n` (generated `lib/l10n/app_localizations*.dart` are gitignored)
 - Bindings, `codegen`: `flutter_rust_bridge_codegen generate` (kept drift-free in CI; regenerate and commit when the Rust `api` surface changes)
 - Full native dependency prep: `node scripts/moss-prepare.mjs` before any `cargo test`/`flutter build windows --debug` run that touches Moss.
-- Windows app, `build`: `flutter build windows --debug` -> `build/windows/x64/runner/Debug/mosh.exe` (auto-deploys `mosh_core.dll`; `moss.dll` is dlopened from `moss-runtime/`).
+- Windows app, `build`: `flutter build windows --debug` -> `build/windows/x64/runner/Debug/mosh.exe` (auto-deploys `mosh_core.dll`; `moss.dll` is dlopened from `moss-runtime/`). Debug is what `flutter test -d windows` drives — a release build strips the VM service the integration test needs.
+- Windows installer, `package`: `flutter build windows --release` then `iscc /DAppVersion=<version> windows\installer\mosh.iss` -> `build/installer/mosh-<version>-setup.exe`. This is the only shippable artifact: `flutter build windows` emits a folder bundle, and `mosh.exe` alone cannot run without the DLLs beside it. Locally built installers are unsigned (see `CODE_SIGNING.md`).
 - Android prep: `node scripts/moss-prepare-android.mjs` with `ANDROID_NDK_HOME` set -> `android/app/src/main/jniLibs/arm64-v8a/libmoss.so`.
 - Android app, `build`: `flutter build apk --debug --target-platform android-arm64` -> `build/app/outputs/flutter-apk/app-debug.apk`. The `--target-platform` flag is REQUIRED: `jniLibs` carries only an arm64-v8a `libmoss.so`, so a default all-ABI build emits slices whose `dlopen` fails at runtime with no build-time error.
 
