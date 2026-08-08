@@ -243,8 +243,15 @@ struct PrivateDmSession {
     session_id: String,
     mesh_id: String,
     fingerprint: String,
-    // ponytail: not persisted, relearned on next handshake resend
+    // Persisted: nothing relearns this after the handshake completes
+    // (pump_handshake only resends while !peer_joined), and losing it makes the
+    // session mistake any world peer for the counterpart.
     peer_moss_id: Option<String>,
+    // Set when a persisted field changed after the record was last written, so
+    // persist_session_tail rewrites a record it already finalized. peer_moss_id
+    // is the only such field: it can arrive, or change on a peer re-handshake,
+    // long after the MLS group exists.
+    record_dirty: bool,
     // The peer id last handed to moss as an explicit connect target. moss
     // retries a registered target on its own, so each id value needs exactly
     // one FFI call; a re-handshake under a fresh id re-registers.
@@ -472,6 +479,10 @@ impl PrivateDmRuntime {
                 crypto,
                 Arc::clone(&self.attachment_store),
             );
+            // Without this the restored session falls back to "any peer is my
+            // peer", which on the shared substrate means it reports the
+            // counterpart online whenever ANY world peer is connected.
+            session.peer_moss_id = rec.peer_moss_id.clone();
             if let Ok(msgs) = p.list_messages(&rec.session_id) {
                 for m in msgs {
                     if let Ok(pm) = serde_json::from_slice::<contracts::PersistedMessage>(&m) {
@@ -1274,9 +1285,9 @@ impl PrivateDmRuntime {
                         );
                         continue;
                     }
-                    session.peer_moss_id = Some(inbound.sender_hex.clone());
+                    session.note_peer_moss_id(Some(inbound.sender_hex.clone()));
                 }
-                None => session.peer_moss_id = Some(inbound.sender_hex.clone()),
+                None => session.note_peer_moss_id(Some(inbound.sender_hex.clone())),
                 _ => {}
             }
             let channel = frame.channel_kind.channel_for(&frame.session_id);
@@ -1469,8 +1480,8 @@ impl PrivateDmRuntime {
                 .get(message_id)
                 .and_then(|attempt| serde_json::to_vec(attempt).ok());
             let snapshot = persist_snapshot.then(|| session.crypto.snapshot());
-            let needs_record_refresh = !self.finalized_session_records.contains(session_id)
-                && session.crypto.group_id_bytes().is_some();
+            let needs_record_refresh = session.crypto.group_id_bytes().is_some()
+                && (!self.finalized_session_records.contains(session_id) || session.record_dirty);
             let session_row = needs_record_refresh
                 .then(|| serde_json::to_vec(&session.to_persisted_record()).ok())
                 .flatten();
@@ -1503,6 +1514,9 @@ impl PrivateDmRuntime {
         if let Some(row) = session_row {
             let _ = p.put_session(session_id, &row);
             if needs_record_refresh {
+                if let Some(session) = self.sessions.get_mut(session_id) {
+                    session.record_dirty = false;
+                }
                 self.finalized_session_records
                     .insert(session_id.to_string());
             }
@@ -1550,9 +1564,9 @@ impl PrivateDmRuntime {
             // The session record needs refreshing once the MLS group exists
             // (e.g. after the joiner processes the Welcome), so its group_id is
             // no longer the empty placeholder.
-            let needs_record_refresh =
-                !self.finalized_session_records.contains(&session.session_id)
-                    && session.crypto.group_id_bytes().is_some();
+            let needs_record_refresh = session.crypto.group_id_bytes().is_some()
+                && (!self.finalized_session_records.contains(&session.session_id)
+                    || session.record_dirty);
 
             // Only rewrite the (encrypted) MLS snapshot when state actually
             // advanced — new messages ratchet the group, and a freshly joined
@@ -1571,6 +1585,9 @@ impl PrivateDmRuntime {
         }
         for (id, json) in pending_records {
             let _ = p.put_session(&id, &json);
+            if let Some(session) = self.sessions.get_mut(&id) {
+                session.record_dirty = false;
+            }
             self.finalized_session_records.insert(id);
         }
         let new_counts: Vec<(String, usize)> = self
@@ -1730,6 +1747,7 @@ impl PrivateDmSession {
             pending_welcome: None,
             last_handshake_send_ms: 0,
             dirty_outbound: Vec::new(),
+            record_dirty: false,
         }
     }
 
@@ -1749,6 +1767,7 @@ impl PrivateDmSession {
             group_id: self.crypto.group_id_bytes().unwrap_or_default(),
             listen_port: self.listen_port,
             static_peer: self.static_peer.clone(),
+            peer_moss_id: self.peer_moss_id.clone(),
         }
     }
 
@@ -1926,7 +1945,10 @@ impl PrivateDmSession {
     /// the first one strands every relayed send on a dead id.
     fn note_peer_moss_id(&mut self, id: Option<String>) {
         if let Some(id) = id {
-            self.peer_moss_id = Some(id);
+            if self.peer_moss_id.as_deref() != Some(id.as_str()) {
+                self.peer_moss_id = Some(id);
+                self.record_dirty = true;
+            }
         }
     }
 
@@ -4857,6 +4879,100 @@ mod tests {
         assert_eq!(
             matching2, 1,
             "tail-persist re-append duplicated the message"
+        );
+
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    // The unknown-id fallback answers "live" for ANY connected peer, which on
+    // the shared room-blind substrate means strangers. That is tolerable only
+    // in the pre-handshake window; a session that lost the id it already
+    // learned reports an offline counterpart as Connected.
+    #[test]
+    fn an_unknown_peer_id_cannot_tell_the_counterpart_from_a_stranger() {
+        // Every MeshInfo field is #[serde(default)], so this is the empty mesh.
+        let mut info: MeshInfo = serde_json::from_str("{}").expect("empty mesh info");
+        info.peer_count = 9;
+        info.peer_details = vec![contracts::PeerDetail {
+            id: "cd".repeat(32),
+            addr: "203.0.113.7:8765".to_string(),
+            relayed: false,
+        }];
+        let peer_id = "ab".repeat(32);
+
+        assert!(
+            !peer_is_live(Some(&peer_id), &info),
+            "a known id absent from peer_details is offline, whoever else is connected"
+        );
+        assert!(
+            peer_is_live(None, &info),
+            "the fallback counts strangers -- losing the id is what fakes Connected"
+        );
+    }
+
+    // Regression: peer_moss_id was not persisted, and nothing relearns it after
+    // the handshake completes (pump_handshake only resends while !peer_joined).
+    // A restarted client therefore fell into the unknown-id fallback forever:
+    // Connected against strangers, no dial target, and no addressable relayed
+    // send. The record is finalized before the id is learned, so this also
+    // covers the dirty-record rewrite.
+    #[test]
+    fn peer_moss_id_survives_a_restart() {
+        use crate::persistence::Persistence;
+        use std::path::PathBuf;
+
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let mut db_path: PathBuf = std::env::temp_dir();
+        db_path.push(format!("mosh-dm-peer-id-{}.redb", std::process::id()));
+        let _ = std::fs::remove_file(&db_path);
+
+        let persistence =
+            Arc::new(Persistence::open_with_dek(&db_path, [23u8; 32]).expect("store should open"));
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let peer_id = "ab".repeat(32);
+
+        let session_id = {
+            let mut alice = PrivateDmRuntime::from_shared(
+                Arc::clone(&runtime),
+                temp_store(),
+                Some(persistence.clone()),
+            );
+            let invite = alice
+                .create_invite(StartSessionRequest {
+                    display_name: "Alice".to_string(),
+                    listen_port: 42162,
+                    static_peer: None,
+                })
+                .expect("Alice invite should be created");
+
+            // What handle_control does with the peer's KeyPackage. Alice's MLS
+            // group already exists, so the record was finalized at invite time.
+            alice
+                .sessions
+                .get_mut(&invite.session_id)
+                .expect("Alice session should exist")
+                .note_peer_moss_id(Some(peer_id.clone()));
+            alice
+                .poll_session(&invite.session_id)
+                .expect("poll should re-persist the dirtied record");
+            invite.session_id
+        };
+
+        let mut revived =
+            PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), Some(persistence));
+        revived.rehydrate();
+        let session = revived
+            .sessions
+            .get(&session_id)
+            .expect("session should rehydrate");
+        assert_eq!(
+            session.peer_moss_id.as_deref(),
+            Some(peer_id.as_str()),
+            "the restored session must still know which peer is its counterpart"
         );
 
         let _ = std::fs::remove_file(&db_path);
