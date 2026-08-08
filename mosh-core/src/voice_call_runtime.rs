@@ -44,6 +44,12 @@ pub struct CallState {
     pub started_at_ms: u64,
     /// Counterparty device id captured on offer/accept.
     pub remote_device: String,
+    /// Caller-only ring bookkeeping: when the first `CallOffer` went out and
+    /// when the last one did. The offer is retransmitted on a cadence until the
+    /// callee's `CallAccept` lands, and the ring budget is measured from the
+    /// first send. Both stay 0 on the callee.
+    pub offer_first_ms: u64,
+    pub offer_last_ms: u64,
     inbound_frames: VecDeque<Vec<u8>>,
 }
 
@@ -62,6 +68,8 @@ impl CallState {
             nonce_prefix_b64,
             started_at_ms: 0,
             remote_device,
+            offer_first_ms: 0,
+            offer_last_ms: 0,
             inbound_frames: VecDeque::new(),
         }
     }
@@ -80,6 +88,8 @@ impl CallState {
             nonce_prefix_b64,
             started_at_ms: 0,
             remote_device,
+            offer_first_ms: 0,
+            offer_last_ms: 0,
             inbound_frames: VecDeque::new(),
         }
     }
@@ -87,6 +97,16 @@ impl CallState {
     pub fn become_active(&mut self, now_ms: u64) {
         self.phase = CallPhase::Active;
         self.started_at_ms = now_ms;
+    }
+
+    /// Stamp an outbound `CallOffer`. The first stamp also starts the ring
+    /// budget, so the caller gives up a fixed time after the call began rather
+    /// than a fixed time after the latest retransmit.
+    pub fn mark_offer_sent(&mut self, now_ms: u64) {
+        if self.offer_first_ms == 0 {
+            self.offer_first_ms = now_ms;
+        }
+        self.offer_last_ms = now_ms;
     }
 
     pub fn push_frame(&mut self, bytes: Vec<u8>) {

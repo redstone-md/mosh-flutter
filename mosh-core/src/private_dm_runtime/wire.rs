@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use super::contracts::PrivateDmRuntimeError;
 use crate::attachment_runtime::{ChunkFrame, ChunkRequest};
-use crate::moss_ffi::MossNode;
 
 pub const CONTROL_CHANNEL_PREFIX: &str = "mls-control/";
 pub const DATA_CHANNEL_PREFIX: &str = "mls-data/";
@@ -138,22 +137,6 @@ pub enum BlobEnvelope {
         participant_id: String,
         frame: ChunkFrame,
     },
-}
-
-/// Publishes in a session's room. Every DM channel belongs to one — the node is
-/// shared across sessions, so the room is what keeps them apart, exactly as a
-/// per-session node's own room used to.
-pub fn publish_json<T: Serialize>(
-    node: &MossNode,
-    mesh_id: &str,
-    channel: &str,
-    value: &T,
-) -> Result<(), PrivateDmRuntimeError> {
-    let payload = serde_json::to_vec(value)
-        .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-
-    node.publish_room(mesh_id, channel, &payload)
-        .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
 }
 
 pub fn decode_json<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, PrivateDmRuntimeError> {
