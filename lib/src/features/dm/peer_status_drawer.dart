@@ -138,64 +138,70 @@ class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
         child: ColoredBox(
           // `.diagnostics-drawer-backdrop { background: rgba(0,0,0,0.34) }`.
           color: Colors.black.withValues(alpha: 0.34),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              // Swallow taps inside the panel so only the backdrop closes.
-              onTap: () {},
-              child: ConstrainedBox(
-                // `.diagnostics-drawer { width: min(392px, 100vw - 24px) }`.
-                constraints: BoxConstraints(
-                  maxWidth: math.min(
-                    392,
-                    MediaQuery.sizeOf(context).width - 24,
+          // Inside the backdrop so the scrim still covers the status bar and
+          // the cutout, but the panel itself clears them -- as a
+          // `Positioned.fill` overlay it has no Scaffold or AppBar to inset
+          // it, so its header drew under the cutout on Android.
+          child: SafeArea(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                // Swallow taps inside the panel so only the backdrop closes.
+                onTap: () {},
+                child: ConstrainedBox(
+                  // `.diagnostics-drawer { width: min(392px, 100vw - 24px) }`.
+                  constraints: BoxConstraints(
+                    maxWidth: math.min(
+                      392,
+                      MediaQuery.sizeOf(context).width - 24,
+                    ),
                   ),
-                ),
-                child: Semantics(
-                  label: l.peerStatusTitle,
-                  container: true,
-                  // `scopesRoute: true` mirrors React `aria-modal="true"`
-                  // (it scopes the route so the drawer is announced as a
-                  // modal boundary); `label` is the `aria-labelledby` title.
-                  // `explicitChildNodes: true` is REQUIRED by the framework
-                  // when `scopesRoute` is true (RenderObject assertion), so
-                  // the drawer's own semantics children stay visible under
-                  // the scoped node instead of being merged up.
-                  explicitChildNodes: true,
-                  scopesRoute: true,
-                  // ModalFocusTrap goes inside the outer backdrop listener and semantics
-                  // so Tab/Shift+Tab focus cycling is applied to the drawer contents.
-                  child: ModalFocusTrap(
-                    child: Material(
-                      // `.diagnostics-drawer { background: var(--bg-0);
-                      // border-left: 1px solid var(--line) }` -- the panel
-                      // drops below the --bg-1 window, it does not match it.
-                      color: MoshColors.bg0,
-                      elevation: 0,
-                      shape: const Border(
-                        left: BorderSide(color: MoshColors.line),
-                      ),
-                      child: SizedBox.expand(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _DrawerHeader(
-                              title: l.peerStatusTitle,
-                              refreshTooltip: l.refreshStatus,
-                              closeTooltip: l.closePeerStatus,
-                              refreshing: widget.refreshing,
-                              onRefresh: widget.onRefresh,
-                              onClose: widget.onClose,
-                            ),
-                            Expanded(
-                              child: _DrawerContent(
-                                session: widget.session,
-                                channel: widget.channel,
-                                group: widget.group,
-                                error: widget.error,
+                  child: Semantics(
+                    label: l.peerStatusTitle,
+                    container: true,
+                    // `scopesRoute: true` mirrors React `aria-modal="true"`
+                    // (it scopes the route so the drawer is announced as a
+                    // modal boundary); `label` is the `aria-labelledby` title.
+                    // `explicitChildNodes: true` is REQUIRED by the framework
+                    // when `scopesRoute` is true (RenderObject assertion), so
+                    // the drawer's own semantics children stay visible under
+                    // the scoped node instead of being merged up.
+                    explicitChildNodes: true,
+                    scopesRoute: true,
+                    // ModalFocusTrap goes inside the outer backdrop listener and semantics
+                    // so Tab/Shift+Tab focus cycling is applied to the drawer contents.
+                    child: ModalFocusTrap(
+                      child: Material(
+                        // `.diagnostics-drawer { background: var(--bg-0);
+                        // border-left: 1px solid var(--line) }` -- the panel
+                        // drops below the --bg-1 window, it does not match it.
+                        color: MoshColors.bg0,
+                        elevation: 0,
+                        shape: const Border(
+                          left: BorderSide(color: MoshColors.line),
+                        ),
+                        child: SizedBox.expand(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _DrawerHeader(
+                                title: l.peerStatusTitle,
+                                refreshTooltip: l.refreshStatus,
+                                closeTooltip: l.closePeerStatus,
+                                refreshing: widget.refreshing,
+                                onRefresh: widget.onRefresh,
+                                onClose: widget.onClose,
                               ),
-                            ),
-                          ],
+                              Expanded(
+                                child: _DrawerContent(
+                                  session: widget.session,
+                                  channel: widget.channel,
+                                  group: widget.group,
+                                  error: widget.error,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

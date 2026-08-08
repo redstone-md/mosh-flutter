@@ -1,5 +1,6 @@
 use flutter_rust_bridge::frb;
 use keyring_core::Entry;
+#[cfg(not(target_os = "android"))]
 use std::sync::OnceLock;
 
 /// This app's keyring namespace. It is deliberately NOT the Tauri shell's
@@ -15,8 +16,19 @@ const SERVICE_NAME: &str = "app.mosh.flutter";
 /// working DEK there keeps its history instead of hitting the same
 /// fail-closed error the rename was meant to prevent.
 const LEGACY_SERVICE_NAME: &str = "app.mosh.desktop";
+#[cfg(not(target_os = "android"))]
 const BACKEND_NAME: &str = "os-keychain";
+/// Android never resolves a DEK through this store: the app hands one in from
+/// the Dart-side Keystore and `construct_resources` opens the database with
+/// `open_with_dek`. Naming the backend keeps the diagnostics panel honest
+/// rather than reporting a keychain that is not in the picture.
+#[cfg(target_os = "android")]
+const BACKEND_NAME: &str = "android-keystore (app-injected DEK)";
+#[cfg(not(target_os = "android"))]
 const NATIVE_STORE_ERROR: &str = "native secure store is unavailable";
+#[cfg(target_os = "android")]
+const NATIVE_STORE_ERROR: &str =
+    "native secure store is not used on Android; the DEK is injected by the app";
 
 pub trait SecureSecretStore {
     fn load_secret(&self, key: &str) -> Result<Vec<u8>, SecureStorageError>;
@@ -129,6 +141,9 @@ impl SecureSecretStore for OsSecureSecretStore {
 /// Runs `init` and caches a `()` marker only on success. A failure is returned
 /// without being memoized, so a transient error (locked keychain at boot) is
 /// retried on the next call instead of poisoning the store for the process.
+/// Only the keychain-backed hosts memoize anything; Android never enters the
+/// store (see `ensure_native_store`).
+#[cfg(not(target_os = "android"))]
 fn cache_on_success<E>(cell: &OnceLock<()>, init: impl FnOnce() -> Result<(), E>) -> Result<(), E> {
     if cell.get().is_some() {
         return Ok(());
@@ -140,6 +155,21 @@ fn cache_on_success<E>(cell: &OnceLock<()>, init: impl FnOnce() -> Result<(), E>
     result
 }
 
+/// Android has no keyring-backed store to install. `keyring::use_native_store`
+/// would build the Android Keystore store, whose vault lookup makes JNI calls
+/// while holding a process-global mutex; with no Android `Context` wired into
+/// that crate the call panics, and the panic poisons that global for the rest
+/// of the process. Every later call -- including the diagnostics read behind
+/// the "History status" banner -- then dies on `PoisonError` instead of
+/// returning a status. Nothing on Android needs the store anyway: the DEK is
+/// injected and `construct_resources` opens the database with it, so refuse
+/// here and never enter the crate.
+#[cfg(target_os = "android")]
+fn ensure_native_store() -> Result<(), SecureStorageError> {
+    Err(SecureStorageError::Backend(NATIVE_STORE_ERROR.to_string()))
+}
+
+#[cfg(not(target_os = "android"))]
 fn ensure_native_store() -> Result<(), SecureStorageError> {
     static NATIVE_STORE: OnceLock<()> = OnceLock::new();
 

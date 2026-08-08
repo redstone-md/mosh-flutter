@@ -105,158 +105,171 @@ class SessionsScreen extends ConsumerWidget {
     // its own; the shell titlebar sits above it.
     return Scaffold(
       backgroundColor: MoshColors.bg0,
-      body: Padding(
-        padding: const EdgeInsets.all(kRailPadding),
-        child: Column(
-          children: <Widget>[
-            // React pins `.rail-new` + its `.rail-divider` above
-            // `.rail-list`, outside the scroller and independent of whether
-            // any conversation exists.
-            RailNewButton(
-              label: l.shellNewSession,
-              onTap: () => openNewSessionAction(context, ref),
-            ),
-            const SizedBox(height: kRailPadding),
-            const RailDivider(),
-            Expanded(
-              child: async.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => _ErrorState(error: e, ref: ref),
-                data: (snapshot) {
-                  // Channels/groups augment the DM list (React's combined SessionRail).
-                  // They resolve independently via their own providers; while loading
-                  // or on error they degrade to an empty list (`.value` returns the
-                  // nullable snapshot, so `.value?.X ?? const []` contributes nothing)
-                  // so the DM rows still render -- the sessions screen is primarily
-                  // DMs and channels/groups are additive. Channels/groups auto-refresh
-                  // on their own provider invalidation, so the RefreshIndicator only
-                  // refreshes the DM list (kept minimal).
-                  final channels = channelsAsync.value?.channels ?? const [];
-                  final groups = groupsAsync.value?.groups ?? const [];
-                  final orgs = orgsAsync.value ?? const <OrgSnapshot>[];
-                  final sessions = snapshot.sessions;
-                  // Empty only when ALL five slices are empty (offers + sessions +
-                  // groups + channels + orgs).
-                  if (pendingOffers.isEmpty &&
-                      sessions.isEmpty &&
-                      channels.isEmpty &&
-                      groups.isEmpty &&
-                      orgs.isEmpty) {
-                    return _EmptyState(
-                      onStart: () => openNewSessionAction(context, ref),
-                    );
-                  }
-                  // React SessionRail order: sessions, [divider if groups && sessions],
-                  // groups, [divider if channels && (sessions || groups)], channels.
-                  // A `Divider` renders only between two non-empty adjacent sections,
-                  // mirroring React's conditional `rail-divider` rendering.
-                  final children = <Widget>[
-                    for (final pending in pendingOffers)
-                      OfferRailItem(
-                        pending: pending,
-                        onAccept: () =>
-                            acceptOfferAction(context, ref, pending),
-                        onDismiss: () => dismissOfferAction(ref, pending),
-                      ),
-                    if (pendingOffers.isNotEmpty && sessions.isNotEmpty)
-                      const RailDivider(),
-                    for (final session in sessions)
-                      _SessionRow(
-                        session: session,
-                        unreadCount: unread['dm:${session.sessionId}'] ?? 0,
-                        revokedOrgName: revokedBadges[session.sessionId],
-                        // Highlight the open DM row (React `rail-item-active`,
-                        // SessionRail.tsx:254-296). Same key the rail sets below.
-                        active: activeKey == 'dm:${session.sessionId}',
-                        // Select hook: clear this conversation's badge + mark it the
-                        // active conversation so the lifecycle clears it on focus
-                        // (mirrors React's rail `onSelect` -> clearUnread(key) +
-                        // activeConversationKey set). The navigate still runs after.
-                        onSelect: () {
-                          unreadNotifier.clearUnread('dm:${session.sessionId}');
-                          activeKeyNotifier.set('dm:${session.sessionId}');
-                        },
-                      ),
-                    if (groups.isNotEmpty && sessions.isNotEmpty)
-                      const RailDivider(),
-                    for (final group in groups)
-                      // Count comes from `unreadGroupCountsProvider`, keyed
-                      // `'group:<groupId>'` (fingerprint comparison) -- mirrors the
-                      // DM row's `unread['dm:<sessionId>']` lookup.
-                      GroupRailItem(
-                        group: group,
-                        unreadCount: unread['group:${group.groupId}'] ?? 0,
-                        // Highlight the open group row (React `rail-item-active`,
-                        // SessionRail.tsx:254-296). Same key the rail sets below.
-                        active: activeKey == 'group:${group.groupId}',
-                        // Select hook: same clearUnread + activeKey set as the DM
-                        // row, keyed `'group:<groupId>'` (the group identity).
-                        onSelect: () {
-                          unreadNotifier.clearUnread('group:${group.groupId}');
-                          activeKeyNotifier.set('group:${group.groupId}');
-                        },
-                      ),
-                    if (channels.isNotEmpty &&
-                        (sessions.isNotEmpty || groups.isNotEmpty))
-                      const RailDivider(),
-                    for (final channel in channels)
-                      // Count comes from `unreadChannelCountsProvider`, keyed
-                      // `'channel:<name>'` (fingerprint comparison).
-                      ChannelRailItem(
-                        channel: channel,
-                        unreadCount: unread['channel:${channel.name}'] ?? 0,
-                        // Highlight the open channel row (React `rail-item-active`,
-                        // SessionRail.tsx:254-296). Same key the rail sets below.
-                        active: activeKey == 'channel:${channel.name}',
-                        // Select hook: same clearUnread + activeKey set as the DM
-                        // row, keyed `'channel:<name>'`.
-                        onSelect: () {
-                          unreadNotifier.clearUnread('channel:${channel.name}');
-                          activeKeyNotifier.set('channel:${channel.name}');
-                        },
-                      ),
-                    for (final org in orgs) ...[
-                      // React SessionRail renders each org wrapped in a
-                      // `rail-divider` + `OrgSection` (the divider is INSIDE the
-                      // per-org map, unconditional, so N orgs render N dividers --
-                      // one above each org header). The 7 callbacks pass through to
-                      // the org action helpers (gateway + refresh + navigation);
-                      // `busy` mirrors React's `org.busy = offerBusy || setupBusy`
-                      // via the per-org operation-bus (only this org disables while
-                      // its leave/offer/member/new-group action is in flight).
-                      const RailDivider(),
-                      OrgSection(
-                        org: org,
-                        busy: ref
-                            .watch(orgOperationBusProvider)
-                            .contains(org.orgPubkey),
-                        onMember: (o, m) =>
-                            openMemberDmAction(context, ref, o, m),
-                        onAcceptDmOffer: (pubkey, id) =>
-                            acceptOrgDmOfferAction(context, ref, pubkey, id),
-                        onDismissDmOffer: (pubkey, id) =>
-                            dismissOrgDmOfferAction(context, ref, pubkey, id),
-                        onAcceptGroupOffer: (pubkey, id) =>
-                            acceptOrgGroupOfferAction(context, ref, pubkey, id),
-                        onDismissGroupOffer: (pubkey, id) =>
-                            dismissOrgGroupOfferAction(
-                                context, ref, pubkey, id),
-                        onCreateGroup: (o, label) =>
-                            createOrgGroupAction(context, ref, o, label),
-                        onLeave: (o) => leaveOrgAction(context, ref, o),
-                        l: l,
-                      ),
-                    ],
-                  ];
-                  return RefreshIndicator(
-                    onRefresh: () =>
-                        ref.read(sessionListProvider.notifier).refresh(),
-                    child: ListView(children: children),
-                  );
-                },
+      // The rail carries no AppBar, so nothing else keeps it clear of the
+      // status bar / camera cutout. Desktop gets that clearance from the
+      // shell titlebar above it; the mobile shell is a bare IndexedStack, so
+      // on Android 15+ (edge-to-edge is mandatory there) the first row drew
+      // under the cutout. Inside the Scaffold, so bg0 still paints edge to
+      // edge behind the status bar and only the content is inset.
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(kRailPadding),
+          child: Column(
+            children: <Widget>[
+              // React pins `.rail-new` + its `.rail-divider` above
+              // `.rail-list`, outside the scroller and independent of whether
+              // any conversation exists.
+              RailNewButton(
+                label: l.shellNewSession,
+                onTap: () => openNewSessionAction(context, ref),
               ),
-            ),
-          ],
+              const SizedBox(height: kRailPadding),
+              const RailDivider(),
+              Expanded(
+                child: async.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => _ErrorState(error: e, ref: ref),
+                  data: (snapshot) {
+                    // Channels/groups augment the DM list (React's combined SessionRail).
+                    // They resolve independently via their own providers; while loading
+                    // or on error they degrade to an empty list (`.value` returns the
+                    // nullable snapshot, so `.value?.X ?? const []` contributes nothing)
+                    // so the DM rows still render -- the sessions screen is primarily
+                    // DMs and channels/groups are additive. Channels/groups auto-refresh
+                    // on their own provider invalidation, so the RefreshIndicator only
+                    // refreshes the DM list (kept minimal).
+                    final channels = channelsAsync.value?.channels ?? const [];
+                    final groups = groupsAsync.value?.groups ?? const [];
+                    final orgs = orgsAsync.value ?? const <OrgSnapshot>[];
+                    final sessions = snapshot.sessions;
+                    // Empty only when ALL five slices are empty (offers + sessions +
+                    // groups + channels + orgs).
+                    if (pendingOffers.isEmpty &&
+                        sessions.isEmpty &&
+                        channels.isEmpty &&
+                        groups.isEmpty &&
+                        orgs.isEmpty) {
+                      return _EmptyState(
+                        onStart: () => openNewSessionAction(context, ref),
+                      );
+                    }
+                    // React SessionRail order: sessions, [divider if groups && sessions],
+                    // groups, [divider if channels && (sessions || groups)], channels.
+                    // A `Divider` renders only between two non-empty adjacent sections,
+                    // mirroring React's conditional `rail-divider` rendering.
+                    final children = <Widget>[
+                      for (final pending in pendingOffers)
+                        OfferRailItem(
+                          pending: pending,
+                          onAccept: () =>
+                              acceptOfferAction(context, ref, pending),
+                          onDismiss: () => dismissOfferAction(ref, pending),
+                        ),
+                      if (pendingOffers.isNotEmpty && sessions.isNotEmpty)
+                        const RailDivider(),
+                      for (final session in sessions)
+                        _SessionRow(
+                          session: session,
+                          unreadCount: unread['dm:${session.sessionId}'] ?? 0,
+                          revokedOrgName: revokedBadges[session.sessionId],
+                          // Highlight the open DM row (React `rail-item-active`,
+                          // SessionRail.tsx:254-296). Same key the rail sets below.
+                          active: activeKey == 'dm:${session.sessionId}',
+                          // Select hook: clear this conversation's badge + mark it the
+                          // active conversation so the lifecycle clears it on focus
+                          // (mirrors React's rail `onSelect` -> clearUnread(key) +
+                          // activeConversationKey set). The navigate still runs after.
+                          onSelect: () {
+                            unreadNotifier
+                                .clearUnread('dm:${session.sessionId}');
+                            activeKeyNotifier.set('dm:${session.sessionId}');
+                          },
+                        ),
+                      if (groups.isNotEmpty && sessions.isNotEmpty)
+                        const RailDivider(),
+                      for (final group in groups)
+                        // Count comes from `unreadGroupCountsProvider`, keyed
+                        // `'group:<groupId>'` (fingerprint comparison) -- mirrors the
+                        // DM row's `unread['dm:<sessionId>']` lookup.
+                        GroupRailItem(
+                          group: group,
+                          unreadCount: unread['group:${group.groupId}'] ?? 0,
+                          // Highlight the open group row (React `rail-item-active`,
+                          // SessionRail.tsx:254-296). Same key the rail sets below.
+                          active: activeKey == 'group:${group.groupId}',
+                          // Select hook: same clearUnread + activeKey set as the DM
+                          // row, keyed `'group:<groupId>'` (the group identity).
+                          onSelect: () {
+                            unreadNotifier
+                                .clearUnread('group:${group.groupId}');
+                            activeKeyNotifier.set('group:${group.groupId}');
+                          },
+                        ),
+                      if (channels.isNotEmpty &&
+                          (sessions.isNotEmpty || groups.isNotEmpty))
+                        const RailDivider(),
+                      for (final channel in channels)
+                        // Count comes from `unreadChannelCountsProvider`, keyed
+                        // `'channel:<name>'` (fingerprint comparison).
+                        ChannelRailItem(
+                          channel: channel,
+                          unreadCount: unread['channel:${channel.name}'] ?? 0,
+                          // Highlight the open channel row (React `rail-item-active`,
+                          // SessionRail.tsx:254-296). Same key the rail sets below.
+                          active: activeKey == 'channel:${channel.name}',
+                          // Select hook: same clearUnread + activeKey set as the DM
+                          // row, keyed `'channel:<name>'`.
+                          onSelect: () {
+                            unreadNotifier
+                                .clearUnread('channel:${channel.name}');
+                            activeKeyNotifier.set('channel:${channel.name}');
+                          },
+                        ),
+                      for (final org in orgs) ...[
+                        // React SessionRail renders each org wrapped in a
+                        // `rail-divider` + `OrgSection` (the divider is INSIDE the
+                        // per-org map, unconditional, so N orgs render N dividers --
+                        // one above each org header). The 7 callbacks pass through to
+                        // the org action helpers (gateway + refresh + navigation);
+                        // `busy` mirrors React's `org.busy = offerBusy || setupBusy`
+                        // via the per-org operation-bus (only this org disables while
+                        // its leave/offer/member/new-group action is in flight).
+                        const RailDivider(),
+                        OrgSection(
+                          org: org,
+                          busy: ref
+                              .watch(orgOperationBusProvider)
+                              .contains(org.orgPubkey),
+                          onMember: (o, m) =>
+                              openMemberDmAction(context, ref, o, m),
+                          onAcceptDmOffer: (pubkey, id) =>
+                              acceptOrgDmOfferAction(context, ref, pubkey, id),
+                          onDismissDmOffer: (pubkey, id) =>
+                              dismissOrgDmOfferAction(context, ref, pubkey, id),
+                          onAcceptGroupOffer: (pubkey, id) =>
+                              acceptOrgGroupOfferAction(
+                                  context, ref, pubkey, id),
+                          onDismissGroupOffer: (pubkey, id) =>
+                              dismissOrgGroupOfferAction(
+                                  context, ref, pubkey, id),
+                          onCreateGroup: (o, label) =>
+                              createOrgGroupAction(context, ref, o, label),
+                          onLeave: (o) => leaveOrgAction(context, ref, o),
+                          l: l,
+                        ),
+                      ],
+                    ];
+                    return RefreshIndicator(
+                      onRefresh: () =>
+                          ref.read(sessionListProvider.notifier).refresh(),
+                      child: ListView(children: children),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
