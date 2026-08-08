@@ -25,9 +25,9 @@ permissions:
 # still a later-slice step -- this job only proves the APK links.
 #
 # Job order: the four cheap gates (rust-core, codegen-drift, flutter-test,
-# l10n-drift) run in parallel; the two expensive build jobs (integration-test,
-# android-build) run last and only if all four pass, so a cheap failure never
-# pays for a platform build.
+# l10n-drift) run in parallel; the three expensive build jobs (integration-test,
+# android-build, windows-installer) run last and only if all four pass, so a
+# cheap failure never pays for a platform build.
 jobs:
   rust-core:
     name: Rust core (cargo fmt + test, mosh-core)
@@ -285,4 +285,68 @@ jobs:
         with:
           name: mosh-debug-arm64-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+  # Packages the release bundle into the single setup .exe users actually
+  # install. Separate from integration-test rather than folded into it: that
+  # job's debug build is what the integration test drives (`flutter test -d
+  # windows` needs the VM service, which a release build strips), so the two
+  # builds cannot be collapsed into one.
+  #
+  # The installer produced here is UNSIGNED — SmartScreen will flag it.
+  # Signing happens on tagged releases through SignPath (see CODE_SIGNING.md).
+  windows-installer:
+    name: Windows installer (release, unsigned)
+    runs-on: windows-latest
+    needs: [rust-core, codegen-drift, flutter-test, l10n-drift]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.9'
+          cache-dependency-path: moss/go.sum
+
+      - name: Install pinned Rust toolchain
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mosh-core
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Build Moss shared library
+        run: node scripts/moss-prepare.mjs
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: Build Windows app (release)
+        run: flutter build windows --release
+
+      # The runner image does not guarantee Inno Setup, and chocolatey is
+      # preinstalled, so install it rather than probing for a bundled copy.
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      # AppVersion comes from pubspec so the installer filename and the
+      # Add/Remove Programs entry cannot drift from the app's own version.
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
+          Write-Host "Packaging Mosh $version"
+          iscc /DAppVersion=$version windows\installer\mosh.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-windows-setup
+          path: build/installer/*.exe
           if-no-files-found: error
