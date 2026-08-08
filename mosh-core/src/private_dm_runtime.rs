@@ -28,7 +28,7 @@ pub use contracts::{
 use invite::{build_invite_uri, listen_address, ParsedInvite};
 use wire::{
     blob_channel, channel_session_id, control_channel, data_channel, decode, decode_json, encode,
-    publish_json, voice_call_channel, BlobEnvelope, ControlEnvelope, DataEnvelope,
+    voice_call_channel, BlobEnvelope, ControlEnvelope, DataEnvelope,
 };
 
 const OUTBOUND_SCOPE_PRIVATE_DM: &str = "private_dm";
@@ -64,6 +64,16 @@ const T_DIRECT_LOST_MS: u64 = 5_000;
 // that never ack; receivers dedupe by message_id, so re-sends are idempotent.
 const AUTO_RESEND_MS: u64 = 15_000;
 const AUTO_RESEND_MAX: u32 = 10;
+
+// Cadence and budget for voice-call ring signaling. Moss pubsub drops frames
+// published into a flapping link, and a lost CallAccept strands the caller on
+// "ringing" against a callee already in an answered call. The caller re-offers
+// on this cadence; a callee that has already accepted answers every re-offer
+// with a fresh CallAccept, so the re-offer doubles as the accept's ack — the
+// same recovery shape as the KeyPackage/Welcome exchange. The ring budget
+// outlasts the callee's 30 s auto-decline so a real decline wins the race.
+const CALL_RESEND_MS: u64 = 2_000;
+const CALL_RING_TIMEOUT_MS: u64 = 45_000;
 
 /// Pure fallback decision. `direct_now` is the instantaneous direct-peer
 /// signal; `direct_stable` / `direct_gone` are its debounced edges (signal held
@@ -1196,6 +1206,7 @@ impl PrivateDmRuntime {
             session.pump_attachment_requests(relay);
             session.pump_peer_connect();
             session.pump_handshake(now, relay);
+            session.pump_call_signaling(now, relay);
             for message_id in session.pump_unacked_resends(now, relay) {
                 dirty.push((session_id.clone(), message_id));
             }
@@ -1587,10 +1598,24 @@ impl PrivateDmRuntime {
             .ok_or(PrivateDmRuntimeError::MissingSession)
     }
 
+    /// Disjoint field borrows so a Call* send can reach the relay worker while
+    /// the session is borrowed mutably — same shape as `drain_inbound`.
+    fn session_and_relay(
+        &mut self,
+        session_id: &str,
+    ) -> Result<(&mut PrivateDmSession, RelayJobs<'_>), PrivateDmRuntimeError> {
+        let relay = self.relay.as_ref().map(|handle| &handle.jobs);
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or(PrivateDmRuntimeError::MissingSession)?;
+        Ok((session, relay))
+    }
+
     pub fn call_start(&mut self, session_id: &str) -> Result<CallStarted, PrivateDmRuntimeError> {
         self.drain_inbound()?;
-        let session = self.session_mut(session_id)?;
-        session.call_start()
+        let (session, relay) = self.session_and_relay(session_id)?;
+        session.call_start(relay)
     }
 
     pub fn call_accept(
@@ -1599,8 +1624,8 @@ impl PrivateDmRuntime {
         call_id: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound()?;
-        let session = self.session_mut(session_id)?;
-        session.call_accept(call_id)
+        let (session, relay) = self.session_and_relay(session_id)?;
+        session.call_accept(call_id, relay)
     }
 
     pub fn call_decline(
@@ -1610,8 +1635,8 @@ impl PrivateDmRuntime {
         reason: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound()?;
-        let session = self.session_mut(session_id)?;
-        session.call_decline(call_id, reason)
+        let (session, relay) = self.session_and_relay(session_id)?;
+        session.call_decline(call_id, reason, relay)
     }
 
     pub fn call_end(
@@ -1621,8 +1646,8 @@ impl PrivateDmRuntime {
         reason: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound()?;
-        let session = self.session_mut(session_id)?;
-        session.call_end(call_id, reason)
+        let (session, relay) = self.session_and_relay(session_id)?;
+        session.call_end(call_id, reason, relay)
     }
 
     pub fn call_send_frame(
@@ -2214,7 +2239,14 @@ impl PrivateDmSession {
                 call_id,
                 offer_ciphertext_b64,
             } if session_id == self.session_id && participant_id != self.participant_id => {
-                if self.call.is_some() {
+                if let Some(existing) = self.call.as_ref() {
+                    // The caller re-offers until it sees our CallAccept, so a
+                    // re-offer of the call we already answered means that accept
+                    // was dropped. Re-send it — without this the caller rings
+                    // out against a callee sitting in an active call.
+                    if existing.call_id == call_id && existing.phase == CallPhase::Active {
+                        return self.publish_call_accept(&call_id, relay_jobs);
+                    }
                     return Ok(());
                 }
                 let plaintext = self.crypto.decrypt(&decode(&offer_ciphertext_b64)?)?;
@@ -2529,8 +2561,7 @@ impl PrivateDmSession {
         };
         // Manifest carries the per-attachment AES key on the control channel;
         // route it through the chokepoint so it follows the same path as the
-        // handshake/data/blob traffic when the session is Relayed. At Discover
-        // this publishes to the identical control channel `publish_json` used.
+        // handshake/data/blob traffic when the session is Relayed.
         let payload = serde_json::to_vec(&envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None)?;
@@ -2761,7 +2792,66 @@ impl PrivateDmSession {
             .is_some_and(|info| peer_is_direct(self.peer_moss_id.as_deref(), &info))
     }
 
-    fn call_start(&mut self) -> Result<CallStarted, PrivateDmRuntimeError> {
+    /// Sends one Call* control frame down the session's current transport.
+    /// Signaling rides the same dual path as the MLS handshake — a relayed pair
+    /// must be able to ring, answer and hang up. Only the media frames stay
+    /// direct-only (see `call_send_frame`).
+    fn send_call_control(
+        &self,
+        envelope: &ControlEnvelope,
+        relay_jobs: RelayJobs<'_>,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        let payload = serde_json::to_vec(envelope)
+            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+        self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None)
+            .map(|_| ())
+    }
+
+    /// Builds and sends a `CallOffer` for a call already in `self.call`. The
+    /// body is re-encrypted on every send: MLS deletes the secret behind an
+    /// application message once consumed, so a byte-identical replay would fail
+    /// to decrypt on the far side instead of re-ringing.
+    fn publish_call_offer(
+        &mut self,
+        call_id: &str,
+        key_b64: &str,
+        nonce_prefix_b64: &str,
+        relay_jobs: RelayJobs<'_>,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        let body = CallOfferBody {
+            key_b64: key_b64.to_string(),
+            nonce_prefix_b64: nonce_prefix_b64.to_string(),
+        };
+        let body_json = serde_json::to_vec(&body)
+            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+        let ciphertext = self.crypto.encrypt(&body_json)?;
+        let envelope = ControlEnvelope::CallOffer {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            from_device: self.device_id.clone(),
+            call_id: call_id.to_string(),
+            offer_ciphertext_b64: encode(&ciphertext),
+        };
+        self.send_call_control(&envelope, relay_jobs)
+    }
+
+    fn publish_call_accept(
+        &self,
+        call_id: &str,
+        relay_jobs: RelayJobs<'_>,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        let envelope = ControlEnvelope::CallAccept {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            call_id: call_id.to_string(),
+        };
+        self.send_call_control(&envelope, relay_jobs)
+    }
+
+    fn call_start(
+        &mut self,
+        relay_jobs: RelayJobs<'_>,
+    ) -> Result<CallStarted, PrivateDmRuntimeError> {
         if !self.ready_for_user_actions() {
             return Err(PrivateDmRuntimeError::NotReady);
         }
@@ -2782,24 +2872,10 @@ impl PrivateDmSession {
         self.node
             .subscribe_room(&self.mesh_id, &voice_call_channel(&call_id))
             .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
-        let body = CallOfferBody {
-            key_b64: key_b64.clone(),
-            nonce_prefix_b64: nonce_prefix_b64.clone(),
-        };
-        let body_json = serde_json::to_vec(&body)
-            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-        let ciphertext = self.crypto.encrypt(&body_json)?;
-        let envelope = ControlEnvelope::CallOffer {
-            session_id: self.session_id.clone(),
-            participant_id: self.participant_id.clone(),
-            from_device: self.device_id.clone(),
-            call_id: call_id.clone(),
-            offer_ciphertext_b64: encode(&ciphertext),
-        };
-        // Call* signaling stays on the direct node until voice-relay is in
-        // scope. Relaying signaling alone would negotiate a call whose media
-        // path (out of S2 scope) is still pubsub-only, i.e. no audio.
-        publish_json(&self.node, &self.mesh_id, &self.control_channel, &envelope)?;
+        self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64, relay_jobs)?;
+        if let Some(call) = self.call.as_mut() {
+            call.mark_offer_sent(now_ms());
+        }
         Ok(CallStarted {
             session_id: self.session_id.clone(),
             call_id,
@@ -2808,7 +2884,11 @@ impl PrivateDmSession {
         })
     }
 
-    fn call_accept(&mut self, call_id: &str) -> Result<(), PrivateDmRuntimeError> {
+    fn call_accept(
+        &mut self,
+        call_id: &str,
+        relay_jobs: RelayJobs<'_>,
+    ) -> Result<(), PrivateDmRuntimeError> {
         let Some(call) = self.call.as_mut() else {
             return Err(PrivateDmRuntimeError::MissingSession);
         };
@@ -2816,16 +2896,45 @@ impl PrivateDmSession {
             return Err(PrivateDmRuntimeError::MissingSession);
         }
         call.become_active(now_ms());
-        let envelope = ControlEnvelope::CallAccept {
-            session_id: self.session_id.clone(),
-            participant_id: self.participant_id.clone(),
-            call_id: call_id.to_string(),
-        };
-        // Stays direct until voice-relay is in scope (see call_start).
-        publish_json(&self.node, &self.mesh_id, &self.control_channel, &envelope)
+        self.publish_call_accept(call_id, relay_jobs)
     }
 
-    fn call_decline(&mut self, call_id: &str, reason: &str) -> Result<(), PrivateDmRuntimeError> {
+    /// Retransmits the ring while the caller waits, and gives up once the ring
+    /// budget is spent. Driven by the same ~1s drain tick as `pump_handshake`.
+    fn pump_call_signaling(&mut self, now_ms: u64, relay_jobs: RelayJobs<'_>) {
+        let Some(call) = self.call.as_ref() else {
+            return;
+        };
+        if call.phase != CallPhase::Outgoing {
+            return;
+        }
+        let call_id = call.call_id.clone();
+        if now_ms.saturating_sub(call.offer_first_ms) >= CALL_RING_TIMEOUT_MS {
+            let _ = self.call_end(&call_id, "no_answer", relay_jobs);
+            return;
+        }
+        if now_ms.saturating_sub(call.offer_last_ms) < CALL_RESEND_MS {
+            return;
+        }
+        let key_b64 = call.key_b64.clone();
+        let nonce_prefix_b64 = call.nonce_prefix_b64.clone();
+        match self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64, relay_jobs) {
+            // A failed send must not burn the slot: retry on the next tick.
+            Err(error) => eprintln!("call offer resend failed for {call_id}: {error}"),
+            Ok(()) => {
+                if let Some(call) = self.call.as_mut() {
+                    call.mark_offer_sent(now_ms);
+                }
+            }
+        }
+    }
+
+    fn call_decline(
+        &mut self,
+        call_id: &str,
+        reason: &str,
+        relay_jobs: RelayJobs<'_>,
+    ) -> Result<(), PrivateDmRuntimeError> {
         if let Some(call) = self.call.take() {
             if call.call_id == call_id {
                 let _ = self
@@ -2840,7 +2949,7 @@ impl PrivateDmSession {
                     call_id: call_id.to_string(),
                     reason: reason.to_string(),
                 };
-                publish_json(&self.node, &self.mesh_id, &self.control_channel, &envelope)?;
+                self.send_call_control(&envelope, relay_jobs)?;
             } else {
                 self.call = Some(call);
             }
@@ -2848,7 +2957,12 @@ impl PrivateDmSession {
         Ok(())
     }
 
-    fn call_end(&mut self, call_id: &str, reason: &str) -> Result<(), PrivateDmRuntimeError> {
+    fn call_end(
+        &mut self,
+        call_id: &str,
+        reason: &str,
+        relay_jobs: RelayJobs<'_>,
+    ) -> Result<(), PrivateDmRuntimeError> {
         let Some(call) = self.call.take() else {
             return Ok(());
         };
@@ -2870,7 +2984,7 @@ impl PrivateDmSession {
             call_id: call_id.to_string(),
             reason: reason.to_string(),
         };
-        publish_json(&self.node, &self.mesh_id, &self.control_channel, &envelope)
+        self.send_call_control(&envelope, relay_jobs)
     }
 
     fn call_send_frame(
@@ -4034,6 +4148,155 @@ mod tests {
         assert!(
             err.is_err(),
             "relayed send needs a peer_moss_id + relay node"
+        );
+    }
+
+    // Builds a lone Alice session on `port` — enough to drive the session-level
+    // pumps and control handlers without a live counterpart.
+    fn lone_session(port: u16) -> (PrivateDmRuntime, String) {
+        drain_received_messages();
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut alice = PrivateDmRuntime::from_shared(runtime, temp_store(), None);
+        let invite = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: port,
+                static_peer: None,
+            })
+            .expect("Alice invite should be created");
+        (alice, invite.session_id)
+    }
+
+    fn test_call_offer_json(session_id: &str, call_id: &str) -> Vec<u8> {
+        serde_json::to_vec(&ControlEnvelope::CallOffer {
+            session_id: session_id.to_string(),
+            participant_id: "the-other-participant".to_string(),
+            from_device: "Bob".to_string(),
+            call_id: call_id.to_string(),
+            // The already-answered branch returns before decrypting.
+            offer_ciphertext_b64: "Y2lwaGVy".to_string(),
+        })
+        .expect("offer should serialize")
+    }
+
+    // Call regression: CallOffer was a one-shot publish, so a ring lost on a
+    // flapping link never repeated and the caller waited forever. The offer must
+    // repeat on the CALL_RESEND_MS cadence while the call is unanswered.
+    #[test]
+    fn caller_retransmits_the_call_offer_while_unanswered() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let (mut alice, session_id) = lone_session(42197);
+        let session = alice
+            .sessions
+            .get_mut(&session_id)
+            .expect("Alice session should exist");
+
+        let mut call = CallState::outgoing("call-1".into(), "k".into(), "n".into(), String::new());
+        call.mark_offer_sent(1_000);
+        session.call = Some(call);
+
+        session.pump_call_signaling(1_000 + CALL_RESEND_MS - 1, None);
+        assert_eq!(
+            session.call.as_ref().expect("call held").offer_last_ms,
+            1_000,
+            "a resend inside the throttle window is suppressed"
+        );
+
+        let due = 1_000 + CALL_RESEND_MS;
+        session.pump_call_signaling(due, None);
+        assert_eq!(
+            session.call.as_ref().expect("call held").offer_last_ms,
+            due,
+            "the offer re-publishes once the cadence is due"
+        );
+
+        // Answered: the ring stops repeating.
+        session
+            .call
+            .as_mut()
+            .expect("call held")
+            .become_active(due + 1);
+        session.pump_call_signaling(due + CALL_RESEND_MS * 10, None);
+        assert_eq!(
+            session.call.as_ref().expect("call held").offer_last_ms,
+            due,
+            "an answered call stops re-offering"
+        );
+    }
+
+    // The ring budget is measured from the FIRST offer, so retransmits cannot
+    // extend it indefinitely. Timing out logs the call as missed and clears it,
+    // which is what closes the caller's outgoing modal.
+    #[test]
+    fn caller_gives_up_once_the_ring_budget_is_spent() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let (mut alice, session_id) = lone_session(42198);
+        let session = alice
+            .sessions
+            .get_mut(&session_id)
+            .expect("Alice session should exist");
+
+        let mut call = CallState::outgoing("call-2".into(), "k".into(), "n".into(), String::new());
+        call.mark_offer_sent(1_000);
+        call.mark_offer_sent(1_000 + CALL_RING_TIMEOUT_MS - 1);
+        session.call = Some(call);
+
+        session.pump_call_signaling(1_000 + CALL_RING_TIMEOUT_MS, None);
+        assert!(
+            session.call.is_none(),
+            "the unanswered call is cleared once the budget is spent"
+        );
+        let logged = session
+            .messages
+            .iter()
+            .filter_map(|message| message.call_event.as_ref())
+            .find(|event| event.call_id == "call-2")
+            .expect("the timed-out call is logged");
+        assert_eq!(logged.kind, "missed");
+    }
+
+    // The heart of the bug: the callee answered, its CallAccept was dropped, and
+    // nothing ever re-sent it — the caller rang out against a peer already in an
+    // active call. A repeated offer for a call we hold as Active must re-answer.
+    #[test]
+    fn answered_callee_re_accepts_a_repeated_offer() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let (mut alice, session_id) = lone_session(42199);
+        let session = alice
+            .sessions
+            .get_mut(&session_id)
+            .expect("Alice session should exist");
+
+        let mut call = CallState::ringing("call-3".into(), "k".into(), "n".into(), "Bob".into());
+        call.become_active(1_000);
+        session.call = Some(call);
+
+        // Relayed with no pinned peer: any send attempt errors, so the error IS
+        // the observation that a CallAccept went out.
+        session.path = DmPath::Relayed;
+        session.peer_moss_id = None;
+        let offer = test_call_offer_json(&session_id, "call-3");
+        assert!(
+            session.handle_control(offer.clone(), None).is_err(),
+            "a repeated offer for an answered call re-sends the CallAccept"
+        );
+        assert_eq!(
+            session.call.as_ref().expect("call held").phase,
+            CallPhase::Active,
+            "the repeat does not disturb the answered call"
+        );
+
+        // Still ringing (user has not picked up): nothing to re-answer yet.
+        session.call.as_mut().expect("call held").phase = CallPhase::Ringing;
+        assert!(
+            session.handle_control(offer, None).is_ok(),
+            "an unanswered ring must not auto-accept on the repeat"
         );
     }
 
