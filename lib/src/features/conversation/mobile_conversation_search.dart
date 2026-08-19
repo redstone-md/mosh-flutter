@@ -27,7 +27,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
 
 /// Header icon button that opens/closes the mobile search panel, 1-1 with
 /// React `MobileSearchToggle` (ActiveChatHeader.tsx L113-131): a ghost icon

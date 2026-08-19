@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_search_box.dart';
+import 'package:mosh/src/features/conversation/conversation_search_box.dart';
 
 /// Hosts the box the way a screen does: the value lives in the parent and
 /// comes back down as a prop.

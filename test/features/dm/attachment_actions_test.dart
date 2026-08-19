@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/attachment_actions.dart';
+import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 AttachmentDescriptor _descriptor() => AttachmentDescriptor(

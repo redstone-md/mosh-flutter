@@ -2,7 +2,7 @@
 // filter) port of the React desktop surface in
 // `src/features/private-dm/ConversationTools.tsx` (`filterMessages`,
 // `messageSearchText`). The pure `filterGroupMessages` helper delegates to
-// the shared generic `filterMessages` (lib/src/features/dm/
+// the shared generic `filterMessages` (lib/src/features/conversation/
 // conversation_tools.dart); these tests pin the group-typed seam with the
 // same eight logic cases the DM `conversation_tools_test.dart` uses, plus a
 // fingerprint-search regression asserting `fromFingerprint` is NOT part of
@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';

@@ -36,7 +36,7 @@ import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';

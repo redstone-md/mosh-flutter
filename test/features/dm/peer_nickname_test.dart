@@ -1,7 +1,7 @@
 // Widget tests for the PeerNickname peer-actions popover (React
 // `PeerNickname`, src/features/private-dm/MessageLists.tsx:198-244) and the
 // `PeerActions` value object backing it (React `PeerActions` type,
-// MessageLists.tsx:31-35). Both live in `lib/src/features/dm/dm_helpers.dart`
+// MessageLists.tsx:31-35). Both live in `lib/src/features/conversation/conversation_helpers.dart`
 // (co-located with `MultiPartySenderMeta`, the only consumer). The tests
 // pump `MultiPartySenderMeta` directly inside a localized `MaterialApp`
 // (the meta is a pure `StatelessWidget` -- no providers, no async) with an
@@ -25,7 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 
 Widget _localized(Widget child) => MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,

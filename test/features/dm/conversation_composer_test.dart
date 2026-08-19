@@ -8,7 +8,7 @@
 // pumping it is safe.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/conversation_composer.dart';
+import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show PickedAttachment;
 import 'package:mosh/src/features/shared/voice_composer.dart' show VoiceSend;

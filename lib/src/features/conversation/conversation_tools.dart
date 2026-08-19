@@ -20,7 +20,7 @@
 // Keeping the shared widgets + enum here (rather than a neutral
 // `features/shared/`) is the same mild smell the prior `MultiPartySenderMeta`
 // review accepted -- the channel / group features import this DM file,
-// mirroring how they already import `dm_helpers.dart`.
+// mirroring how they already import `conversation_helpers.dart`.
 //
 // Architecture mirrors React's ordering: `DmChatList`/`MessageLists` first
 // apply `filterMessages(messages, search, filter)` to the message list and
@@ -41,7 +41,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_search_box.dart';
+import 'package:mosh/src/features/conversation/conversation_search_box.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 // Re-export the mobile conversation search/filter widgets so the three
@@ -49,8 +49,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 // import that already pulls `ConversationTools` + `ConversationFilter` +
 // `isMobileBreakpoint` also pulls the mobile trio, mirroring how React
 // imports all of `ConversationTools`/`MobileConversation*` from one module.
-export 'package:mosh/src/features/dm/conversation_search_box.dart';
-export 'package:mosh/src/features/dm/mobile_conversation_search.dart';
+export 'package:mosh/src/features/conversation/conversation_search_box.dart';
+export 'package:mosh/src/features/conversation/mobile_conversation_search.dart';
 
 /// Mirrors the React `ConversationFilter` type
 /// (`"all" | "attachments"` in ConversationTools.tsx). `all` shows every

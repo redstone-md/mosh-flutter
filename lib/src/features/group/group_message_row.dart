@@ -32,14 +32,12 @@
 
 import 'package:flutter/material.dart';
 
-import 'package:mosh/src/features/dm/attachment_card.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
-import 'package:mosh/src/features/dm/dm_message_row.dart'
-    show dmMessageAvatarSize;
+import 'package:mosh/src/features/conversation/attachment_card.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/l10n/app_localizations.dart';
@@ -104,7 +102,7 @@ bool _groupShouldGroup(GroupMessage previous, GroupMessage current) {
 }
 
 /// Group-typed wrapper over the shared generic [filterMessages]
-/// (lib/src/features/dm/conversation_tools.dart). Mirrors React's
+/// (lib/src/features/conversation/conversation_tools.dart). Mirrors React's
 /// `GroupChatList` passing its `GroupMessage[]` to the generic
 /// `filterMessages<T>` (MessageLists.tsx). The search text is the GENERIC
 /// one -- `fromDevice`, `body`, `attachment.fileName`, `attachment.mime` --
@@ -220,10 +218,10 @@ class GroupMessageRow extends StatelessWidget {
     // grouped continuation) then the body, always left-aligned. There is no
     // bubble and no own-vs-peer side; `own` only gates the retry affordance.
     final avatarSlot = grouped
-        ? const SizedBox(width: dmMessageAvatarSize)
+        ? const SizedBox(width: messageAvatarSize)
         : Avatar(
             name: message.fromDevice,
-            radius: dmMessageAvatarSize / 2,
+            radius: messageAvatarSize / 2,
           );
     return Padding(
       padding: EdgeInsets.only(top: messageRowSpacing(grouped)),

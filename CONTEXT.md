@@ -50,10 +50,17 @@ them at join time and relayed to the org admin out-of-band. Proof that a
 pending join request belongs to a known person. Approval is impossible
 without it. (Not a "short hash for disambiguation" — that meaning is dead.)
 
+## Conversation
+
+A place where people exchange messages: a message list, a composer,
+attachments, delivery status, and a way to leave. Mosh has three kinds — a
+DM between two people, a channel, and an [[Org group]] — and each one is the
+same conversation with its own membership and authority rules on top.
+
 ## Org group
 
-A private group bound to an [[organization]] at creation (the binding is the
-org's identity). The binding — not membership overlap — is what makes a
+A [[Conversation]] bound to an [[organization]] at creation (the binding is
+the org's identity). The binding — not membership overlap — is what makes a
 group "organizational": it activates roster-derived authority and
 revocation enforcement. A group without a binding is a plain private group;
 no org ever touches it. Org groups are created deliberately by members
@@ -61,6 +68,7 @@ no org ever touches it. Org groups are created deliberately by members
 
 ## Group admin
 
-The single per-group authority in **non-org** private groups, tracked by MLS
-fingerprint and transferred by handoff. Does not exist in org groups — org
-groups derive authority from the roster instead.
+The single per-group authority in **non-org** private groups (a
+[[Conversation]] with no org binding), tracked by MLS fingerprint and
+transferred by handoff. Does not exist in org groups — org groups derive
+authority from the roster instead.

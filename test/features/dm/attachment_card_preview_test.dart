@@ -1,5 +1,5 @@
 // Widget tests for the IMAGE media-preview branch of the DM attachment
-// card (lib/src/features/dm/attachment_card.dart). Pumps `AttachmentCard`
+// card (lib/src/features/conversation/attachment_card.dart). Pumps `AttachmentCard`
 // directly inside a `MaterialApp` with the AppLocalizations delegate so
 // the localized state labels resolve, mirroring the established DM
 // widget-test pattern but scoped to the card (no Riverpod/DmScreen).
@@ -13,7 +13,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 // Known-good 1x1 PNG (70 bytes, magic header 0x89 0x50 0x4E 0x47 ...).

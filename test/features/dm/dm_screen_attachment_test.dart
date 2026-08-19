@@ -1,5 +1,5 @@
 // Widget tests for the in-scope attachment card rendered inside a DM
-// message bubble (lib/src/features/dm/attachment_card.dart, wired in
+// message bubble (lib/src/features/conversation/attachment_card.dart, wired in
 // lib/src/features/dm/dm_screen.dart). Mirrors the established slice-one
 // widget-test pattern: a ProviderScope override of `activeSessionProvider`
 // (the public FutureProvider.family seam) returns a controlled
@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';

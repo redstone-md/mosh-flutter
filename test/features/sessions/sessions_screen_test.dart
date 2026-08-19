@@ -12,7 +12,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';

@@ -44,8 +44,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/src/features/dm/conversation_tools.dart';
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';

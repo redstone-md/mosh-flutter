@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
-import 'package:mosh/src/features/dm/conversation_composer.dart';
+import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';

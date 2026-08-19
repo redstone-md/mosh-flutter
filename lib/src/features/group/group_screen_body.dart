@@ -19,10 +19,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart' show PeerActions;
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
-import 'package:mosh/src/features/dm/conversation_composer.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart' show PeerActions;
+import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
+import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';

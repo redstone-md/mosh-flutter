@@ -49,9 +49,9 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart';
 
-import 'package:mosh/src/features/dm/attachment_actions.dart';
-import 'package:mosh/src/features/dm/attachment_thumb.dart';
-import 'package:mosh/src/features/dm/voice_message_card.dart';
+import 'package:mosh/src/features/conversation/attachment_actions.dart';
+import 'package:mosh/src/features/conversation/attachment_thumb.dart';
+import 'package:mosh/src/features/conversation/voice_message_card.dart';
 
 /// Renders the in-scope file or image-preview attachment card for a DM
 /// message bubble (see the file doc for scope). `own` is the row's own-

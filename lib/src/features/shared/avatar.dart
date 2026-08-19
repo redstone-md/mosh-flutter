@@ -15,7 +15,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 
 /// React `.avatar` background -- a fixed dark moss, not a per-name hash.
 const Color kAvatarBackground = Color(0xFF2D3F23);

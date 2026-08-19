@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart'
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 

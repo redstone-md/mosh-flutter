@@ -1,6 +1,6 @@
 // Unit + widget tests for the OpenMLS-protection badge (`MlsBadge`) and
 // its placement in the DM sender-meta row. `MlsBadge` lives in
-// lib/src/features/dm/dm_helpers.dart (1-в-1 with React's `MlsBadge` in
+// lib/src/features/conversation/conversation_helpers.dart (1-в-1 with React's `MlsBadge` in
 // src/features/private-dm/MessageLists.tsx) and is composed into the
 // sender meta via `SenderMeta` (extracted from dm_screen.dart to keep
 // that screen under the 500-line file-size discipline).
@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
