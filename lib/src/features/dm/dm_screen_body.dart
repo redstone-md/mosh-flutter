@@ -34,10 +34,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/state/session_providers.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/dm/dm_message_list.dart';
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
-import 'package:mosh/src/features/dm/conversation_composer.dart';
+import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
+import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/dm/voice_call_layer.dart' show VoiceCallLayer;
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show ringtonePlayerProvider;

@@ -14,19 +14,13 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/dm/call_log_entry.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
-
-/// Avatar diameter used by `DmMessageRow` -- both the real `CircleAvatar`
-/// and the grouped-row spacer share this width so a grouped row stays
-/// visually indented under the first row's avatar (matching React's
-/// `avatar avatar-spacer` element).
-const double dmMessageAvatarSize = 32;
 
 /// One row in the DM message list. See file header for the grouping rule.
 class DmMessageRow extends StatelessWidget {
@@ -60,10 +54,10 @@ class DmMessageRow extends StatelessWidget {
     final avatarSlot = grouped
         // React renders `.avatar.avatar-spacer` -- the same box, hidden --
         // so a grouped row stays indented under the first row's avatar.
-        ? const SizedBox(width: dmMessageAvatarSize)
+        ? const SizedBox(width: messageAvatarSize)
         : Avatar(
             name: message.fromDevice,
-            radius: dmMessageAvatarSize / 2,
+            radius: messageAvatarSize / 2,
           );
     return Padding(
       padding: EdgeInsets.only(top: messageRowSpacing(grouped)),

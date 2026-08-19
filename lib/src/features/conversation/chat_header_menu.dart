@@ -28,7 +28,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
 
 /// One entry in the mobile kebab menu, 1-1 with React
 /// `ChatHeaderMenuAction` (ChatHeaderMenu.tsx ~L5-12): an immutable value

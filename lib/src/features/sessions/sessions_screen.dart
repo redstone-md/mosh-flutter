@@ -25,7 +25,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
-import 'package:mosh/src/features/dm/peer_label.dart';
+import 'package:mosh/src/features/conversation/peer_label.dart';
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
 import 'package:mosh/src/features/sessions/channel_rail_item.dart';
@@ -43,7 +43,7 @@ import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;

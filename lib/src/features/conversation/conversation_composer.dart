@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
-import 'package:mosh/src/features/dm/clipboard_paste_handler.dart'
+import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
     show PasteImageAction;
 import 'package:mosh/src/features/shared/voice_composer.dart';
 

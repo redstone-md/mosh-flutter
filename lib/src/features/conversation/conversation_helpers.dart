@@ -1,10 +1,10 @@
-/// Shared DM / message-row helpers extracted from `dm_screen.dart` and
-/// `sessions_screen.dart` to keep feature screens under the 500-line
-/// file-size discipline (ADR: file-size discipline). These are pure,
-/// dependency-light utilities used by the DM message row and the
-/// sessions list row -- previously duplicated as private helpers in each
-/// screen. They are intentionally public so the screens can import the
-/// shared copy and drop their local duplicates.
+/// Small helpers shared by every conversation: chat header sizing, message
+/// meta styles, avatar colours and initials. DM, channel and org group all
+/// use them, as does the sessions list.
+///
+/// They live here so the screens stay under the 500-line file-size
+/// discipline (ADR: file-size discipline) and share one copy instead of
+/// keeping private duplicates.
 library;
 
 import 'package:flutter/material.dart';
@@ -19,6 +19,11 @@ import 'package:mosh/src/util/format.dart' show shorten;
 
 /// React `.message-meta { gap: 8px }`.
 const double kMessageMetaGap = 8;
+
+/// Avatar width in a message row. The real `CircleAvatar` and the spacer on
+/// a grouped row both use it, so grouped rows line up under the first row's
+/// avatar (React's `avatar avatar-spacer`).
+const double messageAvatarSize = 32;
 
 /// React `.chat-header` is 14/22 padding around a 15px/700 title with a
 /// 12px --fg-3 subtitle 4px under it. Its `@media (max-width: 640px)` rule

@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/routing/app_router.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/util/format.dart';

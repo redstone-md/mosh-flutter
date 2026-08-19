@@ -52,7 +52,7 @@ import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/features/shared/chat_actions.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentView, AttachmentDescriptor, AttachmentState, SessionSnapshot;

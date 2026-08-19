@@ -47,7 +47,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/group/group_attachment_open.dart';
 import 'package:mosh/src/features/group/group_screen_header.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';

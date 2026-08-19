@@ -1,5 +1,5 @@
 // Widget tests for the VIDEO play-overlay on the DM attachment card
-// media-preview branch (lib/src/features/dm/attachment_card.dart).
+// media-preview branch (lib/src/features/conversation/attachment_card.dart).
 // Pins React's `<span className="attachment-play" aria-hidden="true">
 // <IconPlayerPlayFilled size={20}/>` overlay: a centered
 // `Icons.play_circle_filled` renders over the thumbnail image WHEN the
@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 // Same known-good 1x1 PNG used in attachment_card_preview_test.dart.

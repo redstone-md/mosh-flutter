@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart' show ValueChanged;
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_native_extensions/raw_clipboard.dart' as raw;
 
-import 'package:mosh/src/features/dm/clipboard_paste_handler.dart'
+import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
     show
         extensionForFormat,
         mimeForFormat,

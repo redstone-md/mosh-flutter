@@ -24,9 +24,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
-import 'package:mosh/src/features/dm/chat_header_menu.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/chat_header_menu.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 
 /// The GroupScreen AppBar header: the two-line title Column (group label +

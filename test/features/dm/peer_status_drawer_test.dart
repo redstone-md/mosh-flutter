@@ -21,7 +21,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/peer_status_drawer.dart';
+import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// A minimal `SessionSnapshot` builder, mirroring the one in

@@ -4,7 +4,7 @@
 // Each case below mirrors the React behavior 1-в-1 so a future change to
 // either side surfaces as a test failure. Pure function -- no widget harness.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/dm_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';

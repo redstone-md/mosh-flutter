@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart';
 
 // Pumps [child] in a localized MaterialApp so the trio's [AppLocalizations]
 // resolves (en). The mobile trio does not need a ProviderScope -- it is pure

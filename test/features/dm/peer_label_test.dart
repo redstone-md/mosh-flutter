@@ -7,7 +7,7 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/peer_label.dart';
+import 'package:mosh/src/features/conversation/peer_label.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 ChatMessage _msg(String fromDevice) =>

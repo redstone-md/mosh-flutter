@@ -1,5 +1,5 @@
 // Widget tests for the in-scope attachment card rendered inside a CHANNEL
-// message bubble (lib/src/features/dm/attachment_card.dart, wired into the
+// message bubble (lib/src/features/conversation/attachment_card.dart, wired into the
 // channel row by lib/src/features/channel/channel_message_row.dart +
 // channel_screen.dart). We seed a peer message carrying a file
 // descriptor + a matching offered AttachmentView and assert the card
@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/attachment_card.dart';
+import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/gateway/fake_gateway.dart';

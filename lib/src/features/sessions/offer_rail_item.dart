@@ -21,7 +21,7 @@
 //     </button>
 //   </div>
 //
-// Avatar uses [avatarColor] + [avatarInitials] from dm_helpers.dart (the same
+// Avatar uses [avatarColor] + [avatarInitials] from conversation_helpers.dart (the same
 // helpers _SessionRow uses) so an offer from a peer renders with the same
 // avatar color/initials the eventual DM session will -- React's `<Avatar
 // name={from_device} />` hashes the device name the same way.
