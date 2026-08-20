@@ -9,17 +9,15 @@ use crate::attachment_runtime::{
     OutgoingAttachment, StreamRange,
 };
 use crate::attachment_store::AttachmentStore;
-use crate::conversation::attachments::{
-    descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
-};
+use crate::conversation::attachments::{descriptor_of, AttachmentSlots, SlotError};
 use crate::conversation::dedup::SeenFrames;
+use crate::conversation::history::{History, Restore};
 use crate::conversation::mesh;
-use crate::conversation::message_log::{delivery_meta, ConversationMessage, LogError, MessageLog};
-use crate::conversation::now_ms;
+use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
-use crate::persistence::Persistence;
+use crate::persistence::{Persistence, CHANNEL_HISTORY};
 use crate::private_dm_runtime::{
     AttachmentDescriptor, AttachmentSendResult, AttachmentView, DmOffer, MeshInfo, SnapshotEvent,
     VoiceMeta,
@@ -31,7 +29,6 @@ const BLOB_PREFIX: &str = "channel-blob/";
 const MESH_PREFIX: &str = "channel/";
 const MAX_NAME_LEN: usize = 64;
 const MAX_BODY_LEN: usize = 4096;
-const OUTBOUND_SCOPE_CHANNEL: &str = "channel";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinChannelRequest {
@@ -87,6 +84,10 @@ impl ConversationMessage for ChannelMessage {
         &self.from_fingerprint
     }
 
+    fn attachment(&self) -> Option<&AttachmentDescriptor> {
+        self.attachment.as_ref()
+    }
+
     fn set_delivery(&mut self, delivery: MessageDeliveryMeta) {
         self.delivery_status = delivery.delivery_status;
         self.delivery_error = delivery.delivery_error;
@@ -131,14 +132,6 @@ enum ChannelBlobEnvelope {
     },
     /// A private-DM invitation aimed at one channel member.
     DmOffer { offer: DmOffer },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PersistedChannelMessage {
-    conversation_id: String,
-    sent_at_ms: u64,
-    message_id: String,
-    message: ChannelMessage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,7 +236,7 @@ pub struct ChannelRuntime {
     shared_node: Arc<SharedMossNode>,
     attachment_store: Arc<AttachmentStore>,
     persistence: Option<Arc<Persistence>>,
-    persisted_counts: HashMap<String, usize>,
+    history: History,
     channels: HashMap<String, ChannelSession>,
 }
 
@@ -292,7 +285,7 @@ impl ChannelRuntime {
             shared_node,
             attachment_store,
             persistence,
-            persisted_counts: HashMap::new(),
+            history: History::new(CHANNEL_HISTORY),
             channels: HashMap::new(),
         }
     }
@@ -324,18 +317,10 @@ impl ChannelRuntime {
         let Some(p) = self.persistence.as_ref().cloned() else {
             return;
         };
-        let rows = match p.list_channels() {
-            Ok(rows) => rows,
-            Err(_) => return,
-        };
-        for row in rows {
-            let rec: PersistedChannelSession = match serde_json::from_slice(&row) {
-                Ok(record) => record,
-                Err(error) => {
-                    eprintln!("channel rehydrate: bad channel row: {error}");
-                    continue;
-                }
-            };
+        for rec in self
+            .history
+            .stored_conversations::<PersistedChannelSession>(&p)
+        {
             let node = match self.open_channel_room(
                 &rec.mesh_id,
                 &rec.topic,
@@ -372,73 +357,17 @@ impl ChannelRuntime {
                 outbound_attempts: HashMap::new(),
                 dm_offers: Vec::new(),
             };
-            if let Ok(messages) = p.list_channel_messages(&rec.name) {
-                for row in messages {
-                    if let Ok(persisted) = serde_json::from_slice::<PersistedChannelMessage>(&row) {
-                        let mut message = persisted.message;
-                        if message.message_id.is_none() {
-                            message.message_id = Some(persisted.message_id.clone());
-                        }
-                        if message.sent_at_ms.is_none() {
-                            message.sent_at_ms = Some(persisted.sent_at_ms);
-                        }
-                        if let Some(desc) = message.attachment.as_ref() {
-                            if self
-                                .attachment_store
-                                .exists(&desc.content_hash, &desc.file_name)
-                                .unwrap_or(false)
-                            {
-                                if let Ok(path) = self
-                                    .attachment_store
-                                    .path_for(&desc.content_hash, &desc.file_name)
-                                {
-                                    let direction =
-                                        if message.from_fingerprint == rec.device_fingerprint {
-                                            AttachmentDirection::Outgoing
-                                        } else {
-                                            AttachmentDirection::Incoming
-                                        };
-                                    session.attachment_slots.restore(
-                                        desc.clone(),
-                                        direction,
-                                        path.to_string_lossy().into_owned(),
-                                    );
-                                }
-                            }
-                        }
-                        session.messages.upsert(message);
-                    }
-                }
-            }
-            if let Ok(rows) = p.list_outbound_attempts(OUTBOUND_SCOPE_CHANNEL, &rec.name) {
-                for row in rows {
-                    let Ok(attempt) = serde_json::from_slice::<OutboundAttemptRecord>(&row) else {
-                        continue;
-                    };
-                    let Ok(mut message) =
-                        serde_json::from_str::<ChannelMessage>(&attempt.message_json)
-                    else {
-                        continue;
-                    };
-                    if message.message_id.is_none() {
-                        message.message_id = Some(attempt.message_id.clone());
-                    }
-                    if message.sent_at_ms.is_none() {
-                        message.sent_at_ms = Some(attempt.sent_at_ms);
-                    }
-                    message.set_delivery(delivery_meta(
-                        attempt.delivery_status,
-                        attempt.delivery_error.clone(),
-                        attempt.retry_count,
-                    ));
-                    session.messages.upsert(message);
-                    session
-                        .outbound_attempts
-                        .insert(attempt.message_id.clone(), attempt);
-                }
-            }
-            self.persisted_counts
-                .insert(rec.name.clone(), session.messages.len());
+            self.history.replay(
+                &p,
+                &rec.name,
+                Restore {
+                    log: &mut session.messages,
+                    attempts: &mut session.outbound_attempts,
+                    slots: &mut session.attachment_slots,
+                    attachment_store: &self.attachment_store,
+                    local_author: &rec.device_fingerprint,
+                },
+            );
             self.channels.insert(rec.name, session);
         }
     }
@@ -543,7 +472,7 @@ impl ChannelRuntime {
                 // receiving.
                 leave_channel_room(&session);
                 self.shared_node.release();
-                self.persisted_counts.remove(&normalized);
+                self.history.forget(&normalized);
                 if let Some(p) = self.persistence.as_ref() {
                     if let Err(error) = p.delete_channel(&normalized) {
                         eprintln!("failed to delete persisted channel {normalized}: {error}");
@@ -792,45 +721,10 @@ impl ChannelRuntime {
             return;
         };
         for session in self.channels.values() {
-            let start = self
-                .persisted_counts
-                .get(&session.name)
-                .copied()
-                .unwrap_or(0);
-            for (idx, msg) in session.messages.iter().enumerate().skip(start) {
-                let sent_at_ms = msg.sent_at_ms.unwrap_or_else(now_ms);
-                let message_id = msg
-                    .message_id
-                    .clone()
-                    .unwrap_or_else(|| format!("{sent_at_ms}-{idx:06}"));
-                let mut message = msg.clone();
-                if message.sent_at_ms.is_none() {
-                    message.sent_at_ms = Some(sent_at_ms);
-                }
-                if message.message_id.is_none() {
-                    message.message_id = Some(message_id.clone());
-                }
-                let record = PersistedChannelMessage {
-                    conversation_id: session.name.clone(),
-                    sent_at_ms,
-                    message_id: message_id.clone(),
-                    message,
-                };
-                if let Ok(json) = serde_json::to_vec(&record) {
-                    let _ = p.append_channel_message(&session.name, sent_at_ms, &message_id, &json);
-                }
-            }
-            if let Ok(json) = serde_json::to_vec(&session.to_persisted_record()) {
-                let _ = p.put_channel(&session.name, &json);
-            }
-        }
-        let new_counts: Vec<(String, usize)> = self
-            .channels
-            .values()
-            .map(|channel| (channel.name.clone(), channel.messages.len()))
-            .collect();
-        for (name, count) in new_counts {
-            self.persisted_counts.insert(name, count);
+            self.history
+                .write_tail(&p, &session.name, &session.messages);
+            self.history
+                .write_record(&p, &session.name, &session.to_persisted_record());
         }
     }
 
@@ -838,47 +732,20 @@ impl ChannelRuntime {
         let Some(p) = self.persistence.as_ref().cloned() else {
             return;
         };
-        let (channel_row, message_row, attempt_row, sent_at_ms) = {
-            let Some(session) = self.channels.get(name) else {
-                return;
-            };
-            let Some(message) = session
-                .messages
-                .iter()
-                .find(|message| message.message_id.as_deref() == Some(message_id))
-            else {
-                return;
-            };
-            let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-            let message_row = serde_json::to_vec(&PersistedChannelMessage {
-                conversation_id: session.name.clone(),
-                sent_at_ms,
-                message_id: message_id.to_string(),
-                message: message.clone(),
-            })
-            .ok();
-            let channel_row = serde_json::to_vec(&session.to_persisted_record()).ok();
-            let attempt_row = session
-                .outbound_attempts
-                .get(message_id)
-                .and_then(|attempt| serde_json::to_vec(attempt).ok());
-            (channel_row, message_row, attempt_row, sent_at_ms)
+        let Some(session) = self.channels.get(name) else {
+            return;
         };
-
-        if let Some(row) = message_row {
-            let _ = p.append_channel_message(name, sent_at_ms, message_id, &row);
+        if !self.history.write_send(
+            &p,
+            name,
+            message_id,
+            &session.messages,
+            &session.outbound_attempts,
+        ) {
+            return;
         }
-        match attempt_row {
-            Some(row) => {
-                let _ = p.put_outbound_attempt(OUTBOUND_SCOPE_CHANNEL, name, message_id, &row);
-            }
-            None => {
-                let _ = p.delete_outbound_attempt(OUTBOUND_SCOPE_CHANNEL, name, message_id);
-            }
-        }
-        if let Some(row) = channel_row {
-            let _ = p.put_channel(name, &row);
-        }
+        self.history
+            .write_record(&p, name, &session.to_persisted_record());
     }
 }
 

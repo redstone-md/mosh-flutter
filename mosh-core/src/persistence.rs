@@ -92,6 +92,46 @@ const GROUP_COMMIT_LOG: TableDefinition<&str, &[u8]> = TableDefinition::new("gro
 // Key: org pubkey hex -> serialized PersistedOrgRecord (bundle + node config).
 const ORG_RECORDS: TableDefinition<&str, &[u8]> = TableDefinition::new("org_records");
 
+/// A table of encrypted rows keyed by a string.
+type Rows = TableDefinition<'static, &'static str, &'static [u8]>;
+
+/// Where one conversation kind keeps its history. A DM, a private group and a
+/// public channel store the same rows; only the tables differ. Passing the
+/// names in as data is what lets the code that reads and writes them be
+/// written once instead of three times.
+#[derive(Clone, Copy)]
+pub struct HistoryTables {
+    /// One row per conversation: the record it is rebuilt from at startup.
+    conversations: Rows,
+    /// One row per message, keyed by conversation, send time and message id.
+    messages: Rows,
+    /// The key prefix this kind's outbound attempts share.
+    pub outbound_scope: &'static str,
+    /// What one conversation is called in a warning about an unreadable row.
+    pub label: &'static str,
+}
+
+pub const DM_HISTORY: HistoryTables = HistoryTables {
+    conversations: SESSIONS,
+    messages: MESSAGES,
+    outbound_scope: "private_dm",
+    label: "session",
+};
+
+pub const GROUP_HISTORY: HistoryTables = HistoryTables {
+    conversations: GROUPS,
+    messages: GROUP_MESSAGES,
+    outbound_scope: "private_group",
+    label: "group",
+};
+
+pub const CHANNEL_HISTORY: HistoryTables = HistoryTables {
+    conversations: CHANNELS,
+    messages: CHANNEL_MESSAGES,
+    outbound_scope: "channel",
+    label: "channel",
+};
+
 pub struct Persistence {
     db: Database,
     dek: [u8; 32],
@@ -340,26 +380,70 @@ impl Persistence {
         self.get(MLS_SNAPSHOT, session_id)
     }
 
-    pub fn put_session(&self, session_id: &str, json: &[u8]) -> Result<(), PersistenceError> {
-        self.put(SESSIONS, session_id, json)
+    /// The record a conversation is rebuilt from at startup.
+    pub fn put_conversation(
+        &self,
+        tables: HistoryTables,
+        conversation_id: &str,
+        json: &[u8],
+    ) -> Result<(), PersistenceError> {
+        self.put(tables.conversations, conversation_id, json)
     }
-    pub fn list_sessions(&self) -> Result<Vec<Vec<u8>>, PersistenceError> {
+
+    /// Every conversation record of one kind. An unreadable row is skipped
+    /// with a warning, so one bad record cannot block startup.
+    pub fn list_conversations(
+        &self,
+        tables: HistoryTables,
+    ) -> Result<Vec<Vec<u8>>, PersistenceError> {
         let rtx = self
             .db
             .begin_read()
             .map_err(|e| PersistenceError::Db(e.to_string()))?;
         let t = rtx
-            .open_table(SESSIONS)
+            .open_table(tables.conversations)
             .map_err(|e| PersistenceError::Db(e.to_string()))?;
         let mut out = Vec::new();
         for item in t.iter().map_err(|e| PersistenceError::Db(e.to_string()))? {
             let (k, v) = item.map_err(|e| PersistenceError::Db(e.to_string()))?;
             match decrypt_blob(&self.dek, v.value()) {
                 Ok(plain) => out.push(plain),
-                Err(e) => eprintln!("skipping undecryptable session row {}: {e}", k.value()),
+                Err(e) => eprintln!(
+                    "skipping undecryptable {} row {}: {e}",
+                    tables.label,
+                    k.value()
+                ),
             }
         }
         Ok(out)
+    }
+
+    /// Keyed so a lexicographic scan hands the messages back oldest first.
+    pub fn append_history_message(
+        &self,
+        tables: HistoryTables,
+        conversation_id: &str,
+        sent_at_ms: u64,
+        message_id: &str,
+        json: &[u8],
+    ) -> Result<(), PersistenceError> {
+        let key = format!("{conversation_id}\u{0001}{sent_at_ms:020}\u{0001}{message_id}");
+        self.put(tables.messages, &key, json)
+    }
+
+    pub fn list_history_messages(
+        &self,
+        tables: HistoryTables,
+        conversation_id: &str,
+    ) -> Result<Vec<Vec<u8>>, PersistenceError> {
+        self.range_prefix(tables.messages, conversation_id)
+    }
+
+    pub fn put_session(&self, session_id: &str, json: &[u8]) -> Result<(), PersistenceError> {
+        self.put_conversation(DM_HISTORY, session_id, json)
+    }
+    pub fn list_sessions(&self) -> Result<Vec<Vec<u8>>, PersistenceError> {
+        self.list_conversations(DM_HISTORY)
     }
 
     pub fn append_message(
@@ -369,11 +453,10 @@ impl Persistence {
         message_id: &str,
         json: &[u8],
     ) -> Result<(), PersistenceError> {
-        let key = format!("{conversation_id}\u{0001}{sent_at_ms:020}\u{0001}{message_id}");
-        self.put(MESSAGES, &key, json)
+        self.append_history_message(DM_HISTORY, conversation_id, sent_at_ms, message_id, json)
     }
     pub fn list_messages(&self, conversation_id: &str) -> Result<Vec<Vec<u8>>, PersistenceError> {
-        self.range_prefix(MESSAGES, conversation_id)
+        self.list_history_messages(DM_HISTORY, conversation_id)
     }
 
     pub fn put_outbound_attempt(
@@ -470,7 +553,7 @@ impl Persistence {
             self.delete_prefix(
                 &wtx,
                 OUTBOUND_ATTEMPTS,
-                &Self::outbound_attempt_prefix("private_dm", session_id),
+                &Self::outbound_attempt_prefix(DM_HISTORY.outbound_scope, session_id),
             )?;
         }
         wtx.commit()
@@ -493,26 +576,11 @@ impl Persistence {
     }
 
     pub fn put_group(&self, group_id: &str, json: &[u8]) -> Result<(), PersistenceError> {
-        self.put(GROUPS, group_id, json)
+        self.put_conversation(GROUP_HISTORY, group_id, json)
     }
 
     pub fn list_groups(&self) -> Result<Vec<Vec<u8>>, PersistenceError> {
-        let rtx = self
-            .db
-            .begin_read()
-            .map_err(|e| PersistenceError::Db(e.to_string()))?;
-        let t = rtx
-            .open_table(GROUPS)
-            .map_err(|e| PersistenceError::Db(e.to_string()))?;
-        let mut out = Vec::new();
-        for item in t.iter().map_err(|e| PersistenceError::Db(e.to_string()))? {
-            let (k, v) = item.map_err(|e| PersistenceError::Db(e.to_string()))?;
-            match decrypt_blob(&self.dek, v.value()) {
-                Ok(plain) => out.push(plain),
-                Err(e) => eprintln!("skipping undecryptable group row {}: {e}", k.value()),
-            }
-        }
-        Ok(out)
+        self.list_conversations(GROUP_HISTORY)
     }
 
     pub fn append_group_message(
@@ -522,12 +590,11 @@ impl Persistence {
         message_id: &str,
         json: &[u8],
     ) -> Result<(), PersistenceError> {
-        let key = format!("{group_id}\u{0001}{sent_at_ms:020}\u{0001}{message_id}");
-        self.put(GROUP_MESSAGES, &key, json)
+        self.append_history_message(GROUP_HISTORY, group_id, sent_at_ms, message_id, json)
     }
 
     pub fn list_group_messages(&self, group_id: &str) -> Result<Vec<Vec<u8>>, PersistenceError> {
-        self.range_prefix(GROUP_MESSAGES, group_id)
+        self.list_history_messages(GROUP_HISTORY, group_id)
     }
 
     /// Permanently remove a private group: its group record, MLS snapshot and
@@ -560,7 +627,7 @@ impl Persistence {
             self.delete_prefix(
                 &wtx,
                 OUTBOUND_ATTEMPTS,
-                &Self::outbound_attempt_prefix("private_group", group_id),
+                &Self::outbound_attempt_prefix(GROUP_HISTORY.outbound_scope, group_id),
             )?;
         }
         wtx.commit()
@@ -568,26 +635,11 @@ impl Persistence {
     }
 
     pub fn put_channel(&self, name: &str, json: &[u8]) -> Result<(), PersistenceError> {
-        self.put(CHANNELS, name, json)
+        self.put_conversation(CHANNEL_HISTORY, name, json)
     }
 
     pub fn list_channels(&self) -> Result<Vec<Vec<u8>>, PersistenceError> {
-        let rtx = self
-            .db
-            .begin_read()
-            .map_err(|e| PersistenceError::Db(e.to_string()))?;
-        let t = rtx
-            .open_table(CHANNELS)
-            .map_err(|e| PersistenceError::Db(e.to_string()))?;
-        let mut out = Vec::new();
-        for item in t.iter().map_err(|e| PersistenceError::Db(e.to_string()))? {
-            let (k, v) = item.map_err(|e| PersistenceError::Db(e.to_string()))?;
-            match decrypt_blob(&self.dek, v.value()) {
-                Ok(plain) => out.push(plain),
-                Err(e) => eprintln!("skipping undecryptable channel row {}: {e}", k.value()),
-            }
-        }
-        Ok(out)
+        self.list_conversations(CHANNEL_HISTORY)
     }
 
     pub fn append_channel_message(
@@ -597,12 +649,11 @@ impl Persistence {
         message_id: &str,
         json: &[u8],
     ) -> Result<(), PersistenceError> {
-        let key = format!("{name}\u{0001}{sent_at_ms:020}\u{0001}{message_id}");
-        self.put(CHANNEL_MESSAGES, &key, json)
+        self.append_history_message(CHANNEL_HISTORY, name, sent_at_ms, message_id, json)
     }
 
     pub fn list_channel_messages(&self, name: &str) -> Result<Vec<Vec<u8>>, PersistenceError> {
-        self.range_prefix(CHANNEL_MESSAGES, name)
+        self.list_history_messages(CHANNEL_HISTORY, name)
     }
 
     pub fn delete_channel(&self, name: &str) -> Result<(), PersistenceError> {
@@ -625,7 +676,7 @@ impl Persistence {
             self.delete_prefix(
                 &wtx,
                 OUTBOUND_ATTEMPTS,
-                &Self::outbound_attempt_prefix("channel", name),
+                &Self::outbound_attempt_prefix(CHANNEL_HISTORY.outbound_scope, name),
             )?;
         }
         wtx.commit()

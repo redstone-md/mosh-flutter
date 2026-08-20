@@ -16,6 +16,7 @@ use serde::Serialize;
 use super::now_ms;
 use crate::message_id::MessageIdGen;
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus};
+use crate::private_dm_runtime::AttachmentDescriptor;
 
 /// What a conversation runtime needs from a message to keep a log of them.
 pub trait ConversationMessage: Clone + Serialize {
@@ -29,6 +30,8 @@ pub trait ConversationMessage: Clone + Serialize {
     /// (a DM message has no fingerprint field, and it only ever has two
     /// participants).
     fn author(&self) -> &str;
+    /// The file this message carries, if it carries one.
+    fn attachment(&self) -> Option<&AttachmentDescriptor>;
     fn set_delivery(&mut self, delivery: MessageDeliveryMeta);
 }
 
