@@ -2,15 +2,14 @@
 //
 // RealBridgeGateway delegates every Gateway method to the corresponding
 // flutter_rust_bridge-generated free function in `lib/src/rust/api/`. It is
-// a thin pass-through: no caching, no logic, no shaping -- the same surface
-// FakeGateway mocked, now backed by the real `mosh_core` runtime. Widgets
-// keep consuming `Gateway` via `gatewayProvider`; this class only exists to
-// be swapped in as the default by the provider's `MOSH_FAKE_GATEWAY` flag.
+// a thin pass-through: no caching, no logic, no shaping. Widgets keep
+// consuming `Gateway` via `gatewayProvider`, which always hands out this
+// class -- the test double lives in test/support/ and never ships.
 //
 // Lifecycle note: every method assumes `RustLib.init()` has run (main.dart
 // calls it on startup; the integration test calls it explicitly). Calling
 // before init throws via the frb generated `RustLib.instance.api` indirection
-// -- which is exactly the behaviour the Fake could not reproduce.
+// -- which is exactly the behaviour a Dart double cannot reproduce.
 
 import 'dart:typed_data' show Uint8List;
 import 'package:mosh/src/gateway/gateway.dart';

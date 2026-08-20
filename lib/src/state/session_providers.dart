@@ -44,7 +44,7 @@ class DiagnosticsNotifier extends AsyncNotifier<AppDiagnostics> {
 
 /// Server state: native runtime readiness (diagnostics screen, S4.8).
 /// Routed through the `gatewayProvider` seam (ADR 0013) so the screen renders
-/// real field values under both `FakeGateway` (tests) and `RealBridgeGateway`
+/// real field values under both the test gateway and `RealBridgeGateway`
 /// (S5). The five `NativeRuntimeStatus` sub-structs are non-opaque across
 /// flutter_rust_bridge, so both gateways return constructible, field-readable
 /// values (no `<opaque>` fallback).

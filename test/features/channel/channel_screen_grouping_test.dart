@@ -212,7 +212,7 @@ void main() {
 
   // The widget test drives the screen via a `channelSnapshotProvider`
   // override (the public FutureProvider.family seam) so the controlled
-  // messages are deterministic and the FakeGateway / native cdylib are not
+  // messages are deterministic and the gateway / native cdylib are not
   // involved. We seed two peer messages from `bob` (fingerprint `fp-bob`)
   // one minute apart; the second groups under the first, so exactly one
   // sender-meta row should render (device name + fingerprint + HH:mm clock

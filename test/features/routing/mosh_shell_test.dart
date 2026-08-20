@@ -7,8 +7,8 @@
 // the routes (rail disappears while reading a DM) fails loudly.
 //
 // The tests pump the real MoshApp (which owns the process-global appRouter)
-// inside a ProviderScope overriding gatewayProvider with a FakeGateway
-// subclass whose listSessions + pollSession return one seeded DM session
+// inside a ProviderScope overriding gatewayProvider with a test gateway
+// seeded with one DM session
 // (peer display name 'Alice' / 'Bob'). The surface width is set via
 // tester.view.physicalSize + devicePixelRatio so isMobileBreakpoint
 // (MediaQuery.sizeOf, width <= 580) reads the test width.
@@ -39,51 +39,18 @@ import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
-// Seeded FakeGateway: listSessions + pollSession return one DM session
+// Seeded test gateway: listSessions + pollSession return one DM session
 // with the given peer display name, so the rail renders one row AND the DM
 // screen resolves without the native cdylib. closeSession removes the
 // seeded session so the leave-flow's context.go('/sessions') returns to an
 // empty rail (mirrors the real close).
-class _SeededGateway extends FakeGateway {
-  _SeededGateway(this._snapshot);
-
-  final SessionSnapshot _snapshot;
-  bool _closed = false;
-
-  @override
-  Future<SessionListSnapshot> listSessions() => Future.value(
-      SessionListSnapshot(sessions: _closed ? const [] : [_snapshot]));
-
-  @override
-  Future<SessionSnapshot> pollSession({required String sessionId}) {
-    if (sessionId != _snapshot.sessionId) {
-      return Future.error(
-        Exception('pollSession: unknown sessionId "$sessionId"'),
-      );
-    }
-    return Future.value(_snapshot);
-  }
-
-  @override
-  Future<CloseSessionResult> closeSession({required String sessionId}) {
-    final closed = sessionId == _snapshot.sessionId;
-    if (closed) {
-      // Mark closed so a subsequent listSessions is empty (the rail
-      // returns to the empty state after leave, mirroring the real close).
-      _closed = true;
-    }
-    return Future.value(
-        CloseSessionResult(sessionId: sessionId, closed: closed));
-  }
-}
-
 SessionSnapshot _session({required String sessionId, required String peer}) =>
     SessionSnapshot(
       sessionId: sessionId,
@@ -133,7 +100,7 @@ void main() {
       'desktop (1200x900): rail + welcome pane render side-by-side; '
       'tapping a DM row swaps the chat pane while the rail STAYS',
       (tester) async {
-    final gw = _SeededGateway(_session(sessionId: 'alice-1', peer: 'Alice'));
+    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'alice-1', peer: 'Alice')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -159,7 +126,7 @@ void main() {
       'desktop (1200x900): tapping the titlebar "Peer status" button '
       'mounts PeerStatusDrawer and the close button unmounts it',
       (tester) async {
-    final gw = _SeededGateway(_session(sessionId: 'carol-1', peer: 'Carol'));
+    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'carol-1', peer: 'Carol')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -195,7 +162,7 @@ void main() {
       'mobile (400x800): rail renders ALONE; tapping a DM row swaps to '
       'DmScreen and the rail is GONE; leaving returns to the rail',
       (tester) async {
-    final gw = _SeededGateway(_session(sessionId: 'bob-1', peer: 'Bob'));
+    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'bob-1', peer: 'Bob')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
 
@@ -242,7 +209,7 @@ void main() {
   testWidgets(
       'desktop (1200x900): closing a DM routes to /chat so the inline '
       'NewSessionPanel reappears while the rail STAYS mounted', (tester) async {
-    final gw = _SeededGateway(_session(sessionId: 'frank-1', peer: 'Frank'));
+    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'frank-1', peer: 'Frank')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -278,7 +245,7 @@ void main() {
       'desktop (1200x900): ChatPaneWelcome embeds NewSessionPanel inline; '
       'tapping the Chat tile switches the inline step (no routing); Back '
       'returns to the menu', (tester) async {
-    final gw = _SeededGateway(_session(sessionId: 'dave-1', peer: 'Dave'));
+    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'dave-1', peer: 'Dave')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -342,7 +309,7 @@ void main() {
   // chat-create route is not pushed.
   testWidgets('mobile (400x800): ChatPaneWelcome embeds NewSessionPanel inline',
       (tester) async {
-    final gw = _SeededGateway(_session(sessionId: 'erin-1', peer: 'Erin'));
+    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'erin-1', peer: 'Erin')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
 

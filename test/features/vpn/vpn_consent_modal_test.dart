@@ -7,47 +7,28 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_modal.dart';
-import 'package:mosh/src/gateway/gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/api/vpn.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
 import 'package:mosh/src/rust/vpn_consent.dart';
 
-/// A recording Gateway for the consent flow. Only the VPN/consent +
-/// listInterfaces methods are exercised; the rest throw.
-class _ConsentGateway implements Gateway {
-  VpnBypassConsent? consent;
-  VpnDetection detection;
-  List<NetworkInterfaceInfo> interfaces;
-  String? lastSetInterface; // null = decline cleared it.
-  int setConsentCount = 0;
-  bool failSetConsent = false;
-
-  _ConsentGateway({
-    this.consent,
-    required this.detection,
-    required this.interfaces,
-    this.failSetConsent = false,
-  });
-
-  @override
-  Future<VpnBypassConsent?> getVpnBypassConsent() async => consent;
-
-  @override
-  Future<VpnDetection> detectVpn() async => detection;
-
-  @override
-  Future<List<NetworkInterfaceInfo>> listInterfaces() async => interfaces;
-
-  @override
-  Future<void> setVpnBypassConsent({String? interfaceName}) async {
-    setConsentCount++;
-    lastSetInterface = interfaceName;
-    if (failSetConsent) throw Exception('boom');
+/// A gateway for the consent flow: [consent] is what the user picked before,
+/// [detection] what the VPN probe sees, [interfaces] the machine's NICs.
+ScriptableGateway _consentGateway({
+  VpnBypassConsent? consent,
+  required VpnDetection detection,
+  required List<NetworkInterfaceInfo> interfaces,
+  bool failSetConsent = false,
+}) {
+  final gateway = ScriptableGateway()
+    ..seedVpnConsent(consent)
+    ..seedVpnDetection(detection)
+    ..seedInterfaces(interfaces);
+  if (failSetConsent) {
+    gateway.failAlways(GatewayMethod.setVpnBypassConsent,
+        error: Exception('boom'));
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(' ${invocation.memberName}');
+  return gateway;
 }
 
 NetworkInterfaceInfo _iface({
@@ -86,7 +67,7 @@ Future<AppLocalizations> _l() =>
 
 Future<void> _pump(
   WidgetTester tester, {
-  required _ConsentGateway gateway,
+  required ScriptableGateway gateway,
   Future<void> Function()? onAccept,
 }) async {
   onAccept ??= () async {};
@@ -111,7 +92,7 @@ void main() {
   testWidgets(
     'shows the modal when no consent + VPN owns the default route + a candidate exists',
     (tester) async {
-      final gateway = _ConsentGateway(
+      final gateway = _consentGateway(
         consent: null,
         detection: _ownsDefault(),
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
@@ -125,7 +106,7 @@ void main() {
   testWidgets(
     'hides when the user already consented',
     (tester) async {
-      final gateway = _ConsentGateway(
+      final gateway = _consentGateway(
         consent: const VpnBypassConsent(interface_: 'eth0', index: 0),
         detection: _ownsDefault(),
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
@@ -139,7 +120,7 @@ void main() {
   testWidgets(
     'hides when no VPN owns the default route',
     (tester) async {
-      final gateway = _ConsentGateway(
+      final gateway = _consentGateway(
         consent: null,
         detection: _noVpn(),
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
@@ -152,7 +133,7 @@ void main() {
   testWidgets(
     'hides when no bypass candidate exists',
     (tester) async {
-      final gateway = _ConsentGateway(
+      final gateway = _consentGateway(
         consent: null,
         detection: _ownsDefault(),
         interfaces: [_iface(name: 'tun0', ipv4: '10.8.0.1', isVirtual: true)],
@@ -165,7 +146,7 @@ void main() {
   testWidgets(
     'accept records the suggested adapter + fires onAccept',
     (tester) async {
-      final gateway = _ConsentGateway(
+      final gateway = _consentGateway(
         consent: null,
         detection: _ownsDefault(),
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
@@ -180,8 +161,8 @@ void main() {
       );
       await tester.tap(find.text('Route around the VPN'));
       await tester.pumpAndSettle();
-      expect(gateway.setConsentCount, 1);
-      expect(gateway.lastSetInterface, 'eth0');
+      expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
+      expect(gateway.lastCall(GatewayMethod.setVpnBypassConsent)?.arg<String?>('interfaceName'), 'eth0');
       expect(acceptCount, 1);
     },
   );
@@ -189,7 +170,7 @@ void main() {
   testWidgets(
     'decline clears the consent + hides the modal',
     (tester) async {
-      final gateway = _ConsentGateway(
+      final gateway = _consentGateway(
         consent: null,
         detection: _ownsDefault(),
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
@@ -197,8 +178,8 @@ void main() {
       await _pump(tester, gateway: gateway);
       await tester.tap(find.text('Keep using the VPN'));
       await tester.pumpAndSettle();
-      expect(gateway.setConsentCount, 1);
-      expect(gateway.lastSetInterface, isNull);
+      expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
+      expect(gateway.lastCall(GatewayMethod.setVpnBypassConsent)?.arg<String?>('interfaceName'), isNull);
       expect(find.text("A VPN is carrying Mosh's traffic"), findsNothing);
     },
   );
@@ -206,7 +187,7 @@ void main() {
   testWidgets(
     'accept failure surfaces the error + returns to asking',
     (tester) async {
-      final gateway = _ConsentGateway(
+      final gateway = _consentGateway(
         consent: null,
         detection: _ownsDefault(),
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],

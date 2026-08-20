@@ -15,7 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -86,36 +86,9 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-/// A FakeGateway subclass whose `retryDmMessage` records its args so the
-/// retry-wiring test can assert tapping the Retry button fires the Gateway
-/// retry seam with the session id + the failed message id. Mirrors the
-/// _RecordingGateway idiom in the channel/group failed_retry suites.
-class _RecordingGateway extends FakeGateway {
-  String? retriedSessionId;
-  String? retriedMessageId;
-
-  @override
-  Future<SendMessageResult> retryDmMessage({
-    required String sessionId,
-    required String messageId,
-  }) {
-    retriedSessionId = sessionId;
-    retriedMessageId = messageId;
-    return Future.value(SendMessageResult(
-      sessionId: sessionId,
-      state: 'connecting',
-      ciphertextBytes: BigInt.zero,
-      messageId: 'retry-$messageId',
-      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-      deliveryStatus: MessageDeliveryStatus.sent,
-      deliveryError: null,
-    ));
-  }
-}
-
 Future<void> _pumpWithGateway(
   WidgetTester tester,
-  _RecordingGateway gateway, {
+  ScriptableGateway gateway, {
   required String sessionId,
   required SessionSnapshot snapshot,
 }) async {
@@ -306,7 +279,7 @@ void main() {
   // invalidates so the next poll re-renders the row.
   testWidgets('tapping Retry fires retryDmMessage with the message id',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     const msgId = 'm-retry-1';
     final msg = _msg(
       fromDevice: 'me',
@@ -330,15 +303,15 @@ void main() {
 
     // Pre-condition: the Retry button rendered.
     expect(find.text('Retry'), findsOneWidget);
-    expect(gateway.retriedSessionId, isNull);
-    expect(gateway.retriedMessageId, isNull);
+    expect(gateway.lastCall(GatewayMethod.retryDmMessage)?.arg<String>('sessionId'), isNull);
+    expect(gateway.lastCall(GatewayMethod.retryDmMessage)?.arg<String>('messageId'), isNull);
 
     // Tap the Retry button -- this fires the Gateway retry seam.
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
     // The Gateway retry seam fired with the session id + message id.
-    expect(gateway.retriedSessionId, sessionId);
-    expect(gateway.retriedMessageId, msgId);
+    expect(gateway.lastCall(GatewayMethod.retryDmMessage)?.arg<String>('sessionId'), sessionId);
+    expect(gateway.lastCall(GatewayMethod.retryDmMessage)?.arg<String>('messageId'), msgId);
   });
 }

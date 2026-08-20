@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/dm/voice_capture.dart';
 import 'package:mosh/src/features/dm/voice_playback.dart';
-import 'package:mosh/src/gateway/gateway.dart' show Gateway;
+import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
 import 'package:mosh/src/state/session_providers.dart'
@@ -58,31 +58,6 @@ ActiveCall _activeCall(String callId) => ActiveCall(
       noncePrefixB64: 'AAAAAA==', // 4 zero bytes
       startedAtMs: BigInt.zero,
     );
-
-/// Minimal recording Gateway: only callEnd is exercised here; the rest
-/// throw via noSuchMethod so any other call surface surfaces loudly.
-class _RecordingGateway implements Gateway {
-  int endCalls = 0;
-  String? lastEndSession;
-  String? lastEndCallId;
-  String? lastEndReason;
-
-  @override
-  Future<void> callEnd({
-    required String sessionId,
-    required String callId,
-    required String reason,
-  }) async {
-    endCalls++;
-    lastEndSession = sessionId;
-    lastEndCallId = callId;
-    lastEndReason = reason;
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(' ${invocation.memberName}');
-}
 
 /// A capture handle that records its stop() call.
 class _RecordingCaptureHandle implements VoiceCaptureHandle {
@@ -148,7 +123,7 @@ class _RecordingPlaybackFactory implements VoicePlaybackFactory {
 /// gateway + factories + error sink are injected for assertions.
 ProviderContainer _container({
   required _SessionController controller,
-  required _RecordingGateway gateway,
+  required ScriptableGateway gateway,
   VoiceCaptureFactory? captureFactory,
   VoicePlaybackFactory? playbackFactory,
   void Function(String? message)? errorSink,
@@ -156,7 +131,7 @@ ProviderContainer _container({
   return ProviderContainer(overrides: [
     activeSessionProvider('sess-1')
         .overrideWith((ref) => Future.value(controller.snapshot)),
-    gatewayProvider.overrideWithValue(gateway as Gateway),
+    gatewayProvider.overrideWithValue(gateway),
     voiceCaptureFactoryProvider
         .overrideWithValue(captureFactory ?? const NoopVoiceCaptureFactory()),
     voicePlaybackFactoryProvider.overrideWithValue(
@@ -174,7 +149,7 @@ ProviderSubscription _subscribe(ProviderContainer c) =>
 void main() {
   group('voice_call_orchestrator_provider', () {
     test('no ActiveCall -> no orchestrator, muted false', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final controller = _SessionController(_session('sess-1'));
       final container = _container(controller: controller, gateway: gateway);
       addTearDown(container.dispose);
@@ -189,7 +164,7 @@ void main() {
 
     test('an ActiveCall appears -> attach runs (capture/playback start)',
         () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final controller = _SessionController(
           _session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
@@ -211,7 +186,7 @@ void main() {
     });
 
     test('toggling mute updates state and the orchestrator flag', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final controller = _SessionController(
           _session('sess-1', activeCall: _activeCall('a')));
       final container = _container(controller: controller, gateway: gateway);
@@ -234,7 +209,7 @@ void main() {
 
     test('a new ActiveCall (different callId) re-attaches (old detached)',
         () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final controller = _SessionController(
           _session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
@@ -266,7 +241,7 @@ void main() {
 
     test('ActiveCall disappears -> orchestrator detached (handle stopped)',
         () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final controller = _SessionController(
           _session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
@@ -293,7 +268,7 @@ void main() {
     });
 
     test('endCall callback calls gateway.callEnd + surfaces error', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final controller = _SessionController(
           _session('sess-1', activeCall: _activeCall('a')));
       final capture = _FailingCaptureFactory('boom');
@@ -316,10 +291,10 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 30));
 
       expect(errors, isNotEmpty);
-      expect(gateway.endCalls, 1);
-      expect(gateway.lastEndSession, 'sess-1');
-      expect(gateway.lastEndCallId, 'a');
-      expect(gateway.lastEndReason, 'setup_failed');
+      expect(gateway.countOf(GatewayMethod.callEnd), 1);
+      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('sessionId'), 'sess-1');
+      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('callId'), 'a');
+      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('reason'), 'setup_failed');
     });
   });
 }

@@ -9,26 +9,15 @@ import 'package:mosh/main.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
-class _RecordingGateway extends FakeGateway {
-  int createInviteCalls = 0;
-
-  @override
-  Future<InviteCreated> createInvite({required StartSessionRequest request}) {
-    createInviteCalls++;
-    return super.createInvite(request: request);
-  }
-}
-
 Future<ProviderContainer> _pumpSessions(
   WidgetTester tester,
-  _RecordingGateway gateway, {
+  ScriptableGateway gateway, {
   required Size physicalSize,
 }) async {
   tester.view.physicalSize = physicalSize;
@@ -53,7 +42,7 @@ Future<ProviderContainer> _pumpSessions(
 void main() {
   testWidgets('empty CTA opens NewSessionPanel without creating an invite',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     await _pumpSessions(tester, gateway, physicalSize: const Size(400, 800));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
@@ -63,14 +52,14 @@ void main() {
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(find.byType(SessionsScreen), findsNothing);
-    expect(gateway.createInviteCalls, 0);
+    expect(gateway.countOf(GatewayMethod.createInvite), 0);
     expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets(
       'rail New button opens NewSessionPanel on desktop without creating an invite',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     await _pumpSessions(tester, gateway, physicalSize: const Size(1200, 900));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
@@ -79,14 +68,14 @@ void main() {
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
-    expect(gateway.createInviteCalls, 0);
+    expect(gateway.countOf(GatewayMethod.createInvite), 0);
     expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets(
       'rail New button opens NewSessionPanel on mobile without creating an invite',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     await _pumpSessions(tester, gateway, physicalSize: const Size(400, 800));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
@@ -96,13 +85,13 @@ void main() {
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(find.byType(SessionsScreen), findsNothing);
-    expect(gateway.createInviteCalls, 0);
+    expect(gateway.countOf(GatewayMethod.createInvite), 0);
     expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('New resets a previous invite before showing the panel',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     final container = await _pumpSessions(
       tester,
       gateway,
@@ -110,12 +99,12 @@ void main() {
     );
 
     await container.read(inviteFlowProvider.notifier).create();
-    expect(gateway.createInviteCalls, 1);
+    expect(gateway.countOf(GatewayMethod.createInvite), 1);
     await tester.tap(find.byType(RailNewButton));
     await tester.pumpAndSettle();
 
     expect(container.read(inviteFlowProvider).lastInvite, isNull);
     expect(find.byType(NewSessionPanel), findsOneWidget);
-    expect(gateway.createInviteCalls, 1);
+    expect(gateway.countOf(GatewayMethod.createInvite), 1);
   });
 }
