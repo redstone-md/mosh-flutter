@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
+import '../support/pump.dart';
 import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/rust/api/vpn.dart';
@@ -106,20 +105,12 @@ void main() {
         ..seedInterfaces([_iface(name: 'eth0', ipv4: '192.168.1.5')]);
       final relauncher = _RecordingRelauncher();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [gatewayProvider.overrideWithValue(gateway)],
-          child: DesktopAppRelauncherScope(
-            relauncher: relauncher.value,
-            child: MaterialApp(
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              home: VpnConsentOverlay(child: const SizedBox()),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          DesktopAppRelauncherScope(
+              relauncher: relauncher.value,
+              child: VpnConsentOverlay(child: const SizedBox())),
+          overrides: [gatewayProvider.overrideWithValue(gateway)]);
 
       await tester.tap(find.text('Route around the VPN'));
       await tester.pumpAndSettle();
@@ -134,15 +125,11 @@ void main() {
         ..seedInterfaces([_iface(name: 'eth0', ipv4: '192.168.1.5')]);
       final relauncher = _RecordingRelauncher();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [gatewayProvider.overrideWithValue(gateway)],
-          child: DesktopAppRelauncherScope(
-            relauncher: relauncher.value,
-            child: MaterialApp(
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              home: Scaffold(
+      await pumpScreen(
+          tester,
+          DesktopAppRelauncherScope(
+              relauncher: relauncher.value,
+              child: Scaffold(
                 body: SingleChildScrollView(
                   child: OnboardMenu(
                     onPickChat: () {},
@@ -151,12 +138,8 @@ void main() {
                     onPickJoin: () {},
                   ),
                 ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+              )),
+          overrides: [gatewayProvider.overrideWithValue(gateway)]);
 
       final advanced = find.text('Advanced connection settings');
       await tester.ensureVisible(advanced);

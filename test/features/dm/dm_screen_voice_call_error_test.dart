@@ -4,7 +4,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -16,14 +15,14 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
+import '../../support/pump.dart';
 
 class _FailingCaptureFactory implements VoiceCaptureFactory {
   @override
   bool get isSupported => true;
 
   @override
-  Future<VoiceCaptureHandle> start(
-      void Function(Uint8List opusFrame) onFrame) {
+  Future<VoiceCaptureHandle> start(void Function(Uint8List opusFrame) onFrame) {
     return Future.error(Exception('audio setup boom'));
   }
 }
@@ -56,23 +55,16 @@ void main() {
     const sessionId = 'sess-voice-error';
     final gateway = ScriptableGateway();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        gatewayProvider.overrideWithValue(gateway as Gateway),
-        activeSessionProvider(sessionId).overrideWith(
-          (ref) async => _activeSnapshot(sessionId),
-        ),
-        voiceCaptureFactoryProvider
-            .overrideWithValue(_FailingCaptureFactory()),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const DmScreen(sessionId: sessionId),
-      ),
-    ));
-
-    await tester.pump();
+    await pumpScreen(tester, const DmScreen(sessionId: sessionId),
+        overrides: [
+          gatewayProvider.overrideWithValue(gateway as Gateway),
+          activeSessionProvider(sessionId).overrideWith(
+            (ref) async => _activeSnapshot(sessionId),
+          ),
+          voiceCaptureFactoryProvider
+              .overrideWithValue(_FailingCaptureFactory()),
+        ],
+        settle: false);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.textContaining('audio setup boom'), findsOneWidget);

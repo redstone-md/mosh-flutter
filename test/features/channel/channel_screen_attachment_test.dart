@@ -8,9 +8,7 @@
 // view into the row, and the transfer action reflects the screen busy state.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
@@ -21,6 +19,7 @@ import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 import '../shared/attachment_launcher_test_support.dart';
+import '../../support/pump.dart';
 
 AttachmentDescriptor _fileDescriptor({
   required String attachmentId,
@@ -100,22 +99,13 @@ Future<void> _pump(
   required ChannelSnapshot snapshot,
   ScriptableGateway? gateway,
   AttachmentLauncher? launcher,
-}) async {
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
+}) =>
+    pumpScreen(tester, ChannelScreen(name: name), overrides: [
       channelSnapshotProvider(name).overrideWith((ref) async => snapshot),
       if (gateway != null) gatewayProvider.overrideWithValue(gateway),
       if (launcher != null)
         attachmentLauncherProvider.overrideWithValue(launcher),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: ChannelScreen(name: name),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+    ]);
 
 Finder _attachmentAction() => find.descendant(
       of: find.byType(AttachmentCard),

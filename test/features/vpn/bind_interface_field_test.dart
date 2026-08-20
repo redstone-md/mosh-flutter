@@ -10,6 +10,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
+import '../../support/pump.dart';
 
 /// A gateway with [interfaces] as the machine's NICs and [bind] as the one
 /// Mosh is bound to.
@@ -53,20 +54,15 @@ Future<void> _pump(
   Future<void> Function()? onAccept,
 }) async {
   onAccept ??= () async {};
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
+  await pumpScreen(
+      tester,
+      Scaffold(
         body: BindInterfaceField(
           gateway: gateway,
           l: await _l(),
           onAccept: onAccept,
         ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
+      ));
 }
 
 void main() {
@@ -113,7 +109,6 @@ void main() {
       // tun0 isVirtual=true is filtered out by bypassCandidates; force it.
       // (Re-test with a virtual iface so no candidate survives.)
       gateway.seedInterfaces([
-
         NetworkInterfaceInfo(
           name: 'tun0',
           description: '',
@@ -150,7 +145,11 @@ void main() {
       await tester.tap(find.text('Bind'));
       await tester.pumpAndSettle();
       expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
-      expect(gateway.lastCall(GatewayMethod.setVpnBypassConsent)?.arg<String?>('interfaceName'), 'eth0');
+      expect(
+          gateway
+              .lastCall(GatewayMethod.setVpnBypassConsent)
+              ?.arg<String?>('interfaceName'),
+          'eth0');
       expect(acceptCount, 1);
     },
   );
@@ -173,7 +172,11 @@ void main() {
       await tester.tap(find.text('Release'));
       await tester.pumpAndSettle();
       expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
-      expect(gateway.lastCall(GatewayMethod.setVpnBypassConsent)?.arg<String?>('interfaceName'), isNull);
+      expect(
+          gateway
+              .lastCall(GatewayMethod.setVpnBypassConsent)
+              ?.arg<String?>('interfaceName'),
+          isNull);
       expect(acceptCount, 1);
     },
   );

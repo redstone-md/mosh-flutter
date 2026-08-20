@@ -7,17 +7,15 @@
 // one sender-meta row (the first of the group) renders, confirming the
 // grouped row omits the meta. Mirrors `dm_screen_grouping_test.dart` and
 // `channel_screen_grouping_test.dart`.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/pump.dart';
 
 GroupMessage _msg({
   required String fromDevice,
@@ -247,17 +245,9 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const GroupScreen(groupId: groupId),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester, const GroupScreen(groupId: groupId), overrides: [
+      groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
+    ]);
 
     // Both bubble bodies render.
     expect(find.text('first'), findsOneWidget);
@@ -274,10 +264,10 @@ void main() {
     // The HH:mm clock is locale-aware + in the LOCAL timezone (1-1 with
     // React's `toLocaleTimeString`), so the expected string is derived from
     // the same epoch the way `formatClock` does -- timezone-agnostic.
-   final expectedClock = DateFormat.Hm('en')
-       .format(DateTime.fromMillisecondsSinceEpoch(base.toInt()).toLocal());
-   expect(find.text(expectedClock), findsOneWidget);
- });
+    final expectedClock = DateFormat.Hm('en')
+        .format(DateTime.fromMillisecondsSinceEpoch(base.toInt()).toLocal());
+    expect(find.text(expectedClock), findsOneWidget);
+  });
 
   // Regression: own non-grouped messages MUST render the sender meta (React
   // `GroupMessageRow` shows meta unconditionally on non-grouped rows,
@@ -299,17 +289,9 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const GroupScreen(groupId: groupId),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester, const GroupScreen(groupId: groupId), overrides: [
+      groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
+    ]);
 
     expect(find.text('my own message'), findsOneWidget);
     // Own device name renders (was suppressed by the old `!own` gate).

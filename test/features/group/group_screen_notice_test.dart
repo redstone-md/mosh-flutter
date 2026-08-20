@@ -8,13 +8,11 @@
 // the native cdylib is not involved). Does NOT test the deferred
 // `needs_rejoin` / `orgAddPrompt` fragments -- those are separate atomics.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/pump.dart';
 
 GroupMessage _msg({
   required String fromDevice,
@@ -82,17 +80,9 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const GroupScreen(groupId: groupId),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester, const GroupScreen(groupId: groupId), overrides: [
+      groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
+    ]);
 
     // The banner title + body (en ARB values) render as Text nodes.
     expect(find.text('End-to-end encrypted group'), findsOneWidget);

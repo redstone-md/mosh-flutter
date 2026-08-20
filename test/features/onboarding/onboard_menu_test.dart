@@ -16,11 +16,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 void main() {
   // Pumps OnboardMenu with the test gateway so BindInterfaceField's
@@ -32,31 +32,24 @@ void main() {
     ]);
     addTearDown(container.dispose);
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460),
-                  child: const OnboardMenu(
-                    onPickChat: noop,
-                    onPickGroup: noop,
-                    onPickJoin: noop,
-                    onPickChannel: noop,
-                  ),
+    await pumpScreen(
+        tester,
+        Scaffold(
+          body: SingleChildScrollView(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: const OnboardMenu(
+                  onPickChat: noop,
+                  onPickGroup: noop,
+                  onPickJoin: noop,
+                  onPickChannel: noop,
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        container: container);
 
     // The Advanced disclosure sits below the fold in the default 800x600
     // viewport, so scroll it into view before tapping (matches how the

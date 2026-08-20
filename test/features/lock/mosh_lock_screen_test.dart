@@ -14,27 +14,21 @@ import 'dart:async' show Completer;
 import 'package:flutter/material.dart' hide LockState;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
+import '../../support/pump.dart';
 
 void main() {
   testWidgets('canceled state shows title, message, and Retry button',
       (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: MoshLockScreen(
-            retry: () async {},
-            swapTo: (_) {},
-            nextApp: const SizedBox(key: ValueKey('mosh-app')),
-          ),
+    await pumpScreen(
+        tester,
+        MoshLockScreen(
+          retry: () async {},
+          swapTo: (_) {},
+          nextApp: const SizedBox(key: ValueKey('mosh-app')),
         ),
-      ),
-    );
+        settle: false);
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
     // Fail-closed surface is visible: title, explanatory copy, Retry button.
@@ -59,19 +53,14 @@ void main() {
     final List<Widget> swaps = <Widget>[];
     const Key nextAppKey = ValueKey('mosh-app-success');
 
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: MoshLockScreen(
-            retry: () => completer.future,
-            swapTo: swaps.add,
-            nextApp: const SizedBox(key: nextAppKey),
-          ),
+    await pumpScreen(
+        tester,
+        MoshLockScreen(
+          retry: () => completer.future,
+          swapTo: swaps.add,
+          nextApp: const SizedBox(key: nextAppKey),
         ),
-      ),
-    );
+        settle: false);
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
     // Rest state: Retry button present, no spinner yet.
@@ -110,22 +99,17 @@ void main() {
     int calls = 0;
     final List<Widget> swaps = <Widget>[];
 
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: MoshLockScreen(
-            retry: () async {
-              calls++;
-              throw PlatformException(code: 'cancel');
-            },
-            swapTo: swaps.add,
-            nextApp: const SizedBox(),
-          ),
+    await pumpScreen(
+        tester,
+        MoshLockScreen(
+          retry: () async {
+            calls++;
+            throw PlatformException(code: 'cancel');
+          },
+          swapTo: swaps.add,
+          nextApp: const SizedBox(),
         ),
-      ),
-    );
+        settle: false);
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
     await tester.tap(find.text('Retry'));
@@ -137,9 +121,9 @@ void main() {
     // the Retry button is visible again and no swap happened.
     expect(find.text('Retry'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
-   expect(swaps, isEmpty);
-   expect(calls, 1);
- });
+    expect(swaps, isEmpty);
+    expect(calls, 1);
+  });
 
   // BIOMETRIC_UNAVAILABLE: the device has no enrolled PIN/pattern/password/
   // biometric. main() branches on error.message containing
@@ -155,26 +139,21 @@ void main() {
   // channel to fake here.
   testWidgets('insecureDevice state shows title + message, no Retry button',
       (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: MoshLockScreen(
-            // initialState is the only thing this test exercises: main()
-            // pumps this state directly on BIOMETRIC_UNAVAILABLE. retry is
-            // never called (no button to tap), so the default
-            // initMobileDek seam would be safe -- but a throwing fake is
-            // passed anyway so a future refactor that adds a button
-            // cannot silently hit the real Keystore from this test.
-            retry: _insecureDeviceNoRetry,
-            swapTo: _insecureDeviceNoSwap,
-            nextApp: SizedBox(),
-            initialState: LockState.insecureDevice,
-          ),
+    await pumpScreen(
+        tester,
+        MoshLockScreen(
+          // initialState is the only thing this test exercises: main()
+          // pumps this state directly on BIOMETRIC_UNAVAILABLE. retry is
+          // never called (no button to tap), so the default
+          // initMobileDek seam would be safe -- but a throwing fake is
+          // passed anyway so a future refactor that adds a button
+          // cannot silently hit the real Keystore from this test.
+          retry: _insecureDeviceNoRetry,
+          swapTo: _insecureDeviceNoSwap,
+          nextApp: SizedBox(),
+          initialState: LockState.insecureDevice,
         ),
-      ),
-    );
+        settle: false);
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
     // The insecure-device surface is visible: title + explanatory copy.

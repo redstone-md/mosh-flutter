@@ -14,9 +14,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 // Same known-good 1x1 PNG used in attachment_card_preview_test.dart.
 const _pngThumbB64 =
@@ -61,16 +61,8 @@ AttachmentView _view({
       localPath: null,
     );
 
-Future<void> _pump(WidgetTester tester, AttachmentCard card) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: Center(child: card)),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+Future<void> _pump(WidgetTester tester, AttachmentCard card) =>
+    pumpScreen(tester, Scaffold(body: Center(child: card)));
 
 void main() {
   testWidgets(
