@@ -317,8 +317,7 @@ void main() {
 
     // Pre-condition: the Retry button rendered (the row is shown).
     expect(find.text('Retry'), findsOneWidget);
-    expect(gateway.lastCall(GatewayMethod.retryGroupMessage)?.arg<String>('groupId'), isNull);
-    expect(gateway.lastCall(GatewayMethod.retryGroupMessage)?.arg<String>('messageId'), isNull);
+    expect(gateway.countOf(GatewayMethod.retryGroupMessage), 0);
 
     // Tap the Retry button -- this fires the Gateway retry seam.
     await tester.tap(find.text('Retry'));

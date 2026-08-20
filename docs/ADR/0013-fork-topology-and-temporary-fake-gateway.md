@@ -109,7 +109,10 @@ flowchart TB
 - Before creating the fork: confirm Git remote URL with the user.
 - Plan file must list the fake-gateway removal as an explicit done-criteria
   step for slice one.
-## Final Status (Slice One Close-Out)
+## Final Status (Slice One Close-Out) -- SUPERSEDED
+
+> Superseded by "Removal of the fake gateway" below: the flag and the fake are
+> both gone. Kept for the record of what slice one shipped.
 
 The fake gateway was NOT removed. It is now an explicit opt-in behind the
 compile-time flag `-dMOSH_FAKE_GATEWAY=true` (dart-define). Default `false`
@@ -158,10 +161,21 @@ flag" path recorded in Final Status above.
 
 ### Size exception
 
-`test/support/scriptable_gateway.dart` is ~900 lines. That is one flat
-implementation of the 57-method `Gateway` interface plus the recording,
-seeding, and scripting helpers: the length comes from the interface width, not
-from nesting or branching. Scope: test code only, never shipped. It shrinks on
-its own once the Gateway takes the conversation target as a parameter (issue
-03), which folds 25 methods into 8. Splitting it before then would buy nothing
-but indirection.
+`test/support/scriptable_gateway.dart` is ~900 lines, and the
+`ScriptableGateway` class inside it is ~800. Both exceed the AGENTS.md
+limits (`file_max_loc: 400`, `type_max_loc: 200`), and this section is the
+exception both need.
+
+Reason: the class is one flat implementation of the 57-method `Gateway`
+interface plus the recording, seeding, and scripting helpers. The length comes
+from the interface width, not from nesting or branching -- every method is a
+one-liner over the same `_run` call. Splitting the class across mixins would
+add files and indirection without removing a single line.
+
+Scope: test code only. It never ships in the app, and no production type
+inherits from it.
+
+Refactor plan: it shrinks with the interface. Issue 03 makes the Gateway take
+the conversation target as a parameter, folding 25 methods into 8; that alone
+takes the class to roughly 500 lines. Revisit the split then, against the real
+number rather than this one.

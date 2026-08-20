@@ -303,8 +303,7 @@ void main() {
 
     // Pre-condition: the Retry button rendered.
     expect(find.text('Retry'), findsOneWidget);
-    expect(gateway.lastCall(GatewayMethod.retryDmMessage)?.arg<String>('sessionId'), isNull);
-    expect(gateway.lastCall(GatewayMethod.retryDmMessage)?.arg<String>('messageId'), isNull);
+    expect(gateway.countOf(GatewayMethod.retryDmMessage), 0);
 
     // Tap the Retry button -- this fires the Gateway retry seam.
     await tester.tap(find.text('Retry'));
