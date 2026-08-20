@@ -13,7 +13,7 @@ use crate::attachment_runtime::{
 };
 use crate::attachment_store::AttachmentStore;
 use crate::conversation::attachments::{descriptor_of, AttachmentDirection, AttachmentSlots};
-use crate::message_id::MessageIdGen;
+use crate::conversation::message_log::{delivery_meta, now_ms, ConversationMessage, MessageLog};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::Persistence;
@@ -134,13 +134,6 @@ fn peer_is_direct(peer_moss_id: Option<&str>, info: &MeshInfo) -> bool {
     info.peer_details.iter().any(|p| p.id == id && !p.relayed)
 }
 
-fn now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
-}
-
 /// A moss peer id is 64 hex characters; the leading 16 identify it uniquely
 /// enough for a log line without making the line unreadable.
 fn short_peer_id(peer_hex: &str) -> &str {
@@ -157,18 +150,6 @@ fn random_b64(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::thread_rng().fill_bytes(&mut buf);
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buf)
-}
-
-fn apply_delivery(
-    message: &mut ChatMessage,
-    status: MessageDeliveryStatus,
-    error: Option<String>,
-    retry_count: u32,
-) {
-    message.delivery_status = Some(status);
-    message.delivery_error = error;
-    message.retry_count = Some(retry_count);
-    message.retryable = Some(matches!(status, MessageDeliveryStatus::Failed));
 }
 
 use crate::moss_ffi::{
@@ -260,8 +241,7 @@ struct PrivateDmSession {
     peer_joined: bool,
     node: Arc<MossNode>,
     crypto: MlsSessionCrypto,
-    messages: Vec<ChatMessage>,
-    message_ids: MessageIdGen,
+    messages: MessageLog<ChatMessage>,
     seen_moss_messages: HashSet<String>,
     seen_order: VecDeque<String>,
     control_channel: String,
@@ -515,7 +495,7 @@ impl PrivateDmRuntime {
                                 }
                             }
                         }
-                        session.upsert_message(message);
+                        session.messages.upsert(message);
                     }
                 }
             }
@@ -545,13 +525,12 @@ impl PrivateDmRuntime {
                     if message.sent_at_ms.is_none() {
                         message.sent_at_ms = Some(attempt.sent_at_ms);
                     }
-                    apply_delivery(
-                        &mut message,
+                    message.set_delivery(delivery_meta(
                         attempt.delivery_status,
                         attempt.delivery_error.clone(),
                         attempt.retry_count,
-                    );
-                    session.upsert_message(message);
+                    ));
+                    session.messages.upsert(message);
                     session
                         .outbound_attempts
                         .insert(attempt.message_id.clone(), attempt);
@@ -739,7 +718,7 @@ impl PrivateDmRuntime {
         let (session_id_owned, state, message_id, sent_at_ms, ciphertext_bytes, payload) = {
             let session = self.session_mut(session_id)?;
             let ciphertext = session.crypto.encrypt(body.as_bytes())?;
-            let mut message = session.stamp_message(ChatMessage {
+            let mut message = session.messages.stamp(ChatMessage {
                 from_device: session.device_id.clone(),
                 body,
                 message_id: None,
@@ -780,7 +759,7 @@ impl PrivateDmRuntime {
                 auto_resends: 0,
                 last_send_ms: sent_at_ms,
             };
-            session.upsert_message(message);
+            session.messages.upsert(message);
             session
                 .outbound_attempts
                 .insert(message_id.clone(), attempt);
@@ -806,7 +785,12 @@ impl PrivateDmRuntime {
         let result = match publish {
             Ok(RouteOutcome::Published) => {
                 let session = self.session_mut(session_id)?;
-                session.mark_delivery(&message_id, MessageDeliveryStatus::Sent, None, 0)?;
+                session.messages.mark_delivery(
+                    &message_id,
+                    MessageDeliveryStatus::Sent,
+                    None,
+                    0,
+                )?;
                 // Sent means "handed to the transport", not "arrived": the
                 // attempt stays retained (and auto re-sent) until the peer's
                 // DeliveryAck upgrades the message to Delivered.
@@ -849,7 +833,7 @@ impl PrivateDmRuntime {
                     } else {
                         0
                     };
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     &message_id,
                     MessageDeliveryStatus::Failed,
                     Some(error_text.clone()),
@@ -906,7 +890,7 @@ impl PrivateDmRuntime {
                 .get(message_id)
                 .map(|attempt| attempt.retry_count)
                 .unwrap_or(0);
-            session.mark_delivery(
+            session.messages.mark_delivery(
                 message_id,
                 MessageDeliveryStatus::Pending,
                 None,
@@ -935,7 +919,7 @@ impl PrivateDmRuntime {
         let result = match publish {
             Ok(RouteOutcome::Published) => {
                 let session = self.session_mut(session_id)?;
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     message_id,
                     MessageDeliveryStatus::Sent,
                     None,
@@ -975,7 +959,7 @@ impl PrivateDmRuntime {
                     attempt.delivery_status = MessageDeliveryStatus::Failed;
                     attempt.delivery_error = Some(error_text.clone());
                 }
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     message_id,
                     MessageDeliveryStatus::Failed,
                     Some(error_text.clone()),
@@ -1338,7 +1322,9 @@ impl PrivateDmRuntime {
                         attempt.last_send_ms = now_ms();
                     }
                     session
+                        .messages
                         .mark_delivery(&message_id, MessageDeliveryStatus::Sent, None, retry_count)
+                        .map_err(PrivateDmRuntimeError::from)
                         .and_then(|_| session.sync_attempt_message_json(&message_id))
                 }
                 Some(error) if status == MessageDeliveryStatus::Sent => {
@@ -1355,12 +1341,14 @@ impl PrivateDmRuntime {
                         attempt.delivery_error = Some(error.clone());
                     }
                     session
+                        .messages
                         .mark_delivery(
                             &message_id,
                             MessageDeliveryStatus::Failed,
                             Some(error),
                             retry_count,
                         )
+                        .map_err(PrivateDmRuntimeError::from)
                         .and_then(|_| session.sync_attempt_message_json(&message_id))
                 }
             };
@@ -1718,8 +1706,7 @@ impl PrivateDmSession {
             peer_joined: false,
             node,
             crypto,
-            messages: Vec::new(),
-            message_ids: MessageIdGen::default(),
+            messages: MessageLog::default(),
             seen_moss_messages: HashSet::new(),
             seen_order: VecDeque::new(),
             control_channel,
@@ -1759,77 +1746,8 @@ impl PrivateDmSession {
         }
     }
 
-    fn stamp_message(&self, mut message: ChatMessage) -> ChatMessage {
-        let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-        message.sent_at_ms = Some(sent_at_ms);
-        if message.message_id.as_deref().unwrap_or_default().is_empty() {
-            message.message_id = Some(self.message_ids.next(sent_at_ms));
-        }
-        message
-    }
-
-    fn upsert_message(&mut self, message: ChatMessage) {
-        if let Some(message_id) = message.message_id.as_deref() {
-            if let Some(existing) = self
-                .messages
-                .iter_mut()
-                .find(|existing| existing.message_id.as_deref() == Some(message_id))
-            {
-                *existing = message;
-                return;
-            }
-        }
-        self.messages.push(message);
-    }
-
-    fn find_message_mut(&mut self, message_id: &str) -> Option<&mut ChatMessage> {
-        self.messages
-            .iter_mut()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-    }
-
-    fn has_message(&self, candidate: &ChatMessage) -> bool {
-        self.messages.iter().any(|existing| {
-            existing.from_device == candidate.from_device
-                && match (
-                    existing.message_id.as_deref(),
-                    candidate.message_id.as_deref(),
-                ) {
-                    (Some(left), Some(right)) if !left.is_empty() && !right.is_empty() => {
-                        left == right
-                    }
-                    _ => {
-                        existing.sent_at_ms == candidate.sent_at_ms
-                            && existing.body == candidate.body
-                    }
-                }
-        })
-    }
-
-    fn mark_delivery(
-        &mut self,
-        message_id: &str,
-        status: MessageDeliveryStatus,
-        error: Option<String>,
-        retry_count: u32,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        let message = self
-            .find_message_mut(message_id)
-            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
-        apply_delivery(message, status, error, retry_count);
-        Ok(())
-    }
-
     fn sync_attempt_message_json(&mut self, message_id: &str) -> Result<(), PrivateDmRuntimeError> {
-        let message_json = self
-            .messages
-            .iter()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))
-            .and_then(|message| {
-                serde_json::to_string(message)
-                    .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))
-            })?;
+        let message_json = self.messages.json_for(message_id)?;
         if let Some(attempt) = self.outbound_attempts.get_mut(message_id) {
             attempt.message_json = message_json;
         }
@@ -2257,7 +2175,7 @@ impl PrivateDmSession {
                 // Delivered and stop the auto-resend loop. Unknown ids (ack
                 // for an attempt a restart already dropped) are ignored.
                 if let Some(attempt) = self.outbound_attempts.remove(&message_id) {
-                    self.mark_delivery(
+                    self.messages.mark_delivery(
                         &message_id,
                         MessageDeliveryStatus::Delivered,
                         None,
@@ -2392,7 +2310,7 @@ impl PrivateDmSession {
         duration_ms: u64,
         call_id: &str,
     ) {
-        let message = self.stamp_message(ChatMessage {
+        let message = self.messages.stamp(ChatMessage {
             from_device: remote_device.to_string(),
             body: String::new(),
             message_id: None,
@@ -2438,7 +2356,7 @@ impl PrivateDmSession {
         let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
         self.note_verified_peer_activity(&envelope.from_device);
         let ack_id = envelope.message_id.clone();
-        let message = self.stamp_message(ChatMessage {
+        let message = self.messages.stamp(ChatMessage {
             from_device: envelope.from_device,
             body: String::from_utf8_lossy(&plaintext).into_owned(),
             message_id: envelope.message_id,
@@ -2450,7 +2368,7 @@ impl PrivateDmSession {
             retryable: None,
             retry_count: None,
         });
-        if self.has_message(&message) {
+        if self.messages.holds_copy_of(&message) {
             return Ok(());
         }
         self.messages.push(message);
@@ -2554,7 +2472,7 @@ impl PrivateDmSession {
         let descriptor = descriptor_of(&manifest);
         self.attachments.register_incoming(manifest)?;
         self.attachment_slots.offer(descriptor.clone());
-        let message = self.stamp_message(ChatMessage {
+        let message = self.messages.stamp(ChatMessage {
             from_device,
             body: String::new(),
             message_id: None,
@@ -2616,7 +2534,7 @@ impl PrivateDmSession {
         let descriptor = descriptor_of(&manifest);
         self.attachment_slots
             .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
-        let message = self.stamp_message(ChatMessage {
+        let message = self.messages.stamp(ChatMessage {
             from_device: self.device_id.clone(),
             body: String::new(),
             message_id: None,
@@ -2695,7 +2613,7 @@ impl PrivateDmSession {
             relay_ready: None,
             invite_uri: self.invite_uri.clone(),
             fingerprint: self.fingerprint.clone(),
-            messages: self.messages.clone(),
+            messages: self.messages.to_vec(),
             attachments: self.attachment_views(),
             mesh: self.mesh_info(),
             events: snapshot_event_log()

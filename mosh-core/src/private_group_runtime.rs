@@ -12,7 +12,9 @@ use crate::commit_sequencer::{CommitSequencer, Disposition};
 use crate::conversation::attachments::{
     descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
 };
-use crate::message_id::MessageIdGen;
+use crate::conversation::message_log::{
+    delivery_meta, now_ms, ConversationMessage, LogError, MessageLog,
+};
 use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
 use crate::moss_ffi::{
     drain_messages_where, snapshot_event_log, MossFfiRuntime, MossNode, MossReceivedMessage,
@@ -20,7 +22,7 @@ use crate::moss_ffi::{
 use crate::org_envelope::{self, OrgContext, OrgSigned};
 use crate::org_roster::{self, Roster};
 use crate::org_signing;
-use crate::outbound_delivery::{MessageDeliveryStatus, OutboundAttemptRecord};
+use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::Persistence;
 use crate::private_dm_runtime::{
     AttachmentDescriptor, AttachmentSendResult, AttachmentView, DmOffer, MeshInfo, SnapshotEvent,
@@ -38,25 +40,6 @@ const MAX_BODY_LEN: usize = 4096;
 const DEDUP_BUFFER_CAP: usize = 4096;
 const INVITE_FINGERPRINT_LEN: usize = 32;
 const OUTBOUND_SCOPE_PRIVATE_GROUP: &str = "private_group";
-
-fn now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
-}
-
-fn apply_delivery(
-    message: &mut GroupMessage,
-    status: MessageDeliveryStatus,
-    error: Option<String>,
-    retry_count: u32,
-) {
-    message.delivery_status = Some(status);
-    message.delivery_error = error;
-    message.retry_count = Some(retry_count);
-    message.retryable = Some(matches!(status, MessageDeliveryStatus::Failed));
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateGroupRequest {
@@ -109,6 +92,39 @@ pub struct GroupMessage {
     pub retryable: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<u32>,
+}
+
+impl ConversationMessage for GroupMessage {
+    fn message_id(&self) -> Option<&str> {
+        self.message_id.as_deref()
+    }
+
+    fn set_message_id(&mut self, message_id: String) {
+        self.message_id = Some(message_id);
+    }
+
+    fn sent_at_ms(&self) -> Option<u64> {
+        self.sent_at_ms
+    }
+
+    fn set_sent_at_ms(&mut self, sent_at_ms: u64) {
+        self.sent_at_ms = Some(sent_at_ms);
+    }
+
+    fn body(&self) -> &str {
+        &self.body
+    }
+
+    fn author(&self) -> &str {
+        &self.from_fingerprint
+    }
+
+    fn set_delivery(&mut self, delivery: MessageDeliveryMeta) {
+        self.delivery_status = delivery.delivery_status;
+        self.delivery_error = delivery.delivery_error;
+        self.retryable = delivery.retryable;
+        self.retry_count = delivery.retry_count;
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -213,6 +229,15 @@ impl From<crate::attachment_runtime::AttachmentRuntimeError> for PrivateGroupErr
 impl From<crate::attachment_store::AttachmentStoreError> for PrivateGroupError {
     fn from(error: crate::attachment_store::AttachmentStoreError) -> Self {
         Self::Attachment(error.to_string())
+    }
+}
+
+impl From<LogError> for PrivateGroupError {
+    fn from(error: LogError) -> Self {
+        match error {
+            LogError::Missing(id) => Self::MissingMessage(id),
+            LogError::Codec(error) => Self::Codec(error),
+        }
     }
 }
 
@@ -380,8 +405,7 @@ struct GroupSession {
     static_peer: Option<String>,
     node: Arc<MossNode>,
     crypto: MlsSessionCrypto,
-    messages: Vec<GroupMessage>,
-    message_ids: MessageIdGen,
+    messages: MessageLog<GroupMessage>,
     seen_set: HashSet<String>,
     seen_order: VecDeque<String>,
     // Epoch-ordered commit admission: dedups gossip duplicates and the
@@ -557,8 +581,7 @@ impl PrivateGroupRuntime {
                 static_peer: rec.static_peer.clone(),
                 node,
                 crypto,
-                messages: Vec::new(),
-                message_ids: MessageIdGen::default(),
+                messages: MessageLog::default(),
                 seen_set: HashSet::new(),
                 seen_order: VecDeque::new(),
                 sequencer: CommitSequencer::new(),
@@ -642,7 +665,7 @@ impl PrivateGroupRuntime {
                                 }
                             }
                         }
-                        session.upsert_message(message);
+                        session.messages.upsert(message);
                     }
                 }
             }
@@ -663,13 +686,12 @@ impl PrivateGroupRuntime {
                     if message.sent_at_ms.is_none() {
                         message.sent_at_ms = Some(attempt.sent_at_ms);
                     }
-                    apply_delivery(
-                        &mut message,
+                    message.set_delivery(delivery_meta(
                         attempt.delivery_status,
                         attempt.delivery_error.clone(),
                         attempt.retry_count,
-                    );
-                    session.upsert_message(message);
+                    ));
+                    session.messages.upsert(message);
                     session
                         .outbound_attempts
                         .insert(attempt.message_id.clone(), attempt);
@@ -727,8 +749,7 @@ impl PrivateGroupRuntime {
             static_peer,
             node,
             crypto,
-            messages: Vec::new(),
-            message_ids: MessageIdGen::default(),
+            messages: MessageLog::default(),
             seen_set: HashSet::new(),
             seen_order: VecDeque::new(),
             sequencer: CommitSequencer::new(),
@@ -821,8 +842,7 @@ impl PrivateGroupRuntime {
             static_peer,
             node,
             crypto,
-            messages: Vec::new(),
-            message_ids: MessageIdGen::default(),
+            messages: MessageLog::default(),
             seen_set: HashSet::new(),
             seen_order: VecDeque::new(),
             sequencer: CommitSequencer::new(),
@@ -990,7 +1010,7 @@ impl PrivateGroupRuntime {
                 return Err(PrivateGroupError::NotReady);
             }
             let ciphertext = session.crypto.encrypt(body.as_bytes())?;
-            let mut message = session.stamp_message(GroupMessage {
+            let mut message = session.messages.stamp(GroupMessage {
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
                 body,
@@ -1033,7 +1053,7 @@ impl PrivateGroupRuntime {
                 auto_resends: 0,
                 last_send_ms: sent_at_ms,
             };
-            session.upsert_message(message);
+            session.messages.upsert(message);
             session
                 .outbound_attempts
                 .insert(message_id.clone(), attempt);
@@ -1063,7 +1083,12 @@ impl PrivateGroupRuntime {
                     .groups
                     .get_mut(group_id)
                     .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-                session.mark_delivery(&message_id, MessageDeliveryStatus::Sent, None, 0)?;
+                session.messages.mark_delivery(
+                    &message_id,
+                    MessageDeliveryStatus::Sent,
+                    None,
+                    0,
+                )?;
                 session.outbound_attempts.remove(&message_id);
                 GroupSendResult {
                     group_id: group_id_owned,
@@ -1088,7 +1113,7 @@ impl PrivateGroupRuntime {
                     } else {
                         0
                     };
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     &message_id,
                     MessageDeliveryStatus::Failed,
                     Some(error_text.clone()),
@@ -1141,7 +1166,7 @@ impl PrivateGroupRuntime {
                 .get(message_id)
                 .map(|attempt| attempt.retry_count)
                 .unwrap_or(0);
-            session.mark_delivery(
+            session.messages.mark_delivery(
                 message_id,
                 MessageDeliveryStatus::Pending,
                 None,
@@ -1174,7 +1199,7 @@ impl PrivateGroupRuntime {
                     .groups
                     .get_mut(group_id)
                     .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     message_id,
                     MessageDeliveryStatus::Sent,
                     None,
@@ -1200,7 +1225,7 @@ impl PrivateGroupRuntime {
                     attempt.delivery_status = MessageDeliveryStatus::Failed;
                     attempt.delivery_error = Some(error_text.clone());
                 }
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     message_id,
                     MessageDeliveryStatus::Failed,
                     Some(error_text.clone()),
@@ -1561,77 +1586,8 @@ fn log_group_commit(
 }
 
 impl GroupSession {
-    fn stamp_message(&self, mut message: GroupMessage) -> GroupMessage {
-        let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-        message.sent_at_ms = Some(sent_at_ms);
-        if message.message_id.as_deref().unwrap_or_default().is_empty() {
-            message.message_id = Some(self.message_ids.next(sent_at_ms));
-        }
-        message
-    }
-
-    fn upsert_message(&mut self, message: GroupMessage) {
-        if let Some(message_id) = message.message_id.as_deref() {
-            if let Some(existing) = self
-                .messages
-                .iter_mut()
-                .find(|existing| existing.message_id.as_deref() == Some(message_id))
-            {
-                *existing = message;
-                return;
-            }
-        }
-        self.messages.push(message);
-    }
-
-    fn find_message_mut(&mut self, message_id: &str) -> Option<&mut GroupMessage> {
-        self.messages
-            .iter_mut()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-    }
-
-    fn has_message(&self, candidate: &GroupMessage) -> bool {
-        self.messages.iter().any(|existing| {
-            existing.from_fingerprint == candidate.from_fingerprint
-                && match (
-                    existing.message_id.as_deref(),
-                    candidate.message_id.as_deref(),
-                ) {
-                    (Some(left), Some(right)) if !left.is_empty() && !right.is_empty() => {
-                        left == right
-                    }
-                    _ => {
-                        existing.sent_at_ms == candidate.sent_at_ms
-                            && existing.body == candidate.body
-                    }
-                }
-        })
-    }
-
-    fn mark_delivery(
-        &mut self,
-        message_id: &str,
-        status: MessageDeliveryStatus,
-        error: Option<String>,
-        retry_count: u32,
-    ) -> Result<(), PrivateGroupError> {
-        let message = self
-            .find_message_mut(message_id)
-            .ok_or_else(|| PrivateGroupError::MissingMessage(message_id.to_string()))?;
-        apply_delivery(message, status, error, retry_count);
-        Ok(())
-    }
-
     fn sync_attempt_message_json(&mut self, message_id: &str) -> Result<(), PrivateGroupError> {
-        let message_json = self
-            .messages
-            .iter()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-            .ok_or_else(|| PrivateGroupError::MissingMessage(message_id.to_string()))
-            .and_then(|message| {
-                serde_json::to_string(message)
-                    .map_err(|error| PrivateGroupError::Codec(error.to_string()))
-            })?;
+        let message_json = self.messages.json_for(message_id)?;
         if let Some(attempt) = self.outbound_attempts.get_mut(message_id) {
             attempt.message_json = message_json;
         }
@@ -2316,7 +2272,7 @@ impl GroupSession {
             return Ok(());
         }
         let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
-        let message = self.stamp_message(GroupMessage {
+        let message = self.messages.stamp(GroupMessage {
             from_device: envelope.from_device,
             from_fingerprint: envelope.from_fingerprint,
             body: String::from_utf8_lossy(&plaintext).into_owned(),
@@ -2328,7 +2284,7 @@ impl GroupSession {
             retryable: None,
             retry_count: None,
         });
-        if self.has_message(&message) {
+        if self.messages.holds_copy_of(&message) {
             return Ok(());
         }
         self.messages.push(message);
@@ -2400,7 +2356,7 @@ impl GroupSession {
         let descriptor = descriptor_of(&manifest);
         self.attachments.register_incoming(manifest)?;
         self.attachment_slots.offer(descriptor.clone());
-        let message = self.stamp_message(GroupMessage {
+        let message = self.messages.stamp(GroupMessage {
             from_device,
             from_fingerprint,
             body: String::new(),
@@ -2457,7 +2413,7 @@ impl GroupSession {
         let descriptor = descriptor_of(&manifest);
         self.attachment_slots
             .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
-        let message = self.stamp_message(GroupMessage {
+        let message = self.messages.stamp(GroupMessage {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
             body: String::new(),
@@ -2517,7 +2473,7 @@ impl GroupSession {
             state: self.state(),
             member_count: self.crypto.member_count(),
             invite_uri: self.invite_uri.clone(),
-            messages: self.messages.clone(),
+            messages: self.messages.to_vec(),
             attachments: self.attachment_views(),
             dm_offers: self.dm_offers.clone(),
             mesh: self.mesh_info(),
