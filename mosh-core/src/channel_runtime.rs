@@ -11,6 +11,7 @@ use crate::attachment_runtime::{
 use crate::attachment_store::AttachmentStore;
 use crate::conversation::attachments::{descriptor_of, AttachmentSlots, SlotError};
 use crate::conversation::dedup::SeenFrames;
+use crate::conversation::dm_offers::DmOffers;
 use crate::conversation::history::{History, Restore};
 use crate::conversation::mesh;
 use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
@@ -256,7 +257,7 @@ struct ChannelSession {
     attachments: AttachmentRuntime,
     attachment_slots: AttachmentSlots,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
-    dm_offers: Vec<DmOffer>,
+    dm_offers: DmOffers,
 }
 
 impl ChannelRuntime {
@@ -355,7 +356,7 @@ impl ChannelRuntime {
                 attachments: AttachmentRuntime::new(),
                 attachment_slots: AttachmentSlots::default(),
                 outbound_attempts: HashMap::new(),
-                dm_offers: Vec::new(),
+                dm_offers: DmOffers::default(),
             };
             self.history.replay(
                 &p,
@@ -413,7 +414,7 @@ impl ChannelRuntime {
             attachments: AttachmentRuntime::new(),
             attachment_slots: AttachmentSlots::default(),
             outbound_attempts: HashMap::new(),
-            dm_offers: Vec::new(),
+            dm_offers: DmOffers::default(),
         };
 
         self.channels.insert(normalized.clone(), session);
@@ -433,13 +434,12 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        let offer = DmOffer {
-            offer_id: format!("offer-{}", &sha256_hex(invite_uri.as_bytes())[..16]),
-            from_device: session.display_name.clone(),
-            from_fingerprint: session.device_fingerprint.clone(),
+        let offer = DmOffers::mint(
+            session.display_name.clone(),
+            session.device_fingerprint.clone(),
             target_fingerprint,
             invite_uri,
-        };
+        );
         publish_json(
             &session.node,
             &session.mesh_id,
@@ -458,7 +458,7 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        session.dm_offers.retain(|offer| offer.offer_id != offer_id);
+        session.dm_offers.dismiss(offer_id);
         Ok(())
     }
 
@@ -828,17 +828,8 @@ impl ChannelSession {
                 }
                 Ok(())
             }
-            ChannelBlobEnvelope::DmOffer { offer }
-                if offer.target_fingerprint == self.device_fingerprint
-                    && offer.from_fingerprint != self.device_fingerprint =>
-            {
-                if !self
-                    .dm_offers
-                    .iter()
-                    .any(|existing| existing.offer_id == offer.offer_id)
-                {
-                    self.dm_offers.push(offer);
-                }
+            ChannelBlobEnvelope::DmOffer { offer } => {
+                self.dm_offers.receive(offer, &self.device_fingerprint);
                 Ok(())
             }
             ChannelBlobEnvelope::Chunk {
@@ -979,7 +970,7 @@ impl ChannelSession {
             device_fingerprint: self.device_fingerprint.clone(),
             messages: self.messages.to_vec(),
             attachments: self.attachment_slots.views(&self.attachments),
-            dm_offers: self.dm_offers.clone(),
+            dm_offers: self.dm_offers.to_vec(),
             mesh: mesh::mesh_info(&self.node),
             events: mesh::snapshot_events(),
         }
