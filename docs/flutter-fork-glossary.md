@@ -109,13 +109,13 @@ history. (Defined in ADR 0011.)
 Mobile behavior where releasing a secret from secure storage requires
 biometric or device PIN. Default-on for mosh on mobile; the UI must surface
 the prompt and a "locked" state, not silently bypass it. (Defined in ADR 0011.)
-## MOSH_FAKE_GATEWAY flag
+## ScriptableGateway
 
-A compile-time `dart-define` that selects `FakeGateway` as the wired
-`Gateway`. Default `false` selects `RealBridgeGateway` (the real Rust
-runtime); passing `-dMOSH_FAKE_GATEWAY=true` selects the in-Dart fake for
-widget tests and local dev without a built cdylib. The ADR 0013 opt-in
-mechanism: the fake is never a silent default. (Set in ADR 0013 close-out.)
+The one `Gateway` test double, in `test/support/scriptable_gateway.dart`. It
+never ships in the app: it records every call, seeds the data a screen should
+render, and can script a call to fail or to hang so a test can watch the
+pending state. Tests configure it; they do not subclass it. It replaced the
+in-app fake gateway and its `MOSH_FAKE_GATEWAY` flag (ADR 0013).
 
 ## RealBridgeGateway
 

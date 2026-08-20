@@ -5,10 +5,10 @@ Scope: invite create -> paste -> accept -> fingerprint confirm -> send ->
 snapshot poll. Reference: [ADR 0013](../ADR/0013-fork-topology-and-temporary-fake-gateway.md),
 [Architecture](../Architecture.md).
 
-The flow runs through the `Gateway` seam. The default path is
-`RealBridgeGateway` (real `mosh_core` via `flutter_rust_bridge`); the
-`-dMOSH_FAKE_GATEWAY=true` flag swaps in `FakeGateway` for the widget-test
-loop. The sequence below is the Real path.
+The flow runs through the `Gateway` seam. The app always runs
+`RealBridgeGateway` (real `mosh_core` via `flutter_rust_bridge`); widget tests
+override the provider with `ScriptableGateway` from `test/support/`. The
+sequence below is the real path.
 
 ## Invite -> confirm -> send (Real path)
 

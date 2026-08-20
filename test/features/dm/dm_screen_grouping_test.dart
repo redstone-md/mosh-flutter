@@ -166,7 +166,7 @@ void main() {
 
   // The widget test drives the screen via an `activeSessionProvider` override
   // (the public FutureProvider.family seam) so the controlled messages are
-  // deterministic and the FakeGateway / native cdylib are not involved. We
+  // deterministic and the gateway / native cdylib are not involved. We
   // seed two peer messages from `bob` one minute apart; the second groups
   // under the first, so exactly one sender-meta row should render (with the
   // device name + the HH:mm timestamp each appearing exactly once).

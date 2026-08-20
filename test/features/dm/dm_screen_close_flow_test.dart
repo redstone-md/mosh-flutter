@@ -6,10 +6,9 @@
 // before the real `_leave` (gateway.closeSession + fingerprint cleanup + nav
 // back) runs. Mirrors the seed/override idiom of
 // `channel_screen_close_flow_test.dart` (override `activeSessionProvider` so
-// the native cdylib is not involved) PLUS a `_RecordingGateway extends
-// FakeGateway` (the idiom from `chat_create_screen_test.dart`) whose
-// `closeSession` records its `sessionId` arg, so the test asserts the real
-// close only fires on an explicit confirm (React's
+// the native cdylib is not involved). The test gateway records the
+// `closeSession` call, so the test asserts the real close only fires on an
+// explicit confirm (React's
 // `closeFlow.confirmCloseActive` gating the real close).
 //
 // Three cases:
@@ -24,25 +23,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
-
-/// A FakeGateway subclass whose `closeSession` records its `sessionId` arg so
-/// the close-flow test can assert the real close only fires on confirm.
-/// Mirrors the `_RecordingGateway` idiom in
-/// `channel_screen_close_flow_test.dart`.
-class _RecordingGateway extends FakeGateway {
-  String? closedSessionId;
-
-  @override
-  Future<CloseSessionResult> closeSession({required String sessionId}) {
-    closedSessionId = sessionId;
-    return Future.value(CloseSessionResult(sessionId: sessionId, closed: true));
-  }
-}
 
 SessionSnapshot _snapshot({required String sessionId, required String peerName}) =>
     SessionSnapshot(
@@ -67,7 +52,7 @@ SessionSnapshot _snapshot({required String sessionId, required String peerName})
 
 Future<void> _pump(
   WidgetTester tester,
-  _RecordingGateway gateway, {
+  ScriptableGateway gateway, {
   required String sessionId,
   required String peerName,
 }) async {
@@ -99,7 +84,7 @@ void main() {
 
   testWidgets('tapping leave opens the ConfirmDialog with the peer name',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 
     // The leave IconButton (Icons.close, React IconX) opens the close-flow
@@ -113,12 +98,12 @@ void main() {
     // The localized confirm button label renders.
     expect(find.text('Delete chat'), findsOneWidget);
     // The gateway close has NOT fired yet (dialog is open, unconfirmed).
-    expect(gateway.closedSessionId, isNull);
+    expect(gateway.countOf(GatewayMethod.closeSession), 0);
   });
 
   testWidgets('confirming calls closeSession (the real _leave)',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 
     await tester.tap(find.byIcon(Icons.close));
@@ -129,11 +114,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // The real close fired with the sessionId.
-    expect(gateway.closedSessionId, sessionId);
+    expect(gateway.lastCall(GatewayMethod.closeSession)?.arg<String>('sessionId'), sessionId);
   });
 
   testWidgets('cancelling does NOT call closeSession', (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 
     await tester.tap(find.byIcon(Icons.close));
@@ -144,7 +129,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // No real close fired.
-    expect(gateway.closedSessionId, isNull);
+    expect(gateway.countOf(GatewayMethod.closeSession), 0);
     // The dialog is gone and the DM screen is still mounted.
     expect(find.text('Delete chat with $peerName?'), findsNothing);
     expect(find.byType(DmScreen), findsOneWidget);

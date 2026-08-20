@@ -9,27 +9,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/src/gateway/fake_gateway.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
-/// FakeGateway that counts `listSessions` calls -- the drain-driving read.
-class _CountingGateway extends FakeGateway {
-  int listSessionsCalls = 0;
-
-  @override
-  Future<SessionListSnapshot> listSessions() {
-    listSessionsCalls += 1;
-    return super.listSessions();
-  }
-}
-
 void main() {
   test('the auto-poll loop re-queries the gateway with no mutation',
       () async {
-    final gateway = _CountingGateway();
+    final gateway = ScriptableGateway();
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway),
       autoPollIntervalProvider
@@ -39,28 +27,28 @@ void main() {
 
     // Resolve the list once so the initial build is not what we measure.
     await container.read(sessionListProvider.future);
-    final baseline = gateway.listSessionsCalls;
+    final baseline = gateway.countOf(GatewayMethod.listSessions);
 
     container.read(autoPollProvider);
     await Future<void>.delayed(const Duration(milliseconds: 60));
 
-    expect(gateway.listSessionsCalls, greaterThan(baseline));
+    expect(gateway.countOf(GatewayMethod.listSessions), greaterThan(baseline));
   });
 
   test('no interval bound -> no polling (the flutter test default)',
       () async {
-    final gateway = _CountingGateway();
+    final gateway = ScriptableGateway();
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway),
     ]);
     addTearDown(container.dispose);
 
     await container.read(sessionListProvider.future);
-    final baseline = gateway.listSessionsCalls;
+    final baseline = gateway.countOf(GatewayMethod.listSessions);
 
     container.read(autoPollProvider);
     await Future<void>.delayed(const Duration(milliseconds: 60));
 
-    expect(gateway.listSessionsCalls, baseline);
+    expect(gateway.countOf(GatewayMethod.listSessions), baseline);
   });
 }

@@ -5,7 +5,7 @@
 // the peer MLS fingerprint out-of-band, then taps Confirm to unlock messaging.
 //
 // SLICE-ONE SIMPLIFICATION: the confirmed flag lives in this widget's State,
-// NOT in the runtime. FakeGateway (S4) does not model MLS confirmation, and the
+// NOT in the runtime. The test gateway does not model MLS confirmation, and the
 // real confirmation transition is an S5 concern of RealBridgeGateway. Once S5
 // lands a confirmFingerprint gateway method, replace this StatefulWidget with
 // a mutation call (mirroring inviteFlowProvider.create) and read the confirmed

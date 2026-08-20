@@ -24,83 +24,21 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
-/// A FakeGateway subclass whose `createInvite` returns a fixed
-/// `InviteCreated` so the step's URI is deterministic. The listenPort +
-/// displayName flow through from inviteFlowProvider (the default state).
-class _RecordingCreateGateway extends FakeGateway {
-  int listSessionsCalls = 0;
-
-  @override
-  Future<SessionListSnapshot> listSessions() async {
-    listSessionsCalls++;
-    return super.listSessions();
-  }
-}
-
-class _ControlledCreateGateway extends _RecordingCreateGateway {
-  _ControlledCreateGateway(this._inviteUri);
-
-  final String _inviteUri;
-
-  @override
-  Future<InviteCreated> createInvite({required StartSessionRequest request}) {
-    return Future.value(InviteCreated(
-      inviteUri: _inviteUri,
-      sessionId: 'controlled-1',
-      meshId: 'controlled-mesh',
-      fingerprint: 'AABBCCDDEEFF0011',
-      listenAddress: '127.0.0.1:${request.listenPort}',
-    ));
-  }
-}
-
-/// A FakeGateway subclass whose `createInvite` rejects with a fixed
-/// error string so the inline-error path (parity with React role="alert")
-/// can be exercised. The error string is asserted verbatim below.
-class _ThrowingCreateGateway extends _RecordingCreateGateway {
-  _ThrowingCreateGateway(this._message);
-
-  final String _message;
-
-  @override
-  Future<InviteCreated> createInvite({required StartSessionRequest request}) {
-    // Throws the bare message string so `readableError` (the helper the
-    // screen captures via) yields the bare message, matching React's
-    // `readableError(err)` -> `String(error)` for non-Error values.
-    return Future.error(_message);
-  }
-}
-
-/// A FakeGateway subclass that throws on the FIRST `createInvite` call and
-/// succeeds on the second (returns a fixed invite URI). Used to assert the
-/// inline error CLEARS on the next attempt (React's "error stays until the
-/// next attempt" semantics).
-class _ThenSucceedsCreateGateway extends _RecordingCreateGateway {
-  _ThenSucceedsCreateGateway(this._inviteUri, this._message);
-
-  final String _inviteUri;
-  final String _message;
-  int _calls = 0;
-
-  @override
-  Future<InviteCreated> createInvite({required StartSessionRequest request}) {
-    _calls++;
-    if (_calls == 1) return Future.error(_message);
-    return Future.value(InviteCreated(
-      inviteUri: _inviteUri,
-      sessionId: 'controlled-2',
-      meshId: 'controlled-mesh',
-      fingerprint: 'AABBCCDDEEFF0022',
-      listenAddress: '127.0.0.1:${request.listenPort}',
-    ));
-  }
-}
+/// A gateway whose `createInvite` hands back [inviteUri].
+ScriptableGateway _gatewayOffering(String inviteUri) => ScriptableGateway()
+  ..seedInvite(InviteCreated(
+    inviteUri: inviteUri,
+    sessionId: 'controlled-1',
+    meshId: 'controlled-mesh',
+    fingerprint: 'AABBCCDDEEFF0011',
+    listenAddress: '127.0.0.1:8765',
+  ));
 
 void main() {
   Future<GoRouter> pumpScreen(
@@ -127,7 +65,7 @@ void main() {
   testWidgets(
       'initial state shows Create button (no lastInvite) and no InviteResult',
       (tester) async {
-    await pumpScreen(tester, _ControlledCreateGateway('mosh://invite?x=1'));
+    await pumpScreen(tester, _gatewayOffering('mosh://invite?x=1'));
 
     expect(find.text('New private chat'), findsOneWidget);
     expect(find.text('Create invite link'), findsOneWidget);
@@ -140,7 +78,7 @@ void main() {
       'tapping Create calls inviteFlowProvider.create() and surfaces the URI',
       (tester) async {
     const uri = 'mosh://invite?mesh=m&session=s#fp=Z';
-    final gateway = _ControlledCreateGateway(uri);
+    final gateway = _gatewayOffering(uri);
     await pumpScreen(tester, gateway);
 
     // Create is a FilledButton; before tap the Recreate label is absent.
@@ -156,7 +94,7 @@ void main() {
     expect(find.byType(InviteResult), findsOneWidget);
     expect(find.text(uri), findsOneWidget);
     // Provider initialization plus the explicit post-create refresh.
-    expect(gateway.listSessionsCalls, 2);
+    expect(gateway.countOf(GatewayMethod.listSessions), 2);
   });
 
   testWidgets('tapping Copy writes the URI to the clipboard and flips the label',
@@ -176,7 +114,7 @@ void main() {
         .defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null));
 
-    await pumpScreen(tester, _ControlledCreateGateway(uri));
+    await pumpScreen(tester, _gatewayOffering(uri));
 
     // First create an invite so InviteResult + Copy button render.
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
@@ -194,7 +132,7 @@ void main() {
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
-    await pumpScreen(tester, _ControlledCreateGateway('mosh://invite?back=1'));
+    await pumpScreen(tester, _gatewayOffering('mosh://invite?back=1'));
 
     // The step's Back affordance reads the localized "Back" label.
     expect(find.text('Back'), findsOneWidget);
@@ -210,7 +148,7 @@ void main() {
       'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Invite service offline';
-    final gateway = _ThrowingCreateGateway(message);
+    final gateway = ScriptableGateway()..failAlways(GatewayMethod.createInvite, error: message);
     await pumpScreen(tester, gateway);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
@@ -221,14 +159,14 @@ void main() {
     // of feedback -- no transient SnackBar (the old SnackBar path is gone).
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
-    expect(gateway.listSessionsCalls, 0);
+    expect(gateway.countOf(GatewayMethod.listSessions), 0);
   });
 
   testWidgets('the inline error clears on the next successful create attempt',
       (tester) async {
     const message = 'Invite service offline';
     const uri = 'mosh://invite?mesh=m&session=retry#fp=R';
-    await pumpScreen(tester, _ThenSucceedsCreateGateway(uri, message));
+    await pumpScreen(tester, _gatewayOffering(uri)..failNext(GatewayMethod.createInvite, error: message));
 
     // First attempt throws -> inline error surfaces.
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));

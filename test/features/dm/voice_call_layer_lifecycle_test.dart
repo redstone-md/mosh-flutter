@@ -10,7 +10,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/call_overlay.dart';
 import 'package:mosh/src/features/dm/voice_call_layer.dart';
 import 'package:mosh/src/features/dm/voice_capture.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -29,19 +29,6 @@ class _DelayedCaptureFactory implements VoiceCaptureFactory {
     final start = Completer<VoiceCaptureHandle>();
     starts.add(start);
     return start.future;
-  }
-}
-
-class _RecordingGateway extends FakeGateway {
-  int callEndCalls = 0;
-
-  @override
-  Future<void> callEnd({
-    required String sessionId,
-    required String callId,
-    required String reason,
-  }) async {
-    callEndCalls++;
   }
 }
 
@@ -107,7 +94,7 @@ void main() {
     final capture = _DelayedCaptureFactory();
     final ownerErrors = <String?>[];
     final fallbackErrors = <String?>[];
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway),
       activeSessionProvider(sessionId).overrideWith(
@@ -137,7 +124,7 @@ void main() {
 
     expect(ownerErrors, isEmpty);
     expect(fallbackErrors, contains(contains('late setup failure')));
-    expect(gateway.callEndCalls, 1);
+    expect(gateway.countOf(GatewayMethod.callEnd), 1);
   });
 
   testWidgets('session change clears old owner and keeps latest callback',
@@ -149,7 +136,7 @@ void main() {
     final newErrors = <String?>[];
     final fallbackErrors = <String?>[];
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(_RecordingGateway()),
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
       activeSessionProvider(oldSession).overrideWith(
         (ref) async => _activeSnapshot(oldSession),
       ),

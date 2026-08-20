@@ -109,7 +109,10 @@ flowchart TB
 - Before creating the fork: confirm Git remote URL with the user.
 - Plan file must list the fake-gateway removal as an explicit done-criteria
   step for slice one.
-## Final Status (Slice One Close-Out)
+## Final Status (Slice One Close-Out) -- SUPERSEDED
+
+> Superseded by "Removal of the fake gateway" below: the flag and the fake are
+> both gone. Kept for the record of what slice one shipped.
 
 The fake gateway was NOT removed. It is now an explicit opt-in behind the
 compile-time flag `-dMOSH_FAKE_GATEWAY=true` (dart-define). Default `false`
@@ -140,3 +143,39 @@ deliberately-gated developer-loop accelerator, not a default.
 Open question resolved: the fork remote exists at
 `redstone-md/mosh-flutter` (confirmed during S0). The other open question
 (fake removal) is resolved above as "kept behind the flag."
+
+## Removal of the fake gateway
+
+The flag is gone and so is the fake. `lib/src/gateway/fake_gateway.dart` and
+its snapshot fixtures no longer exist; `gatewayProvider` always builds
+`RealBridgeGateway`, and the `MOSH_FAKE_GATEWAY` dart-define has been dropped
+from the provider, from CI, and from AGENTS.md.
+
+Tests get their double from `test/support/scriptable_gateway.dart`
+(`ScriptableGateway`), which never ships in the app. It is one configurable
+adapter for the whole suite: it records every call, seeds the data a screen
+should render, and scripts a call to fail or to hang so a pending state can be
+observed. Tests configure it; they do not subclass it. This closes the ADR's
+original removal gate on the "removed" path rather than the "kept behind the
+flag" path recorded in Final Status above.
+
+### Size exception
+
+`test/support/scriptable_gateway.dart` is ~900 lines, and the
+`ScriptableGateway` class inside it is ~800. Both exceed the AGENTS.md
+limits (`file_max_loc: 400`, `type_max_loc: 200`), and this section is the
+exception both need.
+
+Reason: the class is one flat implementation of the 57-method `Gateway`
+interface plus the recording, seeding, and scripting helpers. The length comes
+from the interface width, not from nesting or branching -- every method is a
+one-liner over the same `_run` call. Splitting the class across mixins would
+add files and indirection without removing a single line.
+
+Scope: test code only. It never ships in the app, and no production type
+inherits from it.
+
+Refactor plan: it shrinks with the interface. Issue 03 makes the Gateway take
+the conversation target as a parameter, folding 25 methods into 8; that alone
+takes the class to roughly 500 lines. Revisit the split then, against the real
+number rather than this one.
