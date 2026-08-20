@@ -43,6 +43,8 @@ flowchart TD
         Ch["channel_runtime<br/>open mesh, no MLS"]
     end
     subgraph shared["conversation:: (one copy)"]
+        Shell["runtime::ConversationRuntime&lt;S&gt;"]
+        Xfer["transfer::Transfer"]
         Slots["attachments::AttachmentSlots"]
         Log["message_log::MessageLog"]
         Seen["dedup::SeenFrames"]
@@ -52,26 +54,64 @@ flowchart TD
         Offers["dm_offers::DmOffers"]
     end
 
-    Dm --> Slots
+    Dm --> Shell
+    Gr --> Shell
+    Ch --> Shell
+    Dm --> Xfer
     Dm --> Log
     Dm --> Seen
     Dm --> Mesh
     Dm --> Out
-    Dm --> Hist
-    Gr --> Slots
+    Gr --> Xfer
     Gr --> Log
     Gr --> Seen
     Gr --> Mesh
     Gr --> Out
-    Gr --> Hist
     Gr --> Offers
-    Ch --> Slots
+    Ch --> Xfer
     Ch --> Log
     Ch --> Seen
     Ch --> Mesh
     Ch --> Out
-    Ch --> Hist
     Ch --> Offers
+    Xfer --> Slots
+    Shell --> Hist
+```
+
+The last step turns the leftovers into one runtime behind a kind trait. Each
+kind's runtime is now the same shell, `runtime::ConversationRuntime<S>`, with
+its own session type inside it. The shell holds the table of conversations, the
+room each opens on the shared node, and the two persist loops. The kind answers
+what only it can, through `runtime::ConversationSession`.
+
+```mermaid
+classDiagram
+    class ConversationSession {
+      <<trait>>
+      +conversation_id() str
+      +log() MessageLog~Message~
+      +attempts() Map~id, OutboundAttemptRecord~
+      +record() Record
+      +write_extra(Persistence)
+      +record_is_final() bool
+      +record_changed() bool
+      +record_written()
+    }
+    class ConversationRuntime~S~ {
+      +open_room / close_room
+      +replay(id, Restore)
+      +persist_tail()
+      +persist_send(id, message_id, deep)
+      +persist_record(id, final_now)
+    }
+    class PrivateDmSession
+    class GroupSession
+    class ChannelSession
+
+    ConversationRuntime~S~ --> ConversationSession : requires
+    ConversationSession <|.. PrivateDmSession
+    ConversationSession <|.. GroupSession
+    ConversationSession <|.. ChannelSession
 ```
 
 The one message difference worth naming: `ConversationMessage::author` is the
@@ -109,8 +149,9 @@ classDiagram
 
 Each stratum lands on its own: the suite is green, `clippy -D warnings` is
 clean, no wire format changes and no `api::` signature changes. Only the last
-step — one runtime behind a kind trait — touches the bridge, and it regenerates
-the frb bindings.
+step touches the bridge, and it regenerates the frb bindings — not because a
+signature moved, but because the shapes those signatures carry now live in
+`conversation::` and generate into `lib/src/rust/conversation/`.
 
 ## Consequences
 
@@ -125,17 +166,24 @@ Costs:
 - A runtime now reaches through a small type instead of touching a `Vec` and a
   `HashMap` directly. That is a real indirection, paid for by not writing the
   same twenty lines three times.
-- Until the last step lands, the core is half folded: the shared strata, the
-  send path and the history store are out; the runtimes themselves are still
-  three.
 - A send now runs in three calls — `open` or `reopen`, publish, `settle` —
   because the runtime persists between them and the transport sits in the
   middle. A single call taking the publish step as a closure would have to hold
   the log and the attempt table borrowed across it, which the persist calls
   rule out.
+- The kind trait sits on the session, not on the kind as a whole. A trait that
+  also owned the publish would need a method per envelope — twenty-odd of them,
+  nearly all with one implementor — and the DM's relay routing, the group's
+  roster authority and the channel's open mesh would have to be squeezed
+  through it. The four questions the shell genuinely has to ask are cheaper and
+  say more.
+- The Dart side names three more generated modules. The shapes an app touches —
+  `AttachmentView`, `MeshInfo`, `DmOffer` — used to come from the DM's
+  contracts file and now come from `lib/src/rust/conversation/`. That is the
+  cost of shared code no longer depending on one kind.
 
-Two small behaviour changes, both deliberate, both from picking one rule where
-the three copies had drifted apart:
+Behaviour changes, all deliberate, all from picking one rule where the three
+copies had drifted apart:
 
 - Restoring an attachment after a restart keeps the first record. The DM
   already worked that way; the channel and the group kept the last one. It only
@@ -150,6 +198,12 @@ the three copies had drifted apart:
   the channel left it Pending, which the user saw as a spinner that never
   stopped. Nothing could have settled it: whoever held the send died with the
   process.
+- A chunk request for a file this device is not sending answers with nothing in
+  all three kinds. The DM returned an error, which its drain logged and
+  dropped, so the frame went nowhere either way.
+- A conversation's record is written once it is final and not again unless it
+  changed. The channel used to rewrite its record on every poll, which
+  re-encrypted a record that cannot change after the join.
 
 The history store takes its tables as data. `persistence::HistoryTables` names
 the conversation table, the message table and the outbound-attempt scope of one
@@ -209,13 +263,18 @@ duplicate messages — is decided below the bridge.
 
 ## Follow-up
 
-Landed since: 05c (one mesh and event view), 05a (one outbound send path), 05b
-(one history store) and 05e (DM offers, plus the MLS decision above). Still
-tracked as 05d (one runtime behind a kind trait), the one that regenerates the
-bindings and must be checked against a real peer for all three kinds.
+All of it has landed: 05c (one mesh and event view), 05a (one outbound send
+path), 05b (one history store), 05e (DM offers, plus the MLS decision above)
+and 05d (one attachment transfer, then one runtime shell behind a kind trait).
 
+The layering debt is cleared with 05d. `AttachmentDescriptor`,
+`AttachmentState`, `AttachmentView`, `AttachmentSendResult`, `MeshInfo`,
+`PeerDetail`, `SnapshotEvent` and `DmOffer` used to live in
+`private_dm_runtime`, so shared code depended on one kind. Each now lives
+beside the shared code that builds it, and the DM re-exports them so
+`private_dm_runtime::X` still names the same type.
 
-One layering debt to clear along the way: the shared code still imports
-`AttachmentDescriptor`, `AttachmentState` and `AttachmentView` from
-`private_dm_runtime`, where they happen to live. Shared code should not depend
-on one kind; those types belong beside the attachment runtime.
+What 05d does not answer: the three kinds each still verify against a real peer
+by hand. The test adapter cannot prove a wire format, so a DM, an org group and
+a public channel have to be run against a live counterpart before a release —
+`node scripts/probe-e2e.mjs --host <user>@<relay-host>` for the DM half.
