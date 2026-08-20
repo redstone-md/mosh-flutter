@@ -57,3 +57,6 @@ commit_msg.txt
 cm.txt
 # transient flutter analyze stdout dump (do not commit)
 analyze.out
+
+# aislop scanner state (regenerated per run)
+.aislop/
