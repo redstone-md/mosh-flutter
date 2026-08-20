@@ -1,14 +1,12 @@
 // Unit test for the shared test gateway itself: the canned invite flow,
 // the message append, and the session teardown against its in-memory state.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'scriptable_gateway.dart';
-import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 void main() {
-  test(
-      'the test gateway createInvite -> sendMessage -> closeSession round trip',
-      () async {
+  test('the test gateway createInvite -> send -> leave round trip', () async {
     final gateway = ScriptableGateway();
     final invite = await gateway.createInvite(
       request:
@@ -21,19 +19,14 @@ void main() {
     final listed = await gateway.listSessions();
     expect(listed.sessions.map((s) => s.sessionId), contains(invite.sessionId));
 
-    final before = (await gateway.pollSession(sessionId: invite.sessionId))
-        .messages
-        .length;
-    final result =
-        await gateway.sendMessage(sessionId: invite.sessionId, body: 'hi');
-    expect(result.deliveryStatus, MessageDeliveryStatus.sent);
-    final after = (await gateway.pollSession(sessionId: invite.sessionId))
-        .messages
-        .length;
-    expect(after, before + 1);
+    final target = DmTarget(invite.sessionId);
+    final before = (await gateway.poll(target)).messages.length;
+    await gateway.send(target, body: 'hi');
+    final appended = await gateway.poll(target);
+    expect(appended.messages.length, before + 1);
+    expect(appended.messages.last.body, 'hi');
 
-    final closed = await gateway.closeSession(sessionId: invite.sessionId);
-    expect(closed.closed, isTrue);
+    await gateway.leave(target);
     final remaining = await gateway.listSessions();
     expect(remaining.sessions.map((s) => s.sessionId),
         isNot(contains(invite.sessionId)));
@@ -65,11 +58,10 @@ void main() {
   // DM attachment SEND seam: the fake returns a canned AttachmentSendResult
   // with a deterministic attachmentId derived from the file name (so a
   // screen-level test can invalidate a snapshot family by the returned id).
-  test('the test gateway sendPrivateAttachment returns a canned result',
-      () async {
+  test('the test gateway DM sendAttachment returns a canned result', () async {
     final gateway = ScriptableGateway();
-    final result = await gateway.sendPrivateAttachment(
-      sessionId: 'fake-session-1',
+    final result = await gateway.sendAttachment(
+      const DmTarget('fake-session-1'),
       fileName: 'photo.png',
       mime: 'image/png',
       dataBase64: 'iVBORw0KGgo=',

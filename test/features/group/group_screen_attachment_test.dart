@@ -241,7 +241,7 @@ void main() {
         ),
       ],
     );
-    final gateway = ScriptableGateway()..hold(GatewayMethod.downloadGroupAttachment);
+    final gateway = ScriptableGateway()..hold(GatewayMethod.downloadAttachment);
 
     await _pump(
       tester,
@@ -255,7 +255,7 @@ void main() {
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNull);
 
-    gateway.release(GatewayMethod.downloadGroupAttachment);
+    gateway.release(GatewayMethod.downloadAttachment);
     await tester.pump();
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);

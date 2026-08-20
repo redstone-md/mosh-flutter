@@ -27,11 +27,10 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   // `confirmedFingerprints.delete(target.id)` cleanup).
   Set<String> _confirmedFingerprints = {};
 
-  // The sealed [ChatTarget] for this DM session -- routes the screen's
-  // send/retry/attachment/leave dispatch through `chat_actions.dart` (the
-  // shared DM/channel/group seam, Gap 4) so the gateway method name is
-  // decided once here instead of triplicated across the three screens.
-  late final ChatTarget _target = DmTarget(widget.sessionId);
+  // This DM session as a Gateway target. Every send, retry, attachment and
+  // leave call passes it, so the kind is named once here instead of being
+  // triplicated across the three screens.
+  late final DmTarget _target = DmTarget(widget.sessionId);
 
   // Failed-send retry queue + inline error banner (Gaps 1+3) -- 1-1 with
   // React `use-chat-orchestration.ts` L85-149. `_lastFailedSend` mirrors
@@ -55,7 +54,7 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   // set this (they show the viewer immediately).
   AttachmentDescriptor? _pendingOpen;
 
-  ({ChatTarget target, String body})? _lastFailedSend;
+  ({AnyConversationTarget target, String body})? _lastFailedSend;
   String? _chatError;
 
   // Resolves [_pendingOpen] against an updated attachments list. Pure with
@@ -115,11 +114,7 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
       _chatError = null; // React `onError(undefined)` at the top of `run`.
     });
     try {
-      await sendChatText(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        body: body,
-      );
+      await ref.read(gatewayProvider).send(_target, body: body);
       _lastFailedSend = null;
       _chatError = null;
       // React `setComposer(c => c.trim() === body ? "" : c)` -- only clear the
@@ -146,8 +141,7 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   /// (the DM screen only ever renders one session), so it reduces to a
   /// non-null `_lastFailedSend` whose target matches `_target`.
   bool get _canRetrySend =>
-      _lastFailedSend != null &&
-      sameChatTarget(_target, _lastFailedSend!.target);
+      _lastFailedSend != null && _target == _lastFailedSend!.target;
 
   /// Re-sends the last failed body -- 1-1 with React `retryFailedSend`
   /// (use-chat-orchestration.ts L144-149): if there is no recorded failure
@@ -172,9 +166,8 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      await _runTransfer(() => sendChatAttachment(
-            gateway: ref.read(gatewayProvider),
-            target: _target,
+      await _runTransfer(() => ref.read(gatewayProvider).sendAttachment(
+            _target,
             fileName: attachment.fileName,
             mime: attachment.mime,
             dataBase64: attachment.dataBase64,
@@ -203,9 +196,8 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
         final bytes = await file.readAsBytes();
         final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
         final fileName = 'voice-message.$ext';
-        await sendChatAttachment(
-          gateway: ref.read(gatewayProvider),
-          target: _target,
+        await ref.read(gatewayProvider).sendAttachment(
+          _target,
           fileName: fileName,
           mime: voice.mime,
           dataBase64: base64Encode(bytes),
@@ -258,16 +250,12 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   DmAttachmentCallbacks _attachmentCallbacks(AttachmentView? view) =>
       DmAttachmentCallbacks(
         busy: _transferBusy,
-        onDownload: (id) => unawaited(_runTransfer(() => downloadChatAttachment(
-              gateway: _gateway,
-              target: _target,
-              attachmentId: id,
-            ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
-        onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
-              gateway: _gateway,
-              target: _target,
-              attachmentId: id,
-            ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
+        onDownload: (id) => unawaited(_runTransfer(() => _gateway
+            .downloadAttachment(_target, attachmentId: id)
+            .then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
+        onCancel: (id) => unawaited(_runTransfer(() => _gateway
+            .cancelAttachment(_target, attachmentId: id)
+            .then((_) => ref.invalidate(activeSessionProvider(_sessionId))))),
         onOpen: (descriptor) => _openAttachment(descriptor, view),
       );
 
@@ -277,11 +265,9 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   /// so the next poll re-renders the row's delivery status (mirrors the
   /// attachment download/cancel wiring + the channel/group retry seam).
   void _retryMessage(String messageId) {
-    unawaited(retryChatMessage(
-      gateway: _gateway,
-      target: _target,
-      messageId: messageId,
-    ).then((_) => ref.invalidate(activeSessionProvider(_sessionId))));
+    unawaited(_gateway
+        .retry(_target, messageId: messageId)
+        .then((_) => ref.invalidate(activeSessionProvider(_sessionId))));
   }
 
   /// Opens the attachment in the in-app [MediaViewer] -- 1-1 with React
@@ -290,7 +276,7 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
   /// of the React state machine) so this stays a thin actor: show the
   /// viewer immediately for already-downloaded + streamable media, or arm
   /// [_pendingOpen] for image/other (the `ref.listen` resolves it once the
-  /// download finishes). Reuses [downloadChatAttachment] (Gap 4) for the
+  /// download finishes). Reuses `Gateway.downloadAttachment` for the
   /// download trigger; the host is the DM session id (React `active.id`).
   void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
     final localIntent = resolveLocalAttachmentOpen(
@@ -324,11 +310,9 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
       setState(() => _pendingOpen = descriptor);
     }
     if (decision.download) {
-      unawaited(_runTransfer(() => downloadChatAttachment(
-            gateway: _gateway,
-            target: _target,
-            attachmentId: descriptor.attachmentId,
-          ).then((_) => ref.invalidate(activeSessionProvider(_sessionId)))));
+      unawaited(_runTransfer(() => _gateway
+          .downloadAttachment(_target, attachmentId: descriptor.attachmentId)
+          .then((_) => ref.invalidate(activeSessionProvider(_sessionId)))));
     }
   }
 
@@ -351,7 +335,7 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
 
   /// Closes the active DM session -- the real half of the close-flow
   /// (React `confirmCloseActive` for the `dm` branch, use-chat-close-flow.ts
-  /// L113-119). Calls `gateway.closeSession`, then mirrors React's
+  /// L113-119). Calls `gateway.leave`, then mirrors React's
   /// `confirmedFingerprints.delete(target.id)` cleanup (the confirmed
   /// fingerprint for this session is no longer relevant once the session
   /// is gone), invalidates the session family entry so the sessions list
@@ -370,10 +354,7 @@ mixin DmScreenActions on ConsumerState<DmScreen> {
     // Clear the active conversation so the unread lifecycle stops suppressing
     // toasts for this DM (mirrors React's `active` going null on close).
     ref.read(activeConversationKeyProvider.notifier).clear();
-    await closeChatTarget(
-      gateway: ref.read(gatewayProvider),
-      target: _target,
-    );
+    await ref.read(gatewayProvider).leave(_target);
     if (!mounted) return;
     setState(() => _confirmedFingerprints = _confirmedFingerprints
       ..remove(widget.sessionId));

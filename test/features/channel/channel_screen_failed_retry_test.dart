@@ -280,10 +280,10 @@ void main() {
   });
 
   // Retry-seam wiring: tapping the localized "Retry" button fires the
-  // Gateway retry seam (retryChannelMessage -> frb channel_retry_message)
+  // Gateway retry seam (Gateway.retry -> frb channel_retry_message)
   // with the channel name + the failed message id. The snapshot then
   // invalidates so the next poll re-renders the row.
-  testWidgets('tapping Retry fires retryChannelMessage with the message id',
+  testWidgets('tapping Retry fires retry with the message id',
       (tester) async {
     final gateway = ScriptableGateway();
     const msgId = 'm-retry-1';
@@ -309,14 +309,14 @@ void main() {
 
     // Pre-condition: the Retry button rendered (the row is shown).
     expect(find.text('Retry'), findsOneWidget);
-    expect(gateway.countOf(GatewayMethod.retryChannelMessage), 0);
+    expect(gateway.countOf(GatewayMethod.retry), 0);
 
     // Tap the Retry button -- this fires the Gateway retry seam.
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
     // The Gateway retry seam fired with the channel name + message id.
-    expect(gateway.lastCall(GatewayMethod.retryChannelMessage)?.arg<String>('name'), name);
-    expect(gateway.lastCall(GatewayMethod.retryChannelMessage)?.arg<String>('messageId'), msgId);
+    expect(gateway.lastCall(GatewayMethod.retry)?.target.id, name);
+    expect(gateway.lastCall(GatewayMethod.retry)?.arg<String>('messageId'), msgId);
   });
 }

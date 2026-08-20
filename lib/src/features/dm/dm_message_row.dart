@@ -96,7 +96,7 @@ class DmMessageRow extends StatelessWidget {
                 // last child). Gate is the 1-1 port of React's render condition:
                 // outbound && delivery_status === 'failed' && retryable && message_id
                 // (outbound == own == from_device == ownDeviceName). The onRetry
-                // callback fires the Gateway retry seam (retryDmMessage -> frb
+                // callback fires the Gateway retry seam (`Gateway.retry` -> frb
                 // private_dm_retry_message); the gate guarantees message.messageId is
                 // non-null, so the bang (!) is safe.
                 if (own &&

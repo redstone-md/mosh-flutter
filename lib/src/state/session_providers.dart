@@ -8,6 +8,7 @@
 // because it spans onboarding + invite-paste screens.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -125,5 +126,5 @@ class InviteFlowNotifier extends Notifier<InviteFlowState> {
 /// idiom for a parameterized async read.
 final activeSessionProvider =
     FutureProvider.family<SessionSnapshot, String>(
-  (ref, sessionId) => ref.watch(gatewayProvider).pollSession(sessionId: sessionId),
+  (ref, sessionId) => ref.watch(gatewayProvider).poll(DmTarget(sessionId)),
 );

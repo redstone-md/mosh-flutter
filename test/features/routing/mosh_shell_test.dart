@@ -46,9 +46,9 @@ import 'package:mosh/src/routing/mosh_shell.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
-// Seeded test gateway: listSessions + pollSession return one DM session
+// Seeded test gateway: listSessions + poll return one DM session
 // with the given peer display name, so the rail renders one row AND the DM
-// screen resolves without the native cdylib. closeSession removes the
+// screen resolves without the native cdylib. leave removes the
 // seeded session so the leave-flow's context.go('/sessions') returns to an
 // empty rail (mirrors the real close).
 SessionSnapshot _session({required String sessionId, required String peer}) =>

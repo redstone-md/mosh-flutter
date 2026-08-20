@@ -9,13 +9,12 @@
 // + a `onRetry` callback; the DM row will reuse the same widget later
 // (deferred to a DM-side atomic).
 //
-// The `onRetry` callback is wired by the row screens to the Gateway retry
-// seam: React `retryChannelMessage` / `retryGroupMessage` (native-messaging-
+// The `onRetry` callback is wired by the row screens to `Gateway.retry`:
+// React `retryChannelMessage` / `retryGroupMessage` (native-messaging-
 // gateway.ts L494/500) -> Rust `channel_retry_message` /
 // `private_group_retry_message` (src-tauri/src/lib.rs L780/922) -> frb
-// `channel_api.retryMessage` / `group_api.retryMessage` -> Gateway
-// `retryChannelMessage` / `retryGroupMessage`. Tapping Retry fires the
-// seam then invalidates the conversation snapshot so the next poll
+// `channel_api.retryMessage` / `group_api.retryMessage`. Tapping Retry fires
+// the seam then invalidates the conversation snapshot so the next poll
 // re-renders the row delivery status (mirrors the AttachmentCard
 // download/cancel wiring).
 

@@ -3,18 +3,18 @@
 // L113-119). The leave IconButton (Icons.close, the React IconX in
 // ActiveChatHeader `afterSearchActions`, ActiveChatPanes.tsx L122-130) now
 // opens a ConfirmDialog (`Delete chat with {label}?` / body / `Delete chat`)
-// before the real `_leave` (gateway.closeSession + fingerprint cleanup + nav
+// before the real `_leave` (gateway.leave + fingerprint cleanup + nav
 // back) runs. Mirrors the seed/override idiom of
 // `channel_screen_close_flow_test.dart` (override `activeSessionProvider` so
 // the native cdylib is not involved). The test gateway records the
-// `closeSession` call, so the test asserts the real close only fires on an
+// `leave` call, so the test asserts the real close only fires on an
 // explicit confirm (React's
 // `closeFlow.confirmCloseActive` gating the real close).
 //
 // Three cases:
 //   1. Tapping leave opens the ConfirmDialog (title renders with the peer
 //      display name + the localized confirm label; gateway not yet called).
-//   2. Confirming calls the real `_leave` -> `closeSession(sessionId: ...)`.
+//   2. Confirming calls the real `_leave` -> `leave(DmTarget(...))`.
 //   3. Cancelling does NOT call `_leave` (no gateway closeSession call).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -98,10 +98,10 @@ void main() {
     // The localized confirm button label renders.
     expect(find.text('Delete chat'), findsOneWidget);
     // The gateway close has NOT fired yet (dialog is open, unconfirmed).
-    expect(gateway.countOf(GatewayMethod.closeSession), 0);
+    expect(gateway.countOf(GatewayMethod.leave), 0);
   });
 
-  testWidgets('confirming calls closeSession (the real _leave)',
+  testWidgets('confirming calls leave (the real _leave)',
       (tester) async {
     final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
@@ -114,10 +114,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // The real close fired with the sessionId.
-    expect(gateway.lastCall(GatewayMethod.closeSession)?.arg<String>('sessionId'), sessionId);
+    expect(gateway.lastCall(GatewayMethod.leave)?.target.id, sessionId);
   });
 
-  testWidgets('cancelling does NOT call closeSession', (tester) async {
+  testWidgets('cancelling does NOT call leave', (tester) async {
     final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 
@@ -129,7 +129,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // No real close fired.
-    expect(gateway.countOf(GatewayMethod.closeSession), 0);
+    expect(gateway.countOf(GatewayMethod.leave), 0);
     // The dialog is gone and the DM screen is still mounted.
     expect(find.text('Delete chat with $peerName?'), findsNothing);
     expect(find.byType(DmScreen), findsOneWidget);

@@ -263,18 +263,18 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
     // made.
     await tester.tap(find.byTooltip('Dismiss invite'));
     await tester.pumpAndSettle();
-    expect(gateway.countOf(GatewayMethod.dismissChannelDmOffer), 1);
+    expect(gateway.countOf(GatewayMethod.dismissDmOffer), 1);
 
     // Accept: tapping the row calls acceptInvite (returns the seeded
     // 'accepted-dm' session) + auto-dismiss + navigates to the DM screen.
     // Reset dismiss counter first so the auto-dismiss after accept is the
     // only call counted.
     final dismissBeforeAccept =
-        gateway.countOf(GatewayMethod.dismissChannelDmOffer);
+        gateway.countOf(GatewayMethod.dismissDmOffer);
     final sessionCallsBeforeAccept = gateway.countOf(GatewayMethod.listSessions);
     await tester.tap(find.text('alpha-peer'));
     await tester.pumpAndSettle();
-    expect(gateway.countOf(GatewayMethod.dismissChannelDmOffer),
+    expect(gateway.countOf(GatewayMethod.dismissDmOffer),
         dismissBeforeAccept + 1);
     expect(gateway.countOf(GatewayMethod.listSessions),
         sessionCallsBeforeAccept + 1);
@@ -295,7 +295,7 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
     await tester.pumpAndSettle();
 
     expect(gateway.countOf(GatewayMethod.listSessions), sessionCallsBeforeAccept);
-    expect(gateway.countOf(GatewayMethod.dismissChannelDmOffer), 0);
+    expect(gateway.countOf(GatewayMethod.dismissDmOffer), 0);
     expect(find.text('Write a message\u2026'), findsNothing);
   });
 }

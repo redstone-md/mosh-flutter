@@ -233,7 +233,7 @@ void main() {
         ),
       ],
     );
-    final gateway = ScriptableGateway()..hold(GatewayMethod.downloadChannelAttachment);
+    final gateway = ScriptableGateway()..hold(GatewayMethod.downloadAttachment);
 
     await _pump(tester, name: name, snapshot: snapshot, gateway: gateway);
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
@@ -242,7 +242,7 @@ void main() {
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNull);
 
-    gateway.release(GatewayMethod.downloadChannelAttachment);
+    gateway.release(GatewayMethod.downloadAttachment);
     await tester.pump();
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
