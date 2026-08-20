@@ -49,6 +49,7 @@ flowchart TD
         Mesh["mesh::mesh_info + snapshot_events"]
         Out["outbound::Outbox"]
         Hist["history::History"]
+        Offers["dm_offers::DmOffers"]
     end
 
     Dm --> Slots
@@ -63,12 +64,14 @@ flowchart TD
     Gr --> Mesh
     Gr --> Out
     Gr --> Hist
+    Gr --> Offers
     Ch --> Slots
     Ch --> Log
     Ch --> Seen
     Ch --> Mesh
     Ch --> Out
     Ch --> Hist
+    Ch --> Offers
 ```
 
 The one message difference worth naming: `ConversationMessage::author` is the
@@ -156,10 +159,49 @@ the shared ones, so callers read the same as before. The three
 `Persisted*Message` records were field-identical and became one
 `history::StoredMessage<M>`; the bytes on disk are unchanged.
 
-The MLS commit sequencer and the ciphertext store stayed where they are. They
-are shared by the DM and the group but not by the channel, and what sits on top
-of them is exactly where the two differ. Whether they get a shared layer is
-decided in ticket 05e, not here.
+DM offers are one list too. A channel and a group each let a member offer
+another a private DM, with the same three rules: build the invitation and
+publish it at one member, keep an arriving offer only if it names us, drop one
+on dismiss. `conversation::dm_offers::DmOffers` holds the list and those rules;
+publishing stays with the kind, because a channel sends it in the clear and a
+group inside its control envelope. The offer id still comes from the invite
+URI, so the same invitation published twice is one offer on the far side.
+
+A DM has no such list. It is where an accepted offer leads — accepting means
+taking the invite URI to the DM runtime's normal accept path — not a place
+offers are shown.
+
+An org keeps its own offer list, and it stays where it is. It looks alike from
+a distance but the rules differ: an org offer names a moss peer-id instead of a
+device fingerprint, is dropped unless the sender is in the signed roster, is
+accepted once against a set that outlives the list, and is consumed by accept
+rather than dismissed. Bending one list to cover both would mean four flags on
+it, which is worse than two lists that say what they do.
+
+### The MLS layers the DM and the group were said to share
+
+Ticket 05e asked for a decision on `commit_sequencer` and `ciphertext_store`.
+Decided: they stay where they are, and no shared layer is built, because there
+is nothing shared to lift.
+
+- `commit_sequencer` has one caller, `private_group_runtime`. A DM is two
+  devices, and its epoch moves once, when the second device is added. It never
+  orders commits, never buffers a future epoch and never asks for a resync. A
+  layer over a single caller would only be a longer name for it.
+- `ciphertext_store` had no caller at all: nothing in `mosh-core` appended to
+  it or read it, and it was not on the bridge — a leftover of the removed
+  React/Tauri app. It was dead code, not shared code, so it is deleted here.
+  Its job is already done, and done better, by `conversation::history`: the
+  redb store is encrypted whole, key in the OS keystore, while the JSONL file
+  left the sender, the time and the conversation id in the clear beside the
+  sealed body. And a kept MLS ciphertext cannot be opened again in any case —
+  MLS drops the message secret once the message is read, which is the point of
+  it.
+- The MLS layer the DM and the group really do share is
+  `mls_crypto::MlsSessionCrypto`, and they already share it. What sits above it
+  is exactly where the two differ: the group resolves who may commit from a
+  signed roster and can need a rejoin, the DM has two members and no such
+  question.
 
 Rejected: leaving the core alone and only sharing the UI. The UI already reads
 one shape; the drift that costs users — delivery status, attachment state,
@@ -167,11 +209,11 @@ duplicate messages — is decided below the bridge.
 
 ## Follow-up
 
-Landed since: 05c (one mesh and event view), 05a (one outbound send path) and
-05b (one history store). Still tracked as 05e (DM offers, and the MLS layers
-the DM and the group share) and 05d (one runtime behind a kind trait). 05d is
-the one that regenerates the bindings and must be checked against a real peer
-for all three kinds.
+Landed since: 05c (one mesh and event view), 05a (one outbound send path), 05b
+(one history store) and 05e (DM offers, plus the MLS decision above). Still
+tracked as 05d (one runtime behind a kind trait), the one that regenerates the
+bindings and must be checked against a real peer for all three kinds.
+
 
 One layering debt to clear along the way: the shared code still imports
 `AttachmentDescriptor`, `AttachmentState` and `AttachmentView` from
