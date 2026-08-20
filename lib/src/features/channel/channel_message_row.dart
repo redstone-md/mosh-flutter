@@ -194,7 +194,7 @@ class ChannelMessageRow extends StatelessWidget {
 
   /// Retry callback for the [FailedMessageRetry] row (React
   /// `onRetryMessage`). The screen wires this to the Gateway retry seam
-  /// (`retryChannelMessage` -> frb `channel_retry_message`); fire-and-forget
+  /// (`Gateway.retry` -> frb `channel_retry_message`); fire-and-forget
   /// via `unawaited` then invalidate the channel snapshot (mirrors the
   /// attachment download/cancel wiring).
   final void Function(String messageId) onRetry;
@@ -257,7 +257,7 @@ class ChannelMessageRow extends StatelessWidget {
                 // delivery_status === "failed" && retryable &&
                 // message_id` (outbound == own == fromFingerprint ==
                 // ownFingerprint). The onRetry callback fires the
-                // Gateway retry seam (`retryChannelMessage` -> frb
+                // Gateway retry seam (`Gateway.retry` -> frb
                 // `channel_retry_message`); the gate guarantees
                 // `message.messageId` is non-null, so the ! is safe.
                 if (own &&

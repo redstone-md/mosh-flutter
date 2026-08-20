@@ -4,7 +4,7 @@
 // the channel/group failed_retry suites: the row renders iff
 // outbound(== own == fromDevice == ownDeviceName) && failed && retryable
 // && message_id, and tapping the Retry button fires the Gateway retry seam
-// (retryDmMessage -> frb private_dm_retry_message).
+// (Gateway.retry -> frb private_dm_retry_message).
 //
 // React render condition ported 1-1 (MessageLists.tsx DmMessageRow
 // L350-357): the FailedMessageRetry row sits BELOW the body + AttachmentCard
@@ -274,10 +274,10 @@ void main() {
   });
 
   // Retry-seam wiring: tapping the localized "Retry" button fires the
-  // Gateway retry seam (retryDmMessage -> frb private_dm_retry_message)
+  // Gateway retry seam (Gateway.retry -> frb private_dm_retry_message)
   // with the session id + the failed message id. The snapshot then
   // invalidates so the next poll re-renders the row.
-  testWidgets('tapping Retry fires retryDmMessage with the message id',
+  testWidgets('tapping Retry fires retry with the message id',
       (tester) async {
     final gateway = ScriptableGateway();
     const msgId = 'm-retry-1';
@@ -303,14 +303,14 @@ void main() {
 
     // Pre-condition: the Retry button rendered.
     expect(find.text('Retry'), findsOneWidget);
-    expect(gateway.countOf(GatewayMethod.retryDmMessage), 0);
+    expect(gateway.countOf(GatewayMethod.retry), 0);
 
     // Tap the Retry button -- this fires the Gateway retry seam.
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
     // The Gateway retry seam fired with the session id + message id.
-    expect(gateway.lastCall(GatewayMethod.retryDmMessage)?.arg<String>('sessionId'), sessionId);
-    expect(gateway.lastCall(GatewayMethod.retryDmMessage)?.arg<String>('messageId'), msgId);
+    expect(gateway.lastCall(GatewayMethod.retry)?.target.id, sessionId);
+    expect(gateway.lastCall(GatewayMethod.retry)?.arg<String>('messageId'), msgId);
   });
 }

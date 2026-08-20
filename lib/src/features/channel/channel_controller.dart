@@ -50,7 +50,7 @@ import 'package:mosh/src/features/shared/attachment_media_src.dart'
         resolveLocalAttachmentOpen,
         isViewableMedia;
 import 'package:mosh/src/features/shared/attachment_open.dart';
-import 'package:mosh/src/features/shared/chat_actions.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show
         AttachmentView,
@@ -90,7 +90,7 @@ class ChannelControllerState {
   final String? chatError;
   // The recorded failed send (target + body) -- 1-1 with React's
   // `lastFailedSend`. Drives canRetrySend + retryFailedSend.
-  final ({ChatTarget target, String body})? lastFailedSend;
+  final ({AnyConversationTarget target, String body})? lastFailedSend;
   // Ephemeral pending-open descriptor (Gap 2) -- 1-1 with React's `pendingOpen`.
   final AttachmentDescriptor? pendingOpen;
 
@@ -99,8 +99,8 @@ class ChannelControllerState {
   /// Whether the banner's Retry button should be active -- 1-1 with React
   /// `canRetrySend`. `active` is always this controller's target, so it
   /// reduces to a non-null `lastFailedSend` whose target matches `target`.
-  bool canRetrySend(ChatTarget target) =>
-      lastFailedSend != null && sameChatTarget(target, lastFailedSend!.target);
+  bool canRetrySend(AnyConversationTarget target) =>
+      lastFailedSend != null && target == lastFailedSend!.target;
 
   ChannelControllerState copyWith({
     bool? sending,
@@ -121,7 +121,7 @@ class ChannelControllerState {
             : chatError as String?,
         lastFailedSend: identical(lastFailedSend, _sentinel)
             ? this.lastFailedSend
-            : lastFailedSend as ({ChatTarget target, String body})?,
+            : lastFailedSend as ({AnyConversationTarget target, String body})?,
         pendingOpen: identical(pendingOpen, _sentinel)
             ? this.pendingOpen
             : pendingOpen as AttachmentDescriptor?,
@@ -201,15 +201,14 @@ class ChannelController extends Notifier<ChannelControllerState> {
   /// The channel name (the family arg) -- the conversation identity.
   final String name;
 
-  /// The sealed [ChatTarget] for this channel -- routes send/retry/attachment/
-  /// leave dispatch through `chat_actions.dart` (the shared DM/channel/group
-  /// seam, Gap 4) so the gateway method name is decided once here.
-  late final ChatTarget _target = ChannelTarget(name);
+  /// This channel as a Gateway target. Every send, retry, attachment and
+  /// leave call passes it, so the kind is named once here.
+  late final ChannelTarget _target = ChannelTarget(name);
 
   @override
   ChannelControllerState build() => const ChannelControllerState();
 
-  ChatTarget get target => _target;
+  AnyConversationTarget get target => _target;
 
   Future<T> _runTransfer<T>(Future<T> Function() operation) async {
     state = state.copyWith(transferOperations: state.transferOperations + 1);
@@ -239,11 +238,7 @@ class ChannelController extends Notifier<ChannelControllerState> {
     }
     state = state.copyWith(sending: true, chatError: null);
     try {
-      await sendChatText(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        body: body,
-      );
+      await ref.read(gatewayProvider).send(_target, body: body);
       state = state.copyWith(lastFailedSend: null, chatError: null);
       ref.invalidate(channelSnapshotProvider(name));
       return ChannelSendOutcome(sent: true, body: body);
@@ -265,7 +260,7 @@ class ChannelController extends Notifier<ChannelControllerState> {
   /// a successful retry (React parity -- the banner's onRetry path).
   Future<ChannelSendOutcome> retryFailedSend() async {
     final failed = state.lastFailedSend;
-    if (failed == null || !sameChatTarget(_target, failed.target)) {
+    if (failed == null || _target != failed.target) {
       return const ChannelSendOutcome(sent: false, body: '');
     }
     return sendBody(failed.body);
@@ -281,9 +276,8 @@ class ChannelController extends Notifier<ChannelControllerState> {
     if (state.sending) return;
     state = state.copyWith(sending: true);
     try {
-      await _runTransfer(() => sendChatAttachment(
-            gateway: ref.read(gatewayProvider),
-            target: _target,
+      await _runTransfer(() => ref.read(gatewayProvider).sendAttachment(
+            _target,
             fileName: attachment.fileName,
             mime: attachment.mime,
             dataBase64: attachment.dataBase64,
@@ -309,9 +303,8 @@ class ChannelController extends Notifier<ChannelControllerState> {
         final bytes = await file.readAsBytes();
         final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
         final fileName = 'voice-message.$ext';
-        await sendChatAttachment(
-          gateway: ref.read(gatewayProvider),
-          target: _target,
+        await ref.read(gatewayProvider).sendAttachment(
+          _target,
           fileName: fileName,
           mime: voice.mime,
           dataBase64: base64Encode(bytes),
@@ -337,17 +330,14 @@ class ChannelController extends Notifier<ChannelControllerState> {
   ) =>
       (view) => ChannelAttachmentCallbacks(
             busy: state.transferBusy,
-            onDownload: (id) => unawaited(_runTransfer(() =>
-                downloadChatAttachment(
-                  gateway: ref.read(gatewayProvider),
-                  target: _target,
-                  attachmentId: id,
-                ).then((_) => ref.invalidate(channelSnapshotProvider(name))))),
-            onCancel: (id) => unawaited(_runTransfer(() => cancelChatAttachment(
-                  gateway: ref.read(gatewayProvider),
-                  target: _target,
-                  attachmentId: id,
-                ).then((_) => ref.invalidate(channelSnapshotProvider(name))))),
+            onDownload: (id) => unawaited(_runTransfer(() => ref
+                .read(gatewayProvider)
+                .downloadAttachment(_target, attachmentId: id)
+                .then((_) => ref.invalidate(channelSnapshotProvider(name))))),
+            onCancel: (id) => unawaited(_runTransfer(() => ref
+                .read(gatewayProvider)
+                .cancelAttachment(_target, attachmentId: id)
+                .then((_) => ref.invalidate(channelSnapshotProvider(name))))),
             onOpen: (descriptor) => onOpen(descriptor, view),
           );
 
@@ -355,11 +345,10 @@ class ChannelController extends Notifier<ChannelControllerState> {
   /// forget via `unawaited`, then invalidate the channel snapshot so the next
   /// poll re-renders the row's delivery status.
   void retryMessage(String messageId) {
-    unawaited(retryChatMessage(
-      gateway: ref.read(gatewayProvider),
-      target: _target,
-      messageId: messageId,
-    ).then((_) => ref.invalidate(channelSnapshotProvider(name))));
+    unawaited(ref
+        .read(gatewayProvider)
+        .retry(_target, messageId: messageId)
+        .then((_) => ref.invalidate(channelSnapshotProvider(name))));
   }
 
   /// Opens an attachment -- 1-1 with React `openAttachment`
@@ -388,11 +377,10 @@ class ChannelController extends Notifier<ChannelControllerState> {
       state = state.copyWith(pendingOpen: descriptor);
     }
     if (decision.download) {
-      unawaited(_runTransfer(() => downloadChatAttachment(
-            gateway: ref.read(gatewayProvider),
-            target: _target,
-            attachmentId: descriptor.attachmentId,
-          ).then((_) => ref.invalidate(channelSnapshotProvider(name)))));
+      unawaited(_runTransfer(() => ref
+          .read(gatewayProvider)
+          .downloadAttachment(_target, attachmentId: descriptor.attachmentId)
+          .then((_) => ref.invalidate(channelSnapshotProvider(name)))));
     }
     if (decision.src != null) {
       return AttachmentMediaOpenIntent(
@@ -480,10 +468,7 @@ class ChannelController extends Notifier<ChannelControllerState> {
   /// method does only the gateway close + invalidation + failed-send clear.
   Future<ChannelLeaveResult> leave() async {
     state = state.copyWith(lastFailedSend: null, chatError: null);
-    await closeChatTarget(
-      gateway: ref.read(gatewayProvider),
-      target: _target,
-    );
+    await ref.read(gatewayProvider).leave(_target);
     ref.invalidate(channelSnapshotProvider(name));
     return const ChannelLeaveResult();
   }

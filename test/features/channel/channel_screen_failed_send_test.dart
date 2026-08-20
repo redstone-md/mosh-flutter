@@ -63,7 +63,7 @@ void main() {
   testWidgets(
       'a thrown text send records the failure + banner + keeps the composer body',
       (tester) async {
-    final gateway = ScriptableGateway()..failNext(GatewayMethod.sendChannel, error: Exception('send boom'));
+    final gateway = ScriptableGateway()..failNext(GatewayMethod.send, error: Exception('send boom'));
     await _pump(tester, gateway, name: name);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -71,7 +71,7 @@ void main() {
     await tester.tap(find.byKey(kComposerSendButtonKey));
     await tester.pumpAndSettle();
 
-    expect(gateway.argValues<String>(GatewayMethod.sendChannel, 'body'), ['hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
     expect(find.textContaining('send boom'), findsOneWidget);
     final l = AppLocalizations.of(tester.element(find.byType(ChannelScreen)))!;
     expect(find.text(l.chatErrorRetry), findsOneWidget);
@@ -83,7 +83,7 @@ void main() {
 
   testWidgets('a successful retry clears the failure + banner + composer',
       (tester) async {
-    final gateway = ScriptableGateway()..failNext(GatewayMethod.sendChannel, error: Exception('send boom'));
+    final gateway = ScriptableGateway()..failNext(GatewayMethod.send, error: Exception('send boom'));
     await _pump(tester, gateway, name: name);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -98,7 +98,7 @@ void main() {
     await tester.tap(find.text(l.chatErrorRetry));
     await tester.pumpAndSettle();
 
-    expect(gateway.argValues<String>(GatewayMethod.sendChannel, 'body'), ['hello there', 'hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there', 'hello there']);
     expect(find.textContaining('send boom'), findsNothing);
     expect(find.text(l.chatErrorRetry), findsNothing);
 
