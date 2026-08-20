@@ -30,11 +30,13 @@ Markers: ✅ = verified by reading the code · · = traced by hunter, high confi
 One process-global `RECEIVED_MESSAGES`; DM/group/channel each take-whole-queue → release lock → filter → re-append remainder, behind 3 separate mutexes (`lib.rs`). Concurrent drains from different Tauri command threads clobber/reorder/lose frames in flight between take and re-append.
 Fix: per-prefix queues, or hold one lock across take-filter-reappend so a drain is atomic.
 
-### 25. ✅ Message lost when the DM leaves the relay — `private_dm_runtime.rs` `pump_transports` / `drain_relay_results` / `pump_unacked_resends`
+### ~~25.~~ FIXED — Message lost when the DM leaves the relay — `private_dm_runtime.rs` `drain_relay_results` + `private_dm_runtime/relay.rs`
 A send made while the session is `Relayed` is handed to the relay worker and left `Pending`. If the session then migrates `Relayed -> Direct`, `release_relay` drops the last ref, the worker's intake disconnects and it fails every queued job. `drain_relay_results` settles a still-`Pending` attempt as `Failed`. `pump_unacked_resends` only re-sends attempts whose status is `Sent`, so nothing ever retries it: the message is gone until the user presses retry by hand, on a conversation that now looks connected.
 
 Found by `scripts/probe-e2e.mjs` against a real peer, 2026-08-21. Reproduced on `main` as well as on the 05d branch (main 1/3 delivered, 05d 2/3 over one alternating series against the same counterpart), so it is not from the conversation-seam work. Every send in the series happened while the path was still `relayed`; the losing runs are the ones where the migration to `direct` landed before the worker drained.
-Fix: hand queued jobs back on release and re-route them on the new path, or let the resend pump treat a transport-`Failed` attempt as retryable rather than terminal.
+Fixed: `RelayJobResult` now carries `retryable`, set only where the worker fails jobs because its intake disconnected (the relay was released). `drain_relay_results` re-opens such an attempt and re-routes it through `route_prepared` on the session's current path instead of settling it `Failed`, so it ends up `Sent` or honestly failed — never in a state nothing re-drives. Regression test: `a_send_the_relay_never_tried_is_rerouted_not_failed` (fails with `Some(Failed)` on the old code).
+
+Ceiling: a relay released again while the re-routed job is queued simply reports retryable once more. The path hysteresis (`T_DIRECT_STABLE_MS` / `T_DIRECT_LOST_MS`) bounds how often that can happen, so there is no counter on the re-routes.
 
 ### 8. · send stuck "Pending" on crash — `private_dm_runtime.rs:529, 583`
 Attempt persisted as `Pending` → published → marked `Sent` in memory → `persist_outbound_state(.., false)` clears it at :583. Crash between publish-success and :583 → on-disk attempt stays `Pending`, rehydrates as a stuck "sending" message; user resends → peer dup (peer dedups on message_id, but the stuck-sending UX remains).
