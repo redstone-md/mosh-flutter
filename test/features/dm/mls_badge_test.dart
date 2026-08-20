@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/features/dm/dm_message_row.dart';
+import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import '../../support/pump.dart';
@@ -112,11 +112,11 @@ void main() {
           ]);
 
       // The sender name renders in a message row (so the badge sits next
-      // to it, not alone). Scoped to DmMessageRow because the DM AppBar
+      // to it, not alone). Scoped to ConversationMessageRow because the DM AppBar
       // title now also shows the peer name (React `peerLabel` parity).
       expect(
         find.descendant(
-          of: find.byType(DmMessageRow),
+          of: find.byType(ConversationMessageRow),
           matching: find.text('bob'),
         ),
         findsOneWidget,
@@ -151,19 +151,19 @@ void main() {
       expect(find.text('second'), findsOneWidget);
 
       // The sender name renders exactly once in a message row (the
-      // grouped row omits its meta). Scoped to DmMessageRow because the DM
+      // grouped row omits its meta). Scoped to ConversationMessageRow because the DM
       // AppBar title now also shows the peer name (React `peerLabel`
       // parity), so an unscoped find.text('bob') would match the header.
       expect(
         find.descendant(
-          of: find.byType(DmMessageRow),
+          of: find.byType(ConversationMessageRow),
           matching: find.text('bob'),
         ),
         findsOneWidget,
       );
 
       // The MLS badge renders EXACTLY ONCE: the grouped row omits the whole
-      // meta (so its badge is absent), matching React's DmMessageRow.
+      // meta (so its badge is absent), matching React's ConversationMessageRow.
       expect(find.text('MLS'), findsOneWidget);
     });
   });

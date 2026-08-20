@@ -9,6 +9,10 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 
+/// The three kinds of conversation. The names are also the strings the
+/// attachment streaming server keys its URLs by, so keep them in step.
+enum ConversationKind { dm, channel, group }
+
 /// A conversation the app can read, send to, and leave.
 ///
 /// [TSnapshot] is the snapshot type this kind polls back. Two targets are
@@ -19,6 +23,15 @@ sealed class ConversationTarget<TSnapshot> {
 
   /// The DM session id, the channel name, or the group id.
   final String id;
+
+  /// Which kind this is. The shared conversation UI branches on it for the
+  /// few things that really do differ per kind.
+  ConversationKind get kind;
+
+  /// How the app names the conversation that is open: `dm:<id>`,
+  /// `channel:<name>` or `group:<id>`. `ActiveConversation.parse` reads this
+  /// format back, so the two have to agree.
+  String get key => '${kind.name}:$id';
 
   /// Reads this conversation's snapshot. Each kind calls its own method on
   /// [reader]; that is what keeps `Gateway.poll` a single typed method.
@@ -45,6 +58,9 @@ final class DmTarget extends ConversationTarget<SessionSnapshot> {
   const DmTarget(super.id);
 
   @override
+  ConversationKind get kind => ConversationKind.dm;
+
+  @override
   Future<SessionSnapshot> readSnapshot(ConversationSnapshotReader reader) =>
       reader.dmSnapshot(id);
 }
@@ -61,6 +77,9 @@ final class ChannelTarget extends DmOfferHost<ChannelSnapshot> {
   const ChannelTarget(super.id);
 
   @override
+  ConversationKind get kind => ConversationKind.channel;
+
+  @override
   Future<ChannelSnapshot> readSnapshot(ConversationSnapshotReader reader) =>
       reader.channelSnapshot(id);
 }
@@ -68,6 +87,9 @@ final class ChannelTarget extends DmOfferHost<ChannelSnapshot> {
 /// A private or org group. The [id] is the group id.
 final class GroupTarget extends DmOfferHost<GroupSnapshot> {
   const GroupTarget(super.id);
+
+  @override
+  ConversationKind get kind => ConversationKind.group;
 
   @override
   Future<GroupSnapshot> readSnapshot(ConversationSnapshotReader reader) =>

@@ -135,6 +135,7 @@ class ScriptableGateway implements Gateway, ConversationSnapshotReader {
   final Map<String, SessionSnapshot> _sessions = {};
   final Map<String, ChannelSnapshot> _channels = {};
   final Map<String, GroupSnapshot> _groups = {};
+  final Map<String, OrgSnapshot> _orgs = {};
 
   InviteCreated? _invite;
   NativeRuntimeStatus? _nativeStatus;
@@ -213,6 +214,13 @@ class ScriptableGateway implements Gateway, ConversationSnapshotReader {
     _groups
       ..clear()
       ..addEntries(groups.map((g) => MapEntry(g.groupId, g)));
+  }
+
+  /// Seed the orgs `listOrgs` and `pollOrg` return.
+  void seedOrgs(Iterable<OrgSnapshot> orgs) {
+    _orgs
+      ..clear()
+      ..addEntries(orgs.map((o) => MapEntry(o.orgPubkey, o)));
   }
 
   /// Seed what `createInvite` returns (invite URI, session id, fingerprint).
@@ -530,13 +538,13 @@ class ScriptableGateway implements Gateway, ConversationSnapshotReader {
 
   @override
   Future<List<OrgSnapshot>> listOrgs() =>
-      _run(GatewayMethod.listOrgs, const {}, () => const <OrgSnapshot>[]);
+      _run(GatewayMethod.listOrgs, const {}, () => _orgs.values.toList());
 
   @override
   Future<OrgSnapshot> pollOrg({required String orgPubkey}) => _run(
       GatewayMethod.pollOrg,
       {'orgPubkey': orgPubkey},
-      () => cannedOrgSnapshot(orgPubkey: orgPubkey));
+      () => _orgs[orgPubkey] ?? cannedOrgSnapshot(orgPubkey: orgPubkey));
 
   @override
   Future<InviteCreated> sendOrgDmOffer({
