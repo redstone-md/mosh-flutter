@@ -188,10 +188,15 @@ is nothing shared to lift.
   devices, and its epoch moves once, when the second device is added. It never
   orders commits, never buffers a future epoch and never asks for a resync. A
   layer over a single caller would only be a longer name for it.
-- `ciphertext_store` has no caller at all. Nothing in `mosh-core` appends to it
-  or reads it, and it is not on the bridge — it is a leftover of the removed
-  React/Tauri app. It is dead code, not shared code, so sharing it is not the
-  question; whether to delete it or wire it up is, and that is its own ticket.
+- `ciphertext_store` had no caller at all: nothing in `mosh-core` appended to
+  it or read it, and it was not on the bridge — a leftover of the removed
+  React/Tauri app. It was dead code, not shared code, so it is deleted here.
+  Its job is already done, and done better, by `conversation::history`: the
+  redb store is encrypted whole, key in the OS keystore, while the JSONL file
+  left the sender, the time and the conversation id in the clear beside the
+  sealed body. And a kept MLS ciphertext cannot be opened again in any case —
+  MLS drops the message secret once the message is read, which is the point of
+  it.
 - The MLS layer the DM and the group really do share is
   `mls_crypto::MlsSessionCrypto`, and they already share it. What sits above it
   is exactly where the two differ: the group resolves who may commit from a
@@ -209,8 +214,6 @@ Landed since: 05c (one mesh and event view), 05a (one outbound send path), 05b
 tracked as 05d (one runtime behind a kind trait), the one that regenerates the
 bindings and must be checked against a real peer for all three kinds.
 
-`ciphertext_store` is unused and wants a ticket of its own: delete it, or wire
-it to the history the DM already keeps.
 
 One layering debt to clear along the way: the shared code still imports
 `AttachmentDescriptor`, `AttachmentState` and `AttachmentView` from
