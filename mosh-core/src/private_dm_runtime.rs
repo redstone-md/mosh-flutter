@@ -14,7 +14,8 @@ use crate::attachment_runtime::{
 use crate::attachment_store::AttachmentStore;
 use crate::conversation::attachments::{descriptor_of, AttachmentDirection, AttachmentSlots};
 use crate::conversation::dedup::SeenFrames;
-use crate::conversation::message_log::{delivery_meta, now_ms, ConversationMessage, MessageLog};
+use crate::conversation::message_log::{delivery_meta, ConversationMessage, MessageLog};
+use crate::conversation::now_ms;
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::Persistence;
@@ -1015,7 +1016,9 @@ impl PrivateDmRuntime {
             .sessions
             .get_mut(session_id)
             .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        session.start_attachment_download(attachment_id)?;
+        session
+            .attachment_slots
+            .start_download(attachment_id, &mut session.attachments)?;
         session.pump_attachment_requests(relay);
         Ok(())
     }
@@ -1026,7 +1029,9 @@ impl PrivateDmRuntime {
         attachment_id: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         let session = self.session_mut(session_id)?;
-        session.cancel_attachment(attachment_id)
+        Ok(session
+            .attachment_slots
+            .cancel(attachment_id, &mut session.attachments)?)
     }
 
     /// Serves a byte range for streaming playback, fetching the region ahead
@@ -2537,21 +2542,6 @@ impl PrivateDmSession {
         })
     }
 
-    fn start_attachment_download(
-        &mut self,
-        attachment_id: &str,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        self.attachment_slots
-            .start_download(attachment_id, &mut self.attachments)?;
-        Ok(())
-    }
-
-    fn cancel_attachment(&mut self, attachment_id: &str) -> Result<(), PrivateDmRuntimeError> {
-        self.attachment_slots
-            .cancel(attachment_id, &mut self.attachments)?;
-        Ok(())
-    }
-
     fn pump_attachment_requests(&mut self, relay_jobs: RelayJobs<'_>) {
         for attachment_id in self.attachment_slots.awaiting_chunks() {
             if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
@@ -2564,10 +2554,6 @@ impl PrivateDmSession {
                 }
             }
         }
-    }
-
-    fn attachment_views(&self) -> Vec<AttachmentView> {
-        self.attachment_slots.views(&self.attachments)
     }
 
     fn is_alice_session(&self, session_id: &str, participant_id: &str) -> bool {
@@ -2597,7 +2583,7 @@ impl PrivateDmSession {
             invite_uri: self.invite_uri.clone(),
             fingerprint: self.fingerprint.clone(),
             messages: self.messages.to_vec(),
-            attachments: self.attachment_views(),
+            attachments: self.attachment_slots.views(&self.attachments),
             mesh: self.mesh_info(),
             events: snapshot_event_log()
                 .into_iter()
