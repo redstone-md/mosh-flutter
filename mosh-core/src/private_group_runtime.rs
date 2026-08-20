@@ -3,17 +3,21 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use crate::attachment_runtime::VoiceMeta;
 use crate::attachment_runtime::{
     AttachmentManifest, AttachmentRuntime, ChunkFrame, ChunkOutcome, ChunkRequest,
     OutgoingAttachment, StreamRange,
 };
 use crate::attachment_store::AttachmentStore;
 use crate::commit_sequencer::{CommitSequencer, Disposition};
-use crate::conversation::attachments::{descriptor_of, AttachmentSlots, SlotError};
+use crate::conversation::attachments::{
+    descriptor_of, AttachmentDescriptor, AttachmentSendResult, AttachmentSlots, AttachmentView,
+    SlotError,
+};
 use crate::conversation::dedup::SeenFrames;
-use crate::conversation::dm_offers::DmOffers;
+use crate::conversation::dm_offers::{DmOffer, DmOffers};
 use crate::conversation::history::{History, Restore};
-use crate::conversation::mesh;
+use crate::conversation::mesh::{self, MeshInfo, SnapshotEvent};
 use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::conversation::{decode, encode};
@@ -24,10 +28,6 @@ use crate::org_roster::{self, Roster};
 use crate::org_signing;
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{Persistence, GROUP_HISTORY};
-use crate::private_dm_runtime::{
-    AttachmentDescriptor, AttachmentSendResult, AttachmentView, DmOffer, MeshInfo, SnapshotEvent,
-    VoiceMeta,
-};
 use crate::shared_node::SharedMossNode;
 use ed25519_dalek::SigningKey;
 
