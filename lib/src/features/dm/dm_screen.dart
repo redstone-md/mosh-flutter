@@ -1,9 +1,11 @@
 /// A private DM. Everything but the header comes from the shared
 /// conversation screen.
 ///
-/// The DM keeps one piece of state of its own: which peer fingerprints the
-/// user has confirmed in person. It is client-side only and lasts as long as
-/// the screen does.
+/// The DM keeps one piece of state of its own: whether the user has
+/// confirmed this session's safety number in person. It is client-side only
+/// and lasts as long as the screen does. The header takes a set because it
+/// was written against several sessions at once; only this one is ever in
+/// it.
 library;
 
 import 'package:flutter/material.dart';
@@ -26,22 +28,22 @@ class DmScreen extends ConsumerStatefulWidget {
 }
 
 class _DmScreenState extends ConsumerState<DmScreen> {
-  Set<String> _confirmedFingerprints = {};
+  Set<String> _confirmedSessionIds = {};
 
   @override
   Widget build(BuildContext context) => ConversationScreen(
         target: DmTarget(widget.sessionId),
         onLeft: _forgetConfirmation,
-        header: (context, hooks) => DmScreenHeader(
+        header: (context, chrome) => DmScreenHeader(
           sessionId: widget.sessionId,
-          onOpenPeerStatus: hooks.onOpenPeerStatus,
-          onLeave: hooks.onRequestLeave,
-          mobileSearchOpen: hooks.mobileSearchOpen,
-          onToggleMobileSearch: hooks.onToggleMobileSearch,
-          filter: hooks.filter,
-          onFilter: hooks.onFilter,
+          onOpenPeerStatus: chrome.onOpenPeerStatus,
+          onLeave: chrome.onRequestLeave,
+          mobileSearchOpen: chrome.mobileSearchOpen,
+          onToggleMobileSearch: chrome.onToggleMobileSearch,
+          filter: chrome.filter,
+          onFilter: chrome.onFilter,
           onStartCall: _startCall,
-          confirmedFingerprints: _confirmedFingerprints,
+          confirmedFingerprints: _confirmedSessionIds,
           onConfirmFingerprint: _confirmFingerprint,
         ),
       );
@@ -55,8 +57,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   }
 
   void _confirmFingerprint() => setState(
-        () => _confirmedFingerprints = {
-          ..._confirmedFingerprints,
+        () => _confirmedSessionIds = {
+          ..._confirmedSessionIds,
           widget.sessionId,
         },
       );
@@ -64,7 +66,7 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   /// The session is gone, so its confirmation no longer means anything.
   void _forgetConfirmation() {
     if (!mounted) return;
-    setState(() => _confirmedFingerprints = {..._confirmedFingerprints}
+    setState(() => _confirmedSessionIds = {..._confirmedSessionIds}
       ..remove(widget.sessionId));
   }
 }

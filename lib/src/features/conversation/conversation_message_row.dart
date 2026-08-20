@@ -70,58 +70,61 @@ class ConversationMessageRow extends StatelessWidget {
   final AppLocalizations l;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(top: messageRowSpacing(grouped)),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // A continuation row leaves the avatar's width empty, so it
+            // lines up under the first row of the block.
+            if (grouped)
+              const SizedBox(width: messageAvatarSize)
+            else
+              Avatar(name: message.fromDevice, radius: messageAvatarSize / 2),
+            const SizedBox(width: kMessageRowGap),
+            Expanded(child: _body()),
+          ],
+        ),
+      );
+
+  /// The meta, the text, and whatever the message trails with.
+  Widget _body() {
     final attachment = message.attachment;
     final callEvent = message.callEvent;
-    return Padding(
-      padding: EdgeInsets.only(top: messageRowSpacing(grouped)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (grouped)
-            const SizedBox(width: messageAvatarSize)
-          else
-            Avatar(name: message.fromDevice, radius: messageAvatarSize / 2),
-          const SizedBox(width: kMessageRowGap),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!grouped)
-                  ConversationSenderMeta(
-                    fromDevice: message.fromDevice,
-                    fromFingerprint: message.fromFingerprint,
-                    sentAtMs: message.sentAtMs,
-                    showMlsBadge: kind != ConversationKind.channel,
-                    peer: peer,
-                  ),
-                if (message.body.isNotEmpty)
-                  Text(message.body, style: kMessageBodyStyle),
-                if (attachment != null)
-                  AttachmentCard(
-                    descriptor: attachment,
-                    view: attachmentView,
-                    own: message.own,
-                    busy: busy,
-                    onDownload: onAttachmentDownload,
-                    onCancel: onAttachmentCancel,
-                    onOpen: onAttachmentOpen,
-                  ),
-                if (callEvent != null) CallLogEntry(event: callEvent, l: l),
-                if (message.own && kind == ConversationKind.dm)
-                  DeliveryTicks(status: message.deliveryStatus),
-                if (message.canRetry)
-                  FailedMessageRetry(
-                    deliveryError: message.deliveryError,
-                    onRetry: () => onRetry(message.messageId!),
-                    l: l.toFailedMessageRetryL10n(),
-                  ),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!grouped)
+          ConversationSenderMeta(
+            fromDevice: message.fromDevice,
+            fromFingerprint: message.fromFingerprint,
+            sentAtMs: message.sentAtMs,
+            showMlsBadge: kind != ConversationKind.channel,
+            peer: peer,
           ),
-        ],
-      ),
+        if (message.body.isNotEmpty)
+          Text(message.body, style: kMessageBodyStyle),
+        if (attachment != null)
+          AttachmentCard(
+            descriptor: attachment,
+            view: attachmentView,
+            own: message.own,
+            busy: busy,
+            onDownload: onAttachmentDownload,
+            onCancel: onAttachmentCancel,
+            onOpen: onAttachmentOpen,
+          ),
+        if (callEvent != null) CallLogEntry(event: callEvent, l: l),
+        if (message.own && kind == ConversationKind.dm)
+          DeliveryTicks(status: message.deliveryStatus),
+        if (message.canRetry)
+          FailedMessageRetry(
+            deliveryError: message.deliveryError,
+            onRetry: () => onRetry(message.messageId!),
+            l: l.toFailedMessageRetryL10n(),
+          ),
+      ],
     );
   }
 }

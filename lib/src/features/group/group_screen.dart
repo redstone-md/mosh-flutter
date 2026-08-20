@@ -18,14 +18,14 @@ class GroupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ConversationScreen(
         target: GroupTarget(groupId),
-        header: (context, hooks) => GroupScreenHeader(
+        header: (context, chrome) => GroupScreenHeader(
           groupId: groupId,
-          onOpenPeerStatus: hooks.onOpenPeerStatus,
-          onLeave: hooks.onRequestLeave,
-          mobileSearchOpen: hooks.mobileSearchOpen,
-          onToggleMobileSearch: hooks.onToggleMobileSearch,
-          filter: hooks.filter,
-          onFilter: hooks.onFilter,
+          onOpenPeerStatus: chrome.onOpenPeerStatus,
+          onLeave: chrome.onRequestLeave,
+          mobileSearchOpen: chrome.mobileSearchOpen,
+          onToggleMobileSearch: chrome.onToggleMobileSearch,
+          filter: chrome.filter,
+          onFilter: chrome.onFilter,
         ),
       );
 }

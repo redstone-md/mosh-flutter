@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/chat_header_menu.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
@@ -21,7 +22,7 @@ class ChannelScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ConversationScreen(
         target: ChannelTarget(name),
-        header: (context, hooks) => _ChannelHeader(name: name, hooks: hooks),
+        header: (context, chrome) => _ChannelHeader(name: name, chrome: chrome),
       );
 }
 
@@ -29,10 +30,10 @@ class ChannelScreen extends StatelessWidget {
 /// screen. On a narrow window the search and the leave action move into the
 /// menu.
 class _ChannelHeader extends StatelessWidget implements PreferredSizeWidget {
-  const _ChannelHeader({required this.name, required this.hooks});
+  const _ChannelHeader({required this.name, required this.chrome});
 
   final String name;
-  final ConversationHeaderHooks hooks;
+  final ConversationChrome chrome;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -49,43 +50,43 @@ class _ChannelHeader extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         if (mobile)
           MobileSearchToggle(
-            open: hooks.mobileSearchOpen,
-            onToggle: hooks.onToggleMobileSearch,
+            open: chrome.mobileSearchOpen,
+            onToggle: chrome.onToggleMobileSearch,
             l: l,
           ),
         ChatHeaderMenu(
           l: l,
           actions: [
-            if (hooks.filter == ConversationFilter.attachments)
+            if (chrome.filter == ConversationFilter.attachments)
               ChatHeaderMenuAction(
                 label: l.chatFilterAll,
                 icon: Icons.chat_bubble_outline,
-                onSelect: () => hooks.onFilter(ConversationFilter.all),
+                onSelect: () => chrome.onFilter(ConversationFilter.all),
               )
             else
               ChatHeaderMenuAction(
                 label: l.chatFilterAttachments,
                 icon: Icons.attach_file,
-                onSelect: () => hooks.onFilter(ConversationFilter.attachments),
+                onSelect: () => chrome.onFilter(ConversationFilter.attachments),
               ),
             ChatHeaderMenuAction(
               label: l.channelLeaveLabel,
               icon: Icons.logout,
               danger: true,
-              onSelect: hooks.onRequestLeave,
+              onSelect: chrome.onRequestLeave,
             ),
           ],
         ),
         IconButton(
           icon: const Icon(Icons.electrical_services, size: 18),
           tooltip: l.openPeerStatus,
-          onPressed: hooks.onOpenPeerStatus,
+          onPressed: chrome.onOpenPeerStatus,
         ),
         if (!mobile)
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: l.channelLeaveLabel,
-            onPressed: hooks.onRequestLeave,
+            onPressed: chrome.onRequestLeave,
           ),
       ],
     );

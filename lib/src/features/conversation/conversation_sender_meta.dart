@@ -97,9 +97,10 @@ class ConversationSenderMeta extends StatelessWidget {
         textBaseline: TextBaseline.alphabetic,
         children: [
           Flexible(child: nameWidget),
-          const SizedBox(width: kMessageMetaGap),
-          if (fingerprint != null)
+          if (fingerprint != null) ...[
+            const SizedBox(width: kMessageMetaGap),
             DeviceFingerprintChip(fingerprint: fingerprint),
+          ],
           if (showMlsBadge) ...[
             const SizedBox(width: kMessageMetaGap),
             const MlsBadge(),

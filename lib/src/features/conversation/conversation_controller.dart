@@ -48,6 +48,19 @@ import 'package:mosh/src/state/org_providers.dart'
 import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider, inviteFlowProvider, sessionListProvider;
 
+/// What a recording is called when it is sent. The receiver plays it by its
+/// type, so the name only has to end in an extension that matches.
+const String _voiceFileBaseName = 'voice-message';
+const String _mp4MimeMarker = 'mp4';
+const String _mp4VoiceExtension = 'm4a';
+const String _webmVoiceExtension = 'webm';
+
+String _voiceFileName(String mime) {
+  final extension =
+      mime.contains(_mp4MimeMarker) ? _mp4VoiceExtension : _webmVoiceExtension;
+  return '$_voiceFileBaseName.$extension';
+}
+
 /// One controller per conversation, keyed by its target.
 final conversationControllerProvider = NotifierProvider.family<
     ConversationController,
@@ -142,10 +155,9 @@ class ConversationController extends Notifier<ConversationControllerState> {
   Future<void> sendVoice(VoiceSend voice) async {
     await _send(() async {
       final bytes = await File(voice.path).readAsBytes();
-      final extension = voice.mime.contains('mp4') ? 'm4a' : 'webm';
       await ref.read(gatewayProvider).sendAttachment(
             target,
-            fileName: 'voice-message.$extension',
+            fileName: _voiceFileName(voice.mime),
             mime: voice.mime,
             dataBase64: base64Encode(bytes),
             voice: VoiceMeta(

@@ -59,6 +59,18 @@ Future<void> _pumpRow(
       ),
     );
 
+/// How many meta-row gaps the sender meta drew. One per part that follows
+/// the name.
+int _metaGaps(WidgetTester tester) => tester
+    .widgetList<SizedBox>(
+      find.descendant(
+        of: find.byType(ConversationSenderMeta),
+        matching: find.byType(SizedBox),
+      ),
+    )
+    .where((box) => box.width == kMessageMetaGap)
+    .length;
+
 void main() {
   setUpAll(initializeDateFormatting);
 
@@ -117,6 +129,31 @@ void main() {
       expect(find.byType(DeviceFingerprintChip), findsNothing);
       expect(find.text('MLS'), findsOneWidget);
       expect(find.textContaining('delivered'), findsNothing);
+      // Dropping the chip must drop its gap with it, or the DM name sits
+      // twice as far from the badge as it should.
+      expect(_metaGaps(tester), 2);
+    });
+
+    testWidgets('a channel keeps one gap per part it shows', (tester) async {
+      await _pumpRow(
+        tester,
+        message: _message(),
+        kind: ConversationKind.channel,
+      );
+
+      // Name -> chip, chip -> time. No badge on a channel.
+      expect(_metaGaps(tester), 2);
+    });
+
+    testWidgets('a group keeps one gap per part it shows', (tester) async {
+      await _pumpRow(
+        tester,
+        message: _message(),
+        kind: ConversationKind.group,
+      );
+
+      // Name -> chip, chip -> badge, badge -> time.
+      expect(_metaGaps(tester), 3);
     });
 
     testWidgets('a DM shows the delivery state on an own message',

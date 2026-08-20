@@ -250,7 +250,10 @@ flowchart TD
 
 Each kind supplies its app bar and its target. Everything below that is
 shared: one controller for send / retry / attachments / voice / leave / peer
-DM, one body, one message list, one row.
+DM, one body, one message list, one row. The screen hands the header and the
+body one `ConversationChrome` -- the search text, the filter, the mobile
+search panel, the peer-status drawer and the leave action -- so neither holds
+a copy of the screen's state.
 
 The three generated snapshots map into one sealed view, so the shared code
 reads one message shape while the kind-only surfaces — the peer-status

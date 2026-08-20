@@ -230,14 +230,43 @@ ConversationMessage _fromDm(ChatMessage m, String ownDeviceName) =>
       retryable: m.retryable,
     );
 
-/// A channel message. Channels are multi-party, so own is a fingerprint
+/// A channel or group message. Both are multi-party, so own is a fingerprint
 /// match: two members can share a display name but never a fingerprint.
-ConversationMessage _fromChannel(ChannelMessage m, String ownFingerprint) =>
+///
+/// `ChannelMessage` and `GroupMessage` are field-identical but share no
+/// generated base, so the caller reads the fields off its own type and this
+/// builds the view.
+ConversationMessage _fromMultiParty({
+  required String fromDevice,
+  required String fromFingerprint,
+  required String body,
+  required String ownFingerprint,
+  String? messageId,
+  BigInt? sentAtMs,
+  AttachmentDescriptor? attachment,
+  MessageDeliveryStatus? deliveryStatus,
+  String? deliveryError,
+  bool? retryable,
+}) =>
     ConversationMessage(
+      fromDevice: fromDevice,
+      body: body,
+      own: fromFingerprint == ownFingerprint,
+      fromFingerprint: fromFingerprint,
+      messageId: messageId,
+      sentAtMs: sentAtMs,
+      attachment: attachment,
+      deliveryStatus: deliveryStatus,
+      deliveryError: deliveryError,
+      retryable: retryable,
+    );
+
+ConversationMessage _fromChannel(ChannelMessage m, String ownFingerprint) =>
+    _fromMultiParty(
       fromDevice: m.fromDevice,
-      body: m.body,
-      own: m.fromFingerprint == ownFingerprint,
       fromFingerprint: m.fromFingerprint,
+      body: m.body,
+      ownFingerprint: ownFingerprint,
       messageId: m.messageId,
       sentAtMs: m.sentAtMs,
       attachment: m.attachment,
@@ -246,13 +275,12 @@ ConversationMessage _fromChannel(ChannelMessage m, String ownFingerprint) =>
       retryable: m.retryable,
     );
 
-/// A group message. Same fingerprint rule as a channel.
 ConversationMessage _fromGroup(GroupMessage m, String ownFingerprint) =>
-    ConversationMessage(
+    _fromMultiParty(
       fromDevice: m.fromDevice,
-      body: m.body,
-      own: m.fromFingerprint == ownFingerprint,
       fromFingerprint: m.fromFingerprint,
+      body: m.body,
+      ownFingerprint: ownFingerprint,
       messageId: m.messageId,
       sentAtMs: m.sentAtMs,
       attachment: m.attachment,
