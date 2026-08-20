@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::attachment_runtime::VoiceMeta;
+use crate::conversation::message_log::{ConversationMessage, LogError};
 use crate::mls_crypto::MlsCryptoError;
+use crate::outbound_delivery::MessageDeliveryMeta;
 pub use crate::outbound_delivery::MessageDeliveryStatus;
 use flutter_rust_bridge::frb;
 
@@ -174,6 +176,41 @@ pub struct ChatMessage {
     pub retryable: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<u32>,
+}
+
+impl ConversationMessage for ChatMessage {
+    fn message_id(&self) -> Option<&str> {
+        self.message_id.as_deref()
+    }
+
+    fn set_message_id(&mut self, message_id: String) {
+        self.message_id = Some(message_id);
+    }
+
+    fn sent_at_ms(&self) -> Option<u64> {
+        self.sent_at_ms
+    }
+
+    fn set_sent_at_ms(&mut self, sent_at_ms: u64) {
+        self.sent_at_ms = Some(sent_at_ms);
+    }
+
+    fn body(&self) -> &str {
+        &self.body
+    }
+
+    /// A DM has two participants and no fingerprint on the message, so the
+    /// sender's device name is what tells the two apart.
+    fn author(&self) -> &str {
+        &self.from_device
+    }
+
+    fn set_delivery(&mut self, delivery: MessageDeliveryMeta) {
+        self.delivery_status = delivery.delivery_status;
+        self.delivery_error = delivery.delivery_error;
+        self.retryable = delivery.retryable;
+        self.retry_count = delivery.retry_count;
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -364,6 +401,24 @@ impl From<crate::attachment_runtime::AttachmentRuntimeError> for PrivateDmRuntim
 impl From<crate::attachment_store::AttachmentStoreError> for PrivateDmRuntimeError {
     fn from(error: crate::attachment_store::AttachmentStoreError) -> Self {
         Self::Attachment(error.to_string())
+    }
+}
+
+impl From<LogError> for PrivateDmRuntimeError {
+    fn from(error: LogError) -> Self {
+        match error {
+            LogError::Missing(id) => Self::MissingMessage(id),
+            LogError::Codec(error) => Self::Codec(error),
+        }
+    }
+}
+
+impl From<crate::conversation::attachments::SlotError> for PrivateDmRuntimeError {
+    fn from(error: crate::conversation::attachments::SlotError) -> Self {
+        match error {
+            crate::conversation::attachments::SlotError::Missing(id) => Self::MissingAttachment(id),
+            other => Self::Attachment(other.to_string()),
+        }
     }
 }
 

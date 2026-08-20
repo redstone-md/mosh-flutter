@@ -3,17 +3,19 @@ mod invite;
 mod relay;
 mod wire;
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::sync::mpsc;
 use std::sync::Arc;
 
 pub use crate::attachment_runtime::VoiceMeta;
 use crate::attachment_runtime::{
     AttachmentManifest, AttachmentRuntime, ChunkOutcome, OutgoingAttachment, StreamRange,
-    CHUNK_SIZE,
 };
 use crate::attachment_store::AttachmentStore;
-use crate::message_id::MessageIdGen;
+use crate::conversation::attachments::{descriptor_of, AttachmentDirection, AttachmentSlots};
+use crate::conversation::dedup::SeenFrames;
+use crate::conversation::message_log::{delivery_meta, ConversationMessage, MessageLog};
+use crate::conversation::now_ms;
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::Persistence;
@@ -134,13 +136,6 @@ fn peer_is_direct(peer_moss_id: Option<&str>, info: &MeshInfo) -> bool {
     info.peer_details.iter().any(|p| p.id == id && !p.relayed)
 }
 
-fn now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
-}
-
 /// A moss peer id is 64 hex characters; the leading 16 identify it uniquely
 /// enough for a log line without making the line unreadable.
 fn short_peer_id(peer_hex: &str) -> &str {
@@ -159,24 +154,10 @@ fn random_b64(bytes: usize) -> String {
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buf)
 }
 
-fn apply_delivery(
-    message: &mut ChatMessage,
-    status: MessageDeliveryStatus,
-    error: Option<String>,
-    retry_count: u32,
-) {
-    message.delivery_status = Some(status);
-    message.delivery_error = error;
-    message.retry_count = Some(retry_count);
-    message.retryable = Some(matches!(status, MessageDeliveryStatus::Failed));
-}
-
 use crate::moss_ffi::{
     drain_messages_where, snapshot_event_log, MossFfiRuntime, MossNode, MossReceivedMessage,
 };
 use crate::shared_node::SharedMossNode;
-
-const SEEN_MESSAGE_CAP: usize = 4096;
 
 pub struct PrivateDmRuntime {
     moss: Arc<MossFfiRuntime>,
@@ -214,21 +195,6 @@ type RelayJobs<'a> = Option<&'a mpsc::Sender<relay::RelayJob>>;
 enum RouteOutcome {
     Published,
     Queued,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum AttachmentDirection {
-    Outgoing,
-    Incoming,
-}
-
-struct AttachmentSlot {
-    descriptor: AttachmentDescriptor,
-    direction: AttachmentDirection,
-    local_path: Option<String>,
-    download_requested: bool,
-    failed: bool,
-    cancelled: bool,
 }
 
 struct PrivateDmSession {
@@ -275,16 +241,14 @@ struct PrivateDmSession {
     peer_joined: bool,
     node: Arc<MossNode>,
     crypto: MlsSessionCrypto,
-    messages: Vec<ChatMessage>,
-    message_ids: MessageIdGen,
-    seen_moss_messages: HashSet<String>,
-    seen_order: VecDeque<String>,
+    messages: MessageLog<ChatMessage>,
+    seen: SeenFrames,
     control_channel: String,
     data_channel: String,
     blob_channel: String,
     attachment_store: Arc<AttachmentStore>,
     attachments: AttachmentRuntime,
-    attachment_slots: HashMap<String, AttachmentSlot>,
+    attachment_slots: AttachmentSlots,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     call: Option<CallState>,
     // MLS handshake retransmit state. Bob keeps his published KeyPackage here
@@ -522,21 +486,15 @@ impl PrivateDmRuntime {
                                     } else {
                                         AttachmentDirection::Incoming
                                     };
-                                    session
-                                        .attachment_slots
-                                        .entry(desc.attachment_id.clone())
-                                        .or_insert(AttachmentSlot {
-                                            descriptor: desc.clone(),
-                                            direction,
-                                            local_path: Some(path.to_string_lossy().into_owned()),
-                                            download_requested: false,
-                                            failed: false,
-                                            cancelled: false,
-                                        });
+                                    session.attachment_slots.restore(
+                                        desc.clone(),
+                                        direction,
+                                        path.to_string_lossy().into_owned(),
+                                    );
                                 }
                             }
                         }
-                        session.upsert_message(message);
+                        session.messages.upsert(message);
                     }
                 }
             }
@@ -566,13 +524,12 @@ impl PrivateDmRuntime {
                     if message.sent_at_ms.is_none() {
                         message.sent_at_ms = Some(attempt.sent_at_ms);
                     }
-                    apply_delivery(
-                        &mut message,
+                    message.set_delivery(delivery_meta(
                         attempt.delivery_status,
                         attempt.delivery_error.clone(),
                         attempt.retry_count,
-                    );
-                    session.upsert_message(message);
+                    ));
+                    session.messages.upsert(message);
                     session
                         .outbound_attempts
                         .insert(attempt.message_id.clone(), attempt);
@@ -760,7 +717,7 @@ impl PrivateDmRuntime {
         let (session_id_owned, state, message_id, sent_at_ms, ciphertext_bytes, payload) = {
             let session = self.session_mut(session_id)?;
             let ciphertext = session.crypto.encrypt(body.as_bytes())?;
-            let mut message = session.stamp_message(ChatMessage {
+            let mut message = session.messages.stamp(ChatMessage {
                 from_device: session.device_id.clone(),
                 body,
                 message_id: None,
@@ -801,7 +758,7 @@ impl PrivateDmRuntime {
                 auto_resends: 0,
                 last_send_ms: sent_at_ms,
             };
-            session.upsert_message(message);
+            session.messages.upsert(message);
             session
                 .outbound_attempts
                 .insert(message_id.clone(), attempt);
@@ -827,7 +784,12 @@ impl PrivateDmRuntime {
         let result = match publish {
             Ok(RouteOutcome::Published) => {
                 let session = self.session_mut(session_id)?;
-                session.mark_delivery(&message_id, MessageDeliveryStatus::Sent, None, 0)?;
+                session.messages.mark_delivery(
+                    &message_id,
+                    MessageDeliveryStatus::Sent,
+                    None,
+                    0,
+                )?;
                 // Sent means "handed to the transport", not "arrived": the
                 // attempt stays retained (and auto re-sent) until the peer's
                 // DeliveryAck upgrades the message to Delivered.
@@ -870,7 +832,7 @@ impl PrivateDmRuntime {
                     } else {
                         0
                     };
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     &message_id,
                     MessageDeliveryStatus::Failed,
                     Some(error_text.clone()),
@@ -927,7 +889,7 @@ impl PrivateDmRuntime {
                 .get(message_id)
                 .map(|attempt| attempt.retry_count)
                 .unwrap_or(0);
-            session.mark_delivery(
+            session.messages.mark_delivery(
                 message_id,
                 MessageDeliveryStatus::Pending,
                 None,
@@ -956,7 +918,7 @@ impl PrivateDmRuntime {
         let result = match publish {
             Ok(RouteOutcome::Published) => {
                 let session = self.session_mut(session_id)?;
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     message_id,
                     MessageDeliveryStatus::Sent,
                     None,
@@ -996,7 +958,7 @@ impl PrivateDmRuntime {
                     attempt.delivery_status = MessageDeliveryStatus::Failed;
                     attempt.delivery_error = Some(error_text.clone());
                 }
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     message_id,
                     MessageDeliveryStatus::Failed,
                     Some(error_text.clone()),
@@ -1054,7 +1016,9 @@ impl PrivateDmRuntime {
             .sessions
             .get_mut(session_id)
             .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        session.start_attachment_download(attachment_id)?;
+        session
+            .attachment_slots
+            .start_download(attachment_id, &mut session.attachments)?;
         session.pump_attachment_requests(relay);
         Ok(())
     }
@@ -1065,7 +1029,9 @@ impl PrivateDmRuntime {
         attachment_id: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         let session = self.session_mut(session_id)?;
-        session.cancel_attachment(attachment_id)
+        Ok(session
+            .attachment_slots
+            .cancel(attachment_id, &mut session.attachments)?)
     }
 
     /// Serves a byte range for streaming playback, fetching the region ahead
@@ -1085,11 +1051,9 @@ impl PrivateDmRuntime {
             .sessions
             .get_mut(session_id)
             .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        if let Some(slot) = session.attachment_slots.get_mut(attachment_id) {
-            slot.download_requested = true;
-            slot.cancelled = false;
-        }
-        let _ = session.attachments.start_download(attachment_id);
+        session
+            .attachment_slots
+            .resume_for_stream(attachment_id, &mut session.attachments);
         let outcome = session.attachments.stream_range(attachment_id, start, end);
         session.pump_attachment_requests(relay);
         Ok(outcome)
@@ -1361,7 +1325,9 @@ impl PrivateDmRuntime {
                         attempt.last_send_ms = now_ms();
                     }
                     session
+                        .messages
                         .mark_delivery(&message_id, MessageDeliveryStatus::Sent, None, retry_count)
+                        .map_err(PrivateDmRuntimeError::from)
                         .and_then(|_| session.sync_attempt_message_json(&message_id))
                 }
                 Some(error) if status == MessageDeliveryStatus::Sent => {
@@ -1378,12 +1344,14 @@ impl PrivateDmRuntime {
                         attempt.delivery_error = Some(error.clone());
                     }
                     session
+                        .messages
                         .mark_delivery(
                             &message_id,
                             MessageDeliveryStatus::Failed,
                             Some(error),
                             retry_count,
                         )
+                        .map_err(PrivateDmRuntimeError::from)
                         .and_then(|_| session.sync_attempt_message_json(&message_id))
                 }
             };
@@ -1741,16 +1709,14 @@ impl PrivateDmSession {
             peer_joined: false,
             node,
             crypto,
-            messages: Vec::new(),
-            message_ids: MessageIdGen::default(),
-            seen_moss_messages: HashSet::new(),
-            seen_order: VecDeque::new(),
+            messages: MessageLog::default(),
+            seen: SeenFrames::default(),
             control_channel,
             data_channel,
             blob_channel,
             attachment_store,
             attachments: AttachmentRuntime::new(),
-            attachment_slots: HashMap::new(),
+            attachment_slots: AttachmentSlots::default(),
             outbound_attempts: HashMap::new(),
             call: None,
             pending_key_package: None,
@@ -1782,77 +1748,8 @@ impl PrivateDmSession {
         }
     }
 
-    fn stamp_message(&self, mut message: ChatMessage) -> ChatMessage {
-        let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-        message.sent_at_ms = Some(sent_at_ms);
-        if message.message_id.as_deref().unwrap_or_default().is_empty() {
-            message.message_id = Some(self.message_ids.next(sent_at_ms));
-        }
-        message
-    }
-
-    fn upsert_message(&mut self, message: ChatMessage) {
-        if let Some(message_id) = message.message_id.as_deref() {
-            if let Some(existing) = self
-                .messages
-                .iter_mut()
-                .find(|existing| existing.message_id.as_deref() == Some(message_id))
-            {
-                *existing = message;
-                return;
-            }
-        }
-        self.messages.push(message);
-    }
-
-    fn find_message_mut(&mut self, message_id: &str) -> Option<&mut ChatMessage> {
-        self.messages
-            .iter_mut()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-    }
-
-    fn has_message(&self, candidate: &ChatMessage) -> bool {
-        self.messages.iter().any(|existing| {
-            existing.from_device == candidate.from_device
-                && match (
-                    existing.message_id.as_deref(),
-                    candidate.message_id.as_deref(),
-                ) {
-                    (Some(left), Some(right)) if !left.is_empty() && !right.is_empty() => {
-                        left == right
-                    }
-                    _ => {
-                        existing.sent_at_ms == candidate.sent_at_ms
-                            && existing.body == candidate.body
-                    }
-                }
-        })
-    }
-
-    fn mark_delivery(
-        &mut self,
-        message_id: &str,
-        status: MessageDeliveryStatus,
-        error: Option<String>,
-        retry_count: u32,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        let message = self
-            .find_message_mut(message_id)
-            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
-        apply_delivery(message, status, error, retry_count);
-        Ok(())
-    }
-
     fn sync_attempt_message_json(&mut self, message_id: &str) -> Result<(), PrivateDmRuntimeError> {
-        let message_json = self
-            .messages
-            .iter()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))
-            .and_then(|message| {
-                serde_json::to_string(message)
-                    .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))
-            })?;
+        let message_json = self.messages.json_for(message_id)?;
         if let Some(attempt) = self.outbound_attempts.get_mut(message_id) {
             attempt.message_json = message_json;
         }
@@ -1923,21 +1820,7 @@ impl PrivateDmSession {
         if message.channel == self.control_channel || message.channel == self.blob_channel {
             return false;
         }
-        let key = format!(
-            "{}:{}",
-            message.channel,
-            crate::attachment_crypto::sha256_hex(&message.payload)
-        );
-        if !self.seen_moss_messages.insert(key.clone()) {
-            return true;
-        }
-        self.seen_order.push_back(key);
-        if self.seen_order.len() > SEEN_MESSAGE_CAP {
-            if let Some(evicted) = self.seen_order.pop_front() {
-                self.seen_moss_messages.remove(&evicted);
-            }
-        }
-        false
+        self.seen.seen_before(&message.channel, &message.payload)
     }
 
     /// Remember the peer's display name from an inbound frame's `from_device`.
@@ -2280,7 +2163,7 @@ impl PrivateDmSession {
                 // Delivered and stop the auto-resend loop. Unknown ids (ack
                 // for an attempt a restart already dropped) are ignored.
                 if let Some(attempt) = self.outbound_attempts.remove(&message_id) {
-                    self.mark_delivery(
+                    self.messages.mark_delivery(
                         &message_id,
                         MessageDeliveryStatus::Delivered,
                         None,
@@ -2415,7 +2298,7 @@ impl PrivateDmSession {
         duration_ms: u64,
         call_id: &str,
     ) {
-        let message = self.stamp_message(ChatMessage {
+        let message = self.messages.stamp(ChatMessage {
             from_device: remote_device.to_string(),
             body: String::new(),
             message_id: None,
@@ -2461,7 +2344,7 @@ impl PrivateDmSession {
         let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
         self.note_verified_peer_activity(&envelope.from_device);
         let ack_id = envelope.message_id.clone();
-        let message = self.stamp_message(ChatMessage {
+        let message = self.messages.stamp(ChatMessage {
             from_device: envelope.from_device,
             body: String::from_utf8_lossy(&plaintext).into_owned(),
             message_id: envelope.message_id,
@@ -2473,7 +2356,7 @@ impl PrivateDmSession {
             retryable: None,
             retry_count: None,
         });
-        if self.has_message(&message) {
+        if self.messages.holds_copy_of(&message) {
             return Ok(());
         }
         self.messages.push(message);
@@ -2540,11 +2423,7 @@ impl PrivateDmSession {
                 frame,
             } if participant_id != self.participant_id => {
                 let attachment_id = frame.attachment_id.clone();
-                let file_name = self
-                    .attachment_slots
-                    .get(&attachment_id)
-                    .map(|slot| slot.descriptor.file_name.clone())
-                    .unwrap_or_else(|| "file".to_string());
+                let file_name = self.attachment_slots.file_name(&attachment_id);
                 match self.attachments.ingest_chunk(&frame) {
                     Ok(ChunkOutcome::Complete {
                         content_hash,
@@ -2554,17 +2433,13 @@ impl PrivateDmSession {
                         let path =
                             self.attachment_store
                                 .write_blob(&content_hash, &file_name, &bytes)?;
-                        if let Some(slot) = self.attachment_slots.get_mut(&attachment_id) {
-                            slot.local_path = Some(path.to_string_lossy().into_owned());
-                            slot.failed = false;
-                        }
+                        self.attachment_slots
+                            .complete_download(&attachment_id, path.to_string_lossy().into_owned());
                         Ok(())
                     }
                     Ok(_) => Ok(()),
                     Err(_) => {
-                        if let Some(slot) = self.attachment_slots.get_mut(&attachment_id) {
-                            slot.failed = true;
-                        }
+                        self.attachment_slots.fail(&attachment_id);
                         Ok(())
                     }
                 }
@@ -2579,23 +2454,13 @@ impl PrivateDmSession {
         manifest: AttachmentManifest,
     ) -> Result<(), PrivateDmRuntimeError> {
         let attachment_id = manifest.attachment_id.clone();
-        if self.attachment_slots.contains_key(&attachment_id) {
+        if self.attachment_slots.contains(&attachment_id) {
             return Ok(());
         }
         let descriptor = descriptor_of(&manifest);
         self.attachments.register_incoming(manifest)?;
-        self.attachment_slots.insert(
-            attachment_id,
-            AttachmentSlot {
-                descriptor: descriptor.clone(),
-                direction: AttachmentDirection::Incoming,
-                local_path: None,
-                download_requested: false,
-                failed: false,
-                cancelled: false,
-            },
-        );
-        let message = self.stamp_message(ChatMessage {
+        self.attachment_slots.offer(descriptor.clone());
+        let message = self.messages.stamp(ChatMessage {
             from_device,
             body: String::new(),
             message_id: None,
@@ -2655,18 +2520,9 @@ impl PrivateDmSession {
         self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None)?;
 
         let descriptor = descriptor_of(&manifest);
-        self.attachment_slots.insert(
-            attachment_id.clone(),
-            AttachmentSlot {
-                descriptor: descriptor.clone(),
-                direction: AttachmentDirection::Outgoing,
-                local_path: Some(stored.to_string_lossy().into_owned()),
-                download_requested: false,
-                failed: false,
-                cancelled: false,
-            },
-        );
-        let message = self.stamp_message(ChatMessage {
+        self.attachment_slots
+            .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
+        let message = self.messages.stamp(ChatMessage {
             from_device: self.device_id.clone(),
             body: String::new(),
             message_id: None,
@@ -2686,50 +2542,8 @@ impl PrivateDmSession {
         })
     }
 
-    fn start_attachment_download(
-        &mut self,
-        attachment_id: &str,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        let slot = self
-            .attachment_slots
-            .get_mut(attachment_id)
-            .ok_or_else(|| PrivateDmRuntimeError::MissingAttachment(attachment_id.to_string()))?;
-        if slot.direction != AttachmentDirection::Incoming {
-            return Err(PrivateDmRuntimeError::Attachment(
-                "cannot download an outgoing attachment".to_string(),
-            ));
-        }
-        slot.download_requested = true;
-        slot.failed = false;
-        slot.cancelled = false;
-        self.attachments.start_download(attachment_id)?;
-        Ok(())
-    }
-
-    fn cancel_attachment(&mut self, attachment_id: &str) -> Result<(), PrivateDmRuntimeError> {
-        let slot = self
-            .attachment_slots
-            .get_mut(attachment_id)
-            .ok_or_else(|| PrivateDmRuntimeError::MissingAttachment(attachment_id.to_string()))?;
-        slot.cancelled = true;
-        slot.download_requested = false;
-        self.attachments.cancel(attachment_id);
-        Ok(())
-    }
-
     fn pump_attachment_requests(&mut self, relay_jobs: RelayJobs<'_>) {
-        let active: Vec<String> = self
-            .attachment_slots
-            .iter()
-            .filter(|(_, slot)| {
-                slot.direction == AttachmentDirection::Incoming
-                    && slot.download_requested
-                    && slot.local_path.is_none()
-                    && !slot.cancelled
-            })
-            .map(|(id, _)| id.clone())
-            .collect();
-        for attachment_id in active {
+        for attachment_id in self.attachment_slots.awaiting_chunks() {
             if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
                 let envelope = BlobEnvelope::Request {
                     participant_id: self.participant_id.clone(),
@@ -2740,16 +2554,6 @@ impl PrivateDmSession {
                 }
             }
         }
-    }
-
-    fn attachment_views(&self) -> Vec<AttachmentView> {
-        let mut views: Vec<AttachmentView> = self
-            .attachment_slots
-            .values()
-            .map(|slot| slot.view(&self.attachments))
-            .collect();
-        views.sort_by(|a, b| a.attachment_id.cmp(&b.attachment_id));
-        views
     }
 
     fn is_alice_session(&self, session_id: &str, participant_id: &str) -> bool {
@@ -2778,8 +2582,8 @@ impl PrivateDmSession {
             relay_ready: None,
             invite_uri: self.invite_uri.clone(),
             fingerprint: self.fingerprint.clone(),
-            messages: self.messages.clone(),
-            attachments: self.attachment_views(),
+            messages: self.messages.to_vec(),
+            attachments: self.attachment_slots.views(&self.attachments),
             mesh: self.mesh_info(),
             events: snapshot_event_log()
                 .into_iter()
@@ -3112,61 +2916,6 @@ impl SessionRole {
     }
 }
 
-impl AttachmentSlot {
-    fn view(&self, attachments: &AttachmentRuntime) -> AttachmentView {
-        let chunk_count = self
-            .descriptor
-            .total_size
-            .div_ceil(u64::from(CHUNK_SIZE))
-            .max(1);
-        let (direction, progress) = match self.direction {
-            AttachmentDirection::Outgoing => (
-                "outgoing",
-                attachments.outgoing_progress(&self.descriptor.attachment_id),
-            ),
-            AttachmentDirection::Incoming => (
-                "incoming",
-                attachments.incoming_progress(&self.descriptor.attachment_id),
-            ),
-        };
-        let completed_chunks = progress
-            .as_ref()
-            .map(|value| value.completed_chunks)
-            .unwrap_or(0);
-        let state = if self.cancelled {
-            AttachmentState::Cancelled
-        } else if self.failed {
-            AttachmentState::Failed
-        } else if self.local_path.is_some() {
-            AttachmentState::Available
-        } else if self.download_requested {
-            AttachmentState::Downloading
-        } else {
-            AttachmentState::Offered
-        };
-        AttachmentView {
-            attachment_id: self.descriptor.attachment_id.clone(),
-            direction: direction.to_string(),
-            state,
-            completed_chunks,
-            chunk_count,
-            local_path: self.local_path.clone(),
-        }
-    }
-}
-
-fn descriptor_of(manifest: &AttachmentManifest) -> AttachmentDescriptor {
-    AttachmentDescriptor {
-        attachment_id: manifest.attachment_id.clone(),
-        content_hash: manifest.content_hash.clone(),
-        file_name: manifest.file_name.clone(),
-        mime: manifest.mime.clone(),
-        total_size: manifest.total_size,
-        thumbnail_b64: manifest.thumbnail_b64.clone(),
-        voice: manifest.voice.clone(),
-    }
-}
-
 /// Joins a session's room on the shared node and subscribes its three channels
 /// there. Wire-identical to what a node owning that room published before, so a
 /// consolidated client still talks to every already-released one.
@@ -3209,6 +2958,7 @@ fn leave_session(node: &MossNode, mesh_id: &str, session_id: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::attachment_runtime::CHUNK_SIZE;
     use crate::moss_ffi::{drain_received_messages, MossFfiRuntime, MOSS_TEST_LOCK};
 
     fn peer(id: &str, relayed: bool) -> PeerDetail {

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -6,18 +6,23 @@ use serde::{Deserialize, Serialize};
 use crate::attachment_crypto::sha256_hex;
 use crate::attachment_runtime::{
     AttachmentManifest, AttachmentRuntime, ChunkFrame, ChunkOutcome, ChunkRequest,
-    OutgoingAttachment, StreamRange, CHUNK_SIZE,
+    OutgoingAttachment, StreamRange,
 };
 use crate::attachment_store::AttachmentStore;
-use crate::message_id::MessageIdGen;
+use crate::conversation::attachments::{
+    descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
+};
+use crate::conversation::dedup::SeenFrames;
+use crate::conversation::message_log::{delivery_meta, ConversationMessage, LogError, MessageLog};
+use crate::conversation::now_ms;
 use crate::moss_ffi::{
     drain_messages_where, snapshot_event_log, MossFfiRuntime, MossNode, MossReceivedMessage,
 };
-use crate::outbound_delivery::{MessageDeliveryStatus, OutboundAttemptRecord};
+use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::Persistence;
 use crate::private_dm_runtime::{
-    AttachmentDescriptor, AttachmentSendResult, AttachmentState, AttachmentView, DmOffer, MeshInfo,
-    SnapshotEvent, VoiceMeta,
+    AttachmentDescriptor, AttachmentSendResult, AttachmentView, DmOffer, MeshInfo, SnapshotEvent,
+    VoiceMeta,
 };
 use crate::shared_node::SharedMossNode;
 
@@ -26,27 +31,7 @@ const BLOB_PREFIX: &str = "channel-blob/";
 const MESH_PREFIX: &str = "channel/";
 const MAX_NAME_LEN: usize = 64;
 const MAX_BODY_LEN: usize = 4096;
-const DEDUP_BUFFER_CAP: usize = 4096;
 const OUTBOUND_SCOPE_CHANNEL: &str = "channel";
-
-fn now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
-}
-
-fn apply_delivery(
-    message: &mut ChannelMessage,
-    status: MessageDeliveryStatus,
-    error: Option<String>,
-    retry_count: u32,
-) {
-    message.delivery_status = Some(status);
-    message.delivery_error = error;
-    message.retry_count = Some(retry_count);
-    message.retryable = Some(matches!(status, MessageDeliveryStatus::Failed));
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinChannelRequest {
@@ -75,6 +60,39 @@ pub struct ChannelMessage {
     pub retryable: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<u32>,
+}
+
+impl ConversationMessage for ChannelMessage {
+    fn message_id(&self) -> Option<&str> {
+        self.message_id.as_deref()
+    }
+
+    fn set_message_id(&mut self, message_id: String) {
+        self.message_id = Some(message_id);
+    }
+
+    fn sent_at_ms(&self) -> Option<u64> {
+        self.sent_at_ms
+    }
+
+    fn set_sent_at_ms(&mut self, sent_at_ms: u64) {
+        self.sent_at_ms = Some(sent_at_ms);
+    }
+
+    fn body(&self) -> &str {
+        &self.body
+    }
+
+    fn author(&self) -> &str {
+        &self.from_fingerprint
+    }
+
+    fn set_delivery(&mut self, delivery: MessageDeliveryMeta) {
+        self.delivery_status = delivery.delivery_status;
+        self.delivery_error = delivery.delivery_error;
+        self.retryable = delivery.retryable;
+        self.retry_count = delivery.retry_count;
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -113,21 +131,6 @@ enum ChannelBlobEnvelope {
     },
     /// A private-DM invitation aimed at one channel member.
     DmOffer { offer: DmOffer },
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum AttachmentDirection {
-    Outgoing,
-    Incoming,
-}
-
-struct AttachmentSlot {
-    descriptor: AttachmentDescriptor,
-    direction: AttachmentDirection,
-    local_path: Option<String>,
-    download_requested: bool,
-    failed: bool,
-    cancelled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -215,6 +218,24 @@ impl From<crate::attachment_store::AttachmentStoreError> for ChannelRuntimeError
     }
 }
 
+impl From<LogError> for ChannelRuntimeError {
+    fn from(error: LogError) -> Self {
+        match error {
+            LogError::Missing(id) => Self::MissingMessage(id),
+            LogError::Codec(error) => Self::Codec(error),
+        }
+    }
+}
+
+impl From<SlotError> for ChannelRuntimeError {
+    fn from(error: SlotError) -> Self {
+        match error {
+            SlotError::Missing(id) => Self::MissingAttachment(id),
+            other => Self::Attachment(other.to_string()),
+        }
+    }
+}
+
 pub struct ChannelRuntime {
     // The one moss node this process runs. Every joined channel is a room on
     // it, not a node of its own — see `shared_node` for why more than one is
@@ -236,13 +257,11 @@ struct ChannelSession {
     listen_port: u16,
     static_peer: Option<String>,
     node: Arc<MossNode>,
-    messages: Vec<ChannelMessage>,
-    message_ids: MessageIdGen,
-    seen_set: HashSet<String>,
-    seen_order: VecDeque<String>,
+    messages: MessageLog<ChannelMessage>,
+    seen: SeenFrames,
     attachment_store: Arc<AttachmentStore>,
     attachments: AttachmentRuntime,
-    attachment_slots: HashMap<String, AttachmentSlot>,
+    attachment_slots: AttachmentSlots,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     dm_offers: Vec<DmOffer>,
 }
@@ -345,13 +364,11 @@ impl ChannelRuntime {
                 listen_port: rec.listen_port,
                 static_peer: rec.static_peer.clone(),
                 node,
-                messages: Vec::new(),
-                message_ids: MessageIdGen::default(),
-                seen_set: HashSet::new(),
-                seen_order: VecDeque::new(),
+                messages: MessageLog::default(),
+                seen: SeenFrames::default(),
                 attachment_store: Arc::clone(&self.attachment_store),
                 attachments: AttachmentRuntime::new(),
-                attachment_slots: HashMap::new(),
+                attachment_slots: AttachmentSlots::default(),
                 outbound_attempts: HashMap::new(),
                 dm_offers: Vec::new(),
             };
@@ -381,21 +398,15 @@ impl ChannelRuntime {
                                         } else {
                                             AttachmentDirection::Incoming
                                         };
-                                    session.attachment_slots.insert(
-                                        desc.attachment_id.clone(),
-                                        AttachmentSlot {
-                                            descriptor: desc.clone(),
-                                            direction,
-                                            local_path: Some(path.to_string_lossy().into_owned()),
-                                            download_requested: false,
-                                            failed: false,
-                                            cancelled: false,
-                                        },
+                                    session.attachment_slots.restore(
+                                        desc.clone(),
+                                        direction,
+                                        path.to_string_lossy().into_owned(),
                                     );
                                 }
                             }
                         }
-                        session.upsert_message(message);
+                        session.messages.upsert(message);
                     }
                 }
             }
@@ -415,13 +426,12 @@ impl ChannelRuntime {
                     if message.sent_at_ms.is_none() {
                         message.sent_at_ms = Some(attempt.sent_at_ms);
                     }
-                    apply_delivery(
-                        &mut message,
+                    message.set_delivery(delivery_meta(
                         attempt.delivery_status,
                         attempt.delivery_error.clone(),
                         attempt.retry_count,
-                    );
-                    session.upsert_message(message);
+                    ));
+                    session.messages.upsert(message);
                     session
                         .outbound_attempts
                         .insert(attempt.message_id.clone(), attempt);
@@ -468,13 +478,11 @@ impl ChannelRuntime {
             listen_port,
             static_peer,
             node,
-            messages: Vec::new(),
-            message_ids: MessageIdGen::default(),
-            seen_set: HashSet::new(),
-            seen_order: VecDeque::new(),
+            messages: MessageLog::default(),
+            seen: SeenFrames::default(),
             attachment_store: Arc::clone(&self.attachment_store),
             attachments: AttachmentRuntime::new(),
-            attachment_slots: HashMap::new(),
+            attachment_slots: AttachmentSlots::default(),
             outbound_attempts: HashMap::new(),
             dm_offers: Vec::new(),
         };
@@ -565,7 +573,7 @@ impl ChannelRuntime {
                 .channels
                 .get_mut(&normalized)
                 .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-            let mut message = session.stamp_message(ChannelMessage {
+            let mut message = session.messages.stamp(ChannelMessage {
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
                 body,
@@ -599,7 +607,7 @@ impl ChannelRuntime {
                 auto_resends: 0,
                 last_send_ms: sent_at_ms,
             };
-            session.upsert_message(message);
+            session.messages.upsert(message);
             session
                 .outbound_attempts
                 .insert(message_id.clone(), attempt);
@@ -629,7 +637,12 @@ impl ChannelRuntime {
                     .channels
                     .get_mut(&normalized)
                     .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-                session.mark_delivery(&message_id, MessageDeliveryStatus::Sent, None, 0)?;
+                session.messages.mark_delivery(
+                    &message_id,
+                    MessageDeliveryStatus::Sent,
+                    None,
+                    0,
+                )?;
                 session.outbound_attempts.remove(&message_id);
                 ChannelSendResult {
                     name: channel_name,
@@ -654,7 +667,7 @@ impl ChannelRuntime {
                     } else {
                         0
                     };
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     &message_id,
                     MessageDeliveryStatus::Failed,
                     Some(error_text.clone()),
@@ -708,7 +721,7 @@ impl ChannelRuntime {
                 .get(message_id)
                 .map(|attempt| attempt.retry_count)
                 .unwrap_or(0);
-            session.mark_delivery(
+            session.messages.mark_delivery(
                 message_id,
                 MessageDeliveryStatus::Pending,
                 None,
@@ -741,7 +754,7 @@ impl ChannelRuntime {
                     .channels
                     .get_mut(&normalized)
                     .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     message_id,
                     MessageDeliveryStatus::Sent,
                     None,
@@ -767,7 +780,7 @@ impl ChannelRuntime {
                     attempt.delivery_status = MessageDeliveryStatus::Failed;
                     attempt.delivery_error = Some(error_text.clone());
                 }
-                session.mark_delivery(
+                session.messages.mark_delivery(
                     message_id,
                     MessageDeliveryStatus::Failed,
                     Some(error_text.clone()),
@@ -822,7 +835,9 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        session.start_attachment_download(attachment_id)?;
+        session
+            .attachment_slots
+            .start_download(attachment_id, &mut session.attachments)?;
         session.pump_attachment_requests();
         Ok(())
     }
@@ -837,7 +852,9 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        session.cancel_attachment(attachment_id)
+        Ok(session
+            .attachment_slots
+            .cancel(attachment_id, &mut session.attachments)?)
     }
 
     /// Serves a byte range for streaming playback of a channel attachment.
@@ -854,11 +871,9 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        if let Some(slot) = session.attachment_slots.get_mut(attachment_id) {
-            slot.download_requested = true;
-            slot.cancelled = false;
-        }
-        let _ = session.attachments.start_download(attachment_id);
+        session
+            .attachment_slots
+            .resume_for_stream(attachment_id, &mut session.attachments);
         let outcome = session.attachments.stream_range(attachment_id, start, end);
         session.pump_attachment_requests();
         Ok(outcome)
@@ -1005,15 +1020,6 @@ impl ChannelRuntime {
 }
 
 impl ChannelSession {
-    fn stamp_message(&self, mut message: ChannelMessage) -> ChannelMessage {
-        let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-        message.sent_at_ms = Some(sent_at_ms);
-        if message.message_id.as_deref().unwrap_or_default().is_empty() {
-            message.message_id = Some(self.message_ids.next(sent_at_ms));
-        }
-        message
-    }
-
     fn publishable_message(&self, message: &ChannelMessage) -> ChannelMessage {
         let mut publishable = message.clone();
         publishable.delivery_status = None;
@@ -1023,50 +1029,8 @@ impl ChannelSession {
         publishable
     }
 
-    fn upsert_message(&mut self, message: ChannelMessage) {
-        if let Some(message_id) = message.message_id.as_deref() {
-            if let Some(existing) = self
-                .messages
-                .iter_mut()
-                .find(|existing| existing.message_id.as_deref() == Some(message_id))
-            {
-                *existing = message;
-                return;
-            }
-        }
-        self.messages.push(message);
-    }
-
-    fn find_message_mut(&mut self, message_id: &str) -> Option<&mut ChannelMessage> {
-        self.messages
-            .iter_mut()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-    }
-
-    fn mark_delivery(
-        &mut self,
-        message_id: &str,
-        status: MessageDeliveryStatus,
-        error: Option<String>,
-        retry_count: u32,
-    ) -> Result<(), ChannelRuntimeError> {
-        let message = self
-            .find_message_mut(message_id)
-            .ok_or_else(|| ChannelRuntimeError::MissingMessage(message_id.to_string()))?;
-        apply_delivery(message, status, error, retry_count);
-        Ok(())
-    }
-
     fn sync_attempt_message_json(&mut self, message_id: &str) -> Result<(), ChannelRuntimeError> {
-        let message_json = self
-            .messages
-            .iter()
-            .find(|message| message.message_id.as_deref() == Some(message_id))
-            .ok_or_else(|| ChannelRuntimeError::MissingMessage(message_id.to_string()))
-            .and_then(|message| {
-                serde_json::to_string(message)
-                    .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))
-            })?;
+        let message_json = self.messages.json_for(message_id)?;
         if let Some(attempt) = self.outbound_attempts.get_mut(message_id) {
             attempt.message_json = message_json;
         }
@@ -1087,19 +1051,19 @@ impl ChannelSession {
     }
 
     fn handle_message(&mut self, message: MossReceivedMessage) -> Result<(), ChannelRuntimeError> {
-        if self.has_seen(&message) {
+        if self.seen.seen_before(&message.channel, &message.payload) {
             return Ok(());
         }
         if message.channel == self.topic {
             let envelope: ChannelMessage = serde_json::from_slice(&message.payload)
                 .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
-            if self.has_message(&envelope) {
+            if self.messages.holds_copy_of(&envelope) {
                 return Ok(());
             }
             if envelope.from_fingerprint == self.device_fingerprint {
                 return Ok(());
             }
-            self.messages.push(self.stamp_message(envelope));
+            self.messages.push_stamped(envelope);
             Ok(())
         } else if message.channel == self.blob_topic {
             self.handle_blob(message.payload)
@@ -1154,11 +1118,7 @@ impl ChannelSession {
                 frame,
             } if from_fingerprint != self.device_fingerprint => {
                 let attachment_id = frame.attachment_id.clone();
-                let file_name = self
-                    .attachment_slots
-                    .get(&attachment_id)
-                    .map(|slot| slot.descriptor.file_name.clone())
-                    .unwrap_or_else(|| "file".to_string());
+                let file_name = self.attachment_slots.file_name(&attachment_id);
                 match self.attachments.ingest_chunk(&frame) {
                     Ok(ChunkOutcome::Complete {
                         content_hash,
@@ -1168,17 +1128,13 @@ impl ChannelSession {
                         let path =
                             self.attachment_store
                                 .write_blob(&content_hash, &file_name, &bytes)?;
-                        if let Some(slot) = self.attachment_slots.get_mut(&attachment_id) {
-                            slot.local_path = Some(path.to_string_lossy().into_owned());
-                            slot.failed = false;
-                        }
+                        self.attachment_slots
+                            .complete_download(&attachment_id, path.to_string_lossy().into_owned());
                         Ok(())
                     }
                     Ok(_) => Ok(()),
                     Err(_) => {
-                        if let Some(slot) = self.attachment_slots.get_mut(&attachment_id) {
-                            slot.failed = true;
-                        }
+                        self.attachment_slots.fail(&attachment_id);
                         Ok(())
                     }
                 }
@@ -1194,23 +1150,13 @@ impl ChannelSession {
         manifest: AttachmentManifest,
     ) -> Result<(), ChannelRuntimeError> {
         let attachment_id = manifest.attachment_id.clone();
-        if self.attachment_slots.contains_key(&attachment_id) {
+        if self.attachment_slots.contains(&attachment_id) {
             return Ok(());
         }
         let descriptor = descriptor_of(&manifest);
         self.attachments.register_incoming(manifest)?;
-        self.attachment_slots.insert(
-            attachment_id,
-            AttachmentSlot {
-                descriptor: descriptor.clone(),
-                direction: AttachmentDirection::Incoming,
-                local_path: None,
-                download_requested: false,
-                failed: false,
-                cancelled: false,
-            },
-        );
-        let message = self.stamp_message(ChannelMessage {
+        self.attachment_slots.offer(descriptor.clone());
+        let message = self.messages.stamp(ChannelMessage {
             from_device,
             from_fingerprint,
             body: String::new(),
@@ -1235,7 +1181,7 @@ impl ChannelSession {
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
         let attachment_id = format!("attachment-{}", &sha256_hex(&bytes)[..16]);
-        if self.attachment_slots.contains_key(&attachment_id) {
+        if self.attachment_slots.contains(&attachment_id) {
             return Err(ChannelRuntimeError::Attachment(
                 "attachment already shared on this channel".to_string(),
             ));
@@ -1262,18 +1208,9 @@ impl ChannelSession {
         publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope)?;
 
         let descriptor = descriptor_of(&manifest);
-        self.attachment_slots.insert(
-            attachment_id.clone(),
-            AttachmentSlot {
-                descriptor: descriptor.clone(),
-                direction: AttachmentDirection::Outgoing,
-                local_path: Some(stored.to_string_lossy().into_owned()),
-                download_requested: false,
-                failed: false,
-                cancelled: false,
-            },
-        );
-        let message = self.stamp_message(ChannelMessage {
+        self.attachment_slots
+            .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
+        let message = self.messages.stamp(ChannelMessage {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
             body: String::new(),
@@ -1293,50 +1230,8 @@ impl ChannelSession {
         })
     }
 
-    fn start_attachment_download(
-        &mut self,
-        attachment_id: &str,
-    ) -> Result<(), ChannelRuntimeError> {
-        let slot = self
-            .attachment_slots
-            .get_mut(attachment_id)
-            .ok_or_else(|| ChannelRuntimeError::MissingAttachment(attachment_id.to_string()))?;
-        if slot.direction != AttachmentDirection::Incoming {
-            return Err(ChannelRuntimeError::Attachment(
-                "cannot download an outgoing attachment".to_string(),
-            ));
-        }
-        slot.download_requested = true;
-        slot.failed = false;
-        slot.cancelled = false;
-        self.attachments.start_download(attachment_id)?;
-        Ok(())
-    }
-
-    fn cancel_attachment(&mut self, attachment_id: &str) -> Result<(), ChannelRuntimeError> {
-        let slot = self
-            .attachment_slots
-            .get_mut(attachment_id)
-            .ok_or_else(|| ChannelRuntimeError::MissingAttachment(attachment_id.to_string()))?;
-        slot.cancelled = true;
-        slot.download_requested = false;
-        self.attachments.cancel(attachment_id);
-        Ok(())
-    }
-
     fn pump_attachment_requests(&mut self) {
-        let active: Vec<String> = self
-            .attachment_slots
-            .iter()
-            .filter(|(_, slot)| {
-                slot.direction == AttachmentDirection::Incoming
-                    && slot.download_requested
-                    && slot.local_path.is_none()
-                    && !slot.cancelled
-            })
-            .map(|(id, _)| id.clone())
-            .collect();
-        for attachment_id in active {
+        for attachment_id in self.attachment_slots.awaiting_chunks() {
             if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
                 let envelope = ChannelBlobEnvelope::Request {
                     from_fingerprint: self.device_fingerprint.clone(),
@@ -1347,48 +1242,6 @@ impl ChannelSession {
         }
     }
 
-    fn attachment_views(&self) -> Vec<AttachmentView> {
-        let mut views: Vec<AttachmentView> = self
-            .attachment_slots
-            .values()
-            .map(|slot| slot.view(&self.attachments))
-            .collect();
-        views.sort_by(|a, b| a.attachment_id.cmp(&b.attachment_id));
-        views
-    }
-
-    fn has_seen(&mut self, message: &MossReceivedMessage) -> bool {
-        let key = format!("{}:{}", message.channel, sha256_hex(&message.payload));
-        if !self.seen_set.insert(key.clone()) {
-            return true;
-        }
-        self.seen_order.push_back(key);
-        if self.seen_order.len() > DEDUP_BUFFER_CAP {
-            if let Some(evicted) = self.seen_order.pop_front() {
-                self.seen_set.remove(&evicted);
-            }
-        }
-        false
-    }
-
-    fn has_message(&self, candidate: &ChannelMessage) -> bool {
-        self.messages.iter().any(|existing| {
-            existing.from_fingerprint == candidate.from_fingerprint
-                && match (
-                    existing.message_id.as_deref(),
-                    candidate.message_id.as_deref(),
-                ) {
-                    (Some(left), Some(right)) if !left.is_empty() && !right.is_empty() => {
-                        left == right
-                    }
-                    _ => {
-                        existing.sent_at_ms == candidate.sent_at_ms
-                            && existing.body == candidate.body
-                    }
-                }
-        })
-    }
-
     fn snapshot(&self) -> ChannelSnapshot {
         ChannelSnapshot {
             name: self.name.clone(),
@@ -1396,8 +1249,8 @@ impl ChannelSession {
             mesh_id: self.mesh_id.clone(),
             display_name: self.display_name.clone(),
             device_fingerprint: self.device_fingerprint.clone(),
-            messages: self.messages.clone(),
-            attachments: self.attachment_views(),
+            messages: self.messages.to_vec(),
+            attachments: self.attachment_slots.views(&self.attachments),
             dm_offers: self.dm_offers.clone(),
             mesh: self.mesh_info(),
             events: snapshot_event_log()
@@ -1502,61 +1355,6 @@ fn encode(bytes: &[u8]) -> String {
 fn decode(encoded: &str) -> Result<Vec<u8>, ChannelRuntimeError> {
     base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)
         .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))
-}
-
-fn descriptor_of(manifest: &AttachmentManifest) -> AttachmentDescriptor {
-    AttachmentDescriptor {
-        attachment_id: manifest.attachment_id.clone(),
-        content_hash: manifest.content_hash.clone(),
-        file_name: manifest.file_name.clone(),
-        mime: manifest.mime.clone(),
-        total_size: manifest.total_size,
-        thumbnail_b64: manifest.thumbnail_b64.clone(),
-        voice: manifest.voice.clone(),
-    }
-}
-
-impl AttachmentSlot {
-    fn view(&self, attachments: &AttachmentRuntime) -> AttachmentView {
-        let chunk_count = self
-            .descriptor
-            .total_size
-            .div_ceil(u64::from(CHUNK_SIZE))
-            .max(1);
-        let (direction, progress) = match self.direction {
-            AttachmentDirection::Outgoing => (
-                "outgoing",
-                attachments.outgoing_progress(&self.descriptor.attachment_id),
-            ),
-            AttachmentDirection::Incoming => (
-                "incoming",
-                attachments.incoming_progress(&self.descriptor.attachment_id),
-            ),
-        };
-        let completed_chunks = progress
-            .as_ref()
-            .map(|value| value.completed_chunks)
-            .unwrap_or(0);
-        let state = if self.cancelled {
-            AttachmentState::Cancelled
-        } else if self.failed {
-            AttachmentState::Failed
-        } else if self.local_path.is_some() {
-            AttachmentState::Available
-        } else if self.download_requested {
-            AttachmentState::Downloading
-        } else {
-            AttachmentState::Offered
-        };
-        AttachmentView {
-            attachment_id: self.descriptor.attachment_id.clone(),
-            direction: direction.to_string(),
-            state,
-            completed_chunks,
-            chunk_count,
-            local_path: self.local_path.clone(),
-        }
-    }
 }
 
 #[cfg(test)]
