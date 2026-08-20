@@ -254,6 +254,14 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         self.final_records.insert(conversation_id.to_string());
     }
 
+    /// Says a conversation's saved record is already the final one. What
+    /// rehydrate knows, because it just read that record off disk — without
+    /// this the first tail write would replace the record with itself, and
+    /// re-encrypt the kind's whole state to do it.
+    pub fn mark_record_final(&mut self, conversation_id: &str) {
+        self.final_records.insert(conversation_id.to_string());
+    }
+
     /// Forgets what the shell remembers about one conversation: how much of
     /// its history is already down, and whether its record is final. For one
     /// the user left, whose rows are being deleted anyway.

@@ -305,6 +305,24 @@ fn a_placeholder_record_is_saved_without_claiming_to_be_final() {
 }
 
 #[test]
+fn a_record_read_back_off_disk_is_not_written_again() {
+    let scratch = Scratch::open("rehydrated");
+    let mut runtime = scratch.runtime();
+    runtime.insert(CONVERSATION.to_string(), FakeSession::new(CONVERSATION));
+
+    // What rehydrate does: the record came off disk, so it is already final.
+    runtime.mark_record_final(CONVERSATION);
+    let before = extra_writes(&runtime);
+    runtime.persist_tail();
+
+    assert_eq!(
+        extra_writes(&runtime),
+        before,
+        "a record read back off disk must not be replaced with itself"
+    );
+}
+
+#[test]
 fn a_conversation_the_user_left_is_written_again_from_the_start() {
     let scratch = Scratch::open("forget");
     let mut runtime = scratch.runtime();
