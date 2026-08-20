@@ -52,28 +52,29 @@ class AttachmentDescriptor {
           voice == other.voice;
 }
 
-/// What a kind answers when the user sends a file.
+/// What a kind answers when the user sends a file. The conversation is named
+/// the way its own kind names one: a DM session id, a group id, a channel name.
 class AttachmentSendResult {
-  final String sessionId;
+  final String conversationId;
   final String attachmentId;
   final String contentHash;
 
   const AttachmentSendResult({
-    required this.sessionId,
+    required this.conversationId,
     required this.attachmentId,
     required this.contentHash,
   });
 
   @override
   int get hashCode =>
-      sessionId.hashCode ^ attachmentId.hashCode ^ contentHash.hashCode;
+      conversationId.hashCode ^ attachmentId.hashCode ^ contentHash.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is AttachmentSendResult &&
           runtimeType == other.runtimeType &&
-          sessionId == other.sessionId &&
+          conversationId == other.conversationId &&
           attachmentId == other.attachmentId &&
           contentHash == other.contentHash;
 }

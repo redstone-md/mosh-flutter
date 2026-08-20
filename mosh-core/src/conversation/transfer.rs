@@ -63,6 +63,17 @@ impl From<SlotError> for TransferError {
     }
 }
 
+/// A file sealed and saved, waiting for its kind to put the manifest on the
+/// wire. Held between [`Transfer::prepare_outgoing`] and
+/// [`Transfer::record_sent`] so the two steps cannot be mixed up.
+pub struct Outgoing {
+    /// What the kind publishes.
+    pub manifest: AttachmentManifest,
+    /// What the kind stamps on the message log, once the manifest is out.
+    pub descriptor: AttachmentDescriptor,
+    stored_path: String,
+}
+
 /// Every attachment one conversation knows about: the transfers in flight, the
 /// slots the UI reads, and the files on disk.
 pub struct Transfer {
@@ -85,22 +96,33 @@ impl Transfer {
         self.slots.contains(attachment_id)
     }
 
-    /// Seals a file for sending and keeps this device's own copy on disk. The
-    /// manifest is what the kind publishes; the descriptor is what it stamps
-    /// on the message log.
+    /// Seals a file for sending and keeps this device's own copy on disk.
+    ///
+    /// The slot stays shut until [`record_sent`](Self::record_sent). The kind
+    /// publishes the manifest in between, and a publish that fails must not
+    /// leave an attachment the UI can show with no message beside it.
     pub fn prepare_outgoing(
         &mut self,
         outgoing: OutgoingAttachment,
-    ) -> Result<(AttachmentManifest, AttachmentDescriptor), TransferError> {
+    ) -> Result<Outgoing, TransferError> {
         let bytes = outgoing.bytes.clone();
         let manifest = self.runtime.prepare_outgoing(outgoing)?;
         let stored = self
             .store
             .write_blob(&manifest.content_hash, &manifest.file_name, &bytes)?;
-        let descriptor = descriptor_of(&manifest);
+        Ok(Outgoing {
+            descriptor: descriptor_of(&manifest),
+            manifest,
+            stored_path: stored.to_string_lossy().into_owned(),
+        })
+    }
+
+    /// Opens the slot for a manifest that is now on the wire, and hands back
+    /// the descriptor to stamp on the message log.
+    pub fn record_sent(&mut self, outgoing: Outgoing) -> AttachmentDescriptor {
         self.slots
-            .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
-        Ok((manifest, descriptor))
+            .record_sent(outgoing.descriptor.clone(), outgoing.stored_path);
+        outgoing.descriptor
     }
 
     /// Takes in a manifest somebody else published. `None` when the

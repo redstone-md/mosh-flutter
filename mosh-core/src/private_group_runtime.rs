@@ -30,6 +30,8 @@ use crate::persistence::{Persistence, GROUP_HISTORY};
 use crate::shared_node::SharedMossNode;
 use ed25519_dalek::SigningKey;
 
+/// What a group calls itself in a log line about its room.
+const KIND: &str = "group";
 const CONTROL_CHANNEL_PREFIX: &str = "group-control/";
 const DATA_CHANNEL_PREFIX: &str = "group-data/";
 const BLOB_CHANNEL_PREFIX: &str = "group-blob/";
@@ -673,7 +675,7 @@ impl PrivateGroupRuntime {
         };
 
         self.groups.insert(group_id.clone(), session);
-        self.persist_group_tail();
+        self.groups.persist_tail();
         Ok(GroupCreated {
             group_id,
             mesh_id,
@@ -782,7 +784,7 @@ impl PrivateGroupRuntime {
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        self.persist_group_tail();
+        self.groups.persist_tail();
         Ok(result)
     }
 
@@ -931,7 +933,7 @@ impl PrivateGroupRuntime {
                 .open(message, owned_group_id, payload, ciphertext.len())?
         };
         let result = self.publish_prepared(group_id, prepared, true)?;
-        self.persist_group_tail();
+        self.groups.persist_tail();
         Ok(result)
     }
 
@@ -960,7 +962,8 @@ impl PrivateGroupRuntime {
         prepared: Prepared,
         persist_snapshot: bool,
     ) -> Result<GroupSendResult, PrivateGroupError> {
-        self.persist_outbound_state(group_id, &prepared.message_id, persist_snapshot);
+        self.groups
+            .persist_send(group_id, &prepared.message_id, persist_snapshot);
         let publish = {
             let session = self
                 .groups
@@ -984,7 +987,8 @@ impl PrivateGroupRuntime {
             )?;
             (group_id_owned, settled)
         };
-        self.persist_outbound_state(group_id, &prepared.message_id, false);
+        self.groups
+            .persist_send(group_id, &prepared.message_id, false);
         Ok(GroupSendResult {
             group_id: group_id_owned,
             bytes: prepared.ciphertext_bytes,
@@ -997,7 +1001,7 @@ impl PrivateGroupRuntime {
 
     pub fn poll(&mut self, group_id: &str) -> Result<GroupSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
-        self.persist_group_tail();
+        self.groups.persist_tail();
         let session = self
             .groups
             .get(group_id)
@@ -1007,7 +1011,7 @@ impl PrivateGroupRuntime {
 
     pub fn list(&mut self) -> Result<GroupListSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
-        self.persist_group_tail();
+        self.groups.persist_tail();
         let mut groups: Vec<GroupSnapshot> =
             self.groups.values().map(GroupSession::snapshot).collect();
         groups.sort_by(|a, b| a.group_id.cmp(&b.group_id));
@@ -1069,7 +1073,7 @@ impl PrivateGroupRuntime {
                 &session.node,
                 &session.mesh_id,
                 &group_channels(group_id),
-                &format!("group {group_id}"),
+                &format!("{KIND} {group_id}"),
             );
         }
         self.groups.forget(group_id);
@@ -1113,15 +1117,6 @@ impl PrivateGroupRuntime {
             session.sync_roster_state();
         }
         Ok(())
-    }
-
-    fn persist_group_tail(&mut self) {
-        self.groups.persist_tail();
-    }
-
-    fn persist_outbound_state(&mut self, group_id: &str, message_id: &str, persist_snapshot: bool) {
-        self.groups
-            .persist_send(group_id, message_id, persist_snapshot);
     }
 }
 
@@ -1982,7 +1977,7 @@ impl GroupSession {
             return Err(PrivateGroupError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let (manifest, descriptor) = self.transfer.prepare_outgoing(OutgoingAttachment {
+        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
@@ -1991,7 +1986,8 @@ impl GroupSession {
             thumbnail_b64: thumbnail,
             voice,
         })?;
-        let manifest_json = serde_json::to_vec(&manifest)
+        let content_hash = outgoing.manifest.content_hash.clone();
+        let manifest_json = serde_json::to_vec(&outgoing.manifest)
             .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
         let ciphertext = self.crypto.encrypt(&manifest_json)?;
         let envelope = ControlEnvelope::AttachmentManifest {
@@ -2003,6 +1999,7 @@ impl GroupSession {
         };
         self.publish_control(&envelope)?;
 
+        let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(GroupMessage {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
@@ -2017,9 +2014,9 @@ impl GroupSession {
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {
-            session_id: self.group_id.clone(),
+            conversation_id: self.group_id.clone(),
             attachment_id,
-            content_hash: manifest.content_hash,
+            content_hash,
         })
     }
 

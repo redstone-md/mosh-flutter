@@ -34,6 +34,9 @@ use wire::{
     voice_call_channel, BlobEnvelope, ControlEnvelope, DataEnvelope,
 };
 
+/// What a DM calls itself in a log line about its room.
+const KIND: &str = "dm";
+
 // Minimum gap between MLS handshake control re-publishes. The KeyPackage and
 // Welcome exchange is a one-shot publish, but gossip does not buffer for a peer
 // that has not meshed yet, so the first publish is routinely lost while
@@ -638,7 +641,7 @@ impl PrivateDmRuntime {
                 .open(message, owned_session_id, payload, ciphertext.len())?
         };
         let result = self.route_prepared(session_id, prepared, true)?;
-        self.persist_session_tail();
+        self.sessions.persist_tail();
         Ok(result)
     }
 
@@ -675,7 +678,8 @@ impl PrivateDmRuntime {
         prepared: Prepared,
         persist_snapshot: bool,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
-        self.persist_outbound_state(session_id, &prepared.message_id, persist_snapshot);
+        self.sessions
+            .persist_send(session_id, &prepared.message_id, persist_snapshot);
         let publish = {
             // Disjoint field borrows: `relay` reads only the field, so it
             // coexists with the immutable session borrow taken by `session_ref`.
@@ -709,7 +713,8 @@ impl PrivateDmRuntime {
             };
             (session.session_id.clone(), session.state(), status, error)
         };
-        self.persist_outbound_state(session_id, &prepared.message_id, false);
+        self.sessions
+            .persist_send(session_id, &prepared.message_id, false);
         Ok(SendMessageResult {
             session_id: session_id_owned,
             state,
@@ -851,7 +856,7 @@ impl PrivateDmRuntime {
                     &session.node,
                     &session.mesh_id,
                     &session_channels(&session.session_id),
-                    &format!("dm {session_id}"),
+                    &format!("{KIND} {session_id}"),
                 );
                 // A relayed session holds a ref on the shared relay node; drop
                 // it so the node's refcount stays accurate and it can stop once
@@ -935,9 +940,9 @@ impl PrivateDmRuntime {
             }
         }
         for (session_id, message_id) in dirty {
-            self.persist_outbound_state(&session_id, &message_id, false);
+            self.sessions.persist_send(&session_id, &message_id, false);
         }
-        self.persist_session_tail();
+        self.sessions.persist_tail();
         Ok(())
     }
 
@@ -1075,7 +1080,8 @@ impl PrivateDmRuntime {
             if let Err(error) = applied {
                 eprintln!("relay outcome for {message_id} failed to apply: {error}");
             }
-            self.persist_outbound_state(&outcome.session_id, &message_id, false);
+            self.sessions
+                .persist_send(&outcome.session_id, &message_id, false);
         }
     }
 
@@ -1140,20 +1146,6 @@ impl PrivateDmRuntime {
         for _ in &releases {
             self.release_relay();
         }
-    }
-
-    fn persist_outbound_state(
-        &mut self,
-        session_id: &str,
-        message_id: &str,
-        persist_snapshot: bool,
-    ) {
-        self.sessions
-            .persist_send(session_id, message_id, persist_snapshot);
-    }
-
-    fn persist_session_tail(&mut self) {
-        self.sessions.persist_tail();
     }
 
     fn session_mut(
@@ -2036,7 +2028,7 @@ impl PrivateDmSession {
             return Err(PrivateDmRuntimeError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let (manifest, descriptor) = self.transfer.prepare_outgoing(OutgoingAttachment {
+        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
@@ -2045,7 +2037,8 @@ impl PrivateDmSession {
             thumbnail_b64: thumbnail,
             voice,
         })?;
-        let manifest_json = serde_json::to_vec(&manifest)
+        let content_hash = outgoing.manifest.content_hash.clone();
+        let manifest_json = serde_json::to_vec(&outgoing.manifest)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         let ciphertext = self.crypto.encrypt(&manifest_json)?;
         let envelope = ControlEnvelope::AttachmentManifest {
@@ -2061,6 +2054,7 @@ impl PrivateDmSession {
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None)?;
 
+        let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(ChatMessage {
             from_device: self.device_id.clone(),
             body: String::new(),
@@ -2075,9 +2069,9 @@ impl PrivateDmSession {
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {
-            session_id: self.session_id.clone(),
+            conversation_id: self.session_id.clone(),
             attachment_id,
-            content_hash: manifest.content_hash,
+            content_hash,
         })
     }
 

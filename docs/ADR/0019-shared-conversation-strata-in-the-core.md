@@ -205,6 +205,13 @@ copies had drifted apart:
   changed. The channel used to rewrite its record on every poll, which
   re-encrypted a record that cannot change after the join.
 
+What did NOT change, and was nearly allowed to: a file whose manifest never
+reached the wire opens no attachment slot. All three kinds published first and
+recorded the slot after, and folding the two into one call would have left a
+failed publish showing an attachment with no message beside it.
+`Transfer::prepare_outgoing` therefore hands back an `Outgoing` and
+`record_sent` takes it, with the kind's publish in between.
+
 The history store takes its tables as data. `persistence::HistoryTables` names
 the conversation table, the message table and the outbound-attempt scope of one
 kind, and `DM_HISTORY`, `GROUP_HISTORY` and `CHANNEL_HISTORY` are the three
@@ -260,6 +267,22 @@ is nothing shared to lift.
 Rejected: leaving the core alone and only sharing the UI. The UI already reads
 one shape; the drift that costs users — delivery status, attachment state,
 duplicate messages — is decided below the bridge.
+
+## Size exception
+
+The three runtimes are over the 400-line file limit in AGENTS.md:
+`private_dm_runtime.rs` about 4,900 lines, `private_group_runtime.rs` about
+3,200, `channel_runtime.rs` about 1,250. Every step of this ADR made them
+smaller — they were 5,075 / 3,288 / 1,363 before it — and what is left is one
+kind's policy plus its own tests, which are more than half of each file.
+
+Scope: those three files only. Everything under `conversation/` is inside the
+limit and stays there.
+
+Revisit it when a kind's policy splits along a real seam. The DM is the
+candidate: relay routing, voice calls and the MLS handshake are three separate
+concerns sharing one file, and `private_dm_runtime/` already holds `relay`,
+`wire`, `invite` and `contracts` as submodules for exactly that reason.
 
 ## Follow-up
 

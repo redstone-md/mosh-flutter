@@ -24,6 +24,8 @@ use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, Outbo
 use crate::persistence::{Persistence, CHANNEL_HISTORY};
 use crate::shared_node::SharedMossNode;
 
+/// What a channel calls itself in a log line about its room.
+const KIND: &str = "channel";
 const TOPIC_PREFIX: &str = "public-channel/";
 const BLOB_PREFIX: &str = "channel-blob/";
 const MESH_PREFIX: &str = "channel/";
@@ -391,7 +393,7 @@ impl ChannelRuntime {
         };
 
         self.channels.insert(normalized.clone(), session);
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         self.poll(&normalized)
     }
 
@@ -444,7 +446,7 @@ impl ChannelRuntime {
                     &session.node,
                     &session.mesh_id,
                     &[session.topic.clone(), session.blob_topic.clone()],
-                    &format!("channel {normalized}"),
+                    &format!("{KIND} {normalized}"),
                 );
                 self.channels.forget(&normalized);
                 if let Some(p) = self.channels.persistence() {
@@ -501,7 +503,7 @@ impl ChannelRuntime {
             (channel_name, topic, prepared)
         };
         let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         Ok(result)
     }
 
@@ -521,7 +523,7 @@ impl ChannelRuntime {
             (session.name.clone(), session.topic.clone(), prepared)
         };
         let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         Ok(result)
     }
 
@@ -588,7 +590,7 @@ impl ChannelRuntime {
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         Ok(result)
     }
 
@@ -642,7 +644,7 @@ impl ChannelRuntime {
 
     pub fn poll(&mut self, name: &str) -> Result<ChannelSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         let normalized = normalize_name(name)?;
         let session = self
             .channels
@@ -653,7 +655,7 @@ impl ChannelRuntime {
 
     pub fn list(&mut self) -> Result<ChannelListSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         let mut channels: Vec<ChannelSnapshot> = self
             .channels
             .values()
@@ -683,10 +685,6 @@ impl ChannelRuntime {
             session.pump_attachment_requests();
         }
         Ok(())
-    }
-
-    fn persist_channel_tail(&mut self) {
-        self.channels.persist_tail();
     }
 }
 
@@ -833,7 +831,7 @@ impl ChannelSession {
                 "attachment already shared on this channel".to_string(),
             ));
         }
-        let (manifest, descriptor) = self.transfer.prepare_outgoing(OutgoingAttachment {
+        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
@@ -842,13 +840,15 @@ impl ChannelSession {
             thumbnail_b64: thumbnail,
             voice,
         })?;
+        let content_hash = outgoing.manifest.content_hash.clone();
         let envelope = ChannelBlobEnvelope::Manifest {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
-            manifest: manifest.clone(),
+            manifest: outgoing.manifest.clone(),
         };
         publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope)?;
 
+        let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(ChannelMessage {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
@@ -863,9 +863,9 @@ impl ChannelSession {
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {
-            session_id: self.name.clone(),
+            conversation_id: self.name.clone(),
             attachment_id,
-            content_hash: manifest.content_hash,
+            content_hash,
         })
     }
 

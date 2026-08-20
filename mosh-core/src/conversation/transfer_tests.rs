@@ -48,6 +48,17 @@ fn outgoing(attachment_id: &str, bytes: Vec<u8>) -> OutgoingAttachment {
     }
 }
 
+/// Sealing a file and putting its manifest on the wire, as a kind does it:
+/// prepare, publish (nothing to publish here), then open the slot.
+fn send(transfer: &mut Transfer, attachment_id: &str, bytes: Vec<u8>) -> AttachmentManifest {
+    let prepared = transfer
+        .prepare_outgoing(outgoing(attachment_id, bytes))
+        .expect("prepare");
+    let manifest = prepared.manifest.clone();
+    transfer.record_sent(prepared);
+    manifest
+}
+
 fn state_of(transfer: &Transfer, attachment_id: &str) -> AttachmentState {
     transfer
         .views()
@@ -62,9 +73,11 @@ fn a_sent_file_is_saved_and_shown_as_available() {
     let scratch = Scratch::open("sent");
     let mut sender = scratch.transfer();
 
-    let (manifest, descriptor) = sender
+    let prepared = sender
         .prepare_outgoing(outgoing("a1", vec![1, 2, 3, 4]))
         .expect("prepare");
+    let manifest = prepared.manifest.clone();
+    let descriptor = sender.record_sent(prepared);
 
     assert_eq!(descriptor.attachment_id, "a1");
     assert_eq!(descriptor.content_hash, manifest.content_hash);
@@ -87,7 +100,9 @@ fn a_manifest_carries_the_voice_note_it_was_sent_with() {
         peaks_b64: "AQID".to_string(),
     });
 
-    let (manifest, descriptor) = sender.prepare_outgoing(request).expect("prepare");
+    let prepared = sender.prepare_outgoing(request).expect("prepare");
+    let manifest = prepared.manifest.clone();
+    let descriptor = sender.record_sent(prepared);
 
     let mut receiver = scratch.transfer();
     let taken = receiver
@@ -104,9 +119,7 @@ fn a_manifest_carries_the_voice_note_it_was_sent_with() {
 fn the_same_offer_twice_is_one_attachment() {
     let scratch = Scratch::open("repeat-offer");
     let mut sender = scratch.transfer();
-    let (manifest, _) = sender
-        .prepare_outgoing(outgoing("a1", vec![5; 32]))
-        .expect("prepare");
+    let manifest = send(&mut sender, "a1", vec![5; 32]);
     let mut receiver = scratch.transfer();
 
     let first = receiver.accept_manifest(manifest.clone()).expect("accept");
@@ -125,9 +138,7 @@ fn a_file_travels_from_the_sender_to_the_receiver() {
     let scratch = Scratch::open("round-trip");
     let bytes: Vec<u8> = (0..2048u32).map(|value| value as u8).collect();
     let mut sender = scratch.transfer();
-    let (manifest, _) = sender
-        .prepare_outgoing(outgoing("a1", bytes.clone()))
-        .expect("prepare");
+    let manifest = send(&mut sender, "a1", bytes.clone());
 
     let mut receiver = scratch.transfer();
     receiver.accept_manifest(manifest.clone()).expect("accept");
@@ -163,9 +174,7 @@ fn a_file_travels_from_the_sender_to_the_receiver() {
 fn only_the_sender_can_answer_a_request() {
     let scratch = Scratch::open("serve");
     let mut sender = scratch.transfer();
-    let (manifest, _) = sender
-        .prepare_outgoing(outgoing("a1", vec![3; 64]))
-        .expect("prepare");
+    let manifest = send(&mut sender, "a1", vec![3; 64]);
     let mut bystander = scratch.transfer();
     bystander.accept_manifest(manifest).expect("accept");
     bystander.start_download("a1").expect("start");
@@ -182,9 +191,7 @@ fn only_the_sender_can_answer_a_request() {
 fn a_chunk_that_does_not_verify_fails_the_slot() {
     let scratch = Scratch::open("bad-chunk");
     let mut sender = scratch.transfer();
-    let (manifest, _) = sender
-        .prepare_outgoing(outgoing("a1", vec![8; 64]))
-        .expect("prepare");
+    let manifest = send(&mut sender, "a1", vec![8; 64]);
     let mut receiver = scratch.transfer();
     receiver.accept_manifest(manifest).expect("accept");
     receiver.start_download("a1").expect("start");
@@ -203,9 +210,10 @@ fn a_chunk_that_does_not_verify_fails_the_slot() {
 fn a_restored_attachment_needs_its_bytes_on_disk() {
     let scratch = Scratch::open("restore");
     let mut sender = scratch.transfer();
-    let (_, descriptor) = sender
+    let prepared = sender
         .prepare_outgoing(outgoing("a1", vec![4; 16]))
         .expect("prepare");
+    let descriptor = sender.record_sent(prepared);
     let mut missing = descriptor.clone();
     missing.content_hash = "0".repeat(64);
     missing.file_name = "never-saved.bin".to_string();
@@ -225,9 +233,7 @@ fn a_restored_attachment_needs_its_bytes_on_disk() {
 fn a_cancelled_download_stops_asking_for_chunks() {
     let scratch = Scratch::open("cancel");
     let mut sender = scratch.transfer();
-    let (manifest, _) = sender
-        .prepare_outgoing(outgoing("a1", vec![6; 64]))
-        .expect("prepare");
+    let manifest = send(&mut sender, "a1", vec![6; 64]);
     let mut receiver = scratch.transfer();
     receiver.accept_manifest(manifest).expect("accept");
     receiver.start_download("a1").expect("start");
@@ -236,6 +242,26 @@ fn a_cancelled_download_stops_asking_for_chunks() {
 
     assert!(receiver.next_requests().is_empty());
     assert_eq!(state_of(&receiver, "a1"), AttachmentState::Cancelled);
+}
+
+#[test]
+fn a_file_whose_manifest_never_went_out_opens_no_slot() {
+    let scratch = Scratch::open("unpublished");
+    let mut sender = scratch.transfer();
+
+    // The kind publishes between these two calls. This one never got that
+    // far, so there must be nothing for the UI to show: an attachment with no
+    // message beside it is a row the user cannot act on.
+    let prepared = sender
+        .prepare_outgoing(outgoing("a1", vec![2; 32]))
+        .expect("prepare");
+
+    assert!(!sender.holds("a1"));
+    assert!(sender.views().is_empty());
+
+    // The bytes are already saved, so the send can still be finished.
+    sender.record_sent(prepared);
+    assert_eq!(state_of(&sender, "a1"), AttachmentState::Available);
 }
 
 #[test]

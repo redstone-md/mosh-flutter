@@ -2522,7 +2522,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 3)
       throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return AttachmentSendResult(
-      sessionId: dco_decode_String(arr[0]),
+      conversationId: dco_decode_String(arr[0]),
       attachmentId: dco_decode_String(arr[1]),
       contentHash: dco_decode_String(arr[2]),
     );
@@ -3874,11 +3874,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AttachmentSendResult sse_decode_attachment_send_result(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_sessionId = sse_decode_String(deserializer);
+    var var_conversationId = sse_decode_String(deserializer);
     var var_attachmentId = sse_decode_String(deserializer);
     var var_contentHash = sse_decode_String(deserializer);
     return AttachmentSendResult(
-        sessionId: var_sessionId,
+        conversationId: var_conversationId,
         attachmentId: var_attachmentId,
         contentHash: var_contentHash);
   }
@@ -5472,7 +5472,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_attachment_send_result(
       AttachmentSendResult self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.sessionId, serializer);
+    sse_encode_String(self.conversationId, serializer);
     sse_encode_String(self.attachmentId, serializer);
     sse_encode_String(self.contentHash, serializer);
   }

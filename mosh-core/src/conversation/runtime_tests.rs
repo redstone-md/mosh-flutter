@@ -11,9 +11,12 @@ use crate::persistence::DM_HISTORY;
 
 const CONVERSATION: &str = "conv-1";
 
-/// A stand-in kind. Nothing about a wire, only the four answers the shell
-/// asks for, plus a tally of the writes it caused.
-struct FakeSession {
+/// A stand-in kind, the way `test_message::TestMessage` stands in one layer
+/// down. Nothing about a wire, only the answers the shell asks a session for,
+/// plus a tally of the writes it caused. What it stands in for is kind policy,
+/// which the shell has none of; the database and the attachment store under
+/// these tests are the real ones.
+struct TestSession {
     id: String,
     log: MessageLog<TestMessage>,
     attempts: HashMap<String, OutboundAttemptRecord>,
@@ -25,7 +28,7 @@ struct FakeSession {
     extra_writes: Cell<usize>,
 }
 
-impl FakeSession {
+impl TestSession {
     fn new(id: &str) -> Self {
         Self {
             id: id.to_string(),
@@ -44,7 +47,7 @@ impl FakeSession {
     }
 }
 
-impl ConversationSession for FakeSession {
+impl ConversationSession for TestSession {
     type Message = TestMessage;
     type Record = String;
 
@@ -102,7 +105,7 @@ impl Scratch {
         }
     }
 
-    fn runtime(&self) -> ConversationRuntime<FakeSession> {
+    fn runtime(&self) -> ConversationRuntime<TestSession> {
         ConversationRuntime::new(
             Arc::clone(&self.attachments),
             Some(Arc::clone(&self.persistence)),
@@ -119,7 +122,7 @@ impl Drop for Scratch {
     }
 }
 
-fn extra_writes(runtime: &ConversationRuntime<FakeSession>) -> usize {
+fn extra_writes(runtime: &ConversationRuntime<TestSession>) -> usize {
     runtime
         .get(CONVERSATION)
         .expect("the conversation")
@@ -131,7 +134,7 @@ fn extra_writes(runtime: &ConversationRuntime<FakeSession>) -> usize {
 fn a_record_is_saved_once_it_is_final_and_not_before() {
     let scratch = Scratch::open("final");
     let mut runtime = scratch.runtime();
-    let mut session = FakeSession::new(CONVERSATION);
+    let mut session = TestSession::new(CONVERSATION);
     session.ready = false;
     session.say("first");
     runtime.insert(CONVERSATION.to_string(), session);
@@ -158,7 +161,7 @@ fn a_record_is_saved_once_it_is_final_and_not_before() {
 fn an_unchanged_record_is_not_written_again() {
     let scratch = Scratch::open("once");
     let mut runtime = scratch.runtime();
-    runtime.insert(CONVERSATION.to_string(), FakeSession::new(CONVERSATION));
+    runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
 
     runtime.persist_tail();
     let after_first = extra_writes(&runtime);
@@ -176,7 +179,7 @@ fn an_unchanged_record_is_not_written_again() {
 fn a_changed_record_is_written_again_and_then_settles() {
     let scratch = Scratch::open("changed");
     let mut runtime = scratch.runtime();
-    runtime.insert(CONVERSATION.to_string(), FakeSession::new(CONVERSATION));
+    runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
     runtime.persist_tail();
     let after_first = extra_writes(&runtime);
 
@@ -200,7 +203,7 @@ fn a_changed_record_is_written_again_and_then_settles() {
 fn new_messages_save_the_kind_state_with_them() {
     let scratch = Scratch::open("messages");
     let mut runtime = scratch.runtime();
-    runtime.insert(CONVERSATION.to_string(), FakeSession::new(CONVERSATION));
+    runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
     runtime.persist_tail();
     let idle = extra_writes(&runtime);
 
@@ -217,7 +220,7 @@ fn new_messages_save_the_kind_state_with_them() {
 fn a_send_saves_its_message_and_only_a_first_send_saves_the_kind_state() {
     let scratch = Scratch::open("send");
     let mut runtime = scratch.runtime();
-    let mut session = FakeSession::new(CONVERSATION);
+    let mut session = TestSession::new(CONVERSATION);
     let message = session.say("hello");
     let message_id = message.message_id.clone().expect("a stamped message");
     runtime.insert(CONVERSATION.to_string(), session);
@@ -256,7 +259,7 @@ fn a_send_saves_its_message_and_only_a_first_send_saves_the_kind_state() {
 fn a_send_for_a_message_nobody_holds_writes_nothing() {
     let scratch = Scratch::open("stray-send");
     let mut runtime = scratch.runtime();
-    runtime.insert(CONVERSATION.to_string(), FakeSession::new(CONVERSATION));
+    runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
     let before = extra_writes(&runtime);
 
     runtime.persist_send(CONVERSATION, "never-sent", true);
@@ -270,7 +273,7 @@ fn a_send_for_a_message_nobody_holds_writes_nothing() {
 fn a_fresh_conversation_saves_its_record_before_anyone_speaks() {
     let scratch = Scratch::open("fresh");
     let mut runtime = scratch.runtime();
-    runtime.insert(CONVERSATION.to_string(), FakeSession::new(CONVERSATION));
+    runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
 
     runtime.persist_record(CONVERSATION, true);
     let after_create = extra_writes(&runtime);
@@ -291,7 +294,7 @@ fn a_fresh_conversation_saves_its_record_before_anyone_speaks() {
 fn a_placeholder_record_is_saved_without_claiming_to_be_final() {
     let scratch = Scratch::open("placeholder");
     let mut runtime = scratch.runtime();
-    runtime.insert(CONVERSATION.to_string(), FakeSession::new(CONVERSATION));
+    runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
 
     runtime.persist_record(CONVERSATION, false);
     let after_create = extra_writes(&runtime);
@@ -308,7 +311,7 @@ fn a_placeholder_record_is_saved_without_claiming_to_be_final() {
 fn a_record_read_back_off_disk_is_not_written_again() {
     let scratch = Scratch::open("rehydrated");
     let mut runtime = scratch.runtime();
-    runtime.insert(CONVERSATION.to_string(), FakeSession::new(CONVERSATION));
+    runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
 
     // What rehydrate does: the record came off disk, so it is already final.
     runtime.mark_record_final(CONVERSATION);
@@ -326,7 +329,7 @@ fn a_record_read_back_off_disk_is_not_written_again() {
 fn a_conversation_the_user_left_is_written_again_from_the_start() {
     let scratch = Scratch::open("forget");
     let mut runtime = scratch.runtime();
-    let mut session = FakeSession::new(CONVERSATION);
+    let mut session = TestSession::new(CONVERSATION);
     session.say("first");
     runtime.insert(CONVERSATION.to_string(), session);
     runtime.persist_tail();
