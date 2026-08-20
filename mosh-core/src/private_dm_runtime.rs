@@ -15,7 +15,8 @@ use crate::attachment_store::AttachmentStore;
 use crate::conversation::attachments::{descriptor_of, AttachmentDirection, AttachmentSlots};
 use crate::conversation::dedup::SeenFrames;
 use crate::conversation::message_log::{delivery_meta, ConversationMessage, MessageLog};
-use crate::conversation::now_ms;
+use crate::conversation::outbound::{OnSent, Outbox, Prepared};
+use crate::conversation::{decode, encode, now_ms};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::Persistence;
@@ -29,7 +30,7 @@ pub use contracts::{
 };
 use invite::{build_invite_uri, listen_address, ParsedInvite};
 use wire::{
-    blob_channel, channel_session_id, control_channel, data_channel, decode, decode_json, encode,
+    blob_channel, channel_session_id, control_channel, data_channel, decode_json,
     voice_call_channel, BlobEnvelope, ControlEnvelope, DataEnvelope,
 };
 
@@ -713,143 +714,38 @@ impl PrivateDmRuntime {
         body: String,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
         self.drain_inbound()?;
-        let (session_id_owned, state, message_id, sent_at_ms, ciphertext_bytes, payload) = {
+        let prepared = {
             let session = self.session_mut(session_id)?;
             let ciphertext = session.crypto.encrypt(body.as_bytes())?;
-            let mut message = session.messages.stamp(ChatMessage {
+            let message = session.messages.stamp(ChatMessage {
                 from_device: session.device_id.clone(),
                 body,
                 message_id: None,
                 sent_at_ms: None,
                 attachment: None,
                 call_event: None,
-                delivery_status: Some(MessageDeliveryStatus::Pending),
+                delivery_status: None,
                 delivery_error: None,
                 retryable: None,
-                retry_count: Some(0),
+                retry_count: None,
             });
-            let message_id = message.message_id.clone().unwrap_or_default();
-            let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-            message.message_id = Some(message_id.clone());
-            message.sent_at_ms = Some(sent_at_ms);
             let envelope = DataEnvelope {
                 session_id: session.session_id.clone(),
                 participant_id: session.participant_id.clone(),
                 from_device: session.device_id.clone(),
-                message_id: Some(message_id.clone()),
-                sent_at_ms: Some(sent_at_ms),
+                message_id: message.message_id.clone(),
+                sent_at_ms: message.sent_at_ms,
                 ciphertext_b64: encode(&ciphertext),
                 resend: None,
             };
             let payload = serde_json::to_vec(&envelope)
                 .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-            let attempt = OutboundAttemptRecord {
-                conversation_id: session.session_id.clone(),
-                message_id: message_id.clone(),
-                sent_at_ms,
-                ciphertext_bytes: ciphertext.len(),
-                message_json: serde_json::to_string(&message)
-                    .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?,
-                publish_payload_b64: encode(&payload),
-                delivery_status: MessageDeliveryStatus::Pending,
-                delivery_error: None,
-                retry_count: 0,
-                auto_resends: 0,
-                last_send_ms: sent_at_ms,
-            };
-            session.messages.upsert(message);
+            let owned_session_id = session.session_id.clone();
             session
-                .outbound_attempts
-                .insert(message_id.clone(), attempt);
-            (
-                session.session_id.clone(),
-                session.state(),
-                message_id,
-                sent_at_ms,
-                ciphertext.len(),
-                payload,
-            )
+                .outbox()
+                .open(message, owned_session_id, payload, ciphertext.len())?
         };
-        self.persist_outbound_state(session_id, &message_id, true);
-
-        let publish = {
-            // Disjoint field borrows: `relay` reads only the field, so it
-            // coexists with the immutable session borrow taken by `session_ref`.
-            let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-            let session = self.session_ref(session_id)?;
-            session.route_send(wire::ChannelKind::Data, &payload, relay, Some(&message_id))
-        };
-
-        let result = match publish {
-            Ok(RouteOutcome::Published) => {
-                let session = self.session_mut(session_id)?;
-                session.messages.mark_delivery(
-                    &message_id,
-                    MessageDeliveryStatus::Sent,
-                    None,
-                    0,
-                )?;
-                // Sent means "handed to the transport", not "arrived": the
-                // attempt stays retained (and auto re-sent) until the peer's
-                // DeliveryAck upgrades the message to Delivered.
-                if let Some(attempt) = session.outbound_attempts.get_mut(&message_id) {
-                    attempt.delivery_status = MessageDeliveryStatus::Sent;
-                    attempt.delivery_error = None;
-                    attempt.last_send_ms = sent_at_ms;
-                }
-                session.sync_attempt_message_json(&message_id)?;
-                SendMessageResult {
-                    session_id: session_id_owned,
-                    state,
-                    ciphertext_bytes,
-                    message_id: message_id.clone(),
-                    sent_at_ms,
-                    delivery_status: MessageDeliveryStatus::Sent,
-                    delivery_error: None,
-                }
-            }
-            // Queued for the relay send worker: the message stays Pending (and
-            // its outbound attempt stays retained) until the worker's outcome
-            // arrives via drain_relay_results.
-            Ok(RouteOutcome::Queued) => SendMessageResult {
-                session_id: session_id_owned,
-                state,
-                ciphertext_bytes,
-                message_id: message_id.clone(),
-                sent_at_ms,
-                delivery_status: MessageDeliveryStatus::Pending,
-                delivery_error: None,
-            },
-            Err(error) => {
-                let error_text = error.to_string();
-                let session = self.session_mut(session_id)?;
-                let retry_count =
-                    if let Some(attempt) = session.outbound_attempts.get_mut(&message_id) {
-                        attempt.delivery_status = MessageDeliveryStatus::Failed;
-                        attempt.delivery_error = Some(error_text.clone());
-                        attempt.retry_count
-                    } else {
-                        0
-                    };
-                session.messages.mark_delivery(
-                    &message_id,
-                    MessageDeliveryStatus::Failed,
-                    Some(error_text.clone()),
-                    retry_count,
-                )?;
-                session.sync_attempt_message_json(&message_id)?;
-                SendMessageResult {
-                    session_id: session_id_owned,
-                    state,
-                    ciphertext_bytes,
-                    message_id: message_id.clone(),
-                    sent_at_ms,
-                    delivery_status: MessageDeliveryStatus::Failed,
-                    delivery_error: Some(error_text),
-                }
-            }
-        };
-        self.persist_outbound_state(session_id, &message_id, false);
+        let result = self.route_prepared(session_id, prepared, true)?;
         self.persist_session_tail();
         Ok(result)
     }
@@ -860,123 +756,77 @@ impl PrivateDmRuntime {
         message_id: &str,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
         self.drain_inbound()?;
-        let (session_id_owned, state, sent_at_ms, ciphertext_bytes, retry_count, payload) = {
+        let prepared = {
             let session = self.session_mut(session_id)?;
-            let (payload_b64, sent_at_ms, ciphertext_bytes) = {
-                let attempt = session
-                    .outbound_attempts
-                    .get_mut(message_id)
-                    .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
-                // A Pending attempt is already sitting in the relay worker's
-                // queue; enqueueing a twin would race two results for one
-                // message (a late failure could overwrite a delivered Sent).
-                if attempt.delivery_status == MessageDeliveryStatus::Pending {
-                    return Err(PrivateDmRuntimeError::Moss("send already in flight".into()));
-                }
-                attempt.retry_count = attempt.retry_count.saturating_add(1);
-                attempt.delivery_status = MessageDeliveryStatus::Pending;
-                attempt.delivery_error = None;
-                (
-                    attempt.publish_payload_b64.clone(),
-                    attempt.sent_at_ms,
-                    attempt.ciphertext_bytes,
-                )
-            };
-            let payload = decode(&payload_b64)?;
-            let retry_count = session
+            let attempt = session
                 .outbound_attempts
                 .get(message_id)
-                .map(|attempt| attempt.retry_count)
-                .unwrap_or(0);
-            session.messages.mark_delivery(
-                message_id,
-                MessageDeliveryStatus::Pending,
-                None,
-                retry_count,
-            )?;
-            session.sync_attempt_message_json(message_id)?;
-            (
-                session.session_id.clone(),
-                session.state(),
-                sent_at_ms,
-                ciphertext_bytes,
-                retry_count,
-                payload,
-            )
+                .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
+            // A Pending attempt is already sitting in the relay worker's
+            // queue; enqueueing a twin would race two results for one
+            // message (a late failure could overwrite a delivered Sent).
+            if attempt.delivery_status == MessageDeliveryStatus::Pending {
+                return Err(PrivateDmRuntimeError::Moss("send already in flight".into()));
+            }
+            session.outbox().reopen(message_id)?
         };
-        self.persist_outbound_state(session_id, message_id, false);
+        self.route_prepared(session_id, prepared, false)
+    }
 
+    /// Routes a prepared send through the DM transport and writes down how it
+    /// went. The attempt record stays after a send that lands: `Sent` only
+    /// means the frame left the device, and the record holds the bytes the
+    /// auto re-sends replay until the peer DeliveryAck arrives.
+    fn route_prepared(
+        &mut self,
+        session_id: &str,
+        prepared: Prepared,
+        persist_snapshot: bool,
+    ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
+        self.persist_outbound_state(session_id, &prepared.message_id, persist_snapshot);
         let publish = {
             // Disjoint field borrows: `relay` reads only the field, so it
             // coexists with the immutable session borrow taken by `session_ref`.
             let relay = self.relay.as_ref().map(|handle| &handle.jobs);
             let session = self.session_ref(session_id)?;
-            session.route_send(wire::ChannelKind::Data, &payload, relay, Some(message_id))
+            session.route_send(
+                wire::ChannelKind::Data,
+                &prepared.payload,
+                relay,
+                Some(&prepared.message_id),
+            )
         };
-
-        let result = match publish {
-            Ok(RouteOutcome::Published) => {
-                let session = self.session_mut(session_id)?;
-                session.messages.mark_delivery(
-                    message_id,
-                    MessageDeliveryStatus::Sent,
-                    None,
-                    retry_count,
-                )?;
-                // Retained until the peer's DeliveryAck — see send_message.
-                if let Some(attempt) = session.outbound_attempts.get_mut(message_id) {
-                    attempt.delivery_status = MessageDeliveryStatus::Sent;
-                    attempt.delivery_error = None;
-                    attempt.last_send_ms = now_ms();
-                }
-                session.sync_attempt_message_json(message_id)?;
-                SendMessageResult {
-                    session_id: session_id_owned,
-                    state,
-                    ciphertext_bytes,
-                    message_id: message_id.to_string(),
-                    sent_at_ms,
-                    delivery_status: MessageDeliveryStatus::Sent,
-                    delivery_error: None,
-                }
-            }
-            // Queued for the relay send worker; drain_relay_results settles it.
-            Ok(RouteOutcome::Queued) => SendMessageResult {
-                session_id: session_id_owned,
-                state,
-                ciphertext_bytes,
-                message_id: message_id.to_string(),
-                sent_at_ms,
-                delivery_status: MessageDeliveryStatus::Pending,
-                delivery_error: None,
-            },
-            Err(error) => {
-                let error_text = error.to_string();
-                let session = self.session_mut(session_id)?;
-                if let Some(attempt) = session.outbound_attempts.get_mut(message_id) {
-                    attempt.delivery_status = MessageDeliveryStatus::Failed;
-                    attempt.delivery_error = Some(error_text.clone());
-                }
-                session.messages.mark_delivery(
-                    message_id,
-                    MessageDeliveryStatus::Failed,
-                    Some(error_text.clone()),
-                    retry_count,
-                )?;
-                session.sync_attempt_message_json(message_id)?;
-                SendMessageResult {
-                    session_id: session_id_owned,
-                    state,
-                    ciphertext_bytes,
-                    message_id: message_id.to_string(),
-                    sent_at_ms,
-                    delivery_status: MessageDeliveryStatus::Failed,
-                    delivery_error: Some(error_text),
-                }
-            }
+        // Queued means the relay send worker has it: nothing to settle yet,
+        // the message stays Pending until drain_relay_results hears back.
+        let settle_with = match publish {
+            Ok(RouteOutcome::Queued) => None,
+            Ok(RouteOutcome::Published) => Some(Ok(())),
+            Err(error) => Some(Err(error.to_string())),
         };
-        self.persist_outbound_state(session_id, message_id, false);
-        Ok(result)
+        let (session_id_owned, state, status, error) = {
+            let session = self.session_mut(session_id)?;
+            let (status, error) = match settle_with {
+                None => (MessageDeliveryStatus::Pending, None),
+                Some(outcome) => {
+                    let settled =
+                        session
+                            .outbox()
+                            .settle(&prepared.message_id, outcome, OnSent::Retain)?;
+                    (settled.status, settled.error)
+                }
+            };
+            (session.session_id.clone(), session.state(), status, error)
+        };
+        self.persist_outbound_state(session_id, &prepared.message_id, false);
+        Ok(SendMessageResult {
+            session_id: session_id_owned,
+            state,
+            ciphertext_bytes: prepared.ciphertext_bytes,
+            message_id: prepared.message_id,
+            sent_at_ms: prepared.sent_at_ms,
+            delivery_status: status,
+            delivery_error: error,
+        })
     }
 
     /// Encrypts a file, stores the sender's own copy, and announces the
@@ -1307,28 +1157,21 @@ impl PrivateDmRuntime {
             // No live attempt = the message already settled (the peer's ack
             // upgraded it to Delivered, or the resend loop retired it). A
             // buffered worker outcome must never regress that.
-            let Some((retry_count, status)) = session
+            let Some(status) = session
                 .outbound_attempts
                 .get(&message_id)
-                .map(|attempt| (attempt.retry_count, attempt.delivery_status))
+                .map(|attempt| attempt.delivery_status)
             else {
                 continue;
             };
             let applied = match outcome.error {
-                None => {
-                    // Sent over the relay, still awaiting the peer's
-                    // DeliveryAck — keep the attempt for auto re-sends.
-                    if let Some(attempt) = session.outbound_attempts.get_mut(&message_id) {
-                        attempt.delivery_status = MessageDeliveryStatus::Sent;
-                        attempt.delivery_error = None;
-                        attempt.last_send_ms = now_ms();
-                    }
-                    session
-                        .messages
-                        .mark_delivery(&message_id, MessageDeliveryStatus::Sent, None, retry_count)
-                        .map_err(PrivateDmRuntimeError::from)
-                        .and_then(|_| session.sync_attempt_message_json(&message_id))
-                }
+                // Sent over the relay, still awaiting the peer DeliveryAck -
+                // keep the attempt for the auto re-sends.
+                None => session
+                    .outbox()
+                    .settle(&message_id, Ok(()), OnSent::Retain)
+                    .map(|_| ())
+                    .map_err(PrivateDmRuntimeError::from),
                 Some(error) if status == MessageDeliveryStatus::Sent => {
                     // A failed RE-send of a message the transport already took
                     // once: keep Sent, the resend pump tries again later. Only
@@ -1337,22 +1180,11 @@ impl PrivateDmRuntime {
                     eprintln!("relay re-send failed for {message_id}: {error}");
                     Ok(())
                 }
-                Some(error) => {
-                    if let Some(attempt) = session.outbound_attempts.get_mut(&message_id) {
-                        attempt.delivery_status = MessageDeliveryStatus::Failed;
-                        attempt.delivery_error = Some(error.clone());
-                    }
-                    session
-                        .messages
-                        .mark_delivery(
-                            &message_id,
-                            MessageDeliveryStatus::Failed,
-                            Some(error),
-                            retry_count,
-                        )
-                        .map_err(PrivateDmRuntimeError::from)
-                        .and_then(|_| session.sync_attempt_message_json(&message_id))
-                }
+                Some(error) => session
+                    .outbox()
+                    .settle(&message_id, Err(error), OnSent::Retain)
+                    .map(|_| ())
+                    .map_err(PrivateDmRuntimeError::from),
             };
             if let Err(error) = applied {
                 eprintln!("relay outcome for {message_id} failed to apply: {error}");
@@ -1747,12 +1579,10 @@ impl PrivateDmSession {
         }
     }
 
-    fn sync_attempt_message_json(&mut self, message_id: &str) -> Result<(), PrivateDmRuntimeError> {
-        let message_json = self.messages.json_for(message_id)?;
-        if let Some(attempt) = self.outbound_attempts.get_mut(message_id) {
-            attempt.message_json = message_json;
-        }
-        Ok(())
+    /// The message log and the attempts in flight, borrowed together for one
+    /// step of a send.
+    fn outbox(&mut self) -> Outbox<'_, ChatMessage> {
+        Outbox::new(&mut self.messages, &mut self.outbound_attempts)
     }
 
     fn handle_moss_message(

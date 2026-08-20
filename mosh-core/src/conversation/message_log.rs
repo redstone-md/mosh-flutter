@@ -186,77 +186,7 @@ pub fn delivery_meta(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::Deserialize;
-
-    #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-    struct TestMessage {
-        from: String,
-        body: String,
-        message_id: Option<String>,
-        sent_at_ms: Option<u64>,
-        delivery_status: Option<MessageDeliveryStatus>,
-        delivery_error: Option<String>,
-        retryable: Option<bool>,
-        retry_count: Option<u32>,
-    }
-
-    impl TestMessage {
-        fn new(from: &str, body: &str) -> Self {
-            Self {
-                from: from.to_string(),
-                body: body.to_string(),
-                message_id: None,
-                sent_at_ms: None,
-                delivery_status: None,
-                delivery_error: None,
-                retryable: None,
-                retry_count: None,
-            }
-        }
-
-        fn at(mut self, sent_at_ms: u64) -> Self {
-            self.sent_at_ms = Some(sent_at_ms);
-            self
-        }
-
-        fn with_id(mut self, message_id: &str) -> Self {
-            self.message_id = Some(message_id.to_string());
-            self
-        }
-    }
-
-    impl ConversationMessage for TestMessage {
-        fn message_id(&self) -> Option<&str> {
-            self.message_id.as_deref()
-        }
-
-        fn set_message_id(&mut self, message_id: String) {
-            self.message_id = Some(message_id);
-        }
-
-        fn sent_at_ms(&self) -> Option<u64> {
-            self.sent_at_ms
-        }
-
-        fn set_sent_at_ms(&mut self, sent_at_ms: u64) {
-            self.sent_at_ms = Some(sent_at_ms);
-        }
-
-        fn body(&self) -> &str {
-            &self.body
-        }
-
-        fn author(&self) -> &str {
-            &self.from
-        }
-
-        fn set_delivery(&mut self, delivery: MessageDeliveryMeta) {
-            self.delivery_status = delivery.delivery_status;
-            self.delivery_error = delivery.delivery_error;
-            self.retryable = delivery.retryable;
-            self.retry_count = delivery.retry_count;
-        }
-    }
+    use crate::conversation::test_message::TestMessage;
 
     #[test]
     fn stamping_gives_every_message_its_own_id() {
