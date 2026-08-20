@@ -17,6 +17,9 @@ import 'api/voice_call_ringtone.dart';
 import 'api/vpn.dart';
 import 'attachment_runtime.dart';
 import 'channel_runtime.dart';
+import 'conversation/attachments.dart';
+import 'conversation/dm_offers.dart';
+import 'conversation/mesh.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -2104,13 +2107,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<AttachmentStreamRange> crateApiAttachmentStreamStreamAttachmentRange({
-    required String kind,
-    required String host,
-    required String attachmentId,
-    required BigInt start,
-    required BigInt end,
-  }) {
+  Future<AttachmentStreamRange> crateApiAttachmentStreamStreamAttachmentRange(
+      {required String kind,
+      required String host,
+      required String attachmentId,
+      required BigInt start,
+      required BigInt end}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -2530,6 +2532,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AttachmentState dco_decode_attachment_state(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AttachmentState.values[raw as int];
+  }
+
+  @protected
+  AttachmentStreamRange dco_decode_attachment_stream_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return AttachmentStreamRange(
+      state: dco_decode_attachment_stream_state(arr[0]),
+      bytes: dco_decode_list_prim_u_8_strict(arr[1]),
+      totalSize: dco_decode_u_64(arr[2]),
+      mime: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  AttachmentStreamState dco_decode_attachment_stream_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AttachmentStreamState.values[raw as int];
   }
 
   @protected
@@ -3862,6 +3884,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AttachmentState sse_decode_attachment_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return AttachmentState.values[inner];
+  }
+
+  @protected
   AttachmentStreamRange sse_decode_attachment_stream_range(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -3882,13 +3911,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return AttachmentStreamState.values[inner];
-  }
-
-  @protected
-  AttachmentState sse_decode_attachment_state(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return AttachmentState.values[inner];
   }
 
   @protected
@@ -5456,6 +5478,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_attachment_state(
+      AttachmentState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_attachment_stream_range(
       AttachmentStreamRange self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -5468,13 +5497,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_attachment_stream_state(
       AttachmentStreamState self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_attachment_state(
-      AttachmentState self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
   }

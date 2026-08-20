@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/attachment_card.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 import '../../support/pump.dart';
 
 // Same known-good 1x1 PNG used in attachment_card_preview_test.dart.

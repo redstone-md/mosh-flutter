@@ -18,7 +18,9 @@ import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/persistence.dart' show PersistenceRuntimeStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AttachmentSendResult, CallStarted, ChatMessage, SessionSnapshot;
+    show CallStarted, ChatMessage, SessionSnapshot;
+import 'package:mosh/src/rust/conversation/attachments.dart'
+    show AttachmentSendResult;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/rust/secure_storage.dart' show SecureStorageStatus;
 

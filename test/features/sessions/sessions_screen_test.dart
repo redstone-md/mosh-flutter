@@ -15,6 +15,7 @@ import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/dm_offers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import '../../support/pump.dart';

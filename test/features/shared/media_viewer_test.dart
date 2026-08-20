@@ -22,7 +22,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 import '../../support/pump.dart';
 
 /// An `HttpOverrides` whose `createHttpClient` throws, so `Image.network`

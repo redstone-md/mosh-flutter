@@ -17,12 +17,9 @@ import 'package:mosh/src/rust/channel_runtime.dart'
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show
-        AttachmentDescriptor,
-        AttachmentView,
-        CallEvent,
-        ChatMessage,
-        SessionSnapshot;
+    show CallEvent, ChatMessage, SessionSnapshot;
+import 'package:mosh/src/rust/conversation/attachments.dart'
+    show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/private_group_runtime.dart'
     show GroupMessage, GroupSnapshot;
 

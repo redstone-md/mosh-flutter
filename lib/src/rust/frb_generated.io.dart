@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/attachment_stream.dart';
 import 'api/channel.dart';
 import 'api/diagnostics.dart';
 import 'api/network.dart';
@@ -10,13 +11,15 @@ import 'api/org.dart';
 import 'api/private_dm.dart';
 import 'api/private_group.dart';
 import 'api/shared_runtime.dart';
-import 'api/attachment_stream.dart';
 import 'api/voice_call_opus_encode.dart';
 import 'api/voice_call_playback.dart';
 import 'api/voice_call_ringtone.dart';
 import 'api/vpn.dart';
 import 'attachment_runtime.dart';
 import 'channel_runtime.dart';
+import 'conversation/attachments.dart';
+import 'conversation/dm_offers.dart';
+import 'conversation/mesh.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -135,6 +138,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AttachmentState dco_decode_attachment_state(dynamic raw);
+
+  @protected
+  AttachmentStreamRange dco_decode_attachment_stream_range(dynamic raw);
+
+  @protected
+  AttachmentStreamState dco_decode_attachment_stream_state(dynamic raw);
 
   @protected
   AttachmentView dco_decode_attachment_view(dynamic raw);
@@ -562,15 +571,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  AttachmentState sse_decode_attachment_state(SseDeserializer deserializer);
+
+  @protected
   AttachmentStreamRange sse_decode_attachment_stream_range(
       SseDeserializer deserializer);
 
   @protected
   AttachmentStreamState sse_decode_attachment_stream_state(
       SseDeserializer deserializer);
-
-  @protected
-  AttachmentState sse_decode_attachment_state(SseDeserializer deserializer);
 
   @protected
   AttachmentView sse_decode_attachment_view(SseDeserializer deserializer);
@@ -1044,16 +1053,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       AttachmentSendResult self, SseSerializer serializer);
 
   @protected
+  void sse_encode_attachment_state(
+      AttachmentState self, SseSerializer serializer);
+
+  @protected
   void sse_encode_attachment_stream_range(
       AttachmentStreamRange self, SseSerializer serializer);
 
   @protected
   void sse_encode_attachment_stream_state(
       AttachmentStreamState self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_attachment_state(
-      AttachmentState self, SseSerializer serializer);
 
   @protected
   void sse_encode_attachment_view(

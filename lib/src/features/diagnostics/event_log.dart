@@ -22,7 +22,7 @@
  import 'package:mosh/l10n/app_localizations.dart';
  import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
  import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
- import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+ import 'package:mosh/src/rust/conversation/mesh.dart';
  
  /// The React `EventLog`: the "Moss events" `.diagnostic-group`. Mirrors
  /// React's `EventLog({ events })`:

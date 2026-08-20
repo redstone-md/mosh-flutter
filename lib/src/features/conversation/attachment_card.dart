@@ -46,7 +46,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/util/format.dart';
 
 import 'package:mosh/src/features/conversation/attachment_actions.dart';

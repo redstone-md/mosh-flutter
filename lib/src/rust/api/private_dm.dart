@@ -4,6 +4,8 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../attachment_runtime.dart';
+import '../conversation/attachments.dart';
+import '../conversation/mesh.dart';
 import '../frb_generated.dart';
 import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
