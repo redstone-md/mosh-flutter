@@ -21,10 +21,10 @@ import 'package:flutter/services.dart' show MethodCall, StandardMethodCodec;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show AttachmentPickError, PickedAttachment, ingestAttachment;
 import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
+import '../../support/pump.dart';
 
 Uint8List _png(int w, int h, int rgb) {
   final image = img.Image(width: w, height: h);
@@ -137,25 +137,22 @@ void main() {
       required void Function(PickedAttachment) onAttach,
       required void Function(AttachmentPickError) onError,
     }) async {
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          // Sized so the drop point (400,300) is inside the render box and
-          // the DropTarget's paint-bounds check passes.
-          body: SizedBox(
-            width: 800,
-            height: 600,
-            child: ChatDropZone(
-              disabled: disabled,
-              onAttach: onAttach,
-              onError: onError,
-              child: const Center(child: Text('messages')),
+      await pumpScreen(
+          tester,
+          Scaffold(
+            // Sized so the drop point (400,300) is inside the render box and
+            // the DropTarget's paint-bounds check passes.
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: ChatDropZone(
+                disabled: disabled,
+                onAttach: onAttach,
+                onError: onError,
+                child: const Center(child: Text('messages')),
+              ),
             ),
-          ),
-        ),
-      ));
-      await tester.pumpAndSettle();
+          ));
     }
 
     testWidgets('shows the chatDropHint overlay while a file is dragging',
@@ -189,7 +186,8 @@ void main() {
         (tester) async {
       PickedAttachment? attached;
       AttachmentPickError? errored;
-      Uint8List? expectedBytes; // read inside runAsync (real I/O; fake clock stalls)
+      Uint8List?
+          expectedBytes; // read inside runAsync (real I/O; fake clock stalls)
       await pumpZone(
         tester,
         disabled: false,

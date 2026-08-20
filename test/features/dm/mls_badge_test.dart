@@ -17,7 +17,6 @@
 //      row omits the whole meta, so its badge is absent, matching React).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
@@ -25,6 +24,7 @@ import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 ChatMessage _msg({
   required String fromDevice,
@@ -69,23 +69,16 @@ SessionSnapshot _snapshot({
       activeCall: null,
     );
 
-Widget _localized(Widget child) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: child,
-    );
-
 void main() {
   group('MlsBadge', () {
     testWidgets('renders the literal "MLS" acronym', (tester) async {
-      await tester.pumpWidget(_localized(const Scaffold(body: MlsBadge())));
-      await tester.pumpAndSettle();
+      await pumpScreen(tester, const Scaffold(body: MlsBadge()));
       expect(find.text('MLS'), findsOneWidget);
     });
 
-    testWidgets('exposes the localized tooltip + semantics label', (tester) async {
-      await tester.pumpWidget(_localized(const Scaffold(body: MlsBadge())));
-      await tester.pumpAndSettle();
+    testWidgets('exposes the localized tooltip + semantics label',
+        (tester) async {
+      await pumpScreen(tester, const Scaffold(body: MlsBadge()));
 
       final l = AppLocalizations.of(tester.element(find.text('MLS')))!;
 
@@ -112,14 +105,11 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          activeSessionProvider(sessionId)
-              .overrideWith((ref) async => snapshot),
-        ],
-        child: _localized(const DmScreen(sessionId: sessionId)),
-      ));
-      await tester.pumpAndSettle();
+      await pumpScreen(tester, const DmScreen(sessionId: sessionId),
+          overrides: [
+            activeSessionProvider(sessionId)
+                .overrideWith((ref) async => snapshot),
+          ]);
 
       // The sender name renders in a message row (so the badge sits next
       // to it, not alone). Scoped to DmMessageRow because the DM AppBar
@@ -150,14 +140,11 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          activeSessionProvider(sessionId)
-              .overrideWith((ref) async => snapshot),
-        ],
-        child: _localized(const DmScreen(sessionId: sessionId)),
-      ));
-      await tester.pumpAndSettle();
+      await pumpScreen(tester, const DmScreen(sessionId: sessionId),
+          overrides: [
+            activeSessionProvider(sessionId)
+                .overrideWith((ref) async => snapshot),
+          ]);
 
       // Both message bodies render.
       expect(find.text('first'), findsOneWidget);

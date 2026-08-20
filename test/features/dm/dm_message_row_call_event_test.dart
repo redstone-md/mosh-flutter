@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/outbound_delivery.dart' show MessageDeliveryStatus;
+import 'package:mosh/src/rust/outbound_delivery.dart'
+    show MessageDeliveryStatus;
+import '../../support/pump.dart';
 
 ChatMessage _message({
   String body = 'hi',
@@ -39,11 +41,9 @@ Future<void> _pumpRow(
   required ChatMessage message,
   required bool own,
 }) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
+  await pumpScreen(
+      tester,
+      Scaffold(
         body: DmMessageRow(
           message: message,
           own: own,
@@ -55,10 +55,7 @@ Future<void> _pumpRow(
           onRetry: (_) {},
           l: await _l(),
         ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
+      ));
 }
 
 void main() {

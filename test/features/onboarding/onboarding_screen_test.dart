@@ -13,9 +13,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/group_create_screen.dart';
@@ -23,32 +21,24 @@ import 'package:mosh/src/routing/app_router.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 void main() {
- testWidgets('onboarding renders title, binds name to inviteFlow, chat tile taps', (tester) async {
+  // Mounts the onboarding step with a test gateway. The routes come from
+  // the app router, so a tile's `context.go` reaches the real screen.
+  Future<ProviderContainer> pumpOnboarding(WidgetTester tester) async {
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(ScriptableGateway()),
     ]);
     addTearDown(container.dispose);
+    await pumpRoute(tester, AppRoutes.onboarding, container: container);
+    return container;
+  }
 
-    // Use a GoRouter built from the appRouter route table so the Chat
-    // tile's context.go(AppRoutes.chatCreate) resolves to ChatCreateScreen.
-    final router = GoRouter(
-      initialLocation: AppRoutes.onboarding,
-      routes: appRouter.configuration.routes,
-    );
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+      'onboarding renders title, binds name to inviteFlow, chat tile taps',
+      (tester) async {
+    final container = await pumpOnboarding(tester);
 
     // Title resolves from the ARB (en) -> "Start a conversation".
     expect(find.text('Start a conversation'), findsOneWidget);
@@ -73,28 +63,9 @@ void main() {
   // step + Gateway joinChannel seam is a later slice, so the tile reuses
   // _showLaterSlice (the same SnackBar the Group tile uses) -- this block
   // only asserts the tile renders.
-  testWidgets('onboarding renders the channel tile in the Join section', (tester) async {
-    final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(ScriptableGateway()),
-    ]);
-    addTearDown(container.dispose);
-
-    final router = GoRouter(
-      initialLocation: AppRoutes.onboarding,
-      routes: appRouter.configuration.routes,
-    );
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets('onboarding renders the channel tile in the Join section',
+      (tester) async {
+    await pumpOnboarding(tester);
 
     expect(find.text('Join a public channel'), findsOneWidget);
     expect(find.text('Open broadcast room, joined by name'), findsOneWidget);
@@ -106,41 +77,21 @@ void main() {
   // for /chat-create). The ChannelJoin step's Join button is its own stub.
   testWidgets('channel tile navigates to the ChannelJoinScreen step',
       (tester) async {
-    final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(ScriptableGateway()),
-    ]);
-    addTearDown(container.dispose);
+    await pumpOnboarding(tester);
 
-    final router = GoRouter(
-      initialLocation: AppRoutes.onboarding,
-      routes: appRouter.configuration.routes,
+    // The channel tile title is unique to the Join section; tapping it
+    // routes to /channel-join (ChannelJoinScreen), not a SnackBar.
+    // The tile sits below the fold in the default 800x600 viewport, so
+    // scroll it into view before tapping (matches how a user would scroll).
+    await tester.scrollUntilVisible(
+      find.text('Join a public channel'),
+      100,
+      scrollable: find.byType(Scrollable).first,
     );
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ),
-    );
+    await tester.tap(find.text('Join a public channel'));
     await tester.pumpAndSettle();
-
-   // The channel tile title is unique to the Join section; tapping it
-   // routes to /channel-join (ChannelJoinScreen), not a SnackBar.
-   // The tile sits below the fold in the default 800x600 viewport, so
-   // scroll it into view before tapping (matches how a user would scroll).
-   await tester.scrollUntilVisible(
-     find.text('Join a public channel'),
-     100,
-     scrollable: find.byType(Scrollable).first,
-   );
-   await tester.tap(find.text('Join a public channel'));
-   await tester.pumpAndSettle();
-   expect(find.byType(ChannelJoinScreen), findsOneWidget);
- });
+    expect(find.byType(ChannelJoinScreen), findsOneWidget);
+  });
 
   // Group tile (this atomic): tapping the group tile now navigates to the
   // GroupCreateScreen step (AppRoutes.groupCreate) instead of showing the
@@ -148,27 +99,7 @@ void main() {
   // tests). The GroupCreate step's Create button is its own stub.
   testWidgets('group tile navigates to the GroupCreateScreen step',
       (tester) async {
-    final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(ScriptableGateway()),
-    ]);
-    addTearDown(container.dispose);
-
-    final router = GoRouter(
-      initialLocation: AppRoutes.onboarding,
-      routes: appRouter.configuration.routes,
-    );
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpOnboarding(tester);
 
     // The group tile title sits in the Start section; tapping it routes to
     // /group-create (GroupCreateScreen), not a SnackBar. The tile may sit

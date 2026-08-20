@@ -19,13 +19,12 @@
 // needed).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 SessionSnapshot _snapshot({required String sessionId}) => SessionSnapshot(
       sessionId: sessionId,
@@ -64,24 +63,18 @@ Future<void> _pumpDm(
   WidgetTester tester, {
   required String sessionId,
   required double width,
-}) async {
-  await tester.pumpWidget(ProviderScope(
-  overrides: [
-      for (final id in _allSessionIds)
-        activeSessionProvider(id)
-            .overrideWith((ref) async => _snapshot(sessionId: id)),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: MediaQuery(
-        data: MediaQueryData(size: Size(width, 800)),
-        child: DmScreen(sessionId: sessionId),
-      ),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+}) =>
+    pumpScreen(
+        tester,
+        MediaQuery(
+          data: MediaQueryData(size: Size(width, 800)),
+          child: DmScreen(sessionId: sessionId),
+        ),
+        overrides: [
+          for (final id in _allSessionIds)
+            activeSessionProvider(id)
+                .overrideWith((ref) async => _snapshot(sessionId: id)),
+        ]);
 
 void main() {
   testWidgets(

@@ -21,12 +21,8 @@
 //
 // Mirrors the seed/override idiom of `dm_screen_close_flow_test.dart`
 // (override `activeSessionProvider` so the native cdylib is not involved).
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/dm/fingerprint_badge.dart';
 import '../../support/scriptable_gateway.dart';
@@ -34,13 +30,15 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 /// A SessionSnapshot seeded with `state: "Active"` and a non-empty
 /// `fingerprint` so the FingerprintBadge renders and is tappable (the badge
 /// returns a SizedBox.shrink when `fingerprint` is empty, and `onConfirm`
 /// is disabled when `confirmed` is already true -- neither applies here
 /// since `confirmed` starts false).
-SessionSnapshot _snapshot({required String sessionId, required String peerName}) =>
+SessionSnapshot _snapshot(
+        {required String sessionId, required String peerName}) =>
     SessionSnapshot(
       sessionId: sessionId,
       meshId: 'testmesh',
@@ -69,24 +67,12 @@ Future<void> _pump(
 }) async {
   // Use the real appRouter so navigation hooks do not throw (mirrors
   // `dm_screen_close_flow_test.dart`).
-  final router = GoRouter(
-    initialLocation: AppRoutes.dmFor(sessionId),
-    routes: appRouter.configuration.routes,
-  );
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      gatewayProvider.overrideWithValue(gateway),
-      activeSessionProvider(sessionId).overrideWith(
-        (ref) async => _snapshot(sessionId: sessionId, peerName: peerName),
-      ),
-    ],
-    child: MaterialApp.router(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      routerConfig: router,
+  await pumpRoute(tester, AppRoutes.dmFor(sessionId), overrides: [
+    gatewayProvider.overrideWithValue(gateway),
+    activeSessionProvider(sessionId).overrideWith(
+      (ref) async => _snapshot(sessionId: sessionId, peerName: peerName),
     ),
-  ));
-  await tester.pumpAndSettle();
+  ]);
 }
 
 void main() {

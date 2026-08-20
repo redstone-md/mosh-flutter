@@ -17,10 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
@@ -29,6 +26,7 @@ import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import '../../support/pump.dart';
 
 /// A gateway whose `createInvite` hands back [inviteUri].
 ScriptableGateway _gatewayOffering(String inviteUri) => ScriptableGateway()
@@ -41,31 +39,17 @@ ScriptableGateway _gatewayOffering(String inviteUri) => ScriptableGateway()
   ));
 
 void main() {
-  Future<GoRouter> pumpScreen(
+  Future<void> pumpCreateStep(
     WidgetTester tester,
     Gateway gateway, {
     String initialLocation = AppRoutes.chatCreate,
-  }) async {
-    final router = GoRouter(
-      initialLocation: initialLocation,
-      routes: appRouter.configuration.routes,
-    );
-    await tester.pumpWidget(ProviderScope(
-      overrides: [gatewayProvider.overrideWithValue(gateway)],
-      child: MaterialApp.router(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        routerConfig: router,
-      ),
-    ));
-    await tester.pumpAndSettle();
-    return router;
-  }
-
+  }) =>
+      pumpRoute(tester, initialLocation,
+          overrides: [gatewayProvider.overrideWithValue(gateway)]);
   testWidgets(
       'initial state shows Create button (no lastInvite) and no InviteResult',
       (tester) async {
-    await pumpScreen(tester, _gatewayOffering('mosh://invite?x=1'));
+    await pumpCreateStep(tester, _gatewayOffering('mosh://invite?x=1'));
 
     expect(find.text('New private chat'), findsOneWidget);
     expect(find.text('Create invite link'), findsOneWidget);
@@ -79,10 +63,11 @@ void main() {
       (tester) async {
     const uri = 'mosh://invite?mesh=m&session=s#fp=Z';
     final gateway = _gatewayOffering(uri);
-    await pumpScreen(tester, gateway);
+    await pumpCreateStep(tester, gateway);
 
     // Create is a FilledButton; before tap the Recreate label is absent.
-    final createButton = find.widgetWithText(FilledButton, 'Create invite link');
+    final createButton =
+        find.widgetWithText(FilledButton, 'Create invite link');
     expect(createButton, findsOneWidget);
 
     await tester.tap(createButton);
@@ -97,7 +82,8 @@ void main() {
     expect(gateway.countOf(GatewayMethod.listSessions), 2);
   });
 
-  testWidgets('tapping Copy writes the URI to the clipboard and flips the label',
+  testWidgets(
+      'tapping Copy writes the URI to the clipboard and flips the label',
       (tester) async {
     const uri = 'mosh://invite?mesh=m&session=copy#fp=Y';
     // Intercept the flutter/services clipboard method channel so the test
@@ -110,11 +96,11 @@ void main() {
       }
       return null;
     });
-    addTearDown(() => TestDefaultBinaryMessengerBinding.instance
-        .defaultBinaryMessenger
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null));
 
-    await pumpScreen(tester, _gatewayOffering(uri));
+    await pumpCreateStep(tester, _gatewayOffering(uri));
 
     // First create an invite so InviteResult + Copy button render.
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
@@ -132,7 +118,7 @@ void main() {
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
-    await pumpScreen(tester, _gatewayOffering('mosh://invite?back=1'));
+    await pumpCreateStep(tester, _gatewayOffering('mosh://invite?back=1'));
 
     // The step's Back affordance reads the localized "Back" label.
     expect(find.text('Back'), findsOneWidget);
@@ -148,8 +134,9 @@ void main() {
       'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Invite service offline';
-    final gateway = ScriptableGateway()..failAlways(GatewayMethod.createInvite, error: message);
-    await pumpScreen(tester, gateway);
+    final gateway = ScriptableGateway()
+      ..failAlways(GatewayMethod.createInvite, error: message);
+    await pumpCreateStep(tester, gateway);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
     await tester.pumpAndSettle();
@@ -166,7 +153,10 @@ void main() {
       (tester) async {
     const message = 'Invite service offline';
     const uri = 'mosh://invite?mesh=m&session=retry#fp=R';
-    await pumpScreen(tester, _gatewayOffering(uri)..failNext(GatewayMethod.createInvite, error: message));
+    await pumpCreateStep(
+        tester,
+        _gatewayOffering(uri)
+          ..failNext(GatewayMethod.createInvite, error: message));
 
     // First attempt throws -> inline error surfaces.
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));

@@ -12,9 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 // Known-good 1x1 PNG (70 bytes, magic header 0x89 0x50 0x4E 0x47 ...).
 // Used as the thumbnail payload for the image and video preview tests.
@@ -69,16 +69,8 @@ AttachmentView _view({
       localPath: null,
     );
 
-Future<void> _pump(WidgetTester tester, AttachmentCard card) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: Center(child: card)),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+Future<void> _pump(WidgetTester tester, AttachmentCard card) =>
+    pumpScreen(tester, Scaffold(body: Center(child: card)));
 
 void _resetOpenSpy() {
   _openCount = 0;
@@ -159,9 +151,8 @@ void main() {
     // React `.attachment-thumb { width: 40px; height: 40px }`.
     expect(tester.getSize(thumbButton), const Size(40, 40));
     final semanticsHandle = tester.ensureSemantics();
-    final thumbSemantics = tester
-        .getSemantics(find.byIcon(Icons.play_arrow))
-        .getSemanticsData();
+    final thumbSemantics =
+        tester.getSemantics(find.byIcon(Icons.play_arrow)).getSemanticsData();
     expect(thumbSemantics.label, 'Open photo2.png');
     expect(thumbSemantics.hasAction(SemanticsAction.tap), isTrue);
     semanticsHandle.dispose();

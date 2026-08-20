@@ -7,10 +7,7 @@
 // pushes DmScreen, which the test asserts by the DM screen's composer.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import '../../support/scriptable_gateway.dart';
@@ -20,6 +17,7 @@ import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
+import '../../support/pump.dart';
 
 /// A gateway holding one channel that carries a DM offer, so the sessions
 /// rail renders an OfferRailItem (pendingDmOffersProvider derives from
@@ -75,66 +73,49 @@ SessionSnapshot _session({
     );
 
 void main() {
-  Future<void> pumpScreen(
+  // Mounts SessionsScreen with the seeded gateway. Pass useRouter when the
+  // test taps a row and expects `context.go` to land on the real route.
+  Future<void> pumpSessions(
     WidgetTester tester,
     Gateway gateway, {
     bool useRouter = false,
     String initialLocation = AppRoutes.sessions,
-  }) async {
-    if (useRouter) {
-      // Use the real appRouter so context.go navigation resolves. The
-      // initialLocation is forced to /sessions for these tests.
-      final router = GoRouter(
-        initialLocation: initialLocation,
-        routes: appRouter.configuration.routes,
-      );
-      await tester.pumpWidget(ProviderScope(
-        overrides: [gatewayProvider.overrideWithValue(gateway)],
-        child: MaterialApp.router(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ));
-    } else {
-      await tester.pumpWidget(ProviderScope(
-        overrides: [gatewayProvider.overrideWithValue(gateway)],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: const SessionsScreen(),
-        ),
-      ));
-    }
-    await tester.pumpAndSettle();
+  }) {
+    final overrides = [gatewayProvider.overrideWithValue(gateway)];
+    return useRouter
+        ? pumpRoute(tester, initialLocation, overrides: overrides)
+        : pumpScreen(tester, const SessionsScreen(), overrides: overrides);
   }
 
-  testWidgets('empty list renders the welcome + start-cta button', (tester) async {
+  testWidgets('empty list renders the welcome + start-cta button',
+      (tester) async {
     // The test gateway starts with no sessions, so listSessions is empty.
-    await pumpScreen(tester, ScriptableGateway());
+    await pumpSessions(tester, ScriptableGateway());
 
     expect(find.text('Welcome to Mosh.'), findsOneWidget);
     expect(find.text('New private chat'), findsOneWidget);
   });
 
-  testWidgets('non-empty list renders rows with label + state, tapping navigates to dm',
+  testWidgets(
+      'non-empty list renders rows with label + state, tapping navigates to dm',
       (tester) async {
     const aliceId = 'alice-session';
     const bobId = 'bob-session';
-    final gateway = ScriptableGateway()..seedSessions([
-      _session(
-          sessionId: aliceId,
-          displayName: 'me',
-          peerDisplayName: 'Alice',
-          state: 'ready'),
-      _session(
-         sessionId: bobId,
-         displayName: 'Bob',
-         peerDisplayName: 'Bob',
-         state: 'connecting'),
-    ]);
+    final gateway = ScriptableGateway()
+      ..seedSessions([
+        _session(
+            sessionId: aliceId,
+            displayName: 'me',
+            peerDisplayName: 'Alice',
+            state: 'ready'),
+        _session(
+            sessionId: bobId,
+            displayName: 'Bob',
+            peerDisplayName: 'Bob',
+            state: 'connecting'),
+      ]);
 
-    await pumpScreen(tester, gateway, useRouter: true);
+    await pumpSessions(tester, gateway, useRouter: true);
 
     // Both rows render with their labels and localized state labels.
     expect(find.text('Alice'), findsOneWidget);
@@ -156,7 +137,9 @@ void main() {
       find.ancestor(of: find.text('Alice'), matching: find.byType(Semantics)),
     );
     expect(
-      rowSemantics.map((s) => s.properties.label).contains('Open session with Alice'),
+      rowSemantics
+          .map((s) => s.properties.label)
+          .contains('Open session with Alice'),
       isTrue,
     );
 
@@ -168,12 +151,13 @@ void main() {
     expect(find.text('Write a message\u2026'), findsOneWidget);
   });
 
-  testWidgets('error state renders retry and tapping it calls listSessions again',
+  testWidgets(
+      'error state renders retry and tapping it calls listSessions again',
       (tester) async {
     final gateway = ScriptableGateway()
       ..failAlways(GatewayMethod.listSessions,
           error: Exception('boom-listSessions'));
-    await pumpScreen(tester, gateway);
+    await pumpSessions(tester, gateway);
 
     expect(find.text('Could not load sessions.'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
@@ -182,65 +166,60 @@ void main() {
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
-  // refresh() re-ran the gateway query (the count must increase, even if
-  // Riverpod re-executed build() during settling -- we only assert growth).
-  expect(gateway.countOf(GatewayMethod.listSessions), greaterThan(callsBefore));
-});
+    // refresh() re-ran the gateway query (the count must increase, even if
+    // Riverpod re-executed build() during settling -- we only assert growth).
+    expect(
+        gateway.countOf(GatewayMethod.listSessions), greaterThan(callsBefore));
+  });
 
 // Unread-badge rendering. Mirrors React's `UnreadBadge`: a row whose
 // unread count > 0 shows the numeral; a row with count 0 shows no badge.
 // Both `sessionListProvider` (via a seeded gateway) and
 // `unreadDmCountsProvider` are overridden so the rendered counts are
 // deterministic and do not depend on the seeded messages.
-testWidgets('renders an unread badge for sessions with count > 0 and none for 0',
-    (tester) async {
-  const aliceId = 'alice-unread';
-  const bobId = 'bob-read';
-  final gateway = ScriptableGateway()..seedSessions([
-    _session(
-        sessionId: aliceId,
-        displayName: 'me',
-        peerDisplayName: 'Alice',
-        state: 'ready'),
-    _session(
-        sessionId: bobId,
-        displayName: 'me',
-        peerDisplayName: 'Bob',
-        state: 'ready'),
-  ]);
+  testWidgets(
+      'renders an unread badge for sessions with count > 0 and none for 0',
+      (tester) async {
+    const aliceId = 'alice-unread';
+    const bobId = 'bob-read';
+    final gateway = ScriptableGateway()
+      ..seedSessions([
+        _session(
+            sessionId: aliceId,
+            displayName: 'me',
+            peerDisplayName: 'Alice',
+            state: 'ready'),
+        _session(
+            sessionId: bobId,
+            displayName: 'me',
+            peerDisplayName: 'Bob',
+            state: 'ready'),
+      ]);
 
- // Only Alice has unread messages; Bob's count is 0.
- final unread = {'dm:$aliceId': 3};
+    // Only Alice has unread messages; Bob's count is 0.
+    final unread = {'dm:$aliceId': 3};
 
- await tester.pumpWidget(ProviderScope(
-   overrides: [
-     gatewayProvider.overrideWithValue(gateway),
+    await pumpScreen(tester, const SessionsScreen(), overrides: [
+      gatewayProvider.overrideWithValue(gateway),
       // The sessions screen now reads the lifecycle map (the React
       // `useUnreadNotifications.unread` port), not the raw count map. The
       // override stubs the lifecycle's `build` to return the static map so
       // the rendered badges are deterministic (Alice=3, Bob absent -> 0).
       unreadLifecycleProvider.overrideWithBuild((ref, notifier) => unread),
-   ],
-   child: MaterialApp(
-     localizationsDelegates: AppLocalizations.localizationsDelegates,
-     supportedLocales: AppLocalizations.supportedLocales,
-     home: const SessionsScreen(),
-   ),
- ));
- await tester.pumpAndSettle();
+    ]);
 
-  // One UnreadBadge renders with count 3, and the numeral '3' is visible.
-  expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 3),
-      findsOneWidget);
-  expect(find.text('3'), findsOneWidget);
+    // One UnreadBadge renders with count 3, and the numeral '3' is visible.
+    expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 3),
+        findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
 
-  // The 0-count row still mounts an UnreadBadge(count: 0) but it renders
-  // nothing (SizedBox.shrink) -- so no extra numeral is present and no
-  // '99+' ever appears.
-  expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 0),
-      findsOneWidget);
-  expect(find.text('99+'), findsNothing);
-});
+    // The 0-count row still mounts an UnreadBadge(count: 0) but it renders
+    // nothing (SizedBox.shrink) -- so no extra numeral is present and no
+    // '99+' ever appears.
+    expect(find.byWidgetPredicate((w) => w is UnreadBadge && w.count == 0),
+        findsOneWidget);
+    expect(find.text('99+'), findsNothing);
+  });
 
   testWidgets(
       'pending channel DM offer renders an OfferRailItem and dismiss removes it',
@@ -248,7 +227,7 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
     final gateway = _channelOfferGateway();
     // useRouter so the accept path's context.go(AppRoutes.dmFor(...)) resolves
     // and pushes DmScreen, which the test asserts via the DM screen composer.
-    await pumpScreen(tester, gateway, useRouter: true);
+    await pumpSessions(tester, gateway, useRouter: true);
 
     // The OfferRailItem renders with the offering peer's name + the
     // channel-host subtitle (`#drift-room`). The subtitle text appears in
@@ -269,13 +248,13 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
     // 'accepted-dm' session) + auto-dismiss + navigates to the DM screen.
     // Reset dismiss counter first so the auto-dismiss after accept is the
     // only call counted.
-    final dismissBeforeAccept =
-        gateway.countOf(GatewayMethod.dismissDmOffer);
-    final sessionCallsBeforeAccept = gateway.countOf(GatewayMethod.listSessions);
+    final dismissBeforeAccept = gateway.countOf(GatewayMethod.dismissDmOffer);
+    final sessionCallsBeforeAccept =
+        gateway.countOf(GatewayMethod.listSessions);
     await tester.tap(find.text('alpha-peer'));
     await tester.pumpAndSettle();
-    expect(gateway.countOf(GatewayMethod.dismissDmOffer),
-        dismissBeforeAccept + 1);
+    expect(
+        gateway.countOf(GatewayMethod.dismissDmOffer), dismissBeforeAccept + 1);
     expect(gateway.countOf(GatewayMethod.listSessions),
         sessionCallsBeforeAccept + 1);
     // The DM screen rendered (its composer is a TextField).
@@ -288,13 +267,15 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
     final gateway = _channelOfferGateway()
       ..failAlways(GatewayMethod.acceptInvite,
           error: Exception('accept-failed'));
-    await pumpScreen(tester, gateway, useRouter: true);
+    await pumpSessions(tester, gateway, useRouter: true);
 
-    final sessionCallsBeforeAccept = gateway.countOf(GatewayMethod.listSessions);
+    final sessionCallsBeforeAccept =
+        gateway.countOf(GatewayMethod.listSessions);
     await tester.tap(find.text('alpha-peer'));
     await tester.pumpAndSettle();
 
-    expect(gateway.countOf(GatewayMethod.listSessions), sessionCallsBeforeAccept);
+    expect(
+        gateway.countOf(GatewayMethod.listSessions), sessionCallsBeforeAccept);
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 0);
     expect(find.text('Write a message\u2026'), findsNothing);
   });

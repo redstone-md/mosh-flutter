@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/call_overlay.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 ActiveCall _active({required int startedAtMs}) => ActiveCall(
       callId: 'call-1',
@@ -24,16 +25,8 @@ Future<AppLocalizations> _l() =>
 Future<void> _pump(
   WidgetTester tester, {
   required CallOverlay overlay,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: overlay),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+}) =>
+    pumpScreen(tester, Scaffold(body: overlay));
 
 void main() {
   testWidgets(

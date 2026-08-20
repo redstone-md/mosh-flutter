@@ -10,9 +10,7 @@
 // progress indicator, plus transfer-action busy behavior.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
@@ -22,6 +20,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 import '../shared/attachment_launcher_test_support.dart';
+import '../../support/pump.dart';
 
 AttachmentDescriptor _fileDescriptor({
   required String attachmentId,
@@ -107,22 +106,13 @@ Future<void> _pump(
   required SessionSnapshot snapshot,
   ScriptableGateway? gateway,
   AttachmentLauncher? launcher,
-}) async {
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
+}) =>
+    pumpScreen(tester, DmScreen(sessionId: sessionId), overrides: [
       activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
       if (gateway != null) gatewayProvider.overrideWithValue(gateway),
       if (launcher != null)
         attachmentLauncherProvider.overrideWithValue(launcher),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: DmScreen(sessionId: sessionId),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+    ]);
 
 Finder _attachmentAction() => find.descendant(
       of: find.byType(AttachmentCard),

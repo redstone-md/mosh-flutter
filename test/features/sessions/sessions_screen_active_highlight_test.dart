@@ -10,17 +10,16 @@
 // (the real notifier _ActiveConversationKeyNotifier is private to its
 // library, so overrideWith cannot name the type) and exercises the same
 // set path the rail + chat screens use in production.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import '../../support/pump.dart';
 
 // Seeded fake gateway returning a fixed 2-session snapshot so the rail
 // renders two deterministic DM rows (Alice + Bob).
@@ -51,17 +50,18 @@ SessionSnapshot _session({
 void main() {
   const aliceId = 'alice-session';
   const bobId = 'bob-session';
-  final gateway = ScriptableGateway()..seedSessions([
-    _session(sessionId: aliceId, peerDisplayName: 'Alice'),
-    _session(sessionId: bobId, peerDisplayName: 'Bob'),
-  ]);
+  final gateway = ScriptableGateway()
+    ..seedSessions([
+      _session(sessionId: aliceId, peerDisplayName: 'Alice'),
+      _session(sessionId: bobId, peerDisplayName: 'Bob'),
+    ]);
 
   // Pumps SessionsScreen with the seeded gateway + the active key pre-set
   // to activeKey (null => no open conversation). The active key is set on
   // the real notifier before the first pump so the watch reads it on first
   // build; set short-circuits when value equals current state (null==null),
   // so the null case needs no call.
-  Future<void> pumpScreen(
+  Future<void> pumpSessions(
     WidgetTester tester, {
     String? activeKey,
   }) async {
@@ -72,15 +72,7 @@ void main() {
     if (activeKey != null) {
       container.read(activeConversationKeyProvider.notifier).set(activeKey);
     }
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const SessionsScreen(),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester, const SessionsScreen(), container: container);
   }
 
   // Finds the RailItem whose title matches label (the DM row label) and
@@ -96,7 +88,7 @@ void main() {
   testWidgets(
       'open DM row is selected when activeConversationKey matches dm:<id>',
       (tester) async {
-    await pumpScreen(tester, activeKey: 'dm:$aliceId');
+    await pumpSessions(tester, activeKey: 'dm:$aliceId');
 
     // The open conversation's row (Alice) is the selected row.
     expect(selectedFor(tester, 'Alice'), isTrue);
@@ -107,7 +99,7 @@ void main() {
   testWidgets(
       'no row is selected when activeConversationKey is null (no open chat)',
       (tester) async {
-    await pumpScreen(tester, activeKey: null);
+    await pumpSessions(tester, activeKey: null);
 
     expect(selectedFor(tester, 'Alice'), isFalse);
     expect(selectedFor(tester, 'Bob'), isFalse);

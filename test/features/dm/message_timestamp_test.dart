@@ -9,15 +9,14 @@
 // (1-1 with React's `<time title={...}>`).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 ChatMessage _msg({
   required String fromDevice,
@@ -60,12 +59,6 @@ SessionSnapshot _snapshot({
       pendingCall: null,
       outgoingCall: null,
       activeCall: null,
-    );
-
-Widget _localized(Widget child) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: child,
     );
 
 void main() {
@@ -128,8 +121,7 @@ void main() {
   group('SenderMeta timestamp', () {
     const sessionId = 'sess-ts';
 
-    testWidgets(
-        'renders the visible HH:mm + a Tooltip with the full date-time',
+    testWidgets('renders the visible HH:mm + a Tooltip with the full date-time',
         (tester) async {
       final snapshot = _snapshot(
         sessionId: sessionId,
@@ -139,14 +131,11 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          activeSessionProvider(sessionId)
-              .overrideWith((ref) async => snapshot),
-        ],
-        child: _localized(const DmScreen(sessionId: sessionId)),
-      ));
-      await tester.pumpAndSettle();
+      await pumpScreen(tester, const DmScreen(sessionId: sessionId),
+          overrides: [
+            activeSessionProvider(sessionId)
+                .overrideWith((ref) async => snapshot),
+          ]);
 
       // The visible locale-aware HH:mm renders (1-1 with React's
       // toLocaleTimeString visible text).

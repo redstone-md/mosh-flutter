@@ -15,9 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
@@ -25,42 +23,28 @@ import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import '../../support/pump.dart';
 
 const _groupStepBody =
     'Spin up an MLS-encrypted group. You admit members and stay the admin.';
 
 void main() {
-  Future<void> pumpScreen(
+  Future<void> pumpGroupStep(
     WidgetTester tester, {
     Gateway? gateway,
     String initialLocation = AppRoutes.groupCreate,
-  }) async {
+  }) {
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway ?? ScriptableGateway()),
     ]);
     addTearDown(container.dispose);
-
-    final router = GoRouter(
-      initialLocation: initialLocation,
-      routes: appRouter.configuration.routes,
-    );
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    return pumpRoute(tester, initialLocation, container: container);
   }
 
   testWidgets(
       'initial state renders title, body, placeholder, and Create button label',
       (tester) async {
-    await pumpScreen(tester);
+    await pumpGroupStep(tester);
 
     // Title (onboardTileGroupTitle) + body (onboardGroupStepBody) +
     // placeholder (onboardGroupNamePlaceholder) + button (onboardGroupCreate,
@@ -75,7 +59,7 @@ void main() {
   testWidgets(
       'Create button is enabled even when the label is empty (React disabled={busy} only)',
       (tester) async {
-    await pumpScreen(tester);
+    await pumpGroupStep(tester);
 
     // No text entered -> the button is still enabled (React disables on
     // `busy` only, NOT on an empty label -- the group label is optional).
@@ -87,7 +71,7 @@ void main() {
       'tapping Create creates via the gateway and renders the InviteResult card with the invite URI',
       (tester) async {
     final gateway = ScriptableGateway();
-    await pumpScreen(tester, gateway: gateway);
+    await pumpGroupStep(tester, gateway: gateway);
 
     // Intercept the flutter/services clipboard method channel so the
     // auto-copy on create (React `copyText(created.invite_uri)`) does not
@@ -97,8 +81,8 @@ void main() {
       // Clipboard.setData is the only platform call this screen makes.
       return null;
     });
-    addTearDown(() => TestDefaultBinaryMessengerBinding.instance
-        .defaultBinaryMessenger
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null));
 
     // Enter a label so the canned GroupCreated invite URI is deterministic
@@ -123,7 +107,7 @@ void main() {
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
-    await pumpScreen(tester);
+    await pumpGroupStep(tester);
 
     expect(find.text('Back'), findsOneWidget);
     await tester.tap(find.text('Back'));
@@ -139,7 +123,8 @@ void main() {
       'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Group runtime offline';
-    final throwing = ScriptableGateway()..failAlways(GatewayMethod.createGroup, error: message);
+    final throwing = ScriptableGateway()
+      ..failAlways(GatewayMethod.createGroup, error: message);
 
     // Intercept the flutter/services clipboard channel so the auto-copy on
     // create does not hang the test on a real platform channel.
@@ -147,11 +132,11 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
       return null;
     });
-    addTearDown(() => TestDefaultBinaryMessengerBinding.instance
-        .defaultBinaryMessenger
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null));
 
-    await pumpScreen(tester, gateway: throwing);
+    await pumpGroupStep(tester, gateway: throwing);
 
     await tester.enterText(find.byType(TextField), 'friends');
     await tester.tap(find.byType(FilledButton));
