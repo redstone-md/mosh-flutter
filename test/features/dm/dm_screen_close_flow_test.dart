@@ -23,6 +23,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -114,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The real close fired with the sessionId.
-    expect(gateway.lastCall(GatewayMethod.leave)?.target.id, sessionId);
+    expect(gateway.lastCall(GatewayMethod.leave)?.target, DmTarget(sessionId));
   });
 
   testWidgets('cancelling does NOT call leave', (tester) async {

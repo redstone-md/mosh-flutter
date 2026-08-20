@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -129,7 +130,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The real close fired with the groupId.
-    expect(gateway.lastCall(GatewayMethod.leave)?.target.id, groupId);
+    expect(gateway.lastCall(GatewayMethod.leave)?.target, GroupTarget(groupId));
   });
 
   testWidgets('cancelling does NOT call leave', (tester) async {
