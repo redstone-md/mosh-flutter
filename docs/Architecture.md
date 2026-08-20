@@ -215,6 +215,93 @@ for the kind inside its own implementation and is otherwise a pass-through;
 `api` facade is real for `diagnostics` + `private_dm` and stubbed for the
 other five families until later slices.
 
+## Conversation Module
+
+One module renders and drives every conversation: the DM, the public channel
+and the org group (ADR 0018). It lives in `lib/src/features/conversation/`.
+
+```mermaid
+flowchart TD
+    Dm[DmScreen]
+    Ch[ChannelScreen]
+    Gr[GroupScreen]
+    Screen[ConversationScreen]
+    Body[ConversationScreenBody]
+    Ctrl[ConversationController]
+    List[ConversationMessageListView]
+    Row[ConversationMessageRow]
+    Snap[conversationSnapshotProvider]
+    Kind["activeSessionProvider / channelSnapshotProvider / groupSnapshotProvider"]
+    GW[Gateway]
+
+    Dm -->|"its header, its target"| Screen
+    Ch -->|"its header, its target"| Screen
+    Gr -->|"its header, its target"| Screen
+    Screen --> Body
+    Screen --> Ctrl
+    Body --> List
+    List --> Row
+    Body --> Snap
+    Ctrl --> GW
+    Ctrl --> Snap
+    Snap --> Kind
+    Kind --> GW
+```
+
+Each kind supplies its app bar and its target. Everything below that is
+shared: one controller for send / retry / attachments / voice / leave / peer
+DM, one body, one message list, one row.
+
+The three generated snapshots map into one sealed view, so the shared code
+reads one message shape while the kind-only surfaces — the peer-status
+drawer, the group rejoin warning, the leave dialog's label — still reach
+their own typed source snapshot.
+
+```mermaid
+classDiagram
+    class ConversationSnapshot {
+      +AnyConversationTarget target
+      +String ownDeviceName
+      +String ownFingerprint
+      +List~ConversationMessage~ messages
+      +List~AttachmentView~ attachments
+    }
+    class DmConversation {
+      +SessionSnapshot source
+    }
+    class ChannelConversation {
+      +ChannelSnapshot source
+    }
+    class GroupConversation {
+      +GroupSnapshot source
+    }
+    class ConversationControllerState {
+      +bool sending
+      +String? chatError
+      +String? lastFailedBody
+      +AttachmentDescriptor? pendingOpen
+    }
+
+    ConversationSnapshot <|-- DmConversation
+    ConversationSnapshot <|-- ChannelConversation
+    ConversationSnapshot <|-- GroupConversation
+    ConversationController --> ConversationControllerState
+    ConversationController --> ConversationSnapshot
+```
+
+`conversationSnapshotProvider` does not poll. It watches the kind provider
+the app already has and maps the result, so there is one poll per
+conversation and invalidating a kind provider still refreshes everything that
+reads it.
+
+The controller owns what the screen is doing; the screen owns the composer,
+the search text, the filter, the drawer, and navigation. The controller never
+navigates and never touches the composer: the methods that could trigger
+either return a result the screen acts on.
+
+Conversation behaviour is tested once and run over all three targets, from
+`test/support/conversation_cases.dart`.
+
 ## State Ownership
 
 - Server / runtime state (sessions, messages, snapshots, diagnostics, delivery status) comes from `mosh-core` through the bridge and lives in Riverpod `AsyncNotifierProvider`s as `AsyncValue<T>`. UI consumes it with `.when(loading:, error:, data:)`. This is the direct analogue of TanStack Query server state (ADR 0010).
@@ -354,5 +441,7 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0014 - i18n via `gen-l10n`, `LocaleProvider`.
 - docs/ADR/0015 - fork version line `0.8.0-dev`, deep-link deferral.
 - docs/ADR/0016-api-runtime-ownership-oncelock-singleton.md - api runtime ownership via OnceLock singleton.
+- docs/ADR/0017-gateway-takes-the-conversation-target.md - the Dart Gateway takes the conversation target.
+- docs/ADR/0018-one-conversation-module.md - one Conversation module for the DM, the channel and the group.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).
