@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/mesh.dart';
 import 'package:mosh/src/util/format.dart';
 
 /// The React `MeshDiagnostics`: the "Moss network" `.diagnostic-group`.
@@ -149,9 +149,8 @@ class _MetricGrid extends StatelessWidget {
                 child: Metric(
                   label: l.diagMetricSupernode,
                   value: mesh.supernodeReady ? 'ready' : 'standby',
-                  detail: mesh.supernodeReady
-                      ? 'can assist peers'
-                      : 'not promoted',
+                  detail:
+                      mesh.supernodeReady ? 'can assist peers' : 'not promoted',
                 ),
               ),
             ],

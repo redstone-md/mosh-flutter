@@ -1,11 +1,19 @@
 use serde::{Deserialize, Serialize};
 
-use crate::attachment_runtime::VoiceMeta;
 use crate::conversation::message_log::{ConversationMessage, LogError};
 use crate::mls_crypto::MlsCryptoError;
 use crate::outbound_delivery::MessageDeliveryMeta;
 pub use crate::outbound_delivery::MessageDeliveryStatus;
 use flutter_rust_bridge::frb;
+
+// Shapes a DM shares with the other kinds. They live beside the shared code
+// that builds them; a DM only re-exports them so `private_dm_runtime::X` keeps
+// naming the same type it always did.
+pub use crate::conversation::attachments::{
+    AttachmentDescriptor, AttachmentSendResult, AttachmentState, AttachmentView,
+};
+pub use crate::conversation::dm_offers::DmOffer;
+pub use crate::conversation::mesh::{MeshInfo, PeerDetail, SnapshotEvent};
 
 #[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,77 +91,6 @@ pub struct SessionListSnapshot {
 pub struct CloseSessionResult {
     pub session_id: String,
     pub closed: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct SnapshotEvent {
-    pub event_type: i32,
-    pub event_name: String,
-    pub detail_json: String,
-    pub epoch_millis: u64,
-}
-
-impl SnapshotEvent {
-    pub fn name_for(event_type: i32) -> &'static str {
-        match event_type {
-            1 => "peer_joined",
-            2 => "peer_left",
-            3 => "supernode_promoted",
-            4 => "supernode_revoked",
-            5 => "tracker_announce",
-            6 => "tracker_failure",
-            7 => "relay_migrated",
-            _ => "unknown",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct MeshInfo {
-    #[serde(default)]
-    pub mesh_id: String,
-    #[serde(default)]
-    pub listen_port: i32,
-    #[serde(default)]
-    pub advertised_addr: String,
-    #[serde(default)]
-    pub peer_count: i32,
-    #[serde(default)]
-    pub direct_peer_count: i32,
-    #[serde(default)]
-    pub relayed_peer_count: i32,
-    #[serde(default)]
-    pub relay_capable_peer_count: i32,
-    #[serde(default)]
-    pub relay_session_count: i32,
-    #[serde(default)]
-    pub relay_route_count: i32,
-    #[serde(default)]
-    pub known_peer_count: i32,
-    #[serde(default)]
-    pub channels: Vec<String>,
-    #[serde(default)]
-    pub nat_type: String,
-    #[serde(default)]
-    pub supernode_ready: bool,
-    #[serde(default)]
-    pub public_key: String,
-    /// Per-peer identity of every currently connected peer. On the shared
-    /// substrate a node connects network-wide, so `direct_peer_count` counts
-    /// unrelated world peers; presence for one counterpart must match this list
-    /// by `id` (the peer's moss public-key hex) instead of trusting a count.
-    #[serde(default)]
-    pub peer_details: Vec<PeerDetail>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct PeerDetail {
-    #[serde(default)]
-    pub id: String,
-    #[serde(default)]
-    pub addr: String,
-    #[serde(default)]
-    pub relayed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -266,66 +203,6 @@ pub struct CallOfferBody {
     pub nonce_prefix_b64: String,
 }
 
-/// Immutable attachment metadata stamped onto the message log. Mutable
-/// transfer state is reported separately through AttachmentView.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttachmentDescriptor {
-    pub attachment_id: String,
-    pub content_hash: String,
-    pub file_name: String,
-    pub mime: String,
-    pub total_size: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thumbnail_b64: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub voice: Option<VoiceMeta>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AttachmentState {
-    /// Bytes are on disk locally (sender's own file, or a finished download).
-    Available,
-    /// Manifest known, download not started yet.
-    Offered,
-    /// Chunks are in flight.
-    Downloading,
-    /// Transfer or verification failed; a retry is possible.
-    Failed,
-    /// Either side cancelled the transfer.
-    Cancelled,
-}
-
-/// Live transfer state for one attachment, recomputed on every snapshot.
-#[derive(Debug, Clone, Serialize)]
-pub struct AttachmentView {
-    pub attachment_id: String,
-    pub direction: String,
-    pub state: AttachmentState,
-    pub completed_chunks: u64,
-    pub chunk_count: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub local_path: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct AttachmentSendResult {
-    pub session_id: String,
-    pub attachment_id: String,
-    pub content_hash: String,
-}
-
-/// A request to start a private DM, surfaced inside a channel or group. The
-/// initiator publishes it; the targeted member accepts the carried invite.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DmOffer {
-    pub offer_id: String,
-    pub from_device: String,
-    pub from_fingerprint: String,
-    pub target_fingerprint: String,
-    pub invite_uri: String,
-}
-
 #[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SendMessageResult {
@@ -396,15 +273,14 @@ impl From<MlsCryptoError> for PrivateDmRuntimeError {
     }
 }
 
-impl From<crate::attachment_runtime::AttachmentRuntimeError> for PrivateDmRuntimeError {
-    fn from(error: crate::attachment_runtime::AttachmentRuntimeError) -> Self {
-        Self::Attachment(error.to_string())
-    }
-}
-
-impl From<crate::attachment_store::AttachmentStoreError> for PrivateDmRuntimeError {
-    fn from(error: crate::attachment_store::AttachmentStoreError) -> Self {
-        Self::Attachment(error.to_string())
+impl From<crate::conversation::transfer::TransferError> for PrivateDmRuntimeError {
+    fn from(error: crate::conversation::transfer::TransferError) -> Self {
+        match error {
+            crate::conversation::transfer::TransferError::Bytes(message) => {
+                Self::Attachment(message)
+            }
+            crate::conversation::transfer::TransferError::Slot(error) => error.into(),
+        }
     }
 }
 

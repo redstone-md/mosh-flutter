@@ -3,10 +3,85 @@
 //! A snapshot of a DM, a group or a channel closes the same way: ask the node
 //! how the mesh looks right now, then copy out the node events the diagnostics
 //! panel shows. Neither part depends on the kind of conversation, so both live
-//! here and each runtime calls them.
+//! here — the shapes and the two calls that build them.
+
+use serde::{Deserialize, Serialize};
 
 use crate::moss_ffi::{snapshot_event_log, MossEvent, MossNode};
-use crate::private_dm_runtime::{MeshInfo, SnapshotEvent};
+
+/// One thing the node reported, as the diagnostics panel shows it.
+#[derive(Debug, Clone, Serialize)]
+pub struct SnapshotEvent {
+    pub event_type: i32,
+    pub event_name: String,
+    pub detail_json: String,
+    pub epoch_millis: u64,
+}
+
+impl SnapshotEvent {
+    pub fn name_for(event_type: i32) -> &'static str {
+        match event_type {
+            1 => "peer_joined",
+            2 => "peer_left",
+            3 => "supernode_promoted",
+            4 => "supernode_revoked",
+            5 => "tracker_announce",
+            6 => "tracker_failure",
+            7 => "relay_migrated",
+            _ => "unknown",
+        }
+    }
+}
+
+/// How the mesh looks to this node right now.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MeshInfo {
+    #[serde(default)]
+    pub mesh_id: String,
+    #[serde(default)]
+    pub listen_port: i32,
+    #[serde(default)]
+    pub advertised_addr: String,
+    #[serde(default)]
+    pub peer_count: i32,
+    #[serde(default)]
+    pub direct_peer_count: i32,
+    #[serde(default)]
+    pub relayed_peer_count: i32,
+    #[serde(default)]
+    pub relay_capable_peer_count: i32,
+    #[serde(default)]
+    pub relay_session_count: i32,
+    #[serde(default)]
+    pub relay_route_count: i32,
+    #[serde(default)]
+    pub known_peer_count: i32,
+    #[serde(default)]
+    pub channels: Vec<String>,
+    #[serde(default)]
+    pub nat_type: String,
+    #[serde(default)]
+    pub supernode_ready: bool,
+    #[serde(default)]
+    pub public_key: String,
+    /// Per-peer identity of every currently connected peer. On the shared
+    /// substrate a node connects network-wide, so `direct_peer_count` counts
+    /// unrelated world peers; presence for one counterpart must match this list
+    /// by `id` (the peer's moss public-key hex) instead of trusting a count.
+    #[serde(default)]
+    pub peer_details: Vec<PeerDetail>,
+}
+
+/// One connected peer, as the node names it.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PeerDetail {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub addr: String,
+    #[serde(default)]
+    pub relayed: bool,
+}
 
 /// How the mesh looks to this node. `None` when the node has nothing to
 /// report, which is what a node that has not started yet gives back.

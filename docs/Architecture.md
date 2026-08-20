@@ -307,17 +307,25 @@ Conversation behaviour is tested once and run over all three targets, from
 
 ### Shared conversation code in the core
 
-The same folding is under way in `mosh-core`, where the DM, group and channel
+The same folding is done in `mosh-core`, where the DM, group and channel
 runtimes each carried their own copy of the plumbing (ADR 0019). What they
 share now lives in `mosh-core/src/conversation/`; what differs — how a frame
 is encrypted and where it is published — stays with the kind.
 
+Every kind is now the same shell with its own policy inside it. The shell is
+`conversation::runtime::ConversationRuntime<S>`: the table of conversations by
+id, the room each opens on the shared moss node, and the two writes that keep
+them on disk. `S` is the kind's session, behind the `ConversationSession`
+trait.
+
 ```mermaid
 flowchart TD
-    Dm[private_dm_runtime]
-    Gr[private_group_runtime]
-    Ch[channel_runtime]
+    Dm["private_dm_runtime<br/>relay, calls, DeliveryAck"]
+    Gr["private_group_runtime<br/>roster authority, rejoin"]
+    Ch["channel_runtime<br/>open mesh, no MLS"]
+    Shell["conversation::runtime<br/>ConversationRuntime&lt;S&gt; + ConversationSession"]
     Slots["conversation::attachments<br/>AttachmentSlots"]
+    Xfer["conversation::transfer<br/>Transfer: prepare, accept, serve, ingest"]
     Log["conversation::message_log<br/>MessageLog + ConversationMessage"]
     Seen["conversation::dedup<br/>SeenFrames"]
     Mesh["conversation::mesh<br/>mesh_info + snapshot_events"]
@@ -327,35 +335,55 @@ flowchart TD
     Moss[moss node]
     Db[(redb, encrypted)]
 
-    Dm --> Slots
+    Dm --> Shell
+    Gr --> Shell
+    Ch --> Shell
+    Dm --> Xfer
+    Gr --> Xfer
+    Ch --> Xfer
     Dm --> Log
     Dm --> Seen
     Dm --> Mesh
     Dm --> Out
-    Dm --> Hist
-    Gr --> Slots
     Gr --> Log
     Gr --> Seen
     Gr --> Mesh
     Gr --> Out
-    Gr --> Hist
     Gr --> Offers
-    Ch --> Slots
     Ch --> Log
     Ch --> Seen
     Ch --> Mesh
     Ch --> Out
-    Ch --> Hist
     Ch --> Offers
+    Xfer --> Slots
+    Shell --> Hist
+    Shell -->|"open_room / close_room"| Moss
     Hist -->|"HistoryTables picks the tables"| Db
     Dm -->|"MLS + relay"| Moss
     Gr -->|"MLS + room"| Moss
     Ch -->|"plain + room"| Moss
 ```
 
+- `ConversationRuntime<S>` — the shell. It holds the sessions, opens and closes
+  their rooms on the shared node, replays them at startup, and runs the two
+  persist loops: `persist_tail` for what a conversation has gained, and
+  `persist_send` for one message and the state of its send. The kind answers
+  four questions through `ConversationSession`: what the conversation is
+  called, what its messages and unsettled sends are, what record rebuilds it,
+  and what else of its own goes down beside the history — an MLS snapshot for
+  a DM and a group, nothing for a public channel. Two more say when a record is
+  worth writing: `record_is_final` (a joiner's record is a placeholder until
+  the MLS group exists) and `record_changed` (only a DM has a saved field that
+  can move later — the counterpart's moss peer id).
+- `Transfer` — an attachment's bytes on their way out and in. It owns the
+  transfer layer, the slot table and the blob store together, because they have
+  to move together. Sending a file seals it, saves this device's copy and opens
+  a slot; a manifest coming in opens a slot the other way; chunks are served
+  from one side and filed on the other. Publishing stays with the kind, so the
+  calls hand back frames instead of putting them on the wire.
 - `AttachmentSlots` — which attachment was offered, which one the user asked
-  for, where the finished file landed. Flipping a slot and starting the
-  transfer is one call, so the two cannot drift apart.
+  for, where the finished file landed. Held by `Transfer`, which is what the
+  kinds see.
 - `MessageLog<M>` — the message list plus the id generator, behind the
   `ConversationMessage` trait. The trait keeps the one real difference
   explicit: a channel or group message is matched on the sender's fingerprint,
@@ -379,9 +407,8 @@ flowchart TD
   touches is a `persistence::HistoryTables` value — `DM_HISTORY`,
   `GROUP_HISTORY`, `CHANNEL_HISTORY` — so the table names are data, not three
   copies of the same code. The store counts what is already down, which is what
-  keeps a message written once instead of once per poll. The MLS snapshot and
-  the session record stay with the kind, since only the kind knows when either
-  is worth rewriting.
+  keeps a message written once instead of once per poll. The shell decides
+  when a record is worth rewriting, from the two answers the kind gives it.
 - `dm_offers::DmOffers` — the private-DM invitations a channel or a group
   carries. `mint` builds the offer to publish, and derives its id from the
   invite URI so the same invitation twice reads as one offer. `receive` keeps

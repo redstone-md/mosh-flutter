@@ -27,6 +27,7 @@ import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/mesh.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 
 /// Tone of a `DiagnosticSummary`, mirroring React's `SummaryTone`. Drives

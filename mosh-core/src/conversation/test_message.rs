@@ -6,9 +6,9 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::attachments::AttachmentDescriptor;
 use super::message_log::ConversationMessage;
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus};
-use crate::private_dm_runtime::AttachmentDescriptor;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TestMessage {

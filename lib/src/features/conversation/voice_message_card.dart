@@ -18,7 +18,7 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'package:media_kit/media_kit.dart';
 
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 
 /// 64 amplitude buckets (mirrors React WAVEFORM_BUCKETS / voice_composer).
 const int _waveformBuckets = 64;

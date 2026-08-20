@@ -29,9 +29,9 @@ Future<VpnBypassConsent?> getVpnBypassConsent() =>
 
 /// Record the VPN-bypass consent (1:1 port of `set_vpn_bypass_consent`).
 /// `Some(name)` is a yes (remembered); `None` is a refusal (deliberately not
-/// stored, so the question returns next launch). The future impl validates
-/// the interface against `network_inventory::list_interfaces` before
-/// saving, exactly as the Tauri command did.
+/// stored, so the question returns next launch). Validates the interface
+/// against `network_inventory::list_interfaces` before saving, exactly as
+/// the Tauri command did.
 Future<void> setVpnBypassConsent({String? interface_}) =>
     RustLib.instance.api.crateApiVpnSetVpnBypassConsent(interface_: interface_);
 

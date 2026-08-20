@@ -1,21 +1,24 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
 use crate::attachment_runtime::{
-    AttachmentManifest, AttachmentRuntime, ChunkFrame, ChunkOutcome, ChunkRequest,
-    OutgoingAttachment, StreamRange,
+    AttachmentManifest, ChunkFrame, ChunkRequest, OutgoingAttachment, StreamRange, VoiceMeta,
 };
 use crate::attachment_store::AttachmentStore;
 use crate::commit_sequencer::{CommitSequencer, Disposition};
-use crate::conversation::attachments::{descriptor_of, AttachmentSlots, SlotError};
+use crate::conversation::attachments::{
+    AttachmentDescriptor, AttachmentSendResult, AttachmentView, SlotError,
+};
 use crate::conversation::dedup::SeenFrames;
-use crate::conversation::dm_offers::DmOffers;
-use crate::conversation::history::{History, Restore};
-use crate::conversation::mesh;
+use crate::conversation::dm_offers::{DmOffer, DmOffers};
+use crate::conversation::history::Restore;
+use crate::conversation::mesh::{self, MeshInfo, SnapshotEvent};
 use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
+use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
+use crate::conversation::transfer::{Transfer, TransferError};
 use crate::conversation::{decode, encode};
 use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
 use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
@@ -24,13 +27,11 @@ use crate::org_roster::{self, Roster};
 use crate::org_signing;
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{Persistence, GROUP_HISTORY};
-use crate::private_dm_runtime::{
-    AttachmentDescriptor, AttachmentSendResult, AttachmentView, DmOffer, MeshInfo, SnapshotEvent,
-    VoiceMeta,
-};
 use crate::shared_node::SharedMossNode;
 use ed25519_dalek::SigningKey;
 
+/// What a group calls itself in a log line about its room.
+const KIND: &str = "group";
 const CONTROL_CHANNEL_PREFIX: &str = "group-control/";
 const DATA_CHANNEL_PREFIX: &str = "group-data/";
 const BLOB_CHANNEL_PREFIX: &str = "group-blob/";
@@ -222,15 +223,12 @@ impl From<MlsCryptoError> for PrivateGroupError {
     }
 }
 
-impl From<crate::attachment_runtime::AttachmentRuntimeError> for PrivateGroupError {
-    fn from(error: crate::attachment_runtime::AttachmentRuntimeError) -> Self {
-        Self::Attachment(error.to_string())
-    }
-}
-
-impl From<crate::attachment_store::AttachmentStoreError> for PrivateGroupError {
-    fn from(error: crate::attachment_store::AttachmentStoreError) -> Self {
-        Self::Attachment(error.to_string())
+impl From<TransferError> for PrivateGroupError {
+    fn from(error: TransferError) -> Self {
+        match error {
+            TransferError::Bytes(message) => Self::Attachment(message),
+            TransferError::Slot(error) => error.into(),
+        }
     }
 }
 
@@ -376,11 +374,7 @@ pub struct PrivateGroupRuntime {
     // node of its own — see `shared_node` for why more than one is actively
     // harmful.
     shared_node: Arc<SharedMossNode>,
-    attachment_store: Arc<AttachmentStore>,
-    persistence: Option<Arc<Persistence>>,
-    history: History,
-    finalized_group_records: HashSet<String>,
-    groups: HashMap<String, GroupSession>,
+    groups: ConversationRuntime<GroupSession>,
 }
 
 struct GroupSession {
@@ -415,9 +409,7 @@ struct GroupSession {
     control_channel: String,
     data_channel: String,
     blob_channel: String,
-    attachment_store: Arc<AttachmentStore>,
-    attachments: AttachmentRuntime,
-    attachment_slots: AttachmentSlots,
+    transfer: Transfer,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     dm_offers: DmOffers,
     /// Org binding (ADR 0008). Some = control traffic is enveloped, the MLS
@@ -472,17 +464,11 @@ impl PrivateGroupRuntime {
     ) -> Self {
         Self {
             shared_node,
-            attachment_store,
-            persistence,
-            history: History::new(GROUP_HISTORY),
-            finalized_group_records: HashSet::new(),
-            groups: HashMap::new(),
+            groups: ConversationRuntime::new(attachment_store, persistence, GROUP_HISTORY),
         }
     }
 
     /// Take a reference to the shared node and put this group's room on it.
-    /// Rolls the reference back if the room work fails, so a group that never
-    /// opened cannot pin the node up forever.
     fn open_group_room(
         &mut self,
         mesh_id: &str,
@@ -490,27 +476,23 @@ impl PrivateGroupRuntime {
         listen_port: u16,
         static_peer: Option<String>,
     ) -> Result<Arc<MossNode>, PrivateGroupError> {
-        let node = self
-            .shared_node
-            .acquire(listen_port, static_peer)
-            .map_err(|error| PrivateGroupError::Moss(error.to_string()))?;
-        if let Err(error) = join_group_room(&node, mesh_id, group_id) {
-            self.shared_node.release();
-            return Err(error);
-        }
-        Ok(node)
+        runtime::open_room(
+            &self.shared_node,
+            mesh_id,
+            &group_channels(group_id),
+            listen_port,
+            static_peer,
+        )
+        .map_err(PrivateGroupError::Moss)
     }
 
     /// Rebuild private groups + history from the encrypted store. Best-effort:
     /// a corrupt group row is skipped so one bad record does not block startup.
     pub fn rehydrate(&mut self) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
+        let Some(p) = self.groups.persistence().cloned() else {
             return;
         };
-        for rec in self
-            .history
-            .stored_conversations::<PersistedGroupSession>(&p)
-        {
+        for rec in self.groups.stored_records::<PersistedGroupSession>() {
             let snapshot = match p.get_group_mls_snapshot(&rec.group_id) {
                 Ok(Some(snapshot)) => snapshot,
                 _ => {
@@ -569,14 +551,12 @@ impl PrivateGroupRuntime {
                 messages: MessageLog::default(),
                 seen: SeenFrames::default(),
                 sequencer: CommitSequencer::new(),
-                persistence: self.persistence.clone(),
+                persistence: Some(Arc::clone(&p)),
                 needs_rejoin: false,
                 control_channel: format!("{CONTROL_CHANNEL_PREFIX}{}", rec.group_id),
                 data_channel: format!("{DATA_CHANNEL_PREFIX}{}", rec.group_id),
                 blob_channel: format!("{BLOB_CHANNEL_PREFIX}{}", rec.group_id),
-                attachment_store: Arc::clone(&self.attachment_store),
-                attachments: AttachmentRuntime::new(),
-                attachment_slots: AttachmentSlots::default(),
+                transfer: Transfer::new(Arc::clone(self.groups.attachment_store())),
                 outbound_attempts: HashMap::new(),
                 dm_offers: DmOffers::default(),
                 org_pubkey: rec.org_pubkey.clone(),
@@ -615,18 +595,18 @@ impl PrivateGroupRuntime {
                     let _ = session.publish_control(&request);
                 }
             }
-            self.history.replay(
-                &p,
+            self.groups.replay(
                 &rec.group_id,
                 Restore {
                     log: &mut session.messages,
                     attempts: &mut session.outbound_attempts,
-                    slots: &mut session.attachment_slots,
-                    attachment_store: &self.attachment_store,
+                    transfer: &mut session.transfer,
                     local_author: &rec.device_fingerprint,
                 },
             );
-            self.finalized_group_records.insert(rec.group_id.clone());
+            // The record just read off disk already carries a valid MLS
+            // group id, so the tail write must not replace it with itself.
+            self.groups.mark_record_final(&rec.group_id);
             self.groups.insert(rec.group_id, session);
         }
     }
@@ -639,7 +619,7 @@ impl PrivateGroupRuntime {
         let listen_port = request.listen_port;
         let static_peer = request.static_peer.clone();
         let org_signer = match request.org_pubkey.as_deref() {
-            Some(_) => Some(load_org_signer(self.persistence.as_deref())?),
+            Some(_) => Some(load_org_signer(self.groups.persistence().map(Arc::as_ref))?),
             None => None,
         };
         // Org groups bind the MLS leaf to the durable moss peer-id
@@ -679,14 +659,12 @@ impl PrivateGroupRuntime {
             messages: MessageLog::default(),
             seen: SeenFrames::default(),
             sequencer: CommitSequencer::new(),
-            persistence: self.persistence.clone(),
+            persistence: self.groups.persistence().cloned(),
             needs_rejoin: false,
             control_channel: format!("{CONTROL_CHANNEL_PREFIX}{group_id}"),
             data_channel: format!("{DATA_CHANNEL_PREFIX}{group_id}"),
             blob_channel: format!("{BLOB_CHANNEL_PREFIX}{group_id}"),
-            attachment_store: Arc::clone(&self.attachment_store),
-            attachments: AttachmentRuntime::new(),
-            attachment_slots: AttachmentSlots::default(),
+            transfer: Transfer::new(Arc::clone(self.groups.attachment_store())),
             outbound_attempts: HashMap::new(),
             dm_offers: DmOffers::default(),
             org_pubkey: request.org_pubkey,
@@ -697,7 +675,7 @@ impl PrivateGroupRuntime {
         };
 
         self.groups.insert(group_id.clone(), session);
-        self.persist_group_tail();
+        self.groups.persist_tail();
         Ok(GroupCreated {
             group_id,
             mesh_id,
@@ -712,13 +690,13 @@ impl PrivateGroupRuntime {
         request: JoinGroupRequest,
     ) -> Result<GroupSnapshot, PrivateGroupError> {
         let invite = ParsedGroupInvite::parse(&request.invite_uri)?;
-        if self.groups.contains_key(&invite.group_id) {
+        if self.groups.holds(&invite.group_id) {
             return Err(PrivateGroupError::DuplicateGroup(invite.group_id));
         }
         let listen_port = request.listen_port;
         let static_peer = request.static_peer.clone();
         let org_signer = match request.org_pubkey.as_deref() {
-            Some(_) => Some(load_org_signer(self.persistence.as_deref())?),
+            Some(_) => Some(load_org_signer(self.groups.persistence().map(Arc::as_ref))?),
             None => None,
         };
         let credential_identity = org_signer
@@ -771,14 +749,12 @@ impl PrivateGroupRuntime {
             messages: MessageLog::default(),
             seen: SeenFrames::default(),
             sequencer: CommitSequencer::new(),
-            persistence: self.persistence.clone(),
+            persistence: self.groups.persistence().cloned(),
             needs_rejoin: false,
             control_channel,
             data_channel: format!("{DATA_CHANNEL_PREFIX}{}", invite.group_id),
             blob_channel: format!("{BLOB_CHANNEL_PREFIX}{}", invite.group_id),
-            attachment_store: Arc::clone(&self.attachment_store),
-            attachments: AttachmentRuntime::new(),
-            attachment_slots: AttachmentSlots::default(),
+            transfer: Transfer::new(Arc::clone(self.groups.attachment_store())),
             outbound_attempts: HashMap::new(),
             dm_offers: DmOffers::default(),
             org_pubkey: request.org_pubkey,
@@ -808,7 +784,7 @@ impl PrivateGroupRuntime {
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        self.persist_group_tail();
+        self.groups.persist_tail();
         Ok(result)
     }
 
@@ -822,9 +798,7 @@ impl PrivateGroupRuntime {
             .groups
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-        session
-            .attachment_slots
-            .start_download(attachment_id, &mut session.attachments)?;
+        session.transfer.start_download(attachment_id)?;
         session.pump_attachment_requests();
         Ok(())
     }
@@ -838,9 +812,7 @@ impl PrivateGroupRuntime {
             .groups
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-        Ok(session
-            .attachment_slots
-            .cancel(attachment_id, &mut session.attachments)?)
+        Ok(session.transfer.cancel(attachment_id)?)
     }
 
     /// Publishes a private-DM invitation aimed at one group member.
@@ -909,10 +881,7 @@ impl PrivateGroupRuntime {
             .groups
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-        session
-            .attachment_slots
-            .resume_for_stream(attachment_id, &mut session.attachments);
-        let outcome = session.attachments.stream_range(attachment_id, start, end);
+        let outcome = session.transfer.stream_range(attachment_id, start, end);
         session.pump_attachment_requests();
         Ok(outcome)
     }
@@ -964,7 +933,7 @@ impl PrivateGroupRuntime {
                 .open(message, owned_group_id, payload, ciphertext.len())?
         };
         let result = self.publish_prepared(group_id, prepared, true)?;
-        self.persist_group_tail();
+        self.groups.persist_tail();
         Ok(result)
     }
 
@@ -993,7 +962,8 @@ impl PrivateGroupRuntime {
         prepared: Prepared,
         persist_snapshot: bool,
     ) -> Result<GroupSendResult, PrivateGroupError> {
-        self.persist_outbound_state(group_id, &prepared.message_id, persist_snapshot);
+        self.groups
+            .persist_send(group_id, &prepared.message_id, persist_snapshot);
         let publish = {
             let session = self
                 .groups
@@ -1017,7 +987,8 @@ impl PrivateGroupRuntime {
             )?;
             (group_id_owned, settled)
         };
-        self.persist_outbound_state(group_id, &prepared.message_id, false);
+        self.groups
+            .persist_send(group_id, &prepared.message_id, false);
         Ok(GroupSendResult {
             group_id: group_id_owned,
             bytes: prepared.ciphertext_bytes,
@@ -1030,7 +1001,7 @@ impl PrivateGroupRuntime {
 
     pub fn poll(&mut self, group_id: &str) -> Result<GroupSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
-        self.persist_group_tail();
+        self.groups.persist_tail();
         let session = self
             .groups
             .get(group_id)
@@ -1040,7 +1011,7 @@ impl PrivateGroupRuntime {
 
     pub fn list(&mut self) -> Result<GroupListSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
-        self.persist_group_tail();
+        self.groups.persist_tail();
         let mut groups: Vec<GroupSnapshot> =
             self.groups.values().map(GroupSession::snapshot).collect();
         groups.sort_by(|a, b| a.group_id.cmp(&b.group_id));
@@ -1097,12 +1068,16 @@ impl PrivateGroupRuntime {
         // subscriptions — the node lives on for the other groups, so leaving
         // has to be said out loud or a closed group keeps receiving.
         if let Some(session) = self.groups.remove(group_id) {
-            leave_group_room(&session);
-            self.shared_node.release();
+            runtime::close_room(
+                &self.shared_node,
+                &session.node,
+                &session.mesh_id,
+                &group_channels(group_id),
+                &format!("{KIND} {group_id}"),
+            );
         }
-        self.history.forget(group_id);
-        self.finalized_group_records.remove(group_id);
-        if let Some(p) = self.persistence.as_ref() {
+        self.groups.forget(group_id);
+        if let Some(p) = self.groups.persistence() {
             if let Err(error) = p.delete_group(group_id) {
                 eprintln!("failed to delete persisted group {group_id}: {error}");
             }
@@ -1143,68 +1118,36 @@ impl PrivateGroupRuntime {
         }
         Ok(())
     }
+}
 
-    fn persist_group_tail(&mut self) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        // Groups whose record must be (re)written once their MLS group exists.
-        // Collected during the read-only loop and applied after, since
-        // finalizing mutates self.
-        let mut pending_records: Vec<String> = Vec::new();
-        for session in self.groups.values() {
-            let has_new_messages =
-                self.history
-                    .write_tail(&p, &session.group_id, &session.messages);
+impl ConversationSession for GroupSession {
+    type Message = GroupMessage;
+    type Record = PersistedGroupSession;
 
-            let needs_record_refresh = !self.finalized_group_records.contains(&session.group_id)
-                && session.crypto.group_id_bytes().is_some();
-
-            if has_new_messages || needs_record_refresh {
-                let _ = p.put_group_mls_snapshot(&session.group_id, &session.crypto.snapshot());
-            }
-
-            if needs_record_refresh {
-                pending_records.push(session.group_id.clone());
-            }
-        }
-        for group_id in pending_records {
-            if let Some(session) = self.groups.get(&group_id) {
-                self.history
-                    .write_record(&p, &group_id, &session.to_persisted_record());
-            }
-            self.finalized_group_records.insert(group_id);
-        }
+    fn conversation_id(&self) -> &str {
+        &self.group_id
     }
 
-    fn persist_outbound_state(&mut self, group_id: &str, message_id: &str, persist_snapshot: bool) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        let Some(session) = self.groups.get(group_id) else {
-            return;
-        };
-        if !self.history.write_send(
-            &p,
-            group_id,
-            message_id,
-            &session.messages,
-            &session.outbound_attempts,
-        ) {
-            return;
-        }
-        if persist_snapshot {
-            let _ = p.put_group_mls_snapshot(group_id, &session.crypto.snapshot());
-        }
-        // The group record needs refreshing once the MLS group exists, so its
-        // group_id is no longer the empty placeholder.
-        if !self.finalized_group_records.contains(group_id)
-            && session.crypto.group_id_bytes().is_some()
-        {
-            self.history
-                .write_record(&p, group_id, &session.to_persisted_record());
-            self.finalized_group_records.insert(group_id.to_string());
-        }
+    fn log(&self) -> &MessageLog<GroupMessage> {
+        &self.messages
+    }
+
+    fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
+        &self.outbound_attempts
+    }
+
+    fn record(&self) -> PersistedGroupSession {
+        self.to_persisted_record()
+    }
+
+    fn write_extra(&self, persistence: &Persistence) {
+        let _ = persistence.put_group_mls_snapshot(&self.group_id, &self.crypto.snapshot());
+    }
+
+    /// Until the MLS group exists the record's group id is an empty
+    /// placeholder, and a group saved in that state cannot be rebuilt.
+    fn record_is_final(&self) -> bool {
+        self.crypto.group_id_bytes().is_some()
     }
 }
 
@@ -1980,11 +1923,7 @@ impl GroupSession {
             } if participant_id != self.participant_id => {
                 // Only the original sender holds the outgoing transfer;
                 // every other member simply has nothing to serve.
-                let frames = match self.attachments.serve_chunks(&request) {
-                    Ok(frames) => frames,
-                    Err(_) => return Ok(()),
-                };
-                for frame in frames {
+                for frame in self.transfer.serve(&request) {
                     let chunk = BlobEnvelope::Chunk {
                         participant_id: self.participant_id.clone(),
                         frame,
@@ -1996,29 +1935,7 @@ impl GroupSession {
             BlobEnvelope::Chunk {
                 participant_id,
                 frame,
-            } if participant_id != self.participant_id => {
-                let attachment_id = frame.attachment_id.clone();
-                let file_name = self.attachment_slots.file_name(&attachment_id);
-                match self.attachments.ingest_chunk(&frame) {
-                    Ok(ChunkOutcome::Complete {
-                        content_hash,
-                        bytes,
-                        ..
-                    }) => {
-                        let path =
-                            self.attachment_store
-                                .write_blob(&content_hash, &file_name, &bytes)?;
-                        self.attachment_slots
-                            .complete_download(&attachment_id, path.to_string_lossy().into_owned());
-                        Ok(())
-                    }
-                    Ok(_) => Ok(()),
-                    Err(_) => {
-                        self.attachment_slots.fail(&attachment_id);
-                        Ok(())
-                    }
-                }
-            }
+            } if participant_id != self.participant_id => Ok(self.transfer.ingest(&frame)?),
             _ => Ok(()),
         }
     }
@@ -2029,13 +1946,9 @@ impl GroupSession {
         from_fingerprint: String,
         manifest: AttachmentManifest,
     ) -> Result<(), PrivateGroupError> {
-        let attachment_id = manifest.attachment_id.clone();
-        if self.attachment_slots.contains(&attachment_id) {
+        let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
             return Ok(());
-        }
-        let descriptor = descriptor_of(&manifest);
-        self.attachments.register_incoming(manifest)?;
-        self.attachment_slots.offer(descriptor.clone());
+        };
         let message = self.messages.stamp(GroupMessage {
             from_device,
             from_fingerprint,
@@ -2064,21 +1977,17 @@ impl GroupSession {
             return Err(PrivateGroupError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let manifest = self.attachments.prepare_outgoing(OutgoingAttachment {
+        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
             from_fingerprint: self.device_fingerprint.clone(),
-            bytes: bytes.clone(),
+            bytes,
             thumbnail_b64: thumbnail,
             voice,
         })?;
-        let stored = self.attachment_store.write_blob(
-            &manifest.content_hash,
-            &manifest.file_name,
-            &bytes,
-        )?;
-        let manifest_json = serde_json::to_vec(&manifest)
+        let content_hash = outgoing.manifest.content_hash.clone();
+        let manifest_json = serde_json::to_vec(&outgoing.manifest)
             .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
         let ciphertext = self.crypto.encrypt(&manifest_json)?;
         let envelope = ControlEnvelope::AttachmentManifest {
@@ -2090,9 +1999,7 @@ impl GroupSession {
         };
         self.publish_control(&envelope)?;
 
-        let descriptor = descriptor_of(&manifest);
-        self.attachment_slots
-            .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
+        let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(GroupMessage {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
@@ -2107,21 +2014,19 @@ impl GroupSession {
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {
-            session_id: self.group_id.clone(),
+            conversation_id: self.group_id.clone(),
             attachment_id,
-            content_hash: manifest.content_hash,
+            content_hash,
         })
     }
 
     fn pump_attachment_requests(&mut self) {
-        for attachment_id in self.attachment_slots.awaiting_chunks() {
-            if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
-                let envelope = BlobEnvelope::Request {
-                    participant_id: self.participant_id.clone(),
-                    request,
-                };
-                let _ = publish_json(&self.node, &self.mesh_id, &self.blob_channel, &envelope);
-            }
+        for request in self.transfer.next_requests() {
+            let envelope = BlobEnvelope::Request {
+                participant_id: self.participant_id.clone(),
+                request,
+            };
+            let _ = publish_json(&self.node, &self.mesh_id, &self.blob_channel, &envelope);
         }
     }
 
@@ -2138,7 +2043,7 @@ impl GroupSession {
             member_count: self.crypto.member_count(),
             invite_uri: self.invite_uri.clone(),
             messages: self.messages.to_vec(),
-            attachments: self.attachment_slots.views(&self.attachments),
+            attachments: self.transfer.views(),
             dm_offers: self.dm_offers.to_vec(),
             mesh: mesh::mesh_info(&self.node),
             needs_rejoin: self.needs_rejoin,
@@ -2239,42 +2144,6 @@ fn channel_group_id(channel: &str) -> Option<&str> {
         .strip_prefix(CONTROL_CHANNEL_PREFIX)
         .or_else(|| channel.strip_prefix(DATA_CHANNEL_PREFIX))
         .or_else(|| channel.strip_prefix(BLOB_CHANNEL_PREFIX))
-}
-
-/// Puts a group's room on the shared node and subscribes its three channels
-/// there. Wire-identical to what a node owning that room published before, so a
-/// consolidated client still talks to every already-released one.
-fn join_group_room(
-    node: &MossNode,
-    mesh_id: &str,
-    group_id: &str,
-) -> Result<(), PrivateGroupError> {
-    node.join_room(mesh_id)
-        .map_err(|error| PrivateGroupError::Moss(error.to_string()))?;
-    for channel in group_channels(group_id) {
-        node.subscribe_room(mesh_id, &channel)
-            .map_err(|error| PrivateGroupError::Moss(error.to_string()))?;
-    }
-    Ok(())
-}
-
-/// The inverse of `join_group_room`. Unsubscribe first, then forget the key:
-/// leaving first would strand subscriptions that can no longer resolve.
-fn leave_group_room(session: &GroupSession) {
-    for channel in group_channels(&session.group_id) {
-        if let Err(error) = session.node.unsubscribe_room(&session.mesh_id, &channel) {
-            eprintln!(
-                "group {} could not unsubscribe {channel}: {error}",
-                session.group_id
-            );
-        }
-    }
-    if let Err(error) = session.node.leave_room(&session.mesh_id) {
-        eprintln!(
-            "group {} could not leave its room: {error}",
-            session.group_id
-        );
-    }
 }
 
 fn group_channels(group_id: &str) -> [String; 3] {
@@ -2631,8 +2500,20 @@ mod tests {
 
         // One node, not two. Two would present the same peer id from two ports
         // and a remote peer would keep only the first.
-        let first_node = Arc::as_ptr(&runtime.groups[&first.group_id].node);
-        let second_node = Arc::as_ptr(&runtime.groups[&second.group_id].node);
+        let first_node = Arc::as_ptr(
+            &runtime
+                .groups
+                .get(&first.group_id)
+                .expect("first group")
+                .node,
+        );
+        let second_node = Arc::as_ptr(
+            &runtime
+                .groups
+                .get(&second.group_id)
+                .expect("second group")
+                .node,
+        );
         assert_eq!(
             first_node, second_node,
             "two open groups started two moss nodes under one identity"

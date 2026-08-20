@@ -23,7 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/event_log.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/mesh.dart';
 
 /// Builds a `SnapshotEvent` with the fields the section reads.
 SnapshotEvent _event({

@@ -67,7 +67,7 @@ void main() {
       dataBase64: 'iVBORw0KGgo=',
       thumbnailBase64: 'thumb',
     );
-    expect(result.sessionId, 'fake-dm:fake-session-1');
+    expect(result.conversationId, 'fake-dm:fake-session-1');
     expect(result.attachmentId, contains('fake-dm-attachment:'));
     // contentHash is the data-base64 hashCode -- stable + deterministic.
     expect(result.contentHash, isNotEmpty);

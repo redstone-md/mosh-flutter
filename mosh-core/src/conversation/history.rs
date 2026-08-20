@@ -18,10 +18,10 @@ use std::collections::HashMap;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use super::attachments::{AttachmentDirection, AttachmentSlots};
+use super::attachments::AttachmentDirection;
 use super::message_log::{delivery_meta, ConversationMessage, MessageLog};
 use super::now_ms;
-use crate::attachment_store::AttachmentStore;
+use super::transfer::Transfer;
 use crate::outbound_delivery::{MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{HistoryTables, Persistence};
 
@@ -42,8 +42,7 @@ pub struct StoredMessage<M> {
 pub struct Restore<'a, M> {
     pub log: &'a mut MessageLog<M>,
     pub attempts: &'a mut HashMap<String, OutboundAttemptRecord>,
-    pub slots: &'a mut AttachmentSlots,
-    pub attachment_store: &'a AttachmentStore,
+    pub transfer: &'a mut Transfer,
     /// This device's author string. A message from it is one this device sent.
     pub local_author: &'a str,
 }
@@ -91,8 +90,7 @@ impl History {
         let Restore {
             log,
             attempts,
-            slots,
-            attachment_store,
+            transfer,
             local_author,
         } = into;
 
@@ -103,7 +101,7 @@ impl History {
                 };
                 let mut message = stored.message;
                 fill_in(&mut message, &stored.message_id, stored.sent_at_ms);
-                restore_attachment(&message, local_author, slots, attachment_store);
+                restore_attachment(&message, local_author, transfer);
                 log.upsert(message);
             }
         }
@@ -256,27 +254,15 @@ fn fill_in<M: ConversationMessage>(message: &mut M, message_id: &str, sent_at_ms
     }
 }
 
-/// Re-renders an attachment whose bytes are still in the local store. One that
-/// is not cached gets no slot, so a fresh offer from the peer can still
-/// register it: downloading again from stored data is impossible, since the
-/// chunk-crypto manifest is not saved and MLS forward secrecy bars decrypting
-/// the original offer a second time.
+/// Hands a stored message's attachment back to the transfer, which keeps it
+/// only if its bytes are still on disk. Which way round it went is decided
+/// here: a message this device wrote carries a file this device sent.
 fn restore_attachment<M: ConversationMessage>(
     message: &M,
     local_author: &str,
-    slots: &mut AttachmentSlots,
-    store: &AttachmentStore,
+    transfer: &mut Transfer,
 ) {
     let Some(descriptor) = message.attachment() else {
-        return;
-    };
-    if !store
-        .exists(&descriptor.content_hash, &descriptor.file_name)
-        .unwrap_or(false)
-    {
-        return;
-    }
-    let Ok(path) = store.path_for(&descriptor.content_hash, &descriptor.file_name) else {
         return;
     };
     let direction = if message.author() == local_author {
@@ -284,11 +270,7 @@ fn restore_attachment<M: ConversationMessage>(
     } else {
         AttachmentDirection::Incoming
     };
-    slots.restore(
-        descriptor.clone(),
-        direction,
-        path.to_string_lossy().into_owned(),
-    );
+    transfer.restore_cached(descriptor, direction);
 }
 
 #[cfg(test)]
