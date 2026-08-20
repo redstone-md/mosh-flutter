@@ -1,19 +1,19 @@
 // Widget tests for the channel leave close-flow -- the 1-в-1 port of React's
 // `useChatCloseFlow` channel branch (use-chat-close-flow.ts L57-65). The
 // leave IconButton now opens a ConfirmDialog (`Leave #${name}?` / body /
-// `Leave channel`) before the real `_leave` (gateway.leaveChannel + nav
+// `Leave channel`) before the real `_leave` (gateway.leave + nav
 // back) runs. Mirrors the seed/override idiom of
 // `channel_screen_failed_retry_test.dart` (override `channelSnapshotProvider`
 // so the native cdylib is not involved). The test gateway records the
-// `leaveChannel` call, so the test asserts the real close only fires on an
+// `leave` call, so the test asserts the real close only fires on an
 // explicit confirm (React's
 // `closeFlow.confirmCloseActive` gating).
 //
 // Three cases:
 //   1. Tapping leave opens the ConfirmDialog (title renders with the channel
 //      name + the localized confirm label).
-//   2. Confirming calls the real `_leave` -> `leaveChannel(name: ...)`.
-//   3. Cancelling does NOT call `_leave` (no gateway leaveChannel call).
+//   2. Confirming calls the real `_leave` -> `leave(ChannelTarget(...))`.
+//   3. Cancelling does NOT call `_leave` (no gateway leave call).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +21,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
@@ -80,10 +81,10 @@ void main() {
     // The localized confirm button label renders.
     expect(find.text('Leave channel'), findsOneWidget);
     // The gateway leave has NOT fired yet (dialog is open, unconfirmed).
-    expect(gateway.countOf(GatewayMethod.leaveChannel), 0);
+    expect(gateway.countOf(GatewayMethod.leave), 0);
   });
 
-  testWidgets('confirming calls leaveChannel (the real _leave)',
+  testWidgets('confirming calls leave (the real _leave)',
       (tester) async {
     final gateway = ScriptableGateway();
     await _pump(tester, gateway, name: name);
@@ -96,10 +97,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // The real close fired with the channel name.
-    expect(gateway.lastCall(GatewayMethod.leaveChannel)?.arg<String>('name'), name);
+    expect(gateway.lastCall(GatewayMethod.leave)?.target, ChannelTarget(name));
   });
 
-  testWidgets('cancelling does NOT call leaveChannel', (tester) async {
+  testWidgets('cancelling does NOT call leave', (tester) async {
     final gateway = ScriptableGateway();
     await _pump(tester, gateway, name: name);
 
@@ -111,7 +112,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // No real close fired.
-    expect(gateway.countOf(GatewayMethod.leaveChannel), 0);
+    expect(gateway.countOf(GatewayMethod.leave), 0);
     // The dialog is gone and the channel screen is still mounted.
     expect(find.text('Leave #$name?'), findsNothing);
     expect(find.byType(ChannelScreen), findsOneWidget);

@@ -15,6 +15,8 @@ import 'package:mosh/src/state/channel_group_providers.dart'
 import 'package:mosh/src/state/dm_offer_providers.dart'
     show PendingDmOffer, PendingDmOfferKind;
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ChannelTarget, DmOfferHost, GroupTarget;
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/state/active_conversation_key_provider.dart'
     show activeConversationKeyProvider;
@@ -68,8 +70,7 @@ Future<void> acceptOfferAction(
 }
 
 // Dismiss a pending DM offer, 1-в-1 with React `useDmOffers.dismissDmOffer`:
-// dismissChannelDmOffer (kind == channel, host = name) or
-// dismissGroupDmOffer (kind == group, host = groupId), then refresh the
+// dismiss it on the channel or the group that carries it, then refresh the
 // channel/group list so the offer row disappears. The accept path passes
 // its already-acquired gateway to avoid a second read.
 Future<void> dismissOfferAction(
@@ -78,13 +79,10 @@ Future<void> dismissOfferAction(
   Gateway? gateway,
 }) async {
   final Gateway gw = gateway ?? ref.read(gatewayProvider);
-  if (pending.kind == PendingDmOfferKind.channel) {
-    await gw.dismissChannelDmOffer(
-        name: pending.host, offerId: pending.offer.offerId);
-  } else {
-    await gw.dismissGroupDmOffer(
-        groupId: pending.host, offerId: pending.offer.offerId);
-  }
+  final DmOfferHost<Object?> host = pending.kind == PendingDmOfferKind.channel
+      ? ChannelTarget(pending.host)
+      : GroupTarget(pending.host);
+  await gw.dismissDmOffer(host, offerId: pending.offer.offerId);
   // Refresh both lists so the offer row leaves the rail (the derived
   // pendingDmOffersProvider re-reads on invalidation).
   await ref.read(channelListProvider.notifier).refresh();

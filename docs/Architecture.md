@@ -155,12 +155,18 @@ classDiagram
     }
 
     class Gateway {
-      +getDiagnostics() DiagnosticsSnapshot
-      +createInvite() InviteUri
-      +acceptInvite(invite) FingerprintChallenge
-      +confirmFingerprint(challenge) ConversationId
-      +sendMessage(conversationId, text) SendResult
-      +sessionSnapshotEvents() Stream Snapshot
+      +appDiagnostics() AppDiagnostics
+      +createInvite() InviteCreated
+      +acceptInvite(invite) SessionSnapshot
+      +poll(target) Snapshot
+      +send(target, body) void
+      +sendAttachment(target, file) AttachmentSendResult
+      +leave(target) void
+    }
+
+    class ConversationTarget {
+      +String id
+      DmTarget, ChannelTarget, GroupTarget
     }
 
     class ScriptableGateway {
@@ -190,6 +196,7 @@ classDiagram
     }
 
     PrivateDmProtocol --> Gateway
+    Gateway --> ConversationTarget
     Gateway <|.. ScriptableGateway
     Gateway <|.. RealBridgeGateway
     RealBridgeGateway --> MossAdapter
@@ -198,15 +205,15 @@ classDiagram
 ```
 
 `Gateway` is the Dart seam declared in slice one (ADR 0013). `ScriptableGateway` (in `test/support/`, never shipped) is the test double that lets widget tests run without the Rust runtime; `RealBridgeGateway` wraps the generated `flutter_rust_bridge` `api` and is the production path. The Rust `api` module owns the `MossAdapter`, `MlsAdapter`, and `SecureStorageAdapter` composition; Dart never instantiates them directly. The `api` surface is the verbatim Tauri command list plus a `StreamSink<T>` function for each former Tauri event (ADR 0010).
-The `Gateway` surface has 57 methods, mirroring the real `mosh_core::api`
-signatures 1:1. Slice one shipped eight of them (`appDiagnostics`,
-`nativeRuntimeStatus`, `createInvite`, `acceptInvite`, `sendMessage`,
-`pollSession`, `listSessions`, `closeSession`); the channel, group, org, voice
-and VPN families landed in later slices. `RealBridgeGateway` is a pure
-pass-through to the frb functions; `ScriptableGateway` is the test double
-with an in-memory session map. Issue 03 shrinks the surface to roughly 32 by
-taking the conversation target as a parameter. The `api` facade is real for `diagnostics` +
-`private_dm` and stubbed for the other five families until later slices.
+The `Gateway` surface has 42 methods. Most mirror one `mosh_core::api`
+signature 1:1; the eight conversation methods (`poll`, `send`, `retry`,
+`sendAttachment`, `downloadAttachment`, `cancelAttachment`, `dismissDmOffer`,
+`leave`) take a `ConversationTarget` instead, so one method serves the DM, the
+channel and the group (ADR 0017). `RealBridgeGateway` picks the frb function
+for the kind inside its own implementation and is otherwise a pass-through;
+`ScriptableGateway` is the test double with an in-memory session map. The
+`api` facade is real for `diagnostics` + `private_dm` and stubbed for the
+other five families until later slices.
 
 ## State Ownership
 

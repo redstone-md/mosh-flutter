@@ -2,9 +2,11 @@
 //
 // RealBridgeGateway delegates every Gateway method to the corresponding
 // flutter_rust_bridge-generated free function in `lib/src/rust/api/`. It is
-// a thin pass-through: no caching, no logic, no shaping. Widgets keep
-// consuming `Gateway` via `gatewayProvider`, which always hands out this
-// class -- the test double lives in test/support/ and never ships.
+// a thin pass-through: no caching, no logic, no shaping. The one decision it
+// makes is the conversation kind -- `send(target)` and its neighbours switch
+// on the target and call the DM, channel or group frb function (ADR 0017).
+// Widgets keep consuming `Gateway` via `gatewayProvider`, which always hands
+// out this class -- the test double lives in test/support/ and never ships.
 //
 // Lifecycle note: every method assumes `RustLib.init()` has run (main.dart
 // calls it on startup; the integration test calls it explicitly). Calling
@@ -12,6 +14,7 @@
 // -- which is exactly the behaviour a Dart double cannot reproduce.
 
 import 'dart:typed_data' show Uint8List;
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 // diagnostics.dart defines both the AppDiagnostics/NativeRuntimeStatus types
@@ -100,7 +103,7 @@ import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 
 /// Real `mosh_core`-backed Gateway. See file doc for the lifecycle contract.
-class RealBridgeGateway implements Gateway {
+class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
   @override
   Future<AppDiagnostics> appDiagnostics() => api.appDiagnostics();
 
@@ -118,65 +121,137 @@ class RealBridgeGateway implements Gateway {
       api.acceptInvite(request: request);
 
   @override
-  Future<SendMessageResult> sendMessage({
-    required String sessionId,
-    required String body,
-  }) =>
-      api.sendMessage(sessionId: sessionId, body: body);
+  Future<SessionListSnapshot> listSessions() => api.listSessions();
+
+  // --------------------------------------------------------------------
+  // The conversation seam. Each method switches once on the target kind and
+  // calls the frb function for it, so callers never see the three-way split.
+  // The api / channel_api / group_api prefixes keep the colliding frb names
+  // (`poll`, `list`, `send`, ...) apart.
+  // --------------------------------------------------------------------
 
   @override
-  Future<SendMessageResult> retryDmMessage({
-    required String sessionId,
-    required String messageId,
-  }) =>
-      api.retryMessage(sessionId: sessionId, messageId: messageId);
+  Future<S> poll<S>(ConversationTarget<S> target) => target.readSnapshot(this);
 
   @override
-  Future<SessionSnapshot> pollSession({required String sessionId}) =>
+  Future<SessionSnapshot> dmSnapshot(String sessionId) =>
       api.pollSession(sessionId: sessionId);
 
   @override
-  Future<SessionListSnapshot> listSessions() => api.listSessions();
-
-  @override
-  Future<CloseSessionResult> closeSession({required String sessionId}) =>
-      api.closeSession(sessionId: sessionId);
-
-  // Attachment transfer control delegates straight to the frb free
-  // functions; both return Future<void> so no `await` is needed.
-  @override
-  Future<void> downloadAttachment({
-    required String sessionId,
-    required String attachmentId,
-  }) =>
-      api.downloadAttachment(sessionId: sessionId, attachmentId: attachmentId);
-
-  @override
-  Future<void> cancelAttachment({
-    required String sessionId,
-    required String attachmentId,
-  }) =>
-      api.cancelAttachment(sessionId: sessionId, attachmentId: attachmentId);
-
-  // Channels/groups read seam delegates straight to the frb free functions.
-  // channel_api / group_api keep the colliding `poll`/`list` names apart.
-  @override
-  Future<ChannelSnapshot> pollChannel({required String name}) =>
+  Future<ChannelSnapshot> channelSnapshot(String name) =>
       channel_api.poll(name: name);
 
   @override
-  Future<ChannelListSnapshot> listChannels() => channel_api.list();
+  Future<GroupSnapshot> groupSnapshot(String groupId) =>
+      group_api.poll(groupId: groupId);
 
   @override
-  Future<GroupSnapshot> pollGroup({required String groupId}) =>
-      group_api.poll(groupId: groupId);
+  Future<void> send(AnyConversationTarget target, {required String body}) =>
+      switch (target) {
+        DmTarget(:final id) => api.sendMessage(sessionId: id, body: body),
+        ChannelTarget(:final id) => channel_api.send(name: id, body: body),
+        GroupTarget(:final id) => group_api.send(groupId: id, body: body),
+      };
+
+  @override
+  Future<void> retry(AnyConversationTarget target,
+          {required String messageId}) =>
+      switch (target) {
+        DmTarget(:final id) =>
+          api.retryMessage(sessionId: id, messageId: messageId),
+        ChannelTarget(:final id) =>
+          channel_api.retryMessage(name: id, messageId: messageId),
+        GroupTarget(:final id) =>
+          group_api.retryMessage(groupId: id, messageId: messageId),
+      };
+
+  @override
+  Future<AttachmentSendResult> sendAttachment(
+    AnyConversationTarget target, {
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
+  }) =>
+      switch (target) {
+        DmTarget(:final id) => api.sendAttachment(
+            sessionId: id,
+            fileName: fileName,
+            mime: mime,
+            dataBase64: dataBase64,
+            thumbnailBase64: thumbnailBase64,
+            voice: voice,
+          ),
+        ChannelTarget(:final id) => channel_api.sendAttachment(
+            name: id,
+            fileName: fileName,
+            mime: mime,
+            dataBase64: dataBase64,
+            thumbnailBase64: thumbnailBase64,
+            voice: voice,
+          ),
+        GroupTarget(:final id) => group_api.sendAttachment(
+            groupId: id,
+            fileName: fileName,
+            mime: mime,
+            dataBase64: dataBase64,
+            thumbnailBase64: thumbnailBase64,
+            voice: voice,
+          ),
+      };
+
+  @override
+  Future<void> downloadAttachment(AnyConversationTarget target,
+          {required String attachmentId}) =>
+      switch (target) {
+        DmTarget(:final id) =>
+          api.downloadAttachment(sessionId: id, attachmentId: attachmentId),
+        ChannelTarget(:final id) =>
+          channel_api.downloadAttachment(name: id, attachmentId: attachmentId),
+        GroupTarget(:final id) =>
+          group_api.downloadAttachment(groupId: id, attachmentId: attachmentId),
+      };
+
+  @override
+  Future<void> cancelAttachment(AnyConversationTarget target,
+          {required String attachmentId}) =>
+      switch (target) {
+        DmTarget(:final id) =>
+          api.cancelAttachment(sessionId: id, attachmentId: attachmentId),
+        ChannelTarget(:final id) =>
+          channel_api.cancelAttachment(name: id, attachmentId: attachmentId),
+        GroupTarget(:final id) =>
+          group_api.cancelAttachment(groupId: id, attachmentId: attachmentId),
+      };
+
+  @override
+  Future<void> dismissDmOffer(DmOfferHost<Object?> target,
+          {required String offerId}) =>
+      switch (target) {
+        ChannelTarget(:final id) =>
+          channel_api.dismissDmOffer(name: id, offerId: offerId),
+        GroupTarget(:final id) =>
+          group_api.dismissDmOffer(groupId: id, offerId: offerId),
+      };
+
+  @override
+  Future<void> leave(AnyConversationTarget target) => switch (target) {
+        DmTarget(:final id) => api.closeSession(sessionId: id),
+        ChannelTarget(:final id) => channel_api.leave(name: id),
+        GroupTarget(:final id) => group_api.close(groupId: id),
+      };
+
+  // --------------------------------------------------------------------
+
+  // Channels/groups read seam delegates straight to the frb free functions.
+  @override
+  Future<ChannelListSnapshot> listChannels() => channel_api.list();
 
   @override
   Future<GroupListSnapshot> listGroups() => group_api.list();
 
   // Channels/groups write seam delegates straight to the frb free functions.
-  // The two `send` calls are disambiguated by the channel_api/group_api
-  // prefixes; channel teardown is `leave`, group teardown is `close`.
   // The `joinChannel` seam (slice-3) delegates to channel_api.join; the
   // request carries name + displayName + listenPort + staticPeer (the same
   // fields InviteFlowState already sources for createInvite, ADR 0010).
@@ -184,33 +259,6 @@ class RealBridgeGateway implements Gateway {
   Future<ChannelSnapshot> joinChannel({required JoinChannelRequest request}) =>
       channel_api.join(request: request);
 
-  @override
-  Future<ChannelSendResult> sendChannel(
-          {required String name, required String body}) =>
-      channel_api.send(name: name, body: body);
-
-  @override
-  Future<ChannelSendResult> retryChannelMessage(
-          {required String name, required String messageId}) =>
-      channel_api.retryMessage(name: name, messageId: messageId);
-
-  @override
-  Future<ChannelLeaveResult> leaveChannel({required String name}) =>
-      channel_api.leave(name: name);
-
-  @override
-  Future<GroupSendResult> sendGroup(
-          {required String groupId, required String body}) =>
-      group_api.send(groupId: groupId, body: body);
-
-  @override
-  Future<GroupSendResult> retryGroupMessage(
-          {required String groupId, required String messageId}) =>
-      group_api.retryMessage(groupId: groupId, messageId: messageId);
-
-  @override
-  Future<GroupLeaveResult> closeGroup({required String groupId}) =>
-      group_api.close(groupId: groupId);
   // The `createGroup` seam (slice-3) delegates to group_api.createGroup; the
   // request carries label? + displayName + listenPort + staticPeer? +
   // orgPubkey? (standalone group -- the org-bound variant in org.dart is a
@@ -225,18 +273,6 @@ class RealBridgeGateway implements Gateway {
   @override
   Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) =>
       group_api.joinGroup(request: request);
-  // DM-offer dismiss seams (slice-3): channel_api/group_api both name the
-  // frb free function `dismissDmOffer` -- disambiguated by the prefixes. The
-  // accept path auto-dismisses after acceptInvite; the dismiss path calls
-  // these directly. Both return Future<void> (no `await` needed).
-  @override
-  Future<void> dismissChannelDmOffer(
-          {required String name, required String offerId}) =>
-      channel_api.dismissDmOffer(name: name, offerId: offerId);
-  @override
-  Future<void> dismissGroupDmOffer(
-          {required String groupId, required String offerId}) =>
-      group_api.dismissDmOffer(groupId: groupId, offerId: offerId);
   // Peer-DM-offer SEND seams: channel is wired to the generated Rust facade;
   // group remains a separate atomic for independent review.
   @override
@@ -248,84 +284,6 @@ class RealBridgeGateway implements Gateway {
           groupId: groupId,
           targetFingerprint: peerFingerprint,
           inviteUri: inviteUri);
-  // Channel/group attachment transfer seams (slice-3): channel_api/group_api
-  // both name the frb free functions `downloadAttachment`/`cancelAttachment`
-  // -- disambiguated by the prefixes. Both return Future<void> (no `await`
-  // needed). Drive the peer's inbound transfer; progress surfaces in the
-  // next pollChannel/pollGroup snapshot's attachments.
-  @override
-  Future<void> downloadChannelAttachment(
-          {required String name, required String attachmentId}) =>
-      channel_api.downloadAttachment(name: name, attachmentId: attachmentId);
-  @override
-  Future<void> cancelChannelAttachment(
-          {required String name, required String attachmentId}) =>
-      channel_api.cancelAttachment(name: name, attachmentId: attachmentId);
-  @override
-  Future<void> downloadGroupAttachment(
-          {required String groupId, required String attachmentId}) =>
-      group_api.downloadAttachment(
-          groupId: groupId, attachmentId: attachmentId);
-  @override
-  Future<void> cancelGroupAttachment(
-          {required String groupId, required String attachmentId}) =>
-      group_api.cancelAttachment(groupId: groupId, attachmentId: attachmentId);
-  // Channel/group attachment SEND seams (slice-3): channel_api/group_api
-  // both name the frb free function `sendAttachment` -- disambiguated by the
-  // prefixes. The composer passes fileName/mime/dataBase64 (+ optional
-  // thumbnailBase64 / VoiceMeta for voice); the result carries attachmentId
-  // + contentHash the screen uses to invalidate the snapshot.
-  @override
-  Future<AttachmentSendResult> sendChannelAttachment({
-    required String name,
-    required String fileName,
-    required String mime,
-    required String dataBase64,
-    String? thumbnailBase64,
-    VoiceMeta? voice,
-  }) =>
-      channel_api.sendAttachment(
-        name: name,
-        fileName: fileName,
-        mime: mime,
-        dataBase64: dataBase64,
-        thumbnailBase64: thumbnailBase64,
-        voice: voice,
-      );
-  @override
-  Future<AttachmentSendResult> sendPrivateAttachment({
-    required String sessionId,
-    required String fileName,
-    required String mime,
-    required String dataBase64,
-    String? thumbnailBase64,
-    VoiceMeta? voice,
-  }) =>
-      api.sendAttachment(
-        sessionId: sessionId,
-        fileName: fileName,
-        mime: mime,
-        dataBase64: dataBase64,
-        thumbnailBase64: thumbnailBase64,
-        voice: voice,
-      );
-  @override
-  Future<AttachmentSendResult> sendGroupAttachment({
-    required String groupId,
-    required String fileName,
-    required String mime,
-    required String dataBase64,
-    String? thumbnailBase64,
-    VoiceMeta? voice,
-  }) =>
-      group_api.sendAttachment(
-        groupId: groupId,
-        fileName: fileName,
-        mime: mime,
-        dataBase64: dataBase64,
-        thumbnailBase64: thumbnailBase64,
-        voice: voice,
-      );
   // Org surface (1:1 port of the org_* Tauri commands). Each delegates to
   // org_api (the frb bindings for mosh_core::api::org). The cross-runtime
   // methods (sendOrgDmOffer/acceptOrgDmOffer/createOrgGroup/

@@ -9,8 +9,7 @@ import 'package:mosh/src/rust/api/diagnostics.dart'
         OpenMlsRoundTripRuntimeStatus,
         OpenMlsSmokeRuntimeStatus;
 import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
-import 'package:mosh/src/rust/channel_runtime.dart'
-    show ChannelSendResult, ChannelSnapshot;
+import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/moss_runtime.dart' show MossRuntimeStatus;
 import 'package:mosh/src/rust/openmls_crypto.dart'
     show OpenMlsRoundTripStatus, OpenMlsSmokeStatus;
@@ -19,10 +18,8 @@ import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/persistence.dart' show PersistenceRuntimeStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AttachmentSendResult, CallStarted, ChatMessage, SendMessageResult,
-        SessionSnapshot;
-import 'package:mosh/src/rust/private_group_runtime.dart'
-    show GroupSendResult, GroupSnapshot;
+    show AttachmentSendResult, CallStarted, ChatMessage, SessionSnapshot;
+import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/rust/secure_storage.dart' show SecureStorageStatus;
 
 /// Canned [AppDiagnostics] for the test gateway appDiagnostics().
@@ -85,7 +82,7 @@ NativeRuntimeStatus cannedNativeRuntimeStatus() => NativeRuntimeStatus(
       ),
     );
 
-/// Canned empty [ChannelSnapshot] for pollChannel + joinChannel. Empty lists for
+/// Canned empty [ChannelSnapshot] for a channel poll + joinChannel. Empty lists for
 /// messages/attachments/dmOffers/events; required strings blanked.
 ChannelSnapshot cannedChannelSnapshot({
   required String name,
@@ -104,8 +101,8 @@ ChannelSnapshot cannedChannelSnapshot({
       events: const [],
     );
 
-/// Canned [GroupSnapshot] for pollGroup + joinGroup + acceptOrgGroupOffer.
-/// Defaults mirror pollGroup (empty/zero/null); callers override the fields
+/// Canned [GroupSnapshot] for a group poll + joinGroup + acceptOrgGroupOffer.
+/// Defaults mirror a fresh group (empty/zero/null); callers override the fields
 /// the request supplies.
 GroupSnapshot cannedGroupSnapshot({
   required String groupId,
@@ -190,7 +187,7 @@ SessionSnapshot fakeSession({
       activeCall: null,
     );
 
-/// Append one [ChatMessage] to a session snapshot (sendMessage helper).
+/// Append one [ChatMessage] to a session snapshot (the DM send helper).
 /// Copies every base field, spreads the existing messages, appends the new one.
 SessionSnapshot withMessage(
   SessionSnapshot base,
@@ -270,10 +267,10 @@ CallStarted cannedCallStarted(String sessionId) => CallStarted(
       noncePrefixB64: 'fake-nonce',
     );
 
-/// Canned [AttachmentSendResult] for the three send*Attachment seams
-/// (channel/DM/group). The id prefix + the id value differ per kind; the
-/// attachmentId/contentHash derive from the file name + payload hash so the
-/// screen can invalidate + the next poll renders a distinct row.
+/// Canned [AttachmentSendResult] for `Gateway.sendAttachment`. The prefix
+/// says which kind sent it; the attachmentId and contentHash derive from the
+/// file name and payload hash, so the screen can invalidate and the next poll
+/// renders a distinct row.
 AttachmentSendResult cannedAttachmentSendResult({
   required String sessionPrefix,
   required String id,
@@ -284,53 +281,4 @@ AttachmentSendResult cannedAttachmentSendResult({
       sessionId: '$sessionPrefix:$id',
       attachmentId: 'fake-$sessionPrefix-attachment:${fileName.hashCode}',
       contentHash: 'fake-hash:${dataBase64.hashCode}',
-    );
-
-/// Canned [SendMessageResult] for the test gateway sendMessage + retryDmMessage.
-/// `state` is `connecting`, `deliveryStatus.sent`, `deliveryError` null;
-/// `ciphertextBytes` is the caller-supplied payload length (or zero for a
-/// retry), `sentAtMs` is now.
-SendMessageResult cannedSendMessageResult({
-  required String sessionId,
-  required String messageId,
-  required BigInt ciphertextBytes,
-}) =>
-    SendMessageResult(
-      sessionId: sessionId,
-      state: 'connecting',
-      ciphertextBytes: ciphertextBytes,
-      messageId: messageId,
-      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-      deliveryStatus: MessageDeliveryStatus.sent,
-      deliveryError: null,
-    );
-
-/// Canned [ChannelSendResult] for the test gateway sendChannel + retryChannelMessage.
-ChannelSendResult cannedChannelSendResult({
-  required String name,
-  required String messageId,
-  required BigInt bytes,
-}) =>
-    ChannelSendResult(
-      name: name,
-      bytes: bytes,
-      messageId: messageId,
-      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-      deliveryStatus: MessageDeliveryStatus.sent,
-      deliveryError: null,
-    );
-
-/// Canned [GroupSendResult] for the test gateway sendGroup + retryGroupMessage.
-GroupSendResult cannedGroupSendResult({
-  required String groupId,
-  required String messageId,
-  required BigInt bytes,
-}) =>
-    GroupSendResult(
-      groupId: groupId,
-      bytes: bytes,
-      messageId: messageId,
-      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-      deliveryStatus: MessageDeliveryStatus.sent,
-      deliveryError: null,
     );

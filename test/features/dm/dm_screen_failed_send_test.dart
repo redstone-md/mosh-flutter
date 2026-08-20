@@ -8,7 +8,7 @@
 // retryFailedSend / canRetrySend) and private-dm-screen.tsx L337-341
 // (the `<ChatError>` banner).
 //
-// The test gateway is scripted to fail the first `sendMessage` and let the
+// The test gateway is scripted to fail the first `send` and let the
 // second one through.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,7 +75,7 @@ void main() {
   testWidgets(
       'a thrown text send records the failure + banner + keeps the composer body',
       (tester) async {
-    final gateway = ScriptableGateway()..failNext(GatewayMethod.sendMessage, error: Exception('send boom'));
+    final gateway = ScriptableGateway()..failNext(GatewayMethod.send, error: Exception('send boom'));
     await _pump(tester, gateway, sessionId: sessionId);
 
     // Type a body into the composer and tap Send.
@@ -85,7 +85,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The Gateway send was attempted once with the body.
-    expect(gateway.argValues<String>(GatewayMethod.sendMessage, 'body'), ['hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
 
     // The inline ChatError banner appears (Gap 3) with the error text.
     expect(find.textContaining('send boom'), findsOneWidget);
@@ -102,7 +102,7 @@ void main() {
 
   testWidgets('a successful retry clears the failure + banner + composer',
       (tester) async {
-    final gateway = ScriptableGateway()..failNext(GatewayMethod.sendMessage, error: Exception('send boom'));
+    final gateway = ScriptableGateway()..failNext(GatewayMethod.send, error: Exception('send boom'));
     await _pump(tester, gateway, sessionId: sessionId);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -120,7 +120,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The Gateway saw two sends (the failed body, then the retry body).
-    expect(gateway.argValues<String>(GatewayMethod.sendMessage, 'body'), ['hello there', 'hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there', 'hello there']);
 
     // The banner + Retry are gone after a successful retry.
     expect(find.textContaining('send boom'), findsNothing);

@@ -33,11 +33,11 @@ sequenceDiagram
     GW-->>Bob: SessionSnapshot
     Bob->>Bob: verify fingerprint == SessionSnapshot.fingerprint
     Note over Bob: slice one: local confirm flag<br/>later slice: gateway mutation
-    Bob->>GW: sendMessage(sessionId, body)
+    Bob->>GW: send(DmTarget(sessionId), body)
     GW->>Api: send_message(session_id, body)
     Api-->>GW: SendMessageResult
-    GW-->>Bob: SendMessageResult
-    Bob->>GW: pollSession(sessionId) via activeSessionProvider.family
+    GW-->>Bob: done
+    Bob->>GW: poll(DmTarget(sessionId)) via activeSessionProvider.family
     GW->>Api: poll_session(session_id)
     Api-->>GW: SessionSnapshot { messages[] }
     GW-->>Bob: SessionSnapshot
@@ -50,7 +50,7 @@ sequenceDiagram
   one (the React frontend polled on `AUTO_POLL_MS`); the Dart DM screen
   re-polls via `activeSessionProvider.family`.
 - Fingerprint confirm is a UI-side gate in slice one: the Dart orchestration
-  blocks `sendMessage` until the user confirms the safety number. Later
+  blocks `Gateway.send` until the user confirms the safety number. Later
   slices move the confirmation to a gateway mutation.
 - `mosh://invite?...#fp=...` is parsed by ported `invite_uri.dart`; manual
   paste only, no OS deep-link association (ADR 0015).

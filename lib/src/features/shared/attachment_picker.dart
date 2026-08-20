@@ -48,7 +48,7 @@ import 'package:mosh/src/features/shared/thumbnail.dart' show createThumbnail;
 enum AttachmentPickError { tooLarge }
 
 /// A picked file ready to send: the bytes already base64-encoded (the gateway
-/// `sendChannelAttachment`/`sendGroupAttachment` `dataBase64` arg) plus the
+/// `Gateway.sendAttachment` `dataBase64` arg) plus the
 /// `fileName` and inferred `mime`. `thumbnailBase64` is the base64 of a
 /// 320px JPEG preview for image picks (1-в-1 with React `createThumbnail`);
 /// null for non-images or decode failures (never fatal -- mirrors React).

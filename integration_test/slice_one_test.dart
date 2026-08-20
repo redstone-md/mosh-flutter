@@ -16,6 +16,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/real_bridge_gateway.dart';
 import 'package:mosh/src/rust/frb_generated.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -78,7 +79,7 @@ void main() {
       expect(invite.sessionId, isNotEmpty);
 
       // Tear down the session we just created so the runtime stays clean.
-      await gateway.closeSession(sessionId: invite.sessionId);
+      await gateway.leave(DmTarget(invite.sessionId));
     } catch (e) {
       // Moss-unavailable (moss.dll not built via moss:prepare): the error is
       // an honest String from the Rust facade, not a panic. The full invite

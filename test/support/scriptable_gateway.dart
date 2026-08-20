@@ -14,12 +14,13 @@
 //
 // Anything not seeded falls back to the canned snapshots in
 // gateway_snapshots.dart. Session state is real in-memory state: createInvite
-// and acceptInvite insert a session, sendMessage appends a message,
-// closeSession removes it.
+// and acceptInvite insert a session, a DM send appends a message, and
+// leave removes it.
 
 import 'dart:async';
 import 'dart:typed_data' show Uint8List;
 
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart'
     show AppDiagnostics, NativeRuntimeStatus;
@@ -41,37 +42,22 @@ enum GatewayMethod {
   nativeRuntimeStatus,
   createInvite,
   acceptInvite,
-  sendMessage,
-  retryDmMessage,
-  pollSession,
   listSessions,
-  closeSession,
+  poll,
+  send,
+  retry,
+  sendAttachment,
   downloadAttachment,
   cancelAttachment,
-  pollChannel,
+  dismissDmOffer,
+  leave,
   listChannels,
-  pollGroup,
   listGroups,
   joinChannel,
-  sendChannel,
-  leaveChannel,
-  retryChannelMessage,
-  sendGroup,
-  retryGroupMessage,
-  closeGroup,
   createGroup,
   joinGroup,
-  dismissChannelDmOffer,
-  dismissGroupDmOffer,
   sendChannelDmOffer,
   sendGroupDmOffer,
-  downloadChannelAttachment,
-  cancelChannelAttachment,
-  downloadGroupAttachment,
-  cancelGroupAttachment,
-  sendChannelAttachment,
-  sendPrivateAttachment,
-  sendGroupAttachment,
   joinOrg,
   leaveOrg,
   listOrgs,
@@ -113,6 +99,10 @@ class GatewayCall {
     return args[name] as T;
   }
 
+  /// The conversation a call was for. Only the conversation methods record
+  /// it -- reading it on any other call throws.
+  AnyConversationTarget get target => arg<AnyConversationTarget>('target');
+
   @override
   String toString() => '${method.name}($args)';
 }
@@ -135,7 +125,7 @@ class _Failure {
 }
 
 /// See the file header. Construct it, seed it, script it, assert on [calls].
-class ScriptableGateway implements Gateway {
+class ScriptableGateway implements Gateway, ConversationSnapshotReader {
   /// Every call the code under test made, in order.
   final List<GatewayCall> calls = [];
 
@@ -153,9 +143,6 @@ class ScriptableGateway implements Gateway {
   String? _bindInterface;
   VpnBypassConsent? _vpnConsent;
   List<Uint8List> _callFrames = const [];
-
-  int _channelSendCount = 0;
-  int _groupSendCount = 0;
 
   // ---------------------------------------------------------------- asserts
 
@@ -205,7 +192,7 @@ class ScriptableGateway implements Gateway {
 
   // ----------------------------------------------------------------- seeding
 
-  /// Seed the sessions `listSessions` and `pollSession` return. Replaces
+  /// Seed the sessions `listSessions` and `poll` return. Replaces
   /// whatever was seeded before, so a test can seed again to change what the
   /// next poll sees.
   void seedSessions(Iterable<SessionSnapshot> sessions) {
@@ -214,14 +201,14 @@ class ScriptableGateway implements Gateway {
       ..addEntries(sessions.map((s) => MapEntry(s.sessionId, s)));
   }
 
-  /// Seed the channels `listChannels` and `pollChannel` return.
+  /// Seed the channels `listChannels` and `poll` return.
   void seedChannels(Iterable<ChannelSnapshot> channels) {
     _channels
       ..clear()
       ..addEntries(channels.map((c) => MapEntry(c.name, c)));
   }
 
-  /// Seed the groups `listGroups` and `pollGroup` return.
+  /// Seed the groups `listGroups` and `poll` return.
   void seedGroups(Iterable<GroupSnapshot> groups) {
     _groups
       ..clear()
@@ -258,7 +245,7 @@ class ScriptableGateway implements Gateway {
   Future<T> _run<T>(
     GatewayMethod method,
     Map<String, Object?> args,
-    T Function() result,
+    FutureOr<T> Function() result,
   ) async {
     calls.add(GatewayCall(method, args));
     final failure = _failures[method];
@@ -323,48 +310,116 @@ class ScriptableGateway implements Gateway {
         return snapshot;
       });
 
+  // ------------------------------------------------- the conversation seam
+
   @override
-  Future<SendMessageResult> sendMessage({
-    required String sessionId,
-    required String body,
-  }) =>
-      _run(GatewayMethod.sendMessage, {'sessionId': sessionId, 'body': body},
-          () {
-        final existing = _sessions[sessionId];
-        final messageId = 'msg-${(existing?.messages.length ?? 0) + 1}';
-        if (existing != null) {
-          _sessions[sessionId] = withMessage(existing, body, messageId,
-              BigInt.from(DateTime.now().millisecondsSinceEpoch));
-        }
-        return cannedSendMessageResult(
-          sessionId: sessionId,
-          messageId: messageId,
-          ciphertextBytes: BigInt.from(body.codeUnits.length),
+  Future<S> poll<S>(ConversationTarget<S> target) => _run(
+        GatewayMethod.poll,
+        {'target': target},
+        () => target.readSnapshot(this),
+      );
+
+  @override
+  Future<SessionSnapshot> dmSnapshot(String sessionId) async {
+    final snapshot = _sessions[sessionId];
+    if (snapshot == null) {
+      throw Exception('poll: unknown sessionId "$sessionId"');
+    }
+    return snapshot;
+  }
+
+  @override
+  Future<ChannelSnapshot> channelSnapshot(String name) async =>
+      _channels[name] ?? cannedChannelSnapshot(name: name);
+
+  @override
+  Future<GroupSnapshot> groupSnapshot(String groupId) async =>
+      _groups[groupId] ?? cannedGroupSnapshot(groupId: groupId);
+
+  /// A DM send appends to the seeded session, so a screen that re-polls sees
+  /// the new row. A channel or group send only records the call -- their
+  /// snapshots stay whatever the test seeded.
+  @override
+  Future<void> send(AnyConversationTarget target, {required String body}) =>
+      _run(GatewayMethod.send, {'target': target, 'body': body}, () {
+        if (target is! DmTarget) return;
+        final existing = _sessions[target.id];
+        if (existing == null) return;
+        _sessions[target.id] = withMessage(
+          existing,
+          body,
+          'msg-${existing.messages.length + 1}',
+          BigInt.from(DateTime.now().millisecondsSinceEpoch),
         );
       });
 
   @override
-  Future<SendMessageResult> retryDmMessage({
-    required String sessionId,
-    required String messageId,
+  Future<void> retry(AnyConversationTarget target,
+          {required String messageId}) =>
+      _run(GatewayMethod.retry, {'target': target, 'messageId': messageId},
+          () {});
+
+  @override
+  Future<AttachmentSendResult> sendAttachment(
+    AnyConversationTarget target, {
+    required String fileName,
+    required String mime,
+    required String dataBase64,
+    String? thumbnailBase64,
+    VoiceMeta? voice,
   }) =>
       _run(
-          GatewayMethod.retryDmMessage,
-          {'sessionId': sessionId, 'messageId': messageId},
-          () => cannedSendMessageResult(
-                sessionId: sessionId,
-                messageId: 'retry-$messageId',
-                ciphertextBytes: BigInt.zero,
+          GatewayMethod.sendAttachment,
+          {
+            'target': target,
+            'fileName': fileName,
+            'mime': mime,
+            'dataBase64': dataBase64,
+            'thumbnailBase64': thumbnailBase64,
+            'voice': voice,
+          },
+          () => cannedAttachmentSendResult(
+                sessionPrefix: switch (target) {
+                  DmTarget() => 'fake-dm',
+                  ChannelTarget() => 'fake-channel',
+                  GroupTarget() => 'fake-group',
+                },
+                id: target.id,
+                fileName: fileName,
+                dataBase64: dataBase64,
               ));
 
   @override
-  Future<SessionSnapshot> pollSession({required String sessionId}) =>
-      _run(GatewayMethod.pollSession, {'sessionId': sessionId}, () {
-        final snapshot = _sessions[sessionId];
-        if (snapshot == null) {
-          throw Exception('pollSession: unknown sessionId "$sessionId"');
+  Future<void> downloadAttachment(AnyConversationTarget target,
+          {required String attachmentId}) =>
+      _run(GatewayMethod.downloadAttachment,
+          {'target': target, 'attachmentId': attachmentId}, () {});
+
+  @override
+  Future<void> cancelAttachment(AnyConversationTarget target,
+          {required String attachmentId}) =>
+      _run(GatewayMethod.cancelAttachment,
+          {'target': target, 'attachmentId': attachmentId}, () {});
+
+  @override
+  Future<void> dismissDmOffer(DmOfferHost<Object?> target,
+          {required String offerId}) =>
+      _run(GatewayMethod.dismissDmOffer, {'target': target, 'offerId': offerId},
+          () {});
+
+  /// Leaving drops the conversation from the seeded state, so the next list
+  /// call no longer returns it.
+  @override
+  Future<void> leave(AnyConversationTarget target) =>
+      _run(GatewayMethod.leave, {'target': target}, () {
+        switch (target) {
+          case DmTarget():
+            _sessions.remove(target.id);
+          case ChannelTarget():
+            _channels.remove(target.id);
+          case GroupTarget():
+            _groups.remove(target.id);
         }
-        return snapshot;
       });
 
   @override
@@ -373,39 +428,6 @@ class ScriptableGateway implements Gateway {
         const {},
         () => SessionListSnapshot(sessions: _sessions.values.toList()),
       );
-
-  @override
-  Future<CloseSessionResult> closeSession({required String sessionId}) => _run(
-      GatewayMethod.closeSession,
-      {'sessionId': sessionId},
-      () => CloseSessionResult(
-            sessionId: sessionId,
-            closed: _sessions.remove(sessionId) != null,
-          ));
-
-  @override
-  Future<void> downloadAttachment({
-    required String sessionId,
-    required String attachmentId,
-  }) =>
-      _run(GatewayMethod.downloadAttachment,
-          {'sessionId': sessionId, 'attachmentId': attachmentId}, () {});
-
-  @override
-  Future<void> cancelAttachment({
-    required String sessionId,
-    required String attachmentId,
-  }) =>
-      _run(GatewayMethod.cancelAttachment,
-          {'sessionId': sessionId, 'attachmentId': attachmentId}, () {});
-
-  // ------------------------------------------------------------- the channel
-
-  @override
-  Future<ChannelSnapshot> pollChannel({required String name}) => _run(
-      GatewayMethod.pollChannel,
-      {'name': name},
-      () => _channels[name] ?? cannedChannelSnapshot(name: name));
 
   @override
   Future<ChannelListSnapshot> listChannels() => _run(
@@ -425,49 +447,6 @@ class ScriptableGateway implements Gateway {
                   name: request.name, displayName: request.displayName));
 
   @override
-  Future<ChannelSendResult> sendChannel({
-    required String name,
-    required String body,
-  }) =>
-      _run(
-          GatewayMethod.sendChannel,
-          {'name': name, 'body': body},
-          () => cannedChannelSendResult(
-                name: name,
-                messageId: 'fake-channel-${_channelSendCount++}',
-                bytes: BigInt.from(body.codeUnits.length),
-              ));
-
-  @override
-  Future<ChannelSendResult> retryChannelMessage({
-    required String name,
-    required String messageId,
-  }) =>
-      _run(
-          GatewayMethod.retryChannelMessage,
-          {'name': name, 'messageId': messageId},
-          () => cannedChannelSendResult(
-                name: name,
-                messageId: 'retry-$messageId',
-                bytes: BigInt.zero,
-              ));
-
-  @override
-  Future<ChannelLeaveResult> leaveChannel({required String name}) =>
-      _run(GatewayMethod.leaveChannel, {'name': name}, () {
-        _channels.remove(name);
-        return ChannelLeaveResult(name: name, closed: true);
-      });
-
-  @override
-  Future<void> dismissChannelDmOffer({
-    required String name,
-    required String offerId,
-  }) =>
-      _run(GatewayMethod.dismissChannelDmOffer,
-          {'name': name, 'offerId': offerId}, () {});
-
-  @override
   Future<void> sendChannelDmOffer({
     required String channelName,
     required String peerFingerprint,
@@ -482,81 +461,7 @@ class ScriptableGateway implements Gateway {
           },
           () {});
 
-  @override
-  Future<void> downloadChannelAttachment({
-    required String name,
-    required String attachmentId,
-  }) =>
-      _run(GatewayMethod.downloadChannelAttachment,
-          {'name': name, 'attachmentId': attachmentId}, () {});
-
-  @override
-  Future<void> cancelChannelAttachment({
-    required String name,
-    required String attachmentId,
-  }) =>
-      _run(GatewayMethod.cancelChannelAttachment,
-          {'name': name, 'attachmentId': attachmentId}, () {});
-
-  @override
-  Future<AttachmentSendResult> sendChannelAttachment({
-    required String name,
-    required String fileName,
-    required String mime,
-    required String dataBase64,
-    String? thumbnailBase64,
-    VoiceMeta? voice,
-  }) =>
-      _run(
-          GatewayMethod.sendChannelAttachment,
-          {
-            'name': name,
-            'fileName': fileName,
-            'mime': mime,
-            'dataBase64': dataBase64,
-            'thumbnailBase64': thumbnailBase64,
-            'voice': voice,
-          },
-          () => cannedAttachmentSendResult(
-                sessionPrefix: 'fake-channel',
-                id: name,
-                fileName: fileName,
-                dataBase64: dataBase64,
-              ));
-
-  @override
-  Future<AttachmentSendResult> sendPrivateAttachment({
-    required String sessionId,
-    required String fileName,
-    required String mime,
-    required String dataBase64,
-    String? thumbnailBase64,
-    VoiceMeta? voice,
-  }) =>
-      _run(
-          GatewayMethod.sendPrivateAttachment,
-          {
-            'sessionId': sessionId,
-            'fileName': fileName,
-            'mime': mime,
-            'dataBase64': dataBase64,
-            'thumbnailBase64': thumbnailBase64,
-            'voice': voice,
-          },
-          () => cannedAttachmentSendResult(
-                sessionPrefix: 'fake-dm',
-                id: sessionId,
-                fileName: fileName,
-                dataBase64: dataBase64,
-              ));
-
-  // --------------------------------------------------------------- the group
-
-  @override
-  Future<GroupSnapshot> pollGroup({required String groupId}) => _run(
-      GatewayMethod.pollGroup,
-      {'groupId': groupId},
-      () => _groups[groupId] ?? cannedGroupSnapshot(groupId: groupId));
+  // ----------------------------------------------------------- the group
 
   @override
   Future<GroupListSnapshot> listGroups() => _run(
@@ -564,41 +469,6 @@ class ScriptableGateway implements Gateway {
         const {},
         () => GroupListSnapshot(groups: _groups.values.toList()),
       );
-
-  @override
-  Future<GroupSendResult> sendGroup({
-    required String groupId,
-    required String body,
-  }) =>
-      _run(
-          GatewayMethod.sendGroup,
-          {'groupId': groupId, 'body': body},
-          () => cannedGroupSendResult(
-                groupId: groupId,
-                messageId: 'fake-group-${_groupSendCount++}',
-                bytes: BigInt.from(body.codeUnits.length),
-              ));
-
-  @override
-  Future<GroupSendResult> retryGroupMessage({
-    required String groupId,
-    required String messageId,
-  }) =>
-      _run(
-          GatewayMethod.retryGroupMessage,
-          {'groupId': groupId, 'messageId': messageId},
-          () => cannedGroupSendResult(
-                groupId: groupId,
-                messageId: 'retry-$messageId',
-                bytes: BigInt.zero,
-              ));
-
-  @override
-  Future<GroupLeaveResult> closeGroup({required String groupId}) =>
-      _run(GatewayMethod.closeGroup, {'groupId': groupId}, () {
-        _groups.remove(groupId);
-        return GroupLeaveResult(groupId: groupId, closed: true);
-      });
 
   @override
   Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>
@@ -629,14 +499,6 @@ class ScriptableGateway implements Gateway {
       });
 
   @override
-  Future<void> dismissGroupDmOffer({
-    required String groupId,
-    required String offerId,
-  }) =>
-      _run(GatewayMethod.dismissGroupDmOffer,
-          {'groupId': groupId, 'offerId': offerId}, () {});
-
-  @override
   Future<void> sendGroupDmOffer({
     required String groupId,
     required String peerFingerprint,
@@ -650,48 +512,6 @@ class ScriptableGateway implements Gateway {
             'inviteUri': inviteUri,
           },
           () {});
-
-  @override
-  Future<void> downloadGroupAttachment({
-    required String groupId,
-    required String attachmentId,
-  }) =>
-      _run(GatewayMethod.downloadGroupAttachment,
-          {'groupId': groupId, 'attachmentId': attachmentId}, () {});
-
-  @override
-  Future<void> cancelGroupAttachment({
-    required String groupId,
-    required String attachmentId,
-  }) =>
-      _run(GatewayMethod.cancelGroupAttachment,
-          {'groupId': groupId, 'attachmentId': attachmentId}, () {});
-
-  @override
-  Future<AttachmentSendResult> sendGroupAttachment({
-    required String groupId,
-    required String fileName,
-    required String mime,
-    required String dataBase64,
-    String? thumbnailBase64,
-    VoiceMeta? voice,
-  }) =>
-      _run(
-          GatewayMethod.sendGroupAttachment,
-          {
-            'groupId': groupId,
-            'fileName': fileName,
-            'mime': mime,
-            'dataBase64': dataBase64,
-            'thumbnailBase64': thumbnailBase64,
-            'voice': voice,
-          },
-          () => cannedAttachmentSendResult(
-                sessionPrefix: 'fake-group',
-                id: groupId,
-                fileName: fileName,
-                dataBase64: dataBase64,
-              ));
 
   // ----------------------------------------------------------------- the org
 
