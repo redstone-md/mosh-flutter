@@ -45,6 +45,10 @@ abstract interface class Gateway {
   /// Reads [target]'s current state. The snapshot type follows the kind:
   /// a DM polls back a [SessionSnapshot], a channel a [ChannelSnapshot],
   /// a group a [GroupSnapshot].
+  ///
+  /// An implementation also implements [ConversationSnapshotReader] and hands
+  /// itself to the target, which is what keeps the return type honest without
+  /// a cast. The reader is not part of this interface: callers never see it.
   Future<S> poll<S>(ConversationTarget<S> target);
 
   /// Sends a text message to [target].

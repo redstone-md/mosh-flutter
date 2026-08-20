@@ -5,7 +5,7 @@
 // composer is cleared ONLY when it still equals `body`; if the user typed
 // MORE text while the send was in flight, the new text survives (the composer
 // is NOT clobbered). Mirrors the recording-fake idiom in
-// dm_screen_failed_send_test.dart, but the the fake `send` returns a
+// dm_screen_failed_send_test.dart, but the fake `send` returns a
 // `Completer`-backed future so the test controls WHEN the send resolves and
 // can mutate the composer mid-flight.
 

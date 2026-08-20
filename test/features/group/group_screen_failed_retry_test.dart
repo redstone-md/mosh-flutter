@@ -22,6 +22,7 @@ import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
@@ -324,7 +325,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The Gateway retry seam fired with the group id + message id.
-    expect(gateway.lastCall(GatewayMethod.retry)?.target.id, groupId);
+    expect(gateway.lastCall(GatewayMethod.retry)?.target, GroupTarget(groupId));
     expect(gateway.lastCall(GatewayMethod.retry)?.arg<String>('messageId'), msgId);
   });
 }
