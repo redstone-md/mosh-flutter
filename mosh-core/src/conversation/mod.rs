@@ -7,7 +7,8 @@
 //! the DM invitations one member offers another.
 //! Each runtime holds these as fields, or calls them, instead of keeping its
 //! own copy, so a fix proven in one kind holds for all three. What each kind
-//! keeps on disk goes through one store too, with the table names as data.
+//! keeps on disk goes through one store too, with the table names as data,
+//! and an attachment's bytes go in and out through one transfer.
 
 pub mod attachments;
 pub mod dedup;
@@ -18,6 +19,7 @@ pub mod message_log;
 pub mod outbound;
 #[cfg(test)]
 pub mod test_message;
+pub mod transfer;
 
 use message_log::LogError;
 

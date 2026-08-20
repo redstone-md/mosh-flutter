@@ -8,15 +8,13 @@ use std::sync::mpsc;
 use std::sync::Arc;
 
 pub use crate::attachment_runtime::VoiceMeta;
-use crate::attachment_runtime::{
-    AttachmentManifest, AttachmentRuntime, ChunkOutcome, OutgoingAttachment, StreamRange,
-};
+use crate::attachment_runtime::{AttachmentManifest, OutgoingAttachment, StreamRange};
 use crate::attachment_store::AttachmentStore;
-use crate::conversation::attachments::{descriptor_of, AttachmentSlots};
 use crate::conversation::dedup::SeenFrames;
 use crate::conversation::history::{History, Restore};
 use crate::conversation::message_log::MessageLog;
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
+use crate::conversation::transfer::Transfer;
 use crate::conversation::{decode, encode, now_ms};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
@@ -245,9 +243,7 @@ struct PrivateDmSession {
     control_channel: String,
     data_channel: String,
     blob_channel: String,
-    attachment_store: Arc<AttachmentStore>,
-    attachments: AttachmentRuntime,
-    attachment_slots: AttachmentSlots,
+    transfer: Transfer,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     call: Option<CallState>,
     // MLS handshake retransmit state. Bob keeps his published KeyPackage here
@@ -453,8 +449,7 @@ impl PrivateDmRuntime {
                 Restore {
                     log: &mut session.messages,
                     attempts: &mut session.outbound_attempts,
-                    slots: &mut session.attachment_slots,
-                    attachment_store: &self.attachment_store,
+                    transfer: &mut session.transfer,
                     local_author: &rec.display_name,
                 },
             );
@@ -784,9 +779,7 @@ impl PrivateDmRuntime {
             .sessions
             .get_mut(session_id)
             .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        session
-            .attachment_slots
-            .start_download(attachment_id, &mut session.attachments)?;
+        session.transfer.start_download(attachment_id)?;
         session.pump_attachment_requests(relay);
         Ok(())
     }
@@ -797,9 +790,7 @@ impl PrivateDmRuntime {
         attachment_id: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         let session = self.session_mut(session_id)?;
-        Ok(session
-            .attachment_slots
-            .cancel(attachment_id, &mut session.attachments)?)
+        Ok(session.transfer.cancel(attachment_id)?)
     }
 
     /// Serves a byte range for streaming playback, fetching the region ahead
@@ -819,10 +810,7 @@ impl PrivateDmRuntime {
             .sessions
             .get_mut(session_id)
             .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        session
-            .attachment_slots
-            .resume_for_stream(attachment_id, &mut session.attachments);
-        let outcome = session.attachments.stream_range(attachment_id, start, end);
+        let outcome = session.transfer.stream_range(attachment_id, start, end);
         session.pump_attachment_requests(relay);
         Ok(outcome)
     }
@@ -1393,9 +1381,7 @@ impl PrivateDmSession {
             control_channel,
             data_channel,
             blob_channel,
-            attachment_store,
-            attachments: AttachmentRuntime::new(),
-            attachment_slots: AttachmentSlots::default(),
+            transfer: Transfer::new(attachment_store),
             outbound_attempts: HashMap::new(),
             call: None,
             pending_key_package: None,
@@ -2083,8 +2069,7 @@ impl PrivateDmSession {
                 participant_id,
                 request,
             } if participant_id != self.participant_id => {
-                let frames = self.attachments.serve_chunks(&request)?;
-                for frame in frames {
+                for frame in self.transfer.serve(&request) {
                     let chunk = BlobEnvelope::Chunk {
                         participant_id: self.participant_id.clone(),
                         frame,
@@ -2098,29 +2083,7 @@ impl PrivateDmSession {
             BlobEnvelope::Chunk {
                 participant_id,
                 frame,
-            } if participant_id != self.participant_id => {
-                let attachment_id = frame.attachment_id.clone();
-                let file_name = self.attachment_slots.file_name(&attachment_id);
-                match self.attachments.ingest_chunk(&frame) {
-                    Ok(ChunkOutcome::Complete {
-                        content_hash,
-                        bytes,
-                        ..
-                    }) => {
-                        let path =
-                            self.attachment_store
-                                .write_blob(&content_hash, &file_name, &bytes)?;
-                        self.attachment_slots
-                            .complete_download(&attachment_id, path.to_string_lossy().into_owned());
-                        Ok(())
-                    }
-                    Ok(_) => Ok(()),
-                    Err(_) => {
-                        self.attachment_slots.fail(&attachment_id);
-                        Ok(())
-                    }
-                }
-            }
+            } if participant_id != self.participant_id => Ok(self.transfer.ingest(&frame)?),
             _ => Ok(()),
         }
     }
@@ -2130,13 +2093,9 @@ impl PrivateDmSession {
         from_device: String,
         manifest: AttachmentManifest,
     ) -> Result<(), PrivateDmRuntimeError> {
-        let attachment_id = manifest.attachment_id.clone();
-        if self.attachment_slots.contains(&attachment_id) {
+        let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
             return Ok(());
-        }
-        let descriptor = descriptor_of(&manifest);
-        self.attachments.register_incoming(manifest)?;
-        self.attachment_slots.offer(descriptor.clone());
+        };
         let message = self.messages.stamp(ChatMessage {
             from_device,
             body: String::new(),
@@ -2166,20 +2125,15 @@ impl PrivateDmSession {
             return Err(PrivateDmRuntimeError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let manifest = self.attachments.prepare_outgoing(OutgoingAttachment {
+        let (manifest, descriptor) = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
             from_fingerprint: self.fingerprint.clone(),
-            bytes: bytes.clone(),
+            bytes,
             thumbnail_b64: thumbnail,
             voice,
         })?;
-        let stored = self.attachment_store.write_blob(
-            &manifest.content_hash,
-            &manifest.file_name,
-            &bytes,
-        )?;
         let manifest_json = serde_json::to_vec(&manifest)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         let ciphertext = self.crypto.encrypt(&manifest_json)?;
@@ -2196,9 +2150,6 @@ impl PrivateDmSession {
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None)?;
 
-        let descriptor = descriptor_of(&manifest);
-        self.attachment_slots
-            .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
         let message = self.messages.stamp(ChatMessage {
             from_device: self.device_id.clone(),
             body: String::new(),
@@ -2220,15 +2171,13 @@ impl PrivateDmSession {
     }
 
     fn pump_attachment_requests(&mut self, relay_jobs: RelayJobs<'_>) {
-        for attachment_id in self.attachment_slots.awaiting_chunks() {
-            if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
-                let envelope = BlobEnvelope::Request {
-                    participant_id: self.participant_id.clone(),
-                    request,
-                };
-                if let Ok(bytes) = serde_json::to_vec(&envelope) {
-                    let _ = self.route_send(wire::ChannelKind::Blob, &bytes, relay_jobs, None);
-                }
+        for request in self.transfer.next_requests() {
+            let envelope = BlobEnvelope::Request {
+                participant_id: self.participant_id.clone(),
+                request,
+            };
+            if let Ok(bytes) = serde_json::to_vec(&envelope) {
+                let _ = self.route_send(wire::ChannelKind::Blob, &bytes, relay_jobs, None);
             }
         }
     }
@@ -2260,7 +2209,7 @@ impl PrivateDmSession {
             invite_uri: self.invite_uri.clone(),
             fingerprint: self.fingerprint.clone(),
             messages: self.messages.to_vec(),
-            attachments: self.attachment_slots.views(&self.attachments),
+            attachments: self.transfer.views(),
             mesh: self.mesh_info(),
             events: mesh::snapshot_events(),
             pending_call: self.call.as_ref().and_then(|call| {
@@ -3413,7 +3362,7 @@ mod tests {
             .expect("Alice session should exist");
 
         session
-            .attachments
+            .transfer
             .prepare_outgoing(OutgoingAttachment {
                 attachment_id: "att-1".to_string(),
                 file_name: "photo.bin".to_string(),
@@ -3445,7 +3394,7 @@ mod tests {
             .handle_moss_message(request, None)
             .expect("repeat chunk request should be served again");
         assert_eq!(
-            session.attachments.served_count("att-1", 0),
+            session.transfer.served_count("att-1", 0),
             2,
             "an identical re-request must reach handle_blob — re-asking \
              unchanged is how a lost chunk is recovered"

@@ -2,8 +2,10 @@
 //! message: what goes down comes back, and it goes down once.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use super::*;
+use crate::attachment_store::AttachmentStore;
 use crate::conversation::test_message::TestMessage;
 use crate::persistence::{CHANNEL_HISTORY, DM_HISTORY};
 
@@ -14,7 +16,7 @@ const CONVERSATION: &str = "conv-1";
 struct Scratch {
     path: std::path::PathBuf,
     persistence: Persistence,
-    attachments: AttachmentStore,
+    attachments: Arc<AttachmentStore>,
 }
 
 impl Scratch {
@@ -25,24 +27,27 @@ impl Scratch {
         let path = dir.join("history.redb");
         Self {
             persistence: Persistence::open_with_dek(&path, [7u8; 32]).expect("database"),
-            attachments: AttachmentStore::new(&dir).expect("attachment store"),
+            attachments: Arc::new(AttachmentStore::new(&dir).expect("attachment store")),
             path,
         }
+    }
+
+    fn transfer(&self) -> Transfer {
+        Transfer::new(Arc::clone(&self.attachments))
     }
 
     /// Everything one conversation has on disk, read back into empty state.
     fn read_back(&self, history: &mut History) -> (MessageLog<TestMessage>, Attempts) {
         let mut log = MessageLog::default();
         let mut attempts = Attempts::new();
-        let mut slots = AttachmentSlots::default();
+        let mut transfer = self.transfer();
         history.replay(
             &self.persistence,
             CONVERSATION,
             Restore {
                 log: &mut log,
                 attempts: &mut attempts,
-                slots: &mut slots,
-                attachment_store: &self.attachments,
+                transfer: &mut transfer,
                 local_author: "alice",
             },
         );
@@ -247,15 +252,14 @@ fn each_kind_reads_only_its_own_tables() {
 
     let mut channel_log: MessageLog<TestMessage> = MessageLog::default();
     let mut attempts = Attempts::new();
-    let mut slots = AttachmentSlots::default();
+    let mut transfer = scratch.transfer();
     History::new(CHANNEL_HISTORY).replay(
         &scratch.persistence,
         CONVERSATION,
         Restore {
             log: &mut channel_log,
             attempts: &mut attempts,
-            slots: &mut slots,
-            attachment_store: &scratch.attachments,
+            transfer: &mut transfer,
             local_author: "alice",
         },
     );
