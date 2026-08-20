@@ -39,7 +39,7 @@ import 'package:mosh/src/features/shared/rail_back_button.dart';
 ///   - [groupId] -- the group identity; the title fallback when the
 ///     snapshot has not resolved yet, and the family arg for the watch.
 ///   - [onOpenPeerStatus] -- screen toggles `_showPeerStatus = true`.
-///   - [onLeave] -- screen's `_leave` (gateway.closeGroup + nav back).
+///   - [onLeave] -- screen's `_leave` (gateway.leave + nav back).
 class GroupScreenHeader extends ConsumerStatefulWidget
     implements PreferredSizeWidget {
   const GroupScreenHeader({

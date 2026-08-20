@@ -35,7 +35,7 @@ import 'package:mosh/src/features/shared/attachment_media_src.dart'
         resolveLocalAttachmentOpen,
         isViewableMedia;
 import 'package:mosh/src/features/shared/attachment_open.dart';
-import 'package:mosh/src/features/shared/chat_actions.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show
         AttachmentView,
@@ -81,7 +81,7 @@ class GroupControllerState {
   final String? chatError;
   // The recorded failed send (target + body) -- 1-1 with React's
   // `lastFailedSend`. Drives canRetrySend + retryFailedSend.
-  final ({ChatTarget target, String body})? lastFailedSend;
+  final ({AnyConversationTarget target, String body})? lastFailedSend;
   // Ephemeral pending-open descriptor (Gap 2) -- 1-1 with React's `pendingOpen`.
   final AttachmentDescriptor? pendingOpen;
 
@@ -90,8 +90,8 @@ class GroupControllerState {
   /// Whether the banner's Retry button should be active -- 1-1 with React
   /// `canRetrySend`. `active` is always this controller's target, so it
   /// reduces to a non-null `lastFailedSend` whose target matches `target`.
-  bool canRetrySend(ChatTarget target) =>
-      lastFailedSend != null && sameChatTarget(target, lastFailedSend!.target);
+  bool canRetrySend(AnyConversationTarget target) =>
+      lastFailedSend != null && target == lastFailedSend!.target;
 
   GroupControllerState copyWith({
     bool? sending,
@@ -111,7 +111,7 @@ class GroupControllerState {
         : chatError as String?,
     lastFailedSend: identical(lastFailedSend, _sentinel)
         ? this.lastFailedSend
-        : lastFailedSend as ({ChatTarget target, String body})?,
+        : lastFailedSend as ({AnyConversationTarget target, String body})?,
     pendingOpen: identical(pendingOpen, _sentinel)
         ? this.pendingOpen
         : pendingOpen as AttachmentDescriptor?,
@@ -163,15 +163,14 @@ class GroupController extends Notifier<GroupControllerState> {
   /// The group id (the family arg) -- the conversation identity.
   final String groupId;
 
-  /// The sealed [ChatTarget] for this group -- routes send/retry/attachment/
-  /// leave dispatch through `chat_actions.dart` (the shared DM/channel/group
-  /// seam, Gap 4) so the gateway method name is decided once here.
-  late final ChatTarget _target = GroupTarget(groupId);
+  /// This group as a Gateway target. Every send, retry, attachment and
+  /// leave call passes it, so the kind is named once here.
+  late final GroupTarget _target = GroupTarget(groupId);
 
   @override
   GroupControllerState build() => const GroupControllerState();
 
-  ChatTarget get target => _target;
+  AnyConversationTarget get target => _target;
 
   Future<T> _runTransfer<T>(Future<T> Function() operation) async {
     state = state.copyWith(transferOperations: state.transferOperations + 1);
@@ -200,11 +199,7 @@ class GroupController extends Notifier<GroupControllerState> {
     }
     state = state.copyWith(sending: true, chatError: null);
     try {
-      await sendChatText(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        body: body,
-      );
+      await ref.read(gatewayProvider).send(_target, body: body);
       state = state.copyWith(lastFailedSend: null, chatError: null);
       ref.invalidate(groupSnapshotProvider(groupId));
       return GroupSendOutcome(sent: true, body: body);
@@ -226,7 +221,7 @@ class GroupController extends Notifier<GroupControllerState> {
   /// onRetry path).
   Future<GroupSendOutcome> retryFailedSend() async {
     final failed = state.lastFailedSend;
-    if (failed == null || !sameChatTarget(_target, failed.target)) {
+    if (failed == null || _target != failed.target) {
       return const GroupSendOutcome(sent: false, body: '');
     }
     return sendBody(failed.body);
@@ -243,9 +238,8 @@ class GroupController extends Notifier<GroupControllerState> {
     state = state.copyWith(sending: true);
     try {
       await _runTransfer(
-        () => sendChatAttachment(
-          gateway: ref.read(gatewayProvider),
-          target: _target,
+        () => ref.read(gatewayProvider).sendAttachment(
+          _target,
           fileName: attachment.fileName,
           mime: attachment.mime,
           dataBase64: attachment.dataBase64,
@@ -271,9 +265,8 @@ class GroupController extends Notifier<GroupControllerState> {
         final bytes = await file.readAsBytes();
         final ext = voice.mime.contains('mp4') ? 'm4a' : 'webm';
         final fileName = 'voice-message.$ext';
-        await sendChatAttachment(
-          gateway: ref.read(gatewayProvider),
-          target: _target,
+        await ref.read(gatewayProvider).sendAttachment(
+          _target,
           fileName: fileName,
           mime: voice.mime,
           dataBase64: base64Encode(bytes),
@@ -301,20 +294,18 @@ class GroupController extends Notifier<GroupControllerState> {
         busy: state.transferBusy,
         onDownload: (id) => unawaited(
           _runTransfer(
-            () => downloadChatAttachment(
-              gateway: ref.read(gatewayProvider),
-              target: _target,
-              attachmentId: id,
-            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
+            () => ref
+                .read(gatewayProvider)
+                .downloadAttachment(_target, attachmentId: id)
+                .then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
           ),
         ),
         onCancel: (id) => unawaited(
           _runTransfer(
-            () => cancelChatAttachment(
-              gateway: ref.read(gatewayProvider),
-              target: _target,
-              attachmentId: id,
-            ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
+            () => ref
+                .read(gatewayProvider)
+                .cancelAttachment(_target, attachmentId: id)
+                .then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
           ),
         ),
         onOpen: (descriptor) => onOpen(descriptor, view),
@@ -325,11 +316,10 @@ class GroupController extends Notifier<GroupControllerState> {
   /// poll re-renders the row's delivery status.
   void retryMessage(String messageId) {
     unawaited(
-      retryChatMessage(
-        gateway: ref.read(gatewayProvider),
-        target: _target,
-        messageId: messageId,
-      ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
+      ref
+          .read(gatewayProvider)
+          .retry(_target, messageId: messageId)
+          .then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
     );
   }
 
@@ -362,11 +352,11 @@ class GroupController extends Notifier<GroupControllerState> {
     if (decision.download) {
       unawaited(
         _runTransfer(
-          () => downloadChatAttachment(
-            gateway: ref.read(gatewayProvider),
-            target: _target,
-            attachmentId: descriptor.attachmentId,
-          ).then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
+          () => ref
+              .read(gatewayProvider)
+              .downloadAttachment(_target,
+                  attachmentId: descriptor.attachmentId)
+              .then((_) => ref.invalidate(groupSnapshotProvider(groupId))),
         ),
       );
     }
@@ -482,7 +472,7 @@ class GroupController extends Notifier<GroupControllerState> {
 
   /// Leaves the group -- the gateway close + invalidation + failed-send
   /// clear half of the screen's former `_leave` (React `clearFailedSend` +
-  /// `closeChatTarget` -> gateway.closeGroup). Returns [GroupLeaveResult] so
+  /// `closeChatTarget`). Returns [GroupLeaveResult] so
   /// the screen navigates to `/sessions` (the controller never navigates).
   ///
   /// The active-conversation-key clear + navigation stay in the screen (the
@@ -490,7 +480,7 @@ class GroupController extends Notifier<GroupControllerState> {
   /// method does only the gateway close + invalidation + failed-send clear.
   Future<GroupLeaveResult> leave() async {
     state = state.copyWith(lastFailedSend: null, chatError: null);
-    await closeChatTarget(gateway: ref.read(gatewayProvider), target: _target);
+    await ref.read(gatewayProvider).leave(_target);
     ref.invalidate(groupSnapshotProvider(groupId));
     return const GroupLeaveResult();
   }

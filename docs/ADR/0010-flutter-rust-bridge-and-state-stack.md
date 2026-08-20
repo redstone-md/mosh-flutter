@@ -41,7 +41,10 @@ the state layer.
   directly; the `api` module is the stable surface and the place where
   platform-specific glue (e.g. secure-storage backend selection) is injected.
   Each current Tauri command maps to one `api` function; each Tauri event
-  maps to one `api` function returning `StreamSink<T>`.
+  maps to one `api` function returning `StreamSink<T>`. This rule governs the
+  Rust `api` module and the generated bindings. It does not govern the Dart
+  `Gateway` seam above them, which takes the conversation as a parameter
+  instead of mirroring the per-kind function names (ADR 0017).
 - State. Use Riverpod v3:
   - Server / runtime state (sessions, messages, snapshots, diagnostics) lives
     in `AsyncNotifierProvider`s fed by the bridge. UI consumes

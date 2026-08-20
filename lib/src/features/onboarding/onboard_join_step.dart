@@ -208,7 +208,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         // dedicated org screen (orgs are a container, not a chat) -- it
         // leaves setup + refreshes the orgs list, so the user lands back on
         // the rail. Flutter has no org screen yet, so navigate to the
-        // sessions list (mirrors how leaveChannel/closeGroup return there).
+        // sessions list (mirrors where leaving a channel or group returns).
         await ref
             .read(gatewayProvider)
             .joinOrg(

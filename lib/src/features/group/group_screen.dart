@@ -22,10 +22,9 @@
 //   - keyed by `groupId` (the identity), NOT `name`.
 //   - title = `group.label ?? l.groupUntitled` (label is nullable; React
 //     falls back to `groupText.untitled` = "Private group").
-//   - leave via `gateway.closeGroup` (group teardown is frb `close` ->
-//     Gateway `closeGroup`; channel used `leaveChannel`).
-//   - send via `gateway.sendGroup` (NOT `sendChannel`); then
-//     `ref.invalidate(groupSnapshotProvider(widget.groupId))`.
+//   - leave and send go through the same `gateway.leave(target)` /
+//     `gateway.send(target, ...)` as the other kinds, with a GroupTarget;
+//     then `ref.invalidate(groupSnapshotProvider(widget.groupId))`.
 //
 // AGENTS.md state separation: the BUSINESS orchestration state (sending /
 // offerBusy / offeredFingerprints / chatError / pendingOpen / lastFailedSend

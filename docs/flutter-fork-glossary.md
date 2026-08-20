@@ -122,7 +122,18 @@ in-app fake gateway and its `MOSH_FAKE_GATEWAY` flag (ADR 0013).
 The `Gateway` implementation that delegates every method to the
 `flutter_rust_bridge`-generated free functions in `lib/src/rust/api/`. A
 thin pass-through with no caching or shaping, backed by the real
-`mosh_core` runtime. The default production path (ADR 0013).
+`mosh_core` runtime. The one decision it makes is the conversation kind: the
+conversation methods switch on the [[Conversation target]] and call the DM,
+channel or group function (ADR 0017). The default production path (ADR 0013).
+
+## Conversation target
+
+The value that says which conversation an action is for: `DmTarget`,
+`ChannelTarget` or `GroupTarget`, in `lib/src/gateway/conversation_target.dart`.
+The `Gateway` takes one instead of carrying a DM, a channel and a group copy
+of every method, so a screen names its kind once and every send, retry,
+attachment and leave call passes it (ADR 0017). Each kind also knows the
+snapshot type it polls back, which keeps `Gateway.poll` typed.
 
 ## activeSessionProvider.family
 

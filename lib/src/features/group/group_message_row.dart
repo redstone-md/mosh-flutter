@@ -201,7 +201,7 @@ class GroupMessageRow extends StatelessWidget {
 
   /// Retry callback for the [FailedMessageRetry] row (React
   /// `onRetryMessage`). The screen wires this to the Gateway retry seam
-  /// (`retryGroupMessage` -> frb `private_group_retry_message`); fire-and-
+  /// (`Gateway.retry` -> frb `private_group_retry_message`); fire-and-
   /// forget via `unawaited` then invalidate the group snapshot (mirrors
   /// the attachment download/cancel wiring).
   final void Function(String messageId) onRetry;
@@ -263,7 +263,7 @@ class GroupMessageRow extends StatelessWidget {
                 // retryable && message_id (outbound == own ==
                 // fromFingerprint == ownFingerprint). The onRetry
                 // callback fires the Gateway retry seam
-                // (retryGroupMessage -> frb private_group_retry_message);
+                // (`Gateway.retry` -> frb private_group_retry_message);
                 // the gate guarantees message.messageId is non-null,
                 // so the bang (!) is safe.
                 if (own &&

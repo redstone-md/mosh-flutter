@@ -5,7 +5,7 @@
 // composer is cleared ONLY when it still equals `body`; if the user typed
 // MORE text while the send was in flight, the new text survives (the composer
 // is NOT clobbered). Mirrors the recording-fake idiom in
-// dm_screen_failed_send_test.dart, but the fake `sendMessage` returns a
+// dm_screen_failed_send_test.dart, but the fake `send` returns a
 // `Completer`-backed future so the test controls WHEN the send resolves and
 // can mutate the composer mid-flight.
 
@@ -77,7 +77,7 @@ void main() {
   testWidgets(
       'a successful send clears the composer when it still equals the body',
       (tester) async {
-    final gateway = ScriptableGateway()..hold(GatewayMethod.sendMessage);
+    final gateway = ScriptableGateway()..hold(GatewayMethod.send);
     await _pump(tester, gateway, sessionId: sessionId);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -86,12 +86,12 @@ void main() {
     // Do NOT settle: the send is in flight (completer unresolved).
     await tester.pump();
 
-    expect(gateway.argValues<String>(GatewayMethod.sendMessage, 'body'), ['hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
     expect(_controllerOf(tester).text, 'hello there');
 
     // The composer still equals the sent body, so resolving the send clears
     // it (the common case).
-    gateway.release(GatewayMethod.sendMessage);
+    gateway.release(GatewayMethod.send);
     await tester.pumpAndSettle();
 
     expect(_controllerOf(tester).text, '');
@@ -100,7 +100,7 @@ void main() {
   testWidgets(
       'a successful send does NOT clear the composer if the user typed more',
       (tester) async {
-    final gateway = ScriptableGateway()..hold(GatewayMethod.sendMessage);
+    final gateway = ScriptableGateway()..hold(GatewayMethod.send);
     await _pump(tester, gateway, sessionId: sessionId);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -109,7 +109,7 @@ void main() {
     // Do NOT settle: the send is in flight (completer unresolved).
     await tester.pump();
 
-    expect(gateway.argValues<String>(GatewayMethod.sendMessage, 'body'), ['hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
 
     // Simulate the user typing MORE text while the send is in flight by
     // writing directly to the composer controller (the TextField is
@@ -124,7 +124,7 @@ void main() {
     // Resolve the in-flight send. The composer no longer equals the sent
     // body, so the conditional clear leaves the new text intact (1-1 with
     // React: in-flight typing survives).
-    gateway.release(GatewayMethod.sendMessage);
+    gateway.release(GatewayMethod.send);
     await tester.pumpAndSettle();
 
     expect(_controllerOf(tester).text, 'hello there and more');

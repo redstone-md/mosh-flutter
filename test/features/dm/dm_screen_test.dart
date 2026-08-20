@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import '../../support/scriptable_gateway.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -20,8 +21,8 @@ void main() {
       request: const StartSessionRequest(displayName: 'alice', listenPort: 8765),
     );
     // Seed two messages on the fake session so the list is non-empty.
-    await gateway.sendMessage(sessionId: invite.sessionId, body: 'hello');
-    await gateway.sendMessage(sessionId: invite.sessionId, body: 'world');
+    await gateway.send(DmTarget(invite.sessionId), body: 'hello');
+    await gateway.send(DmTarget(invite.sessionId), body: 'world');
 
     await tester.pumpWidget(ProviderScope(
       overrides: [gatewayProvider.overrideWithValue(gateway as Gateway)],

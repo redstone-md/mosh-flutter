@@ -161,21 +161,25 @@ flag" path recorded in Final Status above.
 
 ### Size exception
 
-`test/support/scriptable_gateway.dart` is ~900 lines, and the
-`ScriptableGateway` class inside it is ~800. Both exceed the AGENTS.md
-limits (`file_max_loc: 400`, `type_max_loc: 200`), and this section is the
-exception both need.
+Two `Gateway` implementations exceed the AGENTS.md limits
+(`file_max_loc: 400`, `type_max_loc: 200`), and this section is the exception
+both need:
 
-Reason: the class is one flat implementation of the 57-method `Gateway`
-interface plus the recording, seeding, and scripting helpers. The length comes
-from the interface width, not from nesting or branching -- every method is a
-one-liner over the same `_run` call. Splitting the class across mixins would
-add files and indirection without removing a single line.
+- `test/support/scriptable_gateway.dart` -- 757 lines, class ~630.
+- `lib/src/gateway/real_bridge_gateway.dart` -- 458 lines, class ~353.
 
-Scope: test code only. It never ships in the app, and no production type
-inherits from it.
+Reason: each is one flat implementation of the 42-method `Gateway` interface
+(the scriptable one plus its recording, seeding and scripting helpers). The
+length comes from the interface width, not from nesting or branching -- every
+method is a one-liner over the same `_run` call or the same frb function.
+Splitting either across mixins would add files and indirection without
+removing a single line.
 
-Refactor plan: it shrinks with the interface. Issue 03 makes the Gateway take
-the conversation target as a parameter, folding 25 methods into 8; that alone
-takes the class to roughly 500 lines. Revisit the split then, against the real
-number rather than this one.
+Scope: the two adapters only. No other type inherits from them, and the
+scriptable one never ships in the app.
+
+Refactor plan: both shrink with the interface. Issue 03 took the Gateway from
+57 methods to 42 by taking the conversation target as a parameter, which cost
+the scriptable gateway ~180 lines and the real one ~40. Issue 04 folds the
+three snapshot types into one view; revisit the split after it, against the
+number it leaves behind.
