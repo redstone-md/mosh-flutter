@@ -273,15 +273,14 @@ impl From<MlsCryptoError> for PrivateDmRuntimeError {
     }
 }
 
-impl From<crate::attachment_runtime::AttachmentRuntimeError> for PrivateDmRuntimeError {
-    fn from(error: crate::attachment_runtime::AttachmentRuntimeError) -> Self {
-        Self::Attachment(error.to_string())
-    }
-}
-
-impl From<crate::attachment_store::AttachmentStoreError> for PrivateDmRuntimeError {
-    fn from(error: crate::attachment_store::AttachmentStoreError) -> Self {
-        Self::Attachment(error.to_string())
+impl From<crate::conversation::transfer::TransferError> for PrivateDmRuntimeError {
+    fn from(error: crate::conversation::transfer::TransferError) -> Self {
+        match error {
+            crate::conversation::transfer::TransferError::Bytes(message) => {
+                Self::Attachment(message)
+            }
+            crate::conversation::transfer::TransferError::Slot(error) => error.into(),
+        }
     }
 }
 
