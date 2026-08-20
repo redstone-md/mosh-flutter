@@ -323,6 +323,7 @@ flowchart TD
     Mesh["conversation::mesh<br/>mesh_info + snapshot_events"]
     Out["conversation::outbound<br/>Outbox: open, reopen, settle"]
     Hist["conversation::history<br/>History: replay, write_tail, write_send"]
+    Offers["conversation::dm_offers<br/>DmOffers: mint, receive, dismiss"]
     Moss[moss node]
     Db[(redb, encrypted)]
 
@@ -338,12 +339,14 @@ flowchart TD
     Gr --> Mesh
     Gr --> Out
     Gr --> Hist
+    Gr --> Offers
     Ch --> Slots
     Ch --> Log
     Ch --> Seen
     Ch --> Mesh
     Ch --> Out
     Ch --> Hist
+    Ch --> Offers
     Hist -->|"HistoryTables picks the tables"| Db
     Dm -->|"MLS + relay"| Moss
     Gr -->|"MLS + room"| Moss
@@ -379,6 +382,13 @@ flowchart TD
   keeps a message written once instead of once per poll. The MLS snapshot and
   the session record stay with the kind, since only the kind knows when either
   is worth rewriting.
+- `dm_offers::DmOffers` — the private-DM invitations a channel or a group
+  carries. `mint` builds the offer to publish, and derives its id from the
+  invite URI so the same invitation twice reads as one offer. `receive` keeps
+  an arriving offer only when it names us, is not our own echo and is not one
+  we already hold. `dismiss` drops one. A DM has no such list: it is where an
+  accepted offer leads, not a place offers are shown. An org keeps its own
+  list, on peer-ids and gated by the roster (ADR 0019).
 
 ## State Ownership
 

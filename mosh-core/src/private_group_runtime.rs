@@ -11,6 +11,7 @@ use crate::attachment_store::AttachmentStore;
 use crate::commit_sequencer::{CommitSequencer, Disposition};
 use crate::conversation::attachments::{descriptor_of, AttachmentSlots, SlotError};
 use crate::conversation::dedup::SeenFrames;
+use crate::conversation::dm_offers::DmOffers;
 use crate::conversation::history::{History, Restore};
 use crate::conversation::mesh;
 use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
@@ -418,7 +419,7 @@ struct GroupSession {
     attachments: AttachmentRuntime,
     attachment_slots: AttachmentSlots,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
-    dm_offers: Vec<DmOffer>,
+    dm_offers: DmOffers,
     /// Org binding (ADR 0008). Some = control traffic is enveloped, the MLS
     /// credential is the moss peer-id and authority derives from the roster.
     org_pubkey: Option<String>,
@@ -577,7 +578,7 @@ impl PrivateGroupRuntime {
                 attachments: AttachmentRuntime::new(),
                 attachment_slots: AttachmentSlots::default(),
                 outbound_attempts: HashMap::new(),
-                dm_offers: Vec::new(),
+                dm_offers: DmOffers::default(),
                 org_pubkey: rec.org_pubkey.clone(),
                 // Identity was mandatory at create/join time; if the blob
                 // vanished, the org group cannot sign control traffic — skip
@@ -687,7 +688,7 @@ impl PrivateGroupRuntime {
             attachments: AttachmentRuntime::new(),
             attachment_slots: AttachmentSlots::default(),
             outbound_attempts: HashMap::new(),
-            dm_offers: Vec::new(),
+            dm_offers: DmOffers::default(),
             org_pubkey: request.org_pubkey,
             org_signer,
             roster_cache: None,
@@ -779,7 +780,7 @@ impl PrivateGroupRuntime {
             attachments: AttachmentRuntime::new(),
             attachment_slots: AttachmentSlots::default(),
             outbound_attempts: HashMap::new(),
-            dm_offers: Vec::new(),
+            dm_offers: DmOffers::default(),
             org_pubkey: request.org_pubkey,
             org_signer,
             roster_cache: None,
@@ -853,16 +854,12 @@ impl PrivateGroupRuntime {
             .groups
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-        let offer = DmOffer {
-            offer_id: format!(
-                "offer-{}",
-                &crate::attachment_crypto::sha256_hex(invite_uri.as_bytes())[..16]
-            ),
-            from_device: session.display_name.clone(),
-            from_fingerprint: session.device_fingerprint.clone(),
+        let offer = DmOffers::mint(
+            session.display_name.clone(),
+            session.device_fingerprint.clone(),
             target_fingerprint,
             invite_uri,
-        };
+        );
         session.publish_control(&ControlEnvelope::DmOffer {
             group_id: session.group_id.clone(),
             offer,
@@ -895,7 +892,7 @@ impl PrivateGroupRuntime {
             .groups
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-        session.dm_offers.retain(|offer| offer.offer_id != offer_id);
+        session.dm_offers.dismiss(offer_id);
         Ok(())
     }
 
@@ -1941,18 +1938,8 @@ impl GroupSession {
                 let manifest: AttachmentManifest = decode_json(&manifest_json)?;
                 self.accept_incoming_manifest(from_device, from_fingerprint, manifest)
             }
-            ControlEnvelope::DmOffer { group_id, offer }
-                if self.group_id == group_id
-                    && offer.target_fingerprint == self.device_fingerprint
-                    && offer.from_fingerprint != self.device_fingerprint =>
-            {
-                if !self
-                    .dm_offers
-                    .iter()
-                    .any(|existing| existing.offer_id == offer.offer_id)
-                {
-                    self.dm_offers.push(offer);
-                }
+            ControlEnvelope::DmOffer { group_id, offer } if self.group_id == group_id => {
+                self.dm_offers.receive(offer, &self.device_fingerprint);
                 Ok(())
             }
             _ => Ok(()),
@@ -2152,7 +2139,7 @@ impl GroupSession {
             invite_uri: self.invite_uri.clone(),
             messages: self.messages.to_vec(),
             attachments: self.attachment_slots.views(&self.attachments),
-            dm_offers: self.dm_offers.clone(),
+            dm_offers: self.dm_offers.to_vec(),
             mesh: mesh::mesh_info(&self.node),
             needs_rejoin: self.needs_rejoin,
             org_pubkey: self.org_pubkey.clone(),

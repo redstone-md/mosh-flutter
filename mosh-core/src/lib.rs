@@ -2,7 +2,6 @@ pub mod attachment_crypto;
 pub mod attachment_runtime;
 pub mod attachment_store;
 pub mod channel_runtime;
-pub mod ciphertext_store;
 pub mod commit_sequencer;
 pub mod conversation;
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
