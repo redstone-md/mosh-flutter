@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,7 @@ use crate::attachment_store::AttachmentStore;
 use crate::conversation::attachments::{
     descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
 };
+use crate::conversation::dedup::SeenFrames;
 use crate::conversation::message_log::{
     delivery_meta, now_ms, ConversationMessage, LogError, MessageLog,
 };
@@ -31,7 +32,6 @@ const BLOB_PREFIX: &str = "channel-blob/";
 const MESH_PREFIX: &str = "channel/";
 const MAX_NAME_LEN: usize = 64;
 const MAX_BODY_LEN: usize = 4096;
-const DEDUP_BUFFER_CAP: usize = 4096;
 const OUTBOUND_SCOPE_CHANNEL: &str = "channel";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -259,8 +259,7 @@ struct ChannelSession {
     static_peer: Option<String>,
     node: Arc<MossNode>,
     messages: MessageLog<ChannelMessage>,
-    seen_set: HashSet<String>,
-    seen_order: VecDeque<String>,
+    seen: SeenFrames,
     attachment_store: Arc<AttachmentStore>,
     attachments: AttachmentRuntime,
     attachment_slots: AttachmentSlots,
@@ -367,8 +366,7 @@ impl ChannelRuntime {
                 static_peer: rec.static_peer.clone(),
                 node,
                 messages: MessageLog::default(),
-                seen_set: HashSet::new(),
-                seen_order: VecDeque::new(),
+                seen: SeenFrames::default(),
                 attachment_store: Arc::clone(&self.attachment_store),
                 attachments: AttachmentRuntime::new(),
                 attachment_slots: AttachmentSlots::default(),
@@ -482,8 +480,7 @@ impl ChannelRuntime {
             static_peer,
             node,
             messages: MessageLog::default(),
-            seen_set: HashSet::new(),
-            seen_order: VecDeque::new(),
+            seen: SeenFrames::default(),
             attachment_store: Arc::clone(&self.attachment_store),
             attachments: AttachmentRuntime::new(),
             attachment_slots: AttachmentSlots::default(),
@@ -1051,7 +1048,7 @@ impl ChannelSession {
     }
 
     fn handle_message(&mut self, message: MossReceivedMessage) -> Result<(), ChannelRuntimeError> {
-        if self.has_seen(&message) {
+        if self.seen.seen_before(&message.channel, &message.payload) {
             return Ok(());
         }
         if message.channel == self.topic {
@@ -1259,20 +1256,6 @@ impl ChannelSession {
 
     fn attachment_views(&self) -> Vec<AttachmentView> {
         self.attachment_slots.views(&self.attachments)
-    }
-
-    fn has_seen(&mut self, message: &MossReceivedMessage) -> bool {
-        let key = format!("{}:{}", message.channel, sha256_hex(&message.payload));
-        if !self.seen_set.insert(key.clone()) {
-            return true;
-        }
-        self.seen_order.push_back(key);
-        if self.seen_order.len() > DEDUP_BUFFER_CAP {
-            if let Some(evicted) = self.seen_order.pop_front() {
-                self.seen_set.remove(&evicted);
-            }
-        }
-        false
     }
 
     fn snapshot(&self) -> ChannelSnapshot {

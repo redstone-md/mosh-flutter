@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,7 @@ use crate::commit_sequencer::{CommitSequencer, Disposition};
 use crate::conversation::attachments::{
     descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
 };
+use crate::conversation::dedup::SeenFrames;
 use crate::conversation::message_log::{
     delivery_meta, now_ms, ConversationMessage, LogError, MessageLog,
 };
@@ -37,7 +38,6 @@ const BLOB_CHANNEL_PREFIX: &str = "group-blob/";
 const INVITE_PREFIX: &str = "mosh://group";
 const MAX_LABEL_LEN: usize = 64;
 const MAX_BODY_LEN: usize = 4096;
-const DEDUP_BUFFER_CAP: usize = 4096;
 const INVITE_FINGERPRINT_LEN: usize = 32;
 const OUTBOUND_SCOPE_PRIVATE_GROUP: &str = "private_group";
 
@@ -406,8 +406,7 @@ struct GroupSession {
     node: Arc<MossNode>,
     crypto: MlsSessionCrypto,
     messages: MessageLog<GroupMessage>,
-    seen_set: HashSet<String>,
-    seen_order: VecDeque<String>,
+    seen: SeenFrames,
     // Epoch-ordered commit admission: dedups gossip duplicates and the
     // joiner's Welcome-carried admission commit, buffers out-of-order commits,
     // reports gaps for resync. Unbounded like its predecessor set — commits
@@ -582,8 +581,7 @@ impl PrivateGroupRuntime {
                 node,
                 crypto,
                 messages: MessageLog::default(),
-                seen_set: HashSet::new(),
-                seen_order: VecDeque::new(),
+                seen: SeenFrames::default(),
                 sequencer: CommitSequencer::new(),
                 persistence: self.persistence.clone(),
                 needs_rejoin: false,
@@ -750,8 +748,7 @@ impl PrivateGroupRuntime {
             node,
             crypto,
             messages: MessageLog::default(),
-            seen_set: HashSet::new(),
-            seen_order: VecDeque::new(),
+            seen: SeenFrames::default(),
             sequencer: CommitSequencer::new(),
             persistence: self.persistence.clone(),
             needs_rejoin: false,
@@ -843,8 +840,7 @@ impl PrivateGroupRuntime {
             node,
             crypto,
             messages: MessageLog::default(),
-            seen_set: HashSet::new(),
-            seen_order: VecDeque::new(),
+            seen: SeenFrames::default(),
             sequencer: CommitSequencer::new(),
             persistence: self.persistence.clone(),
             needs_rejoin: false,
@@ -1927,7 +1923,7 @@ impl GroupSession {
         &mut self,
         message: MossReceivedMessage,
     ) -> Result<(), PrivateGroupError> {
-        if self.has_seen(&message) {
+        if self.seen.seen_before(&message.channel, &message.payload) {
             return Ok(());
         }
         if message.channel == self.control_channel {
@@ -1940,24 +1936,6 @@ impl GroupSession {
         } else {
             Ok(())
         }
-    }
-
-    fn has_seen(&mut self, message: &MossReceivedMessage) -> bool {
-        let key = format!(
-            "{}:{}",
-            message.channel,
-            crate::attachment_crypto::sha256_hex(&message.payload)
-        );
-        if !self.seen_set.insert(key.clone()) {
-            return true;
-        }
-        self.seen_order.push_back(key);
-        if self.seen_order.len() > DEDUP_BUFFER_CAP {
-            if let Some(evicted) = self.seen_order.pop_front() {
-                self.seen_set.remove(&evicted);
-            }
-        }
-        false
     }
 
     /// Merge a control-channel commit in epoch order. Duplicates and stale

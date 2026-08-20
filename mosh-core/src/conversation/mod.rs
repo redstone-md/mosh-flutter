@@ -7,4 +7,5 @@
 //! fix proven in one kind holds for all three.
 
 pub mod attachments;
+pub mod dedup;
 pub mod message_log;
