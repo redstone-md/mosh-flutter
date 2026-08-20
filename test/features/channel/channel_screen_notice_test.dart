@@ -7,13 +7,11 @@
 // of `channel_screen_grouping_test.dart` (override `channelSnapshotProvider`
 // so the native cdylib is not involved).
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/pump.dart';
 
 ChannelMessage _msg({
   required String fromDevice,
@@ -73,17 +71,9 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        channelSnapshotProvider(name).overrideWith((ref) async => snapshot),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const ChannelScreen(name: name),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester, const ChannelScreen(name: name), overrides: [
+      channelSnapshotProvider(name).overrideWith((ref) async => snapshot),
+    ]);
 
     // The banner title + body (en ARB values) render as Text nodes.
     expect(find.text('Public channel'), findsOneWidget);

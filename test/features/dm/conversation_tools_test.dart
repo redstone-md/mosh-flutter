@@ -11,13 +11,12 @@
 // dropped from the visible set.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 AttachmentDescriptor _fileDescriptor({
   required String attachmentId,
@@ -147,8 +146,8 @@ void main() {
 
     test('filter attachments + search "bob" keeps only Bob attachments', () {
       final input = [alicePlain, bobPlain, bobVideo];
-      final out = filterDmMessages(
-          input, 'bob', ConversationFilter.attachments);
+      final out =
+          filterDmMessages(input, 'bob', ConversationFilter.attachments);
       expect(out, [bobVideo]);
     });
   });
@@ -175,18 +174,9 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        activeSessionProvider(sessionId)
-            .overrideWith((ref) async => snapshot),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const DmScreen(sessionId: sessionId),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester, const DmScreen(sessionId: sessionId), overrides: [
+      activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
+    ]);
 
     // Both messages render before any search.
     expect(find.text('hello'), findsOneWidget);
@@ -217,20 +207,18 @@ void main() {
       double width, {
       required ValueNotifier<bool?> captured,
     }) async {
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: MediaQuery(
-          data: MediaQueryData(size: Size(width, 800)),
-          child: Builder(
-            builder: (context) {
-              captured.value = isMobileBreakpoint(context);
-              return const SizedBox.shrink();
-            },
+      await pumpScreen(
+          tester,
+          MediaQuery(
+            data: MediaQueryData(size: Size(width, 800)),
+            child: Builder(
+              builder: (context) {
+                captured.value = isMobileBreakpoint(context);
+                return const SizedBox.shrink();
+              },
+            ),
           ),
-        ),
-      ));
-      await tester.pump();
+          settle: false);
     }
 
     testWidgets('width 580 -> mobile (CSS max-width: 580px includes 580)',

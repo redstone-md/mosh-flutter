@@ -20,9 +20,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 /// A minimal `SessionSnapshot` builder, mirroring the one in
 /// `diagnostics_sections_test.dart`. Only the fields the drawer's session
@@ -62,23 +62,16 @@ SessionSnapshot _session({
 /// required because `PeerStatusDrawer` is a `Positioned.fill` overlay (a
 /// bare child of a `Stack`), not a `showDialog` route -- pumping it
 /// directly under `MaterialApp.home` would not resolve the `Positioned`.
-Future<void> _pump(WidgetTester tester, Widget child) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: Stack(
-          children: [
-            const SizedBox.expand(),
-            Positioned.fill(child: child),
-          ],
-        ),
+Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
+    tester,
+    Scaffold(
+      body: Stack(
+        children: [
+          const SizedBox.expand(),
+          Positioned.fill(child: child),
+        ],
       ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+    ));
 
 void main() {
   testWidgets('Esc calls onClose (useModalFocus Escape branch)',
@@ -159,8 +152,7 @@ void main() {
     expect(find.text('No active session'), findsNothing);
   });
 
-  testWidgets('refresh button is disabled while refreshing',
-      (tester) async {
+  testWidgets('refresh button is disabled while refreshing', (tester) async {
     var refreshCount = 0;
     await _pump(
       tester,

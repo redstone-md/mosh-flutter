@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_modal.dart';
+import '../../support/pump.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/api/vpn.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
@@ -71,21 +72,18 @@ Future<void> _pump(
   Future<void> Function()? onAccept,
 }) async {
   onAccept ??= () async {};
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: VpnConsentModal(
-          gateway: gateway,
-          l: await _l(),
-          onAccept: onAccept,
-        ),
+  // The pump settles, which also lets initState's async network-state
+  // fetch resolve.
+  await pumpScreen(
+    tester,
+    Scaffold(
+      body: VpnConsentModal(
+        gateway: gateway,
+        l: await _l(),
+        onAccept: onAccept,
       ),
     ),
   );
-  // Let initState's async network-state fetch resolve.
-  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -162,7 +160,11 @@ void main() {
       await tester.tap(find.text('Route around the VPN'));
       await tester.pumpAndSettle();
       expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
-      expect(gateway.lastCall(GatewayMethod.setVpnBypassConsent)?.arg<String?>('interfaceName'), 'eth0');
+      expect(
+          gateway
+              .lastCall(GatewayMethod.setVpnBypassConsent)
+              ?.arg<String?>('interfaceName'),
+          'eth0');
       expect(acceptCount, 1);
     },
   );
@@ -179,7 +181,11 @@ void main() {
       await tester.tap(find.text('Keep using the VPN'));
       await tester.pumpAndSettle();
       expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
-      expect(gateway.lastCall(GatewayMethod.setVpnBypassConsent)?.arg<String?>('interfaceName'), isNull);
+      expect(
+          gateway
+              .lastCall(GatewayMethod.setVpnBypassConsent)
+              ?.arg<String?>('interfaceName'),
+          isNull);
       expect(find.text("A VPN is carrying Mosh's traffic"), findsNothing);
     },
   );

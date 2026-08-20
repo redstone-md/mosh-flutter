@@ -11,15 +11,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 SessionSnapshot _snapshot({required String sessionId}) => SessionSnapshot(
       sessionId: sessionId,
@@ -45,21 +44,12 @@ Future<void> _pump(
   WidgetTester tester,
   ScriptableGateway gateway, {
   required String sessionId,
-}) async {
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
+}) =>
+    pumpScreen(tester, DmScreen(sessionId: sessionId), overrides: [
       gatewayProvider.overrideWithValue(gateway),
       activeSessionProvider(sessionId)
           .overrideWith((ref) async => _snapshot(sessionId: sessionId)),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: DmScreen(sessionId: sessionId),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+    ]);
 
 // The composer's TextField, scoped under [ConversationComposer] so it does
 // not collide with ConversationTools' search TextField (also a TextField).
@@ -86,7 +76,8 @@ void main() {
     // Do NOT settle: the send is in flight (completer unresolved).
     await tester.pump();
 
-    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
+    expect(
+        gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
     expect(_controllerOf(tester).text, 'hello there');
 
     // The composer still equals the sent body, so resolving the send clears
@@ -109,7 +100,8 @@ void main() {
     // Do NOT settle: the send is in flight (completer unresolved).
     await tester.pump();
 
-    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
+    expect(
+        gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
 
     // Simulate the user typing MORE text while the send is in flight by
     // writing directly to the composer controller (the TextField is

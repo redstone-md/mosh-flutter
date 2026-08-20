@@ -15,6 +15,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
+import '../../support/pump.dart';
 
 class _DelayedCaptureFactory implements VoiceCaptureFactory {
   final List<Completer<VoiceCaptureHandle>> starts = [];
@@ -60,23 +61,17 @@ Future<void> _pumpLayer(
   required AppLocalizations l,
   required void Function(String? message) onError,
 }) async {
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: VoiceCallLayer(
-            sessionId: sessionId,
-            l: l,
-            onVoiceCallError: onError,
-          ),
+  await pumpScreen(
+      tester,
+      Scaffold(
+        body: VoiceCallLayer(
+          sessionId: sessionId,
+          l: l,
+          onVoiceCallError: onError,
         ),
       ),
-    ),
-  );
-  await tester.pump();
+      container: container,
+      settle: false);
   await tester.pump(const Duration(milliseconds: 20));
 }
 

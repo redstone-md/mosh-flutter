@@ -11,6 +11,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/outgoing_call_modal.dart';
 import 'package:mosh/src/features/dm/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 class _RecordingRingtonePlayer implements RingtonePlayer {
   int startCount = 0;
@@ -42,16 +43,8 @@ Future<AppLocalizations> _l() =>
 Future<void> _pump(
   WidgetTester tester, {
   required OutgoingCallModal modal,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: modal),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+}) =>
+    pumpScreen(tester, Scaffold(body: modal));
 
 void main() {
   testWidgets(

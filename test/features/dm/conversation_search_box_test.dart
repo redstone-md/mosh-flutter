@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_search_box.dart';
+import '../../support/pump.dart';
 
 /// Hosts the box the way a screen does: the value lives in the parent and
 /// comes back down as a prop.
@@ -43,14 +44,8 @@ TextEditingController _controller(WidgetTester tester) =>
 void main() {
   final hostKey = GlobalKey<_HostState>();
 
-  Future<void> pumpBox(WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: _Host(key: hostKey)),
-    ));
-    await tester.pumpAndSettle();
-  }
+  Future<void> pumpBox(WidgetTester tester) =>
+      pumpScreen(tester, Scaffold(body: _Host(key: hostKey)));
 
   testWidgets('a rebuild with an unchanged query leaves the caret alone',
       (tester) async {

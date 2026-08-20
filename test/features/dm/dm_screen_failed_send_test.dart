@@ -12,7 +12,6 @@
 // second one through.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
@@ -21,6 +20,7 @@ import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 SessionSnapshot _snapshot({required String sessionId}) => SessionSnapshot(
       sessionId: sessionId,
@@ -46,21 +46,12 @@ Future<void> _pump(
   WidgetTester tester,
   ScriptableGateway gateway, {
   required String sessionId,
-}) async {
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
+}) =>
+    pumpScreen(tester, DmScreen(sessionId: sessionId), overrides: [
       gatewayProvider.overrideWithValue(gateway),
       activeSessionProvider(sessionId)
           .overrideWith((ref) async => _snapshot(sessionId: sessionId)),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: DmScreen(sessionId: sessionId),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+    ]);
 
 // The composer's TextField, scoped under [ConversationComposer] so it does
 // not collide with ConversationTools' search TextField (also a TextField).
@@ -75,7 +66,8 @@ void main() {
   testWidgets(
       'a thrown text send records the failure + banner + keeps the composer body',
       (tester) async {
-    final gateway = ScriptableGateway()..failNext(GatewayMethod.send, error: Exception('send boom'));
+    final gateway = ScriptableGateway()
+      ..failNext(GatewayMethod.send, error: Exception('send boom'));
     await _pump(tester, gateway, sessionId: sessionId);
 
     // Type a body into the composer and tap Send.
@@ -85,7 +77,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // The Gateway send was attempted once with the body.
-    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
+    expect(
+        gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there']);
 
     // The inline ChatError banner appears (Gap 3) with the error text.
     expect(find.textContaining('send boom'), findsOneWidget);
@@ -102,7 +95,8 @@ void main() {
 
   testWidgets('a successful retry clears the failure + banner + composer',
       (tester) async {
-    final gateway = ScriptableGateway()..failNext(GatewayMethod.send, error: Exception('send boom'));
+    final gateway = ScriptableGateway()
+      ..failNext(GatewayMethod.send, error: Exception('send boom'));
     await _pump(tester, gateway, sessionId: sessionId);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -120,7 +114,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // The Gateway saw two sends (the failed body, then the retry body).
-    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['hello there', 'hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.send, 'body'),
+        ['hello there', 'hello there']);
 
     // The banner + Retry are gone after a successful retry.
     expect(find.textContaining('send boom'), findsNothing);

@@ -11,15 +11,14 @@
 // `body`, `attachment.file_name`, `attachment.mime`).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/pump.dart';
 
 AttachmentDescriptor _fileDescriptor({
   required String attachmentId,
@@ -196,17 +195,9 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const GroupScreen(groupId: groupId),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester, const GroupScreen(groupId: groupId), overrides: [
+      groupSnapshotProvider(groupId).overrideWith((ref) async => snapshot),
+    ]);
 
     // Both messages render before any search.
     expect(find.text('hello'), findsOneWidget);

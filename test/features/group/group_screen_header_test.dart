@@ -16,12 +16,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/pump.dart';
 
 GroupMessage _msg({
   required String fromDevice,
@@ -82,18 +81,10 @@ Future<void> _pumpGroup(
   // narrow once the copy-invite button is added).
   await tester.binding.setSurfaceSize(const Size(1600, 1200));
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      groupSnapshotProvider(snapshot.groupId)
-          .overrideWith((ref) async => snapshot),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: GroupScreen(groupId: snapshot.groupId),
-    ),
-  ));
-  await tester.pumpAndSettle();
+  await pumpScreen(tester, GroupScreen(groupId: snapshot.groupId), overrides: [
+    groupSnapshotProvider(snapshot.groupId)
+        .overrideWith((ref) async => snapshot),
+  ]);
 }
 
 void main() {

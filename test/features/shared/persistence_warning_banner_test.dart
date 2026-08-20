@@ -9,12 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
-
-Widget _localized(Widget child) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+import '../../support/pump.dart';
 
 void main() {
   testWidgets('renders localized title + body for the unavailable branch',
@@ -23,9 +18,8 @@ void main() {
       kind: PersistenceWarningKind.unavailable,
       reason: 'no instance',
     );
-    await tester
-        .pumpWidget(_localized(PersistenceWarningBanner(warning: warning)));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester, Scaffold(body: PersistenceWarningBanner(warning: warning)));
 
     final l = AppLocalizations.of(
         tester.element(find.byType(PersistenceWarningBanner)))!;
@@ -43,9 +37,8 @@ void main() {
       kind: PersistenceWarningKind.error,
       reason: 'gateway exploded',
     );
-    await tester
-        .pumpWidget(_localized(PersistenceWarningBanner(warning: warning)));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester, Scaffold(body: PersistenceWarningBanner(warning: warning)));
 
     final l = AppLocalizations.of(
         tester.element(find.byType(PersistenceWarningBanner)))!;
@@ -63,9 +56,8 @@ void main() {
       kind: PersistenceWarningKind.unavailable,
       reason: 'no instance',
     );
-    await tester
-        .pumpWidget(_localized(PersistenceWarningBanner(warning: warning)));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester, Scaffold(body: PersistenceWarningBanner(warning: warning)));
 
     final l = AppLocalizations.of(
         tester.element(find.byType(PersistenceWarningBanner)))!;
@@ -91,9 +83,8 @@ void main() {
       kind: PersistenceWarningKind.unavailable,
       reason: null,
     );
-    await tester
-        .pumpWidget(_localized(PersistenceWarningBanner(warning: warning)));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester, Scaffold(body: PersistenceWarningBanner(warning: warning)));
 
     // The warning_amber icon renders; its ExcludeSemantics wrapper is the one
     // that is an ancestor of the icon (the MaterialApp/Scaffold add their own

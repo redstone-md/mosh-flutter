@@ -16,10 +16,7 @@
 //   3. Cancelling does NOT call `_leave` (no gateway leave call).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import '../../support/scriptable_gateway.dart';
@@ -27,6 +24,7 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import '../../support/pump.dart';
 
 ChannelSnapshot _emptySnapshot(String name) => ChannelSnapshot(
       name: name,
@@ -45,23 +43,11 @@ Future<void> _pump(WidgetTester tester, ScriptableGateway gateway,
     {required String name}) async {
   // Use the real appRouter so `context.go(AppRoutes.sessions)` after a
   // confirmed leave does not throw (mirrors `chat_create_screen_test.dart`).
-  final router = GoRouter(
-    initialLocation: AppRoutes.channelFor(name),
-    routes: appRouter.configuration.routes,
-  );
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      gatewayProvider.overrideWithValue(gateway),
-      channelSnapshotProvider(name)
-          .overrideWith((ref) async => _emptySnapshot(name)),
-    ],
-    child: MaterialApp.router(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      routerConfig: router,
-    ),
-  ));
-  await tester.pumpAndSettle();
+  await pumpRoute(tester, AppRoutes.channelFor(name), overrides: [
+    gatewayProvider.overrideWithValue(gateway),
+    channelSnapshotProvider(name)
+        .overrideWith((ref) async => _emptySnapshot(name)),
+  ]);
 }
 
 void main() {
@@ -84,8 +70,7 @@ void main() {
     expect(gateway.countOf(GatewayMethod.leave), 0);
   });
 
-  testWidgets('confirming calls leave (the real _leave)',
-      (tester) async {
+  testWidgets('confirming calls leave (the real _leave)', (tester) async {
     final gateway = ScriptableGateway();
     await _pump(tester, gateway, name: name);
 

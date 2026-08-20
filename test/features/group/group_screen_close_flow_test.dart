@@ -19,10 +19,7 @@
 //   4. Cancelling does NOT call `_leave` (no gateway leave call).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import '../../support/scriptable_gateway.dart';
@@ -30,6 +27,7 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import '../../support/pump.dart';
 
 GroupSnapshot _emptySnapshot({
   required String groupId,
@@ -64,23 +62,11 @@ Future<void> _pump(
 }) async {
   // Use the real appRouter so `context.go(AppRoutes.sessions)` after a
   // confirmed leave does not throw (mirrors `chat_create_screen_test.dart`).
-  final router = GoRouter(
-    initialLocation: AppRoutes.groupFor(groupId),
-    routes: appRouter.configuration.routes,
-  );
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      gatewayProvider.overrideWithValue(gateway),
-      groupSnapshotProvider(groupId)
-          .overrideWith((ref) async => _emptySnapshot(groupId: groupId, label: label)),
-    ],
-    child: MaterialApp.router(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      routerConfig: router,
-    ),
-  ));
-  await tester.pumpAndSettle();
+  await pumpRoute(tester, AppRoutes.groupFor(groupId), overrides: [
+    gatewayProvider.overrideWithValue(gateway),
+    groupSnapshotProvider(groupId).overrideWith(
+        (ref) async => _emptySnapshot(groupId: groupId, label: label)),
+  ]);
 }
 
 void main() {

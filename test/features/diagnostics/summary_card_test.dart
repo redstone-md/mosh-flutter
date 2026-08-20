@@ -12,11 +12,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/l10n/app_localizations_en.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/diagnostics/summary_card.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 MeshInfo _mesh({int peerCount = 1}) => MeshInfo(
       meshId: 'mesh-1',
@@ -56,16 +56,8 @@ SessionSnapshot _readySession() => SessionSnapshot(
       activeCall: null,
     );
 
-Future<void> _pump(WidgetTester tester, Widget child) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: Center(child: child)),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+Future<void> _pump(WidgetTester tester, Widget child) =>
+    pumpScreen(tester, Scaffold(body: Center(child: child)));
 
 void main() {
   group('SummaryCard - ready tone', () {
@@ -86,8 +78,7 @@ void main() {
       expect(find.text('Connected'), findsOneWidget);
       // Description is the ready-with-peers copy.
       expect(
-        find.text(
-            'MLS is ready and Moss sees at least one peer on this mesh.'),
+        find.text('MLS is ready and Moss sees at least one peer on this mesh.'),
         findsOneWidget,
       );
       // Fact labels are uppercased ("PEERS", "NAT", "RELAY").
@@ -102,7 +93,8 @@ void main() {
   });
 
   group('SummaryCard - idle tone', () {
-    testWidgets('renders the idle copy + Waiting state + none/paused/none facts',
+    testWidgets(
+        'renders the idle copy + Waiting state + none/paused/none facts',
         (tester) async {
       final l = AppLocalizationsEn();
       final sum = diagnosticsSummary(l: l, session: null);

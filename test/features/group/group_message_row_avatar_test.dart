@@ -14,6 +14,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/group/group_message_row.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
+import '../../support/pump.dart';
 
 GroupMessage _msg({
   required String fromDevice,
@@ -34,35 +35,31 @@ GroupMessage _msg({
       retryCount: null,
     );
 
-Widget _wrap(GroupMessageRow row) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: row),
-    );
-
 void main() {
   final l = lookupAppLocalizations(const Locale('en'));
 
   testWidgets(
       'non-grouped peer group row renders a CircleAvatar with peer initials',
       (tester) async {
-    await tester.pumpWidget(_wrap(GroupMessageRow(
-      message: _msg(
-        fromDevice: 'bob',
-        fromFingerprint: 'fp-bob',
-        body: 'hi',
-        sentAtMs: BigInt.from(1700000000000),
-      ),
-      ownFingerprint: 'fp-me',
-      grouped: false,
-      onAttachmentDownload: (_) {},
-      onAttachmentCancel: (_) {},
-      onAttachmentOpen: (_) {},
-      busy: false,
-      onRetry: (_) {},
-      l: l,
-    )));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: GroupMessageRow(
+          message: _msg(
+            fromDevice: 'bob',
+            fromFingerprint: 'fp-bob',
+            body: 'hi',
+            sentAtMs: BigInt.from(1700000000000),
+          ),
+          ownFingerprint: 'fp-me',
+          grouped: false,
+          onAttachmentDownload: (_) {},
+          onAttachmentCancel: (_) {},
+          onAttachmentOpen: (_) {},
+          busy: false,
+          onRetry: (_) {},
+          l: l,
+        )));
 
     expect(find.byType(CircleAvatar), findsOneWidget);
     expect(find.text(avatarInitials('bob')), findsOneWidget);
@@ -70,23 +67,25 @@ void main() {
 
   testWidgets('grouped peer group row renders NO CircleAvatar (spacer only)',
       (tester) async {
-    await tester.pumpWidget(_wrap(GroupMessageRow(
-      message: _msg(
-        fromDevice: 'bob',
-        fromFingerprint: 'fp-bob',
-        body: 'hi2',
-        sentAtMs: BigInt.from(1700000000000),
-      ),
-      ownFingerprint: 'fp-me',
-      grouped: true,
-      onAttachmentDownload: (_) {},
-      onAttachmentCancel: (_) {},
-      onAttachmentOpen: (_) {},
-      busy: false,
-      onRetry: (_) {},
-      l: l,
-    )));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: GroupMessageRow(
+          message: _msg(
+            fromDevice: 'bob',
+            fromFingerprint: 'fp-bob',
+            body: 'hi2',
+            sentAtMs: BigInt.from(1700000000000),
+          ),
+          ownFingerprint: 'fp-me',
+          grouped: true,
+          onAttachmentDownload: (_) {},
+          onAttachmentCancel: (_) {},
+          onAttachmentOpen: (_) {},
+          busy: false,
+          onRetry: (_) {},
+          l: l,
+        )));
 
     expect(find.byType(CircleAvatar), findsNothing);
   });
@@ -94,23 +93,25 @@ void main() {
   testWidgets(
       'non-grouped own group row renders a CircleAvatar with own initials',
       (tester) async {
-    await tester.pumpWidget(_wrap(GroupMessageRow(
-      message: _msg(
-        fromDevice: 'me',
-        fromFingerprint: 'fp-me',
-        body: 'mine',
-        sentAtMs: BigInt.from(1700000000000),
-      ),
-      ownFingerprint: 'fp-me',
-      grouped: false,
-      onAttachmentDownload: (_) {},
-      onAttachmentCancel: (_) {},
-      onAttachmentOpen: (_) {},
-      busy: false,
-      onRetry: (_) {},
-      l: l,
-    )));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: GroupMessageRow(
+          message: _msg(
+            fromDevice: 'me',
+            fromFingerprint: 'fp-me',
+            body: 'mine',
+            sentAtMs: BigInt.from(1700000000000),
+          ),
+          ownFingerprint: 'fp-me',
+          grouped: false,
+          onAttachmentDownload: (_) {},
+          onAttachmentCancel: (_) {},
+          onAttachmentOpen: (_) {},
+          busy: false,
+          onRetry: (_) {},
+          l: l,
+        )));
 
     expect(find.byType(CircleAvatar), findsOneWidget);
     expect(find.text(avatarInitials('me')), findsOneWidget);
