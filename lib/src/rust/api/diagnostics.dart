@@ -10,7 +10,7 @@ import '../persistence.dart';
 import '../secure_storage.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `persistence_status_without_instance`
+// These functions are ignored because they are not marked as `pub`: `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `panic_payload_to_string`, `persistence_status`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
 
 /// App-level identity diagnostics. One-shot query; owned `String` fields so
@@ -19,7 +19,8 @@ Future<AppDiagnostics> appDiagnostics() =>
     RustLib.instance.api.crateApiDiagnosticsAppDiagnostics();
 
 /// Per-runtime readiness diagnostics. Delegates to the mosh-core runtimes;
-/// persistence reports not-available because the api facade owns no DB handle.
+/// persistence reports the process-wide shared store (see
+/// [`persistence_status`]).
 Future<NativeRuntimeStatus> nativeRuntimeStatus() =>
     RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatus();
 

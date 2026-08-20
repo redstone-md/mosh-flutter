@@ -15,7 +15,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/dm_offers.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 
 /// The originating conversation kind for a pending DM offer. Mirrors React
@@ -49,10 +49,8 @@ class PendingDmOffer {
 /// lists are loading/error/empty. Order is channels-first-then-groups,
 /// matching React pendingOffers spread order.
 final pendingDmOffersProvider = Provider<List<PendingDmOffer>>((ref) {
-  final channels =
-      ref.watch(channelListProvider).value?.channels ?? const [];
-  final groups =
-      ref.watch(groupListProvider).value?.groups ?? const [];
+  final channels = ref.watch(channelListProvider).value?.channels ?? const [];
+  final groups = ref.watch(groupListProvider).value?.groups ?? const [];
   return [
     for (final channel in channels)
       for (final offer in channel.dmOffers)

@@ -6,7 +6,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/shared/attachment_media_src.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 
 AttachmentDescriptor _descriptor({
   required String attachmentId,

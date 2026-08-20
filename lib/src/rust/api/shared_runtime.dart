@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `construct_resources`, `resolve_data_dir`, `resolved_data_dir`
+// These functions are ignored because they are not marked as `pub`: `construct_resources`, `database_path`, `resolve_data_dir`, `resolved_data_dir`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
 
 /// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).

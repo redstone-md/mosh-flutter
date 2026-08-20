@@ -12,7 +12,7 @@
 // unit-testable without pumping a widget (the screen wiring stays thin).
 library;
 
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
 

@@ -5,26 +5,27 @@ use serde::{Deserialize, Serialize};
 
 use crate::attachment_crypto::sha256_hex;
 use crate::attachment_runtime::{
-    AttachmentManifest, AttachmentRuntime, ChunkFrame, ChunkOutcome, ChunkRequest,
-    OutgoingAttachment, StreamRange,
+    AttachmentManifest, ChunkFrame, ChunkRequest, OutgoingAttachment, StreamRange, VoiceMeta,
 };
 use crate::attachment_store::AttachmentStore;
-use crate::conversation::attachments::{descriptor_of, AttachmentSlots, SlotError};
+use crate::conversation::attachments::{
+    AttachmentDescriptor, AttachmentSendResult, AttachmentView, SlotError,
+};
 use crate::conversation::dedup::SeenFrames;
-use crate::conversation::dm_offers::DmOffers;
-use crate::conversation::history::{History, Restore};
-use crate::conversation::mesh;
+use crate::conversation::dm_offers::{DmOffer, DmOffers};
+use crate::conversation::history::Restore;
+use crate::conversation::mesh::{self, MeshInfo, SnapshotEvent};
 use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
+use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
+use crate::conversation::transfer::{Transfer, TransferError};
 use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{Persistence, CHANNEL_HISTORY};
-use crate::private_dm_runtime::{
-    AttachmentDescriptor, AttachmentSendResult, AttachmentView, DmOffer, MeshInfo, SnapshotEvent,
-    VoiceMeta,
-};
 use crate::shared_node::SharedMossNode;
 
+/// What a channel calls itself in a log line about its room.
+const KIND: &str = "channel";
 const TOPIC_PREFIX: &str = "public-channel/";
 const BLOB_PREFIX: &str = "channel-blob/";
 const MESH_PREFIX: &str = "channel/";
@@ -200,15 +201,12 @@ impl std::fmt::Display for ChannelRuntimeError {
 
 impl std::error::Error for ChannelRuntimeError {}
 
-impl From<crate::attachment_runtime::AttachmentRuntimeError> for ChannelRuntimeError {
-    fn from(error: crate::attachment_runtime::AttachmentRuntimeError) -> Self {
-        Self::Attachment(error.to_string())
-    }
-}
-
-impl From<crate::attachment_store::AttachmentStoreError> for ChannelRuntimeError {
-    fn from(error: crate::attachment_store::AttachmentStoreError) -> Self {
-        Self::Attachment(error.to_string())
+impl From<TransferError> for ChannelRuntimeError {
+    fn from(error: TransferError) -> Self {
+        match error {
+            TransferError::Bytes(message) => Self::Attachment(message),
+            TransferError::Slot(error) => error.into(),
+        }
     }
 }
 
@@ -235,10 +233,7 @@ pub struct ChannelRuntime {
     // it, not a node of its own — see `shared_node` for why more than one is
     // actively harmful.
     shared_node: Arc<SharedMossNode>,
-    attachment_store: Arc<AttachmentStore>,
-    persistence: Option<Arc<Persistence>>,
-    history: History,
-    channels: HashMap<String, ChannelSession>,
+    channels: ConversationRuntime<ChannelSession>,
 }
 
 struct ChannelSession {
@@ -253,9 +248,7 @@ struct ChannelSession {
     node: Arc<MossNode>,
     messages: MessageLog<ChannelMessage>,
     seen: SeenFrames,
-    attachment_store: Arc<AttachmentStore>,
-    attachments: AttachmentRuntime,
-    attachment_slots: AttachmentSlots,
+    transfer: Transfer,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     dm_offers: DmOffers,
 }
@@ -284,16 +277,11 @@ impl ChannelRuntime {
     ) -> Self {
         Self {
             shared_node,
-            attachment_store,
-            persistence,
-            history: History::new(CHANNEL_HISTORY),
-            channels: HashMap::new(),
+            channels: ConversationRuntime::new(attachment_store, persistence, CHANNEL_HISTORY),
         }
     }
 
     /// Take a reference to the shared node and put this channel's room on it.
-    /// Rolls the reference back if the room work fails, so a channel that never
-    /// opened cannot pin the node up forever.
     fn open_channel_room(
         &mut self,
         mesh_id: &str,
@@ -302,26 +290,19 @@ impl ChannelRuntime {
         listen_port: u16,
         static_peer: Option<String>,
     ) -> Result<Arc<MossNode>, ChannelRuntimeError> {
-        let node = self
-            .shared_node
-            .acquire(listen_port, static_peer)
-            .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))?;
-        if let Err(error) = join_channel_room(&node, mesh_id, topic, blob_topic) {
-            self.shared_node.release();
-            return Err(error);
-        }
-        Ok(node)
+        runtime::open_room(
+            &self.shared_node,
+            mesh_id,
+            &[topic.to_string(), blob_topic.to_string()],
+            listen_port,
+            static_peer,
+        )
+        .map_err(ChannelRuntimeError::Moss)
     }
 
     /// Restore joined public channels and local scrollback from encrypted disk.
     pub fn rehydrate(&mut self) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        for rec in self
-            .history
-            .stored_conversations::<PersistedChannelSession>(&p)
-        {
+        for rec in self.channels.stored_records::<PersistedChannelSession>() {
             let node = match self.open_channel_room(
                 &rec.mesh_id,
                 &rec.topic,
@@ -352,20 +333,16 @@ impl ChannelRuntime {
                 node,
                 messages: MessageLog::default(),
                 seen: SeenFrames::default(),
-                attachment_store: Arc::clone(&self.attachment_store),
-                attachments: AttachmentRuntime::new(),
-                attachment_slots: AttachmentSlots::default(),
+                transfer: Transfer::new(Arc::clone(self.channels.attachment_store())),
                 outbound_attempts: HashMap::new(),
                 dm_offers: DmOffers::default(),
             };
-            self.history.replay(
-                &p,
+            self.channels.replay(
                 &rec.name,
                 Restore {
                     log: &mut session.messages,
                     attempts: &mut session.outbound_attempts,
-                    slots: &mut session.attachment_slots,
-                    attachment_store: &self.attachment_store,
+                    transfer: &mut session.transfer,
                     local_author: &rec.device_fingerprint,
                 },
             );
@@ -378,7 +355,7 @@ impl ChannelRuntime {
         request: JoinChannelRequest,
     ) -> Result<ChannelSnapshot, ChannelRuntimeError> {
         let normalized = normalize_name(&request.name)?;
-        if self.channels.contains_key(&normalized) {
+        if self.channels.holds(&normalized) {
             return Err(ChannelRuntimeError::DuplicateChannel(normalized));
         }
         let listen_port = request.listen_port;
@@ -410,15 +387,13 @@ impl ChannelRuntime {
             node,
             messages: MessageLog::default(),
             seen: SeenFrames::default(),
-            attachment_store: Arc::clone(&self.attachment_store),
-            attachments: AttachmentRuntime::new(),
-            attachment_slots: AttachmentSlots::default(),
+            transfer: Transfer::new(Arc::clone(self.channels.attachment_store())),
             outbound_attempts: HashMap::new(),
             dm_offers: DmOffers::default(),
         };
 
         self.channels.insert(normalized.clone(), session);
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         self.poll(&normalized)
     }
 
@@ -466,14 +441,15 @@ impl ChannelRuntime {
         let normalized = normalize_name(name)?;
         match self.channels.remove(&normalized) {
             Some(session) => {
-                // On a shared node dropping the session no longer ends its
-                // subscriptions — the node lives on for the other channels, so
-                // leaving has to be said out loud or a left channel keeps
-                // receiving.
-                leave_channel_room(&session);
-                self.shared_node.release();
-                self.history.forget(&normalized);
-                if let Some(p) = self.persistence.as_ref() {
+                runtime::close_room(
+                    &self.shared_node,
+                    &session.node,
+                    &session.mesh_id,
+                    &[session.topic.clone(), session.blob_topic.clone()],
+                    &format!("{KIND} {normalized}"),
+                );
+                self.channels.forget(&normalized);
+                if let Some(p) = self.channels.persistence() {
                     if let Err(error) = p.delete_channel(&normalized) {
                         eprintln!("failed to delete persisted channel {normalized}: {error}");
                     }
@@ -527,7 +503,7 @@ impl ChannelRuntime {
             (channel_name, topic, prepared)
         };
         let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         Ok(result)
     }
 
@@ -547,7 +523,7 @@ impl ChannelRuntime {
             (session.name.clone(), session.topic.clone(), prepared)
         };
         let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         Ok(result)
     }
 
@@ -561,7 +537,8 @@ impl ChannelRuntime {
         channel_name: String,
         prepared: Prepared,
     ) -> Result<ChannelSendResult, ChannelRuntimeError> {
-        self.persist_outbound_state(normalized, &prepared.message_id);
+        self.channels
+            .persist_send(normalized, &prepared.message_id, false);
         let publish = {
             let session = self
                 .channels
@@ -583,7 +560,8 @@ impl ChannelRuntime {
                 OnSent::Forget,
             )?
         };
-        self.persist_outbound_state(normalized, &prepared.message_id);
+        self.channels
+            .persist_send(normalized, &prepared.message_id, false);
         Ok(ChannelSendResult {
             name: channel_name,
             bytes: prepared.ciphertext_bytes,
@@ -612,7 +590,7 @@ impl ChannelRuntime {
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         Ok(result)
     }
 
@@ -627,9 +605,7 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        session
-            .attachment_slots
-            .start_download(attachment_id, &mut session.attachments)?;
+        session.transfer.start_download(attachment_id)?;
         session.pump_attachment_requests();
         Ok(())
     }
@@ -644,9 +620,7 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        Ok(session
-            .attachment_slots
-            .cancel(attachment_id, &mut session.attachments)?)
+        Ok(session.transfer.cancel(attachment_id)?)
     }
 
     /// Serves a byte range for streaming playback of a channel attachment.
@@ -663,17 +637,14 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        session
-            .attachment_slots
-            .resume_for_stream(attachment_id, &mut session.attachments);
-        let outcome = session.attachments.stream_range(attachment_id, start, end);
+        let outcome = session.transfer.stream_range(attachment_id, start, end);
         session.pump_attachment_requests();
         Ok(outcome)
     }
 
     pub fn poll(&mut self, name: &str) -> Result<ChannelSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         let normalized = normalize_name(name)?;
         let session = self
             .channels
@@ -684,7 +655,7 @@ impl ChannelRuntime {
 
     pub fn list(&mut self) -> Result<ChannelListSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
-        self.persist_channel_tail();
+        self.channels.persist_tail();
         let mut channels: Vec<ChannelSnapshot> = self
             .channels
             .values()
@@ -715,37 +686,35 @@ impl ChannelRuntime {
         }
         Ok(())
     }
+}
 
-    fn persist_channel_tail(&mut self) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        for session in self.channels.values() {
-            self.history
-                .write_tail(&p, &session.name, &session.messages);
-            self.history
-                .write_record(&p, &session.name, &session.to_persisted_record());
-        }
+impl ConversationSession for ChannelSession {
+    type Message = ChannelMessage;
+    type Record = PersistedChannelSession;
+
+    fn conversation_id(&self) -> &str {
+        &self.name
     }
 
-    fn persist_outbound_state(&mut self, name: &str, message_id: &str) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        let Some(session) = self.channels.get(name) else {
-            return;
-        };
-        if !self.history.write_send(
-            &p,
-            name,
-            message_id,
-            &session.messages,
-            &session.outbound_attempts,
-        ) {
-            return;
+    fn log(&self) -> &MessageLog<ChannelMessage> {
+        &self.messages
+    }
+
+    fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
+        &self.outbound_attempts
+    }
+
+    fn record(&self) -> PersistedChannelSession {
+        PersistedChannelSession {
+            name: self.name.clone(),
+            topic: self.topic.clone(),
+            blob_topic: self.blob_topic.clone(),
+            mesh_id: self.mesh_id.clone(),
+            display_name: self.display_name.clone(),
+            device_fingerprint: self.device_fingerprint.clone(),
+            listen_port: self.listen_port,
+            static_peer: self.static_peer.clone(),
         }
-        self.history
-            .write_record(&p, name, &session.to_persisted_record());
     }
 }
 
@@ -763,19 +732,6 @@ impl ChannelSession {
     /// step of a send.
     fn outbox(&mut self) -> Outbox<'_, ChannelMessage> {
         Outbox::new(&mut self.messages, &mut self.outbound_attempts)
-    }
-
-    fn to_persisted_record(&self) -> PersistedChannelSession {
-        PersistedChannelSession {
-            name: self.name.clone(),
-            topic: self.topic.clone(),
-            blob_topic: self.blob_topic.clone(),
-            mesh_id: self.mesh_id.clone(),
-            display_name: self.display_name.clone(),
-            device_fingerprint: self.device_fingerprint.clone(),
-            listen_port: self.listen_port,
-            static_peer: self.static_peer.clone(),
-        }
     }
 
     fn handle_message(&mut self, message: MossReceivedMessage) -> Result<(), ChannelRuntimeError> {
@@ -815,11 +771,7 @@ impl ChannelSession {
                 from_fingerprint,
                 request,
             } if from_fingerprint != self.device_fingerprint => {
-                let frames = match self.attachments.serve_chunks(&request) {
-                    Ok(frames) => frames,
-                    Err(_) => return Ok(()),
-                };
-                for frame in frames {
+                for frame in self.transfer.serve(&request) {
                     let chunk = ChannelBlobEnvelope::Chunk {
                         from_fingerprint: self.device_fingerprint.clone(),
                         frame,
@@ -835,29 +787,7 @@ impl ChannelSession {
             ChannelBlobEnvelope::Chunk {
                 from_fingerprint,
                 frame,
-            } if from_fingerprint != self.device_fingerprint => {
-                let attachment_id = frame.attachment_id.clone();
-                let file_name = self.attachment_slots.file_name(&attachment_id);
-                match self.attachments.ingest_chunk(&frame) {
-                    Ok(ChunkOutcome::Complete {
-                        content_hash,
-                        bytes,
-                        ..
-                    }) => {
-                        let path =
-                            self.attachment_store
-                                .write_blob(&content_hash, &file_name, &bytes)?;
-                        self.attachment_slots
-                            .complete_download(&attachment_id, path.to_string_lossy().into_owned());
-                        Ok(())
-                    }
-                    Ok(_) => Ok(()),
-                    Err(_) => {
-                        self.attachment_slots.fail(&attachment_id);
-                        Ok(())
-                    }
-                }
-            }
+            } if from_fingerprint != self.device_fingerprint => Ok(self.transfer.ingest(&frame)?),
             _ => Ok(()),
         }
     }
@@ -868,13 +798,9 @@ impl ChannelSession {
         from_fingerprint: String,
         manifest: AttachmentManifest,
     ) -> Result<(), ChannelRuntimeError> {
-        let attachment_id = manifest.attachment_id.clone();
-        if self.attachment_slots.contains(&attachment_id) {
+        let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
             return Ok(());
-        }
-        let descriptor = descriptor_of(&manifest);
-        self.attachments.register_incoming(manifest)?;
-        self.attachment_slots.offer(descriptor.clone());
+        };
         let message = self.messages.stamp(ChannelMessage {
             from_device,
             from_fingerprint,
@@ -900,35 +826,29 @@ impl ChannelSession {
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
         let attachment_id = format!("attachment-{}", &sha256_hex(&bytes)[..16]);
-        if self.attachment_slots.contains(&attachment_id) {
+        if self.transfer.holds(&attachment_id) {
             return Err(ChannelRuntimeError::Attachment(
                 "attachment already shared on this channel".to_string(),
             ));
         }
-        let manifest = self.attachments.prepare_outgoing(OutgoingAttachment {
+        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
             from_fingerprint: self.device_fingerprint.clone(),
-            bytes: bytes.clone(),
+            bytes,
             thumbnail_b64: thumbnail,
             voice,
         })?;
-        let stored = self.attachment_store.write_blob(
-            &manifest.content_hash,
-            &manifest.file_name,
-            &bytes,
-        )?;
+        let content_hash = outgoing.manifest.content_hash.clone();
         let envelope = ChannelBlobEnvelope::Manifest {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
-            manifest: manifest.clone(),
+            manifest: outgoing.manifest.clone(),
         };
         publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope)?;
 
-        let descriptor = descriptor_of(&manifest);
-        self.attachment_slots
-            .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
+        let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(ChannelMessage {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
@@ -943,21 +863,19 @@ impl ChannelSession {
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {
-            session_id: self.name.clone(),
+            conversation_id: self.name.clone(),
             attachment_id,
-            content_hash: manifest.content_hash,
+            content_hash,
         })
     }
 
     fn pump_attachment_requests(&mut self) {
-        for attachment_id in self.attachment_slots.awaiting_chunks() {
-            if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
-                let envelope = ChannelBlobEnvelope::Request {
-                    from_fingerprint: self.device_fingerprint.clone(),
-                    request,
-                };
-                let _ = publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope);
-            }
+        for request in self.transfer.next_requests() {
+            let envelope = ChannelBlobEnvelope::Request {
+                from_fingerprint: self.device_fingerprint.clone(),
+                request,
+            };
+            let _ = publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope);
         }
     }
 
@@ -969,45 +887,11 @@ impl ChannelSession {
             display_name: self.display_name.clone(),
             device_fingerprint: self.device_fingerprint.clone(),
             messages: self.messages.to_vec(),
-            attachments: self.attachment_slots.views(&self.attachments),
+            attachments: self.transfer.views(),
             dm_offers: self.dm_offers.to_vec(),
             mesh: mesh::mesh_info(&self.node),
             events: mesh::snapshot_events(),
         }
-    }
-}
-
-/// Puts a channel's room on the shared node and subscribes its two topics
-/// there. Wire-identical to what a node owning that room published before, so a
-/// consolidated client still talks to every already-released one.
-fn join_channel_room(
-    node: &MossNode,
-    mesh_id: &str,
-    topic: &str,
-    blob_topic: &str,
-) -> Result<(), ChannelRuntimeError> {
-    node.join_room(mesh_id)
-        .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))?;
-    for channel in [topic, blob_topic] {
-        node.subscribe_room(mesh_id, channel)
-            .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))?;
-    }
-    Ok(())
-}
-
-/// The inverse of `join_channel_room`. Unsubscribe first, then forget the key:
-/// leaving first would strand subscriptions that can no longer resolve.
-fn leave_channel_room(session: &ChannelSession) {
-    for channel in [&session.topic, &session.blob_topic] {
-        if let Err(error) = session.node.unsubscribe_room(&session.mesh_id, channel) {
-            eprintln!(
-                "channel {} could not unsubscribe {channel}: {error}",
-                session.name
-            );
-        }
-    }
-    if let Err(error) = session.node.leave_room(&session.mesh_id) {
-        eprintln!("channel {} could not leave its room: {error}", session.name);
     }
 }
 
@@ -1119,14 +1003,15 @@ mod tests {
 
         // One node, not two. Two would present the same peer id from two ports
         // and a remote peer would keep only the first.
-        let first = Arc::as_ptr(&channels.channels["shared-one"].node);
-        let second = Arc::as_ptr(&channels.channels["shared-two"].node);
+        let one = channels.channels.get("shared-one").expect("first channel");
+        let two = channels.channels.get("shared-two").expect("second channel");
         assert_eq!(
-            first, second,
+            Arc::as_ptr(&one.node),
+            Arc::as_ptr(&two.node),
             "two joined channels started two moss nodes under one identity"
         );
         assert_ne!(
-            channels.channels["shared-one"].mesh_id, channels.channels["shared-two"].mesh_id,
+            one.mesh_id, two.mesh_id,
             "channels must stay in separate rooms on the shared node"
         );
 

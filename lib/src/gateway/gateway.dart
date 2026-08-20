@@ -18,6 +18,7 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
@@ -116,13 +117,17 @@ abstract interface class Gateway {
   /// target peer. [dismissDmOffer] clears a received offer; this is the
   /// outbound send side.
   Future<void> sendChannelDmOffer(
-      {required String channelName, required String peerFingerprint, required String inviteUri});
+      {required String channelName,
+      required String peerFingerprint,
+      required String inviteUri});
 
   /// Peer-DM-from-group seam. Same as `sendChannelDmOffer` but for a private
   /// group -- `use-dm-offers.ts:54` branches on `target.type === "group"` and
   /// calls this with the group id.
   Future<void> sendGroupDmOffer(
-      {required String groupId, required String peerFingerprint, required String inviteUri});
+      {required String groupId,
+      required String peerFingerprint,
+      required String inviteUri});
 
   // Org surface (1:1 port of the org_* Tauri commands). The org runtime
   // is a container (members + DM/group offers), not a chat. joinOrg is the

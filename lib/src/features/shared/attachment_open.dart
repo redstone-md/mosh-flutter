@@ -3,7 +3,7 @@
 // platform side effect.
 library;
 
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 
 sealed class AttachmentOpenIntent {
   const AttachmentOpenIntent();

@@ -13,10 +13,10 @@ use std::ops::Deref;
 
 use serde::Serialize;
 
+use super::attachments::AttachmentDescriptor;
 use super::now_ms;
 use crate::message_id::MessageIdGen;
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus};
-use crate::private_dm_runtime::AttachmentDescriptor;
 
 /// What a conversation runtime needs from a message to keep a log of them.
 pub trait ConversationMessage: Clone + Serialize {

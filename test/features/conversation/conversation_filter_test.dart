@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor;
 
 import '../../support/conversation_cases.dart';

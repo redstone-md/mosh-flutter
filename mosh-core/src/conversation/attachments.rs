@@ -13,8 +13,60 @@
 
 use std::collections::HashMap;
 
-use crate::attachment_runtime::{AttachmentManifest, AttachmentRuntime, CHUNK_SIZE};
-use crate::private_dm_runtime::{AttachmentDescriptor, AttachmentState, AttachmentView};
+use serde::{Deserialize, Serialize};
+
+use crate::attachment_runtime::{AttachmentManifest, AttachmentRuntime, VoiceMeta, CHUNK_SIZE};
+
+/// Immutable attachment metadata stamped onto the message log. Mutable
+/// transfer state is reported separately through [`AttachmentView`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttachmentDescriptor {
+    pub attachment_id: String,
+    pub content_hash: String,
+    pub file_name: String,
+    pub mime: String,
+    pub total_size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thumbnail_b64: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice: Option<VoiceMeta>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachmentState {
+    /// Bytes are on disk locally (sender's own file, or a finished download).
+    Available,
+    /// Manifest known, download not started yet.
+    Offered,
+    /// Chunks are in flight.
+    Downloading,
+    /// Transfer or verification failed; a retry is possible.
+    Failed,
+    /// Either side cancelled the transfer.
+    Cancelled,
+}
+
+/// Live transfer state for one attachment, recomputed on every snapshot.
+#[derive(Debug, Clone, Serialize)]
+pub struct AttachmentView {
+    pub attachment_id: String,
+    pub direction: String,
+    pub state: AttachmentState,
+    pub completed_chunks: u64,
+    pub chunk_count: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_path: Option<String>,
+}
+
+/// What a kind answers when the user sends a file. The conversation is named
+/// the way its own kind names one: a DM session id, a group id, a channel name.
+#[derive(Debug, Clone, Serialize)]
+pub struct AttachmentSendResult {
+    pub conversation_id: String,
+    pub attachment_id: String,
+    pub content_hash: String,
+}
 
 /// Shown for a chunk that arrives before its manifest, so the bytes still get
 /// a name on disk.

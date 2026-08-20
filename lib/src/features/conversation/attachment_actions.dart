@@ -10,7 +10,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 
 /// The ACTIONS ROW, ported 1:1 from React's `<div className="attachment-actions">`.
 /// At most ONE `IconButton` renders, gated on `state` + `outgoing` (the

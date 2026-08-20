@@ -3,20 +3,19 @@ mod invite;
 mod relay;
 mod wire;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::mpsc;
 use std::sync::Arc;
 
 pub use crate::attachment_runtime::VoiceMeta;
-use crate::attachment_runtime::{
-    AttachmentManifest, AttachmentRuntime, ChunkOutcome, OutgoingAttachment, StreamRange,
-};
+use crate::attachment_runtime::{AttachmentManifest, OutgoingAttachment, StreamRange};
 use crate::attachment_store::AttachmentStore;
-use crate::conversation::attachments::{descriptor_of, AttachmentSlots};
 use crate::conversation::dedup::SeenFrames;
-use crate::conversation::history::{History, Restore};
+use crate::conversation::history::Restore;
 use crate::conversation::message_log::MessageLog;
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
+use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
+use crate::conversation::transfer::Transfer;
 use crate::conversation::{decode, encode, now_ms};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
@@ -34,6 +33,9 @@ use wire::{
     blob_channel, channel_session_id, control_channel, data_channel, decode_json,
     voice_call_channel, BlobEnvelope, ControlEnvelope, DataEnvelope,
 };
+
+/// What a DM calls itself in a log line about its room.
+const KIND: &str = "dm";
 
 // Minimum gap between MLS handshake control re-publishes. The KeyPackage and
 // Welcome exchange is a one-shot publish, but gossip does not buffer for a peer
@@ -160,13 +162,7 @@ use crate::shared_node::SharedMossNode;
 
 pub struct PrivateDmRuntime {
     moss: Arc<MossFfiRuntime>,
-    attachment_store: Arc<AttachmentStore>,
-    persistence: Option<Arc<Persistence>>,
-    history: History,
-    // Sessions whose persisted record already carries a valid (non-empty)
-    // group_id, so the tail-persist loop refreshes each record only once.
-    finalized_session_records: HashSet<String>,
-    sessions: HashMap<String, PrivateDmSession>,
+    sessions: ConversationRuntime<PrivateDmSession>,
     relay_ref: relay::RelayRef,
     relay: Option<relay::RelayHandle>,
     // Outcomes reported by relay send workers. A release→re-acquire cycle can
@@ -245,9 +241,7 @@ struct PrivateDmSession {
     control_channel: String,
     data_channel: String,
     blob_channel: String,
-    attachment_store: Arc<AttachmentStore>,
-    attachments: AttachmentRuntime,
-    attachment_slots: AttachmentSlots,
+    transfer: Transfer,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     call: Option<CallState>,
     // MLS handshake retransmit state. Bob keeps his published KeyPackage here
@@ -318,11 +312,7 @@ impl PrivateDmRuntime {
     ) -> Self {
         Self {
             moss: Arc::clone(shared_node.moss()),
-            attachment_store,
-            persistence,
-            history: History::new(DM_HISTORY),
-            finalized_session_records: HashSet::new(),
-            sessions: HashMap::new(),
+            sessions: ConversationRuntime::new(attachment_store, persistence, DM_HISTORY),
             relay_ref: relay::RelayRef::default(),
             relay: None,
             relay_results: Vec::new(),
@@ -331,22 +321,23 @@ impl PrivateDmRuntime {
         }
     }
 
-    /// Bring the shared node up on first demand and take a reference to it;
-    /// later sessions get the same handle.
-    fn ensure_dm_node(
+    /// Bring the shared node up on first demand and put this session's room on
+    /// it, subscribing its three channels.
+    fn open_dm_room(
         &mut self,
+        mesh_id: &str,
+        session_id: &str,
         listen_port: u16,
         static_peer: Option<String>,
     ) -> Result<Arc<MossNode>, PrivateDmRuntimeError> {
-        self.shared_node
-            .acquire(listen_port, static_peer)
-            .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
-    }
-
-    /// Drop this session's reference; the last one takes the node down, which
-    /// stops moss (MossNode::drop → Moss_Stop).
-    fn release_dm_node(&mut self) {
-        self.shared_node.release();
+        runtime::open_room(
+            &self.shared_node,
+            mesh_id,
+            &session_channels(session_id),
+            listen_port,
+            static_peer,
+        )
+        .map_err(PrivateDmRuntimeError::Moss)
     }
 
     /// Bring the shared relay node (and its send worker) up on first demand
@@ -384,12 +375,12 @@ impl PrivateDmRuntime {
     /// Rebuild sessions + history from the encrypted store. Best-effort: a bad
     /// row is skipped, never fatal.
     pub fn rehydrate(&mut self) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
+        let Some(p) = self.sessions.persistence().cloned() else {
             return;
         };
         for rec in self
-            .history
-            .stored_conversations::<contracts::PersistedSession>(&p)
+            .sessions
+            .stored_records::<contracts::PersistedSession>()
         {
             let snapshot = match p.get_mls_snapshot(&rec.session_id) {
                 Ok(Some(s)) => s,
@@ -413,18 +404,18 @@ impl PrivateDmRuntime {
                     continue;
                 }
             };
-            let node = match self.ensure_dm_node(rec.listen_port, rec.static_peer.clone()) {
+            let node = match self.open_dm_room(
+                &rec.mesh_id,
+                &rec.session_id,
+                rec.listen_port,
+                rec.static_peer.clone(),
+            ) {
                 Ok(n) => n,
                 Err(e) => {
                     eprintln!("rehydrate: node start failed for {}: {e}", rec.session_id);
                     continue;
                 }
             };
-            if let Err(e) = join_session(&node, &rec.mesh_id, &rec.session_id) {
-                eprintln!("rehydrate: join failed for {}: {e}", rec.session_id);
-                self.release_dm_node();
-                continue;
-            }
             let mut session = PrivateDmSession::new(
                 if rec.role_is_alice {
                     SessionRole::Alice
@@ -441,20 +432,18 @@ impl PrivateDmRuntime {
                 rec.static_peer.clone(),
                 node,
                 crypto,
-                Arc::clone(&self.attachment_store),
+                Arc::clone(self.sessions.attachment_store()),
             );
             // Without this the restored session falls back to "any peer is my
             // peer", which on the shared substrate means it reports the
             // counterpart online whenever ANY world peer is connected.
             session.peer_moss_id = rec.peer_moss_id.clone();
-            self.history.replay(
-                &p,
+            self.sessions.replay(
                 &rec.session_id,
                 Restore {
                     log: &mut session.messages,
                     attempts: &mut session.outbound_attempts,
-                    slots: &mut session.attachment_slots,
-                    attachment_store: &self.attachment_store,
+                    transfer: &mut session.transfer,
                     local_author: &rec.display_name,
                 },
             );
@@ -470,8 +459,7 @@ impl PrivateDmRuntime {
                 session.peer_joined = true;
             }
             // The loaded record already has a valid group_id; don't rewrite it.
-            self.finalized_session_records
-                .insert(rec.session_id.clone());
+            self.sessions.mark_record_final(&rec.session_id);
             self.sessions.insert(rec.session_id.clone(), session);
         }
     }
@@ -488,11 +476,12 @@ impl PrivateDmRuntime {
         let mesh_id = crypto.random_token("mesh")?;
         let participant_id = crypto.random_token("participant")?;
         let fingerprint = crypto.fingerprint();
-        let node = self.ensure_dm_node(request.listen_port, request.static_peer)?;
-        if let Err(error) = join_session(&node, &mesh_id, &session_id) {
-            self.release_dm_node();
-            return Err(error);
-        }
+        let node = self.open_dm_room(
+            &mesh_id,
+            &session_id,
+            request.listen_port,
+            request.static_peer,
+        )?;
         // Embed our moss peer id so a hard-NAT joiner can relay-send the MLS
         // handshake before any direct window exists (identity is per-device,
         // so the per-DM node id equals our relay-mesh id).
@@ -515,22 +504,14 @@ impl PrivateDmRuntime {
             persist_static_peer.clone(),
             node,
             crypto,
-            Arc::clone(&self.attachment_store),
+            Arc::clone(self.sessions.attachment_store()),
         );
 
         self.sessions.insert(session_id.clone(), session);
 
         // Alice's group exists from create_group(), so the record is final the
         // moment it is written.
-        if let Some(p) = self.persistence.as_ref() {
-            if let Some(session) = self.sessions.get(&session_id) {
-                if let Ok(json) = serde_json::to_vec(&session.to_persisted_record()) {
-                    let _ = p.put_session(&session.session_id, &json);
-                    let _ = p.put_mls_snapshot(&session.session_id, &session.crypto.snapshot());
-                    self.finalized_session_records.insert(session_id.clone());
-                }
-            }
-        }
+        self.sessions.persist_record(&session_id, true);
 
         Ok(InviteCreated {
             invite_uri,
@@ -546,7 +527,7 @@ impl PrivateDmRuntime {
         request: AcceptInviteRequest,
     ) -> Result<SessionSnapshot, PrivateDmRuntimeError> {
         let invite = ParsedInvite::parse(&request.invite_uri)?;
-        if self.sessions.contains_key(&invite.session_id) {
+        if self.sessions.holds(&invite.session_id) {
             return Err(PrivateDmRuntimeError::DuplicateSession(invite.session_id));
         }
         let persist_listen_port = request.listen_port;
@@ -554,11 +535,12 @@ impl PrivateDmRuntime {
         let participant_id = crypto.random_token("participant")?;
         let key_package = crypto.key_package_bytes()?;
         let persist_static_peer = request.static_peer.clone().or(invite.peer_address.clone());
-        let node = self.ensure_dm_node(request.listen_port, persist_static_peer.clone())?;
-        if let Err(error) = join_session(&node, &invite.mesh_id, &invite.session_id) {
-            self.release_dm_node();
-            return Err(error);
-        }
+        let node = self.open_dm_room(
+            &invite.mesh_id,
+            &invite.session_id,
+            request.listen_port,
+            persist_static_peer.clone(),
+        )?;
         let envelope = ControlEnvelope::KeyPackage {
             session_id: invite.session_id.clone(),
             participant_id: participant_id.clone(),
@@ -596,7 +578,7 @@ impl PrivateDmRuntime {
             persist_static_peer.clone(),
             node,
             crypto,
-            Arc::clone(&self.attachment_store),
+            Arc::clone(self.sessions.attachment_store()),
         );
         // Pre-seed the creator's moss id from the invite so route_send can
         // relay the handshake even if no direct window ever opens; a later
@@ -614,15 +596,9 @@ impl PrivateDmRuntime {
 
         // Bob has no MLS group until he processes Alice's Welcome, so this
         // record carries an empty group_id placeholder. It is intentionally NOT
-        // finalized here; persist_session_tail refreshes it once the group
-        // exists so rehydrate can load it after a restart.
-        if let Some(p) = self.persistence.as_ref() {
-            if let Some(session) = self.sessions.get(&session_id) {
-                if let Ok(json) = serde_json::to_vec(&session.to_persisted_record()) {
-                    let _ = p.put_session(&session.session_id, &json);
-                }
-            }
-        }
+        // final here; persist_session_tail refreshes it once the group exists
+        // so rehydrate can load it after a restart.
+        self.sessions.persist_record(&session_id, false);
 
         self.poll_session(&session_id)
     }
@@ -665,7 +641,7 @@ impl PrivateDmRuntime {
                 .open(message, owned_session_id, payload, ciphertext.len())?
         };
         let result = self.route_prepared(session_id, prepared, true)?;
-        self.persist_session_tail();
+        self.sessions.persist_tail();
         Ok(result)
     }
 
@@ -702,7 +678,8 @@ impl PrivateDmRuntime {
         prepared: Prepared,
         persist_snapshot: bool,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
-        self.persist_outbound_state(session_id, &prepared.message_id, persist_snapshot);
+        self.sessions
+            .persist_send(session_id, &prepared.message_id, persist_snapshot);
         let publish = {
             // Disjoint field borrows: `relay` reads only the field, so it
             // coexists with the immutable session borrow taken by `session_ref`.
@@ -736,7 +713,8 @@ impl PrivateDmRuntime {
             };
             (session.session_id.clone(), session.state(), status, error)
         };
-        self.persist_outbound_state(session_id, &prepared.message_id, false);
+        self.sessions
+            .persist_send(session_id, &prepared.message_id, false);
         Ok(SendMessageResult {
             session_id: session_id_owned,
             state,
@@ -784,9 +762,7 @@ impl PrivateDmRuntime {
             .sessions
             .get_mut(session_id)
             .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        session
-            .attachment_slots
-            .start_download(attachment_id, &mut session.attachments)?;
+        session.transfer.start_download(attachment_id)?;
         session.pump_attachment_requests(relay);
         Ok(())
     }
@@ -797,9 +773,7 @@ impl PrivateDmRuntime {
         attachment_id: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         let session = self.session_mut(session_id)?;
-        Ok(session
-            .attachment_slots
-            .cancel(attachment_id, &mut session.attachments)?)
+        Ok(session.transfer.cancel(attachment_id)?)
     }
 
     /// Serves a byte range for streaming playback, fetching the region ahead
@@ -819,10 +793,7 @@ impl PrivateDmRuntime {
             .sessions
             .get_mut(session_id)
             .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        session
-            .attachment_slots
-            .resume_for_stream(attachment_id, &mut session.attachments);
-        let outcome = session.attachments.stream_range(attachment_id, start, end);
+        let outcome = session.transfer.stream_range(attachment_id, start, end);
         session.pump_attachment_requests(relay);
         Ok(outcome)
     }
@@ -880,11 +851,13 @@ impl PrivateDmRuntime {
     ) -> Result<CloseSessionResult, PrivateDmRuntimeError> {
         match self.sessions.remove(session_id) {
             Some(session) => {
-                // Dropping the session no longer ends its subscriptions: the
-                // node outlives it now. Say so explicitly, or a closed
-                // conversation keeps receiving on the shared node forever.
-                leave_session(&session.node, &session.mesh_id, &session.session_id);
-                self.release_dm_node();
+                runtime::close_room(
+                    &self.shared_node,
+                    &session.node,
+                    &session.mesh_id,
+                    &session_channels(&session.session_id),
+                    &format!("{KIND} {session_id}"),
+                );
                 // A relayed session holds a ref on the shared relay node; drop
                 // it so the node's refcount stays accurate and it can stop once
                 // the last relayed DM closes.
@@ -893,9 +866,8 @@ impl PrivateDmRuntime {
                 }
                 // Purge persisted state too, otherwise the conversation
                 // re-appears on the next launch via rehydrate.
-                self.history.forget(session_id);
-                self.finalized_session_records.remove(session_id);
-                if let Some(p) = self.persistence.as_ref() {
+                self.sessions.forget(session_id);
+                if let Some(p) = self.sessions.persistence() {
                     if let Err(error) = p.delete_session(session_id) {
                         eprintln!("failed to delete persisted session {session_id}: {error}");
                     }
@@ -968,9 +940,9 @@ impl PrivateDmRuntime {
             }
         }
         for (session_id, message_id) in dirty {
-            self.persist_outbound_state(&session_id, &message_id, false);
+            self.sessions.persist_send(&session_id, &message_id, false);
         }
-        self.persist_session_tail();
+        self.sessions.persist_tail();
         Ok(())
     }
 
@@ -1108,7 +1080,8 @@ impl PrivateDmRuntime {
             if let Err(error) = applied {
                 eprintln!("relay outcome for {message_id} failed to apply: {error}");
             }
-            self.persist_outbound_state(&outcome.session_id, &message_id, false);
+            self.sessions
+                .persist_send(&outcome.session_id, &message_id, false);
         }
     }
 
@@ -1172,88 +1145,6 @@ impl PrivateDmRuntime {
         }
         for _ in &releases {
             self.release_relay();
-        }
-    }
-
-    fn persist_outbound_state(
-        &mut self,
-        session_id: &str,
-        message_id: &str,
-        persist_snapshot: bool,
-    ) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        let Some(session) = self.sessions.get(session_id) else {
-            return;
-        };
-        if !self.history.write_send(
-            &p,
-            session_id,
-            message_id,
-            &session.messages,
-            &session.outbound_attempts,
-        ) {
-            return;
-        }
-        if persist_snapshot {
-            let _ = p.put_mls_snapshot(session_id, &session.crypto.snapshot());
-        }
-        let needs_record_refresh = session.crypto.group_id_bytes().is_some()
-            && (!self.finalized_session_records.contains(session_id) || session.record_dirty);
-        if needs_record_refresh {
-            self.history
-                .write_record(&p, session_id, &session.to_persisted_record());
-            if let Some(session) = self.sessions.get_mut(session_id) {
-                session.record_dirty = false;
-            }
-            self.finalized_session_records
-                .insert(session_id.to_string());
-        }
-    }
-
-    fn persist_session_tail(&mut self) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        // Sessions whose record must be (re)written once their MLS group
-        // exists. Collected during the read-only loop and applied after, since
-        // finalizing mutates self.
-        let mut pending_records: Vec<String> = Vec::new();
-        for session in self.sessions.values() {
-            let has_new_messages =
-                self.history
-                    .write_tail(&p, &session.session_id, &session.messages);
-
-            // The session record needs refreshing once the MLS group exists
-            // (e.g. after the joiner processes the Welcome), so its group_id is
-            // no longer the empty placeholder.
-            let needs_record_refresh = session.crypto.group_id_bytes().is_some()
-                && (!self.finalized_session_records.contains(&session.session_id)
-                    || session.record_dirty);
-
-            // Only rewrite the (encrypted) MLS snapshot when state actually
-            // advanced — new messages ratchet the group, and a freshly joined
-            // group must be captured. Skipping idle polls avoids re-encrypting
-            // the full snapshot on every UI refresh, which also starved the
-            // loopback handshake under test on slow CI hardware.
-            if has_new_messages || needs_record_refresh {
-                let _ = p.put_mls_snapshot(&session.session_id, &session.crypto.snapshot());
-            }
-
-            if needs_record_refresh {
-                pending_records.push(session.session_id.clone());
-            }
-        }
-        for id in pending_records {
-            if let Some(session) = self.sessions.get(&id) {
-                self.history
-                    .write_record(&p, &id, &session.to_persisted_record());
-            }
-            if let Some(session) = self.sessions.get_mut(&id) {
-                session.record_dirty = false;
-            }
-            self.finalized_session_records.insert(id);
         }
     }
 
@@ -1393,9 +1284,7 @@ impl PrivateDmSession {
             control_channel,
             data_channel,
             blob_channel,
-            attachment_store,
-            attachments: AttachmentRuntime::new(),
-            attachment_slots: AttachmentSlots::default(),
+            transfer: Transfer::new(attachment_store),
             outbound_attempts: HashMap::new(),
             call: None,
             pending_key_package: None,
@@ -2083,8 +1972,7 @@ impl PrivateDmSession {
                 participant_id,
                 request,
             } if participant_id != self.participant_id => {
-                let frames = self.attachments.serve_chunks(&request)?;
-                for frame in frames {
+                for frame in self.transfer.serve(&request) {
                     let chunk = BlobEnvelope::Chunk {
                         participant_id: self.participant_id.clone(),
                         frame,
@@ -2098,29 +1986,7 @@ impl PrivateDmSession {
             BlobEnvelope::Chunk {
                 participant_id,
                 frame,
-            } if participant_id != self.participant_id => {
-                let attachment_id = frame.attachment_id.clone();
-                let file_name = self.attachment_slots.file_name(&attachment_id);
-                match self.attachments.ingest_chunk(&frame) {
-                    Ok(ChunkOutcome::Complete {
-                        content_hash,
-                        bytes,
-                        ..
-                    }) => {
-                        let path =
-                            self.attachment_store
-                                .write_blob(&content_hash, &file_name, &bytes)?;
-                        self.attachment_slots
-                            .complete_download(&attachment_id, path.to_string_lossy().into_owned());
-                        Ok(())
-                    }
-                    Ok(_) => Ok(()),
-                    Err(_) => {
-                        self.attachment_slots.fail(&attachment_id);
-                        Ok(())
-                    }
-                }
-            }
+            } if participant_id != self.participant_id => Ok(self.transfer.ingest(&frame)?),
             _ => Ok(()),
         }
     }
@@ -2130,13 +1996,9 @@ impl PrivateDmSession {
         from_device: String,
         manifest: AttachmentManifest,
     ) -> Result<(), PrivateDmRuntimeError> {
-        let attachment_id = manifest.attachment_id.clone();
-        if self.attachment_slots.contains(&attachment_id) {
+        let Some(descriptor) = self.transfer.accept_manifest(manifest)? else {
             return Ok(());
-        }
-        let descriptor = descriptor_of(&manifest);
-        self.attachments.register_incoming(manifest)?;
-        self.attachment_slots.offer(descriptor.clone());
+        };
         let message = self.messages.stamp(ChatMessage {
             from_device,
             body: String::new(),
@@ -2166,21 +2028,17 @@ impl PrivateDmSession {
             return Err(PrivateDmRuntimeError::NotReady);
         }
         let attachment_id = self.crypto.random_token("attachment")?;
-        let manifest = self.attachments.prepare_outgoing(OutgoingAttachment {
+        let outgoing = self.transfer.prepare_outgoing(OutgoingAttachment {
             attachment_id: attachment_id.clone(),
             file_name,
             mime,
             from_fingerprint: self.fingerprint.clone(),
-            bytes: bytes.clone(),
+            bytes,
             thumbnail_b64: thumbnail,
             voice,
         })?;
-        let stored = self.attachment_store.write_blob(
-            &manifest.content_hash,
-            &manifest.file_name,
-            &bytes,
-        )?;
-        let manifest_json = serde_json::to_vec(&manifest)
+        let content_hash = outgoing.manifest.content_hash.clone();
+        let manifest_json = serde_json::to_vec(&outgoing.manifest)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         let ciphertext = self.crypto.encrypt(&manifest_json)?;
         let envelope = ControlEnvelope::AttachmentManifest {
@@ -2196,9 +2054,7 @@ impl PrivateDmSession {
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None)?;
 
-        let descriptor = descriptor_of(&manifest);
-        self.attachment_slots
-            .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
+        let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(ChatMessage {
             from_device: self.device_id.clone(),
             body: String::new(),
@@ -2213,22 +2069,20 @@ impl PrivateDmSession {
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {
-            session_id: self.session_id.clone(),
+            conversation_id: self.session_id.clone(),
             attachment_id,
-            content_hash: manifest.content_hash,
+            content_hash,
         })
     }
 
     fn pump_attachment_requests(&mut self, relay_jobs: RelayJobs<'_>) {
-        for attachment_id in self.attachment_slots.awaiting_chunks() {
-            if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
-                let envelope = BlobEnvelope::Request {
-                    participant_id: self.participant_id.clone(),
-                    request,
-                };
-                if let Ok(bytes) = serde_json::to_vec(&envelope) {
-                    let _ = self.route_send(wire::ChannelKind::Blob, &bytes, relay_jobs, None);
-                }
+        for request in self.transfer.next_requests() {
+            let envelope = BlobEnvelope::Request {
+                participant_id: self.participant_id.clone(),
+                request,
+            };
+            if let Ok(bytes) = serde_json::to_vec(&envelope) {
+                let _ = self.route_send(wire::ChannelKind::Blob, &bytes, relay_jobs, None);
             }
         }
     }
@@ -2260,7 +2114,7 @@ impl PrivateDmSession {
             invite_uri: self.invite_uri.clone(),
             fingerprint: self.fingerprint.clone(),
             messages: self.messages.to_vec(),
-            attachments: self.attachment_slots.views(&self.attachments),
+            attachments: self.transfer.views(),
             mesh: self.mesh_info(),
             events: mesh::snapshot_events(),
             pending_call: self.call.as_ref().and_then(|call| {
@@ -2570,6 +2424,45 @@ impl PrivateDmSession {
     }
 }
 
+impl ConversationSession for PrivateDmSession {
+    type Message = ChatMessage;
+    type Record = contracts::PersistedSession;
+
+    fn conversation_id(&self) -> &str {
+        &self.session_id
+    }
+
+    fn log(&self) -> &MessageLog<ChatMessage> {
+        &self.messages
+    }
+
+    fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
+        &self.outbound_attempts
+    }
+
+    fn record(&self) -> contracts::PersistedSession {
+        self.to_persisted_record()
+    }
+
+    fn write_extra(&self, persistence: &Persistence) {
+        let _ = persistence.put_mls_snapshot(&self.session_id, &self.crypto.snapshot());
+    }
+
+    /// Until the joiner processes the Welcome its record's group id is an
+    /// empty placeholder, and a session saved in that state cannot be rebuilt.
+    fn record_is_final(&self) -> bool {
+        self.crypto.group_id_bytes().is_some()
+    }
+
+    fn record_changed(&self) -> bool {
+        self.record_dirty
+    }
+
+    fn record_written(&mut self) {
+        self.record_dirty = false;
+    }
+}
+
 impl SessionRole {
     fn as_str(self) -> &'static str {
         match self {
@@ -2579,43 +2472,13 @@ impl SessionRole {
     }
 }
 
-/// Joins a session's room on the shared node and subscribes its three channels
-/// there. Wire-identical to what a node owning that room published before, so a
-/// consolidated client still talks to every already-released one.
-fn join_session(
-    node: &MossNode,
-    mesh_id: &str,
-    session_id: &str,
-) -> Result<(), PrivateDmRuntimeError> {
-    node.join_room(mesh_id)
-        .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
-    for channel in [
+/// The three channels one DM subscribes to inside its room.
+fn session_channels(session_id: &str) -> [String; 3] {
+    [
         control_channel(session_id),
         data_channel(session_id),
         blob_channel(session_id),
-    ] {
-        node.subscribe_room(mesh_id, &channel)
-            .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
-    }
-    Ok(())
-}
-
-/// The inverse of `join_session`. On a shared node a closed conversation must
-/// be told to stop, because dropping the node no longer does it — that is what
-/// used to end a session's subscriptions.
-fn leave_session(node: &MossNode, mesh_id: &str, session_id: &str) {
-    for channel in [
-        control_channel(session_id),
-        data_channel(session_id),
-        blob_channel(session_id),
-    ] {
-        if let Err(error) = node.unsubscribe_room(mesh_id, &channel) {
-            eprintln!("unsubscribe {channel} failed: {error}");
-        }
-    }
-    if let Err(error) = node.leave_room(mesh_id) {
-        eprintln!("leave_room {mesh_id} failed: {error}");
-    }
+    ]
 }
 
 #[cfg(test)]
@@ -3413,7 +3276,7 @@ mod tests {
             .expect("Alice session should exist");
 
         session
-            .attachments
+            .transfer
             .prepare_outgoing(OutgoingAttachment {
                 attachment_id: "att-1".to_string(),
                 file_name: "photo.bin".to_string(),
@@ -3445,7 +3308,7 @@ mod tests {
             .handle_moss_message(request, None)
             .expect("repeat chunk request should be served again");
         assert_eq!(
-            session.attachments.served_count("att-1", 0),
+            session.transfer.served_count("att-1", 0),
             2,
             "an identical re-request must reach handle_blob — re-asking \
              unchanged is how a lost chunk is recovered"

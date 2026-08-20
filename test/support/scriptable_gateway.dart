@@ -30,6 +30,7 @@ import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
