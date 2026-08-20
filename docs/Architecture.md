@@ -321,20 +321,24 @@ flowchart TD
     Log["conversation::message_log<br/>MessageLog + ConversationMessage"]
     Seen["conversation::dedup<br/>SeenFrames"]
     Mesh["conversation::mesh<br/>mesh_info + snapshot_events"]
+    Out["conversation::outbound<br/>Outbox: open, reopen, settle"]
     Moss[moss node]
 
     Dm --> Slots
     Dm --> Log
     Dm --> Seen
     Dm --> Mesh
+    Dm --> Out
     Gr --> Slots
     Gr --> Log
     Gr --> Seen
     Gr --> Mesh
+    Gr --> Out
     Ch --> Slots
     Ch --> Log
     Ch --> Seen
     Ch --> Mesh
+    Ch --> Out
     Dm -->|"MLS + relay"| Moss
     Gr -->|"MLS + room"| Moss
     Ch -->|"plain + room"| Moss
@@ -353,6 +357,12 @@ flowchart TD
 - `mesh::mesh_info` and `mesh::snapshot_events` — how the mesh looks and what
   the node has been doing, the part every snapshot ends with. A DM narrows the
   channel list to its own session afterwards; the rest read it as it comes.
+- `outbound::Outbox` — the path out. `open` stamps a new message and files the
+  attempt record that survives a restart, `reopen` prepares a re-send from that
+  record, `settle` writes the result on both the message and the record. The
+  kind publishes in between, its own way, and says whether the record is kept
+  afterwards: a DM keeps it for the DeliveryAck and the auto re-sends, a group
+  and a channel are done with it.
 
 ## State Ownership
 

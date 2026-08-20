@@ -47,21 +47,25 @@ flowchart TD
         Log["message_log::MessageLog"]
         Seen["dedup::SeenFrames"]
         Mesh["mesh::mesh_info + snapshot_events"]
-        Later["later: send path, history"]
+        Out["outbound::Outbox"]
+        Later["later: history store"]
     end
 
     Dm --> Slots
     Dm --> Log
     Dm --> Seen
     Dm --> Mesh
+    Dm --> Out
     Gr --> Slots
     Gr --> Log
     Gr --> Seen
     Gr --> Mesh
+    Gr --> Out
     Ch --> Slots
     Ch --> Log
     Ch --> Seen
     Ch --> Mesh
+    Ch --> Out
     shared -.-> Later
 ```
 
@@ -115,8 +119,13 @@ Costs:
 - A runtime now reaches through a small type instead of touching a `Vec` and a
   `HashMap` directly. That is a real indirection, paid for by not writing the
   same twenty lines three times.
-- Until the last step lands, the core is half folded: the shared strata are
-  out, the send path and the history store are still triplicated.
+- Until the last step lands, the core is half folded: the shared strata and
+  the send path are out, the history store is still triplicated.
+- A send now runs in three calls — `open` or `reopen`, publish, `settle` —
+  because the runtime persists between them and the transport sits in the
+  middle. A single call taking the publish step as a closure would have to hold
+  the log and the attempt table borrowed across it, which the persist calls
+  rule out.
 
 Two small behaviour changes, both deliberate, both from picking one rule where
 the three copies had drifted apart:
@@ -141,8 +150,8 @@ duplicate messages — is decided below the bridge.
 
 ## Follow-up
 
-Tracked as 05a (one outbound send path), 05b (one history store), 05c (one
-mesh and event view), 05e (DM offers, and the MLS layers the DM and the group
+Landed since: 05c (one mesh and event view) and 05a (one outbound send path).
+Still tracked as 05b (one history store), 05e (DM offers, and the MLS layers the DM and the group
 share) and 05d (one runtime behind a kind trait). 05d is the one that
 regenerates the bindings and must be checked against a real peer for all three
 kinds.

@@ -16,6 +16,7 @@ use crate::conversation::dedup::SeenFrames;
 use crate::conversation::mesh;
 use crate::conversation::message_log::{delivery_meta, ConversationMessage, LogError, MessageLog};
 use crate::conversation::now_ms;
+use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::Persistence;
@@ -567,123 +568,36 @@ impl ChannelRuntime {
         }
         self.drain_inbound()?;
         let normalized = normalize_name(name)?;
-        let (channel_name, topic, message_id, sent_at_ms, payload_len, payload) = {
+        let (channel_name, topic, prepared) = {
             let session = self
                 .channels
                 .get_mut(&normalized)
                 .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-            let mut message = session.messages.stamp(ChannelMessage {
+            let message = session.messages.stamp(ChannelMessage {
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
                 body,
                 message_id: None,
                 sent_at_ms: None,
                 attachment: None,
-                delivery_status: Some(MessageDeliveryStatus::Pending),
+                delivery_status: None,
                 delivery_error: None,
                 retryable: None,
-                retry_count: Some(0),
+                retry_count: None,
             });
-            let message_id = message.message_id.clone().unwrap_or_default();
-            let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-            message.message_id = Some(message_id.clone());
-            message.sent_at_ms = Some(sent_at_ms);
+            // A channel is public, so the frame is the message itself, minus
+            // the delivery fields that only mean something to the sender.
             let payload = serde_json::to_vec(&session.publishable_message(&message))
                 .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
-            let attempt = OutboundAttemptRecord {
-                conversation_id: session.name.clone(),
-                message_id: message_id.clone(),
-                sent_at_ms,
-                ciphertext_bytes: payload.len(),
-                message_json: serde_json::to_string(&message)
-                    .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?,
-                publish_payload_b64: encode(&payload),
-                delivery_status: MessageDeliveryStatus::Pending,
-                delivery_error: None,
-                retry_count: 0,
-                // Channels have no DeliveryAck flow; the resend fields are
-                // inert here.
-                auto_resends: 0,
-                last_send_ms: sent_at_ms,
-            };
-            session.messages.upsert(message);
-            session
-                .outbound_attempts
-                .insert(message_id.clone(), attempt);
-            (
-                session.name.clone(),
-                session.topic.clone(),
-                message_id,
-                sent_at_ms,
-                payload.len(),
-                payload,
-            )
+            let bytes = payload.len();
+            let channel_name = session.name.clone();
+            let topic = session.topic.clone();
+            let prepared = session
+                .outbox()
+                .open(message, channel_name.clone(), payload, bytes)?;
+            (channel_name, topic, prepared)
         };
-        self.persist_outbound_state(&normalized, &message_id);
-        let publish = {
-            let session = self
-                .channels
-                .get(&normalized)
-                .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-            session
-                .node
-                .publish_room(&session.mesh_id, &topic, &payload)
-                .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))
-        };
-        let result = match publish {
-            Ok(()) => {
-                let session = self
-                    .channels
-                    .get_mut(&normalized)
-                    .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-                session.messages.mark_delivery(
-                    &message_id,
-                    MessageDeliveryStatus::Sent,
-                    None,
-                    0,
-                )?;
-                session.outbound_attempts.remove(&message_id);
-                ChannelSendResult {
-                    name: channel_name,
-                    bytes: payload_len,
-                    message_id: message_id.clone(),
-                    sent_at_ms,
-                    delivery_status: MessageDeliveryStatus::Sent,
-                    delivery_error: None,
-                }
-            }
-            Err(error) => {
-                let error_text = error.to_string();
-                let session = self
-                    .channels
-                    .get_mut(&normalized)
-                    .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-                let retry_count =
-                    if let Some(attempt) = session.outbound_attempts.get_mut(&message_id) {
-                        attempt.delivery_status = MessageDeliveryStatus::Failed;
-                        attempt.delivery_error = Some(error_text.clone());
-                        attempt.retry_count
-                    } else {
-                        0
-                    };
-                session.messages.mark_delivery(
-                    &message_id,
-                    MessageDeliveryStatus::Failed,
-                    Some(error_text.clone()),
-                    retry_count,
-                )?;
-                session.sync_attempt_message_json(&message_id)?;
-                ChannelSendResult {
-                    name: channel_name,
-                    bytes: payload_len,
-                    message_id: message_id.clone(),
-                    sent_at_ms,
-                    delivery_status: MessageDeliveryStatus::Failed,
-                    delivery_error: Some(error_text),
-                }
-            }
-        };
-        self.persist_outbound_state(&normalized, &message_id);
+        let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
         self.persist_channel_tail();
         Ok(result)
     }
@@ -695,110 +609,60 @@ impl ChannelRuntime {
     ) -> Result<ChannelSendResult, ChannelRuntimeError> {
         self.drain_inbound()?;
         let normalized = normalize_name(name)?;
-        let (channel_name, topic, sent_at_ms, payload_len, retry_count, payload) = {
+        let (channel_name, topic, prepared) = {
             let session = self
                 .channels
                 .get_mut(&normalized)
                 .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-            let (payload_b64, sent_at_ms, payload_len) = {
-                let attempt = session
-                    .outbound_attempts
-                    .get_mut(message_id)
-                    .ok_or_else(|| ChannelRuntimeError::MissingMessage(message_id.to_string()))?;
-                attempt.retry_count = attempt.retry_count.saturating_add(1);
-                attempt.delivery_status = MessageDeliveryStatus::Pending;
-                attempt.delivery_error = None;
-                (
-                    attempt.publish_payload_b64.clone(),
-                    attempt.sent_at_ms,
-                    attempt.ciphertext_bytes,
-                )
-            };
-            let payload = decode(&payload_b64)?;
-            let retry_count = session
-                .outbound_attempts
-                .get(message_id)
-                .map(|attempt| attempt.retry_count)
-                .unwrap_or(0);
-            session.messages.mark_delivery(
-                message_id,
-                MessageDeliveryStatus::Pending,
-                None,
-                retry_count,
-            )?;
-            session.sync_attempt_message_json(message_id)?;
-            (
-                session.name.clone(),
-                session.topic.clone(),
-                sent_at_ms,
-                payload_len,
-                retry_count,
-                payload,
-            )
+            let prepared = session.outbox().reopen(message_id)?;
+            (session.name.clone(), session.topic.clone(), prepared)
         };
-        self.persist_outbound_state(&normalized, message_id);
+        let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
+        self.persist_channel_tail();
+        Ok(result)
+    }
+
+    /// Publishes a prepared send on the channel's topic and writes down how it
+    /// went. A channel has no acknowledgement, so the attempt record is gone
+    /// as soon as the frame is on the wire.
+    fn publish_prepared(
+        &mut self,
+        normalized: &str,
+        topic: &str,
+        channel_name: String,
+        prepared: Prepared,
+    ) -> Result<ChannelSendResult, ChannelRuntimeError> {
+        self.persist_outbound_state(normalized, &prepared.message_id);
         let publish = {
             let session = self
                 .channels
-                .get(&normalized)
-                .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+                .get(normalized)
+                .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.to_string()))?;
             session
                 .node
-                .publish_room(&session.mesh_id, &topic, &payload)
+                .publish_room(&session.mesh_id, topic, &prepared.payload)
                 .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))
         };
-        let result = match publish {
-            Ok(()) => {
-                let session = self
-                    .channels
-                    .get_mut(&normalized)
-                    .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-                session.messages.mark_delivery(
-                    message_id,
-                    MessageDeliveryStatus::Sent,
-                    None,
-                    retry_count,
-                )?;
-                session.outbound_attempts.remove(message_id);
-                ChannelSendResult {
-                    name: channel_name,
-                    bytes: payload_len,
-                    message_id: message_id.to_string(),
-                    sent_at_ms,
-                    delivery_status: MessageDeliveryStatus::Sent,
-                    delivery_error: None,
-                }
-            }
-            Err(error) => {
-                let error_text = error.to_string();
-                let session = self
-                    .channels
-                    .get_mut(&normalized)
-                    .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-                if let Some(attempt) = session.outbound_attempts.get_mut(message_id) {
-                    attempt.delivery_status = MessageDeliveryStatus::Failed;
-                    attempt.delivery_error = Some(error_text.clone());
-                }
-                session.messages.mark_delivery(
-                    message_id,
-                    MessageDeliveryStatus::Failed,
-                    Some(error_text.clone()),
-                    retry_count,
-                )?;
-                session.sync_attempt_message_json(message_id)?;
-                ChannelSendResult {
-                    name: channel_name,
-                    bytes: payload_len,
-                    message_id: message_id.to_string(),
-                    sent_at_ms,
-                    delivery_status: MessageDeliveryStatus::Failed,
-                    delivery_error: Some(error_text),
-                }
-            }
+        let settled = {
+            let session = self
+                .channels
+                .get_mut(normalized)
+                .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.to_string()))?;
+            session.outbox().settle(
+                &prepared.message_id,
+                publish.map_err(|error| error.to_string()),
+                OnSent::Forget,
+            )?
         };
-        self.persist_outbound_state(&normalized, message_id);
-        self.persist_channel_tail();
-        Ok(result)
+        self.persist_outbound_state(normalized, &prepared.message_id);
+        Ok(ChannelSendResult {
+            name: channel_name,
+            bytes: prepared.ciphertext_bytes,
+            message_id: prepared.message_id,
+            sent_at_ms: prepared.sent_at_ms,
+            delivery_status: settled.status,
+            delivery_error: settled.error,
+        })
     }
 
     /// Encrypts a file, stores the sender's copy, and broadcasts the manifest
@@ -1028,12 +892,10 @@ impl ChannelSession {
         publishable
     }
 
-    fn sync_attempt_message_json(&mut self, message_id: &str) -> Result<(), ChannelRuntimeError> {
-        let message_json = self.messages.json_for(message_id)?;
-        if let Some(attempt) = self.outbound_attempts.get_mut(message_id) {
-            attempt.message_json = message_json;
-        }
-        Ok(())
+    /// The message log and the attempts in flight, borrowed together for one
+    /// step of a send.
+    fn outbox(&mut self) -> Outbox<'_, ChannelMessage> {
+        Outbox::new(&mut self.messages, &mut self.outbound_attempts)
     }
 
     fn to_persisted_record(&self) -> PersistedChannelSession {
@@ -1326,15 +1188,6 @@ fn publish_json<T: Serialize>(
         serde_json::to_vec(value).map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
     node.publish_room(mesh_id, topic, &payload)
         .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))
-}
-
-fn encode(bytes: &[u8]) -> String {
-    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes)
-}
-
-fn decode(encoded: &str) -> Result<Vec<u8>, ChannelRuntimeError> {
-    base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)
-        .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))
 }
 
 #[cfg(test)]
