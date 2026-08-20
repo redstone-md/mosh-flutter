@@ -13,10 +13,11 @@ use crate::conversation::attachments::{
 };
 use crate::conversation::dedup::SeenFrames;
 use crate::conversation::dm_offers::{DmOffer, DmOffers};
-use crate::conversation::history::{History, Restore};
+use crate::conversation::history::Restore;
 use crate::conversation::mesh::{self, MeshInfo, SnapshotEvent};
 use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
+use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::{Transfer, TransferError};
 use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
@@ -230,10 +231,7 @@ pub struct ChannelRuntime {
     // it, not a node of its own — see `shared_node` for why more than one is
     // actively harmful.
     shared_node: Arc<SharedMossNode>,
-    attachment_store: Arc<AttachmentStore>,
-    persistence: Option<Arc<Persistence>>,
-    history: History,
-    channels: HashMap<String, ChannelSession>,
+    channels: ConversationRuntime<ChannelSession>,
 }
 
 struct ChannelSession {
@@ -277,16 +275,11 @@ impl ChannelRuntime {
     ) -> Self {
         Self {
             shared_node,
-            attachment_store,
-            persistence,
-            history: History::new(CHANNEL_HISTORY),
-            channels: HashMap::new(),
+            channels: ConversationRuntime::new(attachment_store, persistence, CHANNEL_HISTORY),
         }
     }
 
     /// Take a reference to the shared node and put this channel's room on it.
-    /// Rolls the reference back if the room work fails, so a channel that never
-    /// opened cannot pin the node up forever.
     fn open_channel_room(
         &mut self,
         mesh_id: &str,
@@ -295,26 +288,19 @@ impl ChannelRuntime {
         listen_port: u16,
         static_peer: Option<String>,
     ) -> Result<Arc<MossNode>, ChannelRuntimeError> {
-        let node = self
-            .shared_node
-            .acquire(listen_port, static_peer)
-            .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))?;
-        if let Err(error) = join_channel_room(&node, mesh_id, topic, blob_topic) {
-            self.shared_node.release();
-            return Err(error);
-        }
-        Ok(node)
+        runtime::open_room(
+            &self.shared_node,
+            mesh_id,
+            &[topic.to_string(), blob_topic.to_string()],
+            listen_port,
+            static_peer,
+        )
+        .map_err(ChannelRuntimeError::Moss)
     }
 
     /// Restore joined public channels and local scrollback from encrypted disk.
     pub fn rehydrate(&mut self) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        for rec in self
-            .history
-            .stored_conversations::<PersistedChannelSession>(&p)
-        {
+        for rec in self.channels.stored_records::<PersistedChannelSession>() {
             let node = match self.open_channel_room(
                 &rec.mesh_id,
                 &rec.topic,
@@ -345,12 +331,11 @@ impl ChannelRuntime {
                 node,
                 messages: MessageLog::default(),
                 seen: SeenFrames::default(),
-                transfer: Transfer::new(Arc::clone(&self.attachment_store)),
+                transfer: Transfer::new(Arc::clone(self.channels.attachment_store())),
                 outbound_attempts: HashMap::new(),
                 dm_offers: DmOffers::default(),
             };
-            self.history.replay(
-                &p,
+            self.channels.replay(
                 &rec.name,
                 Restore {
                     log: &mut session.messages,
@@ -368,7 +353,7 @@ impl ChannelRuntime {
         request: JoinChannelRequest,
     ) -> Result<ChannelSnapshot, ChannelRuntimeError> {
         let normalized = normalize_name(&request.name)?;
-        if self.channels.contains_key(&normalized) {
+        if self.channels.holds(&normalized) {
             return Err(ChannelRuntimeError::DuplicateChannel(normalized));
         }
         let listen_port = request.listen_port;
@@ -400,7 +385,7 @@ impl ChannelRuntime {
             node,
             messages: MessageLog::default(),
             seen: SeenFrames::default(),
-            transfer: Transfer::new(Arc::clone(&self.attachment_store)),
+            transfer: Transfer::new(Arc::clone(self.channels.attachment_store())),
             outbound_attempts: HashMap::new(),
             dm_offers: DmOffers::default(),
         };
@@ -454,14 +439,15 @@ impl ChannelRuntime {
         let normalized = normalize_name(name)?;
         match self.channels.remove(&normalized) {
             Some(session) => {
-                // On a shared node dropping the session no longer ends its
-                // subscriptions — the node lives on for the other channels, so
-                // leaving has to be said out loud or a left channel keeps
-                // receiving.
-                leave_channel_room(&session);
-                self.shared_node.release();
-                self.history.forget(&normalized);
-                if let Some(p) = self.persistence.as_ref() {
+                runtime::close_room(
+                    &self.shared_node,
+                    &session.node,
+                    &session.mesh_id,
+                    &[session.topic.clone(), session.blob_topic.clone()],
+                    &format!("channel {normalized}"),
+                );
+                self.channels.forget(&normalized);
+                if let Some(p) = self.channels.persistence() {
                     if let Err(error) = p.delete_channel(&normalized) {
                         eprintln!("failed to delete persisted channel {normalized}: {error}");
                     }
@@ -549,7 +535,8 @@ impl ChannelRuntime {
         channel_name: String,
         prepared: Prepared,
     ) -> Result<ChannelSendResult, ChannelRuntimeError> {
-        self.persist_outbound_state(normalized, &prepared.message_id);
+        self.channels
+            .persist_send(normalized, &prepared.message_id, false);
         let publish = {
             let session = self
                 .channels
@@ -571,7 +558,8 @@ impl ChannelRuntime {
                 OnSent::Forget,
             )?
         };
-        self.persist_outbound_state(normalized, &prepared.message_id);
+        self.channels
+            .persist_send(normalized, &prepared.message_id, false);
         Ok(ChannelSendResult {
             name: channel_name,
             bytes: prepared.ciphertext_bytes,
@@ -698,35 +686,37 @@ impl ChannelRuntime {
     }
 
     fn persist_channel_tail(&mut self) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        for session in self.channels.values() {
-            self.history
-                .write_tail(&p, &session.name, &session.messages);
-            self.history
-                .write_record(&p, &session.name, &session.to_persisted_record());
-        }
+        self.channels.persist_tail();
+    }
+}
+
+impl ConversationSession for ChannelSession {
+    type Message = ChannelMessage;
+    type Record = PersistedChannelSession;
+
+    fn conversation_id(&self) -> &str {
+        &self.name
     }
 
-    fn persist_outbound_state(&mut self, name: &str, message_id: &str) {
-        let Some(p) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        let Some(session) = self.channels.get(name) else {
-            return;
-        };
-        if !self.history.write_send(
-            &p,
-            name,
-            message_id,
-            &session.messages,
-            &session.outbound_attempts,
-        ) {
-            return;
+    fn log(&self) -> &MessageLog<ChannelMessage> {
+        &self.messages
+    }
+
+    fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
+        &self.outbound_attempts
+    }
+
+    fn record(&self) -> PersistedChannelSession {
+        PersistedChannelSession {
+            name: self.name.clone(),
+            topic: self.topic.clone(),
+            blob_topic: self.blob_topic.clone(),
+            mesh_id: self.mesh_id.clone(),
+            display_name: self.display_name.clone(),
+            device_fingerprint: self.device_fingerprint.clone(),
+            listen_port: self.listen_port,
+            static_peer: self.static_peer.clone(),
         }
-        self.history
-            .write_record(&p, name, &session.to_persisted_record());
     }
 }
 
@@ -744,19 +734,6 @@ impl ChannelSession {
     /// step of a send.
     fn outbox(&mut self) -> Outbox<'_, ChannelMessage> {
         Outbox::new(&mut self.messages, &mut self.outbound_attempts)
-    }
-
-    fn to_persisted_record(&self) -> PersistedChannelSession {
-        PersistedChannelSession {
-            name: self.name.clone(),
-            topic: self.topic.clone(),
-            blob_topic: self.blob_topic.clone(),
-            mesh_id: self.mesh_id.clone(),
-            display_name: self.display_name.clone(),
-            device_fingerprint: self.device_fingerprint.clone(),
-            listen_port: self.listen_port,
-            static_peer: self.static_peer.clone(),
-        }
     }
 
     fn handle_message(&mut self, message: MossReceivedMessage) -> Result<(), ChannelRuntimeError> {
@@ -918,40 +895,6 @@ impl ChannelSession {
     }
 }
 
-/// Puts a channel's room on the shared node and subscribes its two topics
-/// there. Wire-identical to what a node owning that room published before, so a
-/// consolidated client still talks to every already-released one.
-fn join_channel_room(
-    node: &MossNode,
-    mesh_id: &str,
-    topic: &str,
-    blob_topic: &str,
-) -> Result<(), ChannelRuntimeError> {
-    node.join_room(mesh_id)
-        .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))?;
-    for channel in [topic, blob_topic] {
-        node.subscribe_room(mesh_id, channel)
-            .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))?;
-    }
-    Ok(())
-}
-
-/// The inverse of `join_channel_room`. Unsubscribe first, then forget the key:
-/// leaving first would strand subscriptions that can no longer resolve.
-fn leave_channel_room(session: &ChannelSession) {
-    for channel in [&session.topic, &session.blob_topic] {
-        if let Err(error) = session.node.unsubscribe_room(&session.mesh_id, channel) {
-            eprintln!(
-                "channel {} could not unsubscribe {channel}: {error}",
-                session.name
-            );
-        }
-    }
-    if let Err(error) = session.node.leave_room(&session.mesh_id) {
-        eprintln!("channel {} could not leave its room: {error}", session.name);
-    }
-}
-
 pub fn normalize_name(raw: &str) -> Result<String, ChannelRuntimeError> {
     let trimmed = raw.trim().trim_start_matches('#').trim_start_matches('@');
     if trimmed.is_empty() || trimmed.len() > MAX_NAME_LEN {
@@ -1060,14 +1003,15 @@ mod tests {
 
         // One node, not two. Two would present the same peer id from two ports
         // and a remote peer would keep only the first.
-        let first = Arc::as_ptr(&channels.channels["shared-one"].node);
-        let second = Arc::as_ptr(&channels.channels["shared-two"].node);
+        let one = channels.channels.get("shared-one").expect("first channel");
+        let two = channels.channels.get("shared-two").expect("second channel");
         assert_eq!(
-            first, second,
+            Arc::as_ptr(&one.node),
+            Arc::as_ptr(&two.node),
             "two joined channels started two moss nodes under one identity"
         );
         assert_ne!(
-            channels.channels["shared-one"].mesh_id, channels.channels["shared-two"].mesh_id,
+            one.mesh_id, two.mesh_id,
             "channels must stay in separate rooms on the shared node"
         );
 

@@ -17,6 +17,7 @@ pub mod history;
 pub mod mesh;
 pub mod message_log;
 pub mod outbound;
+pub mod runtime;
 #[cfg(test)]
 pub mod test_message;
 pub mod transfer;
