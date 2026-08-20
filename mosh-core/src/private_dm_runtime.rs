@@ -3,7 +3,7 @@ mod invite;
 mod relay;
 mod wire;
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::sync::mpsc;
 use std::sync::Arc;
 
@@ -13,6 +13,7 @@ use crate::attachment_runtime::{
 };
 use crate::attachment_store::AttachmentStore;
 use crate::conversation::attachments::{descriptor_of, AttachmentDirection, AttachmentSlots};
+use crate::conversation::dedup::SeenFrames;
 use crate::conversation::message_log::{delivery_meta, now_ms, ConversationMessage, MessageLog};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
@@ -157,8 +158,6 @@ use crate::moss_ffi::{
 };
 use crate::shared_node::SharedMossNode;
 
-const SEEN_MESSAGE_CAP: usize = 4096;
-
 pub struct PrivateDmRuntime {
     moss: Arc<MossFfiRuntime>,
     attachment_store: Arc<AttachmentStore>,
@@ -242,8 +241,7 @@ struct PrivateDmSession {
     node: Arc<MossNode>,
     crypto: MlsSessionCrypto,
     messages: MessageLog<ChatMessage>,
-    seen_moss_messages: HashSet<String>,
-    seen_order: VecDeque<String>,
+    seen: SeenFrames,
     control_channel: String,
     data_channel: String,
     blob_channel: String,
@@ -1707,8 +1705,7 @@ impl PrivateDmSession {
             node,
             crypto,
             messages: MessageLog::default(),
-            seen_moss_messages: HashSet::new(),
-            seen_order: VecDeque::new(),
+            seen: SeenFrames::default(),
             control_channel,
             data_channel,
             blob_channel,
@@ -1818,21 +1815,7 @@ impl PrivateDmSession {
         if message.channel == self.control_channel || message.channel == self.blob_channel {
             return false;
         }
-        let key = format!(
-            "{}:{}",
-            message.channel,
-            crate::attachment_crypto::sha256_hex(&message.payload)
-        );
-        if !self.seen_moss_messages.insert(key.clone()) {
-            return true;
-        }
-        self.seen_order.push_back(key);
-        if self.seen_order.len() > SEEN_MESSAGE_CAP {
-            if let Some(evicted) = self.seen_order.pop_front() {
-                self.seen_moss_messages.remove(&evicted);
-            }
-        }
-        false
+        self.seen.seen_before(&message.channel, &message.payload)
     }
 
     /// Remember the peer's display name from an inbound frame's `from_device`.
