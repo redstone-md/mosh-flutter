@@ -4,6 +4,9 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../attachment_runtime.dart';
+import '../conversation/attachments.dart';
+import '../conversation/dm_offers.dart';
+import '../conversation/mesh.dart';
 import '../frb_generated.dart';
 import '../org_runtime.dart';
 import '../outbound_delivery.dart';
@@ -19,8 +22,8 @@ Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
     RustLib.instance.api.crateApiOrgJoinOrg(request: request);
 
 /// Leave an org and close its bound groups (1:1 port of `org_leave`). The
-/// Tauri command also closed the org's bound private groups; the future impl
-/// drives both the org and group singletons from this one function.
+/// Tauri command also closed the org's bound private groups; this function
+/// drives both the org and group singletons from one place.
 Future<void> leaveOrg({required String orgPubkey}) =>
     RustLib.instance.api.crateApiOrgLeaveOrg(orgPubkey: orgPubkey);
 
@@ -37,7 +40,7 @@ Future<OrgSnapshot> poll({required String orgPubkey}) =>
 
 /// Send a private-DM invitation to one org member (1:1 port of
 /// `org_send_dm_offer`). Mints the invite via the private-DM runtime and
-/// records the offer in the org runtime; the future impl drives both.
+/// records the offer in the org runtime.
 Future<InviteCreated> sendDmOffer(
         {required String orgPubkey,
         required String targetPeerId,
@@ -53,7 +56,7 @@ Future<InviteCreated> sendDmOffer(
 
 /// Accept an org-carried DM offer (1:1 port of `org_accept_dm_offer`).
 /// Accepts the invite via the private-DM runtime and clears the offer in the
-/// org runtime; the future impl drives both.
+/// org runtime.
 Future<SessionSnapshot> acceptDmOffer(
         {required String orgPubkey,
         required String offerId,
@@ -77,7 +80,7 @@ Future<void> dismissDmOffer(
 
 /// Create an org-bound private group (1:1 port of `org_create_group`).
 /// Creates the group via the private-group runtime and records the binding in
-/// the org runtime; the future impl drives both.
+/// the org runtime.
 Future<GroupCreated> createGroup(
         {required String orgPubkey,
         String? label,
@@ -95,7 +98,7 @@ Future<GroupCreated> createGroup(
 
 /// Accept an org-carried group offer (1:1 port of `org_accept_group_offer`).
 /// Joins the group via the private-group runtime and clears the offer in the
-/// org runtime; the future impl drives both.
+/// org runtime.
 Future<GroupSnapshot> acceptGroupOffer(
         {required String orgPubkey,
         required String offerId,

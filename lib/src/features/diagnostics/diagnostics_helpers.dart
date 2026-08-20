@@ -10,7 +10,7 @@
  
  import 'dart:convert';
  
- import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+ import 'package:mosh/src/rust/conversation/mesh.dart';
 
 /// Mesh peer count as a summary string. Mirrors React
 /// `peerCount(mesh)`: `mesh == null ? "booting" : String(mesh.peer_count)`.

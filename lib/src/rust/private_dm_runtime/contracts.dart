@@ -4,6 +4,8 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../attachment_runtime.dart';
+import '../conversation/attachments.dart';
+import '../conversation/mesh.dart';
 import '../frb_generated.dart';
 import '../outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -77,134 +79,6 @@ class ActiveCall {
           keyB64 == other.keyB64 &&
           noncePrefixB64 == other.noncePrefixB64 &&
           startedAtMs == other.startedAtMs;
-}
-
-/// Immutable attachment metadata stamped onto the message log. Mutable
-/// transfer state is reported separately through AttachmentView.
-class AttachmentDescriptor {
-  final String attachmentId;
-  final String contentHash;
-  final String fileName;
-  final String mime;
-  final BigInt totalSize;
-  final String? thumbnailB64;
-  final VoiceMeta? voice;
-
-  const AttachmentDescriptor({
-    required this.attachmentId,
-    required this.contentHash,
-    required this.fileName,
-    required this.mime,
-    required this.totalSize,
-    this.thumbnailB64,
-    this.voice,
-  });
-
-  @override
-  int get hashCode =>
-      attachmentId.hashCode ^
-      contentHash.hashCode ^
-      fileName.hashCode ^
-      mime.hashCode ^
-      totalSize.hashCode ^
-      thumbnailB64.hashCode ^
-      voice.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AttachmentDescriptor &&
-          runtimeType == other.runtimeType &&
-          attachmentId == other.attachmentId &&
-          contentHash == other.contentHash &&
-          fileName == other.fileName &&
-          mime == other.mime &&
-          totalSize == other.totalSize &&
-          thumbnailB64 == other.thumbnailB64 &&
-          voice == other.voice;
-}
-
-class AttachmentSendResult {
-  final String sessionId;
-  final String attachmentId;
-  final String contentHash;
-
-  const AttachmentSendResult({
-    required this.sessionId,
-    required this.attachmentId,
-    required this.contentHash,
-  });
-
-  @override
-  int get hashCode =>
-      sessionId.hashCode ^ attachmentId.hashCode ^ contentHash.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AttachmentSendResult &&
-          runtimeType == other.runtimeType &&
-          sessionId == other.sessionId &&
-          attachmentId == other.attachmentId &&
-          contentHash == other.contentHash;
-}
-
-enum AttachmentState {
-  /// Bytes are on disk locally (sender's own file, or a finished download).
-  available,
-
-  /// Manifest known, download not started yet.
-  offered,
-
-  /// Chunks are in flight.
-  downloading,
-
-  /// Transfer or verification failed; a retry is possible.
-  failed,
-
-  /// Either side cancelled the transfer.
-  cancelled,
-  ;
-}
-
-/// Live transfer state for one attachment, recomputed on every snapshot.
-class AttachmentView {
-  final String attachmentId;
-  final String direction;
-  final AttachmentState state;
-  final BigInt completedChunks;
-  final BigInt chunkCount;
-  final String? localPath;
-
-  const AttachmentView({
-    required this.attachmentId,
-    required this.direction,
-    required this.state,
-    required this.completedChunks,
-    required this.chunkCount,
-    this.localPath,
-  });
-
-  @override
-  int get hashCode =>
-      attachmentId.hashCode ^
-      direction.hashCode ^
-      state.hashCode ^
-      completedChunks.hashCode ^
-      chunkCount.hashCode ^
-      localPath.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AttachmentView &&
-          runtimeType == other.runtimeType &&
-          attachmentId == other.attachmentId &&
-          direction == other.direction &&
-          state == other.state &&
-          completedChunks == other.completedChunks &&
-          chunkCount == other.chunkCount &&
-          localPath == other.localPath;
 }
 
 class CallEvent {
@@ -339,43 +213,6 @@ class CloseSessionResult {
           closed == other.closed;
 }
 
-/// A request to start a private DM, surfaced inside a channel or group. The
-/// initiator publishes it; the targeted member accepts the carried invite.
-class DmOffer {
-  final String offerId;
-  final String fromDevice;
-  final String fromFingerprint;
-  final String targetFingerprint;
-  final String inviteUri;
-
-  const DmOffer({
-    required this.offerId,
-    required this.fromDevice,
-    required this.fromFingerprint,
-    required this.targetFingerprint,
-    required this.inviteUri,
-  });
-
-  @override
-  int get hashCode =>
-      offerId.hashCode ^
-      fromDevice.hashCode ^
-      fromFingerprint.hashCode ^
-      targetFingerprint.hashCode ^
-      inviteUri.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DmOffer &&
-          runtimeType == other.runtimeType &&
-          offerId == other.offerId &&
-          fromDevice == other.fromDevice &&
-          fromFingerprint == other.fromFingerprint &&
-          targetFingerprint == other.targetFingerprint &&
-          inviteUri == other.inviteUri;
-}
-
 class InviteCreated {
   final String inviteUri;
   final String sessionId;
@@ -411,86 +248,6 @@ class InviteCreated {
           listenAddress == other.listenAddress;
 }
 
-class MeshInfo {
-  final String meshId;
-  final int listenPort;
-  final String advertisedAddr;
-  final int peerCount;
-  final int directPeerCount;
-  final int relayedPeerCount;
-  final int relayCapablePeerCount;
-  final int relaySessionCount;
-  final int relayRouteCount;
-  final int knownPeerCount;
-  final List<String> channels;
-  final String natType;
-  final bool supernodeReady;
-  final String publicKey;
-
-  /// Per-peer identity of every currently connected peer. On the shared
-  /// substrate a node connects network-wide, so `direct_peer_count` counts
-  /// unrelated world peers; presence for one counterpart must match this list
-  /// by `id` (the peer's moss public-key hex) instead of trusting a count.
-  final List<PeerDetail> peerDetails;
-
-  const MeshInfo({
-    required this.meshId,
-    required this.listenPort,
-    required this.advertisedAddr,
-    required this.peerCount,
-    required this.directPeerCount,
-    required this.relayedPeerCount,
-    required this.relayCapablePeerCount,
-    required this.relaySessionCount,
-    required this.relayRouteCount,
-    required this.knownPeerCount,
-    required this.channels,
-    required this.natType,
-    required this.supernodeReady,
-    required this.publicKey,
-    required this.peerDetails,
-  });
-
-  @override
-  int get hashCode =>
-      meshId.hashCode ^
-      listenPort.hashCode ^
-      advertisedAddr.hashCode ^
-      peerCount.hashCode ^
-      directPeerCount.hashCode ^
-      relayedPeerCount.hashCode ^
-      relayCapablePeerCount.hashCode ^
-      relaySessionCount.hashCode ^
-      relayRouteCount.hashCode ^
-      knownPeerCount.hashCode ^
-      channels.hashCode ^
-      natType.hashCode ^
-      supernodeReady.hashCode ^
-      publicKey.hashCode ^
-      peerDetails.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is MeshInfo &&
-          runtimeType == other.runtimeType &&
-          meshId == other.meshId &&
-          listenPort == other.listenPort &&
-          advertisedAddr == other.advertisedAddr &&
-          peerCount == other.peerCount &&
-          directPeerCount == other.directPeerCount &&
-          relayedPeerCount == other.relayedPeerCount &&
-          relayCapablePeerCount == other.relayCapablePeerCount &&
-          relaySessionCount == other.relaySessionCount &&
-          relayRouteCount == other.relayRouteCount &&
-          knownPeerCount == other.knownPeerCount &&
-          channels == other.channels &&
-          natType == other.natType &&
-          supernodeReady == other.supernodeReady &&
-          publicKey == other.publicKey &&
-          peerDetails == other.peerDetails;
-}
-
 class OutgoingCall {
   final String callId;
 
@@ -507,30 +264,6 @@ class OutgoingCall {
       other is OutgoingCall &&
           runtimeType == other.runtimeType &&
           callId == other.callId;
-}
-
-class PeerDetail {
-  final String id;
-  final String addr;
-  final bool relayed;
-
-  const PeerDetail({
-    required this.id,
-    required this.addr,
-    required this.relayed,
-  });
-
-  @override
-  int get hashCode => id.hashCode ^ addr.hashCode ^ relayed.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PeerDetail &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          addr == other.addr &&
-          relayed == other.relayed;
 }
 
 class PendingCall {
@@ -713,37 +446,6 @@ class SessionSnapshot {
           pendingCall == other.pendingCall &&
           outgoingCall == other.outgoingCall &&
           activeCall == other.activeCall;
-}
-
-class SnapshotEvent {
-  final int eventType;
-  final String eventName;
-  final String detailJson;
-  final BigInt epochMillis;
-
-  const SnapshotEvent({
-    required this.eventType,
-    required this.eventName,
-    required this.detailJson,
-    required this.epochMillis,
-  });
-
-  @override
-  int get hashCode =>
-      eventType.hashCode ^
-      eventName.hashCode ^
-      detailJson.hashCode ^
-      epochMillis.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SnapshotEvent &&
-          runtimeType == other.runtimeType &&
-          eventType == other.eventType &&
-          eventName == other.eventName &&
-          detailJson == other.detailJson &&
-          epochMillis == other.epochMillis;
 }
 
 class StartSessionRequest {

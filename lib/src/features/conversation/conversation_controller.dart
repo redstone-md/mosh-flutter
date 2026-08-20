@@ -31,11 +31,9 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show
-        AttachmentDescriptor,
-        AttachmentState,
-        AttachmentView,
-        StartSessionRequest;
+    show StartSessionRequest;
+import 'package:mosh/src/rust/conversation/attachments.dart'
+    show AttachmentDescriptor, AttachmentState, AttachmentView;
 import 'package:mosh/src/state/channel_group_providers.dart'
     show channelSnapshotProvider, groupSnapshotProvider;
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;

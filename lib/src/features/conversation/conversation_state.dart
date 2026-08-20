@@ -2,7 +2,7 @@
 /// controller hands back to the screen.
 library;
 
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor;
 
 /// What one conversation screen is busy with.

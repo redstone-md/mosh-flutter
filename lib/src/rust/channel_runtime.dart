@@ -4,10 +4,12 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import 'attachment_runtime.dart';
+import 'conversation/attachments.dart';
+import 'conversation/dm_offers.dart';
+import 'conversation/mesh.dart';
 import 'frb_generated.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'private_dm_runtime/contracts.dart';
 
 class ChannelLeaveResult {
   final String name;

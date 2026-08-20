@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 
 /// The file-card leading surface: React `.attachment-thumb { width: 40px;
 /// height: 40px; border-radius: 8px; background: var(--bg-3); color:

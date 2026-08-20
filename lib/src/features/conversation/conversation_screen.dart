@@ -30,7 +30,7 @@ import 'package:mosh/src/features/shared/media_viewer.dart'
     show showMediaViewer;
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/routing/app_router.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/conversation_providers.dart';

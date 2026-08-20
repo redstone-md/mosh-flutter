@@ -11,8 +11,9 @@ import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AttachmentState, AttachmentView, CallEvent;
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart' show CallEvent;
+import 'package:mosh/src/rust/conversation/attachments.dart'
+    show AttachmentState, AttachmentView;
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 

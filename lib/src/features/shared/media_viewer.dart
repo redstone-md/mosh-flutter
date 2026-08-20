@@ -12,7 +12,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 
 /// Fullscreen in-app media viewer -- 1-в-1 with React's `MediaViewer`.
 ///

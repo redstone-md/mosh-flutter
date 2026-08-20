@@ -3,54 +3,61 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import 'dart:typed_data';
-
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`
 
-            // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`
-
-
-            /// Serves one decrypted attachment range through the owning conversation
+/// Serves one decrypted attachment range through the owning conversation
 /// runtime. The three runtime implementations remain the source of truth.
-Future<AttachmentStreamRange>  streamAttachmentRange({required String kind , required String host , required String attachmentId , required BigInt start , required BigInt end }) => RustLib.instance.api.crateApiAttachmentStreamStreamAttachmentRange(kind: kind, host: host, attachmentId: attachmentId, start: start, end: end);
+Future<AttachmentStreamRange> streamAttachmentRange(
+        {required String kind,
+        required String host,
+        required String attachmentId,
+        required BigInt start,
+        required BigInt end}) =>
+    RustLib.instance.api.crateApiAttachmentStreamStreamAttachmentRange(
+        kind: kind,
+        host: host,
+        attachmentId: attachmentId,
+        start: start,
+        end: end);
 
-            /// One bridge-friendly range response shape for all conversation kinds.
+/// One bridge-friendly range response shape for all conversation kinds.
 /// Only the fields relevant to [state] are populated. A flat DTO avoids a
 /// generated Dart union dependency for this narrow polling protocol.
-class AttachmentStreamRange  {
-                final AttachmentStreamState state;
-final Uint8List bytes;
-final BigInt totalSize;
-final String mime;
+class AttachmentStreamRange {
+  final AttachmentStreamState state;
+  final Uint8List bytes;
+  final BigInt totalSize;
+  final String mime;
 
-                const AttachmentStreamRange({required this.state ,required this.bytes ,required this.totalSize ,required this.mime ,});
+  const AttachmentStreamRange({
+    required this.state,
+    required this.bytes,
+    required this.totalSize,
+    required this.mime,
+  });
 
-                
-                
+  @override
+  int get hashCode =>
+      state.hashCode ^ bytes.hashCode ^ totalSize.hashCode ^ mime.hashCode;
 
-                
-        @override
-        int get hashCode => state.hashCode^bytes.hashCode^totalSize.hashCode^mime.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is AttachmentStreamRange &&
-                runtimeType == other.runtimeType
-                && state == other.state&& bytes == other.bytes&& totalSize == other.totalSize&& mime == other.mime;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AttachmentStreamRange &&
+          runtimeType == other.runtimeType &&
+          state == other.state &&
+          bytes == other.bytes &&
+          totalSize == other.totalSize &&
+          mime == other.mime;
+}
 
 /// The state of one attachment range request.
 enum AttachmentStreamState {
-                    ready,
-pending,
-unknown,
-                    ;
-                    
-                }
-            
+  ready,
+  pending,
+  unknown,
+  ;
+}

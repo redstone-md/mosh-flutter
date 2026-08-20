@@ -99,6 +99,7 @@ import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 
@@ -276,10 +277,19 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
   // Peer-DM-offer SEND seams: channel is wired to the generated Rust facade;
   // group remains a separate atomic for independent review.
   @override
-  Future<void> sendChannelDmOffer({required String channelName, required String peerFingerprint, required String inviteUri}) =>
-      channel_api.sendDmOffer(name: channelName, targetFingerprint: peerFingerprint, inviteUri: inviteUri);
+  Future<void> sendChannelDmOffer(
+          {required String channelName,
+          required String peerFingerprint,
+          required String inviteUri}) =>
+      channel_api.sendDmOffer(
+          name: channelName,
+          targetFingerprint: peerFingerprint,
+          inviteUri: inviteUri);
   @override
-  Future<void> sendGroupDmOffer({required String groupId, required String peerFingerprint, required String inviteUri}) =>
+  Future<void> sendGroupDmOffer(
+          {required String groupId,
+          required String peerFingerprint,
+          required String inviteUri}) =>
       group_api.sendDmOffer(
           groupId: groupId,
           targetFingerprint: peerFingerprint,

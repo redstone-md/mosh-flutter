@@ -27,7 +27,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'

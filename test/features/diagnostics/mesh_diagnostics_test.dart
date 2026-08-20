@@ -22,7 +22,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/mesh.dart';
 import '../../support/pump.dart';
 
 /// A full `MeshInfo` builder for the widget tests. Only the fields the
