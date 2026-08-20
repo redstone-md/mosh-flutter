@@ -6,8 +6,20 @@
 //! the same in both kinds, so they live here once. How the offer travels, and
 //! what accepting it does, stay with the kind.
 
+use serde::{Deserialize, Serialize};
+
 use crate::attachment_crypto::sha256_hex;
-use crate::private_dm_runtime::contracts::DmOffer;
+
+/// A request to start a private DM, surfaced inside a channel or group. The
+/// initiator publishes it; the targeted member accepts the carried invite.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DmOffer {
+    pub offer_id: String,
+    pub from_device: String,
+    pub from_fingerprint: String,
+    pub target_fingerprint: String,
+    pub invite_uri: String,
+}
 
 /// The offers aimed at us, oldest first.
 #[derive(Default)]
