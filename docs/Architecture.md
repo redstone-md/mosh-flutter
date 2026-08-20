@@ -305,6 +305,48 @@ either return a result the screen acts on.
 Conversation behaviour is tested once and run over all three targets, from
 `test/support/conversation_cases.dart`.
 
+### Shared conversation code in the core
+
+The same folding is under way in `mosh-core`, where the DM, group and channel
+runtimes each carried their own copy of the plumbing (ADR 0019). What they
+share now lives in `mosh-core/src/conversation/`; what differs — how a frame
+is encrypted and where it is published — stays with the kind.
+
+```mermaid
+flowchart TD
+    Dm[private_dm_runtime]
+    Gr[private_group_runtime]
+    Ch[channel_runtime]
+    Slots["conversation::attachments<br/>AttachmentSlots"]
+    Log["conversation::message_log<br/>MessageLog + ConversationMessage"]
+    Seen["conversation::dedup<br/>SeenFrames"]
+    Moss[moss node]
+
+    Dm --> Slots
+    Dm --> Log
+    Dm --> Seen
+    Gr --> Slots
+    Gr --> Log
+    Gr --> Seen
+    Ch --> Slots
+    Ch --> Log
+    Ch --> Seen
+    Dm -->|"MLS + relay"| Moss
+    Gr -->|"MLS + room"| Moss
+    Ch -->|"plain + room"| Moss
+```
+
+- `AttachmentSlots` — which attachment was offered, which one the user asked
+  for, where the finished file landed. Flipping a slot and starting the
+  transfer is one call, so the two cannot drift apart.
+- `MessageLog<M>` — the message list plus the id generator, behind the
+  `ConversationMessage` trait. The trait keeps the one real difference
+  explicit: a channel or group message is matched on the sender's fingerprint,
+  a DM message on the device name.
+- `SeenFrames` — the capped ring that spots a repeated moss frame. Which
+  frames are checked is still the kind's call; a DM skips its handshake and
+  chunk traffic, where a re-send is how loss is recovered.
+
 ## State Ownership
 
 - Server / runtime state (sessions, messages, snapshots, diagnostics, delivery status) comes from `mosh-core` through the bridge and lives in Riverpod `AsyncNotifierProvider`s as `AsyncValue<T>`. UI consumes it with `.when(loading:, error:, data:)`. This is the direct analogue of TanStack Query server state (ADR 0010).
@@ -446,5 +488,6 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0016-api-runtime-ownership-oncelock-singleton.md - api runtime ownership via OnceLock singleton.
 - docs/ADR/0017-gateway-takes-the-conversation-target.md - the Dart Gateway takes the conversation target.
 - docs/ADR/0018-one-conversation-module.md - one Conversation module for the DM, the channel and the group.
+- docs/ADR/0019-shared-conversation-strata-in-the-core.md - shared conversation strata in mosh-core.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).
