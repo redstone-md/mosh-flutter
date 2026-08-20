@@ -183,15 +183,6 @@ pub struct RelayFrame {
     pub bytes: Vec<u8>,
 }
 
-pub fn encode(bytes: &[u8]) -> String {
-    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes)
-}
-
-pub fn decode(encoded: &str) -> Result<Vec<u8>, PrivateDmRuntimeError> {
-    base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)
-        .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))
-}
-
 #[cfg(test)]
 pub fn fail_next_test_publish(message: &str) -> crate::moss_ffi::TestPublishFailureGuard {
     crate::moss_ffi::fail_next_test_publish(message)
