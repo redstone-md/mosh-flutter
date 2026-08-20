@@ -8,7 +8,6 @@
 // recording-fake idiom in group_screen_failed_send_test.dart, but the fake
 // `sendGroup` returns a `Completer`-backed future so the test controls WHEN
 // the send resolves and can mutate the composer mid-flight.
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,8 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
-import 'package:mosh/src/rust/outbound_delivery.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -44,42 +42,9 @@ GroupSnapshot _snapshot({required String groupId}) => GroupSnapshot(
       memberPeerIds: const [],
     );
 
-/// A FakeGateway subclass whose `sendGroup` returns a `Completer`-backed
-/// future so the test controls when the send resolves. Records each body.
-/// Mirrors `_RecordingGateway` in group_screen_failed_send_test.dart but
-/// swaps the throw-on-first-call behavior for controllable resolution.
-class _ControllableGateway extends FakeGateway {
-  final List<String> bodies = [];
-  late final Completer<GroupSendResult> completer;
-
-  _ControllableGateway() {
-    completer = Completer<GroupSendResult>();
-  }
-
-  @override
-  Future<GroupSendResult> sendGroup({
-    required String groupId,
-    required String body,
-  }) {
-    bodies.add(body);
-    return completer.future;
-  }
-
-  void resolve() {
-    completer.complete(GroupSendResult(
-      groupId: 'group-conditional-clear',
-      bytes: BigInt.from(bodies.last.codeUnits.length),
-      messageId: 'msg-1',
-      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-      deliveryStatus: MessageDeliveryStatus.sent,
-      deliveryError: null,
-    ));
-  }
-}
-
 Future<void> _pump(
   WidgetTester tester,
-  _ControllableGateway gateway, {
+  ScriptableGateway gateway, {
   required String groupId,
 }) async {
   await tester.pumpWidget(ProviderScope(
@@ -113,7 +78,7 @@ void main() {
   testWidgets(
       'a successful send clears the composer when it still equals the body',
       (tester) async {
-    final gateway = _ControllableGateway();
+    final gateway = ScriptableGateway()..hold(GatewayMethod.sendGroup);
     await _pump(tester, gateway, groupId: groupId);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -122,12 +87,12 @@ void main() {
     // Do NOT settle: the send is in flight (completer unresolved).
     await tester.pump();
 
-    expect(gateway.bodies, ['hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.sendGroup, 'body'), ['hello there']);
     expect(_controllerOf(tester).text, 'hello there');
 
     // The composer still equals the sent body, so resolving the send clears
     // it (the common case).
-    gateway.resolve();
+    gateway.release(GatewayMethod.sendGroup);
     await tester.pumpAndSettle();
 
     expect(_controllerOf(tester).text, '');
@@ -136,7 +101,7 @@ void main() {
   testWidgets(
       'a successful send does NOT clear the composer if the user typed more',
       (tester) async {
-    final gateway = _ControllableGateway();
+    final gateway = ScriptableGateway()..hold(GatewayMethod.sendGroup);
     await _pump(tester, gateway, groupId: groupId);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -145,7 +110,7 @@ void main() {
     // Do NOT settle: the send is in flight (completer unresolved).
     await tester.pump();
 
-    expect(gateway.bodies, ['hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.sendGroup, 'body'), ['hello there']);
 
     // Simulate the user typing MORE text while the send is in flight by
     // writing directly to the composer controller (the TextField is
@@ -160,7 +125,7 @@ void main() {
     // Resolve the in-flight send. The composer no longer equals the sent
     // body, so the conditional clear leaves the new text intact (1-1 with
     // React: in-flight typing survives).
-    gateway.resolve();
+    gateway.release(GatewayMethod.sendGroup);
     await tester.pumpAndSettle();
 
     expect(_controllerOf(tester).text, 'hello there and more');

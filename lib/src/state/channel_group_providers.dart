@@ -7,7 +7,7 @@
 // TanStack-Query analogue -- loading/data/error flows through `AsyncValue`).
 // Both providers consume the `gatewayProvider` seam (ADR 0013), never a
 // concrete `Gateway`, so the wired backend is a single provider swap and
-// both `FakeGateway` (tests) and `RealBridgeGateway` (S5) satisfy this file.
+// both the test gateway and `RealBridgeGateway` satisfy this file.
 //
 // The `Gateway.listChannels` / `Gateway.listGroups` methods (commit b750a87)
 // and the generated non-opaque contract types `ChannelListSnapshot` /

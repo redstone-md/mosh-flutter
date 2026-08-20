@@ -8,11 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
-import 'package:mosh/src/gateway/gateway.dart';
+import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/rust/api/vpn.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
-import 'package:mosh/src/rust/vpn_consent.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 void main() {
@@ -102,10 +101,9 @@ void main() {
   group('production relaunch wiring', () {
     testWidgets('VPN consent overlay invokes the scoped relauncher',
         (tester) async {
-      final gateway = _ConsentGateway(
-        detection: _ownsDefault(),
-        interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
-      );
+      final gateway = ScriptableGateway()
+        ..seedVpnDetection(_ownsDefault())
+        ..seedInterfaces([_iface(name: 'eth0', ipv4: '192.168.1.5')]);
       final relauncher = _RecordingRelauncher();
 
       await tester.pumpWidget(
@@ -132,9 +130,8 @@ void main() {
     testWidgets(
         'OnboardMenu passes the scoped relauncher to BindInterfaceField',
         (tester) async {
-      final gateway = _BindGateway(
-        interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
-      );
+      final gateway = ScriptableGateway()
+        ..seedInterfaces([_iface(name: 'eth0', ipv4: '192.168.1.5')]);
       final relauncher = _RecordingRelauncher();
 
       await tester.pumpWidget(
@@ -185,48 +182,6 @@ class _RecordingRelauncher {
     start: (_, __, ___) async => events.add('spawn'),
     terminate: (_) => events.add('terminate'),
   );
-}
-
-class _ConsentGateway implements Gateway {
-  final VpnDetection detection;
-  final List<NetworkInterfaceInfo> interfaces;
-
-  _ConsentGateway({required this.detection, required this.interfaces});
-
-  @override
-  Future<VpnBypassConsent?> getVpnBypassConsent() async => null;
-
-  @override
-  Future<VpnDetection> detectVpn() async => detection;
-
-  @override
-  Future<List<NetworkInterfaceInfo>> listInterfaces() async => interfaces;
-
-  @override
-  Future<void> setVpnBypassConsent({String? interfaceName}) async {}
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
-class _BindGateway implements Gateway {
-  final List<NetworkInterfaceInfo> interfaces;
-
-  _BindGateway({required this.interfaces});
-
-  @override
-  Future<List<NetworkInterfaceInfo>> listInterfaces() async => interfaces;
-
-  @override
-  Future<String?> getBindInterface() async => null;
-
-  @override
-  Future<void> setVpnBypassConsent({String? interfaceName}) async {}
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
 }
 
 NetworkInterfaceInfo _iface({required String name, required String ipv4}) =>

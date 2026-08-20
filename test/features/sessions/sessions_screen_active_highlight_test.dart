@@ -17,23 +17,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 // Seeded fake gateway returning a fixed 2-session snapshot so the rail
 // renders two deterministic DM rows (Alice + Bob).
-class _SeededSessionsGateway extends FakeGateway {
-  _SeededSessionsGateway(this._sessions);
-
-  final List<SessionSnapshot> _sessions;
-
-  @override
-  Future<SessionListSnapshot> listSessions() =>
-      Future.value(SessionListSnapshot(sessions: _sessions));
-}
-
 SessionSnapshot _session({
   required String sessionId,
   required String peerDisplayName,
@@ -61,7 +51,7 @@ SessionSnapshot _session({
 void main() {
   const aliceId = 'alice-session';
   const bobId = 'bob-session';
-  final gateway = _SeededSessionsGateway([
+  final gateway = ScriptableGateway()..seedSessions([
     _session(sessionId: aliceId, peerDisplayName: 'Alice'),
     _session(sessionId: bobId, peerDisplayName: 'Bob'),
   ]);

@@ -22,7 +22,7 @@ import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 ChannelMessage _msg({
@@ -83,33 +83,9 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-/// A FakeGateway subclass whose `retryChannelMessage` records its args so
-/// the retry-wiring test can assert tapping the Retry button fires the
-/// Gateway retry seam with the message id. Mirrors the _RecordingGateway
-/// idiom in channel_screen_close_flow_test.dart.
-class _RecordingGateway extends FakeGateway {
-  String? retriedName;
-  String? retriedMessageId;
-
-  @override
-  Future<ChannelSendResult> retryChannelMessage(
-      {required String name, required String messageId}) {
-    retriedName = name;
-    retriedMessageId = messageId;
-    return Future.value(ChannelSendResult(
-      name: name,
-      bytes: BigInt.zero,
-      messageId: 'retry-$messageId',
-      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-      deliveryStatus: MessageDeliveryStatus.sent,
-      deliveryError: null,
-    ));
-  }
-}
-
 Future<void> _pumpWithGateway(
   WidgetTester tester,
-  _RecordingGateway gateway, {
+  ScriptableGateway gateway, {
   required String name,
   required ChannelSnapshot snapshot,
 }) async {
@@ -309,7 +285,7 @@ void main() {
   // invalidates so the next poll re-renders the row.
   testWidgets('tapping Retry fires retryChannelMessage with the message id',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     const msgId = 'm-retry-1';
     final msg = _msg(
       fromFingerprint: 'fp-me',
@@ -333,15 +309,14 @@ void main() {
 
     // Pre-condition: the Retry button rendered (the row is shown).
     expect(find.text('Retry'), findsOneWidget);
-    expect(gateway.retriedName, isNull);
-    expect(gateway.retriedMessageId, isNull);
+    expect(gateway.countOf(GatewayMethod.retryChannelMessage), 0);
 
     // Tap the Retry button -- this fires the Gateway retry seam.
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
     // The Gateway retry seam fired with the channel name + message id.
-    expect(gateway.retriedName, name);
-    expect(gateway.retriedMessageId, msgId);
+    expect(gateway.lastCall(GatewayMethod.retryChannelMessage)?.arg<String>('name'), name);
+    expect(gateway.lastCall(GatewayMethod.retryChannelMessage)?.arg<String>('messageId'), msgId);
   });
 }

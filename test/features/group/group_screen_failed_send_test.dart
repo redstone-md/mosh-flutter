@@ -12,8 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
-import 'package:mosh/src/rust/outbound_delivery.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -39,37 +38,9 @@ GroupSnapshot _snapshot({required String groupId}) => GroupSnapshot(
       memberPeerIds: const [],
     );
 
-/// A FakeGateway subclass whose `sendGroup` throws on the first call and
-/// succeeds on the second, recording each body. Mirrors the DM suite's
-/// `_RecordingGateway`.
-class _RecordingGateway extends FakeGateway {
-  final List<String> bodies = [];
-  int _throwsLeft;
-
-  _RecordingGateway({int throwsLeft = 1}) : _throwsLeft = throwsLeft;
-
-  @override
-  Future<GroupSendResult> sendGroup(
-      {required String groupId, required String body}) {
-    bodies.add(body);
-    if (_throwsLeft > 0) {
-      _throwsLeft--;
-      return Future.error(Exception('send boom'));
-    }
-    return Future.value(GroupSendResult(
-      groupId: groupId,
-      bytes: BigInt.from(body.codeUnits.length),
-      messageId: 'msg-1',
-      sentAtMs: BigInt.from(DateTime.now().millisecondsSinceEpoch),
-      deliveryStatus: MessageDeliveryStatus.sent,
-      deliveryError: null,
-    ));
-  }
-}
-
 Future<void> _pump(
   WidgetTester tester,
-  _RecordingGateway gateway, {
+  ScriptableGateway gateway, {
   required String groupId,
 }) async {
   await tester.pumpWidget(ProviderScope(
@@ -100,7 +71,7 @@ void main() {
   testWidgets(
       'a thrown text send records the failure + banner + keeps the composer body',
       (tester) async {
-    final gateway = _RecordingGateway(throwsLeft: 1);
+    final gateway = ScriptableGateway()..failNext(GatewayMethod.sendGroup, error: Exception('send boom'));
     await _pump(tester, gateway, groupId: groupId);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -108,7 +79,7 @@ void main() {
     await tester.tap(find.byKey(kComposerSendButtonKey));
     await tester.pumpAndSettle();
 
-    expect(gateway.bodies, ['hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.sendGroup, 'body'), ['hello there']);
     expect(find.textContaining('send boom'), findsOneWidget);
     final l = AppLocalizations.of(tester.element(find.byType(GroupScreen)))!;
     expect(find.text(l.chatErrorRetry), findsOneWidget);
@@ -120,7 +91,7 @@ void main() {
 
   testWidgets('a successful retry clears the failure + banner + composer',
       (tester) async {
-    final gateway = _RecordingGateway(throwsLeft: 1);
+    final gateway = ScriptableGateway()..failNext(GatewayMethod.sendGroup, error: Exception('send boom'));
     await _pump(tester, gateway, groupId: groupId);
 
     await tester.enterText(_composerField(), 'hello there');
@@ -135,7 +106,7 @@ void main() {
     await tester.tap(find.text(l.chatErrorRetry));
     await tester.pumpAndSettle();
 
-    expect(gateway.bodies, ['hello there', 'hello there']);
+    expect(gateway.argValues<String>(GatewayMethod.sendGroup, 'body'), ['hello there', 'hello there']);
     expect(find.textContaining('send boom'), findsNothing);
     expect(find.text(l.chatErrorRetry), findsNothing);
 

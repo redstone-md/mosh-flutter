@@ -8,7 +8,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -43,17 +43,6 @@ SessionSnapshot _session({
       outgoingCall: null,
       activeCall: null,
     );
-
-/// FakeGateway whose `listSessions` returns a fixed snapshot so the
-/// provider has a deterministic input. Other methods inherit the base
-/// FakeGateway behaviour (unused here).
-class _SeededGateway extends FakeGateway {
-  _SeededGateway(this._snapshot);
-  SessionListSnapshot _snapshot;
-
-  @override
-  Future<SessionListSnapshot> listSessions() => Future.value(_snapshot);
-}
 
 void main() {
   group('unreadDmCounts', () {
@@ -92,9 +81,9 @@ void main() {
   });
 
   group('unreadDmCountsProvider', () {
-    test('resolves to the derived map over the FakeGateway snapshot',
+    test('resolves to the derived map over the seeded snapshot',
         () async {
-      final gateway = _SeededGateway(SessionListSnapshot(sessions: [
+      final gateway = ScriptableGateway()..seedSessions([
         _session(
           sessionId: 'a',
           displayName: 'me',
@@ -115,7 +104,7 @@ void main() {
           displayName: 'me',
           messages: [_msg('peer')],
         ),
-      ]));
+      ]);
 
       final container = ProviderContainer(overrides: [
         gatewayProvider.overrideWithValue(gateway),
@@ -135,7 +124,7 @@ void main() {
     test('recomputes when sessionListProvider refreshes', () async {
       // Start empty; refresh swaps the snapshot to one with an unread
       // session and the derived map updates on the next read.
-      final gateway = _SeededGateway(const SessionListSnapshot(sessions: []));
+      final gateway = ScriptableGateway();
       final container = ProviderContainer(overrides: [
         gatewayProvider.overrideWithValue(gateway),
       ]);
@@ -144,7 +133,7 @@ void main() {
       await container.read(sessionListProvider.future);
       expect(await container.read(unreadDmCountsProvider.future), isEmpty);
 
-      gateway._snapshot = SessionListSnapshot(sessions: [
+      gateway.seedSessions([
         _session(
           sessionId: 'a',
           displayName: 'me',

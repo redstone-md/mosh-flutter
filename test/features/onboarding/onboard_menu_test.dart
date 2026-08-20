@@ -8,7 +8,7 @@
 // (a mid-typing rewrite is jarring); only the stored value is constrained.
 //
 // Pumps the bare OnboardMenu (lighter than the full appRouter screen) with a
-// FakeGateway override so BindInterfaceField's async initState stays
+// test gateway override so BindInterfaceField's async initState stays
 // deterministic, expands the Advanced disclosure, and types into the
 // listen-port field (the third TextField in the menu: name, staticPeer,
 // listenPort). Asserts the clamped stored value on inviteFlowProvider.
@@ -18,17 +18,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 void main() {
-  // Pumps OnboardMenu with FakeGateway so BindInterfaceField's
+  // Pumps OnboardMenu with the test gateway so BindInterfaceField's
   // listInterfaces/getBindInterface resolve synchronously and the Advanced
   // disclosure can be expanded to reach the listen-port field.
   Future<ProviderContainer> pumpMenu(WidgetTester tester) async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(FakeGateway()),
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
     ]);
     addTearDown(container.dispose);
 

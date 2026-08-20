@@ -1,10 +1,10 @@
 // Sealed seam between the flutter_rust_bridge surface and the Flutter UI.
 //
-// `FakeGateway` (S4) and `RealBridgeGateway` (S5) both implement this interface;
-// widgets depend on `Gateway`, never on a concrete impl, so swapping the
-// wired runtime is one provider change (ADR 0013).
+// The app runs on `RealBridgeGateway`; tests run on the scriptable gateway in
+// test/support/. Widgets depend on `Gateway`, never on a concrete impl, so
+// swapping the wired runtime is one provider change (ADR 0013).
 //
-// The thirty methods below mirror the slice-one Rust `mosh_core::api` surface
+// The 57 methods below mirror the Rust `mosh_core::api` surface
 // 1:1, poll-based (no streams). Signatures match the generated frb functions.
 // The channels/groups read seam adds pollChannel/listChannels/pollGroup/
 // listGroups; the channels/groups write seam adds joinChannel/sendChannel/
@@ -29,10 +29,10 @@ import 'package:mosh/src/rust/vpn_consent.dart';
 
 /// Abstraction over the slice-one private-DM + diagnostics API.
 ///
-/// Implementations: `FakeGateway` (in-Dart, first slice only, ADR 0013) and
-/// `RealBridgeGateway` (delegates to the generated frb functions, S5). Widgets
-/// consume this interface, never a concrete class, so the wired backend is a
-/// single Riverpod provider swap.
+/// Implementations: `RealBridgeGateway` (delegates to the generated frb
+/// functions) in the app, and `ScriptableGateway` (test/support/) in tests.
+/// Widgets consume this interface, never a concrete class, so the wired
+/// backend is a single Riverpod provider swap.
 abstract interface class Gateway {
   Future<AppDiagnostics> appDiagnostics();
   Future<NativeRuntimeStatus> nativeRuntimeStatus();

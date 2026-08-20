@@ -1,5 +1,5 @@
 // S4.7: widget test for the DM screen. Pumps it in a ProviderScope +
-// localized MaterialApp with a FakeGateway (pre-seeded via createInvite so
+// localized MaterialApp with a test gateway (pre-seeded via createInvite so
 // the session has a known id + 0 messages), types a message, taps send, and
 // asserts the seeded + sent messages render.
 import 'package:flutter/material.dart';
@@ -8,14 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 void main() {
   testWidgets('renders seeded messages and appends on send', (tester) async {
-    final gateway = FakeGateway();
+    final gateway = ScriptableGateway();
     final invite = await gateway.createInvite(
       request: const StartSessionRequest(displayName: 'alice', listenPort: 8765),
     );

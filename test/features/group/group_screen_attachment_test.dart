@@ -6,8 +6,6 @@
 // renders the file name + offered state label -- proving the per-message
 // AttachmentView lookup (snapshot.attachments by attachmentId) wires the
 // view into the row, and the transfer action reflects the screen busy state.
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,24 +14,13 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 import '../shared/attachment_launcher_test_support.dart';
-
-class _ControllableGateway extends FakeGateway {
-  final Completer<void> downloadCompleter = Completer<void>();
-
-  @override
-  Future<void> downloadGroupAttachment({
-    required String groupId,
-    required String attachmentId,
-  }) =>
-      downloadCompleter.future;
-}
 
 AttachmentDescriptor _fileDescriptor({
   required String attachmentId,
@@ -119,7 +106,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required String groupId,
   required GroupSnapshot snapshot,
-  _ControllableGateway? gateway,
+  ScriptableGateway? gateway,
   AttachmentLauncher? launcher,
 }) async {
   await tester.pumpWidget(ProviderScope(
@@ -254,7 +241,7 @@ void main() {
         ),
       ],
     );
-    final gateway = _ControllableGateway();
+    final gateway = ScriptableGateway()..hold(GatewayMethod.downloadGroupAttachment);
 
     await _pump(
       tester,
@@ -268,7 +255,7 @@ void main() {
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNull);
 
-    gateway.downloadCompleter.complete();
+    gateway.release(GatewayMethod.downloadGroupAttachment);
     await tester.pump();
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);

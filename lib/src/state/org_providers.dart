@@ -13,7 +13,7 @@
 //
 // Per ADR 0010/0013: server state via AsyncNotifier, ephemeral invite state
 // via class-based Notifier (StateProvider is legacy in Riverpod v3), all
-// reads/writes through gatewayProvider so FakeGateway tests + RealBridgeGateway
+// reads/writes through gatewayProvider so the test gateway + RealBridgeGateway
 // prod both work.
 library;
 

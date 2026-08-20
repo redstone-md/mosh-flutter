@@ -7,10 +7,9 @@
 // `group?.label ?? (group ? shorten(group.group_id, 6) : "this group")`;
 // the group screen always has a resolved group, so the "this group" arm is
 // unreachable). Mirrors the seed/override idiom of
-// `group_screen_rejoin_test.dart` (override `groupSnapshotProvider`) PLUS
-// a `_RecordingGateway extends FakeGateway` (the idiom from
-// `chat_create_screen_test.dart`) whose `closeGroup` records its `groupId`
-// arg, so the test asserts the real close only fires on confirm (React's
+// `group_screen_rejoin_test.dart` (override `groupSnapshotProvider`). The
+// test gateway records the `closeGroup` call, so the test asserts the real
+// close only fires on confirm (React's
 // `closeFlow.confirmCloseActive` gating).
 //
 // Four cases:
@@ -25,24 +24,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
-
-/// A FakeGateway subclass whose `closeGroup` records its `groupId` arg so the
-/// close-flow test can assert the real close only fires on confirm. Mirrors
-/// the `_ControlledCreateGateway` idiom in `chat_create_screen_test.dart`.
-class _RecordingGateway extends FakeGateway {
-  String? closedGroupId;
-
-  @override
-  Future<GroupLeaveResult> closeGroup({required String groupId}) {
-    closedGroupId = groupId;
-    return Future.value(GroupLeaveResult(groupId: groupId, closed: true));
-  }
-}
 
 GroupSnapshot _emptySnapshot({
   required String groupId,
@@ -71,7 +57,7 @@ GroupSnapshot _emptySnapshot({
 
 Future<void> _pump(
   WidgetTester tester,
-  _RecordingGateway gateway, {
+  ScriptableGateway gateway, {
   required String groupId,
   String? label,
 }) async {
@@ -99,7 +85,7 @@ Future<void> _pump(
 void main() {
   testWidgets('tapping leave opens the ConfirmDialog with the group label',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     const groupId = 'grp-close-labeled';
     await _pump(tester, gateway, groupId: groupId, label: 'Tea Club');
 
@@ -111,13 +97,13 @@ void main() {
     expect(find.text('Leave Tea Club?'), findsOneWidget);
     expect(find.text('Leave group'), findsOneWidget);
     // The gateway close has NOT fired yet (dialog is open, unconfirmed).
-    expect(gateway.closedGroupId, isNull);
+    expect(gateway.countOf(GatewayMethod.closeGroup), 0);
   });
 
   testWidgets(
       'group with no label falls back to shorten(groupId, 6) in the title',
       (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     // A 16-char groupId is long enough to trigger shorten's `head…tail`
     // form (head=6 -> 6 + 1 + 4 = 11 chars shown; e.g. "abcdef…wxyz").
     const groupId = 'abcdef0123456789';
@@ -131,7 +117,7 @@ void main() {
   });
 
   testWidgets('confirming calls closeGroup (the real _leave)', (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     const groupId = 'grp-close-confirm';
     await _pump(tester, gateway, groupId: groupId, label: 'Tea Club');
 
@@ -143,11 +129,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // The real close fired with the groupId.
-    expect(gateway.closedGroupId, groupId);
+    expect(gateway.lastCall(GatewayMethod.closeGroup)?.arg<String>('groupId'), groupId);
   });
 
   testWidgets('cancelling does NOT call closeGroup', (tester) async {
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
     const groupId = 'grp-close-cancel';
     await _pump(tester, gateway, groupId: groupId, label: 'Tea Club');
 
@@ -159,7 +145,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // No real close fired.
-    expect(gateway.closedGroupId, isNull);
+    expect(gateway.countOf(GatewayMethod.closeGroup), 0);
     // The dialog is gone and the group screen is still mounted.
     expect(find.text('Leave Tea Club?'), findsNothing);
     expect(find.byType(GroupScreen), findsOneWidget);

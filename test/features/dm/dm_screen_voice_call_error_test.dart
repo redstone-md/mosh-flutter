@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/dm/voice_capture.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -25,19 +25,6 @@ class _FailingCaptureFactory implements VoiceCaptureFactory {
   Future<VoiceCaptureHandle> start(
       void Function(Uint8List opusFrame) onFrame) {
     return Future.error(Exception('audio setup boom'));
-  }
-}
-
-class _RecordingGateway extends FakeGateway {
-  int callEndCalls = 0;
-
-  @override
-  Future<void> callEnd({
-    required String sessionId,
-    required String callId,
-    required String reason,
-  }) async {
-    callEndCalls++;
   }
 }
 
@@ -67,7 +54,7 @@ void main() {
       'active-call audio setup failure renders inline error without Retry',
       (tester) async {
     const sessionId = 'sess-voice-error';
-    final gateway = _RecordingGateway();
+    final gateway = ScriptableGateway();
 
     await tester.pumpWidget(ProviderScope(
       overrides: [
@@ -91,7 +78,7 @@ void main() {
     expect(find.textContaining('audio setup boom'), findsOneWidget);
     final l = AppLocalizations.of(tester.element(find.byType(DmScreen)))!;
     expect(find.text(l.chatErrorRetry), findsNothing);
-    expect(gateway.callEndCalls, 1);
+    expect(gateway.countOf(GatewayMethod.callEnd), 1);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

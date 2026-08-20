@@ -4,12 +4,10 @@
 // widget-test pattern: a ProviderScope override of `activeSessionProvider`
 // (the public FutureProvider.family seam) returns a controlled
 // SessionSnapshot, so the rendered card is deterministic and neither the
-// FakeGateway nor the native cdylib are involved.
+// gateway nor the native cdylib are involved.
 //
 // In scope: file name + formatted size + localized state label + icon +
 // progress indicator, plus transfer-action busy behavior.
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,23 +16,12 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 import '../shared/attachment_launcher_test_support.dart';
-
-class _ControllableGateway extends FakeGateway {
-  final Completer<void> downloadCompleter = Completer<void>();
-
-  @override
-  Future<void> downloadAttachment({
-    required String sessionId,
-    required String attachmentId,
-  }) =>
-      downloadCompleter.future;
-}
 
 AttachmentDescriptor _fileDescriptor({
   required String attachmentId,
@@ -118,7 +105,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required String sessionId,
   required SessionSnapshot snapshot,
-  _ControllableGateway? gateway,
+  ScriptableGateway? gateway,
   AttachmentLauncher? launcher,
 }) async {
   await tester.pumpWidget(ProviderScope(
@@ -285,7 +272,7 @@ void main() {
         ),
       ],
     );
-    final gateway = _ControllableGateway();
+    final gateway = ScriptableGateway()..hold(GatewayMethod.downloadAttachment);
 
     await _pump(
       tester,
@@ -299,7 +286,7 @@ void main() {
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNull);
 
-    gateway.downloadCompleter.complete();
+    gateway.release(GatewayMethod.downloadAttachment);
     await tester.pump();
     await tester.pump();
     expect(tester.widget<IconButton>(_attachmentAction()).onPressed, isNotNull);
