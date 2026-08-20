@@ -320,17 +320,21 @@ flowchart TD
     Slots["conversation::attachments<br/>AttachmentSlots"]
     Log["conversation::message_log<br/>MessageLog + ConversationMessage"]
     Seen["conversation::dedup<br/>SeenFrames"]
+    Mesh["conversation::mesh<br/>mesh_info + snapshot_events"]
     Moss[moss node]
 
     Dm --> Slots
     Dm --> Log
     Dm --> Seen
+    Dm --> Mesh
     Gr --> Slots
     Gr --> Log
     Gr --> Seen
+    Gr --> Mesh
     Ch --> Slots
     Ch --> Log
     Ch --> Seen
+    Ch --> Mesh
     Dm -->|"MLS + relay"| Moss
     Gr -->|"MLS + room"| Moss
     Ch -->|"plain + room"| Moss
@@ -346,6 +350,9 @@ flowchart TD
 - `SeenFrames` — the capped ring that spots a repeated moss frame. Which
   frames are checked is still the kind's call; a DM skips its handshake and
   chunk traffic, where a re-send is how loss is recovered.
+- `mesh::mesh_info` and `mesh::snapshot_events` — how the mesh looks and what
+  the node has been doing, the part every snapshot ends with. A DM narrows the
+  channel list to its own session afterwards; the rest read it as it comes.
 
 ## State Ownership
 
