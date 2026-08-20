@@ -61,6 +61,11 @@ pub struct RelayJobResult {
     pub session_id: String,
     pub message_id: Option<String>,
     pub error: Option<String>,
+    /// The frame never reached the wire because the relay itself went away
+    /// (the runtime released the node while the job was queued), not because
+    /// the send was tried and failed. The runtime re-routes these on the
+    /// session's current path instead of failing the message.
+    pub retryable: bool,
 }
 
 /// Runtime-side face of the shared relay: the node (diagnostics + lifecycle)
@@ -262,6 +267,7 @@ fn job_result(pending: &PendingJob, error: Option<String>) -> RelayJobResult {
         session_id: pending.job.session_id.clone(),
         message_id: pending.job.message_id.clone(),
         error,
+        retryable: false,
     }
 }
 
@@ -292,11 +298,16 @@ fn run_worker(
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => {
+                // The relay was released (the DM migrated off it). These jobs
+                // were never tried, so they are the runtime's to re-route on
+                // the new path, not failures of the message.
                 while let Some(pending) = queue.jobs.pop_front() {
-                    let _ = results.send(job_result(
+                    let mut result = job_result(
                         &pending,
                         Some("relay released before the send completed".to_string()),
-                    ));
+                    );
+                    result.retryable = true;
+                    let _ = results.send(result);
                 }
                 return;
             }

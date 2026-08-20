@@ -1023,6 +1023,9 @@ impl PrivateDmRuntime {
     /// tracked Data messages settle Pending → Sent / Failed here.
     fn drain_relay_results(&mut self) {
         let mut outcomes: Vec<relay::RelayJobResult> = Vec::new();
+        // (session_id, message_id) of sends the relay never tried before it was
+        // released; re-routed on the session's current path below.
+        let mut reroutes: Vec<(String, String)> = Vec::new();
         // Collect from every live worker; drop a receiver only once its worker
         // has exited (Disconnected) and nothing is left buffered.
         self.relay_results.retain(|receiver| loop {
@@ -1071,6 +1074,14 @@ impl PrivateDmRuntime {
                     eprintln!("relay re-send failed for {message_id}: {error}");
                     Ok(())
                 }
+                // The relay went away before it ever tried this frame. Failing
+                // the message here would strand it: the resend pump only
+                // re-drives `Sent` attempts, so nothing would ever pick it up
+                // again on the path the session just migrated to.
+                Some(_) if outcome.retryable => {
+                    reroutes.push((outcome.session_id.clone(), message_id));
+                    continue;
+                }
                 Some(error) => session
                     .outbox()
                     .settle(&message_id, Err(error), OnSent::Retain)
@@ -1082,6 +1093,29 @@ impl PrivateDmRuntime {
             }
             self.sessions
                 .persist_send(&outcome.session_id, &message_id, false);
+        }
+        // Re-send on whatever path the session is on now — direct, after the
+        // migration that released the relay. `route_prepared` settles the
+        // outcome, so the message ends up Sent or honestly Failed instead of
+        // sitting in a state nothing re-drives. A relay released a second time
+        // while the re-routed job is queued just reports retryable again; the
+        // path hysteresis bounds how often that can happen.
+        for (session_id, message_id) in reroutes {
+            let prepared = match self.session_mut(&session_id).and_then(|session| {
+                session
+                    .outbox()
+                    .reopen(&message_id)
+                    .map_err(PrivateDmRuntimeError::from)
+            }) {
+                Ok(prepared) => prepared,
+                Err(error) => {
+                    eprintln!("re-routing {message_id} after relay release failed: {error}");
+                    continue;
+                }
+            };
+            if let Err(error) = self.route_prepared(&session_id, prepared, false) {
+                eprintln!("re-routing {message_id} after relay release failed: {error}");
+            }
         }
     }
 
@@ -3778,6 +3812,7 @@ mod tests {
                 session_id: invite.session_id.clone(),
                 message_id: Some(message_id.clone()),
                 error: None,
+                retryable: false,
             })
             .expect("result channel open");
         alice.drain_relay_results();
@@ -3804,6 +3839,7 @@ mod tests {
                 session_id: invite.session_id.clone(),
                 message_id: Some(failed_id.clone()),
                 error: Some("relay not ready in time".to_string()),
+                retryable: false,
             })
             .expect("result channel open");
         alice.drain_relay_results();
@@ -3822,6 +3858,90 @@ mod tests {
             session.outbound_attempts.contains_key(&failed_id),
             "failed attempt stays retryable"
         );
+    }
+
+    // Bug #25: a send queued while the DM was Relayed must survive the
+    // migration off the relay. Releasing the relay hands its untried jobs back
+    // as retryable; the runtime re-routes them on the path the session moved
+    // to. Settling them Failed instead loses the message in silence — the
+    // resend pump only re-drives `Sent` attempts, so nothing would retry it.
+    #[test]
+    fn a_send_the_relay_never_tried_is_rerouted_not_failed() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
+        let invite = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42197,
+                static_peer: None,
+            })
+            .expect("Alice invite should be created");
+
+        let relay_node = runtime
+            .init_default_node(
+                "relay-test-mesh",
+                &crate::moss_ffi::MossNodeConfig::default(),
+            )
+            .expect("relay test node should init");
+        let (jobs_tx, jobs_rx) = mpsc::channel();
+        let (results_tx, results_rx) = mpsc::channel();
+        alice.relay = Some(relay::RelayHandle {
+            node: Arc::new(relay_node),
+            jobs: jobs_tx,
+        });
+        alice.relay_results.push(results_rx);
+        {
+            let session = alice
+                .sessions
+                .get_mut(&invite.session_id)
+                .expect("Alice session should exist");
+            session.path = DmPath::Relayed;
+            session.peer_moss_id = Some("ab".repeat(32));
+        }
+
+        let result = alice
+            .send_message(&invite.session_id, "hi".to_string())
+            .expect("send should queue");
+        assert_eq!(result.delivery_status, MessageDeliveryStatus::Pending);
+        let message_id = result.message_id.clone();
+        jobs_rx.try_recv().expect("job must be queued");
+
+        // The session migrates to Direct: the path flips, the last relay ref
+        // goes away, and the worker reports its untried job as retryable.
+        alice
+            .sessions
+            .get_mut(&invite.session_id)
+            .expect("Alice session should exist")
+            .path = DmPath::Direct;
+        alice.relay = None;
+        results_tx
+            .send(relay::RelayJobResult {
+                session_id: invite.session_id.clone(),
+                message_id: Some(message_id.clone()),
+                error: Some("relay released before the send completed".to_string()),
+                retryable: true,
+            })
+            .expect("result channel open");
+
+        alice.drain_relay_results();
+
+        let session = &alice.sessions[&invite.session_id];
+        let message = session
+            .messages
+            .iter()
+            .find(|m| m.message_id.as_deref() == Some(message_id.as_str()))
+            .expect("message exists");
+        assert_eq!(
+            message.delivery_status,
+            Some(MessageDeliveryStatus::Sent),
+            "the re-route publishes it on the direct path"
+        );
+        assert_eq!(message.delivery_error, None);
     }
 
     // A message that dies in the worker queue when the app closes must not
