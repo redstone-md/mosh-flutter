@@ -9,21 +9,20 @@ use crate::attachment_runtime::{
 };
 use crate::attachment_store::AttachmentStore;
 use crate::commit_sequencer::{CommitSequencer, Disposition};
-use crate::conversation::attachments::{
-    descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
-};
+use crate::conversation::attachments::{descriptor_of, AttachmentSlots, SlotError};
 use crate::conversation::dedup::SeenFrames;
+use crate::conversation::history::{History, Restore};
 use crate::conversation::mesh;
-use crate::conversation::message_log::{delivery_meta, ConversationMessage, LogError, MessageLog};
+use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog};
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
-use crate::conversation::{decode, encode, now_ms};
+use crate::conversation::{decode, encode};
 use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
 use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::org_envelope::{self, OrgContext, OrgSigned};
 use crate::org_roster::{self, Roster};
 use crate::org_signing;
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
-use crate::persistence::Persistence;
+use crate::persistence::{Persistence, GROUP_HISTORY};
 use crate::private_dm_runtime::{
     AttachmentDescriptor, AttachmentSendResult, AttachmentView, DmOffer, MeshInfo, SnapshotEvent,
     VoiceMeta,
@@ -38,7 +37,6 @@ const INVITE_PREFIX: &str = "mosh://group";
 const MAX_LABEL_LEN: usize = 64;
 const MAX_BODY_LEN: usize = 4096;
 const INVITE_FINGERPRINT_LEN: usize = 32;
-const OUTBOUND_SCOPE_PRIVATE_GROUP: &str = "private_group";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateGroupRequest {
@@ -116,6 +114,10 @@ impl ConversationMessage for GroupMessage {
 
     fn author(&self) -> &str {
         &self.from_fingerprint
+    }
+
+    fn attachment(&self) -> Option<&AttachmentDescriptor> {
+        self.attachment.as_ref()
     }
 
     fn set_delivery(&mut self, delivery: MessageDeliveryMeta) {
@@ -348,14 +350,6 @@ enum BlobEnvelope {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct PersistedGroupMessage {
-    conversation_id: String,
-    sent_at_ms: u64,
-    message_id: String,
-    message: GroupMessage,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 struct PersistedGroupSession {
     group_id: String,
     mesh_id: String,
@@ -383,7 +377,7 @@ pub struct PrivateGroupRuntime {
     shared_node: Arc<SharedMossNode>,
     attachment_store: Arc<AttachmentStore>,
     persistence: Option<Arc<Persistence>>,
-    persisted_counts: HashMap<String, usize>,
+    history: History,
     finalized_group_records: HashSet<String>,
     groups: HashMap<String, GroupSession>,
 }
@@ -479,7 +473,7 @@ impl PrivateGroupRuntime {
             shared_node,
             attachment_store,
             persistence,
-            persisted_counts: HashMap::new(),
+            history: History::new(GROUP_HISTORY),
             finalized_group_records: HashSet::new(),
             groups: HashMap::new(),
         }
@@ -512,18 +506,10 @@ impl PrivateGroupRuntime {
         let Some(p) = self.persistence.as_ref().cloned() else {
             return;
         };
-        let rows = match p.list_groups() {
-            Ok(rows) => rows,
-            Err(_) => return,
-        };
-        for row in rows {
-            let rec: PersistedGroupSession = match serde_json::from_slice(&row) {
-                Ok(record) => record,
-                Err(error) => {
-                    eprintln!("group rehydrate: bad group row: {error}");
-                    continue;
-                }
-            };
+        for rec in self
+            .history
+            .stored_conversations::<PersistedGroupSession>(&p)
+        {
             let snapshot = match p.get_group_mls_snapshot(&rec.group_id) {
                 Ok(Some(snapshot)) => snapshot,
                 _ => {
@@ -628,74 +614,17 @@ impl PrivateGroupRuntime {
                     let _ = session.publish_control(&request);
                 }
             }
-            if let Ok(messages) = p.list_group_messages(&rec.group_id) {
-                for row in messages {
-                    if let Ok(persisted) = serde_json::from_slice::<PersistedGroupMessage>(&row) {
-                        let mut message = persisted.message;
-                        if message.message_id.is_none() {
-                            message.message_id = Some(persisted.message_id.clone());
-                        }
-                        if message.sent_at_ms.is_none() {
-                            message.sent_at_ms = Some(persisted.sent_at_ms);
-                        }
-                        if let Some(desc) = message.attachment.as_ref() {
-                            if self
-                                .attachment_store
-                                .exists(&desc.content_hash, &desc.file_name)
-                                .unwrap_or(false)
-                            {
-                                if let Ok(path) = self
-                                    .attachment_store
-                                    .path_for(&desc.content_hash, &desc.file_name)
-                                {
-                                    let direction =
-                                        if message.from_fingerprint == rec.device_fingerprint {
-                                            AttachmentDirection::Outgoing
-                                        } else {
-                                            AttachmentDirection::Incoming
-                                        };
-                                    session.attachment_slots.restore(
-                                        desc.clone(),
-                                        direction,
-                                        path.to_string_lossy().into_owned(),
-                                    );
-                                }
-                            }
-                        }
-                        session.messages.upsert(message);
-                    }
-                }
-            }
-            if let Ok(rows) = p.list_outbound_attempts(OUTBOUND_SCOPE_PRIVATE_GROUP, &rec.group_id)
-            {
-                for row in rows {
-                    let Ok(attempt) = serde_json::from_slice::<OutboundAttemptRecord>(&row) else {
-                        continue;
-                    };
-                    let Ok(mut message) =
-                        serde_json::from_str::<GroupMessage>(&attempt.message_json)
-                    else {
-                        continue;
-                    };
-                    if message.message_id.is_none() {
-                        message.message_id = Some(attempt.message_id.clone());
-                    }
-                    if message.sent_at_ms.is_none() {
-                        message.sent_at_ms = Some(attempt.sent_at_ms);
-                    }
-                    message.set_delivery(delivery_meta(
-                        attempt.delivery_status,
-                        attempt.delivery_error.clone(),
-                        attempt.retry_count,
-                    ));
-                    session.messages.upsert(message);
-                    session
-                        .outbound_attempts
-                        .insert(attempt.message_id.clone(), attempt);
-                }
-            }
-            self.persisted_counts
-                .insert(rec.group_id.clone(), session.messages.len());
+            self.history.replay(
+                &p,
+                &rec.group_id,
+                Restore {
+                    log: &mut session.messages,
+                    attempts: &mut session.outbound_attempts,
+                    slots: &mut session.attachment_slots,
+                    attachment_store: &self.attachment_store,
+                    local_author: &rec.device_fingerprint,
+                },
+            );
             self.finalized_group_records.insert(rec.group_id.clone());
             self.groups.insert(rec.group_id, session);
         }
@@ -1174,7 +1103,7 @@ impl PrivateGroupRuntime {
             leave_group_room(&session);
             self.shared_node.release();
         }
-        self.persisted_counts.remove(group_id);
+        self.history.forget(group_id);
         self.finalized_group_records.remove(group_id);
         if let Some(p) = self.persistence.as_ref() {
             if let Err(error) = p.delete_group(group_id) {
@@ -1222,38 +1151,14 @@ impl PrivateGroupRuntime {
         let Some(p) = self.persistence.as_ref().cloned() else {
             return;
         };
-        let mut pending_records: Vec<(String, Vec<u8>)> = Vec::new();
+        // Groups whose record must be (re)written once their MLS group exists.
+        // Collected during the read-only loop and applied after, since
+        // finalizing mutates self.
+        let mut pending_records: Vec<String> = Vec::new();
         for session in self.groups.values() {
-            let start = self
-                .persisted_counts
-                .get(&session.group_id)
-                .copied()
-                .unwrap_or(0);
-            let has_new_messages = session.messages.len() > start;
-            for (idx, msg) in session.messages.iter().enumerate().skip(start) {
-                let sent_at_ms = msg.sent_at_ms.unwrap_or_else(now_ms);
-                let message_id = msg
-                    .message_id
-                    .clone()
-                    .unwrap_or_else(|| format!("{sent_at_ms}-{idx:06}"));
-                let mut message = msg.clone();
-                if message.sent_at_ms.is_none() {
-                    message.sent_at_ms = Some(sent_at_ms);
-                }
-                if message.message_id.is_none() {
-                    message.message_id = Some(message_id.clone());
-                }
-                let record = PersistedGroupMessage {
-                    conversation_id: session.group_id.clone(),
-                    sent_at_ms,
-                    message_id: message_id.clone(),
-                    message,
-                };
-                if let Ok(json) = serde_json::to_vec(&record) {
-                    let _ =
-                        p.append_group_message(&session.group_id, sent_at_ms, &message_id, &json);
-                }
-            }
+            let has_new_messages =
+                self.history
+                    .write_tail(&p, &session.group_id, &session.messages);
 
             let needs_record_refresh = !self.finalized_group_records.contains(&session.group_id)
                 && session.crypto.group_id_bytes().is_some();
@@ -1263,22 +1168,15 @@ impl PrivateGroupRuntime {
             }
 
             if needs_record_refresh {
-                if let Ok(json) = serde_json::to_vec(&session.to_persisted_record()) {
-                    pending_records.push((session.group_id.clone(), json));
-                }
+                pending_records.push(session.group_id.clone());
             }
         }
-        for (group_id, json) in pending_records {
-            let _ = p.put_group(&group_id, &json);
+        for group_id in pending_records {
+            if let Some(session) = self.groups.get(&group_id) {
+                self.history
+                    .write_record(&p, &group_id, &session.to_persisted_record());
+            }
             self.finalized_group_records.insert(group_id);
-        }
-        let new_counts: Vec<(String, usize)> = self
-            .groups
-            .values()
-            .map(|group| (group.group_id.clone(), group.messages.len()))
-            .collect();
-        for (group_id, count) in new_counts {
-            self.persisted_counts.insert(group_id, count);
         }
     }
 
@@ -1286,70 +1184,29 @@ impl PrivateGroupRuntime {
         let Some(p) = self.persistence.as_ref().cloned() else {
             return;
         };
-        let (sent_at_ms, message_row, attempt_row, snapshot, group_row, needs_record_refresh) = {
-            let Some(session) = self.groups.get(group_id) else {
-                return;
-            };
-            let Some(message) = session
-                .messages
-                .iter()
-                .find(|message| message.message_id.as_deref() == Some(message_id))
-            else {
-                return;
-            };
-            let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-            let message_row = serde_json::to_vec(&PersistedGroupMessage {
-                conversation_id: session.group_id.clone(),
-                sent_at_ms,
-                message_id: message_id.to_string(),
-                message: message.clone(),
-            })
-            .ok();
-            let attempt_row = session
-                .outbound_attempts
-                .get(message_id)
-                .and_then(|attempt| serde_json::to_vec(attempt).ok());
-            let snapshot = persist_snapshot.then(|| session.crypto.snapshot());
-            let needs_record_refresh = !self.finalized_group_records.contains(group_id)
-                && session.crypto.group_id_bytes().is_some();
-            let group_row = needs_record_refresh
-                .then(|| serde_json::to_vec(&session.to_persisted_record()).ok())
-                .flatten();
-            (
-                sent_at_ms,
-                message_row,
-                attempt_row,
-                snapshot,
-                group_row,
-                needs_record_refresh,
-            )
+        let Some(session) = self.groups.get(group_id) else {
+            return;
         };
-
-        if let Some(row) = message_row {
-            let _ = p.append_group_message(group_id, sent_at_ms, message_id, &row);
+        if !self.history.write_send(
+            &p,
+            group_id,
+            message_id,
+            &session.messages,
+            &session.outbound_attempts,
+        ) {
+            return;
         }
-        if let Some(snapshot) = snapshot {
-            let _ = p.put_group_mls_snapshot(group_id, &snapshot);
+        if persist_snapshot {
+            let _ = p.put_group_mls_snapshot(group_id, &session.crypto.snapshot());
         }
-        match attempt_row {
-            Some(row) => {
-                let _ = p.put_outbound_attempt(
-                    OUTBOUND_SCOPE_PRIVATE_GROUP,
-                    group_id,
-                    message_id,
-                    &row,
-                );
-            }
-            None => {
-                let _ =
-                    p.delete_outbound_attempt(OUTBOUND_SCOPE_PRIVATE_GROUP, group_id, message_id);
-            }
-        }
-        if let Some(row) = group_row {
-            let _ = p.put_group(group_id, &row);
-            if needs_record_refresh {
-                self.finalized_group_records.insert(group_id.to_string());
-            }
+        // The group record needs refreshing once the MLS group exists, so its
+        // group_id is no longer the empty placeholder.
+        if !self.finalized_group_records.contains(group_id)
+            && session.crypto.group_id_bytes().is_some()
+        {
+            self.history
+                .write_record(&p, group_id, &session.to_persisted_record());
+            self.finalized_group_records.insert(group_id.to_string());
         }
     }
 }

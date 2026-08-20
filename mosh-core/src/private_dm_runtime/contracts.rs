@@ -205,6 +205,10 @@ impl ConversationMessage for ChatMessage {
         &self.from_device
     }
 
+    fn attachment(&self) -> Option<&AttachmentDescriptor> {
+        self.attachment.as_ref()
+    }
+
     fn set_delivery(&mut self, delivery: MessageDeliveryMeta) {
         self.delivery_status = delivery.delivery_status;
         self.delivery_error = delivery.delivery_error;
@@ -429,14 +433,6 @@ impl From<crate::persistence::PersistenceError> for PrivateDmRuntimeError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersistedMessage {
-    pub conversation_id: String,
-    pub sent_at_ms: u64,
-    pub message_id: String,
-    pub message: ChatMessage,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedSession {
     pub role_is_alice: bool,
     pub display_name: String,
@@ -462,6 +458,7 @@ pub struct PersistedSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::conversation::history::StoredMessage;
 
     #[test]
     fn persisted_message_round_trips_attachment_and_call() {
@@ -489,14 +486,14 @@ mod tests {
             retryable: Some(true),
             retry_count: Some(2),
         };
-        let pm = PersistedMessage {
+        let pm = StoredMessage {
             conversation_id: "conv".into(),
             sent_at_ms: 123,
             message_id: "123-000000".into(),
             message: msg,
         };
         let bytes = serde_json::to_vec(&pm).unwrap();
-        let back: PersistedMessage = serde_json::from_slice(&bytes).unwrap();
+        let back: StoredMessage<ChatMessage> = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(back.message.attachment.unwrap().file_name, "photo.bin");
         let ce = back.message.call_event.unwrap();
         assert_eq!(ce.kind, "completed");

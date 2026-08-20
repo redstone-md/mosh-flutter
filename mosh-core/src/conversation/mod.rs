@@ -5,10 +5,12 @@
 //! differ: the attachment slot table, the message log, the seen-key ring, the
 //! mesh view a snapshot ends with, the path a message takes on its way out.
 //! Each runtime holds these as fields, or calls them, instead of keeping its
-//! own copy, so a fix proven in one kind holds for all three.
+//! own copy, so a fix proven in one kind holds for all three. What each kind
+//! keeps on disk goes through one store too, with the table names as data.
 
 pub mod attachments;
 pub mod dedup;
+pub mod history;
 pub mod mesh;
 pub mod message_log;
 pub mod outbound;

@@ -12,14 +12,15 @@ use crate::attachment_runtime::{
     AttachmentManifest, AttachmentRuntime, ChunkOutcome, OutgoingAttachment, StreamRange,
 };
 use crate::attachment_store::AttachmentStore;
-use crate::conversation::attachments::{descriptor_of, AttachmentDirection, AttachmentSlots};
+use crate::conversation::attachments::{descriptor_of, AttachmentSlots};
 use crate::conversation::dedup::SeenFrames;
-use crate::conversation::message_log::{delivery_meta, ConversationMessage, MessageLog};
+use crate::conversation::history::{History, Restore};
+use crate::conversation::message_log::MessageLog;
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::conversation::{decode, encode, now_ms};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
-use crate::persistence::Persistence;
+use crate::persistence::{Persistence, DM_HISTORY};
 use crate::voice_call_runtime::{CallPhase, CallState};
 pub use contracts::{
     AcceptInviteRequest, ActiveCall, AttachmentDescriptor, AttachmentSendResult, AttachmentState,
@@ -33,8 +34,6 @@ use wire::{
     blob_channel, channel_session_id, control_channel, data_channel, decode_json,
     voice_call_channel, BlobEnvelope, ControlEnvelope, DataEnvelope,
 };
-
-const OUTBOUND_SCOPE_PRIVATE_DM: &str = "private_dm";
 
 // Minimum gap between MLS handshake control re-publishes. The KeyPackage and
 // Welcome exchange is a one-shot publish, but gossip does not buffer for a peer
@@ -163,7 +162,7 @@ pub struct PrivateDmRuntime {
     moss: Arc<MossFfiRuntime>,
     attachment_store: Arc<AttachmentStore>,
     persistence: Option<Arc<Persistence>>,
-    persisted_counts: HashMap<String, usize>,
+    history: History,
     // Sessions whose persisted record already carries a valid (non-empty)
     // group_id, so the tail-persist loop refreshes each record only once.
     finalized_session_records: HashSet<String>,
@@ -321,7 +320,7 @@ impl PrivateDmRuntime {
             moss: Arc::clone(shared_node.moss()),
             attachment_store,
             persistence,
-            persisted_counts: HashMap::new(),
+            history: History::new(DM_HISTORY),
             finalized_session_records: HashSet::new(),
             sessions: HashMap::new(),
             relay_ref: relay::RelayRef::default(),
@@ -388,18 +387,10 @@ impl PrivateDmRuntime {
         let Some(p) = self.persistence.as_ref().cloned() else {
             return;
         };
-        let rows = match p.list_sessions() {
-            Ok(rows) => rows,
-            Err(_) => return,
-        };
-        for row in rows {
-            let rec: contracts::PersistedSession = match serde_json::from_slice(&row) {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!("rehydrate: bad session row: {e}");
-                    continue;
-                }
-            };
+        for rec in self
+            .history
+            .stored_conversations::<contracts::PersistedSession>(&p)
+        {
             let snapshot = match p.get_mls_snapshot(&rec.session_id) {
                 Ok(Some(s)) => s,
                 _ => {
@@ -456,85 +447,17 @@ impl PrivateDmRuntime {
             // peer", which on the shared substrate means it reports the
             // counterpart online whenever ANY world peer is connected.
             session.peer_moss_id = rec.peer_moss_id.clone();
-            if let Ok(msgs) = p.list_messages(&rec.session_id) {
-                for m in msgs {
-                    if let Ok(pm) = serde_json::from_slice::<contracts::PersistedMessage>(&m) {
-                        let mut message = pm.message;
-                        if message.message_id.is_none() {
-                            message.message_id = Some(pm.message_id.clone());
-                        }
-                        if message.sent_at_ms.is_none() {
-                            message.sent_at_ms = Some(pm.sent_at_ms);
-                        }
-                        // Re-render cached attachments from the local store. Non-cached
-                        // attachments get no slot, so a peer re-offer can still register
-                        // them (auto re-download from persisted data is impossible: the
-                        // chunk-crypto manifest is not persisted and MLS forward secrecy
-                        // bars re-decrypting the original offer).
-                        if let Some(desc) = message.attachment.as_ref() {
-                            if self
-                                .attachment_store
-                                .exists(&desc.content_hash, &desc.file_name)
-                                .unwrap_or(false)
-                            {
-                                if let Ok(path) = self
-                                    .attachment_store
-                                    .path_for(&desc.content_hash, &desc.file_name)
-                                {
-                                    let direction = if message.from_device == rec.display_name {
-                                        AttachmentDirection::Outgoing
-                                    } else {
-                                        AttachmentDirection::Incoming
-                                    };
-                                    session.attachment_slots.restore(
-                                        desc.clone(),
-                                        direction,
-                                        path.to_string_lossy().into_owned(),
-                                    );
-                                }
-                            }
-                        }
-                        session.messages.upsert(message);
-                    }
-                }
-            }
-            if let Ok(rows) = p.list_outbound_attempts(OUTBOUND_SCOPE_PRIVATE_DM, &rec.session_id) {
-                for row in rows {
-                    let Ok(mut attempt) = serde_json::from_slice::<OutboundAttemptRecord>(&row)
-                    else {
-                        continue;
-                    };
-                    // A Pending attempt cannot survive a restart: whoever held
-                    // it (the relay send worker or an in-flight publish) died
-                    // with the process, so nothing will ever settle it.
-                    // Surface a retryable failure instead of a forever-spinner.
-                    if attempt.delivery_status == MessageDeliveryStatus::Pending {
-                        attempt.delivery_status = MessageDeliveryStatus::Failed;
-                        attempt.delivery_error =
-                            Some("app closed before the send completed".to_string());
-                    }
-                    let Ok(mut message) =
-                        serde_json::from_str::<ChatMessage>(&attempt.message_json)
-                    else {
-                        continue;
-                    };
-                    if message.message_id.is_none() {
-                        message.message_id = Some(attempt.message_id.clone());
-                    }
-                    if message.sent_at_ms.is_none() {
-                        message.sent_at_ms = Some(attempt.sent_at_ms);
-                    }
-                    message.set_delivery(delivery_meta(
-                        attempt.delivery_status,
-                        attempt.delivery_error.clone(),
-                        attempt.retry_count,
-                    ));
-                    session.messages.upsert(message);
-                    session
-                        .outbound_attempts
-                        .insert(attempt.message_id.clone(), attempt);
-                }
-            }
+            self.history.replay(
+                &p,
+                &rec.session_id,
+                Restore {
+                    log: &mut session.messages,
+                    attempts: &mut session.outbound_attempts,
+                    slots: &mut session.attachment_slots,
+                    attachment_store: &self.attachment_store,
+                    local_author: &rec.display_name,
+                },
+            );
             // Recover the peer's display name from a restored inbound message so
             // the chat/call UI still shows it after a restart.
             session.peer_display_name = session
@@ -546,10 +469,6 @@ impl PrivateDmRuntime {
             if session.peer_display_name.is_some() && session.crypto.is_ready() {
                 session.peer_joined = true;
             }
-            // DUP-GUARD: re-seed persisted_counts so the next persist_session_tail
-            // does NOT re-append the messages we just loaded.
-            self.persisted_counts
-                .insert(rec.session_id.clone(), session.messages.len());
             // The loaded record already has a valid group_id; don't rewrite it.
             self.finalized_session_records
                 .insert(rec.session_id.clone());
@@ -974,7 +893,7 @@ impl PrivateDmRuntime {
                 }
                 // Purge persisted state too, otherwise the conversation
                 // re-appears on the next launch via rehydrate.
-                self.persisted_counts.remove(session_id);
+                self.history.forget(session_id);
                 self.finalized_session_records.remove(session_id);
                 if let Some(p) = self.persistence.as_ref() {
                     if let Err(error) = p.delete_session(session_id) {
@@ -1265,70 +1184,31 @@ impl PrivateDmRuntime {
         let Some(p) = self.persistence.as_ref().cloned() else {
             return;
         };
-        let (sent_at_ms, message_row, attempt_row, snapshot, session_row, needs_record_refresh) = {
-            let Some(session) = self.sessions.get(session_id) else {
-                return;
-            };
-            let Some(message) = session
-                .messages
-                .iter()
-                .find(|message| message.message_id.as_deref() == Some(message_id))
-            else {
-                return;
-            };
-            let sent_at_ms = message.sent_at_ms.unwrap_or_else(now_ms);
-            let message_row = serde_json::to_vec(&contracts::PersistedMessage {
-                conversation_id: session.session_id.clone(),
-                sent_at_ms,
-                message_id: message_id.to_string(),
-                message: message.clone(),
-            })
-            .ok();
-            let attempt_row = session
-                .outbound_attempts
-                .get(message_id)
-                .and_then(|attempt| serde_json::to_vec(attempt).ok());
-            let snapshot = persist_snapshot.then(|| session.crypto.snapshot());
-            let needs_record_refresh = session.crypto.group_id_bytes().is_some()
-                && (!self.finalized_session_records.contains(session_id) || session.record_dirty);
-            let session_row = needs_record_refresh
-                .then(|| serde_json::to_vec(&session.to_persisted_record()).ok())
-                .flatten();
-            (
-                sent_at_ms,
-                message_row,
-                attempt_row,
-                snapshot,
-                session_row,
-                needs_record_refresh,
-            )
+        let Some(session) = self.sessions.get(session_id) else {
+            return;
         };
-
-        if let Some(row) = message_row {
-            let _ = p.append_message(session_id, sent_at_ms, message_id, &row);
+        if !self.history.write_send(
+            &p,
+            session_id,
+            message_id,
+            &session.messages,
+            &session.outbound_attempts,
+        ) {
+            return;
         }
-        if let Some(snapshot) = snapshot {
-            let _ = p.put_mls_snapshot(session_id, &snapshot);
+        if persist_snapshot {
+            let _ = p.put_mls_snapshot(session_id, &session.crypto.snapshot());
         }
-        match attempt_row {
-            Some(row) => {
-                let _ =
-                    p.put_outbound_attempt(OUTBOUND_SCOPE_PRIVATE_DM, session_id, message_id, &row);
+        let needs_record_refresh = session.crypto.group_id_bytes().is_some()
+            && (!self.finalized_session_records.contains(session_id) || session.record_dirty);
+        if needs_record_refresh {
+            self.history
+                .write_record(&p, session_id, &session.to_persisted_record());
+            if let Some(session) = self.sessions.get_mut(session_id) {
+                session.record_dirty = false;
             }
-            None => {
-                let _ =
-                    p.delete_outbound_attempt(OUTBOUND_SCOPE_PRIVATE_DM, session_id, message_id);
-            }
-        }
-        if let Some(row) = session_row {
-            let _ = p.put_session(session_id, &row);
-            if needs_record_refresh {
-                if let Some(session) = self.sessions.get_mut(session_id) {
-                    session.record_dirty = false;
-                }
-                self.finalized_session_records
-                    .insert(session_id.to_string());
-            }
+            self.finalized_session_records
+                .insert(session_id.to_string());
         }
     }
 
@@ -1336,39 +1216,14 @@ impl PrivateDmRuntime {
         let Some(p) = self.persistence.as_ref().cloned() else {
             return;
         };
-        // Records to (re)write once their MLS group exists. Collected during the
-        // read-only loop and applied after, since finalizing mutates self.
-        let mut pending_records: Vec<(String, Vec<u8>)> = Vec::new();
+        // Sessions whose record must be (re)written once their MLS group
+        // exists. Collected during the read-only loop and applied after, since
+        // finalizing mutates self.
+        let mut pending_records: Vec<String> = Vec::new();
         for session in self.sessions.values() {
-            let start = self
-                .persisted_counts
-                .get(&session.session_id)
-                .copied()
-                .unwrap_or(0);
-            let has_new_messages = session.messages.len() > start;
-            for (idx, msg) in session.messages.iter().enumerate().skip(start) {
-                let ts = msg.sent_at_ms.unwrap_or_else(now_ms);
-                let message_id = msg
-                    .message_id
-                    .clone()
-                    .unwrap_or_else(|| format!("{ts}-{idx:06}"));
-                let mut message = msg.clone();
-                if message.sent_at_ms.is_none() {
-                    message.sent_at_ms = Some(ts);
-                }
-                if message.message_id.is_none() {
-                    message.message_id = Some(message_id.clone());
-                }
-                let record = contracts::PersistedMessage {
-                    conversation_id: session.session_id.clone(),
-                    sent_at_ms: ts,
-                    message_id: message_id.clone(),
-                    message,
-                };
-                if let Ok(json) = serde_json::to_vec(&record) {
-                    let _ = p.append_message(&session.session_id, ts, &message_id, &json);
-                }
-            }
+            let has_new_messages =
+                self.history
+                    .write_tail(&p, &session.session_id, &session.messages);
 
             // The session record needs refreshing once the MLS group exists
             // (e.g. after the joiner processes the Welcome), so its group_id is
@@ -1387,25 +1242,18 @@ impl PrivateDmRuntime {
             }
 
             if needs_record_refresh {
-                if let Ok(json) = serde_json::to_vec(&session.to_persisted_record()) {
-                    pending_records.push((session.session_id.clone(), json));
-                }
+                pending_records.push(session.session_id.clone());
             }
         }
-        for (id, json) in pending_records {
-            let _ = p.put_session(&id, &json);
+        for id in pending_records {
+            if let Some(session) = self.sessions.get(&id) {
+                self.history
+                    .write_record(&p, &id, &session.to_persisted_record());
+            }
             if let Some(session) = self.sessions.get_mut(&id) {
                 session.record_dirty = false;
             }
             self.finalized_session_records.insert(id);
-        }
-        let new_counts: Vec<(String, usize)> = self
-            .sessions
-            .values()
-            .map(|s| (s.session_id.clone(), s.messages.len()))
-            .collect();
-        for (id, len) in new_counts {
-            self.persisted_counts.insert(id, len);
         }
     }
 
@@ -3082,7 +2930,7 @@ mod tests {
                 retryable: None,
                 retry_count: None,
             };
-            let record = contracts::PersistedMessage {
+            let record = crate::conversation::history::StoredMessage {
                 conversation_id: invite.session_id.clone(),
                 sent_at_ms,
                 message_id: message_id.to_string(),

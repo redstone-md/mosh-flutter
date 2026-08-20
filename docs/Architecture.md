@@ -322,23 +322,29 @@ flowchart TD
     Seen["conversation::dedup<br/>SeenFrames"]
     Mesh["conversation::mesh<br/>mesh_info + snapshot_events"]
     Out["conversation::outbound<br/>Outbox: open, reopen, settle"]
+    Hist["conversation::history<br/>History: replay, write_tail, write_send"]
     Moss[moss node]
+    Db[(redb, encrypted)]
 
     Dm --> Slots
     Dm --> Log
     Dm --> Seen
     Dm --> Mesh
     Dm --> Out
+    Dm --> Hist
     Gr --> Slots
     Gr --> Log
     Gr --> Seen
     Gr --> Mesh
     Gr --> Out
+    Gr --> Hist
     Ch --> Slots
     Ch --> Log
     Ch --> Seen
     Ch --> Mesh
     Ch --> Out
+    Ch --> Hist
+    Hist -->|"HistoryTables picks the tables"| Db
     Dm -->|"MLS + relay"| Moss
     Gr -->|"MLS + room"| Moss
     Ch -->|"plain + room"| Moss
@@ -363,6 +369,16 @@ flowchart TD
   kind publishes in between, its own way, and says whether the record is kept
   afterwards: a DM keeps it for the DeliveryAck and the auto re-sends, a group
   and a channel are done with it.
+- `history::History` — what a conversation keeps on disk. `replay` reads one
+  conversation back (messages, cached attachments, sends that never settled),
+  `write_tail` appends only the messages gained since the last write, and
+  `write_send` writes one message and the state of its send. Which tables it
+  touches is a `persistence::HistoryTables` value — `DM_HISTORY`,
+  `GROUP_HISTORY`, `CHANNEL_HISTORY` — so the table names are data, not three
+  copies of the same code. The store counts what is already down, which is what
+  keeps a message written once instead of once per poll. The MLS snapshot and
+  the session record stay with the kind, since only the kind knows when either
+  is worth rewriting.
 
 ## State Ownership
 

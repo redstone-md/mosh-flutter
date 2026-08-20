@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::message_log::ConversationMessage;
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus};
+use crate::private_dm_runtime::AttachmentDescriptor;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TestMessage {
@@ -69,6 +70,11 @@ impl ConversationMessage for TestMessage {
 
     fn author(&self) -> &str {
         &self.from
+    }
+
+    /// Nothing here carries a file: the attachment paths have their own tests.
+    fn attachment(&self) -> Option<&AttachmentDescriptor> {
+        None
     }
 
     fn set_delivery(&mut self, delivery: MessageDeliveryMeta) {

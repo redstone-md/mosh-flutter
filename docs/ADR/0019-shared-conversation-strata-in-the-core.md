@@ -48,7 +48,7 @@ flowchart TD
         Seen["dedup::SeenFrames"]
         Mesh["mesh::mesh_info + snapshot_events"]
         Out["outbound::Outbox"]
-        Later["later: history store"]
+        Hist["history::History"]
     end
 
     Dm --> Slots
@@ -56,17 +56,19 @@ flowchart TD
     Dm --> Seen
     Dm --> Mesh
     Dm --> Out
+    Dm --> Hist
     Gr --> Slots
     Gr --> Log
     Gr --> Seen
     Gr --> Mesh
     Gr --> Out
+    Gr --> Hist
     Ch --> Slots
     Ch --> Log
     Ch --> Seen
     Ch --> Mesh
     Ch --> Out
-    shared -.-> Later
+    Ch --> Hist
 ```
 
 The one message difference worth naming: `ConversationMessage::author` is the
@@ -82,6 +84,7 @@ classDiagram
       +sent_at_ms() Option~u64~
       +body() str
       +author() str
+      +attachment() Option~AttachmentDescriptor~
       +set_delivery(MessageDeliveryMeta)
     }
     class MessageLog~M~ {
@@ -119,8 +122,9 @@ Costs:
 - A runtime now reaches through a small type instead of touching a `Vec` and a
   `HashMap` directly. That is a real indirection, paid for by not writing the
   same twenty lines three times.
-- Until the last step lands, the core is half folded: the shared strata and
-  the send path are out, the history store is still triplicated.
+- Until the last step lands, the core is half folded: the shared strata, the
+  send path and the history store are out; the runtimes themselves are still
+  three.
 - A send now runs in three calls — `open` or `reopen`, publish, `settle` —
   because the runtime persists between them and the transport sits in the
   middle. A single call taking the publish step as a closure would have to hold
@@ -138,6 +142,19 @@ the three copies had drifted apart:
   either way; only the direction label could differ.
 - The list of attachments still waiting for chunks is now in id order. It came
   out of a hash map before, so the order changed from run to run.
+- A send that was still Pending when the app closed now comes back as a
+  retryable failure in all three kinds. The DM already did this; the group and
+  the channel left it Pending, which the user saw as a spinner that never
+  stopped. Nothing could have settled it: whoever held the send died with the
+  process.
+
+The history store takes its tables as data. `persistence::HistoryTables` names
+the conversation table, the message table and the outbound-attempt scope of one
+kind, and `DM_HISTORY`, `GROUP_HISTORY` and `CHANNEL_HISTORY` are the three
+values. `Persistence` keeps its per-kind method names as one-line wrappers over
+the shared ones, so callers read the same as before. The three
+`Persisted*Message` records were field-identical and became one
+`history::StoredMessage<M>`; the bytes on disk are unchanged.
 
 The MLS commit sequencer and the ciphertext store stayed where they are. They
 are shared by the DM and the group but not by the channel, and what sits on top
@@ -150,11 +167,11 @@ duplicate messages — is decided below the bridge.
 
 ## Follow-up
 
-Landed since: 05c (one mesh and event view) and 05a (one outbound send path).
-Still tracked as 05b (one history store), 05e (DM offers, and the MLS layers the DM and the group
-share) and 05d (one runtime behind a kind trait). 05d is the one that
-regenerates the bindings and must be checked against a real peer for all three
-kinds.
+Landed since: 05c (one mesh and event view), 05a (one outbound send path) and
+05b (one history store). Still tracked as 05e (DM offers, and the MLS layers
+the DM and the group share) and 05d (one runtime behind a kind trait). 05d is
+the one that regenerates the bindings and must be checked against a real peer
+for all three kinds.
 
 One layering debt to clear along the way: the shared code still imports
 `AttachmentDescriptor`, `AttachmentState` and `AttachmentView` from
