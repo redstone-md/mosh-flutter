@@ -7,6 +7,7 @@
 // before the target moved into the Gateway seam (ADR 0017).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/state/active_conversation_key_provider.dart';
 
 void main() {
   group('ConversationTarget identity', () {
@@ -38,9 +39,38 @@ void main() {
     });
 
     test('toString names the kind and the id', () {
-      expect(const ChannelTarget('general').toString(),
-          contains('ChannelTarget'));
+      expect(
+          const ChannelTarget('general').toString(), contains('ChannelTarget'));
       expect(const ChannelTarget('general').toString(), contains('general'));
+    });
+  });
+
+  // The screen writes `target.key` into the active-conversation key, and the
+  // unread lifecycle reads it back with `ActiveConversation.parse`. The two
+  // are written apart, so pin that they still agree.
+  group('key', () {
+    const cases = <(AnyConversationTarget, String, ActiveConversationKind)>[
+      (DmTarget('s1'), 'dm:s1', ActiveConversationKind.dm),
+      (
+        ChannelTarget('general'),
+        'channel:general',
+        ActiveConversationKind.channel
+      ),
+      (GroupTarget('g1'), 'group:g1', ActiveConversationKind.group),
+    ];
+
+    for (final (target, expected, kind) in cases) {
+      test('${target.kind.name} builds and parses back', () {
+        expect(target.key, expected);
+        final parsed = ActiveConversation.parse(target.key);
+        expect(parsed?.kind, kind);
+        expect(parsed?.arg, target.id);
+      });
+    }
+
+    test('an id with a colon in it survives the round trip', () {
+      const target = ChannelTarget('a:b');
+      expect(ActiveConversation.parse(target.key)?.arg, 'a:b');
     });
   });
 

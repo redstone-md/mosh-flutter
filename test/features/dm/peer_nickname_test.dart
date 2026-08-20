@@ -1,30 +1,14 @@
-// Widget tests for the PeerNickname peer-actions popover (React
-// `PeerNickname`, src/features/private-dm/MessageLists.tsx:198-244) and the
-// `PeerActions` value object backing it (React `PeerActions` type,
-// MessageLists.tsx:31-35). Both live in `lib/src/features/conversation/conversation_helpers.dart`
-// (co-located with `MultiPartySenderMeta`, the only consumer). The tests
-// pump `MultiPartySenderMeta` directly inside a localized `MaterialApp`
-// (the meta is a pure `StatelessWidget` -- no providers, no async) with an
-// injected `PeerActions.onMessage` recording callback, so the real Gateway
-// is never touched (the popover's `onMessage` is an injected seam).
+// The sender-name popover: tapping someone's name in a channel or a group
+// offers to start a DM with them.
 //
-// Coverage:
-//   1. peer != null + non-own fingerprint -> the name is wrapped in an
-//      InkWell (tappable); tapping opens the popover Dialog with the
-//      "Message" button.
-//   2. "Message" is DISABLED (label "Invite sent") when the peer is in
-//      `offered`.
-//   3. "Message" is DISABLED when `busy == true` (label "Message").
-//   4. "Message" is ENABLED when not offered and not busy; tapping it
-//      calls `onMessage(fingerprint)` (recording callback) and closes the
-//      popover.
-//   5. peer == null (DM-row + existing-tests case) -> the name is plain
-//      bold Text with NO InkWell/GestureDetector tap target.
-//   6. peer != null + own fingerprint -> plain bold Text, no popover.
+// Drives ConversationSenderMeta directly with a recording onMessage, so no
+// Gateway is involved. Covers: who gets a tap target, when the Message
+// button is disabled and what it says, and that tapping it reports the
+// fingerprint and closes the popover.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
 import '../../support/pump.dart';
 
 void main() {
@@ -38,7 +22,7 @@ void main() {
       await pumpScreen(
           tester,
           Scaffold(
-              body: MultiPartySenderMeta(
+              body: ConversationSenderMeta(
             fromDevice: 'bob',
             fromFingerprint: peerFp,
             sentAtMs: BigInt.from(1700000000000),
@@ -80,7 +64,7 @@ void main() {
       await pumpScreen(
           tester,
           Scaffold(
-              body: MultiPartySenderMeta(
+              body: ConversationSenderMeta(
             fromDevice: 'bob',
             fromFingerprint: peerFp,
             sentAtMs: BigInt.from(1700000000000),
@@ -113,7 +97,7 @@ void main() {
       await pumpScreen(
           tester,
           Scaffold(
-              body: MultiPartySenderMeta(
+              body: ConversationSenderMeta(
             fromDevice: 'bob',
             fromFingerprint: peerFp,
             sentAtMs: BigInt.from(1700000000000),
@@ -148,7 +132,7 @@ void main() {
       await pumpScreen(
           tester,
           Scaffold(
-              body: MultiPartySenderMeta(
+              body: ConversationSenderMeta(
             fromDevice: 'bob',
             fromFingerprint: peerFp,
             sentAtMs: BigInt.from(1700000000000),
@@ -180,7 +164,7 @@ void main() {
       await pumpScreen(
           tester,
           Scaffold(
-              body: MultiPartySenderMeta(
+              body: ConversationSenderMeta(
             fromDevice: 'bob',
             fromFingerprint: peerFp,
             sentAtMs: BigInt.from(1700000000000),
@@ -200,7 +184,7 @@ void main() {
       await pumpScreen(
           tester,
           Scaffold(
-              body: MultiPartySenderMeta(
+              body: ConversationSenderMeta(
             fromDevice: 'me',
             fromFingerprint: own,
             sentAtMs: BigInt.from(1700000000000),
