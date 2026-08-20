@@ -59,10 +59,11 @@ pub struct AttachmentView {
     pub local_path: Option<String>,
 }
 
-/// What a kind answers when the user sends a file.
+/// What a kind answers when the user sends a file. The conversation is named
+/// the way its own kind names one: a DM session id, a group id, a channel name.
 #[derive(Debug, Clone, Serialize)]
 pub struct AttachmentSendResult {
-    pub session_id: String,
+    pub conversation_id: String,
     pub attachment_id: String,
     pub content_hash: String,
 }

@@ -280,7 +280,7 @@ AttachmentSendResult cannedAttachmentSendResult({
   required String dataBase64,
 }) =>
     AttachmentSendResult(
-      sessionId: '$sessionPrefix:$id',
+      conversationId: '$sessionPrefix:$id',
       attachmentId: 'fake-$sessionPrefix-attachment:${fileName.hashCode}',
       contentHash: 'fake-hash:${dataBase64.hashCode}',
     );

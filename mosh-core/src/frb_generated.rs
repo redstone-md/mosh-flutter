@@ -2780,11 +2780,11 @@ impl SseDecode for crate::conversation::attachments::AttachmentDescriptor {
 impl SseDecode for crate::conversation::attachments::AttachmentSendResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_sessionId = <String>::sse_decode(deserializer);
+        let mut var_conversationId = <String>::sse_decode(deserializer);
         let mut var_attachmentId = <String>::sse_decode(deserializer);
         let mut var_contentHash = <String>::sse_decode(deserializer);
         return crate::conversation::attachments::AttachmentSendResult {
-            session_id: var_sessionId,
+            conversation_id: var_conversationId,
             attachment_id: var_attachmentId,
             content_hash: var_contentHash,
         };
@@ -4610,7 +4610,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::conversation::attachments::Attachm
 impl flutter_rust_bridge::IntoDart for crate::conversation::attachments::AttachmentSendResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.session_id.into_into_dart().into_dart(),
+            self.conversation_id.into_into_dart().into_dart(),
             self.attachment_id.into_into_dart().into_dart(),
             self.content_hash.into_into_dart().into_dart(),
         ]
@@ -6001,7 +6001,7 @@ impl SseEncode for crate::conversation::attachments::AttachmentDescriptor {
 impl SseEncode for crate::conversation::attachments::AttachmentSendResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.session_id, serializer);
+        <String>::sse_encode(self.conversation_id, serializer);
         <String>::sse_encode(self.attachment_id, serializer);
         <String>::sse_encode(self.content_hash, serializer);
     }

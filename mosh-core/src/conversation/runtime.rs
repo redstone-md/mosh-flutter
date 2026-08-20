@@ -285,14 +285,10 @@ impl<S: ConversationSession> ConversationRuntime<S> {
 /// Reaching for a conversation by id, the way a map does. Panics on one that
 /// is not open — [`ConversationRuntime::get`] is the answer everywhere the
 /// conversation may genuinely be gone.
-impl<S: ConversationSession, Q> std::ops::Index<&Q> for ConversationRuntime<S>
-where
-    String: std::borrow::Borrow<Q>,
-    Q: ?Sized + std::hash::Hash + Eq,
-{
+impl<S: ConversationSession> std::ops::Index<&str> for ConversationRuntime<S> {
     type Output = S;
 
-    fn index(&self, conversation_id: &Q) -> &S {
+    fn index(&self, conversation_id: &str) -> &S {
         &self.sessions[conversation_id]
     }
 }
