@@ -9,13 +9,11 @@
 // `groupSnapshotProvider` so the native cdylib is not involved). Does NOT
 // test the deferred `orgAddPrompt` fragment (separate atomic).
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/group/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/pump.dart';
 
 GroupMessage _msg({
   required String fromDevice,
@@ -63,20 +61,11 @@ GroupSnapshot _snapshot({
       memberPeerIds: const [],
     );
 
-Future<void> _pump(WidgetTester tester, GroupSnapshot snapshot) async {
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
+Future<void> _pump(WidgetTester tester, GroupSnapshot snapshot) =>
+    pumpScreen(tester, GroupScreen(groupId: snapshot.groupId), overrides: [
       groupSnapshotProvider(snapshot.groupId)
           .overrideWith((ref) async => snapshot),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: GroupScreen(groupId: snapshot.groupId),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+    ]);
 
 void main() {
   // React: `<strong>{rejoinNeededTitle}.</strong>{" "}{rejoinNeededBody}`
@@ -116,7 +105,8 @@ void main() {
     expect(find.text('hi'), findsOneWidget);
   });
 
-  testWidgets('needsRejoin=false does NOT render the rejoin-needed inline-error',
+  testWidgets(
+      'needsRejoin=false does NOT render the rejoin-needed inline-error',
       (tester) async {
     const groupId = 'grp-rejoin-false';
     final snapshot = _snapshot(

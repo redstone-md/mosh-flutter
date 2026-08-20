@@ -10,18 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import '../../support/pump.dart';
 
 // Pumps [child] in a localized MaterialApp so the trio's [AppLocalizations]
 // resolves (en). The mobile trio does not need a ProviderScope -- it is pure
 // presentation with no Riverpod reads.
-Future<void> _pump(WidgetTester tester, Widget child) async {
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(body: child),
-  ));
-  await tester.pumpAndSettle();
-}
+Future<void> _pump(WidgetTester tester, Widget child) =>
+    pumpScreen(tester, Scaffold(body: child));
 
 AppLocalizations _l(WidgetTester tester) =>
     AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
@@ -33,11 +28,12 @@ void main() {
       var tapped = 0;
       await _pump(
         tester,
-        Builder(builder: (context) => MobileSearchToggle(
-              open: false,
-              onToggle: () => tapped++,
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileSearchToggle(
+                  open: false,
+                  onToggle: () => tapped++,
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       final l = _l(tester);
       // Closed -> the search placeholder tooltip (React reuses
@@ -52,11 +48,12 @@ void main() {
         (tester) async {
       await _pump(
         tester,
-        Builder(builder: (context) => MobileSearchToggle(
-              open: true,
-              onToggle: () {},
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileSearchToggle(
+                  open: true,
+                  onToggle: () {},
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       final l = _l(tester);
       // Open -> the dedicated close tooltip (mirrors React's open-state
@@ -71,19 +68,20 @@ void main() {
           matching: find.byIcon(Icons.search),
         ),
       );
-      expect(icon.color, Theme.of(tester.element(find.byType(Scaffold)))
-          .colorScheme.primary);
+      expect(icon.color,
+          Theme.of(tester.element(find.byType(Scaffold))).colorScheme.primary);
     });
 
     testWidgets('tapping the toggle fires onToggle', (tester) async {
       var tapped = 0;
       await _pump(
         tester,
-        Builder(builder: (context) => MobileSearchToggle(
-              open: false,
-              onToggle: () => tapped++,
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileSearchToggle(
+                  open: false,
+                  onToggle: () => tapped++,
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       await tester.tap(find.byType(MobileSearchToggle));
       await tester.pump();
@@ -95,12 +93,13 @@ void main() {
     testWidgets('autofocuses its TextField on mount', (tester) async {
       await _pump(
         tester,
-        Builder(builder: (context) => MobileConversationSearch(
-              search: '',
-              onSearch: (_) {},
-              onClose: () {},
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileConversationSearch(
+                  search: '',
+                  onSearch: (_) {},
+                  onClose: () {},
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       // The FocusNode created in initState is requested on mount; after
       // pump the TextField's focus node has the primary focus.
@@ -115,12 +114,13 @@ void main() {
       final calls = <String>[];
       await _pump(
         tester,
-        Builder(builder: (context) => MobileConversationSearch(
-              search: 'abc',
-              onSearch: (v) => calls.add('search:$v'),
-              onClose: () => calls.add('close'),
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileConversationSearch(
+                  search: 'abc',
+                  onSearch: (v) => calls.add('search:$v'),
+                  onClose: () => calls.add('close'),
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       final l = _l(tester);
       // The close IconButton carries the closeMessageSearch tooltip.
@@ -134,12 +134,13 @@ void main() {
       String? captured;
       await _pump(
         tester,
-        Builder(builder: (context) => MobileConversationSearch(
-              search: '',
-              onSearch: (v) => captured = v,
-              onClose: () {},
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileConversationSearch(
+                  search: '',
+                  onSearch: (v) => captured = v,
+                  onClose: () {},
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       await tester.enterText(find.byType(TextField), 'hello');
       await tester.pump();
@@ -152,11 +153,12 @@ void main() {
         (tester) async {
       await _pump(
         tester,
-        Builder(builder: (context) => MobileConversationFilterNotice(
-              filter: ConversationFilter.all,
-              onFilter: (_) {},
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileConversationFilterNotice(
+                  filter: ConversationFilter.all,
+                  onFilter: (_) {},
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       // React returns null; the Flutter port returns a zero-size box that
       // takes no layout space. The notice renders neither the paperclip nor
@@ -173,11 +175,12 @@ void main() {
         (tester) async {
       await _pump(
         tester,
-        Builder(builder: (context) => MobileConversationFilterNotice(
-              filter: ConversationFilter.attachments,
-              onFilter: (_) {},
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileConversationFilterNotice(
+                  filter: ConversationFilter.attachments,
+                  onFilter: (_) {},
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       final l = _l(tester);
       // Paperclip icon (Icons.attach_file) + the "Files" label + the "All"
@@ -192,15 +195,16 @@ void main() {
       ConversationFilter? captured;
       await _pump(
         tester,
-        Builder(builder: (context) => MobileConversationFilterNotice(
-              filter: ConversationFilter.attachments,
-              onFilter: (f) => captured = f,
-              l: AppLocalizations.of(context)!,
-            )),
+        Builder(
+            builder: (context) => MobileConversationFilterNotice(
+                  filter: ConversationFilter.attachments,
+                  onFilter: (f) => captured = f,
+                  l: AppLocalizations.of(context)!,
+                )),
       );
       await tester.tap(find.byType(TextButton));
       await tester.pump();
       expect(captured, ConversationFilter.all);
-     });
-   });
- }
+    });
+  });
+}

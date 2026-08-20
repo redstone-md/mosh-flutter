@@ -11,9 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/channel/channel_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
@@ -21,40 +19,25 @@ import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import '../../support/pump.dart';
 
 void main() {
-  Future<GoRouter> pumpScreen(
+  Future<void> pumpJoinStep(
     WidgetTester tester, {
     Gateway? gateway,
     String initialLocation = AppRoutes.channelJoin,
-  }) async {
+  }) {
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway ?? ScriptableGateway()),
     ]);
     addTearDown(container.dispose);
-
-    final router = GoRouter(
-      initialLocation: initialLocation,
-      routes: appRouter.configuration.routes,
-    );
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    return router;
+    return pumpRoute(tester, initialLocation, container: container);
   }
 
   testWidgets(
       'initial state renders title, body, placeholder, `#` prefix, and button label',
       (tester) async {
-    await pumpScreen(tester);
+    await pumpJoinStep(tester);
 
     expect(find.text('Join a public channel'), findsOneWidget);
     expect(
@@ -71,7 +54,7 @@ void main() {
   testWidgets(
       'Join button is disabled when name is empty and enabled after text entry',
       (tester) async {
-    await pumpScreen(tester);
+    await pumpJoinStep(tester);
 
     // Empty name -> disabled (onPressed is null).
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
@@ -89,7 +72,7 @@ void main() {
       'tapping Join with a name entered joins via the gateway and navigates to the channel screen',
       (tester) async {
     final gateway = ScriptableGateway();
-    await pumpScreen(tester, gateway: gateway);
+    await pumpJoinStep(tester, gateway: gateway);
 
     await tester.enterText(find.byType(TextField), 'test-channel');
     await tester.pump();
@@ -108,7 +91,7 @@ void main() {
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
-    await pumpScreen(tester);
+    await pumpJoinStep(tester);
 
     expect(find.text('Back'), findsOneWidget);
     await tester.tap(find.text('Back'));
@@ -124,8 +107,9 @@ void main() {
       'a failed join surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Channel runtime offline';
-    final throwing = ScriptableGateway()..failAlways(GatewayMethod.joinChannel, error: message);
-    await pumpScreen(tester, gateway: throwing);
+    final throwing = ScriptableGateway()
+      ..failAlways(GatewayMethod.joinChannel, error: message);
+    await pumpJoinStep(tester, gateway: throwing);
 
     await tester.enterText(find.byType(TextField), 'test-channel');
     await tester.pump();

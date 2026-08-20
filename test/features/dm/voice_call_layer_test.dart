@@ -9,6 +9,7 @@ import 'package:flutter/services.dart' show MethodChannel;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/voice_call_layer.dart';
+import '../../support/pump.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -123,7 +124,9 @@ void main() {
       await tester.pump();
       await startVoiceCall(ref, 'sess-1');
       expect(gateway.countOf(GatewayMethod.callStart), 1);
-      expect(gateway.lastCall(GatewayMethod.callStart)?.arg<String>('sessionId'), 'sess-1');
+      expect(
+          gateway.lastCall(GatewayMethod.callStart)?.arg<String>('sessionId'),
+          'sess-1');
     },
   );
 
@@ -133,19 +136,15 @@ void main() {
       final gateway = ScriptableGateway();
       gateway.seedSessions([_outgoingSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
-      await tester.pumpWidget(ProviderScope(
-        overrides: [gatewayProvider.overrideWithValue(gateway)],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
+      // The layer opens the outgoing modal from a post-frame callback,
+      // so the pump does not settle -- the next pump lets it open.
+      await pumpScreen(
+          tester,
+          Scaffold(
             body: VoiceCallLayer(sessionId: 'sess-1', l: l),
           ),
-        ),
-      ));
-      // The layer routes the outgoing modal through showDialog; pump a
-      // couple frames to let the post-frame callback fire.
-      await tester.pump();
+          overrides: [gatewayProvider.overrideWithValue(gateway)],
+          settle: false);
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.text('Alice'), findsOneWidget);
       expect(find.text('Calling...'), findsOneWidget);
@@ -159,12 +158,10 @@ void main() {
       gateway.seedSessions([_activeSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       late WidgetRef ref;
-      await tester.pumpWidget(ProviderScope(
-        overrides: [gatewayProvider.overrideWithValue(gateway)],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
+      // Same as above: the active-call overlay opens a frame later.
+      await pumpScreen(
+          tester,
+          Scaffold(
             body: Column(
               children: [
                 VoiceCallLayer(sessionId: 'sess-1', l: l),
@@ -177,10 +174,8 @@ void main() {
               ],
             ),
           ),
-        ),
-      ));
-      // Let the active-call overlay open (post-frame showDialog).
-      await tester.pump();
+          overrides: [gatewayProvider.overrideWithValue(gateway)],
+          settle: false);
       await tester.pump(const Duration(milliseconds: 50));
       // The overlay opens with the mic (unmuted) affordance.
       expect(find.byIcon(Icons.mic), findsOneWidget);
@@ -223,37 +218,35 @@ void main() {
           .setMockMethodCallHandler(
               const MethodChannel('window_manager'), null));
 
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          gatewayProvider.overrideWithValue(gateway),
-          // Open the gate without running the real plugin init (which needs
-          // a platform host absent under `flutter test`).
-          notificationsReadyProvider
-              .overrideWithValue(const AsyncValue.data(true)),
-          // Inject the recording fake so the test can assert `show` fired.
-          flutterLocalNotificationsPluginProvider
-              .overrideWithValue(notifications),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
+      // The first frame runs build(), which starts the incoming branch.
+      // The next pump lets the post-frame callback open the modal and
+      // the fire-and-forget notification call finish.
+      await pumpScreen(
+          tester,
+          Scaffold(
             body: VoiceCallLayer(sessionId: 'sess-1', l: l),
           ),
-        ),
-      ));
-      // First pump runs build() (the incoming branch fires the IIFE); the
-      // post-frame callback opens the modal on the next frame. Pump + wait
-      // for the fire-and-forget IIFE's awaits (isFocused -> show) to settle.
-      await tester.pump();
+          overrides: [
+            gatewayProvider.overrideWithValue(gateway),
+            // Open the gate without running the real plugin init (which needs
+            // a platform host absent under `flutter test`).
+            notificationsReadyProvider
+                .overrideWithValue(const AsyncValue.data(true)),
+            // Inject the recording fake so the test can assert `show` fired.
+            flutterLocalNotificationsPluginProvider
+                .overrideWithValue(notifications),
+          ],
+          settle: false);
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(notifications.showCalls, 1);
       expect(notifications.lastTitle, 'Mosh');
       expect(notifications.lastBody, 'Incoming call from Alice');
       expect(notifications.lastId, 'Alice'.hashCode.abs());
-      expect(notifications.lastDetails?.android?.channelId, 'mosh_notifications');
-      expect(notifications.lastDetails?.android?.channelName, 'Mosh notifications');
+      expect(
+          notifications.lastDetails?.android?.channelId, 'mosh_notifications');
+      expect(notifications.lastDetails?.android?.channelName,
+          'Mosh notifications');
       // The in-app IncomingCallModal opened too (the toast is additive):
       // the modal shows the peer label + the localized incoming status.
       expect(find.text('Alice'), findsWidgets);

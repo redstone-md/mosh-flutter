@@ -9,11 +9,8 @@
 // React render condition ported 1-1 (MessageLists.tsx DmMessageRow
 // L350-357): the FailedMessageRetry row sits BELOW the body + AttachmentCard
 // + DeliveryTicks, mirroring React's message-body order.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import '../../support/scriptable_gateway.dart';
@@ -21,6 +18,7 @@ import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 ChatMessage _msg({
   required String fromDevice,
@@ -73,39 +71,21 @@ Future<void> _pump(
   WidgetTester tester, {
   required String sessionId,
   required SessionSnapshot snapshot,
-}) async {
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
+}) =>
+    pumpScreen(tester, DmScreen(sessionId: sessionId), overrides: [
       activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: DmScreen(sessionId: sessionId),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+    ]);
 
 Future<void> _pumpWithGateway(
   WidgetTester tester,
   ScriptableGateway gateway, {
   required String sessionId,
   required SessionSnapshot snapshot,
-}) async {
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
+}) =>
+    pumpScreen(tester, DmScreen(sessionId: sessionId), overrides: [
       gatewayProvider.overrideWithValue(gateway),
       activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: DmScreen(sessionId: sessionId),
-    ),
-  ));
-  await tester.pumpAndSettle();
-}
+    ]);
 
 void main() {
   const sessionId = 'sess-retry';
@@ -278,8 +258,7 @@ void main() {
   // Gateway retry seam (Gateway.retry -> frb private_dm_retry_message)
   // with the session id + the failed message id. The snapshot then
   // invalidates so the next poll re-renders the row.
-  testWidgets('tapping Retry fires retry with the message id',
-      (tester) async {
+  testWidgets('tapping Retry fires retry with the message id', (tester) async {
     final gateway = ScriptableGateway();
     const msgId = 'm-retry-1';
     final msg = _msg(
@@ -312,6 +291,7 @@ void main() {
 
     // The Gateway retry seam fired with the session id + message id.
     expect(gateway.lastCall(GatewayMethod.retry)?.target, DmTarget(sessionId));
-    expect(gateway.lastCall(GatewayMethod.retry)?.arg<String>('messageId'), msgId);
+    expect(
+        gateway.lastCall(GatewayMethod.retry)?.arg<String>('messageId'), msgId);
   });
 }

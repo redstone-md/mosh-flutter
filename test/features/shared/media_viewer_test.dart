@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/media_viewer.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 /// An `HttpOverrides` whose `createHttpClient` throws, so `Image.network`
 /// fails fast (no real network I/O) and its `errorBuilder` renders the
@@ -101,16 +102,9 @@ Future<void> _pumpViewer(
   required AttachmentDescriptor descriptor,
   String src = 'https://example.invalid/test',
   VoidCallback? onClose,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: _ViewerHost(descriptor: descriptor, src: src, onClose: onClose),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+}) =>
+    pumpScreen(tester,
+        _ViewerHost(descriptor: descriptor, src: src, onClose: onClose));
 
 void main() {
   // Pins that the caption (file_name) + the close button render, and the
@@ -284,19 +278,12 @@ void main() {
   testWidgets('showMediaViewer opens the viewer; close pops it',
       (tester) async {
     late BuildContext ctx;
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
-          builder: (context) {
-            ctx = context;
-            return const SizedBox.shrink();
-          },
-        ),
-      ),
-    );
-    await tester.pump();
+    await pumpScreen(tester, Builder(
+      builder: (context) {
+        ctx = context;
+        return const SizedBox.shrink();
+      },
+    ), settle: false);
 
     unawaited(showMediaViewer(
       context: ctx,

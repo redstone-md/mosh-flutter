@@ -18,10 +18,7 @@
 //   3. Cancelling does NOT call `_leave` (no gateway closeSession call).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import '../../support/scriptable_gateway.dart';
@@ -29,8 +26,10 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
-SessionSnapshot _snapshot({required String sessionId, required String peerName}) =>
+SessionSnapshot _snapshot(
+        {required String sessionId, required String peerName}) =>
     SessionSnapshot(
       sessionId: sessionId,
       meshId: 'testmesh',
@@ -60,23 +59,11 @@ Future<void> _pump(
   // Use the real appRouter so `context.go(AppRoutes.sessions)` after a
   // confirmed close does not throw (mirrors
   // `channel_screen_close_flow_test.dart`).
-  final router = GoRouter(
-    initialLocation: AppRoutes.dmFor(sessionId),
-    routes: appRouter.configuration.routes,
-  );
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      gatewayProvider.overrideWithValue(gateway),
-      activeSessionProvider(sessionId)
-          .overrideWith((ref) async => _snapshot(sessionId: sessionId, peerName: peerName)),
-    ],
-    child: MaterialApp.router(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      routerConfig: router,
-    ),
-  ));
-  await tester.pumpAndSettle();
+  await pumpRoute(tester, AppRoutes.dmFor(sessionId), overrides: [
+    gatewayProvider.overrideWithValue(gateway),
+    activeSessionProvider(sessionId).overrideWith(
+        (ref) async => _snapshot(sessionId: sessionId, peerName: peerName)),
+  ]);
 }
 
 void main() {
@@ -102,8 +89,7 @@ void main() {
     expect(gateway.countOf(GatewayMethod.leave), 0);
   });
 
-  testWidgets('confirming calls leave (the real _leave)',
-      (tester) async {
+  testWidgets('confirming calls leave (the real _leave)', (tester) async {
     final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 

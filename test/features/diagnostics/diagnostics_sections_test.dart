@@ -23,10 +23,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 /// A minimal `SessionSnapshot` builder for the Conversation-details tests.
 /// Only the fields the group reads are parameterized; the rest are the
@@ -60,16 +60,8 @@ SessionSnapshot _session({
       activeCall: null,
     );
 
-Future<void> _pump(WidgetTester tester, Widget child) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: SingleChildScrollView(child: Center(child: child))),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
+    tester, Scaffold(body: SingleChildScrollView(child: Center(child: child))));
 
 void main() {
   group('DiagnosticsRow', () {
@@ -84,7 +76,8 @@ void main() {
   });
 
   group('DiagnosticsGroup', () {
-    testWidgets('renders the uppercased label and its children', (tester) async {
+    testWidgets('renders the uppercased label and its children',
+        (tester) async {
       await _pump(
         tester,
         DiagnosticsGroup(
@@ -171,7 +164,8 @@ void main() {
       );
     });
 
-    testWidgets('empty peer display name falls back to "unknown"', (tester) async {
+    testWidgets('empty peer display name falls back to "unknown"',
+        (tester) async {
       final s = _session(
         sessionId: 'sess-noid1234567890',
         peerDisplayName: '',
@@ -183,7 +177,8 @@ void main() {
       expect(find.text('unknown'), findsOneWidget);
     });
 
-    testWidgets('relayed session with relayReady false shows the warming-up suffix',
+    testWidgets(
+        'relayed session with relayReady false shows the warming-up suffix',
         (tester) async {
       final s = _session(
         sessionId: 'sess-warming1234567',

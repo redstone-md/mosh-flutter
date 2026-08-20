@@ -5,18 +5,16 @@
 // SessionSnapshot seeded with two grouped messages from the same sender and
 // asserts exactly one sender-meta row (the first of the group) renders,
 // confirming the grouped row omits the meta.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/dm/dm_message_list.dart';
 import 'package:mosh/src/features/dm/dm_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/pump.dart';
 
 ChatMessage _msg({
   required String fromDevice,
@@ -186,17 +184,9 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const DmScreen(sessionId: sessionId),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester, const DmScreen(sessionId: sessionId), overrides: [
+      activeSessionProvider(sessionId).overrideWith((ref) async => snapshot),
+    ]);
 
     // Both bubble bodies render.
     expect(find.text('first'), findsOneWidget);

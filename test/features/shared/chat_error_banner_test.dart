@@ -9,28 +9,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
-
-Widget _localized(Widget child) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+import '../../support/pump.dart';
 
 void main() {
   testWidgets('renders the message text', (tester) async {
-    await tester.pumpWidget(_localized(const ChatErrorBanner(message: 'boom')));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester, Scaffold(body: const ChatErrorBanner(message: 'boom')));
 
     expect(find.text('boom'), findsOneWidget);
   });
 
   testWidgets('shows the Retry button when onRetry is non-null',
       (tester) async {
-    await tester.pumpWidget(_localized(ChatErrorBanner(
-      message: 'boom',
-      onRetry: () {},
-    )));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: ChatErrorBanner(
+          message: 'boom',
+          onRetry: () {},
+        )));
 
     final l =
         AppLocalizations.of(tester.element(find.byType(ChatErrorBanner)))!;
@@ -41,8 +38,8 @@ void main() {
   });
 
   testWidgets('hides the Retry button when onRetry is null', (tester) async {
-    await tester.pumpWidget(_localized(const ChatErrorBanner(message: 'boom')));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester, Scaffold(body: const ChatErrorBanner(message: 'boom')));
 
     final l =
         AppLocalizations.of(tester.element(find.byType(ChatErrorBanner)))!;
@@ -52,11 +49,13 @@ void main() {
 
   testWidgets('tapping Retry fires the callback', (tester) async {
     var tapped = 0;
-    await tester.pumpWidget(_localized(ChatErrorBanner(
-      message: 'boom',
-      onRetry: () => tapped++,
-    )));
-    await tester.pumpAndSettle();
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: ChatErrorBanner(
+          message: 'boom',
+          onRetry: () => tapped++,
+        )));
 
     final l =
         AppLocalizations.of(tester.element(find.byType(ChatErrorBanner)))!;

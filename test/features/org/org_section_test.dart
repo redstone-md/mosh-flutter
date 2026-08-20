@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
+import '../../support/pump.dart';
 
 OrgSnapshot _org({
   String name = 'Acme',
@@ -50,16 +51,8 @@ Future<AppLocalizations> _l() =>
 Future<void> _pump(
   WidgetTester tester, {
   required OrgSection section,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: SingleChildScrollView(child: section)),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+}) =>
+    pumpScreen(tester, Scaffold(body: SingleChildScrollView(child: section)));
 
 void main() {
   testWidgets(
@@ -196,7 +189,8 @@ void main() {
   testWidgets(
     'admin + in-roster shows the new-group form; non-admin hides it',
     (tester) async {
-      final adminOrg = _org(members: [_member(name: 'me', role: 'admin', isSelf: true)]);
+      final adminOrg =
+          _org(members: [_member(name: 'me', role: 'admin', isSelf: true)]);
       await _pump(
         tester,
         section: OrgSection(

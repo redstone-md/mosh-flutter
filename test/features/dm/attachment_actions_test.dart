@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 AttachmentDescriptor _descriptor() => AttachmentDescriptor(
       attachmentId: 'attachment-1',
@@ -19,11 +20,9 @@ IconButton _actionButton(WidgetTester tester) =>
 void main() {
   testWidgets('offered download is disabled while a transfer is busy',
       (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
+    await pumpScreen(
+        tester,
+        Builder(
           builder: (context) => Scaffold(
             body: AttachmentActions(
               descriptor: _descriptor(),
@@ -37,21 +36,16 @@ void main() {
               l: AppLocalizations.of(context)!,
             ),
           ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        ));
 
     expect(_actionButton(tester).onPressed, isNull);
   });
 
   testWidgets('failed retry is disabled while a transfer is busy',
       (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
+    await pumpScreen(
+        tester,
+        Builder(
           builder: (context) => Scaffold(
             body: AttachmentActions(
               descriptor: _descriptor(),
@@ -65,21 +59,16 @@ void main() {
               l: AppLocalizations.of(context)!,
             ),
           ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        ));
 
     expect(_actionButton(tester).onPressed, isNull);
   });
 
   testWidgets('downloading cancel stays enabled while a transfer is busy',
       (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
+    await pumpScreen(
+        tester,
+        Builder(
           builder: (context) => Scaffold(
             body: AttachmentActions(
               descriptor: _descriptor(),
@@ -93,10 +82,7 @@ void main() {
               l: AppLocalizations.of(context)!,
             ),
           ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        ));
 
     expect(_actionButton(tester).onPressed, isNotNull);
   });

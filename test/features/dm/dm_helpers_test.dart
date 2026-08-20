@@ -7,14 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 
 import 'package:flutter/material.dart';
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
-
-Widget _localized(Widget child) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+import '../../support/pump.dart';
 
 void main() {
   group('avatarInitials', () {
@@ -103,41 +97,47 @@ void main() {
     testWidgets(
         'delivered -> "✓✓ delivered" text + "Delivery: ✓✓ delivered" semantics',
         (tester) async {
-      await tester.pumpWidget(_localized(
-          const DeliveryTicks(status: MessageDeliveryStatus.delivered)));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: const DeliveryTicks(
+                  status: MessageDeliveryStatus.delivered)));
       expect(find.text('✓✓ delivered'), findsOneWidget);
       expect(find.bySemanticsLabel('Delivery: ✓✓ delivered'), findsOneWidget);
     });
 
     testWidgets('sent -> "✓ sent" text + "Delivery: ✓ sent" semantics',
         (tester) async {
-      await tester.pumpWidget(
-          _localized(const DeliveryTicks(status: MessageDeliveryStatus.sent)));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: const DeliveryTicks(status: MessageDeliveryStatus.sent)));
       expect(find.text('✓ sent'), findsOneWidget);
       expect(find.bySemanticsLabel('Delivery: ✓ sent'), findsOneWidget);
     });
 
     testWidgets('pending -> "sending…" text + "Delivery: sending…" semantics',
         (tester) async {
-      await tester.pumpWidget(_localized(
-          const DeliveryTicks(status: MessageDeliveryStatus.pending)));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body:
+                  const DeliveryTicks(status: MessageDeliveryStatus.pending)));
       expect(find.text('sending…'), findsOneWidget);
       expect(find.bySemanticsLabel('Delivery: sending…'), findsOneWidget);
     });
 
     testWidgets('failed -> renders nothing (no Text)', (tester) async {
-      await tester.pumpWidget(_localized(
-          const DeliveryTicks(status: MessageDeliveryStatus.failed)));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: const DeliveryTicks(status: MessageDeliveryStatus.failed)));
       expect(find.byType(Text), findsNothing);
     });
 
     testWidgets('null status -> renders nothing (no Text)', (tester) async {
-      await tester.pumpWidget(_localized(const DeliveryTicks(status: null)));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester, Scaffold(body: const DeliveryTicks(status: null)));
       expect(find.byType(Text), findsNothing);
     });
   });

@@ -24,14 +24,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
-
-Widget _localized(Widget child) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+import '../../support/pump.dart';
 
 void main() {
   group('PeerNickname popover', () {
@@ -41,18 +35,20 @@ void main() {
     testWidgets(
         'non-own name is tappable and opens a popover with a Message button',
         (tester) async {
-      await tester.pumpWidget(_localized(MultiPartySenderMeta(
-        fromDevice: 'bob',
-        fromFingerprint: peerFp,
-        sentAtMs: BigInt.from(1700000000000),
-        peer: PeerActions(
-          ownFingerprint: own,
-          offered: const {},
-          busy: false,
-          onMessage: (_) async {},
-        ),
-      )));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: MultiPartySenderMeta(
+            fromDevice: 'bob',
+            fromFingerprint: peerFp,
+            sentAtMs: BigInt.from(1700000000000),
+            peer: PeerActions(
+              ownFingerprint: own,
+              offered: const {},
+              busy: false,
+              onMessage: (_) async {},
+            ),
+          )));
 
       // The name is wrapped in an InkWell tap target (React nick-button).
       expect(find.byType(InkWell), findsOneWidget);
@@ -69,28 +65,32 @@ void main() {
       final messageButton = find.text('Message');
       expect(messageButton, findsOneWidget);
       expect(
-          tester.widget<TextButton>(find.ancestor(
-            of: messageButton,
-            matching: find.byType(TextButton),
-          )).onPressed,
+          tester
+              .widget<TextButton>(find.ancestor(
+                of: messageButton,
+                matching: find.byType(TextButton),
+              ))
+              .onPressed,
           isNotNull);
     });
 
     testWidgets(
         'Message button is DISABLED + labelled "Invite sent" when offered',
         (tester) async {
-      await tester.pumpWidget(_localized(MultiPartySenderMeta(
-        fromDevice: 'bob',
-        fromFingerprint: peerFp,
-        sentAtMs: BigInt.from(1700000000000),
-        peer: PeerActions(
-          ownFingerprint: own,
-          offered: const {peerFp},
-          busy: false,
-          onMessage: (_) async {},
-        ),
-      )));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: MultiPartySenderMeta(
+            fromDevice: 'bob',
+            fromFingerprint: peerFp,
+            sentAtMs: BigInt.from(1700000000000),
+            peer: PeerActions(
+              ownFingerprint: own,
+              offered: const {peerFp},
+              busy: false,
+              onMessage: (_) async {},
+            ),
+          )));
 
       await tester.tap(find.text('bob'));
       await tester.pumpAndSettle();
@@ -100,26 +100,30 @@ void main() {
       expect(inviteSent, findsOneWidget);
       // Disabled when alreadyOffered (React disabled={alreadyOffered || busy}).
       expect(
-          tester.widget<TextButton>(find.ancestor(
-            of: inviteSent,
-            matching: find.byType(TextButton),
-          )).onPressed,
+          tester
+              .widget<TextButton>(find.ancestor(
+                of: inviteSent,
+                matching: find.byType(TextButton),
+              ))
+              .onPressed,
           isNull);
     });
 
     testWidgets('Message button is DISABLED when busy', (tester) async {
-      await tester.pumpWidget(_localized(MultiPartySenderMeta(
-        fromDevice: 'bob',
-        fromFingerprint: peerFp,
-        sentAtMs: BigInt.from(1700000000000),
-        peer: PeerActions(
-          ownFingerprint: own,
-          offered: const {},
-          busy: true,
-          onMessage: (_) async {},
-        ),
-      )));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: MultiPartySenderMeta(
+            fromDevice: 'bob',
+            fromFingerprint: peerFp,
+            sentAtMs: BigInt.from(1700000000000),
+            peer: PeerActions(
+              ownFingerprint: own,
+              offered: const {},
+              busy: true,
+              onMessage: (_) async {},
+            ),
+          )));
 
       await tester.tap(find.text('bob'));
       await tester.pumpAndSettle();
@@ -128,10 +132,12 @@ void main() {
       final messageButton = find.text('Message');
       expect(messageButton, findsOneWidget);
       expect(
-          tester.widget<TextButton>(find.ancestor(
-            of: messageButton,
-            matching: find.byType(TextButton),
-          )).onPressed,
+          tester
+              .widget<TextButton>(find.ancestor(
+                of: messageButton,
+                matching: find.byType(TextButton),
+              ))
+              .onPressed,
           isNull);
     });
 
@@ -139,20 +145,22 @@ void main() {
         'tapping Message when enabled calls onMessage(fingerprint) and closes the popover',
         (tester) async {
       final offered = <String>[];
-      await tester.pumpWidget(_localized(MultiPartySenderMeta(
-        fromDevice: 'bob',
-        fromFingerprint: peerFp,
-        sentAtMs: BigInt.from(1700000000000),
-        peer: PeerActions(
-          ownFingerprint: own,
-          offered: const {},
-          busy: false,
-          onMessage: (fingerprint) async {
-            offered.add(fingerprint);
-          },
-        ),
-      )));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: MultiPartySenderMeta(
+            fromDevice: 'bob',
+            fromFingerprint: peerFp,
+            sentAtMs: BigInt.from(1700000000000),
+            peer: PeerActions(
+              ownFingerprint: own,
+              offered: const {},
+              busy: false,
+              onMessage: (fingerprint) async {
+                offered.add(fingerprint);
+              },
+            ),
+          )));
 
       await tester.tap(find.text('bob'));
       await tester.pumpAndSettle();
@@ -169,12 +177,14 @@ void main() {
     testWidgets(
         'peer == null (DM-row default) renders plain bold Text with NO tap target',
         (tester) async {
-      await tester.pumpWidget(_localized(MultiPartySenderMeta(
-        fromDevice: 'bob',
-        fromFingerprint: peerFp,
-        sentAtMs: BigInt.from(1700000000000),
-      )));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: MultiPartySenderMeta(
+            fromDevice: 'bob',
+            fromFingerprint: peerFp,
+            sentAtMs: BigInt.from(1700000000000),
+          )));
 
       // The name renders as plain bold Text.
       expect(find.text('bob'), findsOneWidget);
@@ -187,18 +197,20 @@ void main() {
     testWidgets(
         'own fingerprint renders plain bold Text with NO popover (peer != null)',
         (tester) async {
-      await tester.pumpWidget(_localized(MultiPartySenderMeta(
-        fromDevice: 'me',
-        fromFingerprint: own,
-        sentAtMs: BigInt.from(1700000000000),
-        peer: PeerActions(
-          ownFingerprint: own,
-          offered: const {},
-          busy: false,
-          onMessage: (_) async {},
-        ),
-      )));
-      await tester.pumpAndSettle();
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: MultiPartySenderMeta(
+            fromDevice: 'me',
+            fromFingerprint: own,
+            sentAtMs: BigInt.from(1700000000000),
+            peer: PeerActions(
+              ownFingerprint: own,
+              offered: const {},
+              busy: false,
+              onMessage: (_) async {},
+            ),
+          )));
 
       // Own name renders as plain bold (React <strong>{name}</strong>).
       expect(find.text('me'), findsOneWidget);

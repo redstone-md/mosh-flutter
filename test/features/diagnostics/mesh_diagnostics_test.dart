@@ -20,10 +20,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
 /// A full `MeshInfo` builder for the widget tests. Only the fields the
 /// group reads are parameterized; the rest are sensible defaults.
@@ -61,18 +61,11 @@ MeshInfo _mesh({
       peerDetails: const [],
     );
 
-Future<void> _pump(WidgetTester tester, Widget child) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: SingleChildScrollView(child: Center(child: child)),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
+    tester,
+    Scaffold(
+      body: SingleChildScrollView(child: Center(child: child)),
+    ));
 
 void main() {
   group('peerBreakdown', () {
@@ -90,7 +83,8 @@ void main() {
   });
 
   group('MeshDiagnostics - booting', () {
-    testWidgets('null mesh renders the Moss network group + booting empty-state',
+    testWidgets(
+        'null mesh renders the Moss network group + booting empty-state',
         (tester) async {
       await _pump(tester, const MeshDiagnostics(mesh: null));
 

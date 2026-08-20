@@ -123,7 +123,7 @@ Do not paste the whole framework catalog here.
 - Rust core, `lint`: `cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings`
 - Flutter, `pub get`: `flutter pub get`
 - Flutter, `analyze`: `flutter analyze`
-- Flutter, `test`: `flutter test` (widget/unit; tests override `gatewayProvider` with `ScriptableGateway` from `test/support/`)
+- Flutter, `test`: `flutter test` (widget/unit; tests override `gatewayProvider` with `ScriptableGateway` from `test/support/`, and mount a screen with `pumpScreen` / `pumpRoute` from `test/support/pump.dart` instead of building their own `MaterialApp`)
 - Flutter, `format`: `dart format lib test integration_test`
 - Flutter, `gen-l10n`: `flutter gen-l10n` (generated `lib/l10n/app_localizations*.dart` are gitignored)
 - Bindings, `codegen`: `flutter_rust_bridge_codegen generate` (kept drift-free in CI; regenerate and commit when the Rust `api` surface changes)

@@ -8,17 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/call_log_entry.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import '../../support/pump.dart';
 
-Future<void> _pump(WidgetTester tester, CallLogEntry card) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: Center(child: card)),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+Future<void> _pump(WidgetTester tester, CallLogEntry card) =>
+    pumpScreen(tester, Scaffold(body: Center(child: card)));
 
 CallEvent _event({required String kind, required int durationMs}) => CallEvent(
       kind: kind,
