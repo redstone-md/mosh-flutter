@@ -46,18 +46,22 @@ flowchart TD
         Slots["attachments::AttachmentSlots"]
         Log["message_log::MessageLog"]
         Seen["dedup::SeenFrames"]
-        Later["later: send path, history, mesh view"]
+        Mesh["mesh::mesh_info + snapshot_events"]
+        Later["later: send path, history"]
     end
 
     Dm --> Slots
     Dm --> Log
     Dm --> Seen
+    Dm --> Mesh
     Gr --> Slots
     Gr --> Log
     Gr --> Seen
+    Gr --> Mesh
     Ch --> Slots
     Ch --> Log
     Ch --> Seen
+    Ch --> Mesh
     shared -.-> Later
 ```
 

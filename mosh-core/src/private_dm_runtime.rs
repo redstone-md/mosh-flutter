@@ -154,9 +154,8 @@ fn random_b64(bytes: usize) -> String {
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buf)
 }
 
-use crate::moss_ffi::{
-    drain_messages_where, snapshot_event_log, MossFfiRuntime, MossNode, MossReceivedMessage,
-};
+use crate::conversation::mesh;
+use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::shared_node::SharedMossNode;
 
 pub struct PrivateDmRuntime {
@@ -2585,15 +2584,7 @@ impl PrivateDmSession {
             messages: self.messages.to_vec(),
             attachments: self.attachment_slots.views(&self.attachments),
             mesh: self.mesh_info(),
-            events: snapshot_event_log()
-                .into_iter()
-                .map(|event| SnapshotEvent {
-                    event_type: event.event_type,
-                    event_name: SnapshotEvent::name_for(event.event_type).to_string(),
-                    detail_json: event.detail_json,
-                    epoch_millis: event.epoch_millis,
-                })
-                .collect(),
+            events: mesh::snapshot_events(),
             pending_call: self.call.as_ref().and_then(|call| {
                 if call.phase == CallPhase::Ringing {
                     Some(PendingCall {
@@ -2630,13 +2621,7 @@ impl PrivateDmSession {
     }
 
     fn mesh_info(&self) -> Option<MeshInfo> {
-        let raw = self.node.mesh_info_json()?;
-        let mut info: MeshInfo = serde_json::from_str(&raw).ok()?;
-        if info.nat_type.is_empty() {
-            if let Some(nat) = self.node.nat_type() {
-                info.nat_type = nat;
-            }
-        }
+        let mut info = mesh::mesh_info(&self.node)?;
         // The node is shared, so it reports every open conversation's channels.
         // This snapshot belongs to ONE of them: showing the others would put
         // another chat's session id in this chat's diagnostics panel. Peer lists
