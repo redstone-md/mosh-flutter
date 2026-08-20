@@ -28,6 +28,11 @@ sealed class ConversationTarget<TSnapshot> {
   /// few things that really do differ per kind.
   ConversationKind get kind;
 
+  /// How the app names the conversation that is open: `dm:<id>`,
+  /// `channel:<name>` or `group:<id>`. `ActiveConversation.parse` reads this
+  /// format back, so the two have to agree.
+  String get key => '${kind.name}:$id';
+
   /// Reads this conversation's snapshot. Each kind calls its own method on
   /// [reader]; that is what keeps `Gateway.poll` a single typed method.
   Future<TSnapshot> readSnapshot(ConversationSnapshotReader reader);

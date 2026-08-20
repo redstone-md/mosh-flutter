@@ -15,7 +15,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
+import 'package:mosh/src/features/conversation/conversation_leave_prompt.dart';
 import 'package:mosh/src/features/conversation/conversation_screen_body.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_state.dart';
@@ -32,35 +34,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
-import 'package:mosh/src/util/format.dart' show readableError, shorten;
-
-/// What a kind's header can drive. The shared screen owns these values; the
-/// header's buttons call back into them.
-@immutable
-class ConversationHeaderHooks {
-  const ConversationHeaderHooks({
-    required this.mobileSearchOpen,
-    required this.onToggleMobileSearch,
-    required this.filter,
-    required this.onFilter,
-    required this.onOpenPeerStatus,
-    required this.onRequestLeave,
-  });
-
-  final bool mobileSearchOpen;
-  final VoidCallback onToggleMobileSearch;
-  final ConversationFilter filter;
-  final ValueChanged<ConversationFilter> onFilter;
-  final VoidCallback onOpenPeerStatus;
-
-  /// Asks to leave. Shows the confirm dialog first.
-  final Future<void> Function() onRequestLeave;
-}
-
-typedef ConversationHeaderBuilder = PreferredSizeWidget Function(
-  BuildContext context,
-  ConversationHeaderHooks hooks,
-);
+import 'package:mosh/src/util/format.dart' show readableError;
 
 class ConversationScreen extends ConsumerStatefulWidget {
   const ConversationScreen({
@@ -105,7 +79,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   /// clears on the next read. Deferred by a microtask: Riverpod does not
   /// allow writing to a provider during initState.
   void _markActive() {
-    final key = '${_target.kind.name}:${_target.id}';
+    final key = _target.key;
     Future.microtask(() {
       if (!mounted) return;
       ref.read(activeConversationKeyProvider.notifier).set(key);
@@ -121,8 +95,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   @override
   void didUpdateWidget(covariant ConversationScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // The same screen can be reused for another conversation. Close the
-    // mobile search panel so the new one does not inherit it.
+    // The router can reuse this screen for another conversation. Close the
+    // mobile search panel so the new one does not inherit it, and point the
+    // unread lifecycle at the conversation now on screen.
     if (widget.target != oldWidget.target) {
       _mobileSearchOpen = false;
       _markActive();
@@ -192,8 +167,11 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   /// Asks first, then leaves.
   Future<void> _requestLeave() async {
     final l = AppLocalizations.of(context)!;
-    final snapshot = ref.read(conversationSnapshotProvider(_target)).value;
-    final prompt = _leavePrompt(l, snapshot);
+    final prompt = ConversationLeavePrompt.of(
+      l,
+      _target,
+      ref.read(conversationSnapshotProvider(_target)).value,
+    );
     final confirmed = await showConfirmDialog(
       context: context,
       title: prompt.title,
@@ -202,42 +180,6 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       cancelLabel: l.dialogCancel,
     );
     if (confirmed) await _leave();
-  }
-
-  ({String title, String body, String confirmLabel}) _leavePrompt(
-    AppLocalizations l,
-    ConversationSnapshot? snapshot,
-  ) =>
-      switch (_target.kind) {
-        ConversationKind.dm => (
-            title: l.deleteChatTitle(_dmLabel(snapshot)),
-            body: l.deleteChatBody,
-            confirmLabel: l.deleteChatConfirm,
-          ),
-        ConversationKind.channel => (
-            title: l.leaveChannelTitle(_target.id),
-            body: l.leaveChannelBody,
-            confirmLabel: l.leaveChannelConfirm,
-          ),
-        ConversationKind.group => (
-            title: l.leaveGroupTitle(_groupLabel(snapshot)),
-            body: l.leaveGroupBody,
-            confirmLabel: l.leaveGroupConfirm,
-          ),
-      };
-
-  /// The peer's name, falling back to the session id before the first
-  /// message from them arrives.
-  String _dmLabel(ConversationSnapshot? snapshot) {
-    if (snapshot is! DmConversation) return _target.id;
-    final name = snapshot.source.peerDisplayName;
-    return name.isEmpty ? snapshot.source.sessionId : name;
-  }
-
-  /// The group's label, falling back to a short form of its id.
-  String _groupLabel(ConversationSnapshot? snapshot) {
-    final label = snapshot is GroupConversation ? snapshot.source.label : null;
-    return label ?? shorten(_target.id, 6);
   }
 
   Future<void> _leave() async {
@@ -252,6 +194,21 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     );
   }
 
+  ConversationChrome get _chrome => ConversationChrome(
+        search: _search,
+        onSearch: (value) => setState(() => _search = value),
+        filter: _filter,
+        onFilter: (value) => setState(() => _filter = value),
+        mobileSearchOpen: _mobileSearchOpen,
+        onToggleMobileSearch: () =>
+            setState(() => _mobileSearchOpen = !_mobileSearchOpen),
+        onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
+        showPeerStatus: _showPeerStatus,
+        onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+        onClosePeerStatus: () => setState(() => _showPeerStatus = false),
+        onRequestLeave: _requestLeave,
+      );
+
   @override
   Widget build(BuildContext context) {
     // Every time the conversation is re-read, check whether an attachment
@@ -260,30 +217,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       conversationSnapshotProvider(_target),
       (_, next) => _resolvePendingOpen(next.value),
     );
+    final chrome = _chrome;
     return Scaffold(
-      appBar: widget.header(
-        context,
-        ConversationHeaderHooks(
-          mobileSearchOpen: _mobileSearchOpen,
-          onToggleMobileSearch: () =>
-              setState(() => _mobileSearchOpen = !_mobileSearchOpen),
-          filter: _filter,
-          onFilter: (value) => setState(() => _filter = value),
-          onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
-          onRequestLeave: _requestLeave,
-        ),
-      ),
+      appBar: widget.header(context, chrome),
       body: ConversationScreenBody(
         target: _target,
+        chrome: chrome,
         composer: _composer,
-        search: _search,
-        onSearch: (value) => setState(() => _search = value),
-        filter: _filter,
-        onFilter: (value) => setState(() => _filter = value),
-        mobileSearchOpen: _mobileSearchOpen,
-        onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
-        showPeerStatus: _showPeerStatus,
-        onClosePeerStatus: () => setState(() => _showPeerStatus = false),
         onSend: _send,
         onRetrySend: _retryFailedSend,
         onOpenAttachment: _openAttachment,

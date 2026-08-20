@@ -22,10 +22,24 @@ ConversationMessage _message({
   required String from,
   required String body,
   BigInt? sentAtMs,
+  String? fingerprint,
 }) =>
     ConversationMessage(
       fromDevice: from,
-      fromFingerprint: 'fp-$from',
+      fromFingerprint: fingerprint ?? 'fp-$from',
+      body: body,
+      own: false,
+      sentAtMs: sentAtMs,
+    );
+
+/// A DM message: no fingerprint, so the sender is the device name.
+ConversationMessage _dmMessage({
+  required String from,
+  required String body,
+  BigInt? sentAtMs,
+}) =>
+    ConversationMessage(
+      fromDevice: from,
       body: body,
       own: false,
       sentAtMs: sentAtMs,
@@ -106,6 +120,57 @@ void main() {
           _message(from: 'alice', body: 'd', sentAtMs: _afterMinutes(10)),
         ]),
         [false, true, true, false],
+      );
+    });
+
+    test('two people with the same display name do not group', () {
+      expect(
+        _groupedFlags([
+          _message(
+            from: 'alice',
+            body: 'a',
+            sentAtMs: _base,
+            fingerprint: 'fp-real-alice',
+          ),
+          _message(
+            from: 'alice',
+            body: 'b',
+            sentAtMs: _afterMinutes(1),
+            fingerprint: 'fp-other-alice',
+          ),
+        ]),
+        [false, false],
+      );
+    });
+
+    test('one person who renamed their device still groups', () {
+      expect(
+        _groupedFlags([
+          _message(
+            from: 'alice-laptop',
+            body: 'a',
+            sentAtMs: _base,
+            fingerprint: 'fp-alice',
+          ),
+          _message(
+            from: 'alice-phone',
+            body: 'b',
+            sentAtMs: _afterMinutes(1),
+            fingerprint: 'fp-alice',
+          ),
+        ]),
+        [false, true],
+      );
+    });
+
+    test('a DM falls back to the device name, which is all it has', () {
+      expect(
+        _groupedFlags([
+          _dmMessage(from: 'alice', body: 'a', sentAtMs: _base),
+          _dmMessage(from: 'alice', body: 'b', sentAtMs: _afterMinutes(1)),
+          _dmMessage(from: 'bob', body: 'c', sentAtMs: _afterMinutes(2)),
+        ]),
+        [false, true, false],
       );
     });
 

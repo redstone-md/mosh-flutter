@@ -41,6 +41,7 @@ class TestMessage {
     this.messageId,
     this.sentAtMs,
     this.attachment,
+    this.callEvent,
     this.deliveryStatus,
     this.deliveryError,
     this.retryable,
@@ -73,6 +74,11 @@ class TestMessage {
   final String? messageId;
   final BigInt? sentAtMs;
   final AttachmentDescriptor? attachment;
+
+  /// A call that started, ended or was missed. Only a DM carries one; the
+  /// channel and group message types have no such field.
+  final CallEvent? callEvent;
+
   final MessageDeliveryStatus? deliveryStatus;
   final String? deliveryError;
   final bool? retryable;
@@ -83,6 +89,7 @@ class TestMessage {
         messageId: messageId,
         sentAtMs: sentAtMs,
         attachment: attachment,
+        callEvent: callEvent,
         deliveryStatus: deliveryStatus,
         deliveryError: deliveryError,
         retryable: retryable,

@@ -1,10 +1,9 @@
 /// Everything under a conversation's header: the banners, the search row,
 /// the message list, the composer, and the overlays on top of them.
 ///
-/// One body for all three kinds. The screen above owns the widget state --
-/// the composer, the search text, the filter, whether the drawer is open --
-/// and passes it in; the running work comes from the conversation
-/// controller.
+/// One body for all three kinds. The screen above owns the widget state and
+/// passes it in as [ConversationChrome]; the running work comes from the
+/// conversation controller.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,15 +11,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_banners.dart';
+import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
-import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
-import 'package:mosh/src/features/conversation/conversation_state.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart'
     show PeerActions;
+import 'package:mosh/src/features/conversation/conversation_peer_status.dart';
+import 'package:mosh/src/features/conversation/conversation_search_row.dart';
+import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/features/conversation/conversation_state.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
-import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/dm/voice_call_layer.dart' show VoiceCallLayer;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
@@ -32,19 +33,15 @@ import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show ringtonePlayerProvider;
 
+/// The gap around the DM's "messages are end-to-end encrypted" line.
+const EdgeInsets _cryptoFooterPadding = EdgeInsets.fromLTRB(16, 4, 16, 8);
+
 class ConversationScreenBody extends ConsumerWidget {
   const ConversationScreenBody({
     super.key,
     required this.target,
+    required this.chrome,
     required this.composer,
-    required this.search,
-    required this.onSearch,
-    required this.filter,
-    required this.onFilter,
-    required this.mobileSearchOpen,
-    required this.onCloseMobileSearch,
-    required this.showPeerStatus,
-    required this.onClosePeerStatus,
     required this.onSend,
     required this.onRetrySend,
     required this.onOpenAttachment,
@@ -54,18 +51,11 @@ class ConversationScreenBody extends ConsumerWidget {
   });
 
   final AnyConversationTarget target;
+
+  /// The search text, the filter and the two panels, owned by the screen.
+  final ConversationChrome chrome;
+
   final TextEditingController composer;
-
-  final String search;
-  final ValueChanged<String> onSearch;
-  final ConversationFilter filter;
-  final ValueChanged<ConversationFilter> onFilter;
-
-  final bool mobileSearchOpen;
-  final VoidCallback onCloseMobileSearch;
-
-  final bool showPeerStatus;
-  final VoidCallback onClosePeerStatus;
 
   /// Sends what the composer holds.
   final VoidCallback onSend;
@@ -86,6 +76,8 @@ class ConversationScreenBody extends ConsumerWidget {
   /// The picked file was too big.
   final AttachmentPickErrorCallback onAttachmentPickError;
 
+  bool get _isDm => target.kind == ConversationKind.dm;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
@@ -93,7 +85,6 @@ class ConversationScreenBody extends ConsumerWidget {
     final state = ref.watch(conversationControllerProvider(target));
     final controller =
         ref.watch(conversationControllerProvider(target).notifier);
-    final snapshot = async.value;
     final chatError = state.chatError;
     return SafeArea(
       child: Stack(
@@ -105,90 +96,24 @@ class ConversationScreenBody extends ConsumerWidget {
                   message: chatError,
                   onRetry: state.canRetrySend ? onRetrySend : null,
                 ),
-              ConversationBanners(snapshot: snapshot),
-              if (isMobileBreakpoint(context)) ...[
-                if (mobileSearchOpen)
-                  MobileConversationSearch(
-                    search: search,
-                    onSearch: onSearch,
-                    onClose: onCloseMobileSearch,
-                    l: l,
-                  ),
-                MobileConversationFilterNotice(
-                  filter: filter,
-                  onFilter: onFilter,
-                  l: l,
-                ),
-              ] else
-                ConversationTools(
-                  search: search,
-                  filter: filter,
-                  onSearch: onSearch,
-                  onFilter: onFilter,
-                  l: l,
-                ),
-              // Dropping a file on the list sends it the same way the
-              // paperclip does. The zone is off while a send is in flight.
-              Expanded(
-                child: ChatDropZone(
-                  disabled: state.sending,
-                  onAttach: controller.sendAttachment,
-                  onError: onAttachmentPickError,
-                  child: async.when(
-                    // The conversation re-reads every second. Without this
-                    // the list would flash a spinner on every tick.
-                    skipLoadingOnReload: true,
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (error, _) => Center(child: Text(error.toString())),
-                    data: (snapshot) => _messages(
-                      context,
-                      snapshot,
-                      controller: controller,
-                      state: state,
-                      l: l,
-                    ),
-                  ),
-                ),
-              ),
-              ConversationComposer(
-                controller: composer,
-                sending: state.sending,
-                placeholder: l.chatComposerPlaceholder,
-                sendLabel: l.chatSendLabel,
-                onSend: onSend,
-                attachLabel: l.chatAttachLabel,
-                onAttach: controller.sendAttachment,
-                onAttachmentPickError: onAttachmentPickError,
-                voiceRecordLabel: l.voiceRecordLabel,
-                voiceDiscardLabel: l.voiceDiscardLabel,
-                voiceStopLabel: l.voiceStopLabel,
-                voicePlayLabel: l.voicePlayLabel,
-                voiceSendLabel: l.voiceSendLabel,
-                onSendVoice: controller.sendVoice,
-                onVoiceError: onVoiceError,
-              ),
-              if (target.kind == ConversationKind.dm)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                  child: Text(
-                    l.chatCryptoFooter,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
+              ConversationBanners(target: target, snapshot: async.value),
+              ConversationSearchRow(chrome: chrome),
+              Expanded(child: _messages(async, state, controller, l)),
+              _composer(l, state, controller),
+              if (_isDm) _cryptoFooter(context, l),
             ],
           ),
-          if (showPeerStatus)
+          if (chrome.showPeerStatus)
             Positioned.fill(
-              child: _peerStatusDrawer(
-                snapshot,
-                error: async.hasError ? async.error.toString() : null,
+              child: ConversationPeerStatus(
+                async: async,
                 onRefresh: controller.refresh,
+                onClose: chrome.onClosePeerStatus,
               ),
             ),
           // The call modals and the in-call bar. The layer draws nothing
           // until there is a call.
-          if (target.kind == ConversationKind.dm)
+          if (_isDm)
             Positioned.fill(
               child: VoiceCallLayer(
                 sessionId: target.id,
@@ -202,27 +127,54 @@ class ConversationScreenBody extends ConsumerWidget {
     );
   }
 
-  /// The message list, or one of the two empty states: nothing sent yet, or
-  /// the search and the filter hid everything.
+  /// The message list, wrapped so a dropped file sends the same way the
+  /// paperclip does. The zone is off while a send is in flight.
   Widget _messages(
-    BuildContext context,
-    ConversationSnapshot snapshot, {
-    required ConversationController controller,
-    required ConversationControllerState state,
-    required AppLocalizations l,
-  }) {
+    AsyncValue<ConversationSnapshot> async,
+    ConversationControllerState state,
+    ConversationController controller,
+    AppLocalizations l,
+  ) =>
+      ChatDropZone(
+        disabled: state.sending,
+        onAttach: controller.sendAttachment,
+        onError: onAttachmentPickError,
+        child: async.when(
+          // The conversation re-reads every second. Without this the list
+          // would flash a spinner on every tick.
+          skipLoadingOnReload: true,
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(child: Text(error.toString())),
+          data: (snapshot) => _list(snapshot, state, controller, l),
+        ),
+      );
+
+  /// The visible messages, or one of the two empty states: nothing sent yet,
+  /// or the search and the filter hid everything.
+  Widget _list(
+    ConversationSnapshot snapshot,
+    ConversationControllerState state,
+    ConversationController controller,
+    AppLocalizations l,
+  ) {
     if (snapshot.messages.isEmpty) {
-      return _ConversationEmpty(kind: snapshot.target.kind, l: l);
+      return _ConversationEmpty(kind: target.kind, l: l);
     }
-    final visible =
-        filterConversationMessages(snapshot.messages, search, filter);
-    if (visible.isEmpty) return ConversationSearchEmpty(filter: filter, l: l);
+    final visible = filterConversationMessages(
+      snapshot.messages,
+      chrome.search,
+      chrome.filter,
+    );
+    if (visible.isEmpty) {
+      return ConversationSearchEmpty(filter: chrome.filter, l: l);
+    }
     return ConversationMessageListView(
       messages: visible,
       snapshot: snapshot,
       attachmentCallbacks: controller.attachmentCallbacks(onOpenAttachment),
       onRetryMessage: controller.retryMessage,
-      peer: snapshot.target.kind == ConversationKind.dm
+      // A DM has one peer and it is already open, so its names do nothing.
+      peer: _isDm
           ? null
           : PeerActions(
               ownFingerprint: snapshot.ownFingerprint,
@@ -233,21 +185,35 @@ class ConversationScreenBody extends ConsumerWidget {
     );
   }
 
-  /// The drawer that shows who is on the other side and how the traffic gets
-  /// there. It reads the source snapshot, so each kind hands it its own.
-  Widget _peerStatusDrawer(
-    ConversationSnapshot? snapshot, {
-    required String? error,
-    required VoidCallback onRefresh,
-  }) =>
-      PeerStatusDrawer(
-        session: snapshot is DmConversation ? snapshot.source : null,
-        channel: snapshot is ChannelConversation ? snapshot.source : null,
-        group: snapshot is GroupConversation ? snapshot.source : null,
-        error: error,
-        refreshing: false,
-        onRefresh: onRefresh,
-        onClose: onClosePeerStatus,
+  Widget _composer(
+    AppLocalizations l,
+    ConversationControllerState state,
+    ConversationController controller,
+  ) =>
+      ConversationComposer(
+        controller: composer,
+        sending: state.sending,
+        placeholder: l.chatComposerPlaceholder,
+        sendLabel: l.chatSendLabel,
+        onSend: onSend,
+        attachLabel: l.chatAttachLabel,
+        onAttach: controller.sendAttachment,
+        onAttachmentPickError: onAttachmentPickError,
+        voiceRecordLabel: l.voiceRecordLabel,
+        voiceDiscardLabel: l.voiceDiscardLabel,
+        voiceStopLabel: l.voiceStopLabel,
+        voicePlayLabel: l.voicePlayLabel,
+        voiceSendLabel: l.voiceSendLabel,
+        onSendVoice: controller.sendVoice,
+        onVoiceError: onVoiceError,
+      );
+
+  Widget _cryptoFooter(BuildContext context, AppLocalizations l) => Padding(
+        padding: _cryptoFooterPadding,
+        child: Text(
+          l.chatCryptoFooter,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       );
 }
 

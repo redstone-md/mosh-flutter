@@ -53,8 +53,11 @@ flowchart TD
     Snap --> Kind
 ```
 
-Each kind supplies its app bar and nothing else. `DmScreen` also keeps the
-fingerprints the user has confirmed in person, which no other kind has.
+Each kind supplies its app bar and nothing else. The shared screen hands the
+header a `ConversationChrome` -- the search text, the filter, the two panels
+and the leave action -- so the header and the body read one bundle instead of
+a dozen loose values. `DmScreen` also keeps whether the user has confirmed
+this session's safety number in person, which no other kind has.
 
 The three generated snapshots map into one view. It is sealed, so each kind
 keeps its own source snapshot for the surfaces that genuinely need it — the
@@ -94,6 +97,13 @@ classDiagram
     ConversationSnapshot --> ConversationMessage
 ```
 
+The ticket asked for the extras -- the group's admin flag and org binding,
+the DM's calls -- as optional fields on one view. They are not there. The
+sealed source snapshot carries them instead, so a reader cannot pick up a
+field its kind never fills, and the peer-status drawer keeps the exact type
+it already reads. The effect the ticket wanted is the same: one view, one
+provider, and the extras out of the shared path.
+
 Two details make the merge behave:
 
 - `own` is worked out while mapping. A DM compares device names; a channel
@@ -118,6 +128,25 @@ Two details make the merge behave:
   fingerprint chip, the MLS badge and the delivery ticks. Those are `switch`
   arms on `ConversationKind`, not separate widgets.
 - The Rust side and the frb facade are untouched.
+- The screen now re-marks the active conversation when the router reuses it
+  for a different one. The three old screens only did that in `initState`,
+  so a reused screen left the unread lifecycle pointing at the conversation
+  the user had just left.
+
+## Size exception
+
+`ConversationController` is about 295 lines, over the 200-line type limit in
+AGENTS.md. Merging the three controllers is the point of this ADR, and the
+class has one responsibility: what one conversation screen is doing. Every
+plausible split -- sends here, attachments there -- would put one screen's
+work back in two places, which is what this change removed.
+
+Scope: `ConversationController` only. Its state and its result types already
+live in `conversation_state.dart`.
+
+Revisit it when a fourth thing joins send / attachments / peer invites, or
+when a kind needs work the others do not. Either would be a real second
+responsibility, and then the split has a seam to follow.
 
 ## Alternatives considered
 
