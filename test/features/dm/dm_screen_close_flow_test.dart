@@ -98,7 +98,7 @@ void main() {
     // The localized confirm button label renders.
     expect(find.text('Delete chat'), findsOneWidget);
     // The gateway close has NOT fired yet (dialog is open, unconfirmed).
-    expect(gateway.lastCall(GatewayMethod.closeSession)?.arg<String>('sessionId'), isNull);
+    expect(gateway.countOf(GatewayMethod.closeSession), 0);
   });
 
   testWidgets('confirming calls closeSession (the real _leave)',
@@ -129,7 +129,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // No real close fired.
-    expect(gateway.lastCall(GatewayMethod.closeSession)?.arg<String>('sessionId'), isNull);
+    expect(gateway.countOf(GatewayMethod.closeSession), 0);
     // The dialog is gone and the DM screen is still mounted.
     expect(find.text('Delete chat with $peerName?'), findsNothing);
     expect(find.byType(DmScreen), findsOneWidget);

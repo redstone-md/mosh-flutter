@@ -103,9 +103,15 @@ class GatewayCall {
   final GatewayMethod method;
   final Map<String, Object?> args;
 
-  /// Read one argument. Throws if the type does not match, so a renamed or
-  /// retyped argument fails the test instead of silently reading null.
-  T arg<T>(String name) => args[name] as T;
+  /// Read one argument. Throws if the argument is not there or has another
+  /// type, so a renamed or retyped argument fails the test loudly instead of
+  /// reading as null.
+  T arg<T>(String name) {
+    if (!args.containsKey(name)) {
+      throw ArgumentError('${method.name} has no argument named "$name"');
+    }
+    return args[name] as T;
+  }
 
   @override
   String toString() => '${method.name}($args)';

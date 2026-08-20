@@ -4,7 +4,7 @@
 // test/support/. Widgets depend on `Gateway`, never on a concrete impl, so
 // swapping the wired runtime is one provider change (ADR 0013).
 //
-// The thirty methods below mirror the slice-one Rust `mosh_core::api` surface
+// The 57 methods below mirror the Rust `mosh_core::api` surface
 // 1:1, poll-based (no streams). Signatures match the generated frb functions.
 // The channels/groups read seam adds pollChannel/listChannels/pollGroup/
 // listGroups; the channels/groups write seam adds joinChannel/sendChannel/

@@ -80,7 +80,7 @@ void main() {
     // The localized confirm button label renders.
     expect(find.text('Leave channel'), findsOneWidget);
     // The gateway leave has NOT fired yet (dialog is open, unconfirmed).
-    expect(gateway.lastCall(GatewayMethod.leaveChannel)?.arg<String>('name'), isNull);
+    expect(gateway.countOf(GatewayMethod.leaveChannel), 0);
   });
 
   testWidgets('confirming calls leaveChannel (the real _leave)',
@@ -111,7 +111,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // No real close fired.
-    expect(gateway.lastCall(GatewayMethod.leaveChannel)?.arg<String>('name'), isNull);
+    expect(gateway.countOf(GatewayMethod.leaveChannel), 0);
     // The dialog is gone and the channel screen is still mounted.
     expect(find.text('Leave #$name?'), findsNothing);
     expect(find.byType(ChannelScreen), findsOneWidget);

@@ -97,7 +97,7 @@ void main() {
     expect(find.text('Leave Tea Club?'), findsOneWidget);
     expect(find.text('Leave group'), findsOneWidget);
     // The gateway close has NOT fired yet (dialog is open, unconfirmed).
-    expect(gateway.lastCall(GatewayMethod.closeGroup)?.arg<String>('groupId'), isNull);
+    expect(gateway.countOf(GatewayMethod.closeGroup), 0);
   });
 
   testWidgets(
@@ -145,7 +145,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // No real close fired.
-    expect(gateway.lastCall(GatewayMethod.closeGroup)?.arg<String>('groupId'), isNull);
+    expect(gateway.countOf(GatewayMethod.closeGroup), 0);
     // The dialog is gone and the group screen is still mounted.
     expect(find.text('Leave Tea Club?'), findsNothing);
     expect(find.byType(GroupScreen), findsOneWidget);
