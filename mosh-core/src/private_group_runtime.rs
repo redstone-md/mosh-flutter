@@ -13,9 +13,8 @@ use crate::conversation::attachments::{
     descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
 };
 use crate::conversation::dedup::SeenFrames;
-use crate::conversation::message_log::{
-    delivery_meta, now_ms, ConversationMessage, LogError, MessageLog,
-};
+use crate::conversation::message_log::{delivery_meta, ConversationMessage, LogError, MessageLog};
+use crate::conversation::now_ms;
 use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
 use crate::moss_ffi::{
     drain_messages_where, snapshot_event_log, MossFfiRuntime, MossNode, MossReceivedMessage,
@@ -893,7 +892,9 @@ impl PrivateGroupRuntime {
             .groups
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-        session.start_attachment_download(attachment_id)?;
+        session
+            .attachment_slots
+            .start_download(attachment_id, &mut session.attachments)?;
         session.pump_attachment_requests();
         Ok(())
     }
@@ -907,7 +908,9 @@ impl PrivateGroupRuntime {
             .groups
             .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
-        session.cancel_attachment(attachment_id)
+        Ok(session
+            .attachment_slots
+            .cancel(attachment_id, &mut session.attachments)?)
     }
 
     /// Publishes a private-DM invitation aimed at one group member.
@@ -2411,18 +2414,6 @@ impl GroupSession {
         })
     }
 
-    fn start_attachment_download(&mut self, attachment_id: &str) -> Result<(), PrivateGroupError> {
-        self.attachment_slots
-            .start_download(attachment_id, &mut self.attachments)?;
-        Ok(())
-    }
-
-    fn cancel_attachment(&mut self, attachment_id: &str) -> Result<(), PrivateGroupError> {
-        self.attachment_slots
-            .cancel(attachment_id, &mut self.attachments)?;
-        Ok(())
-    }
-
     fn pump_attachment_requests(&mut self) {
         for attachment_id in self.attachment_slots.awaiting_chunks() {
             if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
@@ -2433,10 +2424,6 @@ impl GroupSession {
                 let _ = publish_json(&self.node, &self.mesh_id, &self.blob_channel, &envelope);
             }
         }
-    }
-
-    fn attachment_views(&self) -> Vec<AttachmentView> {
-        self.attachment_slots.views(&self.attachments)
     }
 
     fn snapshot(&self) -> GroupSnapshot {
@@ -2452,7 +2439,7 @@ impl GroupSession {
             member_count: self.crypto.member_count(),
             invite_uri: self.invite_uri.clone(),
             messages: self.messages.to_vec(),
-            attachments: self.attachment_views(),
+            attachments: self.attachment_slots.views(&self.attachments),
             dm_offers: self.dm_offers.clone(),
             mesh: self.mesh_info(),
             needs_rejoin: self.needs_rejoin,

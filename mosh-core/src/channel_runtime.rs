@@ -13,9 +13,8 @@ use crate::conversation::attachments::{
     descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
 };
 use crate::conversation::dedup::SeenFrames;
-use crate::conversation::message_log::{
-    delivery_meta, now_ms, ConversationMessage, LogError, MessageLog,
-};
+use crate::conversation::message_log::{delivery_meta, ConversationMessage, LogError, MessageLog};
+use crate::conversation::now_ms;
 use crate::moss_ffi::{
     drain_messages_where, snapshot_event_log, MossFfiRuntime, MossNode, MossReceivedMessage,
 };
@@ -836,7 +835,9 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        session.start_attachment_download(attachment_id)?;
+        session
+            .attachment_slots
+            .start_download(attachment_id, &mut session.attachments)?;
         session.pump_attachment_requests();
         Ok(())
     }
@@ -851,7 +852,9 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        session.cancel_attachment(attachment_id)
+        Ok(session
+            .attachment_slots
+            .cancel(attachment_id, &mut session.attachments)?)
     }
 
     /// Serves a byte range for streaming playback of a channel attachment.
@@ -1227,21 +1230,6 @@ impl ChannelSession {
         })
     }
 
-    fn start_attachment_download(
-        &mut self,
-        attachment_id: &str,
-    ) -> Result<(), ChannelRuntimeError> {
-        self.attachment_slots
-            .start_download(attachment_id, &mut self.attachments)?;
-        Ok(())
-    }
-
-    fn cancel_attachment(&mut self, attachment_id: &str) -> Result<(), ChannelRuntimeError> {
-        self.attachment_slots
-            .cancel(attachment_id, &mut self.attachments)?;
-        Ok(())
-    }
-
     fn pump_attachment_requests(&mut self) {
         for attachment_id in self.attachment_slots.awaiting_chunks() {
             if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
@@ -1254,10 +1242,6 @@ impl ChannelSession {
         }
     }
 
-    fn attachment_views(&self) -> Vec<AttachmentView> {
-        self.attachment_slots.views(&self.attachments)
-    }
-
     fn snapshot(&self) -> ChannelSnapshot {
         ChannelSnapshot {
             name: self.name.clone(),
@@ -1266,7 +1250,7 @@ impl ChannelSession {
             display_name: self.display_name.clone(),
             device_fingerprint: self.device_fingerprint.clone(),
             messages: self.messages.to_vec(),
-            attachments: self.attachment_views(),
+            attachments: self.attachment_slots.views(&self.attachments),
             dm_offers: self.dm_offers.clone(),
             mesh: self.mesh_info(),
             events: snapshot_event_log()

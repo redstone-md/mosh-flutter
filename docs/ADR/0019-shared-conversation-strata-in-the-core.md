@@ -114,6 +114,23 @@ Costs:
 - Until the last step lands, the core is half folded: the shared strata are
   out, the send path and the history store are still triplicated.
 
+Two small behaviour changes, both deliberate, both from picking one rule where
+the three copies had drifted apart:
+
+- Restoring an attachment after a restart keeps the first record. The DM
+  already worked that way; the channel and the group kept the last one. It only
+  shows when one file is stamped on more than one message, which happens
+  because a channel attachment id comes from the file's content — so the same
+  bytes sent and later received back share an id. The file on disk is the same
+  either way; only the direction label could differ.
+- The list of attachments still waiting for chunks is now in id order. It came
+  out of a hash map before, so the order changed from run to run.
+
+The MLS commit sequencer and the ciphertext store stayed where they are. They
+are shared by the DM and the group but not by the channel, and what sits on top
+of them is exactly where the two differ. Whether they get a shared layer is
+decided in ticket 05e, not here.
+
 Rejected: leaving the core alone and only sharing the UI. The UI already reads
 one shape; the drift that costs users — delivery status, attachment state,
 duplicate messages — is decided below the bridge.
@@ -121,6 +138,12 @@ duplicate messages — is decided below the bridge.
 ## Follow-up
 
 Tracked as 05a (one outbound send path), 05b (one history store), 05c (one
-mesh and event view) and 05d (one runtime behind a kind trait). 05d is the one
-that regenerates the bindings and must be checked against a real peer for all
-three kinds.
+mesh and event view), 05e (DM offers, and the MLS layers the DM and the group
+share) and 05d (one runtime behind a kind trait). 05d is the one that
+regenerates the bindings and must be checked against a real peer for all three
+kinds.
+
+One layering debt to clear along the way: the shared code still imports
+`AttachmentDescriptor`, `AttachmentState` and `AttachmentView` from
+`private_dm_runtime`, where they happen to live. Shared code should not depend
+on one kind; those types belong beside the attachment runtime.
