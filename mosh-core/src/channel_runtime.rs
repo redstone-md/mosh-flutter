@@ -13,11 +13,10 @@ use crate::conversation::attachments::{
     descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
 };
 use crate::conversation::dedup::SeenFrames;
+use crate::conversation::mesh;
 use crate::conversation::message_log::{delivery_meta, ConversationMessage, LogError, MessageLog};
 use crate::conversation::now_ms;
-use crate::moss_ffi::{
-    drain_messages_where, snapshot_event_log, MossFfiRuntime, MossNode, MossReceivedMessage,
-};
+use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::Persistence;
 use crate::private_dm_runtime::{
@@ -1252,28 +1251,9 @@ impl ChannelSession {
             messages: self.messages.to_vec(),
             attachments: self.attachment_slots.views(&self.attachments),
             dm_offers: self.dm_offers.clone(),
-            mesh: self.mesh_info(),
-            events: snapshot_event_log()
-                .into_iter()
-                .map(|event| SnapshotEvent {
-                    event_type: event.event_type,
-                    event_name: SnapshotEvent::name_for(event.event_type).to_string(),
-                    detail_json: event.detail_json,
-                    epoch_millis: event.epoch_millis,
-                })
-                .collect(),
+            mesh: mesh::mesh_info(&self.node),
+            events: mesh::snapshot_events(),
         }
-    }
-
-    fn mesh_info(&self) -> Option<MeshInfo> {
-        let raw = self.node.mesh_info_json()?;
-        let mut info: MeshInfo = serde_json::from_str(&raw).ok()?;
-        if info.nat_type.is_empty() {
-            if let Some(nat) = self.node.nat_type() {
-                info.nat_type = nat;
-            }
-        }
-        Some(info)
     }
 }
 
