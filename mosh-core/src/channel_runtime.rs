@@ -6,9 +6,12 @@ use serde::{Deserialize, Serialize};
 use crate::attachment_crypto::sha256_hex;
 use crate::attachment_runtime::{
     AttachmentManifest, AttachmentRuntime, ChunkFrame, ChunkOutcome, ChunkRequest,
-    OutgoingAttachment, StreamRange, CHUNK_SIZE,
+    OutgoingAttachment, StreamRange,
 };
 use crate::attachment_store::AttachmentStore;
+use crate::conversation::attachments::{
+    descriptor_of, AttachmentDirection, AttachmentSlots, SlotError,
+};
 use crate::message_id::MessageIdGen;
 use crate::moss_ffi::{
     drain_messages_where, snapshot_event_log, MossFfiRuntime, MossNode, MossReceivedMessage,
@@ -16,8 +19,8 @@ use crate::moss_ffi::{
 use crate::outbound_delivery::{MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::Persistence;
 use crate::private_dm_runtime::{
-    AttachmentDescriptor, AttachmentSendResult, AttachmentState, AttachmentView, DmOffer, MeshInfo,
-    SnapshotEvent, VoiceMeta,
+    AttachmentDescriptor, AttachmentSendResult, AttachmentView, DmOffer, MeshInfo, SnapshotEvent,
+    VoiceMeta,
 };
 use crate::shared_node::SharedMossNode;
 
@@ -115,21 +118,6 @@ enum ChannelBlobEnvelope {
     DmOffer { offer: DmOffer },
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum AttachmentDirection {
-    Outgoing,
-    Incoming,
-}
-
-struct AttachmentSlot {
-    descriptor: AttachmentDescriptor,
-    direction: AttachmentDirection,
-    local_path: Option<String>,
-    download_requested: bool,
-    failed: bool,
-    cancelled: bool,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PersistedChannelMessage {
     conversation_id: String,
@@ -215,6 +203,15 @@ impl From<crate::attachment_store::AttachmentStoreError> for ChannelRuntimeError
     }
 }
 
+impl From<SlotError> for ChannelRuntimeError {
+    fn from(error: SlotError) -> Self {
+        match error {
+            SlotError::Missing(id) => Self::MissingAttachment(id),
+            other => Self::Attachment(other.to_string()),
+        }
+    }
+}
+
 pub struct ChannelRuntime {
     // The one moss node this process runs. Every joined channel is a room on
     // it, not a node of its own — see `shared_node` for why more than one is
@@ -242,7 +239,7 @@ struct ChannelSession {
     seen_order: VecDeque<String>,
     attachment_store: Arc<AttachmentStore>,
     attachments: AttachmentRuntime,
-    attachment_slots: HashMap<String, AttachmentSlot>,
+    attachment_slots: AttachmentSlots,
     outbound_attempts: HashMap<String, OutboundAttemptRecord>,
     dm_offers: Vec<DmOffer>,
 }
@@ -351,7 +348,7 @@ impl ChannelRuntime {
                 seen_order: VecDeque::new(),
                 attachment_store: Arc::clone(&self.attachment_store),
                 attachments: AttachmentRuntime::new(),
-                attachment_slots: HashMap::new(),
+                attachment_slots: AttachmentSlots::default(),
                 outbound_attempts: HashMap::new(),
                 dm_offers: Vec::new(),
             };
@@ -381,16 +378,10 @@ impl ChannelRuntime {
                                         } else {
                                             AttachmentDirection::Incoming
                                         };
-                                    session.attachment_slots.insert(
-                                        desc.attachment_id.clone(),
-                                        AttachmentSlot {
-                                            descriptor: desc.clone(),
-                                            direction,
-                                            local_path: Some(path.to_string_lossy().into_owned()),
-                                            download_requested: false,
-                                            failed: false,
-                                            cancelled: false,
-                                        },
+                                    session.attachment_slots.restore(
+                                        desc.clone(),
+                                        direction,
+                                        path.to_string_lossy().into_owned(),
                                     );
                                 }
                             }
@@ -474,7 +465,7 @@ impl ChannelRuntime {
             seen_order: VecDeque::new(),
             attachment_store: Arc::clone(&self.attachment_store),
             attachments: AttachmentRuntime::new(),
-            attachment_slots: HashMap::new(),
+            attachment_slots: AttachmentSlots::default(),
             outbound_attempts: HashMap::new(),
             dm_offers: Vec::new(),
         };
@@ -854,11 +845,9 @@ impl ChannelRuntime {
             .channels
             .get_mut(&normalized)
             .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        if let Some(slot) = session.attachment_slots.get_mut(attachment_id) {
-            slot.download_requested = true;
-            slot.cancelled = false;
-        }
-        let _ = session.attachments.start_download(attachment_id);
+        session
+            .attachment_slots
+            .resume_for_stream(attachment_id, &mut session.attachments);
         let outcome = session.attachments.stream_range(attachment_id, start, end);
         session.pump_attachment_requests();
         Ok(outcome)
@@ -1154,11 +1143,7 @@ impl ChannelSession {
                 frame,
             } if from_fingerprint != self.device_fingerprint => {
                 let attachment_id = frame.attachment_id.clone();
-                let file_name = self
-                    .attachment_slots
-                    .get(&attachment_id)
-                    .map(|slot| slot.descriptor.file_name.clone())
-                    .unwrap_or_else(|| "file".to_string());
+                let file_name = self.attachment_slots.file_name(&attachment_id);
                 match self.attachments.ingest_chunk(&frame) {
                     Ok(ChunkOutcome::Complete {
                         content_hash,
@@ -1168,17 +1153,13 @@ impl ChannelSession {
                         let path =
                             self.attachment_store
                                 .write_blob(&content_hash, &file_name, &bytes)?;
-                        if let Some(slot) = self.attachment_slots.get_mut(&attachment_id) {
-                            slot.local_path = Some(path.to_string_lossy().into_owned());
-                            slot.failed = false;
-                        }
+                        self.attachment_slots
+                            .complete_download(&attachment_id, path.to_string_lossy().into_owned());
                         Ok(())
                     }
                     Ok(_) => Ok(()),
                     Err(_) => {
-                        if let Some(slot) = self.attachment_slots.get_mut(&attachment_id) {
-                            slot.failed = true;
-                        }
+                        self.attachment_slots.fail(&attachment_id);
                         Ok(())
                     }
                 }
@@ -1194,22 +1175,12 @@ impl ChannelSession {
         manifest: AttachmentManifest,
     ) -> Result<(), ChannelRuntimeError> {
         let attachment_id = manifest.attachment_id.clone();
-        if self.attachment_slots.contains_key(&attachment_id) {
+        if self.attachment_slots.contains(&attachment_id) {
             return Ok(());
         }
         let descriptor = descriptor_of(&manifest);
         self.attachments.register_incoming(manifest)?;
-        self.attachment_slots.insert(
-            attachment_id,
-            AttachmentSlot {
-                descriptor: descriptor.clone(),
-                direction: AttachmentDirection::Incoming,
-                local_path: None,
-                download_requested: false,
-                failed: false,
-                cancelled: false,
-            },
-        );
+        self.attachment_slots.offer(descriptor.clone());
         let message = self.stamp_message(ChannelMessage {
             from_device,
             from_fingerprint,
@@ -1235,7 +1206,7 @@ impl ChannelSession {
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
         let attachment_id = format!("attachment-{}", &sha256_hex(&bytes)[..16]);
-        if self.attachment_slots.contains_key(&attachment_id) {
+        if self.attachment_slots.contains(&attachment_id) {
             return Err(ChannelRuntimeError::Attachment(
                 "attachment already shared on this channel".to_string(),
             ));
@@ -1262,17 +1233,8 @@ impl ChannelSession {
         publish_json(&self.node, &self.mesh_id, &self.blob_topic, &envelope)?;
 
         let descriptor = descriptor_of(&manifest);
-        self.attachment_slots.insert(
-            attachment_id.clone(),
-            AttachmentSlot {
-                descriptor: descriptor.clone(),
-                direction: AttachmentDirection::Outgoing,
-                local_path: Some(stored.to_string_lossy().into_owned()),
-                download_requested: false,
-                failed: false,
-                cancelled: false,
-            },
-        );
+        self.attachment_slots
+            .record_sent(descriptor.clone(), stored.to_string_lossy().into_owned());
         let message = self.stamp_message(ChannelMessage {
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
@@ -1297,46 +1259,19 @@ impl ChannelSession {
         &mut self,
         attachment_id: &str,
     ) -> Result<(), ChannelRuntimeError> {
-        let slot = self
-            .attachment_slots
-            .get_mut(attachment_id)
-            .ok_or_else(|| ChannelRuntimeError::MissingAttachment(attachment_id.to_string()))?;
-        if slot.direction != AttachmentDirection::Incoming {
-            return Err(ChannelRuntimeError::Attachment(
-                "cannot download an outgoing attachment".to_string(),
-            ));
-        }
-        slot.download_requested = true;
-        slot.failed = false;
-        slot.cancelled = false;
-        self.attachments.start_download(attachment_id)?;
+        self.attachment_slots
+            .start_download(attachment_id, &mut self.attachments)?;
         Ok(())
     }
 
     fn cancel_attachment(&mut self, attachment_id: &str) -> Result<(), ChannelRuntimeError> {
-        let slot = self
-            .attachment_slots
-            .get_mut(attachment_id)
-            .ok_or_else(|| ChannelRuntimeError::MissingAttachment(attachment_id.to_string()))?;
-        slot.cancelled = true;
-        slot.download_requested = false;
-        self.attachments.cancel(attachment_id);
+        self.attachment_slots
+            .cancel(attachment_id, &mut self.attachments)?;
         Ok(())
     }
 
     fn pump_attachment_requests(&mut self) {
-        let active: Vec<String> = self
-            .attachment_slots
-            .iter()
-            .filter(|(_, slot)| {
-                slot.direction == AttachmentDirection::Incoming
-                    && slot.download_requested
-                    && slot.local_path.is_none()
-                    && !slot.cancelled
-            })
-            .map(|(id, _)| id.clone())
-            .collect();
-        for attachment_id in active {
+        for attachment_id in self.attachment_slots.awaiting_chunks() {
             if let Some(request) = self.attachments.next_chunk_request(&attachment_id) {
                 let envelope = ChannelBlobEnvelope::Request {
                     from_fingerprint: self.device_fingerprint.clone(),
@@ -1348,13 +1283,7 @@ impl ChannelSession {
     }
 
     fn attachment_views(&self) -> Vec<AttachmentView> {
-        let mut views: Vec<AttachmentView> = self
-            .attachment_slots
-            .values()
-            .map(|slot| slot.view(&self.attachments))
-            .collect();
-        views.sort_by(|a, b| a.attachment_id.cmp(&b.attachment_id));
-        views
+        self.attachment_slots.views(&self.attachments)
     }
 
     fn has_seen(&mut self, message: &MossReceivedMessage) -> bool {
@@ -1502,61 +1431,6 @@ fn encode(bytes: &[u8]) -> String {
 fn decode(encoded: &str) -> Result<Vec<u8>, ChannelRuntimeError> {
     base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)
         .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))
-}
-
-fn descriptor_of(manifest: &AttachmentManifest) -> AttachmentDescriptor {
-    AttachmentDescriptor {
-        attachment_id: manifest.attachment_id.clone(),
-        content_hash: manifest.content_hash.clone(),
-        file_name: manifest.file_name.clone(),
-        mime: manifest.mime.clone(),
-        total_size: manifest.total_size,
-        thumbnail_b64: manifest.thumbnail_b64.clone(),
-        voice: manifest.voice.clone(),
-    }
-}
-
-impl AttachmentSlot {
-    fn view(&self, attachments: &AttachmentRuntime) -> AttachmentView {
-        let chunk_count = self
-            .descriptor
-            .total_size
-            .div_ceil(u64::from(CHUNK_SIZE))
-            .max(1);
-        let (direction, progress) = match self.direction {
-            AttachmentDirection::Outgoing => (
-                "outgoing",
-                attachments.outgoing_progress(&self.descriptor.attachment_id),
-            ),
-            AttachmentDirection::Incoming => (
-                "incoming",
-                attachments.incoming_progress(&self.descriptor.attachment_id),
-            ),
-        };
-        let completed_chunks = progress
-            .as_ref()
-            .map(|value| value.completed_chunks)
-            .unwrap_or(0);
-        let state = if self.cancelled {
-            AttachmentState::Cancelled
-        } else if self.failed {
-            AttachmentState::Failed
-        } else if self.local_path.is_some() {
-            AttachmentState::Available
-        } else if self.download_requested {
-            AttachmentState::Downloading
-        } else {
-            AttachmentState::Offered
-        };
-        AttachmentView {
-            attachment_id: self.descriptor.attachment_id.clone(),
-            direction: direction.to_string(),
-            state,
-            completed_chunks,
-            chunk_count,
-            local_path: self.local_path.clone(),
-        }
-    }
 }
 
 #[cfg(test)]
