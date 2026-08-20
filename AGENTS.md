@@ -300,6 +300,9 @@ Ask first:
 
 ### Likes
 
+- Keep the language simple in comments, docs, and anything a user reads.
+  Short words, short sentences, no jargon where a plain word works. The point
+  is that the next reader understands it on the first pass.
 - The product name is Mosh. Do not use Quiver/Quier naming.
 - Build the desktop app first, then Android, then iOS.
 - Prefer an actual Flutter app with the smallest needed screens over building a full design-system library first.
