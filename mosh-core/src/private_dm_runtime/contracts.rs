@@ -367,6 +367,15 @@ impl From<crate::attachment_store::AttachmentStoreError> for PrivateDmRuntimeErr
     }
 }
 
+impl From<crate::conversation::attachments::SlotError> for PrivateDmRuntimeError {
+    fn from(error: crate::conversation::attachments::SlotError) -> Self {
+        match error {
+            crate::conversation::attachments::SlotError::Missing(id) => Self::MissingAttachment(id),
+            other => Self::Attachment(other.to_string()),
+        }
+    }
+}
+
 impl From<crate::persistence::PersistenceError> for PrivateDmRuntimeError {
     fn from(error: crate::persistence::PersistenceError) -> Self {
         Self::Persistence(error.to_string())
