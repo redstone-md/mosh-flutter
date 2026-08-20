@@ -19,57 +19,10 @@ import 'package:mosh/src/features/dm/frame_crypto.dart';
 import 'package:mosh/src/features/dm/voice_call_orchestrator.dart';
 import 'package:mosh/src/features/dm/voice_capture.dart';
 import 'package:mosh/src/features/dm/voice_playback.dart';
-import 'package:mosh/src/gateway/gateway.dart' show Gateway;
+import '../../support/scriptable_gateway.dart';
 
 const String KEY_B64 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; // 32 zero bytes
 const String PREFIX_B64 = 'AAAAAA=='; // 4 zero bytes
-
-/// Minimal recording Gateway: only callSendFrame / callDrainFrames / callEnd
-/// are exercised; the rest throw UnimplementedError so any other call
-/// surface surfaces loudly in the test. drainCompleter lets a test stall
-/// the poll (the draining-guard test) instead of resolving immediately.
-class _RecordingGateway implements Gateway {
-  final List<({String sessionId, String callId, Uint8List frame})> sent = [];
-  int drainCalls = 0;
-  List<Uint8List> drainReturn = const [];
-  Completer<List<Uint8List>>? drainCompleter;
-  int endCalls = 0;
-  String? lastEndReason;
-
-  @override
-  Future<void> callSendFrame({
-    required String sessionId,
-    required String callId,
-    required Uint8List frame,
-  }) async {
-    sent.add((sessionId: sessionId, callId: callId, frame: frame));
-  }
-
-  @override
-  Future<List<Uint8List>> callDrainFrames({
-    required String sessionId,
-    required String callId,
-  }) async {
-    drainCalls++;
-    final c = drainCompleter;
-    if (c != null) return c.future;
-    return drainReturn;
-  }
-
-  @override
-  Future<void> callEnd({
-    required String sessionId,
-    required String callId,
-    required String reason,
-  }) async {
-    endCalls++;
-    lastEndReason = reason;
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(' ${invocation.memberName}');
-}
 
 /// A capture handle that records its `stop()` call.
 class _RecordingCaptureHandle implements VoiceCaptureHandle {
@@ -182,7 +135,7 @@ VoiceCallOrchestrator _orchestrator() => VoiceCallOrchestrator();
 void main() {
   group('voice_call_orchestrator', () {
     test('attach imports the call key and starts the poll', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       await orchestrator.attach(
@@ -199,7 +152,7 @@ void main() {
       );
       // 60ms > the 20ms poll interval, so at least one tick has fired.
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(gateway.drainCalls, greaterThanOrEqualTo(1));
+      expect(gateway.countOf(GatewayMethod.callDrainFrames), greaterThanOrEqualTo(1));
       await orchestrator.detach();
     });
 
@@ -214,7 +167,7 @@ void main() {
 
     test('a captured frame while muted is not sent, and is sent when unmuted', () async {
       // Unmuted path.
-      final gateway1 = _RecordingGateway();
+      final gateway1 = ScriptableGateway();
       final transport1 = CallFrameTransport(gateway1);
       final capture1 = _FiringCaptureFactory([Uint8List.fromList([1, 2, 3])]);
       final orchestrator1 = _orchestrator();
@@ -231,16 +184,16 @@ void main() {
         endCall: (_, __, ___) async {},
       );
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(gateway1.sent.length, 1);
+      expect(gateway1.countOf(GatewayMethod.callSendFrame), 1);
       final key = await importCallKey(KEY_B64);
-      final opened = await openFrame(key, PREFIX_B64, gateway1.sent.single.frame);
+      final opened = await openFrame(key, PREFIX_B64, gateway1.argValues<Uint8List>(GatewayMethod.callSendFrame, 'frame').single);
       expect(opened, isNotNull);
       expect(opened!.seq & SEQ_VALUE_MASK, BigInt.zero);
       expect(opened.payload, Uint8List.fromList([1, 2, 3]));
       await orchestrator1.detach();
 
       // Muted path: toggleMute before the 30ms frame fires.
-      final gateway2 = _RecordingGateway();
+      final gateway2 = ScriptableGateway();
       final transport2 = CallFrameTransport(gateway2);
       final capture2 = _FiringCaptureFactory([Uint8List.fromList([1, 2, 3])]);
       final orchestrator2 = _orchestrator();
@@ -258,13 +211,13 @@ void main() {
       );
       orchestrator2.toggleMute();
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(gateway2.sent, isEmpty);
+      expect(gateway2.argValues<Uint8List>(GatewayMethod.callSendFrame, 'frame'), isEmpty);
       await orchestrator2.detach();
     });
 
     test('seq increments per frame and the direction bit is applied', () async {
       for (final direction in ['caller', 'callee']) {
-        final gateway = _RecordingGateway();
+        final gateway = ScriptableGateway();
         final transport = CallFrameTransport(gateway);
         final capture = _FiringCaptureFactory([
           Uint8List.fromList([10]),
@@ -286,14 +239,14 @@ void main() {
         );
         // 3 frames at 30ms cadence -> ~90ms+, plus a margin.
         await Future<void>.delayed(const Duration(milliseconds: 200));
-        expect(gateway.sent.length, 3);
+        expect(gateway.countOf(GatewayMethod.callSendFrame), 3);
         await orchestrator.detach();
 
         final key = await importCallKey(KEY_B64);
         final seqs = <BigInt>[];
         final highBits = <BigInt>[];
-        for (final entry in gateway.sent) {
-          final opened = await openFrame(key, PREFIX_B64, entry.frame);
+        for (final frame in gateway.argValues<Uint8List>(GatewayMethod.callSendFrame, 'frame')) {
+          final opened = await openFrame(key, PREFIX_B64, frame);
           expect(opened, isNotNull);
           seqs.add(opened!.seq & SEQ_VALUE_MASK);
           highBits.add(opened.seq >> 63);
@@ -306,7 +259,7 @@ void main() {
     });
 
     test('drained frames surface reordered to playback', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final transport = CallFrameTransport(gateway);
       final playbackFactory = _RecordingPlaybackFactory();
       final key = await importCallKey(KEY_B64);
@@ -316,7 +269,7 @@ void main() {
       final f1 = await sealFrame(key, PREFIX_B64, BigInt.one, CALLER_DIRECTION_BIT, Uint8List.fromList([10]));
       final f2 = await sealFrame(key, PREFIX_B64, BigInt.two, CALLER_DIRECTION_BIT, Uint8List.fromList([20]));
       final f3 = await sealFrame(key, PREFIX_B64, BigInt.from(3), CALLER_DIRECTION_BIT, Uint8List.fromList([30]));
-      gateway.drainReturn = [f3, f1, f2];
+      gateway.seedCallFrames([f3, f1, f2]);
       final orchestrator = _orchestrator();
       await orchestrator.attach(
         sessionId: 's',
@@ -344,7 +297,7 @@ void main() {
     });
 
     test('the draining guard drops a tick while a drain is in flight', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       await orchestrator.attach(
@@ -361,20 +314,19 @@ void main() {
       );
       // Seed a stall: the first drain grabs the completer and does not
       // resolve, so subsequent 20ms ticks must early-return (draining guard).
-      gateway.drainCompleter = Completer<List<Uint8List>>();
+      gateway.hold(GatewayMethod.callDrainFrames);
       await Future<void>.delayed(const Duration(milliseconds: 70));
-      expect(gateway.drainCalls, 1);
+      expect(gateway.countOf(GatewayMethod.callDrainFrames), 1);
       // Complete the in-flight drain -> draining flips false -> next tick
       // fires another drain.
-      gateway.drainCompleter!.complete(<Uint8List>[]);
-      gateway.drainCompleter = null;
+      gateway.release(GatewayMethod.callDrainFrames);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(gateway.drainCalls, greaterThan(1));
+      expect(gateway.countOf(GatewayMethod.callDrainFrames), greaterThan(1));
       await orchestrator.detach();
     });
 
     test('detach cancels the poll and stops capture/playback', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final transport = CallFrameTransport(gateway);
       final captureFactory = _RecordingCaptureFactory();
       final playbackFactory = _RecordingPlaybackFactory();
@@ -392,17 +344,17 @@ void main() {
         endCall: (_, __, ___) async {},
       );
       await Future<void>.delayed(const Duration(milliseconds: 30));
-      final before = gateway.drainCalls;
+      final before = gateway.countOf(GatewayMethod.callDrainFrames);
       expect(before, greaterThanOrEqualTo(1));
       await orchestrator.detach();
       expect(captureFactory.handle.stopped, isTrue);
       expect(playbackFactory.handle!.stopped, isTrue);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(gateway.drainCalls, before);
+      expect(gateway.countOf(GatewayMethod.callDrainFrames), before);
     });
 
     test('a capture onFrame firing after detach is a no-op', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final transport = CallFrameTransport(gateway);
       final capture = _FiringCaptureFactory([Uint8List.fromList([1, 2, 3])]);
       final orchestrator = _orchestrator();
@@ -422,11 +374,11 @@ void main() {
       // _cancelled is true so onFrame is a no-op.
       await orchestrator.detach();
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(gateway.sent, isEmpty);
+      expect(gateway.argValues<Uint8List>(GatewayMethod.callSendFrame, 'frame'), isEmpty);
     });
 
     test('setup failure calls onError + endCall(setup_failed)', () async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       String? errorMessage;

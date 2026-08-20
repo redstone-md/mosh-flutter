@@ -29,7 +29,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/dm_screen.dart';
 import 'package:mosh/src/features/dm/fingerprint_badge.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -63,7 +63,7 @@ SessionSnapshot _snapshot({required String sessionId, required String peerName})
 
 Future<void> _pump(
   WidgetTester tester,
-  FakeGateway gateway, {
+  ScriptableGateway gateway, {
   required String sessionId,
   required String peerName,
 }) async {
@@ -96,7 +96,7 @@ void main() {
   testWidgets(
       'subtitle renders "MLS Active · fingerprint unverified" before confirm',
       (tester) async {
-    final gateway = FakeGateway();
+    final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 
     // React ActiveChatPanes.tsx L88-89 unverified branch, with state="Active".
@@ -110,7 +110,7 @@ void main() {
   testWidgets(
       'subtitle flips to "MLS Active · fingerprint confirmed" after tapping '
       'the FingerprintBadge', (tester) async {
-    final gateway = FakeGateway();
+    final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 
     // Unverified subtitle renders first.

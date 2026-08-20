@@ -13,7 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
@@ -21,109 +21,32 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 
-/// A FakeGateway subclass whose `listSessions` returns a fixed snapshot so
-/// the screen renders a deterministic non-empty list (test 2 + label/state
-/// assertions). createInvite is left inherited (test 1 uses the empty list
-/// returned by the base FakeGateway with no pre-seeded sessions).
-class _SeededSessionsGateway extends FakeGateway {
-  _SeededSessionsGateway(this._sessions);
-
-  final List<SessionSnapshot> _sessions;
-
-  @override
-  Future<SessionListSnapshot> listSessions() =>
-      Future.value(SessionListSnapshot(sessions: _sessions));
-}
-
-/// A fake that always errors on `listSessions` and counts the calls so the
-/// retry test can assert refresh re-invoked the gateway.
-class _FailingListGateway extends FakeGateway {
-  int listCalls = 0;
-
-  @override
-  Future<SessionListSnapshot> listSessions() {
-    listCalls++;
-    return Future.error(Exception('boom-listSessions'));
-  }
-}
-/// A fake whose `listChannels` returns one channel carrying a DM offer so
-/// the sessions rail renders an OfferRailItem (the pendingDmOffersProvider
-/// derives from channel.dmOffers). acceptInvite is overridden to return a
-/// deterministic session so the accept-and-navigate test can assert the DM
-/// screen renders.
-class _SeededChannelOfferGateway extends FakeGateway {
-  _SeededChannelOfferGateway({this.failAccept = false});
-
-  final bool failAccept;
-  int listSessionCalls = 0;
-  int dismissCalls = 0;
-
-  @override
-  Future<SessionListSnapshot> listSessions() {
-    listSessionCalls++;
-    return Future.value(SessionListSnapshot(sessions: const []));
-  }
-
-  @override
-  Future<ChannelListSnapshot> listChannels() => Future.value(ChannelListSnapshot(
-        channels: [
-          ChannelSnapshot(
-            name: 'drift-room',
-            topic: '',
-            meshId: 'm',
-            displayName: '',
-            deviceFingerprint: 'SELF',
-            messages: const [],
-            attachments: const [],
-            dmOffers: [
-              DmOffer(
-                offerId: 'offer-1',
-                fromDevice: 'alpha-peer',
-                fromFingerprint: 'PEERFP',
-                targetFingerprint: 'SELF',
-                inviteUri:
-                    'mosh://invite?mesh=m&session=drift-41#fp=91A4-D2C8-77B0',
-              ),
-            ],
-            mesh: null,
-            events: const [],
-          ),
-        ],
-      ));
-
-  @override
-  Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request}) =>
-      failAccept
-          ? Future.error(Exception('accept-failed'))
-          : Future.value(SessionSnapshot(
-        sessionId: 'accepted-dm',
-        meshId: 'm',
-        role: 'invitee',
-        displayName: 'me',
-        peerDisplayName: 'alpha-peer',
-        state: 'ready',
-        path: 'connecting',
-        relayReady: null,
-        inviteUri: request.inviteUri,
-        fingerprint: 'PEERFP',
-        messages: const [],
-        attachments: const [],
-        mesh: null,
-        events: const [],
-        pendingCall: null,
-        outgoingCall: null,
-        activeCall: null,
-      ));
-
-  @override
-  Future<void> dismissChannelDmOffer({
-    required String name,
-    required String offerId,
-  }) {
-    dismissCalls++;
-    return Future.value();
-  }
-}
+/// A gateway holding one channel that carries a DM offer, so the sessions
+/// rail renders an OfferRailItem (pendingDmOffersProvider derives from
+/// channel.dmOffers).
+ScriptableGateway _channelOfferGateway() => ScriptableGateway()
+  ..seedChannels([
+    ChannelSnapshot(
+      name: 'drift-room',
+      topic: '',
+      meshId: 'm',
+      displayName: '',
+      deviceFingerprint: 'SELF',
+      messages: const [],
+      attachments: const [],
+      dmOffers: [
+        DmOffer(
+          offerId: 'offer-1',
+          fromDevice: 'alpha-peer',
+          fromFingerprint: 'PEERFP',
+          targetFingerprint: 'SELF',
+          inviteUri: 'mosh://invite?mesh=m&session=drift-41#fp=91A4-D2C8-77B0',
+        ),
+      ],
+      mesh: null,
+      events: const [],
+    ),
+  ]);
 
 SessionSnapshot _session({
   required String sessionId,
@@ -187,8 +110,8 @@ void main() {
   }
 
   testWidgets('empty list renders the welcome + start-cta button', (tester) async {
-    // Base FakeGateway has no pre-seeded sessions, so listSessions is empty.
-    await pumpScreen(tester, FakeGateway());
+    // The test gateway starts with no sessions, so listSessions is empty.
+    await pumpScreen(tester, ScriptableGateway());
 
     expect(find.text('Welcome to Mosh.'), findsOneWidget);
     expect(find.text('New private chat'), findsOneWidget);
@@ -198,7 +121,7 @@ void main() {
       (tester) async {
     const aliceId = 'alice-session';
     const bobId = 'bob-session';
-    final gateway = _SeededSessionsGateway([
+    final gateway = ScriptableGateway()..seedSessions([
       _session(
           sessionId: aliceId,
           displayName: 'me',
@@ -247,19 +170,21 @@ void main() {
 
   testWidgets('error state renders retry and tapping it calls listSessions again',
       (tester) async {
-    final gateway = _FailingListGateway();
+    final gateway = ScriptableGateway()
+      ..failAlways(GatewayMethod.listSessions,
+          error: Exception('boom-listSessions'));
     await pumpScreen(tester, gateway);
 
     expect(find.text('Could not load sessions.'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
-    final callsBefore = gateway.listCalls;
+    final callsBefore = gateway.countOf(GatewayMethod.listSessions);
 
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
   // refresh() re-ran the gateway query (the count must increase, even if
   // Riverpod re-executed build() during settling -- we only assert growth).
-  expect(gateway.listCalls, greaterThan(callsBefore));
+  expect(gateway.countOf(GatewayMethod.listSessions), greaterThan(callsBefore));
 });
 
 // Unread-badge rendering. Mirrors React's `UnreadBadge`: a row whose
@@ -271,7 +196,7 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
     (tester) async {
   const aliceId = 'alice-unread';
   const bobId = 'bob-read';
-  final gateway = _SeededSessionsGateway([
+  final gateway = ScriptableGateway()..seedSessions([
     _session(
         sessionId: aliceId,
         displayName: 'me',
@@ -320,7 +245,7 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
   testWidgets(
       'pending channel DM offer renders an OfferRailItem and dismiss removes it',
       (tester) async {
-    final gateway = _SeededChannelOfferGateway();
+    final gateway = _channelOfferGateway();
     // useRouter so the accept path's context.go(AppRoutes.dmFor(...)) resolves
     // and pushes DmScreen, which the test asserts via the DM screen composer.
     await pumpScreen(tester, gateway, useRouter: true);
@@ -332,25 +257,27 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
     expect(find.text('alpha-peer'), findsOneWidget);
     expect(find.text('#drift-room'), findsWidgets);
 
-    // Dismiss: tapping the trailing X calls dismissChannelDmOffer + refreshes
-    // the channel list (the offer leaves the rail because the seeded
-    // gateway's listChannels is one-shot -- but the refresh re-runs it, so
-    // the offer re-appears; the assertion that matters is the dismiss call
-    // was made).
+    // Dismiss: tapping the trailing X calls dismissChannelDmOffer and then
+    // refreshes the channel list. The seeded channel still carries the offer,
+    // so the row comes back; what this asserts is that the dismiss call was
+    // made.
     await tester.tap(find.byTooltip('Dismiss invite'));
     await tester.pumpAndSettle();
-    expect(gateway.dismissCalls, 1);
+    expect(gateway.countOf(GatewayMethod.dismissChannelDmOffer), 1);
 
     // Accept: tapping the row calls acceptInvite (returns the seeded
     // 'accepted-dm' session) + auto-dismiss + navigates to the DM screen.
     // Reset dismiss counter first so the auto-dismiss after accept is the
     // only call counted.
-    gateway.dismissCalls = 0;
-    final sessionCallsBeforeAccept = gateway.listSessionCalls;
+    final dismissBeforeAccept =
+        gateway.countOf(GatewayMethod.dismissChannelDmOffer);
+    final sessionCallsBeforeAccept = gateway.countOf(GatewayMethod.listSessions);
     await tester.tap(find.text('alpha-peer'));
     await tester.pumpAndSettle();
-    expect(gateway.dismissCalls, 1);
-    expect(gateway.listSessionCalls, sessionCallsBeforeAccept + 1);
+    expect(gateway.countOf(GatewayMethod.dismissChannelDmOffer),
+        dismissBeforeAccept + 1);
+    expect(gateway.countOf(GatewayMethod.listSessions),
+        sessionCallsBeforeAccept + 1);
     // The DM screen rendered (its composer is a TextField).
     expect(find.byType(TextField), findsWidgets);
   });
@@ -358,15 +285,17 @@ testWidgets('renders an unread badge for sessions with count > 0 and none for 0'
   testWidgets(
       'failed channel DM offer acceptance does not refresh sessions or navigate',
       (tester) async {
-    final gateway = _SeededChannelOfferGateway(failAccept: true);
+    final gateway = _channelOfferGateway()
+      ..failAlways(GatewayMethod.acceptInvite,
+          error: Exception('accept-failed'));
     await pumpScreen(tester, gateway, useRouter: true);
 
-    final sessionCallsBeforeAccept = gateway.listSessionCalls;
+    final sessionCallsBeforeAccept = gateway.countOf(GatewayMethod.listSessions);
     await tester.tap(find.text('alpha-peer'));
     await tester.pumpAndSettle();
 
-    expect(gateway.listSessionCalls, sessionCallsBeforeAccept);
-    expect(gateway.dismissCalls, 0);
+    expect(gateway.countOf(GatewayMethod.listSessions), sessionCallsBeforeAccept);
+    expect(gateway.countOf(GatewayMethod.dismissChannelDmOffer), 0);
     expect(find.text('Write a message\u2026'), findsNothing);
   });
 }

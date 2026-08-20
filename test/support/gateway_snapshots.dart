@@ -1,7 +1,6 @@
-// Canned snapshots + helpers extracted from FakeGateway (ADR 0013) to keep
-// fake_gateway.dart under 500 lines (AGENTS.md). Every function here is pure
-// and stateless -- FakeGateway owns the only mutable state (in-memory
-// _sessions map). Snapshots mirror the real runtime shapes 1:1.
+// Canned snapshots the test Gateway returns when a test seeds nothing.
+// Every function here is pure: ScriptableGateway owns all mutable state.
+// The shapes mirror the real runtime 1:1.
 
 import 'package:mosh/src/rust/api/diagnostics.dart'
     show
@@ -26,7 +25,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart'
     show GroupSendResult, GroupSnapshot;
 import 'package:mosh/src/rust/secure_storage.dart' show SecureStorageStatus;
 
-/// Canned [AppDiagnostics] for FakeGateway.appDiagnostics().
+/// Canned [AppDiagnostics] for the test gateway appDiagnostics().
 AppDiagnostics cannedAppDiagnostics() => const AppDiagnostics(
       appName: 'Mosh',
       privacyModel: 'OpenMLS private messages over Moss transport',
@@ -155,7 +154,7 @@ OrgSnapshot cannedOrgSnapshot({required String orgPubkey}) => OrgSnapshot(
       dmLinks: const [],
     );
 
-/// Canned no-VPN [VpnDetection] for FakeGateway.detectVpn().
+/// Canned no-VPN [VpnDetection] for the test gateway detectVpn().
 VpnDetection cannedVpnDetection() => const VpnDetection(
       vpnLikely: false,
       suspectInterfaces: [],
@@ -261,7 +260,7 @@ String orgPubkeyFromBundleUri(String bundleUri) {
   return (org == null || org.isEmpty) ? 'fake-org-joined' : org;
 }
 
-/// Canned [CallStarted] for FakeGateway.callStart (1:1 with React demo
+/// Canned [CallStarted] for the test gateway callStart (1:1 with React demo
 /// gateway). Deterministic call id + dummy key/nonce so a future call-UI
 /// test can assert against the canned value without the runtime.
 CallStarted cannedCallStarted(String sessionId) => CallStarted(
@@ -287,7 +286,7 @@ AttachmentSendResult cannedAttachmentSendResult({
       contentHash: 'fake-hash:${dataBase64.hashCode}',
     );
 
-/// Canned [SendMessageResult] for FakeGateway.sendMessage + retryDmMessage.
+/// Canned [SendMessageResult] for the test gateway sendMessage + retryDmMessage.
 /// `state` is `connecting`, `deliveryStatus.sent`, `deliveryError` null;
 /// `ciphertextBytes` is the caller-supplied payload length (or zero for a
 /// retry), `sentAtMs` is now.
@@ -306,7 +305,7 @@ SendMessageResult cannedSendMessageResult({
       deliveryError: null,
     );
 
-/// Canned [ChannelSendResult] for FakeGateway.sendChannel + retryChannelMessage.
+/// Canned [ChannelSendResult] for the test gateway sendChannel + retryChannelMessage.
 ChannelSendResult cannedChannelSendResult({
   required String name,
   required String messageId,
@@ -321,7 +320,7 @@ ChannelSendResult cannedChannelSendResult({
       deliveryError: null,
     );
 
-/// Canned [GroupSendResult] for FakeGateway.sendGroup + retryGroupMessage.
+/// Canned [GroupSendResult] for the test gateway sendGroup + retryGroupMessage.
 GroupSendResult cannedGroupSendResult({
   required String groupId,
   required String messageId,

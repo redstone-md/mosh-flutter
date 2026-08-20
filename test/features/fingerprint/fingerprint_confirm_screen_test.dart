@@ -1,6 +1,6 @@
 // S4.6: widget test for FingerprintConfirmScreen. Overrides
 // activeSessionProvider (FutureProvider.family) with a canned AsyncData so the
-// test needs neither FakeGateway nor the Rust runtime. Asserts the fingerprint
+// test needs neither the gateway nor the Rust runtime. Asserts the fingerprint
 // renders, the confirm button is tappable, and tapping flips to confirmed.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

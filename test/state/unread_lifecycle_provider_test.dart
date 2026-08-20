@@ -22,7 +22,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
@@ -75,25 +75,6 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(' ${invocation.memberName}');
-}
-
-/// A FakeGateway whose `listSessions` / `listChannels` / `listGroups`
-/// return mutable snapshots, so a test can grow counts between polls by
-/// swapping the snapshot and refreshing the list providers. Other methods
-/// inherit the base FakeGateway behaviour (unused here).
-class _GrowingGateway extends FakeGateway {
-  SessionListSnapshot sessions = const SessionListSnapshot(sessions: []);
-  ChannelListSnapshot channels = const ChannelListSnapshot(channels: []);
-  GroupListSnapshot groups = const GroupListSnapshot(groups: []);
-
-  @override
-  Future<SessionListSnapshot> listSessions() => Future.value(sessions);
-
-  @override
-  Future<ChannelListSnapshot> listChannels() => Future.value(channels);
-
-  @override
-  Future<GroupListSnapshot> listGroups() => Future.value(groups);
 }
 
 ChatMessage _dmMsg(String fromDevice, {String body = 'x'}) =>
@@ -182,7 +163,7 @@ GroupSnapshot _group({
 /// allows only one unnamed constructor per class).
 class _Harness {
   final ProviderContainer container;
-  final _GrowingGateway gateway;
+  final ScriptableGateway gateway;
   final _RecordingNotifications notifications;
   final void Function(bool focused) setFocus;
 
@@ -190,7 +171,7 @@ class _Harness {
       this.container, this.gateway, this.notifications, this.setFocus);
 
   factory _Harness({bool notificationsReady = true}) {
-    final gateway = _GrowingGateway();
+    final gateway = ScriptableGateway();
     final notifications = _RecordingNotifications();
     // The focus flag is mutable; the seam closure reads it each call so a
     // test can flip focus between polls.
@@ -243,10 +224,10 @@ void main() {
       final h = _Harness();
       addTearDown(h.container.dispose);
       // Seed a DM with one peer message + a channel with one peer message.
-      h.gateway.sessions = SessionListSnapshot(sessions: [
+      h.gateway.seedSessions([
         _dmSession(sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
       ]);
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -271,10 +252,10 @@ void main() {
       // setting activeConversationKey on open).
       h.container.read(activeConversationKeyProvider.notifier).set('dm:a');
       // First poll: seed lastSeen (dm:a=1, channel:general=1).
-      h.gateway.sessions = SessionListSnapshot(sessions: [
+      h.gateway.seedSessions([
         _dmSession(sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
       ]);
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -284,13 +265,13 @@ void main() {
       await _poll(h.container);
 
       // Second poll: both grow by one peer message.
-      h.gateway.sessions = SessionListSnapshot(sessions: [
+      h.gateway.seedSessions([
         _dmSession(
             sessionId: 'a',
             displayName: 'me',
             messages: [_dmMsg('peer'), _dmMsg('peer')]),
       ]);
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -319,10 +300,10 @@ void main() {
       // each newMessages entry; with dm:a stable it is not in newMessages).
       h.container.read(activeConversationKeyProvider.notifier).set('dm:a');
       // First poll: seed lastSeen (dm:a=1, channel:general=1).
-      h.gateway.sessions = SessionListSnapshot(sessions: [
+      h.gateway.seedSessions([
         _dmSession(sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
       ]);
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -332,7 +313,7 @@ void main() {
       await _poll(h.container);
 
       // Second poll: only the channel grows (dm:a stays at 1).
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -360,7 +341,7 @@ void main() {
       final hFocused = _Harness();
       addTearDown(hFocused.container.dispose);
       hFocused.setFocus(true);
-      hFocused.gateway.channels = ChannelListSnapshot(channels: [
+      hFocused.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -368,7 +349,7 @@ void main() {
         ),
       ]);
       await _poll(hFocused.container);
-      hFocused.gateway.channels = ChannelListSnapshot(channels: [
+      hFocused.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -382,7 +363,7 @@ void main() {
       final hNotReady = _Harness(notificationsReady: false);
       addTearDown(hNotReady.container.dispose);
       hNotReady.setFocus(false);
-      hNotReady.gateway.channels = ChannelListSnapshot(channels: [
+      hNotReady.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -390,7 +371,7 @@ void main() {
         ),
       ]);
       await _poll(hNotReady.container);
-      hNotReady.gateway.channels = ChannelListSnapshot(channels: [
+      hNotReady.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -409,7 +390,7 @@ void main() {
       final h = _Harness();
       addTearDown(h.container.dispose);
       h.setFocus(false);
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'watercooler',
           deviceFingerprint: 'ownfp',
@@ -417,7 +398,7 @@ void main() {
         ),
       ]);
       await _poll(h.container);
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'watercooler',
           deviceFingerprint: 'ownfp',
@@ -439,7 +420,7 @@ void main() {
       h.setFocus(false);
       // A group appears for the first time with several peer messages;
       // first-seen has no baseline so diffConversations reports nothing.
-      h.gateway.groups = GroupListSnapshot(groups: [
+      h.gateway.seedGroups([
         _group(
           groupId: 'g1',
           deviceFingerprint: 'ownfp',
@@ -457,7 +438,7 @@ void main() {
       final h = _Harness();
       addTearDown(h.container.dispose);
       // Grow a non-active channel so the unread map gains an entry.
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
@@ -465,7 +446,7 @@ void main() {
         ),
       ]);
       await _poll(h.container);
-      h.gateway.channels = ChannelListSnapshot(channels: [
+      h.gateway.seedChannels([
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',

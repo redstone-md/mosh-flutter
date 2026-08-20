@@ -146,13 +146,11 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
-      # Widget tests override gatewayProvider with FakeGateway in their
-      # ProviderScope, so no Rust runtime is needed (ADR 0013). The
-      # --dart-define is belt-and-suspenders: it forces FakeGateway for any
-      # test that forgot an override, so this job never depends on
-      # mosh_core.dll.
+      # Widget tests override gatewayProvider with the scriptable gateway in
+      # test/support/, so no Rust runtime is needed here (ADR 0013) and this
+      # job never depends on mosh_core.dll.
       - name: flutter test
-        run: flutter test --dart-define=MOSH_FAKE_GATEWAY=true
+        run: flutter test
 
   l10n-drift:
     name: gen-l10n validity

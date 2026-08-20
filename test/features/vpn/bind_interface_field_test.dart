@@ -8,34 +8,24 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
-import 'package:mosh/src/gateway/gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
 
-class _BindGateway implements Gateway {
-  List<NetworkInterfaceInfo> interfaces;
-  String? bind;
-  String? lastSetInterface;
-  int setConsentCount = 0;
-  bool failSetConsent = false;
-
-  _BindGateway({required this.interfaces, this.bind, this.failSetConsent = false});
-
-  @override
-  Future<List<NetworkInterfaceInfo>> listInterfaces() async => interfaces;
-
-  @override
-  Future<String?> getBindInterface() async => bind;
-
-  @override
-  Future<void> setVpnBypassConsent({String? interfaceName}) async {
-    setConsentCount++;
-    lastSetInterface = interfaceName;
-    if (failSetConsent) throw Exception('boom');
+/// A gateway with [interfaces] as the machine's NICs and [bind] as the one
+/// Mosh is bound to.
+ScriptableGateway _bindGateway({
+  required List<NetworkInterfaceInfo> interfaces,
+  String? bind,
+  bool failSetConsent = false,
+}) {
+  final gateway = ScriptableGateway()
+    ..seedInterfaces(interfaces)
+    ..seedBindInterface(bind);
+  if (failSetConsent) {
+    gateway.failAlways(GatewayMethod.setVpnBypassConsent,
+        error: Exception('boom'));
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(' ${invocation.memberName}');
+  return gateway;
 }
 
 NetworkInterfaceInfo _iface({
@@ -59,7 +49,7 @@ Future<AppLocalizations> _l() =>
 
 Future<void> _pump(
   WidgetTester tester, {
-  required _BindGateway gateway,
+  required ScriptableGateway gateway,
   Future<void> Function()? onAccept,
 }) async {
   onAccept ??= () async {};
@@ -83,7 +73,7 @@ void main() {
   testWidgets(
     'unbound: shows the unbound body + Bind button',
     (tester) async {
-      final gateway = _BindGateway(
+      final gateway = _bindGateway(
         bind: null,
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
       );
@@ -101,7 +91,7 @@ void main() {
   testWidgets(
     'bound: shows the bound body + Release button + active line',
     (tester) async {
-      final gateway = _BindGateway(
+      final gateway = _bindGateway(
         bind: 'eth0',
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
       );
@@ -116,13 +106,14 @@ void main() {
   testWidgets(
     'no physical NIC: shows the no-NIC hint + no Bind button',
     (tester) async {
-      final gateway = _BindGateway(
+      final gateway = _bindGateway(
         bind: null,
         interfaces: [_iface(name: 'tun0', ipv4: '10.8.0.1')],
       );
       // tun0 isVirtual=true is filtered out by bypassCandidates; force it.
       // (Re-test with a virtual iface so no candidate survives.)
-      gateway.interfaces = [
+      gateway.seedInterfaces([
+
         NetworkInterfaceInfo(
           name: 'tun0',
           description: '',
@@ -134,7 +125,7 @@ void main() {
           isVpn: false,
           isDefaultRoute: false,
         ),
-      ];
+      ]);
       await _pump(tester, gateway: gateway);
       expect(find.text('No connected physical NIC detected.'), findsOneWidget);
       expect(find.text('Bind'), findsNothing);
@@ -144,7 +135,7 @@ void main() {
   testWidgets(
     'Bind records the picked adapter + fires onAccept',
     (tester) async {
-      final gateway = _BindGateway(
+      final gateway = _bindGateway(
         bind: null,
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
       );
@@ -158,8 +149,8 @@ void main() {
       );
       await tester.tap(find.text('Bind'));
       await tester.pumpAndSettle();
-      expect(gateway.setConsentCount, 1);
-      expect(gateway.lastSetInterface, 'eth0');
+      expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
+      expect(gateway.lastCall(GatewayMethod.setVpnBypassConsent)?.arg<String?>('interfaceName'), 'eth0');
       expect(acceptCount, 1);
     },
   );
@@ -167,7 +158,7 @@ void main() {
   testWidgets(
     'Release clears the override + fires onAccept',
     (tester) async {
-      final gateway = _BindGateway(
+      final gateway = _bindGateway(
         bind: 'eth0',
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
       );
@@ -181,8 +172,8 @@ void main() {
       );
       await tester.tap(find.text('Release'));
       await tester.pumpAndSettle();
-      expect(gateway.setConsentCount, 1);
-      expect(gateway.lastSetInterface, isNull);
+      expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
+      expect(gateway.lastCall(GatewayMethod.setVpnBypassConsent)?.arg<String?>('interfaceName'), isNull);
       expect(acceptCount, 1);
     },
   );
@@ -190,7 +181,7 @@ void main() {
   testWidgets(
     'apply failure surfaces the error',
     (tester) async {
-      final gateway = _BindGateway(
+      final gateway = _bindGateway(
         bind: null,
         interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
         failSetConsent: true,

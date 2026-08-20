@@ -1,7 +1,7 @@
 // S4.4: widget test for the slice-one onboarding screen.
 // Per ADR 0013 + S5 the gatewayProvider default is RealBridgeGateway (real
 // Rust), which cannot run under `flutter test` (no native cdylib). The
-// container must override gatewayProvider with FakeGateway so any
+// container must override gatewayProvider with the test gateway so any
 // provider-backed read stays deterministic (the Chat tile no longer creates
 // an invite inline -- it navigates to /chat-create -- but the override
 // stays so the provider stays wired in this pump).
@@ -20,14 +20,14 @@ import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 import 'package:mosh/src/routing/app_router.dart';
-import 'package:mosh/src/gateway/fake_gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 void main() {
  testWidgets('onboarding renders title, binds name to inviteFlow, chat tile taps', (tester) async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(FakeGateway()),
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
     ]);
     addTearDown(container.dispose);
 
@@ -75,7 +75,7 @@ void main() {
   // only asserts the tile renders.
   testWidgets('onboarding renders the channel tile in the Join section', (tester) async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(FakeGateway()),
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
     ]);
     addTearDown(container.dispose);
 
@@ -107,7 +107,7 @@ void main() {
   testWidgets('channel tile navigates to the ChannelJoinScreen step',
       (tester) async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(FakeGateway()),
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
     ]);
     addTearDown(container.dispose);
 
@@ -149,7 +149,7 @@ void main() {
   testWidgets('group tile navigates to the GroupCreateScreen step',
       (tester) async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(FakeGateway()),
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
     ]);
     addTearDown(container.dispose);
 

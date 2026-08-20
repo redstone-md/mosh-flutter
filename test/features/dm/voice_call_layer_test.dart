@@ -9,54 +9,12 @@ import 'package:flutter/services.dart' show MethodChannel;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/dm/voice_call_layer.dart';
-import 'package:mosh/src/gateway/gateway.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
-/// A minimal recording Gateway: only `callStart` + `pollSession` are
-/// exercised here; the rest throw UnimplementedError so any other call
-/// surface surfaces loudly in the test instead of silently no-opping.
-class _RecordingGateway implements Gateway {
-  int callStartCount = 0;
-  String? lastCallStartSession;
-  int callEndCount = 0;
-  SessionSnapshot? pollSnapshot;
-
-  @override
-  Future<CallStarted> callStart({required String sessionId}) async {
-    callStartCount++;
-    lastCallStartSession = sessionId;
-    return CallStarted(
-      sessionId: sessionId,
-      callId: 'call-1',
-      keyB64: 'k',
-      noncePrefixB64: 'n',
-    );
-  }
-
-  @override
-  Future<SessionSnapshot> pollSession({required String sessionId}) async {
-    final snap = pollSnapshot;
-    if (snap != null) return snap;
-    throw UnimplementedError('no snapshot seeded');
-  }
-
-  @override
-  Future<void> callEnd({
-    required String sessionId,
-    required String callId,
-    required String reason,
-  }) async {
-    callEndCount++;
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(' ${invocation.memberName}');
-}
 
 SessionSnapshot _outgoingSnapshot(String sessionId) => SessionSnapshot(
       sessionId: sessionId,
@@ -149,10 +107,10 @@ void main() {
   testWidgets(
     'startVoiceCall routes through gateway.callStart',
     (tester) async {
-      final gateway = _RecordingGateway();
+      final gateway = ScriptableGateway();
       late WidgetRef ref;
       await tester.pumpWidget(ProviderScope(
-        overrides: [gatewayProvider.overrideWithValue(gateway as Gateway)],
+        overrides: [gatewayProvider.overrideWithValue(gateway)],
         child: MaterialApp(
           home: Consumer(
             builder: (context, r, _) {
@@ -164,19 +122,19 @@ void main() {
       ));
       await tester.pump();
       await startVoiceCall(ref, 'sess-1');
-      expect(gateway.callStartCount, 1);
-      expect(gateway.lastCallStartSession, 'sess-1');
+      expect(gateway.countOf(GatewayMethod.callStart), 1);
+      expect(gateway.lastCall(GatewayMethod.callStart)?.arg<String>('sessionId'), 'sess-1');
     },
   );
 
   testWidgets(
     'VoiceCallLayer shows OutgoingCallModal when the snapshot has an outgoingCall',
     (tester) async {
-      final gateway = _RecordingGateway();
-      gateway.pollSnapshot = _outgoingSnapshot('sess-1');
+      final gateway = ScriptableGateway();
+      gateway.seedSessions([_outgoingSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       await tester.pumpWidget(ProviderScope(
-        overrides: [gatewayProvider.overrideWithValue(gateway as Gateway)],
+        overrides: [gatewayProvider.overrideWithValue(gateway)],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -197,12 +155,12 @@ void main() {
   testWidgets(
     'toggling mute in the active-call overlay flips the orchestrator mute flag',
     (tester) async {
-      final gateway = _RecordingGateway();
-      gateway.pollSnapshot = _activeSnapshot('sess-1');
+      final gateway = ScriptableGateway();
+      gateway.seedSessions([_activeSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       late WidgetRef ref;
       await tester.pumpWidget(ProviderScope(
-        overrides: [gatewayProvider.overrideWithValue(gateway as Gateway)],
+        overrides: [gatewayProvider.overrideWithValue(gateway)],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -243,8 +201,8 @@ void main() {
   testWidgets(
     'fires an OS notification for a new incoming call when notifications are ready',
     (tester) async {
-      final gateway = _RecordingGateway();
-      gateway.pollSnapshot = _pendingSnapshot('sess-1', fromDevice: 'Alice');
+      final gateway = ScriptableGateway();
+      gateway.seedSessions([_pendingSnapshot('sess-1', fromDevice: 'Alice')]);
       final notifications = _RecordingNotifications();
       final l = await AppLocalizations.delegate.load(const Locale('en'));
 
@@ -267,7 +225,7 @@ void main() {
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          gatewayProvider.overrideWithValue(gateway as Gateway),
+          gatewayProvider.overrideWithValue(gateway),
           // Open the gate without running the real plugin init (which needs
           // a platform host absent under `flutter test`).
           notificationsReadyProvider

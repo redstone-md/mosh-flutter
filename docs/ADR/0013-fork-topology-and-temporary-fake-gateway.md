@@ -140,3 +140,28 @@ deliberately-gated developer-loop accelerator, not a default.
 Open question resolved: the fork remote exists at
 `redstone-md/mosh-flutter` (confirmed during S0). The other open question
 (fake removal) is resolved above as "kept behind the flag."
+
+## Removal of the fake gateway
+
+The flag is gone and so is the fake. `lib/src/gateway/fake_gateway.dart` and
+its snapshot fixtures no longer exist; `gatewayProvider` always builds
+`RealBridgeGateway`, and the `MOSH_FAKE_GATEWAY` dart-define has been dropped
+from the provider, from CI, and from AGENTS.md.
+
+Tests get their double from `test/support/scriptable_gateway.dart`
+(`ScriptableGateway`), which never ships in the app. It is one configurable
+adapter for the whole suite: it records every call, seeds the data a screen
+should render, and scripts a call to fail or to hang so a pending state can be
+observed. Tests configure it; they do not subclass it. This closes the ADR's
+original removal gate on the "removed" path rather than the "kept behind the
+flag" path recorded in Final Status above.
+
+### Size exception
+
+`test/support/scriptable_gateway.dart` is ~900 lines. That is one flat
+implementation of the 57-method `Gateway` interface plus the recording,
+seeding, and scripting helpers: the length comes from the interface width, not
+from nesting or branching. Scope: test code only, never shipped. It shrinks on
+its own once the Gateway takes the conversation target as a parameter (issue
+03), which folds 25 methods into 8. Splitting it before then would buy nothing
+but indirection.
