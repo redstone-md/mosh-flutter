@@ -83,7 +83,7 @@ const EVENT_RING_CAPACITY: usize = 64;
 static EVENT_LOG: Mutex<Vec<MossEvent>> = Mutex::new(Vec::new());
 static RELAY_INBOX: Mutex<Vec<RelayInbound>> = Mutex::new(Vec::new());
 #[cfg(test)]
-static TEST_PUBLISH_FAILURE: Mutex<Option<String>> = Mutex::new(None);
+static TEST_PUBLISH_FAILURE: Mutex<Option<TestPublishOutcome>> = Mutex::new(None);
 
 /// Backing store for the Moss node identity. Implemented by the encrypted
 /// persistence layer; held in a process global because the C keystore callbacks
@@ -141,6 +141,18 @@ pub enum MossFfiError {
     DeliveryTimeout,
     InjectedPublishFailure(String),
     RelayFailed,
+    /// Moss refused the publish because the node has no peers on that channel
+    /// yet. The frame never left the device, so it is a soft refusal rather
+    /// than a transport fault: worth trying again, and never a `Sent`.
+    NoPeers,
+}
+
+impl MossFfiError {
+    /// True for the soft refusal a caller may want to swallow or retry, as
+    /// opposed to a real transport or symbol failure.
+    pub fn is_no_peers(&self) -> bool {
+        matches!(self, Self::NoPeers)
+    }
 }
 
 impl std::fmt::Display for MossFfiError {
@@ -153,6 +165,7 @@ impl std::fmt::Display for MossFfiError {
             Self::DeliveryTimeout => write!(formatter, "Moss delivery timed out"),
             Self::InjectedPublishFailure(message) => write!(formatter, "{message}"),
             Self::RelayFailed => write!(formatter, "relay send failed"),
+            Self::NoPeers => write!(formatter, "no peers yet, so the message did not go out"),
         }
     }
 }
@@ -165,15 +178,66 @@ impl From<MossRuntimeError> for MossFfiError {
     }
 }
 
+/// What the next test publish does instead of reaching Moss. `Injected` stands
+/// in for an arbitrary transport failure; `Code` hands a raw Moss return code
+/// to the real `check_publish_code`, so a test can pin down how a code is
+/// classified rather than trusting a hand-built error.
+#[cfg(test)]
+enum TestPublishOutcome {
+    Injected(String),
+    Code(i32),
+}
+
 #[cfg(test)]
 pub struct TestPublishFailureGuard;
 
 #[cfg(test)]
-pub fn fail_next_test_publish(message: &str) -> TestPublishFailureGuard {
+fn arm_test_publish(outcome: TestPublishOutcome) -> TestPublishFailureGuard {
     *TEST_PUBLISH_FAILURE
         .lock()
-        .expect("test publish failure lock poisoned") = Some(message.to_string());
+        .expect("test publish failure lock poisoned") = Some(outcome);
     TestPublishFailureGuard
+}
+
+#[cfg(test)]
+pub fn fail_next_test_publish(message: &str) -> TestPublishFailureGuard {
+    arm_test_publish(TestPublishOutcome::Injected(message.to_string()))
+}
+
+/// Make the next publish come back the way Moss answers a node with nobody to
+/// send to. Goes through `check_publish_code`, so a test that asserts on the
+/// outcome is asserting on the classification itself.
+#[cfg(test)]
+pub fn no_peers_next_test_publish() -> TestPublishFailureGuard {
+    arm_test_publish(TestPublishOutcome::Code(MOSS_ERR_NO_PEERS))
+}
+
+/// A node in a unit test has nobody to send to, so a real publish answers
+/// `NoPeers`. That is a fact about the absent mesh, not about the code under
+/// test, so it is tolerated here — a test that cares about the refusal arms it
+/// with `no_peers_next_test_publish` and gets the strict classification.
+#[cfg(test)]
+fn tolerate_unmeshed_test_node(result: Result<(), MossFfiError>) -> Result<(), MossFfiError> {
+    match result {
+        Err(error) if error.is_no_peers() => Ok(()),
+        other => other,
+    }
+}
+
+/// The armed outcome for one publish, already turned into what the publish
+/// should return. `None` means nothing was armed and the call goes to Moss.
+#[cfg(test)]
+fn take_test_publish_outcome() -> Option<Result<(), MossFfiError>> {
+    TEST_PUBLISH_FAILURE
+        .lock()
+        .expect("test publish failure lock poisoned")
+        .take()
+        .map(|outcome| match outcome {
+            TestPublishOutcome::Injected(message) => {
+                Err(MossFfiError::InjectedPublishFailure(message))
+            }
+            TestPublishOutcome::Code(code) => check_publish_code(code),
+        })
 }
 
 #[cfg(test)]
@@ -416,21 +480,14 @@ impl MossNode {
         payload: &[u8],
     ) -> Result<(), MossFfiError> {
         #[cfg(test)]
-        if let Some(message) = TEST_PUBLISH_FAILURE
-            .lock()
-            .expect("test publish failure lock poisoned")
-            .take()
-        {
-            return Err(MossFfiError::InjectedPublishFailure(message));
+        if let Some(outcome) = take_test_publish_outcome() {
+            return outcome;
         }
 
         let mesh_id = c_string(mesh_id)?;
         let channel = c_string(channel)?;
 
-        // Same tolerance as `publish`: "no peers yet" is the normal state of a
-        // session that has not meshed, not a send failure. Treating it as one
-        // marked every early message Failed.
-        check_publish_code(unsafe {
+        let published = check_publish_code(unsafe {
             (self.runtime.publish_room)(
                 self.handle,
                 mesh_id.as_ptr(),
@@ -438,7 +495,27 @@ impl MossNode {
                 payload.as_ptr(),
                 payload.len() as u32,
             )
-        })
+        });
+        #[cfg(test)]
+        let published = tolerate_unmeshed_test_node(published);
+        published
+    }
+
+    /// Publish a frame that its own loop will send again: the first
+    /// KeyPackage of a handshake, a peer announce, a voice frame, a control
+    /// envelope. "No peers yet" is the normal state before the mesh forms and
+    /// says nothing about the frame, so it is not reported here. Every other
+    /// failure still comes back.
+    pub fn publish_room_best_effort(
+        &self,
+        mesh_id: &str,
+        channel: &str,
+        payload: &[u8],
+    ) -> Result<(), MossFfiError> {
+        match self.publish_room(mesh_id, channel, payload) {
+            Err(error) if error.is_no_peers() => Ok(()),
+            other => other,
+        }
     }
 
     pub fn connect(&self, address: &str) -> Result<(), MossFfiError> {
@@ -463,12 +540,8 @@ impl MossNode {
 
     pub fn publish(&self, channel: &str, payload: &[u8]) -> Result<(), MossFfiError> {
         #[cfg(test)]
-        if let Some(message) = TEST_PUBLISH_FAILURE
-            .lock()
-            .expect("test publish failure lock poisoned")
-            .take()
-        {
-            return Err(MossFfiError::InjectedPublishFailure(message));
+        if let Some(outcome) = take_test_publish_outcome() {
+            return outcome;
         }
 
         let channel = c_string(channel)?;
@@ -481,7 +554,10 @@ impl MossNode {
             )
         };
 
-        check_publish_code(code)
+        let published = check_publish_code(code);
+        #[cfg(test)]
+        let published = tolerate_unmeshed_test_node(published);
+        published
     }
 
     pub fn set_message_callback(&self) -> Result<(), MossFfiError> {
@@ -664,14 +740,20 @@ fn check_code(name: &'static str, code: i32) -> Result<(), MossFfiError> {
     }
 }
 
+/// Classify what Moss said about a publish. `MOSS_ERR_NO_PEERS` used to count
+/// as success, which is how a message nobody could receive still showed as
+/// Sent. It gets its own error instead, so a caller can tell "not yet" from
+/// "broken": the three conversation kinds fail the message and let the user
+/// send it again, while control frames with a retry loop of their own swallow
+/// it through `publish_room_best_effort`.
 fn check_publish_code(code: i32) -> Result<(), MossFfiError> {
-    if code == MOSS_OK || code == MOSS_ERR_NO_PEERS {
-        Ok(())
-    } else {
-        Err(MossFfiError::Operation {
+    match code {
+        c if c == MOSS_OK => Ok(()),
+        c if c == MOSS_ERR_NO_PEERS => Err(MossFfiError::NoPeers),
+        other => Err(MossFfiError::Operation {
             name: "publish",
-            code,
-        })
+            code: other,
+        }),
     }
 }
 

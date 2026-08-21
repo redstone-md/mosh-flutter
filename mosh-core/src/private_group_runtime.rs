@@ -2168,6 +2168,11 @@ fn group_channels(group_id: &str) -> [String; 3] {
 
 /// Always room-scoped: the shared node's own room is the substrate, so a
 /// room-less publish would land where none of this group's peers listen.
+///
+/// Best-effort: this carries control and blob frames, which report no delivery
+/// status of their own, so an empty group is not a failure to hand back. A
+/// user message does not come through here — it publishes directly in
+/// `publish_prepared`, where "no peers" does fail the send.
 fn publish_json<T: Serialize>(
     node: &MossNode,
     mesh_id: &str,
@@ -2176,7 +2181,7 @@ fn publish_json<T: Serialize>(
 ) -> Result<(), PrivateGroupError> {
     let payload =
         serde_json::to_vec(value).map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
-    node.publish_room(mesh_id, channel, &payload)
+    node.publish_room_best_effort(mesh_id, channel, &payload)
         .map_err(|error| PrivateGroupError::Moss(error.to_string()))
 }
 
@@ -2245,7 +2250,8 @@ fn optional_query(url: &url::Url, key: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::moss_ffi::{
-        drain_received_messages, fail_next_test_publish, MossFfiRuntime, MOSS_TEST_LOCK,
+        drain_received_messages, fail_next_test_publish, no_peers_next_test_publish, MossFfiRuntime,
+        MOSS_TEST_LOCK,
     };
     use crate::persistence::Persistence;
     use std::path::PathBuf;
@@ -3031,6 +3037,57 @@ mod tests {
         assert_eq!(matching, 1, "persist tail duplicated the group message");
 
         let _ = std::fs::remove_file(&db_path);
+    }
+
+    // Regression: Moss answering "no peers" used to count as a successful
+    // publish, so a message nobody could receive showed as Sent. A group has
+    // no acknowledgement and no resend loop, so the refusal has to land as a
+    // retryable failure the user can act on.
+    #[test]
+    fn no_peers_does_not_count_as_sent() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut groups = PrivateGroupRuntime::from_shared(runtime, temp_store(), None);
+        let created = groups
+            .create_group(CreateGroupRequest {
+                label: Some("Empty Club".to_string()),
+                display_name: "Alice".to_string(),
+                listen_port: 42242,
+                static_peer: None,
+                org_pubkey: None,
+            })
+            .expect("group should be created");
+
+        let _no_peers = no_peers_next_test_publish();
+        let result = groups
+            .send(&created.group_id, "nobody is here".to_string())
+            .expect("send should return a result");
+
+        assert_eq!(result.delivery_status, MessageDeliveryStatus::Failed);
+        assert_eq!(
+            result.delivery_error.as_deref(),
+            Some("Moss error: no peers yet, so the message did not go out")
+        );
+
+        let live = groups.poll(&created.group_id).expect("poll should pass");
+        let message = live
+            .messages
+            .iter()
+            .find(|message| message.message_id.as_deref() == Some(result.message_id.as_str()))
+            .expect("the message should be recorded");
+        assert_eq!(message.delivery_status, Some(MessageDeliveryStatus::Failed));
+        assert_eq!(message.retryable, Some(true));
+
+        // The attempt record survived the failure, so the existing retry path
+        // replays the same bytes without new machinery.
+        let retried = groups
+            .retry_message(&created.group_id, &result.message_id)
+            .expect("retry should succeed once a peer is there");
+        assert_eq!(retried.delivery_status, MessageDeliveryStatus::Sent);
     }
 
     #[test]
