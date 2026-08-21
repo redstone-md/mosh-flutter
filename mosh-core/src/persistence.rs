@@ -369,6 +369,13 @@ impl Persistence {
         format!("{scope}\u{0001}{conversation_id}")
     }
 
+    fn outbound_attempt_key(scope: &str, conversation_id: &str, message_id: &str) -> String {
+        format!(
+            "{}\u{0001}{message_id}",
+            Self::outbound_attempt_prefix(scope, conversation_id)
+        )
+    }
+
     pub fn put_mls_snapshot(
         &self,
         session_id: &str,
@@ -427,8 +434,65 @@ impl Persistence {
         message_id: &str,
         json: &[u8],
     ) -> Result<(), PersistenceError> {
-        let key = format!("{conversation_id}\u{0001}{sent_at_ms:020}\u{0001}{message_id}");
+        let key = Self::history_message_key(conversation_id, sent_at_ms, message_id);
         self.put(tables.messages, &key, json)
+    }
+
+    /// Both rows one send leaves behind, in a single transaction: the message
+    /// in its history table, and the attempt record that holds the payload —
+    /// or the removal of that record, once the send is over.
+    ///
+    /// One transaction because the two rows are one fact. Written separately
+    /// they can tear, and a message row that lands without its attempt comes
+    /// back Pending with nothing to settle it and no bytes to replay.
+    pub fn commit_send(
+        &self,
+        tables: HistoryTables,
+        conversation_id: &str,
+        sent_at_ms: u64,
+        message_id: &str,
+        message_json: &[u8],
+        attempt_json: Option<&[u8]>,
+    ) -> Result<(), PersistenceError> {
+        let message_key = Self::history_message_key(conversation_id, sent_at_ms, message_id);
+        let attempt_key =
+            Self::outbound_attempt_key(tables.outbound_scope, conversation_id, message_id);
+        let message_blob = encrypt_blob(&self.dek, message_json)?;
+        let attempt_blob = attempt_json
+            .map(|json| encrypt_blob(&self.dek, json))
+            .transpose()?;
+        let wtx = self
+            .db
+            .begin_write()
+            .map_err(|e| PersistenceError::Db(e.to_string()))?;
+        {
+            let mut messages = wtx
+                .open_table(tables.messages)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            messages
+                .insert(message_key.as_str(), message_blob.as_slice())
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            let mut attempts = wtx
+                .open_table(OUTBOUND_ATTEMPTS)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            match attempt_blob.as_deref() {
+                Some(blob) => attempts
+                    .insert(attempt_key.as_str(), blob)
+                    .map(|_| ())
+                    .map_err(|e| PersistenceError::Db(e.to_string()))?,
+                None => attempts
+                    .remove(attempt_key.as_str())
+                    .map(|_| ())
+                    .map_err(|e| PersistenceError::Db(e.to_string()))?,
+            }
+        }
+        wtx.commit()
+            .map_err(|e| PersistenceError::Db(e.to_string()))
+    }
+
+    /// Keyed so a lexicographic scan hands the messages back oldest first.
+    fn history_message_key(conversation_id: &str, sent_at_ms: u64, message_id: &str) -> String {
+        format!("{conversation_id}\u{0001}{sent_at_ms:020}\u{0001}{message_id}")
     }
 
     pub fn list_history_messages(
@@ -466,10 +530,7 @@ impl Persistence {
         message_id: &str,
         json: &[u8],
     ) -> Result<(), PersistenceError> {
-        let key = format!(
-            "{}\u{0001}{message_id}",
-            Self::outbound_attempt_prefix(scope, conversation_id)
-        );
+        let key = Self::outbound_attempt_key(scope, conversation_id, message_id);
         self.put(OUTBOUND_ATTEMPTS, &key, json)
     }
 
@@ -503,10 +564,7 @@ impl Persistence {
         conversation_id: &str,
         message_id: &str,
     ) -> Result<(), PersistenceError> {
-        let key = format!(
-            "{}\u{0001}{message_id}",
-            Self::outbound_attempt_prefix(scope, conversation_id)
-        );
+        let key = Self::outbound_attempt_key(scope, conversation_id, message_id);
         let wtx = self
             .db
             .begin_write()

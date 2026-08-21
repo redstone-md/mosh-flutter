@@ -200,6 +200,47 @@ fn a_send_cut_short_by_a_restart_comes_back_failed_not_pending() {
     assert_eq!(restored[0].retryable, Some(true));
 }
 
+// Regression: the message row and the attempt row used to go down as two
+// separate transactions, so a crash between them left a Pending message on
+// disk with nothing backing it. The attempt loop had no row to reclassify and
+// the message came back Pending — a spinner nothing would ever settle. Same
+// shape when an attempt row is there but its JSON will not parse.
+#[test]
+fn a_pending_message_with_no_attempt_row_comes_back_failed() {
+    let scratch = Scratch::open("orphan-pending");
+    let mut message = TestMessage::new("alice", "torn write")
+        .at(100)
+        .with_id("m1");
+    message.set_delivery(delivery_meta(MessageDeliveryStatus::Pending, None, 0));
+    let stored = StoredMessage {
+        conversation_id: CONVERSATION.to_string(),
+        sent_at_ms: 100,
+        message_id: "m1".to_string(),
+        message,
+    };
+    scratch
+        .persistence
+        .append_history_message(
+            DM_HISTORY,
+            CONVERSATION,
+            100,
+            "m1",
+            &serde_json::to_vec(&stored).expect("stored json"),
+        )
+        .expect("message row");
+
+    let (restored, restored_attempts) = scratch.read_back(&mut History::new(DM_HISTORY));
+
+    assert!(restored_attempts.is_empty());
+    assert_eq!(
+        restored[0].delivery_status,
+        Some(MessageDeliveryStatus::Failed)
+    );
+    // Without an attempt record there are no bytes to replay, so offering a
+    // retry would only ever answer "message missing".
+    assert_eq!(restored[0].retryable, Some(false));
+}
+
 #[test]
 fn a_settled_send_drops_its_attempt_record() {
     let scratch = Scratch::open("settled");
