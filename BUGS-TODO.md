@@ -18,9 +18,9 @@ Markers: ✅ = verified by reading the code · · = traced by hunter, high confi
 
 ---
 
-## Carry-over from #3 (partial fix shipped)
+## ~~Carry-over from #3~~ CLOSED
 
-`#3` fixed gossip-duplicate / self-admission commits (dedup by commit bytes). **Not** fixed: a commit arriving *before* its predecessor (gossip reorder) still errors in `process_commit` and is dropped → that joiner stays an epoch behind permanently. Needs a reorder-resync path: buffer out-of-order commits + a state-request / commit-retransmit when a gap is detected. `private_group_runtime.rs` `process_commit_once` (see `ponytail:` note there).
+`#3` fixed gossip-duplicate / self-admission commits. The reorder half — a commit arriving before its predecessor — is closed too: `commit_sequencer.rs` classifies every commit by wire epoch (apply now / buffer / drop), drains buffered successors as the epoch advances, and reports a gap; `request_resync_if_gapped` asks the admin for a replay and `absorb_resync_commits` feeds it back through the same sequencing, flagging `needs_rejoin` only when the gap is unbridgeable. `process_commit_once` no longer exists — the entry points are `sequence_commit` and `absorb_resync_commits`.
 
 ---
 
@@ -62,9 +62,21 @@ Claimed force-skip could emit out of order / move the cursor backwards. TDD'd it
 
 ## MEDIUM
 
-### 18. · Admin-leave handoff lost — `private_group_runtime.rs:1055-1075`
-Admin `close` publishes a self-remove Commit + `AdminHandoff` one-shot (group control frames stay best-effort, so `NoPeers` is still swallowed there — see ADR 0021), then removes itself. If either frame is dropped by gossip, members keep `current_admin_fingerprint` pointing at the departed admin → group permanently frozen for joins/removals (all admin-gated).
-Fix: gate admin departure on confirmed delivery, or let members detect a dead admin and elect the deterministic successor locally.
+### ~~18.~~ FIXED — Admin leave froze the group — `private_group_runtime.rs` `close` + `mls_crypto.rs`
+Admin `close` published a self-remove Commit plus a best-effort `AdminHandoff`, and only the handoff moved `current_admin_fingerprint`. A dropped handoff left every member pointing at the departed admin → group frozen for joins and removals, all admin-gated.
+
+The root was one level lower: that Commit could never be built. `remove_self_commit` asked OpenMLS to commit the removal of its own leaf, which it refuses at creation time (`CreateCommitError::CannotRemoveSelf`), so `close` errored at the first `?` — no Commit, no handoff, and the session not even released. An admin with members could not leave at all. Unnoticed because a solo admin has no successor and skips the branch.
+
+Fixed (ADR 0023):
+- Leaving is a proposal for everyone. The admin publishes a self-removal like any member; the member who stays commits it — the admin for an ordinary member's departure, the deterministic successor (`min()` over the remaining fingerprints) for the admin's own.
+- The committer re-issues the removal as its own inline Remove (`commit_departure`), so the commit stands alone. A ref-style commit would have needed the proposal to reach everyone — the same best-effort dependency one level down, and unreplayable by resync.
+- `reconcile_admin` derives the admin from the MLS tree after every control frame: admin still has a leaf → nothing changes; leaf gone → lowest remaining fingerprint. Direct delivery, the sequencer's buffer drain, `absorb_resync_commits` and a restart all land on the same admin.
+- `AdminHandoff` is no longer read (landing before the commit, it moved the pointer and the commit was then dropped as unauthorized). Still published, for clients released before the derivation.
+- The plain-group `from_fingerprint == current_admin_fingerprint` gate is gone. On an unauthenticated control channel it is a self-claim that stopped no attacker; it only froze members with a stale pointer and would drop the successor's departure commit. MLS and the epoch sequencer are the authority.
+
+Regression tests (all four fail on the old behavior): `admin_departure_is_derived_from_the_commit_not_the_handoff`, `departures_are_committed_by_the_admin_then_by_the_successor`, `a_member_catching_up_by_resync_lands_on_the_same_admin`, `a_commit_from_an_unknown_author_asks_for_a_resync_instead_of_freezing`.
+
+Ceiling: a departure still needs one frame — the proposal — to reach the one member that must commit it. Lost, the leaver keeps a leaf and the pointer does not move. Same exposure every ordinary member's leave already had; detecting a member that left without being committed out is liveness detection, which no group frame carries.
 
 ### ~~21.~~ FIXED — Snapshot auto-switch races user switch — `use-private-dm-snapshots.ts`
 `nextActiveTarget` ran every 1 s poll and force-selected `sessions[0]` when the current target wasn't found. An in-flight poll returning before a just-created session appeared reset `active` away from the chat the user just opened.
