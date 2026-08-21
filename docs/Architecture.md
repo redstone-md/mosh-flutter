@@ -321,7 +321,7 @@ trait.
 ```mermaid
 flowchart TD
     Dm["private_dm_runtime<br/>relay, calls, DeliveryAck"]
-    Gr["private_group_runtime<br/>roster authority, rejoin"]
+    Gr["private_group_runtime<br/>roster authority, admin from the tree, rejoin"]
     Ch["channel_runtime<br/>open mesh, no MLS"]
     Shell["conversation::runtime<br/>ConversationRuntime&lt;S&gt; + ConversationSession"]
     Slots["conversation::attachments<br/>AttachmentSlots"]
@@ -570,5 +570,6 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0020-one-inbox-per-owner.md - one inbound queue per owner instead of one queue for everybody.
 - docs/ADR/0021-no-peers-is-not-sent.md - a publish with no peers fails retryably instead of reporting Sent.
 - docs/ADR/0022-a-send-is-one-durable-fact.md - a send's message row and attempt row commit together, and an unbacked Pending comes back failed.
+- docs/ADR/0023-the-tree-says-who-the-admin-is.md - a group's admin is derived from the MLS tree after every commit, not carried by an AdminHandoff frame.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).
