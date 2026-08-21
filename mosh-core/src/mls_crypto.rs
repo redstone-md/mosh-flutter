@@ -166,21 +166,23 @@ impl MlsSessionCrypto {
             .map_err(|error| MlsCryptoError::Codec(error.to_string()))
     }
 
-    pub fn remove_self_commit(&mut self) -> Result<Vec<u8>, MlsCryptoError> {
-        let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
-        let own = group.own_leaf_index();
-        let (commit, _welcome, _info) = group
-            .remove_members(&self.provider, &self.signer, &[own])
-            .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
-        group
-            .merge_pending_commit(&self.provider)
-            .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
-        commit
-            .to_bytes()
-            .map_err(|error| MlsCryptoError::Codec(error.to_string()))
+    /// Commit a member's departure, given the self-removal proposal it
+    /// broadcast. The proposal is only used as proof: it must be a Remove
+    /// naming the very leaf that signed it, so this can never be turned into
+    /// "have someone else kicked". The removal is then re-issued as our own,
+    /// inline, so the commit stands on its own — a member that never saw the
+    /// proposal can still process it, which `commit_to_pending_proposals`
+    /// (`ProposalRef`-style) would not allow.
+    pub fn commit_departure(&mut self, proposal_bytes: &[u8]) -> Result<Vec<u8>, MlsCryptoError> {
+        let leaving = self.staged_self_removal(proposal_bytes)?;
+        self.remove_leaves(&[leaving])
     }
 
-    pub fn queue_remote_proposal(&mut self, proposal_bytes: &[u8]) -> Result<(), MlsCryptoError> {
+    /// Validate a self-removal proposal and return the leaf it retires.
+    fn staged_self_removal(
+        &mut self,
+        proposal_bytes: &[u8],
+    ) -> Result<LeafNodeIndex, MlsCryptoError> {
         let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
         let message = MlsMessageIn::tls_deserialize(&mut &proposal_bytes[..])
             .map_err(|error| MlsCryptoError::Codec(error.to_string()))?;
@@ -190,30 +192,24 @@ impl MlsSessionCrypto {
         let processed = group
             .process_message(&self.provider, protocol_message)
             .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
-        match processed.into_content() {
-            ProcessedMessageContent::ProposalMessage(proposal) => {
-                group
-                    .store_pending_proposal(self.provider.storage(), *proposal)
-                    .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
-                Ok(())
-            }
-            _ => Err(MlsCryptoError::OpenMls(
+        let sender = processed.sender().clone();
+        let ProcessedMessageContent::ProposalMessage(queued) = processed.into_content() else {
+            return Err(MlsCryptoError::OpenMls(
                 "expected proposal message".to_string(),
+            ));
+        };
+        let Proposal::Remove(remove) = queued.proposal() else {
+            return Err(MlsCryptoError::OpenMls(
+                "expected a remove proposal".to_string(),
+            ));
+        };
+        let removed = remove.removed();
+        match sender {
+            Sender::Member(author) if author == removed => Ok(removed),
+            _ => Err(MlsCryptoError::OpenMls(
+                "remove proposal is not a self-removal".to_string(),
             )),
         }
-    }
-
-    pub fn commit_pending(&mut self) -> Result<Vec<u8>, MlsCryptoError> {
-        let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
-        let (commit, _welcome, _info) = group
-            .commit_to_pending_proposals(&self.provider, &self.signer)
-            .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
-        group
-            .merge_pending_commit(&self.provider)
-            .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
-        commit
-            .to_bytes()
-            .map_err(|error| MlsCryptoError::Codec(error.to_string()))
     }
 
     pub fn key_package_signer_is_member(
@@ -345,8 +341,8 @@ impl MlsSessionCrypto {
     }
 
     // Excludes the own leaf: org kick/replace operate on OTHER members by
-    // protocol (self-removal goes through leave_proposal_bytes /
-    // remove_self_commit). Guards against a client acting on a roster diff
+    // protocol (self-removal goes through leave_proposal_bytes, which another
+    // member commits). Guards against a client acting on a roster diff
     // that names itself.
     fn leaf_indices_matching(group: &MlsGroup, identity: &str) -> Vec<LeafNodeIndex> {
         let own = group.own_leaf_index();
@@ -367,15 +363,22 @@ impl MlsSessionCrypto {
         &mut self,
         identity: &str,
     ) -> Result<Vec<u8>, MlsCryptoError> {
-        let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
+        let group = self.group.as_ref().ok_or(MlsCryptoError::NotReady)?;
         let targets = Self::leaf_indices_matching(group, identity);
         if targets.is_empty() {
             return Err(MlsCryptoError::OpenMls(format!(
                 "no member with identity {identity}"
             )));
         }
+        self.remove_leaves(&targets)
+    }
+
+    /// Remove leaves in one commit and merge it locally. The Remove proposals
+    /// ride inline, so the commit is self-contained for every receiver.
+    fn remove_leaves(&mut self, targets: &[LeafNodeIndex]) -> Result<Vec<u8>, MlsCryptoError> {
+        let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
         let (commit, _welcome, _info) = group
-            .remove_members(&self.provider, &self.signer, &targets)
+            .remove_members(&self.provider, &self.signer, targets)
             .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
         // Serialize BEFORE merging: if to_bytes failed after the merge, the
         // local epoch would already be advanced while the commit is never
