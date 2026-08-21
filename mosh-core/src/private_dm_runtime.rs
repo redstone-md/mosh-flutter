@@ -564,7 +564,7 @@ impl PrivateDmRuntime {
         // route_send maps to this exact direct publish. Kept direct on purpose.
         // Room-scoped like every other send — the shared node's own room is the
         // substrate, and Alice listens in the invite's room, not in that one.
-        node.publish_room(
+        node.publish_room_best_effort(
             &invite.mesh_id,
             &control_channel(&invite.session_id),
             &key_package_payload,
@@ -1493,11 +1493,24 @@ impl PrivateDmSession {
         message_id: Option<&str>,
     ) -> Result<RouteOutcome, PrivateDmRuntimeError> {
         match self.path {
-            DmPath::Direct | DmPath::Discover => self
-                .node
-                .publish_room(&self.mesh_id, &kind.channel_for(&self.session_id), payload)
-                .map(|_| RouteOutcome::Published)
-                .map_err(|e| PrivateDmRuntimeError::Moss(e.to_string())),
+            DmPath::Direct | DmPath::Discover => {
+                let channel = kind.channel_for(&self.session_id);
+                // A Data frame is the user's message and carries a delivery
+                // status, so "no peers" has to reach the caller and fail it.
+                // Control and Blob frames repeat on their own cadence and
+                // report nothing, so the same refusal is not news.
+                let published = match kind {
+                    wire::ChannelKind::Data => {
+                        self.node.publish_room(&self.mesh_id, &channel, payload)
+                    }
+                    wire::ChannelKind::Control | wire::ChannelKind::Blob => self
+                        .node
+                        .publish_room_best_effort(&self.mesh_id, &channel, payload),
+                };
+                published
+                    .map(|_| RouteOutcome::Published)
+                    .map_err(|e| PrivateDmRuntimeError::Moss(e.to_string()))
+            }
             DmPath::Relayed => {
                 let peer = self.peer_moss_id.as_deref().ok_or_else(|| {
                     PrivateDmRuntimeError::Moss("relayed send: peer moss-id unknown".into())
@@ -1599,7 +1612,7 @@ impl PrivateDmSession {
         let payload = serde_json::to_vec(&envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         self.node
-            .publish_room(&self.mesh_id, &self.control_channel, &payload)
+            .publish_room_best_effort(&self.mesh_id, &self.control_channel, &payload)
             .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
     }
 
@@ -2456,7 +2469,7 @@ impl PrivateDmSession {
         }
         // ponytail: voice stays direct-only; relay carries control/data/blob, add voice relay when a hard-NAT call actually needs it
         self.node
-            .publish_room(&self.mesh_id, &voice_call_channel(call_id), &frame)
+            .publish_room_best_effort(&self.mesh_id, &voice_call_channel(call_id), &frame)
             .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
     }
 
@@ -4529,6 +4542,66 @@ mod tests {
         );
 
         let _ = std::fs::remove_file(&db_path);
+    }
+
+    // Regression: Moss answering "no peers" used to count as a successful
+    // publish, so a message nobody could receive showed as Sent. The DM resend
+    // loop only re-drives attempts that already reached `Sent`, so a refusal
+    // has to land as a retryable failure instead of a silent loss.
+    #[test]
+    fn no_peers_does_not_count_as_sent() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut alice = PrivateDmRuntime::from_shared(runtime, temp_store(), None);
+        let invite = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42161,
+                static_peer: None,
+            })
+            .expect("Alice invite should be created");
+
+        let _no_peers = wire::no_peers_next_test_publish();
+        let result = alice
+            .send_message(&invite.session_id, "nobody is here".to_string())
+            .expect("send should return a result");
+
+        assert_eq!(
+            result.delivery_status,
+            contracts::MessageDeliveryStatus::Failed
+        );
+        assert_eq!(
+            result.delivery_error.as_deref(),
+            Some("Moss error: no peers yet, so the message did not go out")
+        );
+
+        let live = alice
+            .poll_session(&invite.session_id)
+            .expect("poll should pass");
+        let message = live
+            .messages
+            .iter()
+            .find(|message| message.message_id.as_deref() == Some(result.message_id.as_str()))
+            .expect("the message should be recorded");
+        assert_eq!(
+            message.delivery_status,
+            Some(contracts::MessageDeliveryStatus::Failed)
+        );
+        assert_eq!(message.retryable, Some(true));
+
+        // The attempt record survived the failure, so the existing retry path
+        // replays the same bytes without new machinery.
+        let retried = alice
+            .retry_message(&invite.session_id, &result.message_id)
+            .expect("retry should succeed once a peer is there");
+        assert_eq!(
+            retried.delivery_status,
+            contracts::MessageDeliveryStatus::Sent
+        );
     }
 
     #[test]

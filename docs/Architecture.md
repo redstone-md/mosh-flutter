@@ -399,7 +399,11 @@ flowchart TD
   record, `settle` writes the result on both the message and the record. The
   kind publishes in between, its own way, and says whether the record is kept
   afterwards: a DM keeps it for the DeliveryAck and the auto re-sends, a group
-  and a channel are done with it.
+  and a channel are done with it. A publish Moss refuses for want of peers
+  settles as a retryable `Failed`, not as `Sent` — the frame reached nobody, so
+  the record stays for the user's Retry (ADR 0021). Control frames, which
+  repeat on their own, swallow that refusal through
+  `MossNode::publish_room_best_effort`.
 - `history::History` — what a conversation keeps on disk. `replay` reads one
   conversation back (messages, cached attachments, sends that never settled),
   `write_tail` appends only the messages gained since the last write, and
@@ -560,5 +564,6 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0018-one-conversation-module.md - one Conversation module for the DM, the channel and the group.
 - docs/ADR/0019-shared-conversation-strata-in-the-core.md - shared conversation strata in mosh-core.
 - docs/ADR/0020-one-inbox-per-owner.md - one inbound queue per owner instead of one queue for everybody.
+- docs/ADR/0021-no-peers-is-not-sent.md - a publish with no peers fails retryably instead of reporting Sent.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).
