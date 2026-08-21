@@ -20,8 +20,8 @@ use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::{Transfer, TransferError};
 use crate::conversation::{decode, encode};
-use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
 use crate::inbox;
+use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
 use crate::moss_ffi::{MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::org_envelope::{self, OrgContext, OrgSigned};
 use crate::org_roster::{self, Roster};
@@ -600,6 +600,10 @@ impl PrivateGroupRuntime {
                 roster_lag: Vec::new(),
                 last_roster_version_seen: None,
             };
+            // The persisted MLS tree outranks the persisted admin pointer: if
+            // the admin left while we were down, the restored tree already
+            // says so.
+            session.reconcile_admin();
             // A member may have missed commits while offline; ask the admin
             // for a replay. Best-effort: the mesh may not be connected yet —
             // a real gap re-triggers on the next out-of-order commit. Skip
@@ -1046,24 +1050,24 @@ impl PrivateGroupRuntime {
 
         if session.joined {
             let own_fp = session.crypto.fingerprint();
+            // Everyone leaves the same way: MLS forbids committing your own
+            // removal, so a self-Remove proposal goes out and a member who
+            // stays commits it. For an ordinary member that is the admin; for
+            // the admin it is the successor (`should_commit_departure`).
+            let proposal_bytes = session.crypto.leave_proposal_bytes()?;
+            let envelope = ControlEnvelope::SelfRemove {
+                group_id: session.group_id.clone(),
+                from_fingerprint: own_fp.clone(),
+                proposal_b64: encode(&proposal_bytes),
+            };
+            session.publish_control(&envelope)?;
             if session.is_admin {
-                // Drop the admin's own MLS leaf first so the remaining members
-                // do not carry a ghost entry after the handoff.
-                let successor = session
-                    .crypto
-                    .member_fingerprints()
-                    .into_iter()
-                    .filter(|fp| fp != &own_fp)
-                    .min();
-                if let Some(next_admin) = successor {
-                    let commit_bytes = session.crypto.remove_self_commit()?;
-                    let commit_envelope = ControlEnvelope::Commit {
-                        group_id: session.group_id.clone(),
-                        from_fingerprint: own_fp.clone(),
-                        commit_b64: encode(&commit_bytes),
-                        roster_version: session.own_roster_version(),
-                    };
-                    session.publish_control(&commit_envelope)?;
+                // Compatibility only. Clients that predate the tree-derived
+                // successor still need to be told who takes over; newer ones
+                // ignore this frame and read the commit instead.
+                if let Some(next_admin) =
+                    successor_of(session.crypto.member_fingerprints(), &own_fp)
+                {
                     let handoff = ControlEnvelope::AdminHandoff {
                         group_id: session.group_id.clone(),
                         from_fingerprint: own_fp,
@@ -1071,16 +1075,6 @@ impl PrivateGroupRuntime {
                     };
                     session.publish_control(&handoff)?;
                 }
-            } else {
-                // Non-admin emits a self-Remove proposal so the current admin
-                // can commit it and the roster stays in sync.
-                let proposal_bytes = session.crypto.leave_proposal_bytes()?;
-                let envelope = ControlEnvelope::SelfRemove {
-                    group_id: session.group_id.clone(),
-                    from_fingerprint: own_fp,
-                    proposal_b64: encode(&proposal_bytes),
-                };
-                session.publish_control(&envelope)?;
             }
         }
 
@@ -1241,6 +1235,14 @@ fn absorb_resync_commits(
     crypto.epoch().is_some_and(|current| sequencer.gap(current))
 }
 
+/// The deterministic successor rule: the lowest member fingerprint, ignoring
+/// the departing one. The member that commits an admin's departure and every
+/// member that later reads the resulting tree run this same `min()`, so they
+/// agree on the new admin without a frame having to carry the answer.
+fn successor_of(members: Vec<String>, departing: &str) -> Option<String> {
+    members.into_iter().filter(|fp| fp != departing).min()
+}
+
 fn log_group_commit(
     persistence: Option<&Persistence>,
     group_id: &str,
@@ -1367,6 +1369,42 @@ impl GroupSession {
             };
         }
         self.is_admin
+    }
+
+    /// Re-derive the admin from the MLS tree. While the admin still holds a
+    /// leaf nothing changes; once it is gone the successor takes over. Every
+    /// member runs this over the same tree, so the admin follows the commit
+    /// that drops the leaf — no frame has to survive for the group to agree.
+    /// Plain groups only: org groups take authority from the signed roster
+    /// (ADR 0005) and never consult a fingerprint.
+    fn reconcile_admin(&mut self) {
+        if self.org_pubkey.is_some() || !self.joined {
+            return;
+        }
+        let members = self.crypto.member_fingerprints();
+        if members.contains(&self.current_admin_fingerprint) {
+            return;
+        }
+        let Some(next) = successor_of(members, &self.current_admin_fingerprint) else {
+            return;
+        };
+        self.is_admin = next == self.crypto.fingerprint();
+        self.current_admin_fingerprint = next;
+    }
+
+    /// Are we the member expected to commit `leaver`'s self-removal? Org
+    /// groups: any roster admin (ADR 0005). Plain groups: the admin — unless
+    /// the admin is the one leaving, in which case the successor commits, so
+    /// exactly one member acts and the resulting tree names that same member.
+    fn should_commit_departure(&mut self, leaver: &str) -> bool {
+        if self.org_pubkey.is_some() {
+            return self.acting_admin();
+        }
+        if leaver != self.current_admin_fingerprint {
+            return self.is_admin;
+        }
+        successor_of(self.crypto.member_fingerprints(), leaver)
+            .is_some_and(|next| next == self.crypto.fingerprint())
     }
 
     /// Is this inbound commit/welcome author allowed to move the group?
@@ -1599,7 +1637,14 @@ impl GroupSession {
         }
         if message.channel == self.control_channel {
             let (payload, sender_peer_id) = self.unwrap_control(message.payload)?;
-            self.handle_control(payload, sender_peer_id)
+            let result = self.handle_control(payload, sender_peer_id);
+            // Control frames are the only ones that move the MLS tree, by any
+            // route: a commit, a resync replay, a Welcome, or a departure we
+            // committed ourselves. Derive the admin once, here, rather than at
+            // each of them — and on the error path too, since a frame that
+            // failed late may still have changed membership.
+            self.reconcile_admin();
+            result
         } else if message.channel == self.data_channel {
             self.handle_data(message.payload)
         } else if message.channel == self.blob_channel {
@@ -1806,38 +1851,30 @@ impl GroupSession {
                     // Roster-derived authority incl. the lag buffer; own
                     // commits come back around but dedup as already-applied.
                     self.apply_org_commit(commit_b64, roster_version, sender_peer_id.as_deref())
-                } else if !self.is_admin && from_fingerprint == self.current_admin_fingerprint {
-                    self.apply_commit_sequenced(commit_b64)
-                } else {
+                } else if from_fingerprint == own_fp {
+                    // Our own echo; already merged when we authored it.
                     Ok(())
+                } else {
+                    // Plain groups: MLS and the epoch sequencer are the
+                    // authority. `from_fingerprint` is a self-claim on an
+                    // unauthenticated channel, so gating on it stopped no
+                    // attacker — it only froze members whose admin pointer
+                    // was stale, and the successor's departure commit is
+                    // authored by a non-admin by design (ADR 0023).
+                    self.apply_commit_sequenced(commit_b64)
                 }
-            }
-            ControlEnvelope::AdminHandoff {
-                group_id,
-                from_fingerprint,
-                next_admin_fingerprint,
-            } if self.group_id == group_id
-                && from_fingerprint == self.current_admin_fingerprint
-                && from_fingerprint != next_admin_fingerprint =>
-            {
-                self.current_admin_fingerprint = next_admin_fingerprint.clone();
-                if next_admin_fingerprint == own_fp {
-                    self.is_admin = true;
-                }
-                Ok(())
             }
             ControlEnvelope::SelfRemove {
                 group_id,
                 from_fingerprint,
                 proposal_b64,
             } if self.group_id == group_id && from_fingerprint != own_fp => {
-                if !self.acting_admin() {
+                if !self.should_commit_departure(&from_fingerprint) {
                     return Ok(());
                 }
                 let proposal = decode(&proposal_b64)?;
-                self.crypto.queue_remote_proposal(&proposal)?;
                 let pre_epoch = self.crypto.epoch();
-                let commit_bytes = self.crypto.commit_pending()?;
+                let commit_bytes = self.crypto.commit_departure(&proposal)?;
                 if let Some(epoch) = pre_epoch {
                     self.log_commit(epoch, &commit_bytes);
                 }
@@ -3238,5 +3275,253 @@ mod tests {
         assert!(stored_attempt.is_none());
 
         let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// A three-party plain group whose runtime session is an ordinary member.
+    /// The admin (`dane`) and the third member (`cleo`) live at the crypto
+    /// layer, so a real admin departure can be replayed against a real
+    /// session and the member's view inspected.
+    struct MemberView {
+        runtime: PrivateGroupRuntime,
+        group_id: String,
+        control_channel: String,
+        dane: MlsSessionCrypto,
+        cleo: MlsSessionCrypto,
+    }
+
+    impl MemberView {
+        fn open(listen_port: u16) -> Self {
+            let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+            let mut runtime = PrivateGroupRuntime::from_shared(moss, temp_store(), None);
+            let created = runtime
+                .create_group(CreateGroupRequest {
+                    label: None,
+                    display_name: "Mia".to_string(),
+                    listen_port,
+                    static_peer: None,
+                    org_pubkey: None,
+                })
+                .expect("group should be created");
+
+            let mut dane = MlsSessionCrypto::new("dane").unwrap();
+            let mut cleo = MlsSessionCrypto::new("cleo").unwrap();
+            let control_channel = {
+                let session = runtime.groups.get_mut(&created.group_id).unwrap();
+                let kp_dane = dane.key_package_bytes().unwrap();
+                let add_dane = session.crypto.add_members(&[kp_dane.as_slice()]).unwrap();
+                dane.join_welcome(&add_dane.welcome_bytes, &add_dane.tree_bytes)
+                    .unwrap();
+                let kp_cleo = cleo.key_package_bytes().unwrap();
+                let add_cleo = session.crypto.add_members(&[kp_cleo.as_slice()]).unwrap();
+                cleo.join_welcome(&add_cleo.welcome_bytes, &add_cleo.tree_bytes)
+                    .unwrap();
+                dane.process_commit(&add_cleo.commit_bytes).unwrap();
+                // The session is a plain member and `dane` is the admin it
+                // points at — the state every non-creator member is in.
+                session.is_admin = false;
+                session.current_admin_fingerprint = dane.fingerprint();
+                session.control_channel.clone()
+            };
+            Self {
+                runtime,
+                group_id: created.group_id,
+                control_channel,
+                dane,
+                cleo,
+            }
+        }
+
+        fn deliver(&mut self, envelope: &ControlEnvelope) {
+            let payload = serde_json::to_vec(envelope).unwrap();
+            let session = self.runtime.groups.get_mut(&self.group_id).unwrap();
+            session
+                .handle_moss_message(MossReceivedMessage {
+                    channel: self.control_channel.clone(),
+                    payload,
+                })
+                .expect("control frame should be handled");
+        }
+
+        fn session(&self) -> &GroupSession {
+            self.runtime.groups.get(&self.group_id).unwrap()
+        }
+
+        /// A departure frame: a self-removal proposal, the only way MLS lets a
+        /// member retire its own leaf.
+        fn departure_of(leaver: &mut MlsSessionCrypto, group_id: &str) -> ControlEnvelope {
+            ControlEnvelope::SelfRemove {
+                group_id: group_id.to_string(),
+                from_fingerprint: leaver.fingerprint(),
+                proposal_b64: encode(&leaver.leave_proposal_bytes().unwrap()),
+            }
+        }
+
+        /// `cleo` commits the admin's departure, as the successor would.
+        /// Returns the commit that drops the admin's leaf.
+        fn cleo_commits_departure(&mut self) -> Vec<u8> {
+            let proposal = self.dane.leave_proposal_bytes().unwrap();
+            self.cleo.commit_departure(&proposal).unwrap()
+        }
+    }
+
+    /// #18: the admin's departure travels in the Commit that drops its leaf,
+    /// not in the best-effort `AdminHandoff` frame. No handoff is sent here
+    /// at all; the member must still land on the deterministic successor.
+    #[test]
+    fn admin_departure_is_derived_from_the_commit_not_the_handoff() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let mut view = MemberView::open(42391);
+        let departed = view.dane.fingerprint();
+        let leave_commit = view.cleo_commits_departure();
+        // What every remaining member derives from the same tree.
+        let successor = view.cleo.member_fingerprints().into_iter().min().unwrap();
+
+        view.deliver(&ControlEnvelope::Commit {
+            group_id: view.group_id.clone(),
+            from_fingerprint: view.cleo.fingerprint(),
+            commit_b64: encode(&leave_commit),
+            roster_version: None,
+        });
+
+        let session = view.session();
+        assert_eq!(session.crypto.member_count(), 2, "commit must apply");
+        assert_ne!(
+            session.current_admin_fingerprint, departed,
+            "the departed admin must not stay the admin"
+        );
+        assert_eq!(session.current_admin_fingerprint, successor);
+        assert_eq!(session.is_admin, successor == session.crypto.fingerprint());
+    }
+
+    /// Nobody can commit their own removal — MLS forbids it — so every
+    /// departure is a proposal someone who stays commits. An ordinary member's
+    /// is committed by the admin; the admin's by the successor, which then
+    /// takes over.
+    #[test]
+    fn departures_are_committed_by_the_admin_then_by_the_successor() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let mut view = MemberView::open(42394);
+        let own_fp = view.session().crypto.fingerprint();
+        let group_id = view.group_id.clone();
+
+        // `cleo` leaves. We are not the admin, so we must not commit it.
+        let cleo_departure = MemberView::departure_of(&mut view.cleo, &group_id);
+        view.deliver(&cleo_departure);
+        assert_eq!(
+            view.session().crypto.member_count(),
+            3,
+            "only the admin commits an ordinary member's departure"
+        );
+
+        // The admin commits it, and we merge the commit like any third party —
+        // which needs the removal to ride inside the commit, since we never
+        // stored the proposal.
+        let ControlEnvelope::SelfRemove { proposal_b64, .. } = &cleo_departure else {
+            unreachable!("built as a SelfRemove");
+        };
+        let commit = view
+            .dane
+            .commit_departure(&decode(proposal_b64).unwrap())
+            .unwrap();
+        view.deliver(&ControlEnvelope::Commit {
+            group_id: group_id.clone(),
+            from_fingerprint: view.dane.fingerprint(),
+            commit_b64: encode(&commit),
+            roster_version: None,
+        });
+        assert_eq!(view.session().crypto.member_count(), 2);
+
+        // Now the admin leaves. We are the only member left, so the successor
+        // rule names us: we commit, and the same commit makes us the admin.
+        let admin_departure = MemberView::departure_of(&mut view.dane, &group_id);
+        view.deliver(&admin_departure);
+
+        let session = view.session();
+        assert_eq!(session.crypto.member_count(), 1, "successor must commit");
+        assert_eq!(session.current_admin_fingerprint, own_fp);
+        assert!(session.is_admin, "the committer is the new admin");
+    }
+
+    /// The catch-up path must land on the same admin as the direct one: a
+    /// member that only sees the leave commit inside an admin's resync replay
+    /// derives the successor exactly like everyone else.
+    #[test]
+    fn a_member_catching_up_by_resync_lands_on_the_same_admin() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let mut view = MemberView::open(42392);
+        let departed = view.dane.fingerprint();
+        // Neither the departure proposal nor the commit reached us live; the
+        // admin's log replays the commit, and it stands on its own.
+        let leave_commit = view.cleo_commits_departure();
+        let successor = view.cleo.member_fingerprints().into_iter().min().unwrap();
+        let own_fp = view.session().crypto.fingerprint();
+
+        view.deliver(&ControlEnvelope::ResyncResponse {
+            group_id: view.group_id.clone(),
+            for_fingerprint: own_fp.clone(),
+            commits: vec![ResyncCommit {
+                epoch: MlsSessionCrypto::commit_epoch(&leave_commit).unwrap(),
+                commit_b64: encode(&leave_commit),
+            }],
+        });
+
+        let session = view.session();
+        assert_eq!(session.crypto.member_count(), 2, "replay must apply");
+        assert_ne!(session.current_admin_fingerprint, departed);
+        assert_eq!(session.current_admin_fingerprint, successor);
+        assert_eq!(session.is_admin, successor == own_fp);
+    }
+
+    /// The other half of #18: when the leave commit itself is the frame that
+    /// gossip drops, the member's admin pointer is stale and every later
+    /// commit comes from an author it does not know as its admin. That must
+    /// not be a silent drop — the commit is one epoch ahead, so it buffers and
+    /// asks the group for a replay instead of freezing.
+    #[test]
+    fn a_commit_from_an_unknown_author_asks_for_a_resync_instead_of_freezing() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let mut view = MemberView::open(42393);
+        // Neither the departure nor the commit that follows it reaches us.
+        let _leave_commit = view.cleo_commits_departure();
+
+        // The successor moves the group on: a commit one epoch ahead, from an
+        // author the stale member does not know as its admin.
+        let mut newcomer = MlsSessionCrypto::new("newcomer").unwrap();
+        let kp = newcomer.key_package_bytes().unwrap();
+        let ahead = view.cleo.add_members(&[kp.as_slice()]).unwrap();
+        view.deliver(&ControlEnvelope::Commit {
+            group_id: view.group_id.clone(),
+            from_fingerprint: view.cleo.fingerprint(),
+            commit_b64: encode(&ahead.commit_bytes),
+            roster_version: None,
+        });
+
+        let epoch = view.session().crypto.epoch().unwrap();
+        let session = view.runtime.groups.get_mut(&view.group_id).unwrap();
+        assert_eq!(
+            session.crypto.member_count(),
+            3,
+            "an unattributed commit must never apply"
+        );
+        assert!(
+            !session.sequencer.should_request(epoch),
+            "a resync request must already be outstanding for this epoch"
+        );
     }
 }
