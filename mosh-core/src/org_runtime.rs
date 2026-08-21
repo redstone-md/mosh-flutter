@@ -10,7 +10,8 @@ use std::sync::Arc;
 use ed25519_dalek::SigningKey;
 use serde::{Deserialize, Serialize};
 
-use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode};
+use crate::inbox;
+use crate::moss_ffi::{MossFfiRuntime, MossNode};
 use crate::org_envelope::{self, OrgContext, OrgSigned};
 use crate::org_roster::{self, Roster, RosterError};
 use crate::org_signing;
@@ -18,6 +19,12 @@ use crate::persistence::Persistence;
 use crate::shared_node::SharedMossNode;
 
 const ORG_CONTROL_PREFIX: &str = "org-control/";
+
+/// The org's own inbound queue, claimed once for the process.
+fn org_inbox() -> &'static inbox::Inbox {
+    static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
+    INBOX.get_or_init(|| inbox::register(|channel| channel.starts_with(ORG_CONTROL_PREFIX)))
+}
 const ORG_CHANNEL_KIND: &str = "org-control";
 const ORG_BUNDLE_PREFIX: &str = "mosh://org";
 
@@ -565,6 +572,9 @@ impl OrgRuntime {
         shared_node: Arc<SharedMossNode>,
         persistence: Option<Arc<Persistence>>,
     ) -> Self {
+        // Claim the org control channels before any node of ours can start;
+        // see `crate::inbox`.
+        org_inbox();
         Self {
             shared_node,
             persistence,
@@ -768,8 +778,7 @@ impl OrgRuntime {
     }
 
     fn drain_inbound(&mut self) {
-        let inbound =
-            drain_messages_where(|message| message.channel.starts_with(ORG_CONTROL_PREFIX));
+        let inbound = org_inbox().drain();
         for message in inbound {
             let persistence = self.persistence.clone();
             if let Some(session) = self
