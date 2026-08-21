@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// Runs a real two-ended DM between this machine and a remote host, and prints
-// one merged timeline. The remote end is driven over SSH, so a full round trip
-// costs one command instead of two humans with screenshots.
+// Runs a real two-ended conversation between this machine and a remote host,
+// and prints one merged timeline. The remote end is driven over SSH, so a full
+// round trip costs one command instead of two humans with screenshots.
 //
 //   node scripts/probe-e2e.mjs --host <user>@<relay-host>
+//   node scripts/probe-e2e.mjs --host <user>@<relay-host> --kind group
+//   node scripts/probe-e2e.mjs --host <user>@<relay-host> --kind channel
 //
-// Exit code is the verdict: 0 when the message was delivered, 1 otherwise.
+// Exit code is the verdict: 0 when the message got through, 1 otherwise. Only
+// a DM acks, so only a DM can be judged from the dialing end; a group and a
+// channel are judged by the listening end, whose exit code counts too.
 import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -41,9 +45,22 @@ const MESSAGE = arg("message", "probe ping");
 // More than one means the real test: N conversations open at the same time from
 // a single local process, against N independent remote counterparts.
 const SESSIONS = Number(arg("sessions", "1"));
+// Which conversation kind the run drives. `--sessions N` is a DM-only shape.
+const KIND = arg("kind", "dm");
+// A channel has no invite: both ends have to be told the same name. A fresh
+// one per run keeps two runs from reading each other's traffic.
+const CHANNEL = arg("channel", `probe-${Date.now().toString(36)}`);
 
 if (!HOST) {
-  console.error("usage: probe-e2e.mjs --host user@host [--timeout 180] [--bind-interface NAME]");
+  console.error(
+    "usage: probe-e2e.mjs --host user@host [--kind dm|group|channel] [--timeout 180]" +
+      " [--channel NAME] [--bind-interface NAME]",
+  );
+  process.exit(2);
+}
+
+if (!["dm", "group", "channel"].includes(KIND)) {
+  console.error(`unknown --kind ${KIND} (expected dm, group or channel)`);
   process.exit(2);
 }
 
@@ -129,7 +146,7 @@ function describe(label, snap) {
   ].join("  ");
 }
 
-async function report(localCode) {
+async function report(code) {
   events.sort((a, b) => a.ts - b.ts);
   await writeFile("probe-timeline.jsonl", events.map((e) => JSON.stringify(e)).join("\n"));
 
@@ -149,7 +166,10 @@ async function report(localCode) {
   for (const source of remoteSources) console.error(describe(source, last(source)));
   if (flags.size) console.error(`flags: ${[...flags].join(", ")}`);
   console.error(`timeline: probe-timeline.jsonl (${events.length} events)`);
-  console.error(localCode === 0 ? "VERDICT: delivered" : "VERDICT: failed");
+  // A DM is judged delivered (the peer acked); a group and a channel are
+  // judged received (the far end read the body).
+  const passed = KIND === "dm" ? "delivered" : "received";
+  console.error(code === 0 ? `VERDICT: ${passed}` : "VERDICT: failed");
 }
 
 /// Several conversations at once, all from ONE local process — the shape the
@@ -179,47 +199,80 @@ async function runMany(sessions, bindArgs) {
   dialArgs.push("--message", MESSAGE, "--timeout-secs", TIMEOUT, ...bindArgs);
   const local = run(LOCAL_BIN, dialArgs, "local");
 
-  const localCode = await new Promise((resolve) => local.on("close", resolve));
+  const localCode = await closed(local);
   for (const remote of remotes) remote.kill();
-  await Promise.all(
-    remotes.map(
-      (remote) =>
-        new Promise((resolve) => {
-          if (remote.exitCode !== null || remote.signalCode !== null) resolve();
-          else remote.on("close", resolve);
-        }),
-    ),
-  );
+  await Promise.all(remotes.map(closed));
   return localCode;
 }
 
-/** One conversation, the original shape. */
+/** The remote (listening) half, per kind. */
+function listenCommand() {
+  if (KIND === "group") return [REMOTE_BIN, "group-listen", "--timeout-secs", TIMEOUT];
+  if (KIND === "channel") {
+    return [REMOTE_BIN, "channel-listen", "--channel", CHANNEL, "--timeout-secs", TIMEOUT];
+  }
+  return [REMOTE_BIN, "listen", "--timeout-secs", TIMEOUT];
+}
+
+/** The local (dialing) half, per kind. `invite` is null for a channel. */
+function dialCommand(invite) {
+  if (KIND === "group") return ["group-dial", "--invite", invite];
+  if (KIND === "channel") return ["channel-dial", "--channel", CHANNEL];
+  return ["dial", "--invite", invite];
+}
+
+/// Resolves with a child's exit code once it is gone. If it already exited,
+/// "close" has fired and will never fire again — subscribing unconditionally
+/// would hang the runner forever.
+function closed(child) {
+  return new Promise((resolve) => {
+    if (child.exitCode !== null) resolve(child.exitCode);
+    else if (child.signalCode !== null) resolve(0);
+    else child.on("close", resolve);
+  });
+}
+
+/** One conversation, one process per end. */
 async function runSingle(bindArgs) {
-  const listenCmd = [REMOTE_BIN, "listen", "--timeout-secs", TIMEOUT].join(" ");
-  const remote = run("ssh", ["-o", "BatchMode=yes", HOST, listenCmd], "remote");
+  const remote = run("ssh", ["-o", "BatchMode=yes", HOST, listenCommand().join(" ")], "remote");
 
-  const invite = await waitForInvite(remote);
-  console.error("[runner] invite received, dialing locally");
+  // A DM and a group hand the dialer an invite; a channel is agreed on by name.
+  const invite = KIND === "channel" ? null : await waitForInvite(remote);
+  console.error(
+    KIND === "channel"
+      ? `[runner] channel ${CHANNEL}, dialing locally`
+      : "[runner] invite received, dialing locally",
+  );
 
-  const dialArgs = ["dial", "--invite", invite, "--message", MESSAGE];
+  const dialArgs = [...dialCommand(invite), "--message", MESSAGE];
   dialArgs.push("--timeout-secs", TIMEOUT, ...bindArgs);
   const local = run(LOCAL_BIN, dialArgs, "local");
+  const localCode = await closed(local);
 
-  const localCode = await new Promise((resolve) => local.on("close", resolve));
-  remote.kill();
-  // If ssh already exited, "close" has fired and will never fire again —
-  // subscribing unconditionally would hang the runner forever.
-  await new Promise((resolve) => {
-    if (remote.exitCode !== null || remote.signalCode !== null) resolve();
-    else remote.on("close", resolve);
-  });
+  // Only a DM proves delivery from this end. A group and a channel settle at
+  // Sent whatever happens, so the listening end is the one that knows: wait
+  // for its verdict instead of killing it.
+  let remoteCode = 0;
+  if (KIND === "dm") {
+    remote.kill();
+    await closed(remote);
+  } else {
+    remoteCode = await closed(remote);
+  }
 
-  await report(localCode);
-  process.exit(localCode === 0 ? 0 : 1);
+  const code = localCode === 0 && remoteCode === 0 ? 0 : 1;
+  await report(code);
+  process.exit(code);
 }
 
 async function main() {
   const bindArgs = BIND ? ["--bind-interface", BIND] : [];
+  // `--sessions N` measures one node carrying N rooms, which only the DM half
+  // of the probe can set up today.
+  if (SESSIONS > 1 && KIND !== "dm") {
+    console.error(`--sessions ${SESSIONS} is only supported with --kind dm`);
+    process.exit(2);
+  }
   if (SESSIONS <= 1) {
     await runSingle(bindArgs);
     return;

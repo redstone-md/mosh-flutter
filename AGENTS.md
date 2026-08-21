@@ -20,7 +20,7 @@ This file defines how AI agents work in this solution.
 - Solution root: `mosh-flutter` (this repo).
 - Rust core module: `mosh-core/` — the shared `cdylib` crate; its `api::` free functions are the single bridge surface.
 - Moss core submodule: `moss/` — vendored Go checkout (https://github.com/redstone-md/moss). Source of the shared library; do not edit its source as part of Mosh tasks.
-- `mosh-probe/` — headless probe crate used by `scripts/probe-e2e.mjs`.
+- `mosh-probe/` — headless probe crate used by `scripts/probe-e2e.mjs`. Drives all three conversation kinds: `--kind dm` (default), `--kind group`, `--kind channel`. Only a DM acks, so a group and a channel run is judged by the listening end.
 - Projects or modules with local `AGENTS.md` files: none yet.
 - Sibling directory `../mosh` (the original React/Tauri app, now historical) is outside this repository root. Do not modify it from Mosh tasks unless the user explicitly expands scope.
 - The root `moss/` submodule is inside this repo; its generated artifacts land in ignored `moss-runtime/` (see native build chain below).
