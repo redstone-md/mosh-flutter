@@ -157,7 +157,8 @@ fn random_b64(bytes: usize) -> String {
 }
 
 use crate::conversation::mesh;
-use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
+use crate::inbox;
+use crate::moss_ffi::{MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::shared_node::SharedMossNode;
 
 pub struct PrivateDmRuntime {
@@ -310,6 +311,10 @@ impl PrivateDmRuntime {
         attachment_store: Arc<AttachmentStore>,
         persistence: Option<Arc<Persistence>>,
     ) -> Self {
+        // Claim the DM channels before any node of ours can start: a frame
+        // that lands before its owner is registered goes to the unclaimed
+        // tail, and no drain will ever see it.
+        dm_inbox();
         Self {
             moss: Arc::clone(shared_node.moss()),
             sessions: ConversationRuntime::new(attachment_store, persistence, DM_HISTORY),
@@ -882,7 +887,7 @@ impl PrivateDmRuntime {
     }
 
     fn drain_inbound(&mut self) -> Result<(), PrivateDmRuntimeError> {
-        let inbound = drain_messages_where(|message| is_private_dm_inbound(&message.channel));
+        let inbound = dm_inbox().drain();
         for message in inbound {
             // A single bad inbound frame must never abort the drain — otherwise
             // it would also fail the caller (e.g. send_message drains first).
@@ -1272,6 +1277,14 @@ impl PrivateDmRuntime {
 
 fn is_private_dm_inbound(channel: &str) -> bool {
     channel_session_id(channel).is_some() || wire::channel_call_id(channel).is_some()
+}
+
+/// The DM's own inbound queue, claimed once for the process. Two DM runtimes
+/// in one process (the two peers a test runs) share it, exactly as they shared
+/// the single global queue before.
+fn dm_inbox() -> &'static inbox::Inbox {
+    static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
+    INBOX.get_or_init(|| inbox::register(is_private_dm_inbound))
 }
 
 impl PrivateDmSession {

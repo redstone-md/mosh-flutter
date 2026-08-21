@@ -80,7 +80,6 @@ type MossSetRelayCallback = unsafe extern "C" fn(MossHandle, Option<RelayCallbac
 
 const EVENT_RING_CAPACITY: usize = 64;
 
-static RECEIVED_MESSAGES: Mutex<Vec<MossReceivedMessage>> = Mutex::new(Vec::new());
 static EVENT_LOG: Mutex<Vec<MossEvent>> = Mutex::new(Vec::new());
 static RELAY_INBOX: Mutex<Vec<RelayInbound>> = Mutex::new(Vec::new());
 #[cfg(test)]
@@ -562,11 +561,10 @@ impl Drop for MossNode {
     }
 }
 
+/// Every inbound frame in the process, whoever owns it. A reset, not a read —
+/// see [`crate::inbox`] for why a runtime takes only its own.
 pub fn drain_received_messages() -> Vec<MossReceivedMessage> {
-    let mut messages = RECEIVED_MESSAGES
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    std::mem::take(&mut *messages)
+    crate::inbox::drain_all()
 }
 
 pub fn drain_relay_frames() -> Vec<RelayInbound> {
@@ -574,38 +572,6 @@ pub fn drain_relay_frames() -> Vec<RelayInbound> {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     std::mem::take(&mut *frames)
-}
-
-pub fn drain_messages_where<F>(predicate: F) -> Vec<MossReceivedMessage>
-where
-    F: Fn(&MossReceivedMessage) -> bool,
-{
-    // Take the queue out from under the mutex before running the user
-    // predicate. Holding the lock across an arbitrary closure would poison
-    // it on any predicate panic and stall every other Moss consumer.
-    let drained: Vec<MossReceivedMessage> = {
-        let mut log = RECEIVED_MESSAGES
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        std::mem::take(&mut *log)
-    };
-    let mut taken = Vec::new();
-    let mut kept = Vec::with_capacity(drained.len());
-    for message in drained {
-        if predicate(&message) {
-            taken.push(message);
-        } else {
-            kept.push(message);
-        }
-    }
-    if !kept.is_empty() {
-        let mut log = RECEIVED_MESSAGES
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        kept.append(&mut *log);
-        *log = kept;
-    }
-    taken
 }
 
 pub fn snapshot_event_log() -> Vec<MossEvent> {
@@ -741,10 +707,7 @@ unsafe extern "C" fn on_moss_message(
         .into_owned();
     let payload = unsafe { std::slice::from_raw_parts(data, len as usize) }.to_vec();
 
-    RECEIVED_MESSAGES
-        .lock()
-        .expect("Moss message lock poisoned")
-        .push(MossReceivedMessage { channel, payload });
+    crate::inbox::deliver(MossReceivedMessage { channel, payload });
 }
 
 /// C ABI callback: sender_id is raw 32 bytes; data/len is the RelayFrame payload.
