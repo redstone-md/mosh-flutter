@@ -26,9 +26,10 @@ Markers: ✅ = verified by reading the code · · = traced by hunter, high confi
 
 ## HIGH
 
-### 7. · Global message queue shared by 3 runtimes, non-atomic — `moss_ffi.rs` `drain_messages_where`
-One process-global `RECEIVED_MESSAGES`; DM/group/channel each take-whole-queue → release lock → filter → re-append remainder, behind 3 separate mutexes (`lib.rs`). Concurrent drains from different Tauri command threads clobber/reorder/lose frames in flight between take and re-append.
-Fix: per-prefix queues, or hold one lock across take-filter-reappend so a drain is atomic.
+### ~~7.~~ FIXED — Global message queue shared by 4 runtimes, non-atomic — `moss_ffi.rs` `drain_messages_where`
+One process-global `RECEIVED_MESSAGES`; DM/group/channel/org each take-whole-queue → release lock → filter → re-append remainder, behind separate runtime mutexes. Take and re-append are two critical sections, so a second drain in between sends the first one's leftovers back behind newer frames: same-kind frames are read out of order, and an MLS Commit read before its predecessor is dropped. Since 0.7.4 one node carries every conversation, so the drains overlap by routine rather than by luck. Unclaimed frames were also kept and re-appended by every reader forever.
+
+Fixed: per-owner queues (`inbox.rs`, ADR 0020). A kind registers what it recognises once and gets an `Inbox`; the moss callback files each frame under its owner; a drain takes only its own — no filter, no leftovers, no shared state. The claim stays a closure the kind supplies, so channel naming stays with the kind (ADR 0019). `drain_messages_where` is gone; `drain_received_messages` is now `inbox::drain_all` (every queue plus the bounded unclaimed tail) and stays the test reset. Unit-tested in `inbox.rs`; group and channel inbound verified end-to-end with `mosh-probe`.
 
 ### ~~25.~~ FIXED — Message lost when the DM leaves the relay — `private_dm_runtime.rs` `drain_relay_results` + `private_dm_runtime/relay.rs`
 A send made while the session is `Relayed` is handed to the relay worker and left `Pending`. If the session then migrates `Relayed -> Direct`, `release_relay` drops the last ref, the worker's intake disconnects and it fails every queued job. `drain_relay_results` settles a still-`Pending` attempt as `Failed`. `pump_unacked_resends` only re-sends attempts whose status is `Sent`, so nothing ever retries it: the message is gone until the user presses retry by hand, on a conversation that now looks connected.
