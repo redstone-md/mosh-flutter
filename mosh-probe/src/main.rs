@@ -6,20 +6,31 @@
 //! and the other on a laptop, and both emit a machine-readable timeline that
 //! merges into a single ordered story.
 //!
-//! Three subcommands: `doctor` reports local facts and exits, `listen` creates
-//! an invite and waits for the peer, `dial` accepts an invite and pushes a
-//! message through to delivery.
+//! `doctor` reports local facts and exits; every other subcommand is one half
+//! of a two-ended run. `listen`/`dial` drive a DM, `group-listen`/`group-dial`
+//! a private group, `channel-listen`/`channel-dial` a public channel.
+//!
+//! Only a DM acks a message, so only a DM can call itself delivered from the
+//! sending end. A group and a channel settle at `Sent` the moment the frame
+//! leaves, which proves nothing about transport — so their verdict lives on
+//! the LISTENING end, which passes when it sees a body from someone else.
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use clap::{Parser, Subcommand};
 use mosh_core::attachment_store::AttachmentStore;
+use mosh_core::channel_runtime::{ChannelRuntime, ChannelSnapshot, JoinChannelRequest};
+use mosh_core::conversation::mesh::{MeshInfo, SnapshotEvent};
 use mosh_core::moss_ffi::MossFfiRuntime;
 use mosh_core::moss_runtime::{MossDynamicRuntime, MossRuntime};
 use mosh_core::network_inventory;
+use mosh_core::outbound_delivery::MessageDeliveryStatus;
 use mosh_core::private_dm_runtime::{
     AcceptInviteRequest, PrivateDmRuntime, SessionSnapshot, StartSessionRequest,
+};
+use mosh_core::private_group_runtime::{
+    CreateGroupRequest, GroupSnapshot, JoinGroupRequest, PrivateGroupRuntime,
 };
 
 /// How often the poll loop ticks. `poll_session` is what drives the runtime's
@@ -126,6 +137,62 @@ enum Command {
         #[arg(long, default_value_t = 180)]
         timeout_secs: u64,
     },
+    /// Create a private group, print its invite, and wait to hear a message
+    /// from whoever joins. This end owns the verdict: a group has no delivery
+    /// receipt, so being received is the only proof the frame crossed.
+    GroupListen {
+        #[arg(long)]
+        label: Option<String>,
+        #[arg(long, default_value = "probe-group-listen")]
+        display_name: String,
+        #[arg(long, default_value_t = 0)]
+        listen_port: u16,
+        #[arg(long, default_value_t = 180)]
+        timeout_secs: u64,
+    },
+    /// Join a private group from its invite, then send one message.
+    GroupDial {
+        #[arg(long)]
+        invite: String,
+        #[arg(long, default_value = "probe-group-dial")]
+        display_name: String,
+        #[arg(long, default_value_t = 0)]
+        listen_port: u16,
+        #[arg(long, default_value = "probe ping")]
+        message: String,
+        #[arg(long, default_value_t = 180)]
+        timeout_secs: u64,
+        /// Stay on the mesh this long after sending. Leaving immediately takes
+        /// the node down while the frame is still in flight.
+        #[arg(long, default_value_t = 30)]
+        linger_secs: u64,
+    },
+    /// Join a public channel and wait to hear a message from anyone else.
+    ChannelListen {
+        #[arg(long)]
+        channel: String,
+        #[arg(long, default_value = "probe-channel-listen")]
+        display_name: String,
+        #[arg(long, default_value_t = 0)]
+        listen_port: u16,
+        #[arg(long, default_value_t = 180)]
+        timeout_secs: u64,
+    },
+    /// Join a public channel and send one message into it.
+    ChannelDial {
+        #[arg(long)]
+        channel: String,
+        #[arg(long, default_value = "probe-channel-dial")]
+        display_name: String,
+        #[arg(long, default_value_t = 0)]
+        listen_port: u16,
+        #[arg(long, default_value = "probe ping")]
+        message: String,
+        #[arg(long, default_value_t = 180)]
+        timeout_secs: u64,
+        #[arg(long, default_value_t = 30)]
+        linger_secs: u64,
+    },
 }
 
 fn now_ms() -> u128 {
@@ -148,11 +215,42 @@ fn emit(role: &str, kind: &str, body: serde_json::Value) {
     println!("{line}");
 }
 
+/// The mesh facts worth a line every tick. All three kinds run on the same
+/// node, so they report it the same way.
+fn mesh_json(mesh: Option<&MeshInfo>) -> serde_json::Value {
+    let Some(m) = mesh else {
+        return serde_json::Value::Null;
+    };
+    serde_json::json!({
+        "advertised_addr": m.advertised_addr,
+        "listen_port": m.listen_port,
+        "nat_type": m.nat_type,
+        "peer_count": m.peer_count,
+        "direct_peer_count": m.direct_peer_count,
+        "relayed_peer_count": m.relayed_peer_count,
+        "relay_capable_peer_count": m.relay_capable_peer_count,
+        "relay_route_count": m.relay_route_count,
+        "known_peer_count": m.known_peer_count,
+        "supernode_ready": m.supernode_ready,
+        "channels": m.channels.len(),
+    })
+}
+
+fn events_json(events: &[SnapshotEvent]) -> serde_json::Value {
+    serde_json::json!(events
+        .iter()
+        .map(|e| serde_json::json!({
+            "name": e.event_name,
+            "detail": e.detail_json,
+            "at": e.epoch_millis,
+        }))
+        .collect::<Vec<_>>())
+}
+
 /// The subset of a snapshot worth a line every tick. The full snapshot carries
 /// message bodies and attachment state that would drown the signal; these are
 /// the fields that actually distinguish one failure from another.
 fn snapshot_line(role: &str, snap: &SessionSnapshot) {
-    let mesh = snap.mesh.as_ref();
     emit(
         role,
         "snapshot",
@@ -164,24 +262,47 @@ fn snapshot_line(role: &str, snap: &SessionSnapshot) {
             "relay_ready": snap.relay_ready,
             "peer_display_name": snap.peer_display_name,
             "messages": snap.messages.len(),
-            "mesh": mesh.map(|m| serde_json::json!({
-                "advertised_addr": m.advertised_addr,
-                "listen_port": m.listen_port,
-                "nat_type": m.nat_type,
-                "peer_count": m.peer_count,
-                "direct_peer_count": m.direct_peer_count,
-                "relayed_peer_count": m.relayed_peer_count,
-                "relay_capable_peer_count": m.relay_capable_peer_count,
-                "relay_route_count": m.relay_route_count,
-                "known_peer_count": m.known_peer_count,
-                "supernode_ready": m.supernode_ready,
-                "channels": m.channels.len(),
-            })),
-            "events": snap.events.iter().map(|e| serde_json::json!({
-                "name": e.event_name,
-                "detail": e.detail_json,
-                "at": e.epoch_millis,
-            })).collect::<Vec<_>>(),
+            "mesh": mesh_json(snap.mesh.as_ref()),
+            "events": events_json(&snap.events),
+        }),
+    );
+}
+
+/// `path` is a DM word — a group and a channel have one transport — but the
+/// runner prints the same field for every role, so it carries the kind's own
+/// transport story instead of a hole in the line.
+fn group_snapshot_line(role: &str, snap: &GroupSnapshot) {
+    emit(
+        role,
+        "snapshot",
+        serde_json::json!({
+            "group_id": snap.group_id,
+            "mesh_id": snap.mesh_id,
+            "state": snap.state,
+            "path": "mesh",
+            "is_admin": snap.is_admin,
+            "member_count": snap.member_count,
+            "needs_rejoin": snap.needs_rejoin,
+            "messages": snap.messages.len(),
+            "mesh": mesh_json(snap.mesh.as_ref()),
+            "events": events_json(&snap.events),
+        }),
+    );
+}
+
+fn channel_snapshot_line(role: &str, snap: &ChannelSnapshot) {
+    emit(
+        role,
+        "snapshot",
+        serde_json::json!({
+            "channel": snap.name,
+            "topic": snap.topic,
+            "mesh_id": snap.mesh_id,
+            "state": "joined",
+            "path": "mesh",
+            "messages": snap.messages.len(),
+            "mesh": mesh_json(snap.mesh.as_ref()),
+            "events": events_json(&snap.events),
         }),
     );
 }
@@ -189,9 +310,9 @@ fn snapshot_line(role: &str, snap: &SessionSnapshot) {
 /// A node whose advertised port differs from the port it bound is being
 /// translated, which is what makes a hole punch impossible. Surfacing it as a
 /// flag costs nothing and is invisible in the desktop UI today.
-fn warn_flags(snap: &SessionSnapshot) -> Vec<&'static str> {
+fn warn_flags(mesh: Option<&MeshInfo>) -> Vec<&'static str> {
     let mut flags = Vec::new();
-    let Some(mesh) = snap.mesh.as_ref() else {
+    let Some(mesh) = mesh else {
         return flags;
     };
     if mesh.relay_capable_peer_count == 0 {
@@ -317,9 +438,26 @@ fn doctor(
     emit(
         role,
         "verdict",
-        serde_json::json!({ "flags": warn_flags(&snap) }),
+        serde_json::json!({ "flags": warn_flags(snap.mesh.as_ref()) }),
     );
     Ok(())
+}
+
+/// The tick loop every kind runs on. `step` polls its own runtime, emits its
+/// own snapshot line, and answers whether the goal is reached; nothing here
+/// knows what a conversation is.
+fn pump_until(
+    timeout: Duration,
+    mut step: impl FnMut() -> Result<bool, Box<dyn std::error::Error>>,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let deadline = std::time::Instant::now() + timeout;
+    while std::time::Instant::now() < deadline {
+        if step()? {
+            return Ok(true);
+        }
+        std::thread::sleep(TICK);
+    }
+    Ok(false)
 }
 
 /// Drives the runtime until `done` is satisfied or the budget runs out,
@@ -331,18 +469,11 @@ fn pump(
     timeout: Duration,
     mut done: impl FnMut(&SessionSnapshot) -> bool,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let deadline = std::time::Instant::now() + timeout;
-    let mut reached = false;
-    while std::time::Instant::now() < deadline {
+    pump_until(timeout, || {
         let snap = dm.poll_session(session_id)?;
         snapshot_line(role, &snap);
-        if done(&snap) {
-            reached = true;
-            break;
-        }
-        std::thread::sleep(TICK);
-    }
-    Ok(reached)
+        Ok(done(&snap))
+    })
 }
 
 /// `pump` across several sessions at once: one snapshot line per session per
@@ -356,8 +487,7 @@ fn pump_all(
     timeout: Duration,
     mut done: impl FnMut(&SessionSnapshot) -> bool,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let deadline = std::time::Instant::now() + timeout;
-    while std::time::Instant::now() < deadline {
+    pump_until(timeout, || {
         let mut all = true;
         for session_id in session_ids {
             let snap = dm.poll_session(session_id)?;
@@ -366,12 +496,8 @@ fn pump_all(
                 all = false;
             }
         }
-        if all {
-            return Ok(true);
-        }
-        std::thread::sleep(TICK);
-    }
-    Ok(false)
+        Ok(all)
+    })
 }
 
 fn dial_many(
@@ -606,7 +732,7 @@ fn listen(
             "state": snap.state,
             "path": snap.path,
             "messages": snap.messages.len(),
-            "flags": warn_flags(&snap),
+            "flags": warn_flags(snap.mesh.as_ref()),
         }),
     );
     if !ready {
@@ -657,7 +783,7 @@ fn dial(
                 "stage": "mls_handshake",
                 "state": snap.state,
                 "path": snap.path,
-                "flags": warn_flags(&snap),
+                "flags": warn_flags(snap.mesh.as_ref()),
             }),
         );
         std::process::exit(1);
@@ -688,10 +814,314 @@ fn dial(
             "stage": if delivered { "delivered" } else { "delivery" },
             "state": snap.state,
             "path": snap.path,
-            "flags": warn_flags(&snap),
+            "flags": warn_flags(snap.mesh.as_ref()),
         }),
     );
     if !delivered {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+/// Neither a group nor a channel acks, so the only honest proof of transport
+/// is a body written by somebody else.
+fn heard_a_stranger<'a>(own_fingerprint: &str, senders: impl Iterator<Item = &'a str>) -> bool {
+    senders.into_iter().any(|from| from != own_fingerprint)
+}
+
+fn group_listen(
+    moss_lib: Option<std::path::PathBuf>,
+    label: Option<String>,
+    display_name: String,
+    listen_port: u16,
+    timeout_secs: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let role = "group-listen";
+    report_interfaces(role);
+    let runtime = load_runtime(moss_lib)?;
+    let store = scratch_store()?;
+    let mut groups = PrivateGroupRuntime::from_shared(runtime, store, None);
+
+    let created = groups.create_group(CreateGroupRequest {
+        label,
+        display_name,
+        listen_port,
+        static_peer: None,
+        org_pubkey: None,
+    })?;
+    // Same `invite` line shape as the DM listen: the runner greps one kind of
+    // event whatever it is driving, and it is emitted before anything below
+    // can fail.
+    emit(
+        role,
+        "invite",
+        serde_json::json!({
+            "invite_uri": created.invite_uri,
+            "group_id": created.group_id,
+            "mesh_id": created.mesh_id,
+            "fingerprint": created.fingerprint,
+        }),
+    );
+
+    let group_id = created.group_id.clone();
+    let heard = pump_until(Duration::from_secs(timeout_secs), || {
+        let snap = groups.poll(&group_id)?;
+        group_snapshot_line(role, &snap);
+        Ok(heard_a_stranger(
+            &snap.device_fingerprint,
+            snap.messages.iter().map(|m| m.from_fingerprint.as_str()),
+        ))
+    })?;
+
+    let snap = groups.poll(&group_id)?;
+    emit(
+        role,
+        "verdict",
+        serde_json::json!({
+            "ok": heard,
+            "stage": if heard { "received" } else { "receive" },
+            "state": snap.state,
+            "member_count": snap.member_count,
+            "messages": snap.messages.len(),
+            "flags": warn_flags(snap.mesh.as_ref()),
+        }),
+    );
+    if !heard {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn group_dial(
+    moss_lib: Option<std::path::PathBuf>,
+    invite: String,
+    display_name: String,
+    listen_port: u16,
+    message: String,
+    timeout_secs: u64,
+    linger_secs: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let role = "group-dial";
+    report_interfaces(role);
+    let runtime = load_runtime(moss_lib)?;
+    let store = scratch_store()?;
+    let mut groups = PrivateGroupRuntime::from_shared(runtime, store, None);
+
+    let joined = groups.join_group(JoinGroupRequest {
+        invite_uri: invite,
+        display_name,
+        org_pubkey: None,
+        listen_port,
+        static_peer: None,
+    })?;
+    let group_id = joined.group_id.clone();
+    emit(
+        role,
+        "accepted",
+        serde_json::json!({ "group_id": group_id, "mesh_id": joined.mesh_id }),
+    );
+
+    let ready = pump_until(Duration::from_secs(timeout_secs), || {
+        let snap = groups.poll(&group_id)?;
+        group_snapshot_line(role, &snap);
+        Ok(snap.state == "ready")
+    })?;
+    if !ready {
+        let snap = groups.poll(&group_id)?;
+        emit(
+            role,
+            "verdict",
+            serde_json::json!({
+                "ok": false,
+                "stage": "mls_join",
+                "state": snap.state,
+                "member_count": snap.member_count,
+                "flags": warn_flags(snap.mesh.as_ref()),
+            }),
+        );
+        std::process::exit(1);
+    }
+
+    let sent = groups.send(&group_id, message)?;
+    emit(
+        role,
+        "sent",
+        serde_json::json!({
+            "message_id": sent.message_id,
+            "delivery_status": format!("{:?}", sent.delivery_status),
+            "delivery_error": sent.delivery_error,
+        }),
+    );
+
+    // A group settles at Sent the moment the frame is published, so this end
+    // cannot tell whether it arrived. Stay on the mesh while the far end reads
+    // it — quitting here takes the node down mid-flight and fails a run the
+    // network would have completed.
+    pump_until(Duration::from_secs(linger_secs), || {
+        let snap = groups.poll(&group_id)?;
+        group_snapshot_line(role, &snap);
+        Ok(false)
+    })?;
+
+    let ok = sent.delivery_status != MessageDeliveryStatus::Failed;
+    let snap = groups.poll(&group_id)?;
+    emit(
+        role,
+        "verdict",
+        serde_json::json!({
+            "ok": ok,
+            "stage": if ok { "sent" } else { "send" },
+            "state": snap.state,
+            "member_count": snap.member_count,
+            "flags": warn_flags(snap.mesh.as_ref()),
+        }),
+    );
+    if !ok {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn channel_listen(
+    moss_lib: Option<std::path::PathBuf>,
+    channel: String,
+    display_name: String,
+    listen_port: u16,
+    timeout_secs: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let role = "channel-listen";
+    report_interfaces(role);
+    let runtime = load_runtime(moss_lib)?;
+    let store = scratch_store()?;
+    let mut channels = ChannelRuntime::from_shared(runtime, store, None);
+
+    let joined = channels.join(JoinChannelRequest {
+        name: channel.clone(),
+        display_name,
+        listen_port,
+        static_peer: None,
+    })?;
+    // A channel has no invite to hand over — both ends agree on the name up
+    // front — so this line only says the room is open.
+    emit(
+        role,
+        "joined",
+        serde_json::json!({
+            "channel": joined.name,
+            "mesh_id": joined.mesh_id,
+            "fingerprint": joined.device_fingerprint,
+        }),
+    );
+
+    let heard = pump_until(Duration::from_secs(timeout_secs), || {
+        let snap = channels.poll(&channel)?;
+        channel_snapshot_line(role, &snap);
+        Ok(heard_a_stranger(
+            &snap.device_fingerprint,
+            snap.messages.iter().map(|m| m.from_fingerprint.as_str()),
+        ))
+    })?;
+
+    let snap = channels.poll(&channel)?;
+    emit(
+        role,
+        "verdict",
+        serde_json::json!({
+            "ok": heard,
+            "stage": if heard { "received" } else { "receive" },
+            "messages": snap.messages.len(),
+            "flags": warn_flags(snap.mesh.as_ref()),
+        }),
+    );
+    if !heard {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn channel_dial(
+    moss_lib: Option<std::path::PathBuf>,
+    channel: String,
+    display_name: String,
+    listen_port: u16,
+    message: String,
+    timeout_secs: u64,
+    linger_secs: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let role = "channel-dial";
+    report_interfaces(role);
+    let runtime = load_runtime(moss_lib)?;
+    let store = scratch_store()?;
+    let mut channels = ChannelRuntime::from_shared(runtime, store, None);
+
+    let joined = channels.join(JoinChannelRequest {
+        name: channel.clone(),
+        display_name,
+        listen_port,
+        static_peer: None,
+    })?;
+    emit(
+        role,
+        "joined",
+        serde_json::json!({
+            "channel": joined.name,
+            "mesh_id": joined.mesh_id,
+            "fingerprint": joined.device_fingerprint,
+        }),
+    );
+
+    // There is no handshake to wait on here, and moss reports a publish with
+    // nobody to publish to as a success — so a send before the mesh forms is
+    // silently dropped. Wait for a peer first.
+    let peered = pump_until(Duration::from_secs(timeout_secs), || {
+        let snap = channels.poll(&channel)?;
+        channel_snapshot_line(role, &snap);
+        Ok(snap.mesh.as_ref().is_some_and(|mesh| mesh.peer_count > 0))
+    })?;
+    if !peered {
+        let snap = channels.poll(&channel)?;
+        emit(
+            role,
+            "verdict",
+            serde_json::json!({
+                "ok": false,
+                "stage": "mesh",
+                "flags": warn_flags(snap.mesh.as_ref()),
+            }),
+        );
+        std::process::exit(1);
+    }
+
+    let sent = channels.send(&channel, message)?;
+    emit(
+        role,
+        "sent",
+        serde_json::json!({
+            "message_id": sent.message_id,
+            "delivery_status": format!("{:?}", sent.delivery_status),
+            "delivery_error": sent.delivery_error,
+        }),
+    );
+
+    pump_until(Duration::from_secs(linger_secs), || {
+        let snap = channels.poll(&channel)?;
+        channel_snapshot_line(role, &snap);
+        Ok(false)
+    })?;
+
+    let ok = sent.delivery_status != MessageDeliveryStatus::Failed;
+    let snap = channels.poll(&channel)?;
+    emit(
+        role,
+        "verdict",
+        serde_json::json!({
+            "ok": ok,
+            "stage": if ok { "sent" } else { "send" },
+            "messages": snap.messages.len(),
+            "flags": warn_flags(snap.mesh.as_ref()),
+        }),
+    );
+    if !ok {
         std::process::exit(1);
     }
     Ok(())
@@ -761,6 +1191,56 @@ fn main() {
             static_peer,
             message,
             timeout_secs,
+        ),
+        Command::GroupListen {
+            label,
+            display_name,
+            listen_port,
+            timeout_secs,
+        } => group_listen(cli.moss_lib, label, display_name, listen_port, timeout_secs),
+        Command::GroupDial {
+            invite,
+            display_name,
+            listen_port,
+            message,
+            timeout_secs,
+            linger_secs,
+        } => group_dial(
+            cli.moss_lib,
+            invite,
+            display_name,
+            listen_port,
+            message,
+            timeout_secs,
+            linger_secs,
+        ),
+        Command::ChannelListen {
+            channel,
+            display_name,
+            listen_port,
+            timeout_secs,
+        } => channel_listen(
+            cli.moss_lib,
+            channel,
+            display_name,
+            listen_port,
+            timeout_secs,
+        ),
+        Command::ChannelDial {
+            channel,
+            display_name,
+            listen_port,
+            message,
+            timeout_secs,
+            linger_secs,
+        } => channel_dial(
+            cli.moss_lib,
+            channel,
+            display_name,
+            listen_port,
+            message,
+            timeout_secs,
+            linger_secs,
         ),
     };
 
