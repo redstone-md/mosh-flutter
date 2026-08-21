@@ -327,7 +327,7 @@ impl OrgSession {
         // room-less publish would land where no org member listens.
         if let Err(error) = self
             .node
-            .publish_room(&self.mesh_id, &self.control_channel, &payload)
+            .publish_room_best_effort(&self.mesh_id, &self.control_channel, &payload)
         {
             eprintln!("org roster publish failed for {}: {error}", self.org_pubkey);
         }
@@ -512,9 +512,11 @@ fn publish_signed(session: &OrgSession, message: &OrgMessage) -> Result<(), OrgE
         sig_b64: encode(&env.sig),
     };
     let bytes = serde_json::to_vec(&wire).map_err(|e| OrgError::Codec(e.to_string()))?;
+    // Best-effort: an org control frame repeats on the roster cadence, so an
+    // org whose mesh has not formed yet is not a failure to hand back.
     session
         .node
-        .publish_room(&session.mesh_id, &session.control_channel, &bytes)
+        .publish_room_best_effort(&session.mesh_id, &session.control_channel, &bytes)
         .map_err(|e| OrgError::Moss(e.to_string()))
 }
 

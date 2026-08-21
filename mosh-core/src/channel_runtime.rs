@@ -931,6 +931,11 @@ fn channel_inbox() -> &'static inbox::Inbox {
 
 /// Always room-scoped: the shared node's own room is the substrate, so a
 /// room-less publish would land where none of this channel's peers listen.
+///
+/// Best-effort: this carries presence and blob frames, which repeat on their
+/// own and report no delivery status, so an empty channel is not a failure to
+/// hand back. A user message does not come through here — it publishes
+/// directly in `publish_prepared`, where "no peers" does fail the send.
 fn publish_json<T: Serialize>(
     node: &MossNode,
     mesh_id: &str,
@@ -939,7 +944,7 @@ fn publish_json<T: Serialize>(
 ) -> Result<(), ChannelRuntimeError> {
     let payload =
         serde_json::to_vec(value).map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
-    node.publish_room(mesh_id, topic, &payload)
+    node.publish_room_best_effort(mesh_id, topic, &payload)
         .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))
 }
 
@@ -947,7 +952,8 @@ fn publish_json<T: Serialize>(
 mod tests {
     use super::*;
     use crate::moss_ffi::{
-        drain_received_messages, fail_next_test_publish, MossFfiRuntime, MOSS_TEST_LOCK,
+        drain_received_messages, fail_next_test_publish, no_peers_next_test_publish, MossFfiRuntime,
+        MOSS_TEST_LOCK,
     };
     use crate::persistence::Persistence;
     use std::path::PathBuf;
@@ -1111,6 +1117,56 @@ mod tests {
         assert_eq!(matching, 1, "persist tail duplicated the channel message");
 
         let _ = std::fs::remove_file(&db_path);
+    }
+
+    // Regression: Moss answering "no peers" used to count as a successful
+    // publish, so a message nobody could receive showed as Sent. A channel has
+    // no acknowledgement and no resend loop, so the refusal has to land as a
+    // retryable failure the user can act on.
+    #[test]
+    fn no_peers_does_not_count_as_sent() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut channels = ChannelRuntime::from_shared(runtime, temp_store(), None);
+        channels
+            .join(JoinChannelRequest {
+                name: "empty-channel".to_string(),
+                display_name: "Alice".to_string(),
+                listen_port: 42343,
+                static_peer: None,
+            })
+            .expect("channel should join");
+
+        let _no_peers = no_peers_next_test_publish();
+        let result = channels
+            .send("empty-channel", "nobody is here".to_string())
+            .expect("send should return a result");
+
+        assert_eq!(result.delivery_status, MessageDeliveryStatus::Failed);
+        assert_eq!(
+            result.delivery_error.as_deref(),
+            Some("Moss error: no peers yet, so the message did not go out")
+        );
+
+        let live = channels.poll("empty-channel").expect("poll should pass");
+        let message = live
+            .messages
+            .iter()
+            .find(|message| message.message_id.as_deref() == Some(result.message_id.as_str()))
+            .expect("the message should be recorded");
+        assert_eq!(message.delivery_status, Some(MessageDeliveryStatus::Failed));
+        assert_eq!(message.retryable, Some(true));
+
+        // The attempt record survived the failure, so the existing retry path
+        // replays the same bytes without new machinery.
+        let retried = channels
+            .retry_message("empty-channel", &result.message_id)
+            .expect("retry should succeed once a peer is there");
+        assert_eq!(retried.delivery_status, MessageDeliveryStatus::Sent);
     }
 
     #[test]
