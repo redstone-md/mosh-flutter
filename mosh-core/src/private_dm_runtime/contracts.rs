@@ -152,6 +152,10 @@ impl ConversationMessage for ChatMessage {
         self.retryable = delivery.retryable;
         self.retry_count = delivery.retry_count;
     }
+
+    fn delivery_status(&self) -> Option<MessageDeliveryStatus> {
+        self.delivery_status
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

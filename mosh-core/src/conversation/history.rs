@@ -22,7 +22,7 @@ use super::attachments::AttachmentDirection;
 use super::message_log::{delivery_meta, ConversationMessage, MessageLog};
 use super::now_ms;
 use super::transfer::Transfer;
-use crate::outbound_delivery::{MessageDeliveryStatus, OutboundAttemptRecord};
+use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{HistoryTables, Persistence};
 
 /// What a message that was still in flight when the app closed reports.
@@ -132,6 +132,8 @@ impl History {
             }
         }
 
+        settle_orphaned_sends(log, attempts);
+
         self.persisted_counts
             .insert(conversation_id.to_string(), log.len());
     }
@@ -168,10 +170,10 @@ impl History {
         true
     }
 
-    /// Writes one message and the state of its send. No attempt record means
-    /// the send is over and nothing needs replaying, so the stored record goes
-    /// away. `false` when the message is not in the log, which leaves the rest
-    /// of the conversation's state alone as well.
+    /// Writes one message and the state of its send, in one transaction. No
+    /// attempt record means the send is over and nothing needs replaying, so
+    /// the stored record goes away. `false` when the message is not in the
+    /// log, which leaves the rest of the conversation's state alone as well.
     pub fn write_send<M: ConversationMessage>(
         &self,
         p: &Persistence,
@@ -187,19 +189,20 @@ impl History {
             return false;
         };
         let sent_at_ms = message.sent_at_ms().unwrap_or_else(now_ms);
-        self.append(p, conversation_id, sent_at_ms, message_id, message.clone());
-        let scope = self.tables.outbound_scope;
-        match attempts
+        let Some(row) = stored_row(conversation_id, sent_at_ms, message_id, message.clone()) else {
+            return false;
+        };
+        let attempt_row = attempts
             .get(message_id)
-            .and_then(|attempt| serde_json::to_vec(attempt).ok())
-        {
-            Some(row) => {
-                let _ = p.put_outbound_attempt(scope, conversation_id, message_id, &row);
-            }
-            None => {
-                let _ = p.delete_outbound_attempt(scope, conversation_id, message_id);
-            }
-        }
+            .and_then(|attempt| serde_json::to_vec(attempt).ok());
+        let _ = p.commit_send(
+            self.tables,
+            conversation_id,
+            sent_at_ms,
+            message_id,
+            &row,
+            attempt_row.as_deref(),
+        );
         true
     }
 
@@ -225,20 +228,62 @@ impl History {
         message_id: &str,
         message: M,
     ) {
-        let record = StoredMessage {
-            conversation_id: conversation_id.to_string(),
-            sent_at_ms,
-            message_id: message_id.to_string(),
-            message,
-        };
-        if let Ok(json) = serde_json::to_vec(&record) {
+        if let Some(row) = stored_row(conversation_id, sent_at_ms, message_id, message) {
             let _ = p.append_history_message(
                 self.tables,
                 conversation_id,
                 sent_at_ms,
                 message_id,
-                &json,
+                &row,
             );
+        }
+    }
+}
+
+/// One message as the store keeps it. `None` when it will not serialize, which
+/// leaves the row alone rather than writing something replay cannot read.
+fn stored_row<M: ConversationMessage>(
+    conversation_id: &str,
+    sent_at_ms: u64,
+    message_id: &str,
+    message: M,
+) -> Option<Vec<u8>> {
+    let record = StoredMessage {
+        conversation_id: conversation_id.to_string(),
+        sent_at_ms,
+        message_id: message_id.to_string(),
+        message,
+    };
+    serde_json::to_vec(&record).ok()
+}
+
+/// Fails the messages that came back Pending with no attempt record behind
+/// them. A Pending attempt is reclassified above and keeps its payload, so the
+/// user can retry it; a Pending message with no attempt at all has no bytes to
+/// replay, and saying otherwise would only ever answer "message missing".
+///
+/// `write_send` puts the message row and the attempt row down in one
+/// transaction, so this is a torn write from a build that did not, or an
+/// attempt row whose JSON no longer parses.
+fn settle_orphaned_sends<M: ConversationMessage>(
+    log: &mut MessageLog<M>,
+    attempts: &HashMap<String, OutboundAttemptRecord>,
+) {
+    let orphaned: Vec<String> = log
+        .iter()
+        .filter(|message| message.delivery_status() == Some(MessageDeliveryStatus::Pending))
+        .filter_map(|message| message.message_id())
+        .filter(|message_id| !attempts.contains_key(*message_id))
+        .map(str::to_string)
+        .collect();
+    for message_id in orphaned {
+        if let Some(message) = log.find_mut(&message_id) {
+            message.set_delivery(MessageDeliveryMeta {
+                delivery_status: Some(MessageDeliveryStatus::Failed),
+                delivery_error: Some(INTERRUPTED_SEND.to_string()),
+                retryable: Some(false),
+                retry_count: None,
+            });
         }
     }
 }

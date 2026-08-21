@@ -33,6 +33,9 @@ pub trait ConversationMessage: Clone + Serialize {
     /// The file this message carries, if it carries one.
     fn attachment(&self) -> Option<&AttachmentDescriptor>;
     fn set_delivery(&mut self, delivery: MessageDeliveryMeta);
+    /// How this message's send last ended. What a restart reads to tell a
+    /// finished send from one the process died in the middle of.
+    fn delivery_status(&self) -> Option<MessageDeliveryStatus>;
 }
 
 /// Why a log lookup failed. Each runtime maps this onto its own error.
