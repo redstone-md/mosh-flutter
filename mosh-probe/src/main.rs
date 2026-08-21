@@ -149,6 +149,14 @@ enum Command {
         listen_port: u16,
         #[arg(long, default_value_t = 180)]
         timeout_secs: u64,
+        /// Leave the group once the message is heard, so the far end can be
+        /// watched taking over as admin (ADR 0023).
+        #[arg(long, default_value_t = false)]
+        leave_after_heard: bool,
+        /// Stay on the mesh this long after leaving, so the departure frame
+        /// goes out before the node does.
+        #[arg(long, default_value_t = 30)]
+        linger_secs: u64,
     },
     /// Join a private group from its invite, then send one message.
     GroupDial {
@@ -839,6 +847,8 @@ fn group_listen(
     display_name: String,
     listen_port: u16,
     timeout_secs: u64,
+    leave_after_heard: bool,
+    linger_secs: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let role = "group-listen";
     report_interfaces(role);
@@ -876,6 +886,25 @@ fn group_listen(
             snap.messages.iter().map(|m| m.from_fingerprint.as_str()),
         ))
     })?;
+
+    if heard && leave_after_heard {
+        // The admin cannot commit its own removal, so this publishes a
+        // self-removal proposal the successor commits (ADR 0023). Stay on the
+        // mesh afterwards: the frame is best-effort and the room is closed.
+        let left = groups.close(&group_id)?;
+        emit(
+            role,
+            "left",
+            serde_json::json!({ "group_id": left.group_id }),
+        );
+        pump_until(Duration::from_secs(linger_secs), || Ok(false))?;
+        emit(
+            role,
+            "verdict",
+            serde_json::json!({ "ok": true, "stage": "left" }),
+        );
+        return Ok(());
+    }
 
     let snap = groups.poll(&group_id)?;
     emit(
@@ -1203,7 +1232,17 @@ fn main() {
             display_name,
             listen_port,
             timeout_secs,
-        } => group_listen(cli.moss_lib, label, display_name, listen_port, timeout_secs),
+            leave_after_heard,
+            linger_secs,
+        } => group_listen(
+            cli.moss_lib,
+            label,
+            display_name,
+            listen_port,
+            timeout_secs,
+            leave_after_heard,
+            linger_secs,
+        ),
         Command::GroupDial {
             invite,
             display_name,
