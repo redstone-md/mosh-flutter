@@ -413,6 +413,10 @@ flowchart TD
   copies of the same code. The store counts what is already down, which is what
   keeps a message written once instead of once per poll. The shell decides
   when a record is worth rewriting, from the two answers the kind gives it.
+  A send's two rows — the message and its attempt record — go down in one
+  transaction (`Persistence::commit_send`), and a message that comes back
+  `Pending` with no attempt behind it is failed at replay rather than left
+  spinning: a send interrupted by a crash is red, never stuck (ADR 0022).
 - `dm_offers::DmOffers` — the private-DM invitations a channel or a group
   carries. `mint` builds the offer to publish, and derives its id from the
   invite URI so the same invitation twice reads as one offer. `receive` keeps
@@ -565,5 +569,6 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0019-shared-conversation-strata-in-the-core.md - shared conversation strata in mosh-core.
 - docs/ADR/0020-one-inbox-per-owner.md - one inbound queue per owner instead of one queue for everybody.
 - docs/ADR/0021-no-peers-is-not-sent.md - a publish with no peers fails retryably instead of reporting Sent.
+- docs/ADR/0022-a-send-is-one-durable-fact.md - a send's message row and attempt row commit together, and an unbacked Pending comes back failed.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).

@@ -141,6 +141,10 @@ impl ConversationMessage for GroupMessage {
         self.retryable = delivery.retryable;
         self.retry_count = delivery.retry_count;
     }
+
+    fn delivery_status(&self) -> Option<MessageDeliveryStatus> {
+        self.delivery_status
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2250,8 +2254,8 @@ fn optional_query(url: &url::Url, key: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::moss_ffi::{
-        drain_received_messages, fail_next_test_publish, no_peers_next_test_publish, MossFfiRuntime,
-        MOSS_TEST_LOCK,
+        drain_received_messages, fail_next_test_publish, no_peers_next_test_publish,
+        MossFfiRuntime, MOSS_TEST_LOCK,
     };
     use crate::persistence::Persistence;
     use std::path::PathBuf;

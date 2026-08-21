@@ -97,6 +97,10 @@ impl ConversationMessage for ChannelMessage {
         self.retryable = delivery.retryable;
         self.retry_count = delivery.retry_count;
     }
+
+    fn delivery_status(&self) -> Option<MessageDeliveryStatus> {
+        self.delivery_status
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -952,9 +956,10 @@ fn publish_json<T: Serialize>(
 mod tests {
     use super::*;
     use crate::moss_ffi::{
-        drain_received_messages, fail_next_test_publish, no_peers_next_test_publish, MossFfiRuntime,
-        MOSS_TEST_LOCK,
+        drain_received_messages, fail_next_test_publish, no_peers_next_test_publish,
+        MossFfiRuntime, MOSS_TEST_LOCK,
     };
+    use crate::conversation::history::StoredMessage;
     use crate::persistence::Persistence;
     use std::path::PathBuf;
 
@@ -1241,6 +1246,98 @@ mod tests {
             .expect("failed message should rehydrate");
         assert_eq!(failed.delivery_status, Some(MessageDeliveryStatus::Failed));
         assert_eq!(failed.retryable, Some(true));
+
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    // Regression, end to end: a send whose message row reached disk while its
+    // attempt row did not used to rehydrate as a Pending message nothing would
+    // ever settle — a spinner the user could not even retry away. The rule
+    // itself is proved once in `conversation::history`; this checks it reaches
+    // the snapshot the app renders.
+    #[test]
+    fn a_torn_send_row_rehydrates_as_a_plain_failure() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let mut db_path: PathBuf = std::env::temp_dir();
+        db_path.push(format!("mosh-channel-torn-send-{}.redb", std::process::id()));
+        let _ = std::fs::remove_file(&db_path);
+
+        let persistence =
+            Arc::new(Persistence::open_with_dek(&db_path, [19u8; 32]).expect("store should open"));
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+
+        {
+            let mut channels = ChannelRuntime::from_shared(
+                Arc::clone(&runtime),
+                temp_store(),
+                Some(persistence.clone()),
+            );
+            channels
+                .join(JoinChannelRequest {
+                    name: "torn-channel".to_string(),
+                    display_name: "Alice".to_string(),
+                    listen_port: 42345,
+                    static_peer: None,
+                })
+                .expect("channel should join");
+        }
+
+        // What a crash between the two writes leaves behind: the message row
+        // down as Pending, its attempt row never written.
+        let stored = StoredMessage {
+            conversation_id: "torn-channel".to_string(),
+            sent_at_ms: 100,
+            message_id: "torn-1".to_string(),
+            message: ChannelMessage {
+                from_device: "Alice".to_string(),
+                from_fingerprint: "alice-fingerprint".to_string(),
+                body: "cut off mid-send".to_string(),
+                message_id: Some("torn-1".to_string()),
+                sent_at_ms: Some(100),
+                attachment: None,
+                delivery_status: Some(MessageDeliveryStatus::Pending),
+                delivery_error: None,
+                retryable: None,
+                retry_count: Some(0),
+            },
+        };
+        persistence
+            .append_history_message(
+                CHANNEL_HISTORY,
+                "torn-channel",
+                100,
+                "torn-1",
+                &serde_json::to_vec(&stored).expect("stored message json"),
+            )
+            .expect("message row should write");
+
+        let mut revived =
+            ChannelRuntime::from_shared(Arc::clone(&runtime), temp_store(), Some(persistence));
+        revived.rehydrate();
+        let listing = revived.list().expect("listing should pass");
+        let channel = listing
+            .channels
+            .iter()
+            .find(|channel| channel.name == "torn-channel")
+            .expect("rehydrated channel should be present");
+        let torn = channel
+            .messages
+            .iter()
+            .find(|message| message.message_id.as_deref() == Some("torn-1"))
+            .expect("the torn message should rehydrate");
+
+        assert_eq!(torn.delivery_status, Some(MessageDeliveryStatus::Failed));
+        // No attempt record means no payload, so there is nothing to retry
+        // with — and the runtime says so if the user tries anyway.
+        assert_eq!(torn.retryable, Some(false));
+        assert!(matches!(
+            revived.retry_message("torn-channel", "torn-1"),
+            Err(ChannelRuntimeError::MissingMessage(_))
+        ));
 
         let _ = std::fs::remove_file(&db_path);
     }
