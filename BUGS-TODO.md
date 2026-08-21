@@ -39,9 +39,20 @@ Fixed: `RelayJobResult` now carries `retryable`, set only where the worker fails
 
 Ceiling: a relay released again while the re-routed job is queued simply reports retryable once more. The path hysteresis (`T_DIRECT_STABLE_MS` / `T_DIRECT_LOST_MS`) bounds how often that can happen, so there is no counter on the re-routes.
 
-### 8. · send stuck "Pending" on crash — `private_dm_runtime.rs:529, 583`
-Attempt persisted as `Pending` → published → marked `Sent` in memory → `persist_outbound_state(.., false)` clears it at :583. Crash between publish-success and :583 → on-disk attempt stays `Pending`, rehydrates as a stuck "sending" message; user resends → peer dup (peer dedups on message_id, but the stuck-sending UX remains).
-Fix: persist the Sent/cleared state in the same write that records the publish outcome.
+### ~~8.~~ FIXED — send stuck "Pending" on crash — `conversation/history.rs` + `persistence.rs`
+All three kinds write the attempt as `Pending` before publishing, publish, settle in memory, then write the outcome with a second `persist_send` (`route_prepared` in the DM, `publish_prepared` in the group and the channel). A crash in that window leaves a `Pending` attempt on disk.
+
+Half of this was already closed, at a place the ticket's coordinates never pointed at: `History::replay` reclassifies a `Pending` attempt read from disk as a retryable `Failed` ("app closed before the send completed"), so it comes back red rather than spinning, and the DM's `retry_message` "send already in flight" gate — which reads that same status — no longer blocks the manual resend. `a_send_cut_short_by_a_restart_comes_back_failed_not_pending` has covered it since the history store was unified.
+
+What was still open is one level down: `write_send` put the message row and the attempt row in **two** redb transactions. A crash between them left a `Pending` message on disk with no attempt row behind it — the reclassification loop walks attempts, so it had nothing to reclassify, and the message rehydrated as a spinner nothing could ever settle or retry. Same shape when an attempt row is on disk but its JSON no longer parses.
+
+Fixed on both sides:
+- `Persistence::commit_send` writes both rows in one transaction, so the pair can no longer tear. The two writes around the publish stay two writes — the first one is what makes the payload survive a crash *during* the publish, which is the whole point of the attempt record — but each of them is now atomic.
+- `History::replay` fails any message that still comes back `Pending` with no attempt record: `Failed`, `retryable: false`. Without an attempt there are no bytes to replay, so offering a retry would only ever answer "message missing". Heals a database already torn by an older build.
+
+Regression tests (both assert `Some(Pending)` on the old code): `a_pending_message_with_no_attempt_row_comes_back_failed` for the rule, `a_torn_send_row_rehydrates_as_a_plain_failure` end to end through `ChannelRuntime::rehydrate`. The rule lives once in the shared history store, so it is proved once rather than three times.
+
+Decided, not changed: an interrupted send that *does* still have its attempt record stays a manual retry. Re-sending it at rehydrate would mostly fire into a mesh with no peers yet and turn an honest "unknown" into a definite failure faster; feeding it to the DM's auto-resend loop would need it to come back `Sent`, which is the lie ADR 0021 exists to forbid, and only the DM has such a loop.
 
 ---
 
@@ -68,4 +79,3 @@ Fix: store the timeout id in `followUpTimer` and clear it in the effect cleanup;
 ## LOW
 
 - ~~**`moss_ffi.rs`** — `publish` treats `MOSS_ERR_NO_PEERS` (-6) as success → data message shown `Sent` but dropped before mesh forms.~~ **FIXED** — `check_publish_code` returns `MossFfiError::NoPeers` instead of `Ok(())`. A user message in all three kinds (DM `route_send` Data + the `drain_relay_results` re-route, group `publish_prepared`, channel `publish_prepared`) settles as a retryable `Failed`, which the existing `Outbox` + `retry_message` + `FailedMessageRetry` row already carry — no new mechanism. Control frames, which repeat on their own, swallow the refusal through `publish_room_best_effort`. Regression tests: `no_peers_does_not_count_as_sent` in each of the three runtimes (they assert `Sent` on the old code). Live: `mosh-probe channel-dial --send-without-peers` now reports `Failed`. See ADR 0021.
-- **`voice/VoiceMessage.tsx:74-79`** — `peaksFromBase64` recomputed every render → redundant canvas redraws. `useMemo` on `peaks_b64`.
