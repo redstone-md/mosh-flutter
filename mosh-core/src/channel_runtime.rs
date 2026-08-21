@@ -19,7 +19,8 @@ use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::{Transfer, TransferError};
-use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
+use crate::inbox;
+use crate::moss_ffi::{MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{Persistence, CHANNEL_HISTORY};
 use crate::shared_node::SharedMossNode;
@@ -275,6 +276,9 @@ impl ChannelRuntime {
         attachment_store: Arc<AttachmentStore>,
         persistence: Option<Arc<Persistence>>,
     ) -> Self {
+        // Claim the channel topics before any node of ours can start; see
+        // `crate::inbox`.
+        channel_inbox();
         Self {
             shared_node,
             channels: ConversationRuntime::new(attachment_store, persistence, CHANNEL_HISTORY),
@@ -666,10 +670,7 @@ impl ChannelRuntime {
     }
 
     pub fn drain_inbound(&mut self) -> Result<(), ChannelRuntimeError> {
-        let inbound = drain_messages_where(|message| {
-            channel_name_from_topic(&message.channel).is_some()
-                || channel_name_from_blob(&message.channel).is_some()
-        });
+        let inbound = channel_inbox().drain();
         for message in inbound {
             let name = channel_name_from_topic(&message.channel)
                 .or_else(|| channel_name_from_blob(&message.channel))
@@ -916,6 +917,16 @@ fn channel_name_from_topic(topic: &str) -> Option<&str> {
 
 fn channel_name_from_blob(topic: &str) -> Option<&str> {
     topic.strip_prefix(BLOB_PREFIX)
+}
+
+/// The public channel's own inbound queue, claimed once for the process.
+fn channel_inbox() -> &'static inbox::Inbox {
+    static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
+    INBOX.get_or_init(|| {
+        inbox::register(|channel| {
+            channel_name_from_topic(channel).is_some() || channel_name_from_blob(channel).is_some()
+        })
+    })
 }
 
 /// Always room-scoped: the shared node's own room is the substrate, so a

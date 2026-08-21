@@ -4,6 +4,7 @@ pub mod attachment_store;
 pub mod channel_runtime;
 pub mod commit_sequencer;
 pub mod conversation;
+pub mod inbox;
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 pub mod message_id;
 pub mod mls_crypto;

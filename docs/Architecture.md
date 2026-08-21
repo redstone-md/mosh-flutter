@@ -559,5 +559,6 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0017-gateway-takes-the-conversation-target.md - the Dart Gateway takes the conversation target.
 - docs/ADR/0018-one-conversation-module.md - one Conversation module for the DM, the channel and the group.
 - docs/ADR/0019-shared-conversation-strata-in-the-core.md - shared conversation strata in mosh-core.
+- docs/ADR/0020-one-inbox-per-owner.md - one inbound queue per owner instead of one queue for everybody.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).

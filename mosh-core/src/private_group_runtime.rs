@@ -21,7 +21,8 @@ use crate::conversation::runtime::{self, ConversationRuntime, ConversationSessio
 use crate::conversation::transfer::{Transfer, TransferError};
 use crate::conversation::{decode, encode};
 use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
-use crate::moss_ffi::{drain_messages_where, MossFfiRuntime, MossNode, MossReceivedMessage};
+use crate::inbox;
+use crate::moss_ffi::{MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::org_envelope::{self, OrgContext, OrgSigned};
 use crate::org_roster::{self, Roster};
 use crate::org_signing;
@@ -35,6 +36,18 @@ const KIND: &str = "group";
 const CONTROL_CHANNEL_PREFIX: &str = "group-control/";
 const DATA_CHANNEL_PREFIX: &str = "group-data/";
 const BLOB_CHANNEL_PREFIX: &str = "group-blob/";
+
+/// The group's own inbound queue, claimed once for the process.
+fn group_inbox() -> &'static inbox::Inbox {
+    static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
+    INBOX.get_or_init(|| {
+        inbox::register(|channel| {
+            channel.starts_with(CONTROL_CHANNEL_PREFIX)
+                || channel.starts_with(DATA_CHANNEL_PREFIX)
+                || channel.starts_with(BLOB_CHANNEL_PREFIX)
+        })
+    })
+}
 const INVITE_PREFIX: &str = "mosh://group";
 const MAX_LABEL_LEN: usize = 64;
 const MAX_BODY_LEN: usize = 4096;
@@ -462,6 +475,9 @@ impl PrivateGroupRuntime {
         attachment_store: Arc<AttachmentStore>,
         persistence: Option<Arc<Persistence>>,
     ) -> Self {
+        // Claim the group channels before any node of ours can start; see
+        // `crate::inbox`.
+        group_inbox();
         Self {
             shared_node,
             groups: ConversationRuntime::new(attachment_store, persistence, GROUP_HISTORY),
@@ -1089,11 +1105,7 @@ impl PrivateGroupRuntime {
     }
 
     fn drain_inbound(&mut self) -> Result<(), PrivateGroupError> {
-        let inbound = drain_messages_where(|message| {
-            message.channel.starts_with(CONTROL_CHANNEL_PREFIX)
-                || message.channel.starts_with(DATA_CHANNEL_PREFIX)
-                || message.channel.starts_with(BLOB_CHANNEL_PREFIX)
-        });
+        let inbound = group_inbox().drain();
         for message in inbound {
             let group_id = match channel_group_id(&message.channel) {
                 Some(gid) => gid.to_string(),
