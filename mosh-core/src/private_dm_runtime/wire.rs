@@ -189,6 +189,11 @@ pub fn fail_next_test_publish(message: &str) -> crate::moss_ffi::TestPublishFail
 }
 
 #[cfg(test)]
+pub fn no_peers_next_test_publish() -> crate::moss_ffi::TestPublishFailureGuard {
+    crate::moss_ffi::no_peers_next_test_publish()
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

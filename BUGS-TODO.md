@@ -52,7 +52,7 @@ Claimed force-skip could emit out of order / move the cursor backwards. TDD'd it
 ## MEDIUM
 
 ### 18. · Admin-leave handoff lost — `private_group_runtime.rs:1055-1075`
-Admin `close` publishes a self-remove Commit + `AdminHandoff` one-shot (publish even treats `NoPeers` as success), then removes itself. If either frame is dropped by gossip, members keep `current_admin_fingerprint` pointing at the departed admin → group permanently frozen for joins/removals (all admin-gated).
+Admin `close` publishes a self-remove Commit + `AdminHandoff` one-shot (group control frames stay best-effort, so `NoPeers` is still swallowed there — see ADR 0021), then removes itself. If either frame is dropped by gossip, members keep `current_admin_fingerprint` pointing at the departed admin → group permanently frozen for joins/removals (all admin-gated).
 Fix: gate admin departure on confirmed delivery, or let members detect a dead admin and elect the deterministic successor locally.
 
 ### ~~21.~~ FIXED — Snapshot auto-switch races user switch — `use-private-dm-snapshots.ts`
@@ -67,5 +67,5 @@ Fix: store the timeout id in `followUpTimer` and clear it in the effect cleanup;
 
 ## LOW
 
-- **`moss_ffi.rs:520`** — `publish` treats `MOSS_ERR_NO_PEERS` (-6) as success → data message shown `Sent` but dropped before mesh forms. Surface NoPeers as soft-fail, keep retryable.
+- ~~**`moss_ffi.rs`** — `publish` treats `MOSS_ERR_NO_PEERS` (-6) as success → data message shown `Sent` but dropped before mesh forms.~~ **FIXED** — `check_publish_code` returns `MossFfiError::NoPeers` instead of `Ok(())`. A user message in all three kinds (DM `route_send` Data + the `drain_relay_results` re-route, group `publish_prepared`, channel `publish_prepared`) settles as a retryable `Failed`, which the existing `Outbox` + `retry_message` + `FailedMessageRetry` row already carry — no new mechanism. Control frames, which repeat on their own, swallow the refusal through `publish_room_best_effort`. Regression tests: `no_peers_does_not_count_as_sent` in each of the three runtimes (they assert `Sent` on the old code). Live: `mosh-probe channel-dial --send-without-peers` now reports `Failed`. See ADR 0021.
 - **`voice/VoiceMessage.tsx:74-79`** — `peaksFromBase64` recomputed every render → redundant canvas redraws. `useMemo` on `peaks_b64`.
