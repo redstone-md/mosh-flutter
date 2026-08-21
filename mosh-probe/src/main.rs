@@ -192,6 +192,10 @@ enum Command {
         timeout_secs: u64,
         #[arg(long, default_value_t = 30)]
         linger_secs: u64,
+        /// Send straight away instead of waiting for a peer, to see what a
+        /// publish with nobody to publish to reports. Expect a Failed send.
+        #[arg(long, default_value_t = false)]
+        send_without_peers: bool,
     },
 }
 
@@ -1047,6 +1051,7 @@ fn channel_dial(
     message: String,
     timeout_secs: u64,
     linger_secs: u64,
+    send_without_peers: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let role = "channel-dial";
     report_interfaces(role);
@@ -1070,14 +1075,15 @@ fn channel_dial(
         }),
     );
 
-    // There is no handshake to wait on here, and moss reports a publish with
-    // nobody to publish to as a success — so a send before the mesh forms is
-    // silently dropped. Wait for a peer first.
-    let peered = pump_until(Duration::from_secs(timeout_secs), || {
-        let snap = channels.poll(&channel)?;
-        channel_snapshot_line(role, &snap);
-        Ok(snap.mesh.as_ref().is_some_and(|mesh| mesh.peer_count > 0))
-    })?;
+    // There is no handshake to wait on here, and a frame published before the
+    // mesh forms reaches nobody. Wait for a peer first, unless the run is
+    // there to watch a peerless send report itself.
+    let peered = send_without_peers
+        || pump_until(Duration::from_secs(timeout_secs), || {
+            let snap = channels.poll(&channel)?;
+            channel_snapshot_line(role, &snap);
+            Ok(snap.mesh.as_ref().is_some_and(|mesh| mesh.peer_count > 0))
+        })?;
     if !peered {
         let snap = channels.poll(&channel)?;
         emit(
@@ -1233,6 +1239,7 @@ fn main() {
             message,
             timeout_secs,
             linger_secs,
+            send_without_peers,
         } => channel_dial(
             cli.moss_lib,
             channel,
@@ -1241,6 +1248,7 @@ fn main() {
             message,
             timeout_secs,
             linger_secs,
+            send_without_peers,
         ),
     };
 
