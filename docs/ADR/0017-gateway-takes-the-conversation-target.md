@@ -4,6 +4,12 @@
 
 Accepted. Amends ADR 0010 for the Dart side only.
 
+Superseded in one respect by ADR 0024, which moves the per-kind dispatch for
+the six shared conversation actions out of `RealBridgeGateway` and into the Rust
+bridge. The decision below is unchanged: the Gateway still takes the
+conversation as a parameter. What changed is how far down the switch travels —
+the Context and Consequences below still describe the bridge as untouched.
+
 ## Context
 
 ADR 0010 says: "Each current Tauri command maps to one `api` function." That
