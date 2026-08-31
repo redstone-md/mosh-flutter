@@ -58,3 +58,8 @@ pub mod voice_call_playback;
 
 /// Facade for the CPAL-backed two-tone voice-call ringtone.
 pub mod voice_call_ringtone;
+
+/// The one error the bridge speaks for every conversation kind. See ADR 0024:
+/// the shared conversation actions return this instead of a flattened string,
+/// so Dart can branch on what to do about a failure rather than on its text.
+pub mod conversation_bridge;
