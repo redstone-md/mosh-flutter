@@ -7,9 +7,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/channel/channel_screen.dart';
-import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/features/group/group_screen.dart';
+import 'package:mosh/src/features/conversation/channel_screen.dart';
+import 'package:mosh/src/features/conversation/dm_screen.dart';
+import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;

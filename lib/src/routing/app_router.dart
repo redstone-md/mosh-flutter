@@ -27,9 +27,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/features/channel/channel_screen.dart';
-import 'package:mosh/src/features/group/group_screen.dart';
+import 'package:mosh/src/features/conversation/dm_screen.dart';
+import 'package:mosh/src/features/conversation/channel_screen.dart';
+import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';

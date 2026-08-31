@@ -1,4 +1,4 @@
-// Parity tests for `CallLogEntry` (lib/src/features/dm/call_log_entry.dart)
+// Parity tests for `CallLogEntry` (lib/src/features/conversation/call_log_entry.dart)
 // -- the 1-в-1 port of React's `CallLogEntry.tsx`. Asserts the missed and
 // completed variants render the right icon + localized label, and that a
 // non-zero duration appends ` · m:ss`; zero duration omits the suffix.
@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/call_log_entry.dart';
+import 'package:mosh/src/features/conversation/call_log_entry.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import '../../support/pump.dart';
 

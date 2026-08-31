@@ -54,7 +54,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     super.key,
     required this.sessionId,
     required this.l,
-    this.ringtone = const NoopRingtonePlayer(),
+    this.ringtone,
     this.onVoiceCallError,
   });
 
@@ -65,8 +65,9 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   /// callPeerFallback).
   final AppLocalizations l;
 
-  /// The ringtone player for the incoming/outgoing modals.
-  final RingtonePlayer ringtone;
+  /// The ringtone player for the incoming/outgoing modals. Defaults to
+  /// [ringtonePlayerProvider], which is where the app binds one.
+  final RingtonePlayer? ringtone;
 
   /// The owning DM screen's inline error setter for audio setup failures.
   final void Function(String? message)? onVoiceCallError;
@@ -200,6 +201,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     // closes the incoming modal + opens the overlay in the same frame.
     final async = ref.watch(activeSessionProvider(widget.sessionId));
     final s = async.value;
+    final RingtonePlayer ringtone =
+        widget.ringtone ?? ref.read(ringtonePlayerProvider);
 
     // --- Incoming (pending_call) ---
     final pending = s?.pendingCall;
@@ -229,7 +232,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
               Navigator.of(dialogContext).pop();
               _declineCall(pending.callId, reason);
             },
-            ringtone: widget.ringtone,
+            ringtone: ringtone,
             l: widget.l,
           ),
         ).then((_) {
@@ -256,7 +259,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
               Navigator.of(dialogContext).pop();
               _endCall(outgoing.callId, 'hangup');
             },
-            ringtone: widget.ringtone,
+            ringtone: ringtone,
             l: widget.l,
           ),
         ).then((_) {

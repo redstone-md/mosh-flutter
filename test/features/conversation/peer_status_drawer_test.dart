@@ -1,4 +1,4 @@
-// Parity tests for `PeerStatusDrawer` (lib/src/features/dm/
+// Parity tests for `PeerStatusDrawer` (lib/src/features/conversation/
 // peer_status_drawer.dart) -- the 1-в-1 Flutter port of React's
 // `DiagnosticsDrawer.tsx`. The drawer is a `Positioned.fill` overlay (NOT a
 // `showDialog` route), so unlike the call modals it owns its own focus + Esc

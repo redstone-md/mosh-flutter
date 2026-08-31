@@ -5,7 +5,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
-import 'package:mosh/src/features/group/group_screen_header.dart';
+import 'package:mosh/src/features/conversation/group_screen_header.dart';
 import 'package:mosh/src/gateway/conversation_target.dart' show GroupTarget;
 
 class GroupScreen extends StatelessWidget {

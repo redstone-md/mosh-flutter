@@ -11,9 +11,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
+    show conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
-import 'package:mosh/src/features/dm/dm_screen_header.dart';
-import 'package:mosh/src/features/dm/voice_call_layer.dart' show startVoiceCall;
+import 'package:mosh/src/features/conversation/dm_screen_header.dart';
 import 'package:mosh/src/gateway/conversation_target.dart' show DmTarget;
 import 'package:mosh/src/util/format.dart' show readableError;
 
@@ -49,7 +50,9 @@ class _DmScreenState extends ConsumerState<DmScreen> {
       );
 
   Future<void> _startCall() async {
-    final error = await startVoiceCall(ref, widget.sessionId);
+    final call = ref.read(conversationCallBindingProvider);
+    if (call == null) return;
+    final error = await call.start(ref, widget.sessionId);
     if (!mounted || error == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(readableError(error))),

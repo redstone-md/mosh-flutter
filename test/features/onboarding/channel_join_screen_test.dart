@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/src/features/channel/channel_screen.dart';
+import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import '../../support/scriptable_gateway.dart';

@@ -248,12 +248,18 @@ flowchart TD
     Kind --> GW
 ```
 
-Each kind supplies its app bar and its target. Everything below that is
-shared: one controller for send / retry / attachments / voice / leave / peer
-DM, one body, one message list, one row. The screen hands the header and the
-body one `ConversationChrome` -- the search text, the filter, the mobile
-search panel, the peer-status drawer and the leave action -- so neither holds
-a copy of the screen's state.
+Each kind supplies its app bar and its target, and each kind's screen and app
+bar live in this module beside the chrome they share, so the conversation
+module imports no other conversation-shaped module. Everything below the
+header is shared: one controller for send / retry / attachments / voice /
+leave / peer DM, one body, one message list, one row. The screen hands the
+header and the body one `ConversationChrome` -- the search text, the filter,
+the mobile search panel, the peer-status drawer and the leave action -- so
+neither holds a copy of the screen's state.
+
+The one thing a conversation does not own is the call a DM can carry. It
+declares what it needs from one in `conversation_call_binding.dart` and never
+imports the module that answers; see Voice Call Module below.
 
 The three generated snapshots map into one sealed view, so the shared code
 reads one message shape while the kind-only surfaces — the peer-status
@@ -453,20 +459,30 @@ A DM is a conversation that *can carry* a call; the call is not the DM. The
 pipeline used to live under `lib/src/features/dm/`, where nineteen of the
 directory's twenty-two files were the call stack, two were the DM itself
 (`dm_screen.dart` and `dm_screen_header.dart`), and the twenty-second — the
-fingerprint badge — was DM app-bar chrome, not a call at all. It now sits in
+fingerprint badge — was DM app-bar chrome, not a call at all. The two DM
+files moved to `lib/src/features/conversation/`, with the rest of the
+conversation chrome; the fingerprint badge sits in
 `lib/src/features/fingerprint/`, beside the fingerprint confirm surface it was
 ported with. ADR 0018 already keeps the DM-specific part small: its header,
 and whether the safety number has been confirmed in person.
+
+The conversation module does not import this one. It declares what a call
+needs from it — start one, and somewhere to hang the overlay — in
+`conversation_call_binding.dart`; `voice_call_binding.dart` is the adapter
+that answers, and `production_provider_overrides.dart` is the one place the
+two meet. Nothing bound means a conversation starts no call and hangs no
+overlay, which is what an unbound test gets. The ringtone travels the same
+way: the layer reads `ringtonePlayerProvider` unless a test hands it one.
 
 The Dart module name follows the Rust one. `mosh-core` already has
 `voice_call_runtime`, `voice_call_jitter`, `voice_call_frame_crypto` and
 `voice_call_drain`, and the `api` surface exposes `voice_call_*` operations.
 
-`lib/src/features/dm/` keeps the two DM files plus one re-export shim per
-moved file, so existing importers — including the call tests under
-`test/features/dm/` — still compile untouched. The shims are transitional:
-they exist only so a relocation lands without a thousand broken imports, and
-they go away once the importers point at the new paths directly.
+`lib/src/features/dm/` keeps one re-export shim per moved file, so existing
+importers — including the call tests under `test/features/dm/` — still compile
+untouched. The shims are transitional: they exist only so a relocation lands
+without a thousand broken imports, and they go away once the importers point
+at the new paths directly.
 
 `voice_call_orchestrator_provider.dart` still lives in `lib/src/state/`; giving
 call state one home is a separate change from giving the code one directory.

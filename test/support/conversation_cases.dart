@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/channel/channel_screen.dart';
-import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/features/group/group_screen.dart';
+import 'package:mosh/src/features/conversation/channel_screen.dart';
+import 'package:mosh/src/features/conversation/dm_screen.dart';
+import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/routing/app_router.dart';
