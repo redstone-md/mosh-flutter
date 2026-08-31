@@ -11,10 +11,7 @@ import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_native_extensions/raw_clipboard.dart' as raw;
 
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
-    show
-        extensionForFormat,
-        mimeForFormat,
-        pickImageFormat;
+    show extensionForFormat, mimeForFormat, pickImageFormat;
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show AttachmentPickError, PickedAttachment;
 
@@ -126,4 +123,3 @@ void main() {
     });
   });
 }
- 

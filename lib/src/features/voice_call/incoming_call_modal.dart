@@ -43,7 +43,8 @@ import 'package:flutter/services.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/voice_call/call_button.dart';
-import 'package:mosh/src/features/voice_call/call_state.dart' show kNoAnswerTimeoutMs;
+import 'package:mosh/src/features/voice_call/call_state.dart'
+    show kNoAnswerTimeoutMs;
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 

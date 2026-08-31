@@ -162,9 +162,8 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     }
     final uri = _controller.text.trim();
     final flow = ref.read(inviteFlowProvider);
-    final displayName = flow.displayName.isEmpty
-        ? 'anonymous'
-        : flow.displayName;
+    final displayName =
+        flow.displayName.isEmpty ? 'anonymous' : flow.displayName;
     setState(() {
       _busy = true;
       _error = null;
@@ -172,9 +171,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     });
     try {
       if (kind == InviteDetectionKind.dm) {
-        final snapshot = await ref
-            .read(gatewayProvider)
-            .acceptInvite(
+        final snapshot = await ref.read(gatewayProvider).acceptInvite(
               request: AcceptInviteRequest(
                 inviteUri: uri,
                 displayName: displayName,
@@ -189,9 +186,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         // (1-to-1 with React setActive({type:"group", id}) +
         // setShowSetup(false)). orgPubkey is null -- a paste/deep-link
         // join is a direct group invite, not an org group-offer.
-        final snapshot = await ref
-            .read(gatewayProvider)
-            .joinGroup(
+        final snapshot = await ref.read(gatewayProvider).joinGroup(
               request: JoinGroupRequest(
                 inviteUri: uri,
                 displayName: displayName,
@@ -209,9 +204,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         // leaves setup + refreshes the orgs list, so the user lands back on
         // the rail. Flutter has no org screen yet, so navigate to the
         // sessions list (mirrors where leaving a channel or group returns).
-        await ref
-            .read(gatewayProvider)
-            .joinOrg(
+        await ref.read(gatewayProvider).joinOrg(
               request: JoinOrgRequest(
                 bundleUri: uri,
                 displayName: displayName,
@@ -334,8 +327,8 @@ class _DetectBadge extends StatelessWidget {
     final color = detected
         ? scheme.primary
         : isBad
-        ? scheme.error
-        : scheme.outline;
+            ? scheme.error
+            : scheme.outline;
     return Semantics(
       liveRegion: true,
       child: Row(

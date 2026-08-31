@@ -23,7 +23,8 @@ library;
 import 'package:flutter/material.dart';
 
 class GroupRejoinNeededError extends StatelessWidget {
-  const GroupRejoinNeededError({super.key, required this.title, required this.body});
+  const GroupRejoinNeededError(
+      {super.key, required this.title, required this.body});
 
   /// The bold title line. React renders `<strong>{title}.</strong>` -- the
   /// period is appended by React, NOT in the ARB value ("Group out of sync"
@@ -75,4 +76,3 @@ class GroupRejoinNeededError extends StatelessWidget {
     );
   }
 }
-

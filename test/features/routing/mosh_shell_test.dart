@@ -100,7 +100,8 @@ void main() {
       'desktop (1200x900): rail + welcome pane render side-by-side; '
       'tapping a DM row swaps the chat pane while the rail STAYS',
       (tester) async {
-    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'alice-1', peer: 'Alice')]);
+    final gw = ScriptableGateway()
+      ..seedSessions([_session(sessionId: 'alice-1', peer: 'Alice')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -126,7 +127,8 @@ void main() {
       'desktop (1200x900): tapping the titlebar "Peer status" button '
       'mounts PeerStatusDrawer and the close button unmounts it',
       (tester) async {
-    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'carol-1', peer: 'Carol')]);
+    final gw = ScriptableGateway()
+      ..seedSessions([_session(sessionId: 'carol-1', peer: 'Carol')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -162,7 +164,8 @@ void main() {
       'mobile (400x800): rail renders ALONE; tapping a DM row swaps to '
       'DmScreen and the rail is GONE; leaving returns to the rail',
       (tester) async {
-    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'bob-1', peer: 'Bob')]);
+    final gw = ScriptableGateway()
+      ..seedSessions([_session(sessionId: 'bob-1', peer: 'Bob')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
 
@@ -209,7 +212,8 @@ void main() {
   testWidgets(
       'desktop (1200x900): closing a DM routes to /chat so the inline '
       'NewSessionPanel reappears while the rail STAYS mounted', (tester) async {
-    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'frank-1', peer: 'Frank')]);
+    final gw = ScriptableGateway()
+      ..seedSessions([_session(sessionId: 'frank-1', peer: 'Frank')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -245,7 +249,8 @@ void main() {
       'desktop (1200x900): ChatPaneWelcome embeds NewSessionPanel inline; '
       'tapping the Chat tile switches the inline step (no routing); Back '
       'returns to the menu', (tester) async {
-    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'dave-1', peer: 'Dave')]);
+    final gw = ScriptableGateway()
+      ..seedSessions([_session(sessionId: 'dave-1', peer: 'Dave')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
@@ -309,7 +314,8 @@ void main() {
   // chat-create route is not pushed.
   testWidgets('mobile (400x800): ChatPaneWelcome embeds NewSessionPanel inline',
       (tester) async {
-    final gw = ScriptableGateway()..seedSessions([_session(sessionId: 'erin-1', peer: 'Erin')]);
+    final gw = ScriptableGateway()
+      ..seedSessions([_session(sessionId: 'erin-1', peer: 'Erin')]);
 
     await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
 

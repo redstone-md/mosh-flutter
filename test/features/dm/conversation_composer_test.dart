@@ -19,7 +19,9 @@ void main() {
   void noVoice(VoiceSend _) {}
 
   Future<void> pump(WidgetTester tester,
-      {required bool sending, required bool disabled, required TextEditingController c}) async {
+      {required bool sending,
+      required bool disabled,
+      required TextEditingController c}) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: ConversationComposer(

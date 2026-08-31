@@ -21,7 +21,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-
 import 'package:mosh/l10n/app_localizations.dart';
 
 /// Scaffold-free step body shared by the onboarding step screens.

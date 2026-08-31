@@ -213,8 +213,7 @@ ThemeData buildMoshTheme() {
       filled: true,
       fillColor: MoshColors.bg1,
       isDense: true,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       hintStyle: const TextStyle(fontSize: 12.5, color: MoshColors.fg3),
       labelStyle: const TextStyle(fontSize: 11, color: MoshColors.fg2),
       border: _fieldBorder(MoshColors.line),
@@ -341,9 +340,7 @@ TextTheme _moshTextTheme() => ThemeData.dark()
           fontWeight: FontWeight.w600,
           color: MoshColors.fg2),
       labelSmall: const TextStyle(
-          fontFamily: _kSansFamily,
-          fontSize: 10.5,
-          color: MoshColors.fg3),
+          fontFamily: _kSansFamily, fontSize: 10.5, color: MoshColors.fg3),
     );
 
 /// Convenience top-level handle for `MaterialApp.router(theme: moshThemeData)`.

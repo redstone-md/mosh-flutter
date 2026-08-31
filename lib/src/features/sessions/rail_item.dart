@@ -50,9 +50,8 @@ extension on RailItemKind {
         RailItemKind.group => MoshColors.moss,
       };
 
-  Color get ring => this == RailItemKind.channel
-      ? MoshColors.info
-      : MoshColors.moss;
+  Color get ring =>
+      this == RailItemKind.channel ? MoshColors.info : MoshColors.moss;
 }
 
 /// One rail row. [leading] is the avatar (DMs, offers) or the 18px glyph
@@ -98,9 +97,7 @@ class RailItem extends StatelessWidget {
               borderRadius: radius,
               // `inset 0 0 0 2px <accent>` — an inside ring, so a border
               // rather than a Flutter (outset-only) BoxShadow.
-              border: active
-                  ? Border.all(color: kind.ring, width: 2)
-                  : null,
+              border: active ? Border.all(color: kind.ring, width: 2) : null,
             ),
             child: Row(
               children: <Widget>[

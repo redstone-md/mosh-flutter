@@ -59,65 +59,65 @@ void main() {
       // 1-в-1 with React org-ui.test.tsx "badges linked sessions whose peer
       // left the roster and only those": bob is still a member (not badged),
       // carol left (badged), dave's link has no session id (skipped).
-     final org = _org(
-       name: 'acme',
+      final org = _org(
+        name: 'acme',
         rosterVersion: _verified,
-       members: [_member('b' * 64, name: 'bob')],
-       dmLinks: [
-         _link('b' * 64, sessionId: 'dm-bob'),
-         _link('c' * 64, sessionId: 'dm-carol'),
-         _link('d' * 64, sessionId: null),
-       ],
-     );
-     final badges = computeRevokedDmBadges([org]);
-     expect(badges['dm-carol'], 'acme');
-     expect(badges.containsKey('dm-bob'), isFalse);
-     expect(badges.length, 1);
-   });
+        members: [_member('b' * 64, name: 'bob')],
+        dmLinks: [
+          _link('b' * 64, sessionId: 'dm-bob'),
+          _link('c' * 64, sessionId: 'dm-carol'),
+          _link('d' * 64, sessionId: null),
+        ],
+      );
+      final badges = computeRevokedDmBadges([org]);
+      expect(badges['dm-carol'], 'acme');
+      expect(badges.containsKey('dm-bob'), isFalse);
+      expect(badges.length, 1);
+    });
 
-   test('never badges when no roster has been verified yet', () {
-     // 1-в-1 with React "never badges when no roster has been verified yet":
-     // rosterVersion == null -- absence of a member proves nothing.
-     final org = _org(
-       name: 'acme',
-       rosterVersion: null,
-       members: const [],
-       dmLinks: [_link('c' * 64, sessionId: 'dm-carol')],
-     );
-     expect(computeRevokedDmBadges([org]).length, 0);
-   });
+    test('never badges when no roster has been verified yet', () {
+      // 1-в-1 with React "never badges when no roster has been verified yet":
+      // rosterVersion == null -- absence of a member proves nothing.
+      final org = _org(
+        name: 'acme',
+        rosterVersion: null,
+        members: const [],
+        dmLinks: [_link('c' * 64, sessionId: 'dm-carol')],
+      );
+      expect(computeRevokedDmBadges([org]).length, 0);
+    });
 
-   test('mixed orgs: only the revoked-member org is badged', () {
-     // Two orgs -- one with a still-member link, one with a revoked-member
-     // link. Only the revoked one's session is badged (with its own name).
-     final stillOrg = _org(
-       name: 'still-co',
+    test('mixed orgs: only the revoked-member org is badged', () {
+      // Two orgs -- one with a still-member link, one with a revoked-member
+      // link. Only the revoked one's session is badged (with its own name).
+      final stillOrg = _org(
+        name: 'still-co',
         rosterVersion: _verified,
-       members: [_member('b' * 64, name: 'bob')],
-       dmLinks: [_link('b' * 64, sessionId: 'dm-bob')],
-     );
-     final revokedOrg = _org(
-       name: 'gone-co',
+        members: [_member('b' * 64, name: 'bob')],
+        dmLinks: [_link('b' * 64, sessionId: 'dm-bob')],
+      );
+      final revokedOrg = _org(
+        name: 'gone-co',
         rosterVersion: _verified,
-       members: const [],
-       dmLinks: [_link('z' * 64, sessionId: 'dm-zoe')],
-     );
-     final badges = computeRevokedDmBadges([stillOrg, revokedOrg]);
-     expect(badges.length, 1);
-     expect(badges['dm-zoe'], 'gone-co');
-     expect(badges.containsKey('dm-bob'), isFalse);
-   });
+        members: const [],
+        dmLinks: [_link('z' * 64, sessionId: 'dm-zoe')],
+      );
+      final badges = computeRevokedDmBadges([stillOrg, revokedOrg]);
+      expect(badges.length, 1);
+      expect(badges['dm-zoe'], 'gone-co');
+      expect(badges.containsKey('dm-bob'), isFalse);
+    });
 
-   test('skips dm links without a session id', () {
-     // A link whose sessionId is null is skipped entirely (never badged),
-     // even when its peer is not in the verified roster.
-     final org = _org(
-       name: 'acme',
+    test('skips dm links without a session id', () {
+      // A link whose sessionId is null is skipped entirely (never badged),
+      // even when its peer is not in the verified roster.
+      final org = _org(
+        name: 'acme',
         rosterVersion: _verified,
-       members: const [],
-       dmLinks: [_link('c' * 64, sessionId: null)],
-     );
-     expect(computeRevokedDmBadges([org]).length, 0);
-   });
+        members: const [],
+        dmLinks: [_link('c' * 64, sessionId: null)],
+      );
+      expect(computeRevokedDmBadges([org]).length, 0);
+    });
   });
 }

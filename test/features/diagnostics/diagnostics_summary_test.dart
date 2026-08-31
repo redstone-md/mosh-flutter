@@ -75,7 +75,8 @@ DiagnosticSummaryFact _fact(String label, String value) =>
 
 void main() {
   group('diagnosticsSummary - DM branch', () {
-    test('ready session with peers -> tone ready, ready-with-peers description', () {
+    test('ready session with peers -> tone ready, ready-with-peers description',
+        () {
       final s = _session(state: 'ready', mesh: _mesh(peerCount: 1));
       final sum = diagnosticsSummary(l: _l, session: s);
 
@@ -101,7 +102,9 @@ void main() {
           'MLS is ready; Moss peer telemetry is still catching up.');
     });
 
-    test('ready session with null mesh -> ready-no-peers description, booting facts', () {
+    test(
+        'ready session with null mesh -> ready-no-peers description, booting facts',
+        () {
       final s = _session(state: 'ready', mesh: null);
       final sum = diagnosticsSummary(l: _l, session: s);
 
@@ -135,7 +138,8 @@ void main() {
       expect(sum.state, 'Waiting'); // connecting -> stateWaiting
     });
 
-    test('unknown state -> tone idle, idle description, raw-state fallback', () {
+    test('unknown state -> tone idle, idle description, raw-state fallback',
+        () {
       final s = _session(state: 'something-weird', mesh: _mesh(peerCount: 1));
       final sum = diagnosticsSummary(l: _l, session: s);
 
@@ -158,17 +162,27 @@ void main() {
           'MLS is ready and Moss sees at least one peer on this mesh.');
     });
 
-    test('title fallback: empty peerDisplayName -> displayName -> Private session', () {
+    test(
+        'title fallback: empty peerDisplayName -> displayName -> Private session',
+        () {
       expect(
-        diagnosticsSummary(l: _l, session: _session(
-          state: 'ready', displayName: 'bob', peerDisplayName: '',
-        )).title,
+        diagnosticsSummary(
+            l: _l,
+            session: _session(
+              state: 'ready',
+              displayName: 'bob',
+              peerDisplayName: '',
+            )).title,
         'bob',
       );
       expect(
-        diagnosticsSummary(l: _l, session: _session(
-          state: 'ready', displayName: '', peerDisplayName: '',
-        )).title,
+        diagnosticsSummary(
+            l: _l,
+            session: _session(
+              state: 'ready',
+              displayName: '',
+              peerDisplayName: '',
+            )).title,
         'Private session',
       );
     });
@@ -220,7 +234,8 @@ void main() {
       expect(natType(null), 'unknown');
     });
 
-    test('natType: empty-string natType -> "unknown" (JS || falsy fallback)', () {
+    test('natType: empty-string natType -> "unknown" (JS || falsy fallback)',
+        () {
       expect(natType(_mesh(natType: '')), 'unknown');
     });
 
@@ -232,7 +247,8 @@ void main() {
       expect(relayStatus(_mesh(relaySessionCount: 2)), '2 active');
     });
 
-    test('relayStatus: relayedPeerCount > 0 (no sessions) -> "{n} relayed"', () {
+    test('relayStatus: relayedPeerCount > 0 (no sessions) -> "{n} relayed"',
+        () {
       expect(
         relayStatus(_mesh(
           relaySessionCount: 0,
@@ -242,7 +258,9 @@ void main() {
       );
     });
 
-    test('relayStatus: relayCapablePeerCount > 0 (no sessions/relayed) -> "{n} capable"', () {
+    test(
+        'relayStatus: relayCapablePeerCount > 0 (no sessions/relayed) -> "{n} capable"',
+        () {
       expect(
         relayStatus(_mesh(
           relaySessionCount: 0,
@@ -260,23 +278,35 @@ void main() {
 
   group('DiagnosticSummary value semantics', () {
     test('equality + hashCode on equal summaries', () {
-      final a = diagnosticsSummary(l: _l, session: _session(
-        state: 'ready', mesh: _mesh(peerCount: 1),
-      ));
-      final b = diagnosticsSummary(l: _l, session: _session(
-        state: 'ready', mesh: _mesh(peerCount: 1),
-      ));
+      final a = diagnosticsSummary(
+          l: _l,
+          session: _session(
+            state: 'ready',
+            mesh: _mesh(peerCount: 1),
+          ));
+      final b = diagnosticsSummary(
+          l: _l,
+          session: _session(
+            state: 'ready',
+            mesh: _mesh(peerCount: 1),
+          ));
       expect(a, b);
       expect(a.hashCode, b.hashCode);
     });
 
     test('equality differs when facts differ', () {
-      final a = diagnosticsSummary(l: _l, session: _session(
-        state: 'ready', mesh: _mesh(peerCount: 1),
-      ));
-      final b = diagnosticsSummary(l: _l, session: _session(
-        state: 'ready', mesh: _mesh(peerCount: 2),
-      ));
+      final a = diagnosticsSummary(
+          l: _l,
+          session: _session(
+            state: 'ready',
+            mesh: _mesh(peerCount: 1),
+          ));
+      final b = diagnosticsSummary(
+          l: _l,
+          session: _session(
+            state: 'ready',
+            mesh: _mesh(peerCount: 2),
+          ));
       expect(a == b, isFalse);
     });
   });

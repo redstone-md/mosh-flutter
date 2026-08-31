@@ -30,7 +30,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/main.dart' show LifecycleGate;
 
 void main() {
-  testWidgets('LifecycleGate: incomplete cold start, completes on resumed, idempotent',
+  testWidgets(
+      'LifecycleGate: incomplete cold start, completes on resumed, idempotent',
       (tester) async {
     // Cold-start simulation: construct the gate. The binding's
     // `lifecycleState` is null under `flutter test` (no resumed has been
@@ -51,8 +52,7 @@ void main() {
 
     // The first `resumed` completes the completer synchronously.
     gate.handleLifecycleState(AppLifecycleState.resumed);
-    expect(gate.isCompleted, isTrue,
-        reason: 'resumed must complete the gate');
+    expect(gate.isCompleted, isTrue, reason: 'resumed must complete the gate');
 
     // `waitUntilResumed()` resolves once completed (it completes
     // synchronously on handleLifecycleState(resumed)).
@@ -61,8 +61,7 @@ void main() {
     // A second `resumed` is a no-op (idempotent): the completer is already
     // completed, so re-dispatch does not throw (Completer.complete guards).
     gate.handleLifecycleState(AppLifecycleState.resumed);
-    expect(gate.isCompleted, isTrue,
-        reason: 'second resumed is idempotent');
+    expect(gate.isCompleted, isTrue, reason: 'second resumed is idempotent');
     await gate.waitUntilResumed();
   });
 }

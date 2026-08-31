@@ -130,7 +130,7 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-         children: [
+          children: [
             // React `peerLabel` (private-dm-screen.tsx:535-543): peer
             // name -> "peer" -> "invite sent"/"joining", with the Flutter
             // `peerDisplayName` short-circuit. A null snapshot (not loaded

@@ -100,8 +100,7 @@ final notificationsReadyProvider = FutureProvider<bool>((ref) async {
     );
     if (initialized != true) return false;
     if (platform == MoshNotificationPlatform.android) {
-      final ok = await ref
-          .read(androidNotificationPermissionProvider)(plugin);
+      final ok = await ref.read(androidNotificationPermissionProvider)(plugin);
       return ok ?? false;
     }
     if (platform == MoshNotificationPlatform.macos) {

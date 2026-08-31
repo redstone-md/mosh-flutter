@@ -105,7 +105,7 @@ Future<void> setAppDataDirBridge() async {
   // `set_app_data_dir` accepts the SAME path as a no-op (returns Ok) so the
   // warm start does not crash main(). A DIFFERENT path still throws loudly
   // (Rust side) to surface a real Dart-vs-Rust divergence. Slice-3 device-
- // pass finding: the prior non-idempotent inject blank-screened warm starts.
+  // pass finding: the prior non-idempotent inject blank-screened warm starts.
   await api.setAppDataDir(path: path);
   _resolvedAppDataDir = path;
 }

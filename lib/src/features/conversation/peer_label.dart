@@ -53,9 +53,7 @@ String peerLabel(AppLocalizations l, SessionSnapshot session) {
 
   // React role branch (private-dm-screen.tsx:542): alice -> "invite sent",
   // otherwise "joining".
-  return session.role == 'alice'
-      ? l.peerLabelInviteSent
-      : l.peerLabelJoining;
+  return session.role == 'alice' ? l.peerLabelInviteSent : l.peerLabelJoining;
 }
 
 // `firstWhereOrNull` is not in the core iterable API used elsewhere in this

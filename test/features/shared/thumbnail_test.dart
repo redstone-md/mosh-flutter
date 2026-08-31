@@ -16,13 +16,16 @@ import 'package:mosh/src/features/shared/thumbnail.dart';
 
 Uint8List _png(int width, int height, int rgb) {
   final image = img.Image(width: width, height: height);
-  img.fill(image, color: img.ColorRgb8((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF));
+  img.fill(image,
+      color: img.ColorRgb8((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF));
   return Uint8List.fromList(img.encodePng(image));
 }
 
 void main() {
   group('createThumbnail', () {
-    test('returns a base64 JPEG for an image pick (1-в-1 with React imageThumbnail)', () async {
+    test(
+        'returns a base64 JPEG for an image pick (1-в-1 with React imageThumbnail)',
+        () async {
       // A 100x80 PNG larger than the test default; the helper should resize
       // to the 320px max-edge (here the width 100 < 320, so no upscale -- the
       // React scale = min(1, ...) clamps at 1). The output is a JPEG base64.
@@ -36,7 +39,9 @@ void main() {
       expect(jpeg[2], 0xFF);
     });
 
-    test('resizes a large image to the 320px max-edge (React THUMBNAIL_MAX_EDGE)', () async {
+    test(
+        'resizes a large image to the 320px max-edge (React THUMBNAIL_MAX_EDGE)',
+        () async {
       // A 800x600 image: the longest edge is 800, so the thumbnail should be
       // 320x240 (320 * 600/800 = 240). Decode the JPEG and assert dimensions.
       final bytes = _png(800, 600, 0xFF0000FF);
@@ -62,13 +67,15 @@ void main() {
       expect(decoded.height, 320);
     });
 
-    test('returns null for a non-image pick (React non-image branch)', () async {
+    test('returns null for a non-image pick (React non-image branch)',
+        () async {
       final bytes = Uint8List.fromList([1, 2, 3, 4]);
       final result = await createThumbnail(bytes, 'doc.pdf');
       expect(result, isNull);
     });
 
-    test('returns null for a corrupt .png (React try/catch -> undefined)', () async {
+    test('returns null for a corrupt .png (React try/catch -> undefined)',
+        () async {
       // Random bytes with a .png extension: decodeNamedImage returns null,
       // so the helper resolves null (never fatal).
       final bytes = Uint8List.fromList(List.filled(64, 0x42));
@@ -86,8 +93,12 @@ void main() {
   // hit its defensive try/catch and resolve null -- never fatal, mirrors
   // React's videoThumbnail resolving undefined on any error. A real mp4
   // capture is exercised via integration_test, not here.
-  group('createThumbnail (video branch) -- media_kit unavailable in flutter test', () {
-    test('returns null for a video pick when media_kit native backend is unavailable', () async {
+  group(
+      'createThumbnail (video branch) -- media_kit unavailable in flutter test',
+      () {
+    test(
+        'returns null for a video pick when media_kit native backend is unavailable',
+        () async {
       // Garbage bytes with a .mp4 extension: lookupMimeType sees 'video/mp4',
       // so the helper dispatches to _createVideoThumbnail. media_kit's
       // Player/MediaKit.ensureInitialized() throws (no libmpv-2.dll in the
@@ -97,7 +108,8 @@ void main() {
       expect(result, isNull);
     });
 
-    test('returns null for a real .mp4 fixture when media_kit is unavailable', () async {
+    test('returns null for a real .mp4 fixture when media_kit is unavailable',
+        () async {
       // The 10889-byte test/fixtures/sample.mp4 (generated for the tracer
       // bullet) is a valid mp4, but in `flutter test` libmpv is unavailable,
       // so the branch still resolves null (proves the fallback holds for a
@@ -112,7 +124,8 @@ void main() {
       expect(result, isNull);
     }, timeout: const Timeout(Duration(seconds: 30)));
 
-    test('returns null for a non-image/non-video pick (React non-media branch)', () async {
+    test('returns null for a non-image/non-video pick (React non-media branch)',
+        () async {
       // application/pdf: neither image/* nor video/* -> null (unchanged).
       final bytes = Uint8List.fromList([1, 2, 3, 4]);
       final result = await createThumbnail(bytes, 'doc.pdf');

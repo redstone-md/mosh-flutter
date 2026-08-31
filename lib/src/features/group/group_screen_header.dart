@@ -120,7 +120,7 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
 // prior naive binary plural (`memberCount == BigInt.one ? singular :
 // plural`) broke ("2 участников" -> "2 участника"); then the
 // " · MLS {state}" suffix via groupScreenMlsStateSuffix.
-return AppBar(
+    return AppBar(
       toolbarHeight: chatHeaderHeight(context),
       titleTextStyle: chatTitleStyle(context),
       leading: railBackButton(context),
@@ -204,24 +204,21 @@ return AppBar(
               ChatHeaderMenuAction(
                 label: l.chatFilterAll,
                 icon: Icons.chat_bubble_outline,
-                onSelect: () =>
-                    widget.onFilter(ConversationFilter.all),
+                onSelect: () => widget.onFilter(ConversationFilter.all),
               )
             else
               ChatHeaderMenuAction(
                 label: l.chatFilterAttachments,
                 icon: Icons.attach_file,
-                onSelect: () =>
-                    widget.onFilter(ConversationFilter.attachments),
+                onSelect: () => widget.onFilter(ConversationFilter.attachments),
               ),
             if (async.maybeWhen(
               data: (group) => group.inviteUri != null,
               orElse: () => false,
             ))
               ChatHeaderMenuAction(
-                label: _inviteCopied
-                    ? l.groupCopyInviteDone
-                    : l.groupCopyInvite,
+                label:
+                    _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
                 icon: _inviteCopied ? Icons.check : Icons.copy,
                 onSelect: () => _copyInvite(async.value?.inviteUri),
               ),

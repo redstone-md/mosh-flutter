@@ -104,9 +104,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
       _error = null;
     });
     try {
-      await ref
-          .read(gatewayProvider)
-          .joinChannel(
+      await ref.read(gatewayProvider).joinChannel(
             request: JoinChannelRequest(
               name: name,
               displayName: settings.displayName,

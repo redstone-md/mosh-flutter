@@ -406,9 +406,9 @@ void main() {
           required BigInt end,
         }) async =>
             _range(
-              state: AttachmentStreamState.pending,
-              totalSize: 100,
-            ),
+          state: AttachmentStreamState.pending,
+          totalSize: 100,
+        ),
       );
       await server.start();
 

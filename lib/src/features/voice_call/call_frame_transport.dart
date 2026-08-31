@@ -19,7 +19,8 @@ class CallFrameTransport implements CallFrameSource {
   /// gateway and base64-encodes each for call_drain's openFrame path.
   @override
   Future<List<String>> callDrainFrames(String sessionId, String callId) async {
-    final raw = await _gateway.callDrainFrames(sessionId: sessionId, callId: callId);
+    final raw =
+        await _gateway.callDrainFrames(sessionId: sessionId, callId: callId);
     return [for (final frame in raw) bytesToBase64(frame)];
   }
 
@@ -27,6 +28,7 @@ class CallFrameTransport implements CallFrameSource {
   /// React's `gateway.callSendFrame(sessionId, callId, base64)` but
   /// passes raw bytes since the Dart frb surface is raw.
   Future<void> sendFrameBytes(String sessionId, String callId, Uint8List wire) {
-    return _gateway.callSendFrame(sessionId: sessionId, callId: callId, frame: wire);
+    return _gateway.callSendFrame(
+        sessionId: sessionId, callId: callId, frame: wire);
   }
 }

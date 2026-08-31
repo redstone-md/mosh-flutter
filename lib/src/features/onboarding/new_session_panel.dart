@@ -68,9 +68,10 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (warning case AsyncData(
-          :final value,
-        ) when value != null) ...<Widget>[
+        if (warning
+            case AsyncData(
+              :final value,
+            ) when value != null) ...<Widget>[
           PersistenceWarningBanner(warning: value),
           const SizedBox(height: 12),
         ],

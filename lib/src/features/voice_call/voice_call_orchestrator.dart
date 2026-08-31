@@ -70,7 +70,9 @@ class VoiceCallOrchestrator {
     required VoiceCaptureFactory captureFactory,
     required VoicePlaybackFactory playbackFactory,
     required void Function(String? message) onError,
-    required Future<void> Function(String sessionId, String callId, String reason) endCall,
+    required Future<void> Function(
+            String sessionId, String callId, String reason)
+        endCall,
   }) async {
     final directionBit =
         direction == 'caller' ? CALLER_DIRECTION_BIT : CALLEE_DIRECTION_BIT;

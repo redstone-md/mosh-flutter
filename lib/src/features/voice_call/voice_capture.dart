@@ -1,4 +1,3 @@
-
 // VoiceCapture -- the seam between the call orchestrator and an actual
 // mic capture pipeline. React's `audio-capture.ts` builds an
 // AudioWorklet that encodes 48 kHz mono Opus and calls `onFrame` per
@@ -53,5 +52,7 @@ class NoopVoiceCaptureFactory implements VoiceCaptureFactory {
   @override
   bool get isSupported => false;
   @override
-  Future<VoiceCaptureHandle> start(void Function(Uint8List opusFrame) onFrame) async => const _NoopHandle();
+  Future<VoiceCaptureHandle> start(
+          void Function(Uint8List opusFrame) onFrame) async =>
+      const _NoopHandle();
 }

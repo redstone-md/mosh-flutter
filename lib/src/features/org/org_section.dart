@@ -345,9 +345,8 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final name = member.isSelf
-        ? '${member.name} (${l.orgYouBadge})'
-        : member.name;
+    final name =
+        member.isSelf ? '${member.name} (${l.orgYouBadge})' : member.name;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: InkWell(

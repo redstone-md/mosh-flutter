@@ -109,14 +109,11 @@ Future<void> acceptOrgDmOfferAction(
   final flow = ref.read(inviteFlowProvider);
   ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
-    final session = await ref
-        .read(gatewayProvider)
-        .acceptOrgDmOffer(
+    final session = await ref.read(gatewayProvider).acceptOrgDmOffer(
           orgPubkey: orgPubkey,
           offerId: offerId,
-          displayName: flow.displayName.isEmpty
-              ? 'anonymous'
-              : flow.displayName,
+          displayName:
+              flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
           listenPort: flow.listenPort,
           staticPeer: flow.staticPeer,
         );
@@ -161,14 +158,11 @@ Future<void> acceptOrgGroupOfferAction(
   final flow = ref.read(inviteFlowProvider);
   ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
   try {
-    final group = await ref
-        .read(gatewayProvider)
-        .acceptOrgGroupOffer(
+    final group = await ref.read(gatewayProvider).acceptOrgGroupOffer(
           orgPubkey: orgPubkey,
           offerId: offerId,
-          displayName: flow.displayName.isEmpty
-              ? 'anonymous'
-              : flow.displayName,
+          displayName:
+              flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
           listenPort: flow.listenPort,
           staticPeer: flow.staticPeer,
         );
@@ -218,15 +212,12 @@ Future<void> createOrgGroupAction(
         .where((m) => !m.isSelf)
         .map((m) => m.mossPeerId)
         .toList(growable: false);
-    final created = await ref
-        .read(gatewayProvider)
-        .createOrgGroup(
+    final created = await ref.read(gatewayProvider).createOrgGroup(
           orgPubkey: org.orgPubkey,
           label: label.trim().isEmpty ? null : label.trim(),
           memberPeerIds: invited,
-          displayName: flow.displayName.isEmpty
-              ? 'anonymous'
-              : flow.displayName,
+          displayName:
+              flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
           listenPort: flow.listenPort,
           staticPeer: flow.staticPeer,
         );

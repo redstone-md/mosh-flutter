@@ -206,26 +206,26 @@ class _MediaStage extends StatelessWidget {
                 bg0: MoshColors.bg0,
               )
             : isVideo
-            ? _VideoStage(
-                descriptor: descriptor,
-                src: src,
-                maxStageWidth: maxStageWidth,
-                maxStageHeight: maxStageHeight,
-              )
-            : isAudio
-            ? _AudioStage(
-                descriptor: descriptor,
-                src: src,
-                maxStageWidth: maxStageWidth,
-              )
-            : _PlaybackPlaceholderCard(
-                fileName: descriptor.fileName,
-                // React `IconFile` -> Material
-                // `Icons.insert_drive_file_outlined` (matches the
-                // attachment_card file-card icon choice).
-                icon: Icons.insert_drive_file_outlined,
-                bg2: MoshColors.bg2,
-              ),
+                ? _VideoStage(
+                    descriptor: descriptor,
+                    src: src,
+                    maxStageWidth: maxStageWidth,
+                    maxStageHeight: maxStageHeight,
+                  )
+                : isAudio
+                    ? _AudioStage(
+                        descriptor: descriptor,
+                        src: src,
+                        maxStageWidth: maxStageWidth,
+                      )
+                    : _PlaybackPlaceholderCard(
+                        fileName: descriptor.fileName,
+                        // React `IconFile` -> Material
+                        // `Icons.insert_drive_file_outlined` (matches the
+                        // attachment_card file-card icon choice).
+                        icon: Icons.insert_drive_file_outlined,
+                        bg2: MoshColors.bg2,
+                      ),
       ),
     );
   }
@@ -482,9 +482,9 @@ class _AudioStageState extends State<_AudioStage> {
                     value: _position.inMilliseconds.toDouble(),
                     min: 0,
                     max: _duration.inMilliseconds.toDouble().clamp(
-                      1,
-                      double.infinity,
-                    ),
+                          1,
+                          double.infinity,
+                        ),
                     onChanged: (value) =>
                         player.seek(Duration(milliseconds: value.round())),
                   ),

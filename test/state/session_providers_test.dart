@@ -11,8 +11,6 @@ import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
-
-
 void main() {
   test('sessionListProvider resolves to the empty initial session list',
       () async {
@@ -21,12 +19,12 @@ void main() {
     ]);
     addTearDown(container.dispose);
 
-    final snapshot =
-        await container.read(sessionListProvider.future);
+    final snapshot = await container.read(sessionListProvider.future);
     expect(snapshot.sessions, isEmpty);
   });
 
-  test('inviteFlowProvider.create() populates lastInvite and the session '
+  test(
+      'inviteFlowProvider.create() populates lastInvite and the session '
       'appears in sessionListProvider after refresh', () async {
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(ScriptableGateway()),
@@ -43,7 +41,7 @@ void main() {
     // cache so sessionListProvider sees the new session.
     await container.read(sessionListProvider.notifier).refresh();
     final snapshot = await container.read(sessionListProvider.future);
-    expect(snapshot.sessions.map((s) => s.sessionId),
-        contains(invite.sessionId));
+    expect(
+        snapshot.sessions.map((s) => s.sessionId), contains(invite.sessionId));
   });
 }

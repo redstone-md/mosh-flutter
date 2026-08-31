@@ -10,8 +10,8 @@ import 'package:mosh/src/features/dm/call_state.dart';
 
 void main() {
   test('idle -> outgoing on local dial', () {
-    expect(nextCallPhase(CallPhase.idle, CallEvent.localDial),
-        CallPhase.outgoing);
+    expect(
+        nextCallPhase(CallPhase.idle, CallEvent.localDial), CallPhase.outgoing);
   });
 
   test('ringing -> active on local accept', () {
@@ -26,21 +26,20 @@ void main() {
 
   test('any phase -> ended on local_end / remote_end / decline / no_answer',
       () {
-    expect(nextCallPhase(CallPhase.outgoing, CallEvent.localEnd),
-        CallPhase.ended);
+    expect(
+        nextCallPhase(CallPhase.outgoing, CallEvent.localEnd), CallPhase.ended);
     expect(nextCallPhase(CallPhase.ringing, CallEvent.localDecline),
         CallPhase.ended);
-    expect(nextCallPhase(CallPhase.active, CallEvent.remoteEnd),
-        CallPhase.ended);
-    expect(nextCallPhase(CallPhase.outgoing, CallEvent.noAnswer),
-        CallPhase.ended);
+    expect(
+        nextCallPhase(CallPhase.active, CallEvent.remoteEnd), CallPhase.ended);
+    expect(
+        nextCallPhase(CallPhase.outgoing, CallEvent.noAnswer), CallPhase.ended);
   });
 
   test('hasNoAnswerTimedOut fires only after the timeout from dial', () {
     const dialAt = 1000;
     // One ms before the boundary: still ringing.
-    expect(
-        hasNoAnswerTimedOut(dialAt, dialAt + kNoAnswerTimeoutMs - 1), false);
+    expect(hasNoAnswerTimedOut(dialAt, dialAt + kNoAnswerTimeoutMs - 1), false);
     // Exactly at the boundary: timed out.
     expect(hasNoAnswerTimedOut(dialAt, dialAt + kNoAnswerTimeoutMs), true);
   });

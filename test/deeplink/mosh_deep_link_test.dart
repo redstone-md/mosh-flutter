@@ -59,8 +59,7 @@ void main() {
     appRouter.go('/');
   });
 
-  testWidgets(
-      'warm mosh:// link navigates to /join with the field pre-filled',
+  testWidgets('warm mosh:// link navigates to /join with the field pre-filled',
       (tester) async {
     final controller = StreamController<Uri>();
     addTearDown(controller.close);
