@@ -8,7 +8,7 @@
 // so the native cdylib is not involved).
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/channel/channel_screen.dart';
+import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import '../../support/pump.dart';

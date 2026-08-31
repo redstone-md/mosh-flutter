@@ -7,8 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/features/dm/voice_capture.dart';
+import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
+    show conversationCallBindingProvider;
+import 'package:mosh/src/features/conversation/dm_screen.dart';
+import 'package:mosh/src/features/voice_call/voice_capture.dart';
+import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
+    show voiceCallBinding;
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -63,6 +67,9 @@ void main() {
           ),
           voiceCaptureFactoryProvider
               .overrideWithValue(_FailingCaptureFactory()),
+          // The error comes out of the call layer, so this screen needs
+          // the voice-call module bound to the conversation's call slots.
+          conversationCallBindingProvider.overrideWithValue(voiceCallBinding),
         ],
         settle: false);
     await tester.pump(const Duration(milliseconds: 50));

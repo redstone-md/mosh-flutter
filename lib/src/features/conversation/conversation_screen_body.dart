@@ -11,6 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_banners.dart';
+import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
+    show ConversationCallHost, conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
@@ -22,7 +24,6 @@ import 'package:mosh/src/features/conversation/conversation_search_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_state.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
-import 'package:mosh/src/features/dm/voice_call_layer.dart' show VoiceCallLayer;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
@@ -30,8 +31,6 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/state/conversation_providers.dart';
-import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
-    show ringtonePlayerProvider;
 
 /// The gap around the DM's "messages are end-to-end encrypted" line.
 const EdgeInsets _cryptoFooterPadding = EdgeInsets.fromLTRB(16, 4, 16, 8);
@@ -85,6 +84,7 @@ class ConversationScreenBody extends ConsumerWidget {
     final state = ref.watch(conversationControllerProvider(target));
     final controller =
         ref.watch(conversationControllerProvider(target).notifier);
+    final call = ref.watch(conversationCallBindingProvider);
     final chatError = state.chatError;
     return SafeArea(
       child: Stack(
@@ -111,15 +111,17 @@ class ConversationScreenBody extends ConsumerWidget {
                 onClose: chrome.onClosePeerStatus,
               ),
             ),
-          // The call modals and the in-call bar. The layer draws nothing
-          // until there is a call.
-          if (_isDm)
+          // The call modals and the in-call bar, when the app has bound a
+          // call module. The overlay draws nothing until there is a call.
+          if (_isDm && call != null)
             Positioned.fill(
-              child: VoiceCallLayer(
-                sessionId: target.id,
-                l: l,
-                ringtone: ref.read(ringtonePlayerProvider),
-                onVoiceCallError: controller.showError,
+              child: call.overlay(
+                context,
+                ConversationCallHost(
+                  conversationId: target.id,
+                  l: l,
+                  onError: controller.showError,
+                ),
               ),
             ),
         ],

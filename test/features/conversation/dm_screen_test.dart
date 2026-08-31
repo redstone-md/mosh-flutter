@@ -5,7 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/dm/dm_screen.dart';
+import 'package:mosh/src/features/conversation/dm_screen.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';

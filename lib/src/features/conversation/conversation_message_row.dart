@@ -19,7 +19,7 @@ import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
-import 'package:mosh/src/features/dm/call_log_entry.dart';
+import 'package:mosh/src/features/conversation/call_log_entry.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/failed_message_retry.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'

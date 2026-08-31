@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
-import 'package:mosh/src/features/dm/dm_screen.dart';
+import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import '../../support/pump.dart';

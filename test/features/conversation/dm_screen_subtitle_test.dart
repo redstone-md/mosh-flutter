@@ -23,8 +23,8 @@
 // (override `activeSessionProvider` so the native cdylib is not involved).
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/dm/dm_screen.dart';
-import 'package:mosh/src/features/dm/fingerprint_badge.dart';
+import 'package:mosh/src/features/conversation/dm_screen.dart';
+import 'package:mosh/src/features/fingerprint/fingerprint_badge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';

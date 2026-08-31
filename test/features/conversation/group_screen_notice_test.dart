@@ -9,7 +9,7 @@
 // `needs_rejoin` / `orgAddPrompt` fragments -- those are separate atomics.
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/group/group_screen.dart';
+import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import '../../support/pump.dart';
