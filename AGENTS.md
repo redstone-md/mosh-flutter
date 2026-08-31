@@ -106,6 +106,23 @@ Documentation, Testing and Source Control below.
 List only the skills this solution actually uses.
 Do not paste the whole framework catalog here.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues for `redstone-md/mosh-flutter`; use the
+`gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the canonical labels `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human` and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo: read root `CONTEXT.md` and relevant decisions
+under `docs/ADR/`. See `docs/agents/domain.md`.
+
 ## Rules to Follow (Mandatory)
 
 ### Commands
