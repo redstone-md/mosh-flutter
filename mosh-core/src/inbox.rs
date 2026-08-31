@@ -75,9 +75,11 @@ pub fn register(claim: impl Fn(&str) -> bool + Send + Sync + 'static) -> Inbox {
 /// callback thread, so it does no work beyond a claim check and a push.
 pub fn deliver(message: MossReceivedMessage) {
     let mut slots = slots();
-    let owner = slots
-        .iter()
-        .position(|slot| slot.claim.as_ref().is_some_and(|claim| claim(&message.channel)));
+    let owner = slots.iter().position(|slot| {
+        slot.claim
+            .as_ref()
+            .is_some_and(|claim| claim(&message.channel))
+    });
     match owner {
         Some(index) => slots[index].queue.push(message),
         None => {
