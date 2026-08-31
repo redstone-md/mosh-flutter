@@ -45,10 +45,18 @@ void main() {
     });
   });
 
-  // The screen writes `target.key` into the active-conversation key, and the
-  // unread lifecycle reads it back with `ActiveConversation.parse`. The two
-  // are written apart, so pin that they still agree.
+  // Pin that a target builds its key through a ConversationRef.
   group('key', () {
+    test('a target builds its key through a ConversationRef', () {
+      expect(const DmTarget('s1').key, const DmTarget('s1').ref.key);
+      expect(
+          const DmTarget('s1').ref,
+          const ConversationRef(
+            kind: ConversationKind.dm,
+            id: 's1',
+          ));
+    });
+
     const cases = <(AnyConversationTarget, String, ActiveConversationKind)>[
       (DmTarget('s1'), 'dm:s1', ActiveConversationKind.dm),
       (
@@ -71,6 +79,107 @@ void main() {
     test('an id with a colon in it survives the round trip', () {
       const target = ChannelTarget('a:b');
       expect(ActiveConversation.parse(target.key)?.arg, 'a:b');
+    });
+  });
+
+  // ConversationRef owns the `kind:id` grammar. It is the type tickets 07-09
+  // migrate the state layer onto, so it carries its own identity and parsing
+  // contract rather than borrowing the target's.
+  group('ConversationRef', () {
+    group('identity', () {
+      test('same kind and same id are equal and hash the same', () {
+        const a = ConversationRef(kind: ConversationKind.dm, id: 's1');
+        const b = ConversationRef(kind: ConversationKind.dm, id: 's1');
+        expect(a, b);
+        expect(a.hashCode, b.hashCode);
+      });
+
+      test('the same id under another kind is a different conversation', () {
+        const dm = ConversationRef(kind: ConversationKind.dm, id: 'x');
+        const group = ConversationRef(kind: ConversationKind.group, id: 'x');
+        expect(dm, isNot(group));
+      });
+
+      test('a set keeps one ref per conversation', () {
+        final seen = <ConversationRef>{}
+          ..add(const ConversationRef(kind: ConversationKind.group, id: 'g1'))
+          ..add(const ConversationRef(kind: ConversationKind.group, id: 'g1'))
+          ..add(
+            const ConversationRef(kind: ConversationKind.channel, id: 'g1'),
+          );
+        expect(seen, hasLength(2));
+      });
+
+      test('toString names the kind and the id', () {
+        expect(
+          const ConversationRef(kind: ConversationKind.channel, id: 'general')
+              .toString(),
+          'ConversationRef(channel:general)',
+        );
+      });
+    });
+
+    group('key round trip', () {
+      const cases = <(ConversationRef, String)>[
+        (ConversationRef(kind: ConversationKind.dm, id: 's1'), 'dm:s1'),
+        (
+          ConversationRef(kind: ConversationKind.channel, id: 'general'),
+          'channel:general'
+        ),
+        (ConversationRef(kind: ConversationKind.group, id: 'g1'), 'group:g1'),
+      ];
+
+      for (final (ref, expected) in cases) {
+        test('${ref.kind.name} renders and parses back', () {
+          expect(ref.key, expected);
+          expect(ConversationRef.tryParse(ref.key), ref);
+        });
+      }
+
+      test('every kind renders and parses back', () {
+        for (final kind in ConversationKind.values) {
+          final ref = ConversationRef(kind: kind, id: 'x');
+          expect(ConversationRef.tryParse(ref.key), ref);
+        }
+      });
+
+      test('an id with colons in it survives the round trip', () {
+        const ref =
+            ConversationRef(kind: ConversationKind.channel, id: 'a:b:c');
+        expect(ref.key, 'channel:a:b:c');
+        expect(ConversationRef.tryParse(ref.key)?.id, 'a:b:c');
+      });
+    });
+
+    group('malformed keys parse to null', () {
+      const malformed = <(String, String)>[
+        ('', 'no kind and no id'),
+        (':', 'separator only'),
+        (':s1', 'kind missing'),
+        ('dm', 'separator missing'),
+        ('dm:', 'id empty'),
+        ('unknown:s1', 'kind unknown'),
+        ('DM:s1', 'kind is case sensitive'),
+      ];
+
+      for (final (key, why) in malformed) {
+        test('$why (`$key`)', () {
+          expect(ConversationRef.tryParse(key), isNull);
+        });
+      }
+
+      test('a null key is null', () {
+        expect(ConversationRef.tryParse(null), isNull);
+      });
+
+      // The provider holds `String?`, so this is the shape the state layer
+      // actually hands over.
+      test('the active-conversation parser agrees on malformed keys', () {
+        for (final entry in malformed) {
+          expect(ActiveConversation.parse(entry.$1), isNull, reason: entry.$2);
+        }
+        expect(ActiveConversation.parse(null), isNull);
+      });
     });
   });
 

@@ -16,6 +16,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/gateway/conversation_target.dart';
+
 /// Holds the active conversation key (`'dm:<id>'` / `'channel:<name>'` /
 /// `'group:<id>'`) or null when nothing is open. Mirrors React's
 /// `activeConversationKey || null` shape passed to `useUnreadNotifications`.
@@ -38,22 +40,26 @@ class ActiveConversation {
   final ActiveConversationKind kind;
   final String arg;
 
+  /// Reads a key back, or returns null when it names no conversation.
+  ///
+  /// [ConversationRef.tryParse] owns the grammar; this keeps only the
+  /// projection the existing callers read, so a key with an empty id is now
+  /// "nothing open" instead of a conversation with a blank arg.
   static ActiveConversation? parse(String? key) {
-    if (key == null) return null;
-    if (key.startsWith('dm:')) {
-      return ActiveConversation(
-          kind: ActiveConversationKind.dm, arg: key.substring(3));
-    }
-    if (key.startsWith('channel:')) {
-      return ActiveConversation(
-          kind: ActiveConversationKind.channel, arg: key.substring(8));
-    }
-    if (key.startsWith('group:')) {
-      return ActiveConversation(
-          kind: ActiveConversationKind.group, arg: key.substring(6));
-    }
-    return null;
+    final ref = ConversationRef.tryParse(key);
+    if (ref == null) return null;
+    return ActiveConversation(kind: _kindOf(ref.kind), arg: ref.id);
   }
+
+  /// The two kind enums carry the same three names; [ActiveConversation] keeps
+  /// its own so the state layer does not re-export the Gateway's. Ticket 09
+  /// collapses them.
+  static ActiveConversationKind _kindOf(ConversationKind kind) =>
+      switch (kind) {
+        ConversationKind.dm => ActiveConversationKind.dm,
+        ConversationKind.channel => ActiveConversationKind.channel,
+        ConversationKind.group => ActiveConversationKind.group,
+      };
 }
 
 /// The parsed [ActiveConversation] for the current key, or null when no
