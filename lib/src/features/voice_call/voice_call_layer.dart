@@ -32,7 +32,9 @@ import 'dart:io' show Platform;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/state/notifications_provider.dart'
-    show flutterLocalNotificationsPluginProvider, moshNotificationDetails,
+    show
+        flutterLocalNotificationsPluginProvider,
+        moshNotificationDetails,
         notificationsReadyProvider;
 import 'package:mosh/src/features/voice_call/call_overlay.dart';
 import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';

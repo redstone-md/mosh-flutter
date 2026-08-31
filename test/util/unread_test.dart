@@ -2,7 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/util/unread.dart';
 
 List<ConversationCount> counts(List<List<Object>> entries) => entries
-    .map((e) => ConversationCount(id: e[0] as String, messageCount: e[1] as int))
+    .map(
+        (e) => ConversationCount(id: e[0] as String, messageCount: e[1] as int))
     .toList();
 
 void main() {
@@ -24,18 +25,36 @@ void main() {
     test('does not report the active conversation while the window is focused',
         () {
       final lastSeen = {'a': 1};
-      final result = diffConversations(counts([['a', 3]]), lastSeen, 'a', false);
+      final result = diffConversations(
+          counts([
+            ['a', 3]
+          ]),
+          lastSeen,
+          'a',
+          false);
       expect(result.newMessages, isEmpty);
     });
 
     test('reports the active conversation when the window is unfocused', () {
       final lastSeen = {'a': 1};
-      final result = diffConversations(counts([['a', 3]]), lastSeen, 'a', true);
+      final result = diffConversations(
+          counts([
+            ['a', 3]
+          ]),
+          lastSeen,
+          'a',
+          true);
       expect(result.newMessages, [NewMessages(id: 'a', delta: 2)]);
     });
 
     test('treats a first-seen conversation as having no new messages', () {
-      final result = diffConversations(counts([['a', 4]]), <String, int>{}, null, false);
+      final result = diffConversations(
+          counts([
+            ['a', 4]
+          ]),
+          <String, int>{},
+          null,
+          false);
       expect(result.newMessages, isEmpty);
       expect(result.nextLastSeen['a'], 4);
     });

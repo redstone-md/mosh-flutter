@@ -39,8 +39,7 @@ final diagnosticsProvider =
 
 class DiagnosticsNotifier extends AsyncNotifier<AppDiagnostics> {
   @override
-  Future<AppDiagnostics> build() =>
-      ref.watch(gatewayProvider).appDiagnostics();
+  Future<AppDiagnostics> build() => ref.watch(gatewayProvider).appDiagnostics();
 }
 
 /// Server state: native runtime readiness (diagnostics screen, S4.8).
@@ -56,7 +55,8 @@ final nativeRuntimeStatusProvider = FutureProvider<NativeRuntimeStatus>(
 /// displayName; invite-paste reads it). ADR 0010 allows widget-local state,
 /// but this flow spans screens, so a sync NotifierProvider is justified.
 final inviteFlowProvider =
-    NotifierProvider<InviteFlowNotifier, InviteFlowState>(InviteFlowNotifier.new);
+    NotifierProvider<InviteFlowNotifier, InviteFlowState>(
+        InviteFlowNotifier.new);
 
 class InviteFlowState {
   const InviteFlowState({
@@ -91,8 +91,7 @@ class InviteFlowNotifier extends Notifier<InviteFlowState> {
 
   void setDisplayName(String value) =>
       state = state.copyWith(displayName: value);
-  void setListenPort(int value) =>
-      state = state.copyWith(listenPort: value);
+  void setListenPort(int value) => state = state.copyWith(listenPort: value);
   void setStaticPeer(String? value) =>
       state = state.copyWith(staticPeer: value);
 
@@ -124,7 +123,6 @@ class InviteFlowNotifier extends Notifier<InviteFlowState> {
 /// screen, S4.6). A one-shot read per watch; the DM screen re-polls by
 /// re-reading on a timer or invalidating. FutureProvider.family is the v3
 /// idiom for a parameterized async read.
-final activeSessionProvider =
-    FutureProvider.family<SessionSnapshot, String>(
+final activeSessionProvider = FutureProvider.family<SessionSnapshot, String>(
   (ref, sessionId) => ref.watch(gatewayProvider).poll(DmTarget(sessionId)),
 );

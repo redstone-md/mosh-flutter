@@ -40,12 +40,13 @@ import 'package:mosh/src/state/window_focus_provider.dart';
 /// text. `noSuchMethod` covers the rest so any unmocked call surfaces
 /// loudly (the notifications-provider-test convention).
 class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
-  final List<({
-    int id,
-    String? title,
-    String? body,
-    NotificationDetails? details,
-  })> shows = [];
+  final List<
+      ({
+        int id,
+        String? title,
+        String? body,
+        NotificationDetails? details,
+      })> shows = [];
 
   @override
   Future<bool?> initialize({
@@ -219,13 +220,13 @@ void main() {
   group('unreadLifecycleProvider', () {
     test(
         'case 1: the first poll seeds lastSeen and fires no notification '
-        'and leaves the unread map empty (first-seen never reports)',
-        () async {
+        'and leaves the unread map empty (first-seen never reports)', () async {
       final h = _Harness();
       addTearDown(h.container.dispose);
       // Seed a DM with one peer message + a channel with one peer message.
       h.gateway.seedSessions([
-        _dmSession(sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
+        _dmSession(
+            sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
       ]);
       h.gateway.seedChannels([
         _channel(
@@ -243,8 +244,7 @@ void main() {
 
     test(
         'case 2: a second poll with grown counts + focused + active key '
-        'clears the active conversation badge and fires no toast',
-        () async {
+        'clears the active conversation badge and fires no toast', () async {
       final h = _Harness();
       addTearDown(h.container.dispose);
       h.setFocus(true);
@@ -253,7 +253,8 @@ void main() {
       h.container.read(activeConversationKeyProvider.notifier).set('dm:a');
       // First poll: seed lastSeen (dm:a=1, channel:general=1).
       h.gateway.seedSessions([
-        _dmSession(sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
+        _dmSession(
+            sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
       ]);
       h.gateway.seedChannels([
         _channel(
@@ -275,7 +276,10 @@ void main() {
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp'), _channelMsg('peer', 'peerfp')],
+          messages: [
+            _channelMsg('peer', 'peerfp'),
+            _channelMsg('peer', 'peerfp')
+          ],
         ),
       ]);
       await _poll(h.container);
@@ -301,7 +305,8 @@ void main() {
       h.container.read(activeConversationKeyProvider.notifier).set('dm:a');
       // First poll: seed lastSeen (dm:a=1, channel:general=1).
       h.gateway.seedSessions([
-        _dmSession(sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
+        _dmSession(
+            sessionId: 'a', displayName: 'me', messages: [_dmMsg('peer')]),
       ]);
       h.gateway.seedChannels([
         _channel(
@@ -317,7 +322,10 @@ void main() {
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp'), _channelMsg('peer', 'peerfp')],
+          messages: [
+            _channelMsg('peer', 'peerfp'),
+            _channelMsg('peer', 'peerfp')
+          ],
         ),
       ]);
       await _poll(h.container);
@@ -334,8 +342,7 @@ void main() {
 
     test(
         'case 4: the toast is NOT fired when the window is focused OR when '
-        'notificationsReady is false',
-        () async {
+        'notificationsReady is false', () async {
       // Focused branch: even with growth + a non-active conversation, no
       // toast fires (the gate's `!focused` half).
       final hFocused = _Harness();
@@ -353,7 +360,10 @@ void main() {
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp'), _channelMsg('peer', 'peerfp')],
+          messages: [
+            _channelMsg('peer', 'peerfp'),
+            _channelMsg('peer', 'peerfp')
+          ],
         ),
       ]);
       await _poll(hFocused.container);
@@ -375,7 +385,10 @@ void main() {
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp'), _channelMsg('peer', 'peerfp')],
+          messages: [
+            _channelMsg('peer', 'peerfp'),
+            _channelMsg('peer', 'peerfp')
+          ],
         ),
       ]);
       await _poll(hNotReady.container);
@@ -402,7 +415,10 @@ void main() {
         _channel(
           name: 'watercooler',
           deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp'), _channelMsg('peer', 'peerfp')],
+          messages: [
+            _channelMsg('peer', 'peerfp'),
+            _channelMsg('peer', 'peerfp')
+          ],
         ),
       ]);
       await _poll(h.container);
@@ -412,8 +428,7 @@ void main() {
       expect(h.notifications.shows.single.body, '#watercooler - new message');
     });
 
-    test(
-        'case 6: a first-seen conversation never notifies (no baseline)',
+    test('case 6: a first-seen conversation never notifies (no baseline)',
         () async {
       final h = _Harness();
       addTearDown(h.container.dispose);
@@ -450,7 +465,10 @@ void main() {
         _channel(
           name: 'general',
           deviceFingerprint: 'ownfp',
-          messages: [_channelMsg('peer', 'peerfp'), _channelMsg('peer', 'peerfp')],
+          messages: [
+            _channelMsg('peer', 'peerfp'),
+            _channelMsg('peer', 'peerfp')
+          ],
         ),
       ]);
       await _poll(h.container);

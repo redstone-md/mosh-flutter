@@ -77,10 +77,9 @@ class OfferRailItem extends StatelessWidget {
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
-              subtitle: Text(subtitle,
-                  style: theme.textTheme.bodySmall),
-              trailing: Icon(Icons.chat_bubble_outline, size: 14,
-                  color: theme.colorScheme.primary),
+              subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
+              trailing: Icon(Icons.chat_bubble_outline,
+                  size: 14, color: theme.colorScheme.primary),
               onTap: onAccept,
             ),
           ),

@@ -134,8 +134,8 @@ ProviderContainer _container({
     gatewayProvider.overrideWithValue(gateway),
     voiceCaptureFactoryProvider
         .overrideWithValue(captureFactory ?? const NoopVoiceCaptureFactory()),
-    voicePlaybackFactoryProvider.overrideWithValue(
-        playbackFactory ?? const NoopVoicePlaybackFactory()),
+    voicePlaybackFactoryProvider
+        .overrideWithValue(playbackFactory ?? const NoopVoicePlaybackFactory()),
     voiceCallErrorSinkProvider.overrideWithValue(errorSink ?? (_) {}),
   ]);
 }
@@ -165,8 +165,8 @@ void main() {
     test('an ActiveCall appears -> attach runs (capture/playback start)',
         () async {
       final gateway = ScriptableGateway();
-      final controller = _SessionController(
-          _session('sess-1', activeCall: _activeCall('a')));
+      final controller =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
       final playback = _RecordingPlaybackFactory();
       final container = _container(
@@ -187,8 +187,8 @@ void main() {
 
     test('toggling mute updates state and the orchestrator flag', () async {
       final gateway = ScriptableGateway();
-      final controller = _SessionController(
-          _session('sess-1', activeCall: _activeCall('a')));
+      final controller =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final container = _container(controller: controller, gateway: gateway);
       addTearDown(container.dispose);
 
@@ -199,7 +199,8 @@ void main() {
       container
           .read(voiceCallOrchestratorProvider('sess-1').notifier)
           .toggleMute();
-      expect(container.read(voiceCallOrchestratorProvider('sess-1')).muted, true);
+      expect(
+          container.read(voiceCallOrchestratorProvider('sess-1')).muted, true);
       container
           .read(voiceCallOrchestratorProvider('sess-1').notifier)
           .toggleMute();
@@ -210,8 +211,8 @@ void main() {
     test('a new ActiveCall (different callId) re-attaches (old detached)',
         () async {
       final gateway = ScriptableGateway();
-      final controller = _SessionController(
-          _session('sess-1', activeCall: _activeCall('a')));
+      final controller =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
       final playback = _RecordingPlaybackFactory();
       final container = _container(
@@ -242,8 +243,8 @@ void main() {
     test('ActiveCall disappears -> orchestrator detached (handle stopped)',
         () async {
       final gateway = ScriptableGateway();
-      final controller = _SessionController(
-          _session('sess-1', activeCall: _activeCall('a')));
+      final controller =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
       final playback = _RecordingPlaybackFactory();
       final container = _container(
@@ -269,8 +270,8 @@ void main() {
 
     test('endCall callback calls gateway.callEnd + surfaces error', () async {
       final gateway = ScriptableGateway();
-      final controller = _SessionController(
-          _session('sess-1', activeCall: _activeCall('a')));
+      final controller =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _FailingCaptureFactory('boom');
       final playback = _RecordingPlaybackFactory();
       final errors = <String?>[];
@@ -292,9 +293,12 @@ void main() {
 
       expect(errors, isNotEmpty);
       expect(gateway.countOf(GatewayMethod.callEnd), 1);
-      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('sessionId'), 'sess-1');
-      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('callId'), 'a');
-      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('reason'), 'setup_failed');
+      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('sessionId'),
+          'sess-1');
+      expect(
+          gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('callId'), 'a');
+      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('reason'),
+          'setup_failed');
     });
   });
 }

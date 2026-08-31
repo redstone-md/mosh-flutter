@@ -47,7 +47,8 @@ Map<String, int> unreadDmCounts(SessionListSnapshot snapshot) {
   final counts = <String, int>{};
   for (final session in snapshot.sessions) {
     final authors = session.messages
-        .map((m) => MessageAuthor(fromDevice: m.fromDevice, fromFingerprint: null))
+        .map((m) =>
+            MessageAuthor(fromDevice: m.fromDevice, fromFingerprint: null))
         .toList();
     final count = countMessagesFromOthers(authors, session.displayName);
     counts['dm:${session.sessionId}'] = count;
@@ -121,7 +122,8 @@ final unreadDmCountsProvider = FutureProvider<Map<String, int>>((ref) async {
 /// Mirrors [unreadDmCountsProvider] 1:1 but against `channelListProvider`.
 /// On loading/error the `.value` degrade in the sessions screen leaves the
 /// map empty so channel badges stay absent (same null-guard path as DMs).
-final unreadChannelCountsProvider = FutureProvider<Map<String, int>>((ref) async {
+final unreadChannelCountsProvider =
+    FutureProvider<Map<String, int>>((ref) async {
   final snapshot = await ref.watch(channelListProvider.future);
   return unreadChannelCounts(snapshot);
 });

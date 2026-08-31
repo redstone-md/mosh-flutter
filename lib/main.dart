@@ -168,9 +168,8 @@ void main(List<String> args) async {
       root = MoshLockScreen(
         swapTo: (Widget next) => _appRoot.value = next,
         nextApp: MoshApp(relauncher: relauncher),
-        initialState: insecureDevice
-            ? LockState.insecureDevice
-            : LockState.canceled,
+        initialState:
+            insecureDevice ? LockState.insecureDevice : LockState.canceled,
       );
     }
   } else {

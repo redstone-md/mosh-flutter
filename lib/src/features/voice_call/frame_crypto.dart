@@ -41,7 +41,8 @@ Future<Uint8List> sealFrame(
   final nonce = buildNonce(noncePrefixBase64, seq);
   final algo = AesGcm.with256bits();
   final secretBox = await algo.encrypt(payload, secretKey: key, nonce: nonce);
-  final wire = Uint8List.fromList([...secretBox.cipherText, ...secretBox.mac.bytes]);
+  final wire =
+      Uint8List.fromList([...secretBox.cipherText, ...secretBox.mac.bytes]);
   return buildFrame(seq, wire);
 }
 

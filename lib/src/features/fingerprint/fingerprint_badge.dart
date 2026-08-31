@@ -22,7 +22,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-
 import 'package:mosh/l10n/app_localizations.dart';
 
 /// The compact pill regex pattern ported from React `.{1,4}`.
@@ -65,9 +64,8 @@ class FingerprintBadge extends StatelessWidget {
     // rgba(moss,0.3) border. The unconfirmed state is a WARNING, so it is
     // --warn rather than a neutral outline.
     final accent = confirmed ? MoshColors.moss : MoshColors.warn;
-    final border = confirmed
-        ? MoshColors.moss.withValues(alpha: 0.3)
-        : MoshColors.line;
+    final border =
+        confirmed ? MoshColors.moss.withValues(alpha: 0.3) : MoshColors.line;
     return Semantics(
       label: confirmed ? l.inviteConfirmedButton : l.inviteConfirmButton,
       button: true,

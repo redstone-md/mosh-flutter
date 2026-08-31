@@ -78,8 +78,7 @@ void registerMoshUrlScheme() {
     // passes the clicked URI as %1; the runner forwards it to Dart as an
     // entrypoint argument). The default (unnamed) value is written by
     // passing '' as the value name.
-    final commandKey =
-        protocolKey.create('shell\\open\\command');
+    final commandKey = protocolKey.create('shell\\open\\command');
     try {
       commandKey.setValue('', RegistryValue.string('"$appPath" "%1"'));
     } finally {

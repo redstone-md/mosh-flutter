@@ -100,9 +100,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
       _error = null;
     });
     try {
-      final created = await ref
-          .read(gatewayProvider)
-          .createGroup(
+      final created = await ref.read(gatewayProvider).createGroup(
             request: CreateGroupRequest(
               label: label.isEmpty ? null : label,
               displayName: settings.displayName,

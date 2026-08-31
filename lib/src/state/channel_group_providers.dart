@@ -56,11 +56,10 @@ final groupListProvider =
 
 class GroupListNotifier extends AsyncNotifier<GroupListSnapshot> {
   @override
-  Future<GroupListSnapshot> build() =>
-      ref.watch(gatewayProvider).listGroups();
+  Future<GroupListSnapshot> build() => ref.watch(gatewayProvider).listGroups();
 
-/// Re-run the server query after a mutation (create/join/send/leave,
-/// later atomic).
+  /// Re-run the server query after a mutation (create/join/send/leave,
+  /// later atomic).
   Future<void> refresh() async => state = await AsyncValue.guard(
         () => ref.read(gatewayProvider).listGroups(),
       );
@@ -70,8 +69,7 @@ class GroupListNotifier extends AsyncNotifier<GroupListSnapshot> {
 /// screen, S5-1). A one-shot read per watch, mirroring `activeSessionProvider`
 /// 1:1 but against `Gateway.poll` with a ChannelTarget. The ChannelScreen re-polls by
 /// invalidating the family entry after a send/leave (ADR 0010 family idiom).
-final channelSnapshotProvider =
-    FutureProvider.family<ChannelSnapshot, String>(
+final channelSnapshotProvider = FutureProvider.family<ChannelSnapshot, String>(
   (ref, name) => ref.watch(gatewayProvider).poll(ChannelTarget(name)),
 );
 
@@ -82,7 +80,6 @@ final channelSnapshotProvider =
 /// entry after a send/leave (ADR 0010 family idiom). Keyed by `groupId`
 /// (the group identity), NOT a display name -- mirroring the Rust/React
 /// `group_id` shape.
-final groupSnapshotProvider =
-    FutureProvider.family<GroupSnapshot, String>(
+final groupSnapshotProvider = FutureProvider.family<GroupSnapshot, String>(
   (ref, groupId) => ref.watch(gatewayProvider).poll(GroupTarget(groupId)),
 );

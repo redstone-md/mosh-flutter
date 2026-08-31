@@ -105,9 +105,8 @@ bool _isOrgBundle(String value) {
   }
   final mesh = uri.queryParameters['mesh'];
   final name = uri.queryParameters['name'];
-  final fragment = uri.fragment.startsWith('org=')
-      ? uri.fragment.substring(4)
-      : '';
+  final fragment =
+      uri.fragment.startsWith('org=') ? uri.fragment.substring(4) : '';
   final hex = RegExp(r'^[0-9a-fA-F]{64}$');
   return mesh != null &&
       mesh.isNotEmpty &&

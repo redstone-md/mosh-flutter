@@ -22,11 +22,12 @@ void main() {
     });
 
     test('returns a group-specific fingerprint message', () {
-      final result = detectInvite(
-          'mosh://group?mesh=mesh-one&group=group-one#fp=ABCD');
+      final result =
+          detectInvite('mosh://group?mesh=mesh-one&group=group-one#fp=ABCD');
       expect(result.kind, InviteDetectionKind.unknown);
       expect(result.errorCode, InviteParseErrorCode.invalidFingerprint);
-      expect(result.errorMessage, 'Group fingerprint must be 32 hex characters.');
+      expect(
+          result.errorMessage, 'Group fingerprint must be 32 hex characters.');
     });
   });
 }

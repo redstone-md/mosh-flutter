@@ -23,7 +23,6 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-
 /// Persistent inline error displayed below the primary button on the
 /// onboarding step screens when a create/join handler fails.
 ///

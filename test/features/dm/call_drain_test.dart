@@ -15,14 +15,16 @@ import 'package:mosh/src/features/dm/frame_codec.dart';
 import 'package:mosh/src/features/dm/frame_crypto.dart';
 import 'package:mosh/src/features/dm/jitter_buffer.dart';
 
-const String KEY_B64 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; // 32 zero bytes
+const String KEY_B64 =
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; // 32 zero bytes
 const String PREFIX_B64 = 'AAAAAA=='; // 4 zero bytes
 
 class _FakeSource implements CallFrameSource {
   _FakeSource(this.frames);
   List<String> frames;
   @override
-  Future<List<String>> callDrainFrames(String sessionId, String callId) async => frames;
+  Future<List<String>> callDrainFrames(String sessionId, String callId) async =>
+      frames;
 }
 
 class _FakeSink implements CallFrameSink {
@@ -59,10 +61,14 @@ void main() {
       final key = await importCallKey(KEY_B64);
       // Seal frames with distinct payloads keyed by seq, then deliver them
       // out of order ([3,1,2]). The jitter buffer must reorder to [1,2,3].
-      final f1 = await sealFrame(key, PREFIX_B64, BigInt.one, CALLER_DIRECTION_BIT, Uint8List.fromList([10]));
-      final f2 = await sealFrame(key, PREFIX_B64, BigInt.two, CALLER_DIRECTION_BIT, Uint8List.fromList([20]));
-      final f3 = await sealFrame(key, PREFIX_B64, BigInt.from(3), CALLER_DIRECTION_BIT, Uint8List.fromList([30]));
-      final source = _FakeSource([bytesToBase64(f3), bytesToBase64(f1), bytesToBase64(f2)]);
+      final f1 = await sealFrame(key, PREFIX_B64, BigInt.one,
+          CALLER_DIRECTION_BIT, Uint8List.fromList([10]));
+      final f2 = await sealFrame(key, PREFIX_B64, BigInt.two,
+          CALLER_DIRECTION_BIT, Uint8List.fromList([20]));
+      final f3 = await sealFrame(key, PREFIX_B64, BigInt.from(3),
+          CALLER_DIRECTION_BIT, Uint8List.fromList([30]));
+      final source = _FakeSource(
+          [bytesToBase64(f3), bytesToBase64(f1), bytesToBase64(f2)]);
       final jitter = JitterBuffer();
       final playback = _FakeSink();
 
@@ -87,10 +93,13 @@ void main() {
 
     test('skips frames that fail auth (tampered) and plays the rest', () async {
       final key = await importCallKey(KEY_B64);
-      final good = await sealFrame(key, PREFIX_B64, BigInt.one, CALLER_DIRECTION_BIT, Uint8List.fromList([10]));
-      final tampered = await sealFrame(key, PREFIX_B64, BigInt.two, CALLER_DIRECTION_BIT, Uint8List.fromList([20]));
+      final good = await sealFrame(key, PREFIX_B64, BigInt.one,
+          CALLER_DIRECTION_BIT, Uint8List.fromList([10]));
+      final tampered = await sealFrame(key, PREFIX_B64, BigInt.two,
+          CALLER_DIRECTION_BIT, Uint8List.fromList([20]));
       tampered[tampered.length - 1] ^= 0xff; // flip last byte -> GCM auth fails
-      final source = _FakeSource([bytesToBase64(good), bytesToBase64(tampered)]);
+      final source =
+          _FakeSource([bytesToBase64(good), bytesToBase64(tampered)]);
       final jitter = JitterBuffer();
       final playback = _FakeSink();
 

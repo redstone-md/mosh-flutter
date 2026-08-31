@@ -81,30 +81,30 @@ void main() {
   });
 
   group('unreadDmCountsProvider', () {
-    test('resolves to the derived map over the seeded snapshot',
-        () async {
-      final gateway = ScriptableGateway()..seedSessions([
-        _session(
-          sessionId: 'a',
-          displayName: 'me',
-          messages: [
-            _msg('me'),
-            _msg('peer'),
-            _msg('me'),
-            _msg('peer'),
-          ],
-        ),
-        _session(
-          sessionId: 'b',
-          displayName: 'me',
-          messages: [_msg('me'), _msg('me'), _msg('me')],
-        ),
-        _session(
-          sessionId: 'c',
-          displayName: 'me',
-          messages: [_msg('peer')],
-        ),
-      ]);
+    test('resolves to the derived map over the seeded snapshot', () async {
+      final gateway = ScriptableGateway()
+        ..seedSessions([
+          _session(
+            sessionId: 'a',
+            displayName: 'me',
+            messages: [
+              _msg('me'),
+              _msg('peer'),
+              _msg('me'),
+              _msg('peer'),
+            ],
+          ),
+          _session(
+            sessionId: 'b',
+            displayName: 'me',
+            messages: [_msg('me'), _msg('me'), _msg('me')],
+          ),
+          _session(
+            sessionId: 'c',
+            displayName: 'me',
+            messages: [_msg('peer')],
+          ),
+        ]);
 
       final container = ProviderContainer(overrides: [
         gatewayProvider.overrideWithValue(gateway),

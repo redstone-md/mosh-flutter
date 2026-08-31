@@ -113,10 +113,10 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   // `.onboard-section-label { font-size: 10.5px; font-weight: 700;
   // letter-spacing: 0.13em; color: var(--fg-4) }`.
   TextStyle? _sectionStyle(ThemeData t) => t.textTheme.labelSmall?.copyWith(
-    color: MoshColors.fg4,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 1.365,
-  );
+        color: MoshColors.fg4,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.365,
+      );
 
   @override
   Widget build(BuildContext context) {

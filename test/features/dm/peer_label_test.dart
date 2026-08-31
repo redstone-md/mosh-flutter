@@ -47,7 +47,9 @@ void main() {
       expect(peerLabel(l, s), 'remote-pal');
     });
 
-    test('empty peerDisplayName + a peer message -> that fromDevice (React primary branch)', () {
+    test(
+        'empty peerDisplayName + a peer message -> that fromDevice (React primary branch)',
+        () {
       final s = _session(
         role: 'alice',
         state: 'pending',
@@ -56,13 +58,15 @@ void main() {
       expect(peerLabel(l, s), 'remote-peer');
     });
 
-    test('empty + no peer message + state==ready -> "Peer" (callPeerFallback)', () {
+    test('empty + no peer message + state==ready -> "Peer" (callPeerFallback)',
+        () {
       final s = _session(role: 'alice', state: 'ready', messages: [_msg('me')]);
       expect(peerLabel(l, s), l.callPeerFallback);
     });
 
     test('empty + not ready + role==alice -> "invite sent"', () {
-      final s = _session(role: 'alice', state: 'pending', messages: [_msg('me')]);
+      final s =
+          _session(role: 'alice', state: 'pending', messages: [_msg('me')]);
       expect(peerLabel(l, s), 'invite sent');
     });
 

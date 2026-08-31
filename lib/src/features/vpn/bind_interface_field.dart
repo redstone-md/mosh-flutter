@@ -37,7 +37,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bypass_adapter.dart';
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
@@ -94,17 +93,15 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
       setState(() {
         _interfaces = list;
         _current = bind;
-        _picked = bind != null && bind.isNotEmpty
-            ? bind
-            : defaultBypassAdapter(list);
+        _picked =
+            bind != null && bind.isNotEmpty ? bind : defaultBypassAdapter(list);
         _error = null;
       });
     } catch (err) {
       if (!mounted) return;
       setState(() {
-        _error = err is Exception
-            ? err.toString()
-            : widget.l.bindAdapterReadError;
+        _error =
+            err is Exception ? err.toString() : widget.l.bindAdapterReadError;
       });
     }
   }
@@ -127,9 +124,8 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = err is Exception
-            ? err.toString()
-            : widget.l.bindAdapterApplyError;
+        _error =
+            err is Exception ? err.toString() : widget.l.bindAdapterApplyError;
       });
     }
   }
@@ -198,8 +194,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
           const SizedBox(height: 10),
           if (candidates.isEmpty)
             Text(l.bindAdapterNoNic,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(fontSize: 11))
+                style: theme.textTheme.bodySmall?.copyWith(fontSize: 11))
           else
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,8 +229,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
                             _busy ? l.bindAdapterSaving : l.bindAdapterRelease),
                       )
                     : FilledButton(
-                        onPressed:
-                            (_busy || _picked.isEmpty) ? null : _apply,
+                        onPressed: (_busy || _picked.isEmpty) ? null : _apply,
                         child: Text(
                             _busy ? l.bindAdapterSaving : l.bindAdapterBind),
                       ),

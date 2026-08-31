@@ -35,7 +35,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart'
-    show flutterLocalNotificationsPluginProvider, moshNotificationDetails,
+    show
+        flutterLocalNotificationsPluginProvider,
+        moshNotificationDetails,
         notificationsReadyProvider;
 import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/window_focus_provider.dart';
@@ -146,8 +148,7 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     if (!focused) {
       final ready = ref.read(notificationsReadyProvider).value ?? false;
       if (ready) {
-        final plugin =
-            ref.read(flutterLocalNotificationsPluginProvider);
+        final plugin = ref.read(flutterLocalNotificationsPluginProvider);
         for (final message in diff.newMessages) {
           final body = notificationBody(message.id);
           try {

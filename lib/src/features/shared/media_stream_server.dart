@@ -15,6 +15,7 @@ typedef AttachmentRangeFetcher = Future<AttachmentStreamRange> Function({
 const int _maxWindow = 512 * 1024;
 final BigInt _maxU64 = BigInt.parse('18446744073709551615');
 final BigInt _maxWindowBigInt = BigInt.from(_maxWindow);
+
 final class MediaRange {
   const MediaRange({required this.start, this.end, this.isDefault = false});
 
@@ -261,9 +262,8 @@ final class MediaStreamServer {
       return;
     }
     final requestedEndExclusive = range.resolveEndExclusive();
-    final effectiveEndExclusive = requestedEndExclusive < totalSize
-        ? requestedEndExclusive
-        : totalSize;
+    final effectiveEndExclusive =
+        requestedEndExclusive < totalSize ? requestedEndExclusive : totalSize;
     final expectedLength = effectiveEndExclusive - start;
     if (isEmptyAttachment) {
       if (bytes.isNotEmpty) {

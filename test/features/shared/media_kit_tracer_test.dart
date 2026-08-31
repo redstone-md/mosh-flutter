@@ -46,8 +46,7 @@ void main() {
   try {
     MediaKit.ensureInitialized();
   } catch (e) {
-    skipReason =
-        'media_kit native backend unavailable in `flutter test`: $e. '
+    skipReason = 'media_kit native backend unavailable in `flutter test`: $e. '
         'Run this probe via integration_test with a staged libmpv-2.dll. '
         'See file header for the full diagnosis.';
   }
@@ -90,8 +89,7 @@ void main() {
         durSub = null;
 
         final target = Duration(
-          milliseconds:
-              (duration.inMilliseconds * 0.1).round().clamp(0, 1000),
+          milliseconds: (duration.inMilliseconds * 0.1).round().clamp(0, 1000),
         );
 
         final seekCompleter = Completer<void>();
@@ -113,7 +111,8 @@ void main() {
             .screenshot()
             .timeout(const Duration(seconds: 2), onTimeout: () => null);
 
-        expect(frame, isNotNull, reason: 'screenshot() should return JPEG bytes');
+        expect(frame, isNotNull,
+            reason: 'screenshot() should return JPEG bytes');
         expect(frame!.length, greaterThan(0), reason: 'frame bytes non-empty');
         // JPEG magic: FF D8 FF.
         expect(frame[0], 0xFF, reason: 'JPEG SOI byte 0');

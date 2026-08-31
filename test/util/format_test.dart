@@ -21,7 +21,8 @@ void main() {
 
   group('readableError', () {
     test('renders a Dart error via its message', () {
-      expect(readableError(FormatException('bad input')), 'FormatException: bad input');
+      expect(readableError(FormatException('bad input')),
+          'FormatException: bad input');
     });
 
     test('coerces a non-Error value via toString', () {
@@ -45,7 +46,8 @@ void main() {
       // Dart's Exception interface exposes no bare .message, so the
       // fallback yields 'Exception: bar'; assert it is non-empty and
       // contains 'bar' rather than asserting an exact prefix.
-      expect(readableError(Exception('bar')), allOf(isNotEmpty, contains('bar')));
+      expect(
+          readableError(Exception('bar')), allOf(isNotEmpty, contains('bar')));
     });
 
     test('returns an empty string for a null error', () {

@@ -143,7 +143,8 @@ void main() {
         ]);
         addTearDown(container.dispose);
 
-        expect(await container.read(notificationsReadyProvider.future), isFalse);
+        expect(
+            await container.read(notificationsReadyProvider.future), isFalse);
       });
     }
 

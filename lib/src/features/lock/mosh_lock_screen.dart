@@ -122,27 +122,27 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
             constraints: const BoxConstraints(maxWidth: 360),
             child: switch (_state) {
               LockState.authenticating => Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(l.lockScreenUnlocking),
-                ],
-              ),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(l.lockScreenUnlocking),
+                  ],
+                ),
               LockState.canceled => _LockBody(
-                icon: Icons.lock_outline,
-                title: l.lockScreenTitle,
-                message: l.lockScreenCanceledMessage,
-                retryLabel: l.lockScreenRetry,
-                onRetry: _retry,
-              ),
+                  icon: Icons.lock_outline,
+                  title: l.lockScreenTitle,
+                  message: l.lockScreenCanceledMessage,
+                  retryLabel: l.lockScreenRetry,
+                  onRetry: _retry,
+                ),
               LockState.failed => _LockBody(
-                icon: Icons.error_outline,
-                title: l.lockScreenTitle,
-                message: l.lockScreenFailedMessage,
-                retryLabel: l.lockScreenRetry,
-                onRetry: _retry,
-              ),
+                  icon: Icons.error_outline,
+                  title: l.lockScreenTitle,
+                  message: l.lockScreenFailedMessage,
+                  retryLabel: l.lockScreenRetry,
+                  onRetry: _retry,
+                ),
               // `BIOMETRIC_UNAVAILABLE`: the device has no enrolled
               // PIN/pattern/password/biometric. NOT recoverable by Retry
               // (re-prompting cannot mint a Keystore key without a device
@@ -154,10 +154,10 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
               // new dep, so the message points at Settings -> Security
               // in prose.
               LockState.insecureDevice => _LockBody(
-                icon: Icons.security_update_warning_outlined,
-                title: l.lockScreenInsecureDeviceTitle,
-                message: l.lockScreenInsecureDeviceMessage,
-              ),
+                  icon: Icons.security_update_warning_outlined,
+                  title: l.lockScreenInsecureDeviceTitle,
+                  message: l.lockScreenInsecureDeviceMessage,
+                ),
             },
           ),
         ),

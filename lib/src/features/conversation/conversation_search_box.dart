@@ -122,8 +122,7 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
                 autofocus: widget.autofocus,
                 onChanged: widget.onSearch,
                 textInputAction: TextInputAction.search,
-                style: const TextStyle(
-                    fontSize: 12.5, color: MoshColors.fg1),
+                style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
                 decoration: InputDecoration(
                   isDense: true,
                   filled: false,
@@ -132,8 +131,8 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   hintText: widget.l.chatSearchPlaceholder,
-                  hintStyle: const TextStyle(
-                      fontSize: 12.5, color: MoshColors.fg3),
+                  hintStyle:
+                      const TextStyle(fontSize: 12.5, color: MoshColors.fg3),
                 ),
               ),
             ),

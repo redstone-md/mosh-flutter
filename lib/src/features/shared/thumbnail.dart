@@ -129,7 +129,8 @@ Future<String?> _createVideoThumbnail(Uint8List bytes) async {
     );
     final seekCompleter = Completer<void>();
     posSub = player.stream.position.listen((p) {
-      if ((p - target).inMilliseconds.abs() < 250 && !seekCompleter.isCompleted) {
+      if ((p - target).inMilliseconds.abs() < 250 &&
+          !seekCompleter.isCompleted) {
         seekCompleter.complete();
       }
     });

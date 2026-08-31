@@ -15,8 +15,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 void main() {
-  test('the auto-poll loop re-queries the gateway with no mutation',
-      () async {
+  test('the auto-poll loop re-queries the gateway with no mutation', () async {
     final gateway = ScriptableGateway();
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway),
@@ -35,8 +34,7 @@ void main() {
     expect(gateway.countOf(GatewayMethod.listSessions), greaterThan(baseline));
   });
 
-  test('no interval bound -> no polling (the flutter test default)',
-      () async {
+  test('no interval bound -> no polling (the flutter test default)', () async {
     final gateway = ScriptableGateway();
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway),

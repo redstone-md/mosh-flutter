@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-
 /// Renders an invite URI plus a Copy affordance, mirroring React
 /// `InviteResult`.
 ///

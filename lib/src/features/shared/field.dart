@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-
 /// Mirrors React `.field`: a vertical stack of label, child, optional hint
 /// with a 4px gap (`.field { gap: 4px }`). `.field-label` is 11px/600/fg-2/
 /// letter-spacing 0.02em; `.field-hint` is 10.5px/fg-4/line-height 1.45.
@@ -43,22 +42,21 @@ class Field extends StatelessWidget {
             fontSize: 11,
           ),
         ),
-       const SizedBox(height: 4),
-       child,
-       if (hint != null)
-         ...[
-           const SizedBox(height: 4),
-         Text(
-           hint!,
-           style: theme.textTheme.labelSmall?.copyWith(
-             fontSize: 10.5,
-             // `.field-hint { color: var(--fg-4) }`.
-             color: MoshColors.fg4,
-             height: 1.45,
-           ),
-         ),
-         ],
-     ],
+        const SizedBox(height: 4),
+        child,
+        if (hint != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            hint!,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: 10.5,
+              // `.field-hint { color: var(--fg-4) }`.
+              color: MoshColors.fg4,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

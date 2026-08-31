@@ -48,7 +48,8 @@ void main() {
       await h.stop();
     });
 
-    test('VoicePlaybackFactory subtypes can be polymorphically assigned', () async {
+    test('VoicePlaybackFactory subtypes can be polymorphically assigned',
+        () async {
       VoicePlaybackFactory f = NoopVoicePlaybackFactory();
       final h = await f.start();
       await h.stop();

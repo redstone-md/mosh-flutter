@@ -48,9 +48,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (warning case AsyncData(
-                  :final value,
-                ) when value != null) ...[
+                if (warning
+                    case AsyncData(
+                      :final value,
+                    ) when value != null) ...[
                   PersistenceWarningBanner(warning: value),
                   const SizedBox(height: 12),
                 ],

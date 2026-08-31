@@ -32,7 +32,9 @@ class BufferedFrame {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is BufferedFrame && seq == other.seq && _payloadEq(payload, other.payload);
+      other is BufferedFrame &&
+          seq == other.seq &&
+          _payloadEq(payload, other.payload);
 
   @override
   int get hashCode => Object.hash(seq, Object.hashAll(payload));
@@ -77,7 +79,11 @@ class JitterBuffer {
     final out = <BufferedFrame>[];
     if (_pending.isEmpty) return out;
     final seqs = _pending.keys.toList()
-      ..sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+      ..sort((a, b) => a < b
+          ? -1
+          : a > b
+              ? 1
+              : 0);
     // React: `next = this.cursor === null ? seqs[0] : this.cursor + 1n` --
     // an unset cursor starts at the lowest pending seq; a set cursor
     // resumes one past the last drained frame.
@@ -93,7 +99,11 @@ class JitterBuffer {
       }
       if (_pending.length > gapCap) {
         final remaining = _pending.keys.toList()
-          ..sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+          ..sort((a, b) => a < b
+              ? -1
+              : a > b
+                  ? 1
+                  : 0);
         next = remaining.first;
         continue;
       }
