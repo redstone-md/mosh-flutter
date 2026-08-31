@@ -204,7 +204,7 @@ classDiagram
     RealBridgeGateway --> SecureStorageAdapter
 ```
 
-`Gateway` is the Dart seam declared in slice one (ADR 0013). `ScriptableGateway` (in `test/support/`, never shipped) is the test double that lets widget tests run without the Rust runtime; `RealBridgeGateway` wraps the generated `flutter_rust_bridge` `api` and is the production path. The Rust `api` module owns the `MossAdapter`, `MlsAdapter`, and `SecureStorageAdapter` composition; Dart never instantiates them directly. The `api` surface is the verbatim Tauri command list plus a `StreamSink<T>` function for each former Tauri event (ADR 0010).
+`Gateway` is the Dart seam declared in slice one (ADR 0013). `ScriptableGateway` (in `test/support/`, never shipped) is the test double that lets widget tests run without the Rust runtime; `RealBridgeGateway` wraps the generated `flutter_rust_bridge` `api` and is the production path. The Rust `api` module owns the `MossAdapter`, `MlsAdapter`, and `SecureStorageAdapter` composition; Dart never instantiates them directly. The `api` surface is the verbatim Tauri command list plus a `StreamSink<T>` function for each former Tauri event (ADR 0010), except the six shared conversation actions, for which ADR 0024 replaces the mapping with one function per operation, the conversation kind carried in the argument.
 The `Gateway` surface has 42 methods. Most mirror one `mosh_core::api`
 signature 1:1; the eight conversation methods (`poll`, `send`, `retry`,
 `sendAttachment`, `downloadAttachment`, `cancelAttachment`, `dismissDmOffer`,
@@ -571,5 +571,6 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0021-no-peers-is-not-sent.md - a publish with no peers fails retryably instead of reporting Sent.
 - docs/ADR/0022-a-send-is-one-durable-fact.md - a send's message row and attempt row commit together, and an unbacked Pending comes back failed.
 - docs/ADR/0023-the-tree-says-who-the-admin-is.md - a group's admin is derived from the MLS tree after every commit, not carried by an AdminHandoff frame.
+- docs/ADR/0024-the-bridge-names-shared-conversation-actions.md - the bridge exposes one function per shared conversation operation with the kind in the argument, not one per kind; amends ADR 0010's Tauri-mapping clause.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).

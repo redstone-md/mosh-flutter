@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed (Flutter fork sandbox)
+Proposed (Flutter fork sandbox). The "each Tauri command maps to one `api`
+function" rule is amended for the conversation surface by ADR 0024.
 
 ## Context
 
@@ -45,6 +46,11 @@ the state layer.
   Rust `api` module and the generated bindings. It does not govern the Dart
   `Gateway` seam above them, which takes the conversation as a parameter
   instead of mirroring the per-kind function names (ADR 0017).
+  **Amended by ADR 0024:** for the six shared conversation actions (send,
+  retry, send/download/cancel attachment, leave) the mapping is one `api`
+  function per *operation*, with the conversation kind carried in the
+  argument, rather than one function per kind. Everywhere else — invites,
+  org operations, voice calls, diagnostics — the rule above stands.
 - State. Use Riverpod v3:
   - Server / runtime state (sessions, messages, snapshots, diagnostics) lives
     in `AsyncNotifierProvider`s fed by the bridge. UI consumes
@@ -86,7 +92,9 @@ current shapes; `api` adapts them to the Dart contract.
 ## Consequences
 
 - The Tauri command list becomes the verbatim checklist for the `api` module.
-  Porting effort is mechanical and reviewable.
+  Porting effort is mechanical and reviewable. (That port is now complete, and
+  for the six shared conversation actions ADR 0024 replaces the checklist with
+  one function per operation.)
 - Event flow is preserved: Tauri `app.emit("snapshot", payload)` becomes an
   `api::session_snapshot_events(sink: StreamSink<...>)` Rust function; Dart
   consumes it as `api.sessionSnapshotEvents()` returning a `Stream`.
