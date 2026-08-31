@@ -955,11 +955,11 @@ fn publish_json<T: Serialize>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::conversation::history::StoredMessage;
     use crate::moss_ffi::{
         drain_received_messages, fail_next_test_publish, no_peers_next_test_publish,
         MossFfiRuntime, MOSS_TEST_LOCK,
     };
-    use crate::conversation::history::StoredMessage;
     use crate::persistence::Persistence;
     use std::path::PathBuf;
 
@@ -1263,7 +1263,10 @@ mod tests {
         drain_received_messages();
 
         let mut db_path: PathBuf = std::env::temp_dir();
-        db_path.push(format!("mosh-channel-torn-send-{}.redb", std::process::id()));
+        db_path.push(format!(
+            "mosh-channel-torn-send-{}.redb",
+            std::process::id()
+        ));
         let _ = std::fs::remove_file(&db_path);
 
         let persistence =

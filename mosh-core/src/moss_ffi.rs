@@ -137,7 +137,10 @@ pub enum MossFfiError {
     Runtime(MossRuntimeError),
     Symbol(String),
     InvalidCString(String),
-    Operation { name: &'static str, code: i32 },
+    Operation {
+        name: &'static str,
+        code: i32,
+    },
     DeliveryTimeout,
     InjectedPublishFailure(String),
     RelayFailed,

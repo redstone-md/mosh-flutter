@@ -325,9 +325,9 @@ impl OrgSession {
         };
         // Room-scoped: the shared node's own room is the substrate, so a
         // room-less publish would land where no org member listens.
-        if let Err(error) = self
-            .node
-            .publish_room_best_effort(&self.mesh_id, &self.control_channel, &payload)
+        if let Err(error) =
+            self.node
+                .publish_room_best_effort(&self.mesh_id, &self.control_channel, &payload)
         {
             eprintln!("org roster publish failed for {}: {error}", self.org_pubkey);
         }
