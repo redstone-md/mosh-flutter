@@ -13,6 +13,60 @@ import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 /// attachment streaming server keys its URLs by, so keep them in step.
 enum ConversationKind { dm, channel, group }
 
+/// Which conversation: a [kind] plus the kind-local [id].
+///
+/// This is the address of a conversation and nothing more. It cannot read a
+/// snapshot -- that is [ConversationTarget]'s job, because `Gateway.poll`
+/// has to hand back a typed snapshot, so the two stay separate types.
+///
+/// It is also the one owner of the `kind:id` grammar: [key] renders one and
+/// [tryParse] reads one back. The screens write that key into
+/// `activeConversationKeyProvider` and the title bar, the shell drawer and
+/// the auto-poll loop read it back, so the format can only live in one
+/// place.
+final class ConversationRef {
+  const ConversationRef({required this.kind, required this.id})
+      : assert(id.length > 0, 'id must not be empty');
+
+  final ConversationKind kind;
+
+  /// The DM session id, the channel name, or the group id. It may itself
+  /// contain colons -- only the first one separates it from [kind].
+  final String id;
+
+  /// How the app names this conversation: `dm:<id>`, `channel:<name>` or
+  /// `group:<id>`. [tryParse] reads this format back, so the two have to
+  /// agree.
+  String get key => '${kind.name}:$id';
+
+  /// Reads a [key] back, or returns null when it is not one: null, a key with
+  /// no kind prefix, an unknown kind, or an empty id.
+  ///
+  /// Only the first colon splits the kind from the id, so an id that carries
+  /// colons of its own survives the round trip.
+  static ConversationRef? tryParse(String? key) {
+    if (key == null) return null;
+    final separator = key.indexOf(':');
+    if (separator <= 0) return null;
+    final kind =
+        ConversationKind.values.asNameMap()[key.substring(0, separator)];
+    if (kind == null) return null;
+    final id = key.substring(separator + 1);
+    if (id.isEmpty) return null;
+    return ConversationRef(kind: kind, id: id);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ConversationRef && other.kind == kind && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(kind, id);
+
+  @override
+  String toString() => 'ConversationRef(${kind.name}:$id)';
+}
+
 /// A conversation the app can read, send to, and leave.
 ///
 /// [TSnapshot] is the snapshot type this kind polls back. Two targets are
@@ -28,10 +82,14 @@ sealed class ConversationTarget<TSnapshot> {
   /// few things that really do differ per kind.
   ConversationKind get kind;
 
+  /// This conversation as a [ConversationRef], the value the state layer
+  /// names conversations with.
+  ConversationRef get ref => ConversationRef(kind: kind, id: id);
+
   /// How the app names the conversation that is open: `dm:<id>`,
-  /// `channel:<name>` or `group:<id>`. `ActiveConversation.parse` reads this
+  /// `channel:<name>` or `group:<id>`. `ConversationRef.tryParse` reads this
   /// format back, so the two have to agree.
-  String get key => '${kind.name}:$id';
+  String get key => ref.key;
 
   /// Reads this conversation's snapshot. Each kind calls its own method on
   /// [reader]; that is what keeps `Gateway.poll` a single typed method.
