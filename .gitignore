@@ -25,6 +25,7 @@ Thumbs.db
 !.codex/.gitkeep
 .continuum/
 .scratch/
+.workbuddy-ai/
 
 # Merged run artifact from scripts/probe-e2e.mjs — regenerated every run.
 probe-timeline.jsonl
