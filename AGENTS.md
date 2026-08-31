@@ -98,20 +98,13 @@ Never check in, `git add`, or commit artifacts under `moss-runtime/` except `.gi
 
 ## Global Skills
 
+This solution uses no external skill pack. The MCAF skills that used to live
+in `.codex/skills/` were removed; the conventions they carried are written
+into this file instead — see Maintainability Limits, Task Delivery,
+Documentation, Testing and Source Control below.
+
 List only the skills this solution actually uses.
 Do not paste the whole framework catalog here.
-
-- `mcaf-solution-governance` — use when defining or changing repo/project boundaries, local `AGENTS.md` policy, or governance rules.
-- `mcaf-solid-maintainability` — use when designing/refactoring code structure, maintainability limits, and justified exceptions.
-- `mcaf-feature-spec` — use for non-trivial feature specifications before implementation.
-- `mcaf-architecture-overview` — use when creating or updating the architecture map.
-- `mcaf-adr-writing` — use for durable architecture decisions such as crypto, native bridge, storage, and Moss release pinning.
-- `mcaf-security-baseline` — use for security-sensitive work, especially E2EE, key storage, invite links, and native boundary design.
-- `mcaf-testing` — use when planning or updating test coverage.
-- `mcaf-ui-ux` — use for product UI work and design-system alignment.
-- `mcaf-source-control` — use for branching, commit hygiene, and release/versioning policy.
-- `mcaf-documentation` — use for user-facing or developer documentation.
-- `mcaf-ci-cd` — use when adding build, packaging, or release automation.
 
 ## Rules to Follow (Mandatory)
 
