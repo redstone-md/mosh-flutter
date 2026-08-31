@@ -425,6 +425,52 @@ flowchart TD
   accepted offer leads, not a place offers are shown. An org keeps its own
   list, on peer-ids and gated by the roster (ADR 0019).
 
+## Voice Call Module
+
+One module holds the whole call pipeline. It lives in
+`lib/src/features/voice_call/`.
+
+```mermaid
+flowchart TD
+    Layer[VoiceCallLayer]
+    Orch[VoiceCallOrchestrator]
+    Modals["CallOverlay / IncomingCallModal / OutgoingCallModal"]
+    Codec["frame_codec / frame_crypto"]
+    Media["jitter_buffer / call_drain / call_frame_transport"]
+    Adapters["VoiceCapture / VoicePlayback / RingtonePlayer"]
+    Rust["mosh-core: voice_call_runtime / _jitter / _frame_crypto / _drain"]
+
+    Layer --> Modals
+    Layer --> Orch
+    Orch --> Adapters
+    Orch --> Codec
+    Orch --> Media
+    Codec --> Rust
+    Media --> Rust
+```
+
+A DM is a conversation that *can carry* a call; the call is not the DM. The
+pipeline used to live under `lib/src/features/dm/`, where nineteen of the
+directory's twenty-two files were the call stack, two were the DM itself
+(`dm_screen.dart` and `dm_screen_header.dart`), and the twenty-second — the
+fingerprint badge — was DM app-bar chrome, not a call at all. It now sits in
+`lib/src/features/fingerprint/`, beside the fingerprint confirm surface it was
+ported with. ADR 0018 already keeps the DM-specific part small: its header,
+and whether the safety number has been confirmed in person.
+
+The Dart module name follows the Rust one. `mosh-core` already has
+`voice_call_runtime`, `voice_call_jitter`, `voice_call_frame_crypto` and
+`voice_call_drain`, and the `api` surface exposes `voice_call_*` operations.
+
+`lib/src/features/dm/` keeps the two DM files plus one re-export shim per
+moved file, so existing importers — including the call tests under
+`test/features/dm/` — still compile untouched. The shims are transitional:
+they exist only so a relocation lands without a thousand broken imports, and
+they go away once the importers point at the new paths directly.
+
+`voice_call_orchestrator_provider.dart` still lives in `lib/src/state/`; giving
+call state one home is a separate change from giving the code one directory.
+
 ## State Ownership
 
 - Server / runtime state (sessions, messages, snapshots, diagnostics, delivery status) comes from `mosh-core` through the bridge and lives in Riverpod `AsyncNotifierProvider`s as `AsyncValue<T>`. UI consumes it with `.when(loading:, error:, data:)`. This is the direct analogue of TanStack Query server state (ADR 0010).
