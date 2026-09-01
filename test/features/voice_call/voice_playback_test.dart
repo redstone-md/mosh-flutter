@@ -1,4 +1,4 @@
-// Parity tests for `voice_playback` (lib/src/features/dm/voice_playback.dart)
+// Parity tests for `voice_playback` (lib/src/features/voice_call/voice_playback.dart)
 // -- the seam between the call orchestrator and an actual audio playback
 // pipeline, mirroring React's `audio-playback.ts` `VoicePlaybackHandle`
 // (`{ pushFrame(seq, payload); stop(): void }`) + `startVoicePlayback()`
@@ -10,8 +10,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/call_drain.dart';
-import 'package:mosh/src/features/dm/voice_playback.dart';
+import 'package:mosh/src/features/voice_call/call_drain.dart';
+import 'package:mosh/src/features/voice_call/voice_playback.dart';
 
 void main() {
   group('voice_playback', () {

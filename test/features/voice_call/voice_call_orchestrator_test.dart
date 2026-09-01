@@ -13,12 +13,12 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/call_frame_transport.dart';
-import 'package:mosh/src/features/dm/frame_codec.dart';
-import 'package:mosh/src/features/dm/frame_crypto.dart';
-import 'package:mosh/src/features/dm/voice_call_orchestrator.dart';
-import 'package:mosh/src/features/dm/voice_capture.dart';
-import 'package:mosh/src/features/dm/voice_playback.dart';
+import 'package:mosh/src/features/voice_call/call_frame_transport.dart';
+import 'package:mosh/src/features/voice_call/frame_codec.dart';
+import 'package:mosh/src/features/voice_call/frame_crypto.dart';
+import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart';
+import 'package:mosh/src/features/voice_call/voice_capture.dart';
+import 'package:mosh/src/features/voice_call/voice_playback.dart';
 import '../../support/scriptable_gateway.dart';
 
 const String KEY_B64 =

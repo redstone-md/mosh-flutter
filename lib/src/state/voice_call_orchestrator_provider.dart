@@ -16,15 +16,15 @@ import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show ActiveCall;
-import 'package:mosh/src/features/dm/call_frame_transport.dart'
+import 'package:mosh/src/features/voice_call/call_frame_transport.dart'
     show CallFrameTransport;
-import 'package:mosh/src/features/dm/voice_call_orchestrator.dart'
+import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart'
     show VoiceCallOrchestrator;
-import 'package:mosh/src/features/dm/voice_capture.dart'
+import 'package:mosh/src/features/voice_call/voice_capture.dart'
     show NoopVoiceCaptureFactory, VoiceCaptureFactory;
-import 'package:mosh/src/features/dm/voice_playback.dart'
+import 'package:mosh/src/features/voice_call/voice_playback.dart'
     show NoopVoicePlaybackFactory, VoicePlaybackFactory;
-import 'package:mosh/src/features/dm/ringtone_player.dart'
+import 'package:mosh/src/features/voice_call/ringtone_player.dart'
     show NoopRingtonePlayer, RingtonePlayer;
 
 /// The orchestrator state the CallOverlay reads -- just the mute flag.

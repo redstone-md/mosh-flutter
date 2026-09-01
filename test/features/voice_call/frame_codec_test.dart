@@ -1,4 +1,4 @@
-// Parity tests for `frame_codec` (lib/src/features/dm/frame_codec.dart) --
+// Parity tests for `frame_codec` (lib/src/features/voice_call/frame_codec.dart) --
 // the 1-to-1 port of the pure helpers from React
 // `src/features/private-dm/voice-call/frame-crypto.ts`. Covers only the
 // non-crypto helpers; the AES-GCM seal/open + key import are skipped (crypto
@@ -6,7 +6,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/frame_codec.dart';
+import 'package:mosh/src/features/voice_call/frame_codec.dart';
 
 void main() {
   group('frame_codec', () {

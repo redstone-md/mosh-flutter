@@ -5,8 +5,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/call_drain.dart' show CallFrameSource;
-import 'package:mosh/src/features/dm/call_frame_transport.dart';
+import 'package:mosh/src/features/voice_call/call_drain.dart'
+    show CallFrameSource;
+import 'package:mosh/src/features/voice_call/call_frame_transport.dart';
 import '../../support/scriptable_gateway.dart';
 
 /// Proves `CallFrameTransport` is usable wherever a `CallFrameSource` is

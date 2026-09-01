@@ -1,4 +1,4 @@
-// Parity tests for `IncomingCallModal` (lib/src/features/dm/
+// Parity tests for `IncomingCallModal` (lib/src/features/voice_call/
 // incoming_call_modal.dart) -- the 1-в-1 port of React's
 // `IncomingCallModal.tsx`. Asserts the accept/decline buttons fire the
 // right callbacks, Esc maps to the user-decline reason, the no-answer
@@ -9,8 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/incoming_call_modal.dart';
-import 'package:mosh/src/features/dm/ringtone_player.dart';
+import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
+import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import '../../support/pump.dart';
 

@@ -13,8 +13,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/dm/voice_capture.dart';
-import 'package:mosh/src/features/dm/voice_playback.dart';
+import 'package:mosh/src/features/voice_call/voice_capture.dart';
+import 'package:mosh/src/features/voice_call/voice_playback.dart';
 import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
