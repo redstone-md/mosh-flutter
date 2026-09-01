@@ -8,8 +8,10 @@
 // `unreadGroupCountsProvider` (keyed `'channel:name'` / `'group:groupId'`,
 // mirrors the DM provider). Channel/group `onTap` stay no-ops (no room
 // screen route). Orgs render via `OrgSection` after the channels loop;
-// `org_actions.dart` (gateway + refresh + navigation) backs the 9
-// callbacks, and `busy` mirrors React's `org.busy = offerBusy || setupBusy`
+// `org_actions.dart` backs the 7 callbacks, each reduced to its own
+// Gateway call and its own destination -- the busy flag, the refresh, the
+// error toast and the navigation belong to the one envelope they all run
+// in. `busy` mirrors React's `org.busy = offerBusy || setupBusy`
 // via `orgOperationBusProvider` (Set<orgPubkey>).
 //
 // State split (ADR 0010): server state lives in `sessionListProvider`
