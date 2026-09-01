@@ -476,6 +476,42 @@ flowchart TD
   accepted offer leads, not a place offers are shown. An org keeps its own
   list, on peer-ids and gated by the roster (ADR 0019).
 
+## Sessions Rail
+
+The rail is one list of rows, not one list per conversation kind. It lives in
+`lib/src/features/sessions/`: `sessions_screen.dart` composes it,
+`rail_entry.dart` owns what a row is, `rail_item.dart` owns the row chrome,
+and `org_actions.dart` / `sessions_rail_actions.dart` own what a tap does.
+
+A row is a `RailEntry`: the conversation it opens plus the chrome that
+conversation's kind wants. The screen builds one list of entries per paint,
+in React's order (offers, sessions, groups, channels, then the orgs), and
+loops over it once — a `RailDivider` goes between two non-empty neighbours.
+The unread lookup, the active highlight and the clear-on-tap all come from
+`RailEntry.ref.key`, so the `kind:id` grammar is written once, by
+`ConversationRef`, and never by the screen.
+
+```mermaid
+classDiagram
+    class RailEntry {
+        <<sealed>>
+        +ref
+        +buildRow(context, chrome)
+    }
+    RailEntry <|-- DmRailEntry
+    RailEntry <|-- ChannelRailEntry
+    RailEntry <|-- GroupRailEntry
+    RailEntry <|-- OfferRailEntry : ref is null
+    RailEntry ..> ConversationRef : the row's key
+    RailEntry ..> RailItem : one row shape
+```
+
+`RailRowChrome` is what the rail computes for a row and hands back: the unread
+count, whether this is the open conversation, and the hook that clears the
+badge. The offer row is the one row with no conversation behind it, so it gets
+zero, false and null — it renders the accept affordance and the dismiss X
+through the same `RailItem` every other row uses.
+
 ## Voice Call Module
 
 One module holds the whole call pipeline. It lives in

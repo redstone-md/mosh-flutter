@@ -3,7 +3,7 @@
 // Flattens the per-channel + per-group dmOffers lists into one flat list
 // of [PendingDmOffer] tagged with the originating host + kind, exactly as
 // React pendingOffers = [...channels.flatMap(...), ...groups.flatMap(...)]
-// does. The SessionsScreen renders one [OfferRailItem] per pending offer at
+// does. The sessions rail renders one [OfferRailEntry] per pending offer at
 // the top of the rail (React SessionRail order: offers -> sessions -> groups
 // -> channels -> orgs).
 //

@@ -12,8 +12,10 @@
 // `.rail-group` is --moss-glow with --moss. The active ring follows the
 // tint (--info for channels, --moss otherwise).
 //
-// The expanded rail hides `.rail-dot`, `.rail-admin-crown` and
-// `.rail-offer-badge` outright, so those never render here.
+// The expanded rail hides `.rail-dot` and `.rail-admin-crown` outright, so
+// those never render here. `.rail-offer-badge` is the exception: it belongs
+// to the offer row alone, which renders it in [RailItem]'s trailing slot
+// next to the dismiss X (see `rail_entry.dart`).
 library;
 
 import 'package:flutter/material.dart';
