@@ -214,7 +214,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         peerLabel: peerLabel,
         onCancel: () {
           Navigator.of(dialogContext).pop();
-          notifier.endCall(dialog.callId, 'hangup');
+          notifier.endCall(dialog.callId, kCallDeclineReasonHangup);
         },
         ringtone: _ringtone(),
         l: widget.l,
@@ -230,7 +230,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         sessionId: widget.sessionId,
         onHangUp: () {
           Navigator.of(dialogContext).pop();
-          notifier.endCall(dialog.callId, 'hangup');
+          notifier.endCall(dialog.callId, kCallDeclineReasonHangup);
         },
         l: widget.l,
       );

@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
+import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_playback.dart';
 import '../support/scriptable_gateway.dart';
@@ -452,10 +453,21 @@ void main() {
 
       final notifier =
           container.read(voiceCallOrchestratorProvider('sess-1').notifier);
-      await notifier.endCall('a', 'hangup');
-      await notifier.endCall('a', 'hangup');
+      await notifier.endCall('a', kCallDeclineReasonHangup);
+      await notifier.endCall('a', kCallDeclineReasonHangup);
 
       expect(gateway.countOf(GatewayMethod.callEnd), 1);
+    });
+
+    test(
+        'incoming no-answer timeout is pinned to 30s (pairs with 45s Rust ring budget)',
+        () {
+      // The callee's no-answer budget (Dart) is deliberately SHORTER than the
+      // caller's ring budget (Rust CALL_RING_TIMEOUT_MS = 45000). On a healthy
+      // link the callee's real decline reaches the caller before the caller
+      // gives up on its own, so the budget is only a backstop for a lost
+      // decline. Change the two together -- see incoming_call_modal.dart.
+      expect(kIncomingNoAnswerTimeout, const Duration(milliseconds: 30000));
     });
   });
 }
