@@ -1,13 +1,22 @@
-// Org-roster rail action helpers -- the Flutter mirror of React's
-// `use-orgs.ts` callbacks that SessionScreen wires into [OrgSection]. Each
-// helper hits the Gateway seam, refreshes the org-roster + session/group
-// lists, and navigates to the resulting chat (DM or group). Mirrors React's
-// per-helper callbacks (leaveOrg, openMemberDm, acceptDmOffer, ...) 1:1.
+// Org-roster rail actions -- the Flutter mirror of React's `use-orgs.ts`
+// callbacks that SessionScreen wires into [OrgSection]. Mirrors React's
+// per-action callbacks (leaveOrg, openMemberDm, acceptDmOffer, ...) 1:1.
 //
-// The `requestBase` (displayName/listenPort/staticPeer) comes from
-// inviteFlowProvider, the same settings source onboarding uses (DRY). A
-// transient SnackBar surfaces errors (mirrors React run("offer", onError)).
-
+// Each action is reduced to its own Gateway call and the route it lands on
+// (an [_OrgLanding]); [_runOrgAction] owns everything else: the busy flag,
+// the refresh, the mounted check, the error toast and the navigation. One
+// action jumps instead of landing -- a member who already has a linked DM
+// needs no call, so it needs no refresh and cannot be stopped by a re-read
+// it never needed.
+//
+// Two things fall out of the envelope owning the refresh, both deliberate:
+// the two dismisses re-read every rail list (they used to re-read only the
+// orgs), and the linked-DM jump re-reads nothing.
+//
+// The invite settings (displayName/listenPort/staticPeer) come from
+// inviteFlowProvider, the same settings source onboarding uses (ADR 0010
+// DRY), and reach an action as an [_OrgInvite] so this file writes the
+// default display name once.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,13 +25,229 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot, OrgMemberView;
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
 import 'package:mosh/src/state/org_providers.dart'
     show orgsProvider, orgOperationBusProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show inviteFlowProvider, sessionListProvider;
 import 'package:mosh/src/state/channel_group_providers.dart'
     show channelListProvider, groupListProvider;
+
+/// What we call ourselves when onboarding never set a display name.
+const String _kAnonymousDisplayName = 'anonymous';
+
+/// The settings an org action mints an invite with.
+typedef _OrgInvite = ({String displayName, int listenPort, String? staticPeer});
+
+/// The thought one org action carries: its Gateway call, and where it lands.
+typedef _OrgAction = Future<_OrgLanding> Function(_OrgInvite invite);
+
+/// Where an org action lands, and whether the rail must re-read first.
+final class _OrgLanding {
+  /// Nowhere to go: the row this action removed leaves the rail on the
+  /// refresh (leave, the two dismisses).
+  const _OrgLanding.stay()
+      : route = null,
+        needsRefresh = true;
+
+  /// Open [route] once the rail has re-read what this action created.
+  const _OrgLanding.land(this.route) : needsRefresh = true;
+
+  /// Open [route] now: the action changed nothing, so there is nothing to
+  /// re-read and nothing that can fail between the tap and the screen.
+  const _OrgLanding.jump(this.route) : needsRefresh = false;
+
+  final String? route;
+  final bool needsRefresh;
+}
+
+/// The one envelope all seven org actions run in.
+///
+/// Marks the org busy, runs [action], re-reads the rail lists, lands on the
+/// route [action] returned, and turns any failure into a snack bar --
+/// identically for all seven, so a caller cannot get one of those steps
+/// half right.
+Future<void> _runOrgAction(
+  BuildContext context,
+  WidgetRef ref, {
+  required String orgPubkey,
+  required _OrgAction action,
+}) async {
+  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
+  try {
+    final landing = await action(_inviteOf(ref));
+    if (landing.needsRefresh) await _refreshAll(ref);
+    if (!context.mounted) return;
+    final route = landing.route;
+    if (route != null) context.go(route);
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(e.toString())));
+  } finally {
+    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
+  }
+}
+
+/// Leave an org (React leaveOrg). The org row leaves the rail on the
+/// refresh; nothing to open.
+Future<void> leaveOrgAction(
+  BuildContext context,
+  WidgetRef ref,
+  OrgSnapshot org,
+) =>
+    _runOrgAction(context, ref, orgPubkey: org.orgPubkey, action: (_) async {
+      await ref.read(gatewayProvider).leaveOrg(orgPubkey: org.orgPubkey);
+      return const _OrgLanding.stay();
+    });
+
+/// Open a DM with a roster member (React openMemberDm): jump to the linked
+/// session if one exists, else send an org DM offer + land on the new DM.
+Future<void> openMemberDmAction(
+  BuildContext context,
+  WidgetRef ref,
+  OrgSnapshot org,
+  OrgMemberView member,
+) async {
+  // Not one of the envelope's steps: tapping yourself is no action at all.
+  if (member.isSelf) return;
+  await _runOrgAction(context, ref, orgPubkey: org.orgPubkey,
+      action: (invite) async {
+    // The one lookup this action owns: an existing linked DM is a jump,
+    // not a new offer.
+    final linked = _linkedSessionId(org, member);
+    if (linked != null) return _OrgLanding.jump(AppRoutes.dmFor(linked));
+    final offered = await ref.read(gatewayProvider).sendOrgDmOffer(
+          orgPubkey: org.orgPubkey,
+          targetPeerId: member.mossPeerId,
+          displayName: invite.displayName,
+          listenPort: invite.listenPort,
+          staticPeer: invite.staticPeer,
+        );
+    return _OrgLanding.land(AppRoutes.dmFor(offered.sessionId));
+  });
+}
+
+/// Accept an org DM offer (React acceptDmOffer) + land on the new DM.
+Future<void> acceptOrgDmOfferAction(
+  BuildContext context,
+  WidgetRef ref,
+  String orgPubkey,
+  String offerId,
+) =>
+    _runOrgAction(context, ref, orgPubkey: orgPubkey, action: (invite) async {
+      final session = await ref.read(gatewayProvider).acceptOrgDmOffer(
+            orgPubkey: orgPubkey,
+            offerId: offerId,
+            displayName: invite.displayName,
+            listenPort: invite.listenPort,
+            staticPeer: invite.staticPeer,
+          );
+      return _OrgLanding.land(AppRoutes.dmFor(session.sessionId));
+    });
+
+/// Dismiss an org DM offer (React dismissDmOffer). The offer row leaves the
+/// roster on the refresh; nothing to open.
+Future<void> dismissOrgDmOfferAction(
+  BuildContext context,
+  WidgetRef ref,
+  String orgPubkey,
+  String offerId,
+) =>
+    _runOrgAction(context, ref, orgPubkey: orgPubkey, action: (_) async {
+      await ref.read(gatewayProvider).dismissOrgDmOffer(
+            orgPubkey: orgPubkey,
+            offerId: offerId,
+          );
+      return const _OrgLanding.stay();
+    });
+
+/// Accept an org group offer (React acceptGroupOffer) + land on the group.
+Future<void> acceptOrgGroupOfferAction(
+  BuildContext context,
+  WidgetRef ref,
+  String orgPubkey,
+  String offerId,
+) =>
+    _runOrgAction(context, ref, orgPubkey: orgPubkey, action: (invite) async {
+      final group = await ref.read(gatewayProvider).acceptOrgGroupOffer(
+            orgPubkey: orgPubkey,
+            offerId: offerId,
+            displayName: invite.displayName,
+            listenPort: invite.listenPort,
+            staticPeer: invite.staticPeer,
+          );
+      return _OrgLanding.land(AppRoutes.groupFor(group.groupId));
+    });
+
+/// Dismiss an org group offer (React dismissGroupOffer). The offer row
+/// leaves the roster on the refresh; nothing to open.
+Future<void> dismissOrgGroupOfferAction(
+  BuildContext context,
+  WidgetRef ref,
+  String orgPubkey,
+  String offerId,
+) =>
+    _runOrgAction(context, ref, orgPubkey: orgPubkey, action: (_) async {
+      await ref.read(gatewayProvider).dismissOrgGroupOffer(
+            orgPubkey: orgPubkey,
+            offerId: offerId,
+          );
+      return const _OrgLanding.stay();
+    });
+
+/// Create an org-bound group + offer it to every non-self roster member
+/// (React createOrgGroup), then land on the new group.
+Future<void> createOrgGroupAction(
+  BuildContext context,
+  WidgetRef ref,
+  OrgSnapshot org,
+  String label,
+) =>
+    _runOrgAction(context, ref, orgPubkey: org.orgPubkey,
+        action: (invite) async {
+      final created = await ref.read(gatewayProvider).createOrgGroup(
+            orgPubkey: org.orgPubkey,
+            label: label.trim().isEmpty ? null : label.trim(),
+            // The one list this action owns: the whole roster but us.
+            memberPeerIds: _invitees(org),
+            displayName: invite.displayName,
+            listenPort: invite.listenPort,
+            staticPeer: invite.staticPeer,
+          );
+      return _OrgLanding.land(AppRoutes.groupFor(created.groupId));
+    });
+
+/// The session [member] already has a DM with in [org], if any. A link
+/// without a session id is an offer in flight, not a conversation to open.
+String? _linkedSessionId(OrgSnapshot org, OrgMemberView member) {
+  for (final link in org.dmLinks) {
+    final sessionId = link.sessionId;
+    if (link.peerId == member.mossPeerId &&
+        sessionId != null &&
+        sessionId.isNotEmpty) {
+      return sessionId;
+    }
+  }
+  return null;
+}
+
+/// Everyone a new org group is offered to: the roster minus us.
+List<String> _invitees(OrgSnapshot org) => org.members
+    .where((m) => !m.isSelf)
+    .map((m) => m.mossPeerId)
+    .toList(growable: false);
+
+_OrgInvite _inviteOf(WidgetRef ref) {
+  final flow = ref.read(inviteFlowProvider);
+  return (
+    displayName:
+        flow.displayName.isEmpty ? _kAnonymousDisplayName : flow.displayName,
+    listenPort: flow.listenPort,
+    staticPeer: flow.staticPeer,
+  );
+}
 
 Future<void> _refreshAll(WidgetRef ref) async {
   await Future.wait([
@@ -31,202 +256,4 @@ Future<void> _refreshAll(WidgetRef ref) async {
     ref.read(channelListProvider.notifier).refresh(),
     ref.read(groupListProvider.notifier).refresh(),
   ]);
-}
-
-void _error(BuildContext context, Object e) {
-  if (!context.mounted) return;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(e.toString())));
-}
-
-/// Leave an org (React leaveOrg).
-Future<void> leaveOrgAction(
-  BuildContext context,
-  WidgetRef ref,
-  OrgSnapshot org,
-) async {
-  final scaffold = ScaffoldMessenger.of(context);
-  ref.read(orgOperationBusProvider.notifier).start(org.orgPubkey);
-  try {
-    await ref.read(gatewayProvider).leaveOrg(orgPubkey: org.orgPubkey);
-    await _refreshAll(ref);
-  } catch (e) {
-    if (!context.mounted) return;
-    scaffold.showSnackBar(SnackBar(content: Text(e.toString())));
-  } finally {
-    ref.read(orgOperationBusProvider.notifier).finish(org.orgPubkey);
-  }
-}
-
-/// Open a DM with a roster member (React openMemberDm): jump to the linked
-/// session if one exists, else send an org DM offer + jump to the new DM.
-Future<void> openMemberDmAction(
-  BuildContext context,
-  WidgetRef ref,
-  OrgSnapshot org,
-  OrgMemberView member,
-) async {
-  if (member.isSelf) return;
-  final flow = ref.read(inviteFlowProvider);
-  final gateway = ref.read(gatewayProvider);
-  ref.read(orgOperationBusProvider.notifier).start(org.orgPubkey);
-  try {
-    // Existing linked DM: jump straight to it.
-    for (final link in org.dmLinks) {
-      if (link.peerId == member.mossPeerId &&
-          link.sessionId != null &&
-          link.sessionId!.isNotEmpty) {
-        if (!context.mounted) return;
-        context.go(AppRoutes.dmFor(link.sessionId!));
-        return;
-      }
-    }
-    final invite = await gateway.sendOrgDmOffer(
-      orgPubkey: org.orgPubkey,
-      targetPeerId: member.mossPeerId,
-      displayName: flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
-      listenPort: flow.listenPort,
-      staticPeer: flow.staticPeer,
-    );
-    await _refreshAll(ref);
-    if (!context.mounted) return;
-    context.go(AppRoutes.dmFor(invite.sessionId));
-  } catch (e) {
-    _error(context, e);
-  } finally {
-    ref.read(orgOperationBusProvider.notifier).finish(org.orgPubkey);
-  }
-}
-
-/// Accept an org DM offer (React acceptDmOffer) + jump to the new DM.
-Future<void> acceptOrgDmOfferAction(
-  BuildContext context,
-  WidgetRef ref,
-  String orgPubkey,
-  String offerId,
-) async {
-  final flow = ref.read(inviteFlowProvider);
-  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
-  try {
-    final session = await ref.read(gatewayProvider).acceptOrgDmOffer(
-          orgPubkey: orgPubkey,
-          offerId: offerId,
-          displayName:
-              flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
-          listenPort: flow.listenPort,
-          staticPeer: flow.staticPeer,
-        );
-    await _refreshAll(ref);
-    if (!context.mounted) return;
-    context.go(AppRoutes.dmFor(session.sessionId));
-  } catch (e) {
-    _error(context, e);
-  } finally {
-    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
-  }
-}
-
-/// Dismiss an org DM offer (React dismissDmOffer).
-Future<void> dismissOrgDmOfferAction(
-  BuildContext context,
-  WidgetRef ref,
-  String orgPubkey,
-  String offerId,
-) async {
-  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
-  try {
-    await ref
-        .read(gatewayProvider)
-        .dismissOrgDmOffer(orgPubkey: orgPubkey, offerId: offerId);
-    await ref.read(orgsProvider.notifier).refresh();
-  } catch (e) {
-    if (!context.mounted) return;
-    _error(context, e);
-  } finally {
-    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
-  }
-}
-
-/// Accept an org group offer (React acceptGroupOffer) + jump to the group.
-Future<void> acceptOrgGroupOfferAction(
-  BuildContext context,
-  WidgetRef ref,
-  String orgPubkey,
-  String offerId,
-) async {
-  final flow = ref.read(inviteFlowProvider);
-  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
-  try {
-    final group = await ref.read(gatewayProvider).acceptOrgGroupOffer(
-          orgPubkey: orgPubkey,
-          offerId: offerId,
-          displayName:
-              flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
-          listenPort: flow.listenPort,
-          staticPeer: flow.staticPeer,
-        );
-    await _refreshAll(ref);
-    if (!context.mounted) return;
-    context.go(AppRoutes.groupFor(group.groupId));
-  } catch (e) {
-    _error(context, e);
-  } finally {
-    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
-  }
-}
-
-/// Dismiss an org group offer (React dismissGroupOffer).
-Future<void> dismissOrgGroupOfferAction(
-  BuildContext context,
-  WidgetRef ref,
-  String orgPubkey,
-  String offerId,
-) async {
-  ref.read(orgOperationBusProvider.notifier).start(orgPubkey);
-  try {
-    await ref
-        .read(gatewayProvider)
-        .dismissOrgGroupOffer(orgPubkey: orgPubkey, offerId: offerId);
-    await ref.read(orgsProvider.notifier).refresh();
-  } catch (e) {
-    if (!context.mounted) return;
-    _error(context, e);
-  } finally {
-    ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
-  }
-}
-
-/// Create an org-bound group + offer it to every non-self roster member
-/// (React createOrgGroup), then jump to the new group.
-Future<void> createOrgGroupAction(
-  BuildContext context,
-  WidgetRef ref,
-  OrgSnapshot org,
-  String label,
-) async {
-  final flow = ref.read(inviteFlowProvider);
-  ref.read(orgOperationBusProvider.notifier).start(org.orgPubkey);
-  try {
-    final invited = org.members
-        .where((m) => !m.isSelf)
-        .map((m) => m.mossPeerId)
-        .toList(growable: false);
-    final created = await ref.read(gatewayProvider).createOrgGroup(
-          orgPubkey: org.orgPubkey,
-          label: label.trim().isEmpty ? null : label.trim(),
-          memberPeerIds: invited,
-          displayName:
-              flow.displayName.isEmpty ? 'anonymous' : flow.displayName,
-          listenPort: flow.listenPort,
-          staticPeer: flow.staticPeer,
-        );
-    await _refreshAll(ref);
-    if (!context.mounted) return;
-    context.go(AppRoutes.groupFor(created.groupId));
-  } catch (e) {
-    _error(context, e);
-  } finally {
-    ref.read(orgOperationBusProvider.notifier).finish(org.orgPubkey);
-  }
 }

@@ -105,9 +105,10 @@ class InvitingGroupsNotifier extends Notifier<Set<String>> {
 /// private-dm-screen.tsx L305) but with per-org granularity: the Set is
 /// keyed by orgPubkey, so only the org being operated on disables, not
 /// unrelated orgs. Simpler than React's global bus but achieves the same
-/// double-tap protection -- the 7 org_actions helpers wrap their gateway
-/// call in start/finish so an OrgSection's leave/offer/member/new-group
-/// affordances stay disabled until the await + refresh + navigation done.
+/// double-tap protection -- the one org-action envelope wraps every
+/// org_actions call in start/finish so an OrgSection's
+/// leave/offer/member/new-group affordances stay disabled until the await +
+/// refresh + navigation done.
 final orgOperationBusProvider =
     NotifierProvider<OrgOperationBusNotifier, Set<String>>(
   OrgOperationBusNotifier.new,

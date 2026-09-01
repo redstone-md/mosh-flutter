@@ -1,5 +1,5 @@
 // OrgSection -- 1-в-1 port of React `src/features/private-dm/org/
-// OrgSection.tsx`. All 9 callbacks pass through unchanged so the
+// OrgSection.tsx`. All 7 callbacks pass through unchanged so the
 // host wires them to the Gateway seam.
 
 library;
