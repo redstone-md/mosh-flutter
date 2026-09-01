@@ -33,8 +33,7 @@ import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
-import 'package:mosh/src/state/dm_offer_providers.dart'
-    show PendingDmOffer, PendingDmOfferKind;
+import 'package:mosh/src/state/dm_offer_providers.dart' show PendingDmOffer;
 import 'package:mosh/src/util/format.dart' show shorten;
 
 /// What the rail knows about a row and the row does not: its unread count,
@@ -237,7 +236,7 @@ final class OfferRailEntry extends RailEntry {
         leading: Avatar(name: fromDevice),
         title: fromDevice,
         // React `kind === "channel" ? `#${host}` : "group invite"`.
-        subtitle: pending.kind == PendingDmOfferKind.channel
+        subtitle: pending.kind == ConversationKind.channel
             ? '#${pending.host}'
             : l.onboardGroupInvite,
         trailing: Row(

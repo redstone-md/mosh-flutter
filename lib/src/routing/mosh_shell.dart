@@ -50,6 +50,8 @@ import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart' show kRailWidth;
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/routing/mosh_title_bar.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -140,7 +142,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
           ],
         ),
         // Shell-level PeerStatusDrawer overlay (mirrors dm_screen.dart
-        // L683-691): branch on the active key prefix to the matching
+        // L683-691): branch on the parsed active kind to the matching
         // snapshot family; null -> PeerStatusDrawer renders
         // NoActiveSession. onRefresh invalidates the family entry.
         if (_showPeerStatus)
@@ -164,7 +166,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
   // when all three snapshot getters return null.
   SessionSnapshot? _activeDmSession(WidgetRef ref) {
     final active = ref.watch(activeConversationProvider);
-    if (active?.kind != ActiveConversationKind.dm) return null;
+    if (active?.kind != ConversationKind.dm) return null;
     return ref.watch(activeSessionProvider(active!.arg)).value;
   }
 
@@ -172,7 +174,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
   // (non-channel or loading/error).
   ChannelSnapshot? _activeChannelSnapshot(WidgetRef ref) {
     final active = ref.watch(activeConversationProvider);
-    if (active?.kind != ActiveConversationKind.channel) return null;
+    if (active?.kind != ConversationKind.channel) return null;
     return ref.watch(channelSnapshotProvider(active!.arg)).value;
   }
 
@@ -180,7 +182,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
   // (non-group or loading/error).
   GroupSnapshot? _activeGroupSnapshot(WidgetRef ref) {
     final active = ref.watch(activeConversationProvider);
-    if (active?.kind != ActiveConversationKind.group) return null;
+    if (active?.kind != ConversationKind.group) return null;
     return ref.watch(groupSnapshotProvider(active!.arg)).value;
   }
 
@@ -191,11 +193,10 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     final active = ref.watch(activeConversationProvider);
     if (active == null) return null;
     final async = switch (active.kind) {
-      ActiveConversationKind.dm => ref.watch(activeSessionProvider(active.arg)),
-      ActiveConversationKind.channel =>
+      ConversationKind.dm => ref.watch(activeSessionProvider(active.arg)),
+      ConversationKind.channel =>
         ref.watch(channelSnapshotProvider(active.arg)),
-      ActiveConversationKind.group =>
-        ref.watch(groupSnapshotProvider(active.arg)),
+      ConversationKind.group => ref.watch(groupSnapshotProvider(active.arg)),
     };
     return async.hasError ? async.error.toString() : null;
   }

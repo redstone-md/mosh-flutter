@@ -34,7 +34,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart'
-    show ConversationKind;
+    show ConversationKind, ConversationRef;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart'
     show
@@ -45,9 +45,9 @@ import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/window_focus_provider.dart';
 import 'package:mosh/src/util/unread.dart';
 
-/// The unread-lifecycle provider. Exposes the `unread` map (keyed
-/// `dm:<id>` / `channel:<name>` / `group:<id>`) consumed by the sessions
-/// rail + the chat screens, and a `clearUnread(key)` mutation.
+/// The unread-lifecycle provider. Exposes the `unread` map (keyed by
+/// [ConversationRef.key], the grammar [ConversationRef] owns) consumed by
+/// the sessions rail + the chat screens, and a `clearUnread(key)` mutation.
 final unreadLifecycleProvider =
     NotifierProvider<_UnreadLifecycleNotifier, Map<String, int>>(
   _UnreadLifecycleNotifier.new,

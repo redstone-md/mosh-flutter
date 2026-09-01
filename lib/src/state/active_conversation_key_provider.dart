@@ -1,6 +1,6 @@
 // The currently-active conversation key, 1-1 with React's
-// `activeConversationKey` (private-dm-screen.tsx): `'dm:<id>'` /
-// `'channel:<name>'` / `'group:<id>'` or null when no conversation is open.
+// `activeConversationKey` (private-dm-screen.tsx): the key
+// `ConversationRef.key` renders, or null when no conversation is open.
 //
 // This is the small prerequisite state for the unread-lifecycle diff
 // (clearOnActive + window-focus toasts): React passes `activeKey` into
@@ -18,23 +18,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart';
 
-/// Holds the active conversation key (`'dm:<id>'` / `'channel:<name>'` /
-/// `'group:<id>'`) or null when nothing is open. Mirrors React's
+/// Holds the active conversation key ([ConversationRef.key] renders the
+/// format) or null when nothing is open. Mirrors React's
 /// `activeConversationKey || null` shape passed to `useUnreadNotifications`.
 final activeConversationKeyProvider =
     NotifierProvider<_ActiveConversationKeyNotifier, String?>(
   _ActiveConversationKeyNotifier.new,
 );
-
-/// The active-conversation kind, parsed from the key prefix ('dm:' /
-/// 'channel:' / 'group:'). Mirrors React's branch test on `activeSession` /
-/// `activeChannel` / `activeGroup` (private-dm-screen.tsx L282-292).
-///
-/// A second spelling of [ConversationKind], kept only because the shell and
-/// the title bar still switch on it. Ticket 09 collapses the two: they carry
-/// the same three names, and [ConversationRef] already owns the key grammar
-/// both are parsed from.
-enum ActiveConversationKind { dm, channel, group }
 
 /// Parsed active key: the conversation it names, plus the kind
 /// discriminator and the snapshot-family argument (sessionId / channel name
@@ -50,7 +40,9 @@ class ActiveConversation {
   /// The snapshot-family argument: the conversation's id.
   String get arg => conversation.id;
 
-  ActiveConversationKind get kind => _kindOf(conversation.kind);
+  /// Which kind the open conversation is. [ConversationKind] is the one
+  /// kind enum, so no second spelling is minted here.
+  ConversationKind get kind => conversation.kind;
 
   /// Reads a key back, or returns null when it names no conversation.
   ///
@@ -62,16 +54,6 @@ class ActiveConversation {
     if (ref == null) return null;
     return ActiveConversation(ref);
   }
-
-  /// The two kind enums carry the same three names; [ActiveConversation] keeps
-  /// its own so the state layer does not re-export the Gateway's. Ticket 09
-  /// collapses them.
-  static ActiveConversationKind _kindOf(ConversationKind kind) =>
-      switch (kind) {
-        ConversationKind.dm => ActiveConversationKind.dm,
-        ConversationKind.channel => ActiveConversationKind.channel,
-        ConversationKind.group => ActiveConversationKind.group,
-      };
 }
 
 /// The parsed [ActiveConversation] for the current key, or null when no

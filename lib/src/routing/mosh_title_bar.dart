@@ -37,6 +37,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -208,17 +210,17 @@ class _StatePillSlot extends ConsumerWidget {
     if (activeKey == null) return const SizedBox.shrink(); // React `: null`
     final l = AppLocalizations.of(context)!;
     switch (activeKey.kind) {
-      case ActiveConversationKind.dm:
+      case ConversationKind.dm:
         final async = ref.watch(activeSessionProvider(activeKey.arg));
         final state = async.value?.state;
         if (state == null) return const SizedBox.shrink();
         return StatePill(state: state, label: stateLabel(l, state));
-      case ActiveConversationKind.channel:
+      case ConversationKind.channel:
         // React: fixed ready pill + channelBroadcastBadge text
         // (private-dm-screen.tsx L286-290) -- channels are always in the
         // Broadcast state; ChannelSnapshot has no .state.
         return StatePill(state: 'ready', label: l.channelBroadcastBadge);
-      case ActiveConversationKind.group:
+      case ConversationKind.group:
         final async = ref.watch(groupSnapshotProvider(activeKey.arg));
         final state = async.value?.state;
         if (state == null) return const SizedBox.shrink();

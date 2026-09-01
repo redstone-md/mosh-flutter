@@ -12,8 +12,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AcceptInviteRequest;
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
-import 'package:mosh/src/state/dm_offer_providers.dart'
-    show PendingDmOffer, PendingDmOfferKind;
+import 'package:mosh/src/state/dm_offer_providers.dart' show PendingDmOffer;
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ChannelTarget, ConversationKind, DmOfferHost, GroupTarget;
@@ -80,7 +79,7 @@ Future<void> dismissOfferAction(
   Gateway? gateway,
 }) async {
   final Gateway gw = gateway ?? ref.read(gatewayProvider);
-  final DmOfferHost<Object?> host = pending.kind == PendingDmOfferKind.channel
+  final DmOfferHost<Object?> host = pending.kind == ConversationKind.channel
       ? ChannelTarget(pending.host)
       : GroupTarget(pending.host);
   await gw.dismissDmOffer(host, offerId: pending.offer.offerId);

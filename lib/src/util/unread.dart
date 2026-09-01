@@ -2,8 +2,11 @@
 ///
 /// Ported 1:1 from `src/features/private-dm/notifications/unread.ts` per
 /// ADR 0012. Free of any Flutter or I/O dependency so it can be unit-tested
-/// in isolation.
+/// in isolation; the one value type it borrows is [ConversationRef], the
+/// one owner of the key grammar.
 library;
+
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 /// A conversation and its current total message count.
 class ConversationCount {
@@ -73,12 +76,17 @@ int countMessagesFromOthers(
 
 /// Notification title/body for a conversation that gained messages.
 ///
-/// Mirrors `notificationBody` in unread.ts: channel ids render as
-/// `#<name>`, every other kind renders the generic `New message`.
+/// Mirrors `notificationBody` in unread.ts: channels render as `#<name>`,
+/// every other kind renders the generic `New message`. [id] is a
+/// conversation key, and [ConversationRef.tryParse] is the one reader of
+/// that grammar -- a key that names no conversation renders the generic
+/// label.
 NotificationBody notificationBody(String id) {
-  final label = id.startsWith('channel:')
-      ? '#${id.substring('channel:'.length)}'
-      : 'New message';
+  final conversation = ConversationRef.tryParse(id);
+  final label =
+      conversation != null && conversation.kind == ConversationKind.channel
+          ? '#${conversation.id}'
+          : 'New message';
   return NotificationBody(title: 'Mosh', body: '$label - new message');
 }
 
