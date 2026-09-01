@@ -205,7 +205,7 @@ classDiagram
       +acceptInvite(invite) SessionSnapshot
       +poll(target) Snapshot
       +send(target, body) void
-      +sendAttachment(target, file) AttachmentSendResult
+      +sendAttachment(target, file) void
       +leave(target) void
     }
 
@@ -254,9 +254,12 @@ The `Gateway` surface has 42 methods. Most mirror one `mosh_core::api`
 signature 1:1; the eight conversation methods (`poll`, `send`, `retry`,
 `sendAttachment`, `downloadAttachment`, `cancelAttachment`, `dismissDmOffer`,
 `leave`) take a `ConversationTarget` instead, so one method serves the DM, the
-channel and the group (ADR 0017). `RealBridgeGateway` picks the frb function
-for the kind inside its own implementation and is otherwise a pass-through;
-`ScriptableGateway` is the test double with an in-memory session map. The
+channel and the group (ADR 0017). For the six shared actions
+`RealBridgeGateway` converts the target to a typed `BridgeConversationRef` and
+calls one shared bridge function — the kind dispatch lives in the bridge
+(ADR 0024); only `dismissDmOffer`, which a DM cannot answer, still switches in
+the adapter. Otherwise it is a pass-through. `ScriptableGateway` is the test
+double with an in-memory session map. The
 `api` facade is real for `diagnostics` + `private_dm` and stubbed for the
 other five families until later slices.
 

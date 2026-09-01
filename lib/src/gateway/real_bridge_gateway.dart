@@ -2,25 +2,23 @@
 //
 // RealBridgeGateway delegates every Gateway method to the corresponding
 // flutter_rust_bridge-generated free function in `lib/src/rust/api/`. It is
-// a thin pass-through: no caching, no logic, no shaping. The one decision it
-// makes is the conversation kind -- `send(target)` and its neighbours switch
-// on the target and call the DM, channel or group frb function (ADR 0017).
-// Widgets keep consuming `Gateway` via `gatewayProvider`, which always hands
-// out this class -- the test double lives in test/support/ and never ships.
+// a thin pass-through: no caching, no logic, no shaping. The one conversion
+// it makes is the conversation ref: the six shared conversation actions go
+// over the bridge as a typed `BridgeConversationRef`, and the bridge
+// function picks the runtime (ADR 0024). `dismissDmOffer` keeps its switch
+// -- a DM has no offer list, so only two kinds answer it (ADR 0017).
 //
-// Lifecycle note: every method assumes `RustLib.init()` has run (main.dart
-// calls it on startup; the integration test calls it explicitly). Calling
-// before init throws via the frb generated `RustLib.instance.api` indirection
-// -- which is exactly the behaviour a Dart double cannot reproduce.
+// Lifecycle: every method assumes `RustLib.init()` has run (main.dart calls
+// it on startup; the integration test calls it explicitly). Calling before
+// init throws via the generated `RustLib.instance.api` indirection -- the
+// behaviour a Dart double cannot reproduce.
 
 import 'dart:typed_data' show Uint8List;
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
-// diagnostics.dart defines both the AppDiagnostics/NativeRuntimeStatus types
-// and the appDiagnostics()/nativeRuntimeStatus() free functions. The function
-// names collide with this class's own method names, so import the functions
-// under the `api` prefix while pulling the types in unqualified.
+// diagnostics.dart's function names collide with this class's method names,
+// so its functions come in under the `api` prefix, its types unqualified.
 import 'package:mosh/src/rust/api/diagnostics.dart'
     show AppDiagnostics, NativeRuntimeStatus;
 import 'package:mosh/src/rust/api/diagnostics.dart' as api
@@ -30,53 +28,35 @@ import 'package:mosh/src/rust/api/diagnostics.dart' as api
 import 'package:mosh/src/rust/api/private_dm.dart' as api
     show
         acceptInvite,
-        cancelAttachment,
-        closeSession,
         createInvite,
-        downloadAttachment,
         listSessions,
         pollSession,
-        sendAttachment,
-        sendMessage,
-        retryMessage,
         callStart,
         callAccept,
         callDecline,
         callEnd,
         callSendFrame,
         callDrainFrames;
-// channel.dart and private_group.dart each define a `poll` and a `list` free
-// function, and each also defines a `send` free function (plus channel `leave`
-// and group `close`), so the two imports MUST use distinct prefixes to avoid
-// collision; the snapshot/result types come in unqualified from their
-// *_runtime.dart modules.
-import 'package:mosh/src/rust/api/channel.dart' as channel_api
+// The six shared conversation actions (ADR 0024): functions are prefixed
+// (they collide with the interface method names); the ref/payload types
+// come in unqualified, like the diagnostics types.
+import 'package:mosh/src/rust/api/conversation.dart'
+    show BridgeAttachmentPayload, BridgeConversationKind, BridgeConversationRef;
+import 'package:mosh/src/rust/api/conversation.dart' as conversation_api
     show
-        join,
-        poll,
-        list,
-        send,
+        cancelAttachment,
+        downloadAttachment,
         leave,
-        dismissDmOffer,
-        downloadAttachment,
-        cancelAttachment,
-        sendAttachment,
-        retryMessage,
-        sendDmOffer;
-import 'package:mosh/src/rust/api/private_group.dart' as group_api
-    show
-        createGroup,
-        joinGroup,
-        poll,
-        list,
+        retry,
         send,
-        close,
-        dismissDmOffer,
-        downloadAttachment,
-        cancelAttachment,
-        sendAttachment,
-        retryMessage,
-        sendDmOffer;
+        sendAttachment;
+// channel.dart and private_group.dart each define a `poll` and a `list` free
+// function, so the two imports MUST use distinct prefixes to avoid collision;
+// the snapshot types come in unqualified from their *_runtime.dart modules.
+import 'package:mosh/src/rust/api/channel.dart' as channel_api
+    show join, poll, list, dismissDmOffer, sendDmOffer;
+import 'package:mosh/src/rust/api/private_group.dart' as group_api
+    show createGroup, joinGroup, poll, list, dismissDmOffer, sendDmOffer;
 import 'package:mosh/src/rust/api/org.dart' as org_api
     show
         acceptDmOffer,
@@ -99,7 +79,6 @@ import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 
@@ -125,11 +104,24 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
   Future<SessionListSnapshot> listSessions() => api.listSessions();
 
   // --------------------------------------------------------------------
-  // The conversation seam. Each method switches once on the target kind and
-  // calls the frb function for it, so callers never see the three-way split.
-  // The api / channel_api / group_api prefixes keep the colliding frb names
-  // (`poll`, `list`, `send`, ...) apart.
+  // The conversation seam. Typed polls keep one read per kind; the six
+  // shared actions convert the target to a typed ref once and call the one
+  // shared bridge function (ADR 0024) -- the kind dispatch lives in the
+  // bridge, beside the runtime handles it picks between.
   // --------------------------------------------------------------------
+
+  /// The conversation a shared action addresses, as the bridge names it:
+  /// kind + id in one typed value. The adapter's whole kind decision; the
+  /// bridge function owns the dispatch from here (ADR 0024).
+  static BridgeConversationRef _bridgeRef(AnyConversationTarget target) =>
+      BridgeConversationRef(
+        kind: switch (target.kind) {
+          ConversationKind.dm => BridgeConversationKind.dm,
+          ConversationKind.channel => BridgeConversationKind.channel,
+          ConversationKind.group => BridgeConversationKind.group,
+        },
+        id: target.id,
+      );
 
   @override
   Future<S> poll<S>(ConversationTarget<S> target) => target.readSnapshot(this);
@@ -148,26 +140,16 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
 
   @override
   Future<void> send(AnyConversationTarget target, {required String body}) =>
-      switch (target) {
-        DmTarget(:final id) => api.sendMessage(sessionId: id, body: body),
-        ChannelTarget(:final id) => channel_api.send(name: id, body: body),
-        GroupTarget(:final id) => group_api.send(groupId: id, body: body),
-      };
+      conversation_api.send(reference: _bridgeRef(target), body: body);
 
   @override
   Future<void> retry(AnyConversationTarget target,
           {required String messageId}) =>
-      switch (target) {
-        DmTarget(:final id) =>
-          api.retryMessage(sessionId: id, messageId: messageId),
-        ChannelTarget(:final id) =>
-          channel_api.retryMessage(name: id, messageId: messageId),
-        GroupTarget(:final id) =>
-          group_api.retryMessage(groupId: id, messageId: messageId),
-      };
+      conversation_api.retry(
+          reference: _bridgeRef(target), messageId: messageId);
 
   @override
-  Future<AttachmentSendResult> sendAttachment(
+  Future<void> sendAttachment(
     AnyConversationTarget target, {
     required String fileName,
     required String mime,
@@ -175,56 +157,28 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
     String? thumbnailBase64,
     VoiceMeta? voice,
   }) =>
-      switch (target) {
-        DmTarget(:final id) => api.sendAttachment(
-            sessionId: id,
-            fileName: fileName,
-            mime: mime,
-            dataBase64: dataBase64,
-            thumbnailBase64: thumbnailBase64,
-            voice: voice,
-          ),
-        ChannelTarget(:final id) => channel_api.sendAttachment(
-            name: id,
-            fileName: fileName,
-            mime: mime,
-            dataBase64: dataBase64,
-            thumbnailBase64: thumbnailBase64,
-            voice: voice,
-          ),
-        GroupTarget(:final id) => group_api.sendAttachment(
-            groupId: id,
-            fileName: fileName,
-            mime: mime,
-            dataBase64: dataBase64,
-            thumbnailBase64: thumbnailBase64,
-            voice: voice,
-          ),
-      };
+      conversation_api.sendAttachment(
+        reference: _bridgeRef(target),
+        payload: BridgeAttachmentPayload(
+          fileName: fileName,
+          mime: mime,
+          dataBase64: dataBase64,
+          thumbnailBase64: thumbnailBase64,
+          voice: voice,
+        ),
+      );
 
   @override
   Future<void> downloadAttachment(AnyConversationTarget target,
           {required String attachmentId}) =>
-      switch (target) {
-        DmTarget(:final id) =>
-          api.downloadAttachment(sessionId: id, attachmentId: attachmentId),
-        ChannelTarget(:final id) =>
-          channel_api.downloadAttachment(name: id, attachmentId: attachmentId),
-        GroupTarget(:final id) =>
-          group_api.downloadAttachment(groupId: id, attachmentId: attachmentId),
-      };
+      conversation_api.downloadAttachment(
+          reference: _bridgeRef(target), attachmentId: attachmentId);
 
   @override
   Future<void> cancelAttachment(AnyConversationTarget target,
           {required String attachmentId}) =>
-      switch (target) {
-        DmTarget(:final id) =>
-          api.cancelAttachment(sessionId: id, attachmentId: attachmentId),
-        ChannelTarget(:final id) =>
-          channel_api.cancelAttachment(name: id, attachmentId: attachmentId),
-        GroupTarget(:final id) =>
-          group_api.cancelAttachment(groupId: id, attachmentId: attachmentId),
-      };
+      conversation_api.cancelAttachment(
+          reference: _bridgeRef(target), attachmentId: attachmentId);
 
   @override
   Future<void> dismissDmOffer(DmOfferHost<Object?> target,
@@ -237,11 +191,8 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
       };
 
   @override
-  Future<void> leave(AnyConversationTarget target) => switch (target) {
-        DmTarget(:final id) => api.closeSession(sessionId: id),
-        ChannelTarget(:final id) => channel_api.leave(name: id),
-        GroupTarget(:final id) => group_api.close(groupId: id),
-      };
+  Future<void> leave(AnyConversationTarget target) =>
+      conversation_api.leave(reference: _bridgeRef(target));
 
   // --------------------------------------------------------------------
 
@@ -252,30 +203,24 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
   @override
   Future<GroupListSnapshot> listGroups() => group_api.list();
 
-  // Channels/groups write seam delegates straight to the frb free functions.
-  // The `joinChannel` seam (slice-3) delegates to channel_api.join; the
-  // request carries name + displayName + listenPort + staticPeer (the same
-  // fields InviteFlowState already sources for createInvite, ADR 0010).
+  // Channels/groups write seam delegates straight to the frb free functions;
+  // the request types carry the fields (ADR 0010).
   @override
   Future<ChannelSnapshot> joinChannel({required JoinChannelRequest request}) =>
       channel_api.join(request: request);
 
-  // The `createGroup` seam (slice-3) delegates to group_api.createGroup; the
-  // request carries label? + displayName + listenPort + staticPeer? +
-  // orgPubkey? (standalone group -- the org-bound variant in org.dart is a
-  // different frb function the onboarding Group tile does not use).
+  // createGroup makes the standalone group; the org-bound variant in
+  // org.dart is a different frb function the onboarding Group tile does not
+  // use.
   @override
   Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>
       group_api.createGroup(request: request);
-  // The `joinGroup` seam (slice-3) delegates to group_api.joinGroup; the
-  // request carries inviteUri + displayName + listenPort + staticPeer? +
-  // orgPubkey? (null for direct paste/deep-link join; only set when the
-  // invite arrived as an org group-offer).
+  // joinGroup's orgPubkey stays null for direct paste/deep-link joins; it is
+  // set only when the invite arrived as an org group-offer.
   @override
   Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) =>
       group_api.joinGroup(request: request);
-  // Peer-DM-offer SEND seams: channel is wired to the generated Rust facade;
-  // group remains a separate atomic for independent review.
+  // Peer-DM-offer SEND seams: the outbound counterpart of dismissDmOffer.
   @override
   Future<void> sendChannelDmOffer(
           {required String channelName,
@@ -294,27 +239,21 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
           groupId: groupId,
           targetFingerprint: peerFingerprint,
           inviteUri: inviteUri);
-  // Org surface (1:1 port of the org_* Tauri commands). Each delegates to
-  // org_api (the frb bindings for mosh_core::api::org). The cross-runtime
-  // methods (sendOrgDmOffer/acceptOrgDmOffer/createOrgGroup/
-  // acceptOrgGroupOffer/orgGroupInviteMembers/leaveOrg) drive the DM/group
+  // Org surface: each delegates to org_api (frb bindings for
+  // mosh_core::api::org). The cross-runtime methods drive the DM/group
   // singletons from inside the org facade on the Rust side, so the Dart
   // call is one method per command (ADR 0010 1:1 rule).
   @override
   Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
       org_api.joinOrg(request: request);
-
   @override
   Future<void> leaveOrg({required String orgPubkey}) =>
       org_api.leaveOrg(orgPubkey: orgPubkey);
-
   @override
   Future<List<OrgSnapshot>> listOrgs() => org_api.list();
-
   @override
   Future<OrgSnapshot> pollOrg({required String orgPubkey}) =>
       org_api.poll(orgPubkey: orgPubkey);
-
   @override
   Future<InviteCreated> sendOrgDmOffer({
     required String orgPubkey,
@@ -330,7 +269,6 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
         listenPort: listenPort,
         staticPeer: staticPeer,
       );
-
   @override
   Future<SessionSnapshot> acceptOrgDmOffer({
     required String orgPubkey,
@@ -346,12 +284,10 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
         listenPort: listenPort,
         staticPeer: staticPeer,
       );
-
   @override
   Future<void> dismissOrgDmOffer(
           {required String orgPubkey, required String offerId}) =>
       org_api.dismissDmOffer(orgPubkey: orgPubkey, offerId: offerId);
-
   @override
   Future<GroupCreated> createOrgGroup({
     required String orgPubkey,
@@ -369,7 +305,6 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
         listenPort: listenPort,
         staticPeer: staticPeer,
       );
-
   @override
   Future<GroupSnapshot> acceptOrgGroupOffer({
     required String orgPubkey,
@@ -385,12 +320,10 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
         listenPort: listenPort,
         staticPeer: staticPeer,
       );
-
   @override
   Future<void> dismissOrgGroupOffer(
           {required String orgPubkey, required String offerId}) =>
       org_api.dismissGroupOffer(orgPubkey: orgPubkey, offerId: offerId);
-
   @override
   Future<void> orgGroupInviteMembers({
     required String orgPubkey,
@@ -403,8 +336,7 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
         memberPeerIds: memberPeerIds,
       );
 
-  // Network + VPN surface: delegates to network_api / vpn_api (frb
-  // bindings for api::network + api::vpn, implemented in 75a2880).
+  // Network + VPN surface: delegates to network_api / vpn_api.
   @override
   Future<List<NetworkInterfaceInfo>> listInterfaces() =>
       network_api.listInterfaces();
@@ -423,7 +355,7 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
   Future<void> setVpnBypassConsent({String? interfaceName}) =>
       vpn_api.setVpnBypassConsent(interface_: interfaceName);
   // Voice-call surface: delegates to api (frb bindings for api::private_dm
-  // call_*, implemented in c86b712). DM-only.
+  // call_*). DM-only.
   @override
   Future<CallStarted> callStart({required String sessionId}) =>
       api.callStart(sessionId: sessionId);

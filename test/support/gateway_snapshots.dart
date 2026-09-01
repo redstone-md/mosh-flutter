@@ -19,8 +19,6 @@ import 'package:mosh/src/rust/outbound_delivery.dart'
 import 'package:mosh/src/rust/persistence.dart' show PersistenceRuntimeStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show CallStarted, ChatMessage, SessionSnapshot;
-import 'package:mosh/src/rust/conversation/attachments.dart'
-    show AttachmentSendResult;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/rust/secure_storage.dart' show SecureStorageStatus;
 
@@ -267,20 +265,4 @@ CallStarted cannedCallStarted(String sessionId) => CallStarted(
       callId: 'fake-call',
       keyB64: 'fake-key',
       noncePrefixB64: 'fake-nonce',
-    );
-
-/// Canned [AttachmentSendResult] for `Gateway.sendAttachment`. The prefix
-/// says which kind sent it; the attachmentId and contentHash derive from the
-/// file name and payload hash, so the screen can invalidate and the next poll
-/// renders a distinct row.
-AttachmentSendResult cannedAttachmentSendResult({
-  required String sessionPrefix,
-  required String id,
-  required String fileName,
-  required String dataBase64,
-}) =>
-    AttachmentSendResult(
-      conversationId: '$sessionPrefix:$id',
-      attachmentId: 'fake-$sessionPrefix-attachment:${fileName.hashCode}',
-      contentHash: 'fake-hash:${dataBase64.hashCode}',
     );
