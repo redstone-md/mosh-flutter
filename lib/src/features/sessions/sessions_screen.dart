@@ -1,16 +1,24 @@
 // Sessions list screen -- the Flutter port of the React SessionRail sections
-// (SessionRail.tsx). One row per SessionSnapshot, a FAB to start a new
+// (SessionRail.tsx). One row per conversation, a FAB to start a new
 // session, and an empty state. The combined rail order is 1-в-1 with React
 // (offers -> sessions -> groups -> channels -> orgs), separated by
 // `rail-divider` lines between two non-empty adjacent sections.
-// Unread counts: one `unreadCountsProvider` family serves all three kinds
-// (keyed `'dm:sessionId'` / `'channel:name'` / `'group:groupId'`), diffed
-// into one map by the lifecycle provider below. Orgs render after the
-// channels loop; `org_actions.dart` backs the 7 callbacks, each reduced to
-// its own Gateway call and its own destination -- the busy flag, the
-// refresh, the error toast and the navigation belong to the one envelope
-// they all run in. `busy` mirrors React's `org.busy = offerBusy ||
-// setupBusy` via `orgOperationBusProvider` (Set<orgPubkey>).
+//
+// The rail builds ONE list of [RailEntry] values per paint -- one entry per
+// conversation, whatever kind it is -- and loops over it once. Each entry
+// names the conversation it opens ([RailEntry.ref]) and renders its own row
+// through the shared rail-row widget, so the three things that used to be
+// written once per kind (the unread lookup, the active highlight and the
+// clear-on-tap) are written once, from the entry's key. A new kind adds one
+// [RailEntry] subclass and one section below; the loop does not change.
+// Unread counts come from `unreadLifecycleProvider`, which merges the
+// per-kind counts into ONE diffed map keyed by [ConversationRef.key].
+// Orgs render after the channels; `org_actions.dart` backs the 7 callbacks,
+// each reduced to its own Gateway call and its own destination -- the busy
+// flag, the refresh, the error toast and the navigation belong to the one
+// envelope they all run in. `busy` mirrors React's
+// `org.busy = offerBusy || setupBusy` via `orgOperationBusProvider`
+// (Set<orgPubkey>).
 //
 // State split (ADR 0010): server state lives in the
 // `conversationListProvider` family (one entry per conversation kind) --
@@ -24,23 +32,17 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/diagnostics/state_label.dart';
-import 'package:mosh/src/features/conversation/peer_label.dart';
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
-import 'package:mosh/src/features/sessions/channel_rail_item.dart';
-import 'package:mosh/src/features/sessions/group_rail_item.dart';
-import 'package:mosh/src/features/sessions/offer_rail_item.dart';
+import 'package:mosh/src/features/sessions/rail_entry.dart';
+import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_rail_actions.dart';
 import 'package:mosh/src/features/sessions/revoked_dm_badges.dart'
     show revokedDmBadgesProvider;
-import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/state/conversation_providers.dart'
     show channelsOf, conversationListProvider, groupsOf, sessionsOf;
@@ -48,14 +50,11 @@ import 'package:mosh/src/state/dm_offer_providers.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
-import 'package:mosh/src/features/conversation/conversation_helpers.dart';
-import 'package:mosh/src/features/sessions/rail_item.dart';
-import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// The DM sessions-list screen. 1-в-1 with the React SessionRail sessions
-/// section: one row per `SessionSnapshot`, a FAB to start a new session,
-/// and an empty state. See the file header for the deferred-scope note.
+/// The DM sessions-list screen. 1-в-1 with the React SessionRail: one row
+/// per conversation, a FAB to start a new session, and an empty state. See
+/// the file header for how the rail is composed.
 class SessionsScreen extends ConsumerWidget {
   const SessionsScreen({super.key});
 
@@ -81,10 +80,10 @@ class SessionsScreen extends ConsumerWidget {
     // rail (React SessionRail order: offers -> sessions -> groups -> channels).
     final pendingOffers = ref.watch(pendingDmOffersProvider);
     // Unread lifecycle map -- the React `useUnreadNotifications.unread`
-    // port. It merges the per-kind counts into ONE diffed map keyed
-    // `dm:<id>` / `channel:<name>` / `group:<id>`, so clearOnActive takes
-    // effect. Reads the notifier so `clearUnread(key)` is callable on
-    // select (mirrors React's rail `onSelect` calling clearUnread).
+    // port. It merges the per-kind counts into ONE diffed map keyed by
+    // `ConversationRef.key`, so clearOnActive takes effect. Reads the
+    // notifier so `clearUnread(key)` is callable on select (mirrors React's
+    // rail `onSelect` calling clearUnread).
     final unread = ref.watch(unreadLifecycleProvider);
     final unreadNotifier = ref.read(unreadLifecycleProvider.notifier);
     // The active-conversation key (active_conversation_key_provider.dart),
@@ -94,15 +93,36 @@ class SessionsScreen extends ConsumerWidget {
     // The active-conversation key VALUE (mirrors React's
     // `activeConversationKey`). Watched so the rail re-renders + marks the
     // open row as selected (React `rail-item-active`,
-    // SessionRail.tsx:254-296). The key matches the one the rail sets below
-    // (`dm:<id>` / `group:<id>` / `channel:<name>`), so the highlight stays
-    // when the chat screen's initState re-sets the same key.
+    // SessionRail.tsx:254-296). The key is the one the rail sets below, so
+    // the highlight stays when the chat screen's initState re-sets it.
     final String? activeKey = ref.watch(activeConversationKeyProvider);
     // Revoked-org DM badges -- the React `SessionRail` subtitle branch
     // (SessionRail.tsx L36-38): session-id -> org-name for org-bound DMs whose
     // peer left the roster. Degrades to an empty map while orgs load or on
     // error so the badge stays absent during a refresh.
     final revokedBadges = ref.watch(revokedDmBadgesProvider);
+    // What the rail hands each row: its unread count, whether it is the open
+    // conversation, and the hook that clears the badge + marks it open. All
+    // three come from the row's own [RailEntry.ref], so the `kind:id` key is
+    // written here and nowhere else in the screen.
+    RailRowChrome chromeFor(RailEntry entry) {
+      final conversation = entry.ref;
+      // A row with no conversation behind it (a pending offer) has no badge
+      // to clear and no conversation to mark open.
+      if (conversation == null) {
+        return (unreadCount: 0, active: false, onSelect: null);
+      }
+      final key = conversation.key;
+      return (
+        unreadCount: unread[key] ?? 0,
+        active: key == activeKey,
+        onSelect: () {
+          unreadNotifier.clearUnread(key);
+          activeKeyNotifier.set(key);
+        },
+      );
+    }
+
     // React `.session-rail { background: var(--bg-0); border-right: 1px
     // solid var(--line); padding: 12px }` -- the rail carries NO header of
     // its own; the shell titlebar sits above it.
@@ -142,98 +162,68 @@ class SessionsScreen extends ConsumerWidget {
                     final groups = groupsOf(groupsAsync.value);
                     final orgs = orgsAsync.value ?? const <OrgSnapshot>[];
                     final sessions = sessionsOf(list);
-                    // Empty only when ALL five slices are empty (offers + sessions +
-                    // groups + channels + orgs).
-                    if (pendingOffers.isEmpty &&
-                        sessions.isEmpty &&
-                        channels.isEmpty &&
-                        groups.isEmpty &&
+                    // One entry per conversation, in React's rail order:
+                    // offers -> sessions -> groups -> channels. A section is
+                    // one kind's slice; the loop below flattens them.
+                    final sections = <List<RailEntry>>[
+                      [
+                        for (final offer in pendingOffers)
+                          OfferRailEntry(
+                            pending: offer,
+                            onAccept: () =>
+                                acceptOfferAction(context, ref, offer),
+                            onDismiss: () => dismissOfferAction(ref, offer),
+                          ),
+                      ],
+                      [
+                        for (final session in sessions)
+                          DmRailEntry(
+                            session,
+                            revokedOrgName: revokedBadges[session.sessionId],
+                          ),
+                      ],
+                      [for (final group in groups) GroupRailEntry(group)],
+                      [
+                        for (final channel in channels)
+                          ChannelRailEntry(channel)
+                      ],
+                    ];
+                    // Empty only when no section has a row and there is no
+                    // org either.
+                    if (!sections.any((section) => section.isNotEmpty) &&
                         orgs.isEmpty) {
                       return _EmptyState(
                         onStart: () => openNewSessionAction(context, ref),
                       );
                     }
-                    // React SessionRail order: sessions, [divider if groups && sessions],
-                    // groups, [divider if channels && (sessions || groups)], channels.
-                    // A `Divider` renders only between two non-empty adjacent sections,
-                    // mirroring React's conditional `rail-divider` rendering.
-                    final children = <Widget>[
-                      for (final pending in pendingOffers)
-                        OfferRailItem(
-                          pending: pending,
-                          onAccept: () =>
-                              acceptOfferAction(context, ref, pending),
-                          onDismiss: () => dismissOfferAction(ref, pending),
-                        ),
-                      if (pendingOffers.isNotEmpty && sessions.isNotEmpty)
-                        const RailDivider(),
-                      for (final session in sessions)
-                        _SessionRow(
-                          session: session,
-                          unreadCount: unread['dm:${session.sessionId}'] ?? 0,
-                          revokedOrgName: revokedBadges[session.sessionId],
-                          // Highlight the open DM row (React `rail-item-active`,
-                          // SessionRail.tsx:254-296). Same key the rail sets below.
-                          active: activeKey == 'dm:${session.sessionId}',
-                          // Select hook: clear this conversation's badge + mark it the
-                          // active conversation so the lifecycle clears it on focus
-                          // (mirrors React's rail `onSelect` -> clearUnread(key) +
-                          // activeConversationKey set). The navigate still runs after.
-                          onSelect: () {
-                            unreadNotifier
-                                .clearUnread('dm:${session.sessionId}');
-                            activeKeyNotifier.set('dm:${session.sessionId}');
-                          },
-                        ),
-                      if (groups.isNotEmpty && sessions.isNotEmpty)
-                        const RailDivider(),
-                      for (final group in groups)
-                        // Keyed by [ConversationRef]'s `'group:<groupId>'`;
-                        // the count compares fingerprints.
-                        GroupRailItem(
-                          group: group,
-                          unreadCount: unread['group:${group.groupId}'] ?? 0,
-                          // Highlight the open group row (React `rail-item-active`,
-                          // SessionRail.tsx:254-296). Same key the rail sets below.
-                          active: activeKey == 'group:${group.groupId}',
-                          // Select hook: same clearUnread + activeKey set as the DM
-                          // row, keyed `'group:<groupId>'` (the group identity).
-                          onSelect: () {
-                            unreadNotifier
-                                .clearUnread('group:${group.groupId}');
-                            activeKeyNotifier.set('group:${group.groupId}');
-                          },
-                        ),
-                      if (channels.isNotEmpty &&
-                          (sessions.isNotEmpty || groups.isNotEmpty))
-                        const RailDivider(),
-                      for (final channel in channels)
-                        // Keyed by [ConversationRef]'s `'channel:<name>'`;
-                        // the count compares fingerprints.
-                        ChannelRailItem(
-                          channel: channel,
-                          unreadCount: unread['channel:${channel.name}'] ?? 0,
-                          // Highlight the open channel row (React `rail-item-active`,
-                          // SessionRail.tsx:254-296). Same key the rail sets below.
-                          active: activeKey == 'channel:${channel.name}',
-                          // Select hook: same clearUnread + activeKey set as the DM
-                          // row, keyed `'channel:<name>'`.
-                          onSelect: () {
-                            unreadNotifier
-                                .clearUnread('channel:${channel.name}');
-                            activeKeyNotifier.set('channel:${channel.name}');
-                          },
-                        ),
-                      for (final org in orgs) ...[
-                        // React SessionRail renders each org wrapped in a
-                        // `rail-divider` + `OrgSection` (the divider is INSIDE the
-                        // per-org map, unconditional, so N orgs render N dividers --
-                        // one above each org header). The 7 callbacks pass through to
-                        // the org action helpers (gateway + refresh + navigation);
-                        // `busy` mirrors React's `org.busy = offerBusy || setupBusy`
-                        // via the per-org operation-bus (only this org disables while
-                        // its leave/offer/member/new-group action is in flight).
-                        const RailDivider(),
+                    // One pass builds the rail: a [RailDivider] between two
+                    // non-empty adjacent sections (the header contract above;
+                    // the pre-08 loop had pair-specific divider conditions,
+                    // so offers+groups or offers+channels with no sessions
+                    // between them now also get one), then one row per
+                    // conversation.
+                    final children = <Widget>[];
+                    for (final section in sections) {
+                      if (section.isEmpty) continue;
+                      if (children.isNotEmpty) {
+                        children.add(const RailDivider());
+                      }
+                      for (final entry in section) {
+                        children.add(entry.buildRow(context, chromeFor(entry)));
+                      }
+                    }
+                    // React SessionRail renders each org wrapped in a
+                    // `rail-divider` + `OrgSection` (the divider is INSIDE the
+                    // per-org map, unconditional, so N orgs render N dividers
+                    // -- one above each org header). The 7 callbacks pass
+                    // through to the org action helpers (gateway + refresh +
+                    // navigation); `busy` mirrors React's
+                    // `org.busy = offerBusy || setupBusy` via the per-org
+                    // operation-bus (only this org disables while its
+                    // leave/offer/member/new-group action is in flight).
+                    for (final org in orgs) {
+                      children.add(const RailDivider());
+                      children.add(
                         OrgSection(
                           org: org,
                           busy: ref
@@ -256,8 +246,8 @@ class SessionsScreen extends ConsumerWidget {
                           onLeave: (o) => leaveOrgAction(context, ref, o),
                           l: l,
                         ),
-                      ],
-                    ];
+                      );
+                    }
                     return RefreshIndicator(
                       onRefresh: () => ref
                           .read(conversationListProvider(ConversationKind.dm)
@@ -271,88 +261,6 @@ class SessionsScreen extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// One DM session row. Mirrors the React `SessionRailItem`:
-///   - leading: Avatar (CircleAvatar with the label's initials via
-///     [avatarInitials] -- React's split-on-whitespace/underscore/dash +
-///     first-char-of-each + take-2 + uppercase algorithm; the background
-///     color is a stable hash of the LABEL (React `<Avatar name={label} />`
-///     hashes the name), so two sessions with the same peer get the same
-///     color -- matching React's per-`name` Avatar styling).
-///   - title: the label, falling back peer -> own display -> raw session id
-///     (the same chain `dm_screen` uses for its title).
-///   - subtitle: the localized state label (`stateIdle|stateWaiting|stateReady`
-///     or the raw state string for unknown states).
-///     OR -- when this DM's linked peer is no longer in the org roster -- the
-///     React `SessionRail` revoked branch (SessionRail.tsx L36-38):
-///     `${orgText.revokedBadge} ${revokedOrgName}` (the "no longer in `<org>`"
-///     badge). The
-///     revoked-org name is looked up from `revokedDmBadgesProvider` at the
-///     call site (DM rows only).
-///   - trailing: a colored state dot plus an `UnreadBadge` (count > 0)
-///     mirroring React's `SessionRailItem` trailing slot.
-///   - onTap: navigate to the DM screen for this session id.
-///   - Semantics mirrors React's `aria-label="Open session with ${label}"`.
-class _SessionRow extends StatelessWidget {
-  const _SessionRow({
-    required this.session,
-    this.active = false,
-    this.unreadCount = 0,
-    this.revokedOrgName,
-    this.onSelect,
-  });
-
-  final SessionSnapshot session;
-  // Highlight the open DM row (React `rail-item-active`,
-  // SessionRail.tsx:254-296). Passed to `ListTile(selected:)` -- the
-  // idiomatic selected-tile highlight (theme `selectedTileColor`).
-  final bool active;
-  final int unreadCount;
-  final String? revokedOrgName;
-
-  /// Optional select hook called BEFORE the navigate, so the parent
-  /// (SessionsScreen) can clear the unread badge + set the active
-  /// conversation key for this session (mirrors React's rail `onSelect`
-  /// calling `clearUnread(conversationKey(item))`). Null keeps the prior
-  /// navigate-only behavior.
-  final VoidCallback? onSelect;
-
-  // React `peerLabel` (private-dm-screen.tsx:535-543): peer name from a
-  // message -> "peer" -> "invite sent"/"joining", with the Flutter
-  // `peerDisplayName` short-circuit. Shares the helper used by the DM
-  // header so the rail + the chat title agree on the fallback label.
-  String _label(AppLocalizations l) => peerLabel(l, session);
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final label = _label(l);
-    final stateText = stateLabel(l, session.state);
-    return Semantics(
-      label: 'Open session with $label',
-      button: true,
-      selected: active,
-      child: RailItem(
-        kind: RailItemKind.dm,
-        leading: Avatar(name: label),
-        title: label,
-        subtitle: revokedOrgName != null
-            ? '${l.orgRevokedBadge} $revokedOrgName'
-            : stateText,
-        // The expanded rail hides `.rail-dot`, so the badge stands alone.
-        trailing: UnreadBadge(count: unreadCount),
-        active: active,
-        onTap: () {
-          // Select hook first (clear badge + set active key), then navigate
-          // -- mirrors React's rail `onSelect` -> clearUnread(key) then the
-          // screen swaps. The navigate stays identical for behavior parity.
-          onSelect?.call();
-          context.go(AppRoutes.dmFor(session.sessionId));
-        },
       ),
     );
   }

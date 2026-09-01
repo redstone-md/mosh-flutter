@@ -960,6 +960,15 @@
       }
     }
   },
+  "openSessionAria": "Open session with {name}",
+  "@openSessionAria": {
+    "description": "Screen-reader label for the Open-session rail-item row, with the peer label (React aria-label `Open session with ${label}`, SessionRail.tsx)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "membersCount": "{count, plural, one {{count} member} other {{count} members}}",
   "@membersCount": {
     "description": "Subtitle for the GroupScreen AppBar subtitle and the group rail-item showing the member count. ICU MessageFormat plural (English: one '1 member' / other 'N members'); corrects Russian grammar (one/few/many) where the prior naive binary plural rendered '2 участников' instead of '2 участника'. The 'count' placeholder is int.",

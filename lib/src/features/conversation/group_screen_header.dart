@@ -152,7 +152,7 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
         // (left of the search). `Icons.workspace_premium` is the closest
         // Material equivalent to lucide `IconCrown` (a crown medal) -- the
         // rail already uses the same icon for its admin crown
-        // (group_rail_item.dart).
+        // (rail_entry.dart).
         if (async.maybeWhen(
           data: (group) => group.isAdmin,
           orElse: () => false,
@@ -279,7 +279,7 @@ String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
 /// a crown icon + the "admin" label, wrapped in a [Tooltip] that mirrors
 /// React's `title` attribute. `Icons.workspace_premium` is the closest
 /// Material equivalent to lucide `IconCrown` (a crown medal) -- the rail
-/// already uses the same icon for its admin crown (group_rail_item.dart).
+/// already uses the same icon for its admin crown (rail_entry.dart).
 class _AdminPill extends StatelessWidget {
   const _AdminPill({required this.label});
 

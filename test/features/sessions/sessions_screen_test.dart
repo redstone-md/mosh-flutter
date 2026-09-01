@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import '../../support/scriptable_gateway.dart';
@@ -21,7 +22,7 @@ import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import '../../support/pump.dart';
 
 /// A gateway holding one channel that carries a DM offer, so the sessions
-/// rail renders an OfferRailItem (pendingDmOffersProvider derives from
+/// rail renders an offer row (pendingDmOffersProvider derives from
 /// channel.dmOffers).
 ScriptableGateway _channelOfferGateway() => ScriptableGateway()
   ..seedChannels([
@@ -223,14 +224,14 @@ void main() {
   });
 
   testWidgets(
-      'pending channel DM offer renders an OfferRailItem and dismiss removes it',
+      'pending channel DM offer renders one rail row and dismiss removes it',
       (tester) async {
     final gateway = _channelOfferGateway();
     // useRouter so the accept path's context.go(AppRoutes.dmFor(...)) resolves
     // and pushes DmScreen, which the test asserts via the DM screen composer.
     await pumpSessions(tester, gateway, useRouter: true);
 
-    // The OfferRailItem renders with the offering peer's name + the
+    // The offer row renders with the offering peer's name + the
     // channel-host subtitle (`#drift-room`). The subtitle text appears in
     // the offer row AND the channel's own rail row (the channel is named
     // `drift-room`), so the peer name is the unique offer-row signal.
@@ -260,6 +261,21 @@ void main() {
         sessionCallsBeforeAccept + 1);
     // The DM screen rendered (its composer is a TextField).
     expect(find.byType(TextField), findsWidgets);
+  });
+
+  testWidgets(
+      'the offer row renders through the shared rail row, dismiss X included',
+      (tester) async {
+    await pumpSessions(tester, _channelOfferGateway(), useRouter: true);
+
+    // One row shape: the offer row stops hand-rolling a `ListTile` and is a
+    // `RailItem` like every other row, with the dismiss X in its trailing
+    // slot (React's `rail-offer-dismiss` inside `rail-offer-accept`).
+    final offerRow = tester.widget<RailItem>(find.ancestor(
+      of: find.byTooltip('Dismiss invite'),
+      matching: find.byType(RailItem),
+    ));
+    expect(offerRow.title, 'alpha-peer');
   });
 
   testWidgets(
