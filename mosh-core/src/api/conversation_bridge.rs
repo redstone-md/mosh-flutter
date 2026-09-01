@@ -4,9 +4,9 @@
 //! module maps them into the smaller actionable category that the Dart caller
 //! needs. It is a seam contract, not a fourth runtime error hierarchy.
 //!
-//! Nothing returns this yet. The six shared bridge actions in ADR 0024 will
-//! return it when they land, rather than retrofitting a typed error over a
-//! flattened string afterwards.
+//! The six shared conversation actions (`api::conversation`, ADR 0024)
+//! return this error; the specialized facades keep flattening to a `String`
+//! until a ticket moves them onto a typed return.
 
 use flutter_rust_bridge::frb;
 

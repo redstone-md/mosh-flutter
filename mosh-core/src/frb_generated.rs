@@ -52,7 +52,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1677708376;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 389672870;
 
 // Section: executor
 
@@ -463,6 +463,46 @@ fn wire__crate__api__channel__cancel_attachment_impl(
                         crate::api::channel::cancel_attachment(api_name, api_attachment_id)?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__conversation__cancel_attachment_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "cancel_attachment",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_reference =
+                <crate::api::conversation::BridgeConversationRef>::sse_decode(&mut deserializer);
+            let api_attachment_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::conversation::cancel_attachment(
+                            api_reference,
+                            api_attachment_id,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -928,6 +968,46 @@ fn wire__crate__api__channel__download_attachment_impl(
         },
     )
 }
+fn wire__crate__api__conversation__download_attachment_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "download_attachment",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_reference =
+                <crate::api::conversation::BridgeConversationRef>::sse_decode(&mut deserializer);
+            let api_attachment_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::conversation::download_attachment(
+                            api_reference,
+                            api_attachment_id,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__private_dm__download_attachment_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1267,6 +1347,42 @@ fn wire__crate__api__channel__leave_impl(
                     let output_ok = crate::api::channel::leave(api_name)?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__conversation__leave_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "leave",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_reference =
+                <crate::api::conversation::BridgeConversationRef>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::conversation::leave(api_reference)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -1629,6 +1745,44 @@ fn wire__crate__api__private_dm__poll_session_impl(
         },
     )
 }
+fn wire__crate__api__conversation__retry_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "retry",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_reference =
+                <crate::api::conversation::BridgeConversationRef>::sse_decode(&mut deserializer);
+            let api_message_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::conversation::retry(api_reference, api_message_id)?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__channel__retry_message_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1767,6 +1921,43 @@ fn wire__crate__api__channel__send_impl(
         },
     )
 }
+fn wire__crate__api__conversation__send_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "send",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_reference =
+                <crate::api::conversation::BridgeConversationRef>::sse_decode(&mut deserializer);
+            let api_body = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::conversation::send(api_reference, api_body)?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__private_group__send_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1843,6 +2034,45 @@ fn wire__crate__api__channel__send_attachment_impl(
                     )?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__conversation__send_attachment_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "send_attachment",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_reference =
+                <crate::api::conversation::BridgeConversationRef>::sse_decode(&mut deserializer);
+            let api_payload =
+                <crate::api::conversation::BridgeAttachmentPayload>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::conversation::send_attachment(api_reference, api_payload)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -2864,6 +3094,51 @@ impl SseDecode for bool {
     }
 }
 
+impl SseDecode for crate::api::conversation::BridgeAttachmentPayload {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_fileName = <String>::sse_decode(deserializer);
+        let mut var_mime = <String>::sse_decode(deserializer);
+        let mut var_dataBase64 = <String>::sse_decode(deserializer);
+        let mut var_thumbnailBase64 = <Option<String>>::sse_decode(deserializer);
+        let mut var_voice =
+            <Option<crate::attachment_runtime::VoiceMeta>>::sse_decode(deserializer);
+        return crate::api::conversation::BridgeAttachmentPayload {
+            file_name: var_fileName,
+            mime: var_mime,
+            data_base64: var_dataBase64,
+            thumbnail_base64: var_thumbnailBase64,
+            voice: var_voice,
+        };
+    }
+}
+
+impl SseDecode for crate::api::conversation::BridgeConversationKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::conversation::BridgeConversationKind::Dm,
+            1 => crate::api::conversation::BridgeConversationKind::Channel,
+            2 => crate::api::conversation::BridgeConversationKind::Group,
+            _ => unreachable!("Invalid variant for BridgeConversationKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::conversation::BridgeConversationRef {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind =
+            <crate::api::conversation::BridgeConversationKind>::sse_decode(deserializer);
+        let mut var_id = <String>::sse_decode(deserializer);
+        return crate::api::conversation::BridgeConversationRef {
+            kind: var_kind,
+            id: var_id,
+        };
+    }
+}
+
 impl SseDecode for crate::private_dm_runtime::contracts::CallEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3043,6 +3318,42 @@ impl SseDecode for crate::private_dm_runtime::contracts::CloseSessionResult {
         return crate::private_dm_runtime::contracts::CloseSessionResult {
             session_id: var_sessionId,
             closed: var_closed,
+        };
+    }
+}
+
+impl SseDecode for crate::api::conversation_bridge::ConversationBridgeError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind =
+            <crate::api::conversation_bridge::ConversationBridgeErrorKind>::sse_decode(
+                deserializer,
+            );
+        let mut var_message = <String>::sse_decode(deserializer);
+        return crate::api::conversation_bridge::ConversationBridgeError {
+            kind: var_kind,
+            message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::conversation_bridge::ConversationBridgeErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::conversation_bridge::ConversationBridgeErrorKind::InvalidInput,
+            1 => crate::api::conversation_bridge::ConversationBridgeErrorKind::Unavailable,
+            2 => crate::api::conversation_bridge::ConversationBridgeErrorKind::NotReady,
+            3 => crate::api::conversation_bridge::ConversationBridgeErrorKind::MissingConversation,
+            4 => crate::api::conversation_bridge::ConversationBridgeErrorKind::MissingMessage,
+            5 => crate::api::conversation_bridge::ConversationBridgeErrorKind::MissingAttachment,
+            6 => crate::api::conversation_bridge::ConversationBridgeErrorKind::Transfer,
+            7 => crate::api::conversation_bridge::ConversationBridgeErrorKind::Persistence,
+            8 => crate::api::conversation_bridge::ConversationBridgeErrorKind::NeedsRejoin,
+            9 => crate::api::conversation_bridge::ConversationBridgeErrorKind::Revoked,
+            10 => crate::api::conversation_bridge::ConversationBridgeErrorKind::Internal,
+            _ => unreachable!("Invalid variant for ConversationBridgeErrorKind: {}", inner),
         };
     }
 }
@@ -4285,110 +4596,128 @@ fn pde_ffi_dispatcher_primary_impl(
         9 => wire__crate__api__private_dm__call_send_frame_impl(port, ptr, rust_vec_len, data_len),
         10 => wire__crate__api__private_dm__call_start_impl(port, ptr, rust_vec_len, data_len),
         11 => wire__crate__api__channel__cancel_attachment_impl(port, ptr, rust_vec_len, data_len),
-        12 => {
+        12 => wire__crate__api__conversation__cancel_attachment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        13 => {
             wire__crate__api__private_dm__cancel_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        13 => wire__crate__api__private_group__cancel_attachment_impl(
+        14 => wire__crate__api__private_group__cancel_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        14 => wire__crate__api__private_group__close_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__private_dm__close_session_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__private_group__dismiss_dm_offer_impl(
+        15 => wire__crate__api__private_group__close_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__private_dm__close_session_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__private_group__dismiss_dm_offer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
-        24 => {
+        24 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
+        25 => {
             wire__crate__api__channel__download_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        25 => wire__crate__api__private_dm__download_attachment_impl(
+        26 => wire__crate__api__conversation__download_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__api__private_group__download_attachment_impl(
+        27 => wire__crate__api__private_dm__download_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__shared_runtime__ensure_shared_resources_impl(
+        28 => wire__crate__api__private_group__download_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__channel__leave_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__diagnostics__native_runtime_status_impl(
+        29 => wire__crate__api__shared_runtime__ensure_shared_resources_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__channel__retry_message_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__private_dm__retry_message_impl(port, ptr, rust_vec_len, data_len),
-        48 => {
+        30 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__channel__leave_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__diagnostics__native_runtime_status_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        45 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__channel__retry_message_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__private_dm__retry_message_impl(port, ptr, rust_vec_len, data_len),
+        52 => {
             wire__crate__api__private_group__retry_message_impl(port, ptr, rust_vec_len, data_len)
         }
-        49 => wire__crate__api__channel__send_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__private_group__send_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__channel__send_attachment_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__private_dm__send_attachment_impl(port, ptr, rust_vec_len, data_len),
-        53 => {
+        53 => wire__crate__api__channel__send_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__private_group__send_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__channel__send_attachment_impl(port, ptr, rust_vec_len, data_len),
+        57 => {
+            wire__crate__api__conversation__send_attachment_impl(port, ptr, rust_vec_len, data_len)
+        }
+        58 => wire__crate__api__private_dm__send_attachment_impl(port, ptr, rust_vec_len, data_len),
+        59 => {
             wire__crate__api__private_group__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        54 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        56 => {
+        60 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        62 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        57 => wire__crate__api__private_dm__send_message_impl(port, ptr, rust_vec_len, data_len),
-        58 => {
+        63 => wire__crate__api__private_dm__send_message_impl(port, ptr, rust_vec_len, data_len),
+        64 => {
             wire__crate__api__private_dm__set_app_data_dir_impl(port, ptr, rust_vec_len, data_len)
         }
-        59 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
+        65 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__shared_runtime__set_history_dek_impl(
+        66 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__shared_runtime__set_history_dek_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        68 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
@@ -4406,37 +4735,37 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        64 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
+        70 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        65 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
+        71 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
+        72 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        67 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
+        73 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
+        74 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
+        75 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        76 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -4723,6 +5052,73 @@ impl flutter_rust_bridge::IntoIntoDart<crate::conversation::attachments::Attachm
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::conversation::BridgeAttachmentPayload {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.file_name.into_into_dart().into_dart(),
+            self.mime.into_into_dart().into_dart(),
+            self.data_base64.into_into_dart().into_dart(),
+            self.thumbnail_base64.into_into_dart().into_dart(),
+            self.voice.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::conversation::BridgeAttachmentPayload
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::conversation::BridgeAttachmentPayload>
+    for crate::api::conversation::BridgeAttachmentPayload
+{
+    fn into_into_dart(self) -> crate::api::conversation::BridgeAttachmentPayload {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::conversation::BridgeConversationKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Dm => 0.into_dart(),
+            Self::Channel => 1.into_dart(),
+            Self::Group => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::conversation::BridgeConversationKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::conversation::BridgeConversationKind>
+    for crate::api::conversation::BridgeConversationKind
+{
+    fn into_into_dart(self) -> crate::api::conversation::BridgeConversationKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::conversation::BridgeConversationRef {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::conversation::BridgeConversationRef
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::conversation::BridgeConversationRef>
+    for crate::api::conversation::BridgeConversationRef
+{
+    fn into_into_dart(self) -> crate::api::conversation::BridgeConversationRef {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::CallEvent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4935,6 +5331,59 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Clo
     for crate::private_dm_runtime::contracts::CloseSessionResult
 {
     fn into_into_dart(self) -> crate::private_dm_runtime::contracts::CloseSessionResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::conversation_bridge::ConversationBridgeError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::conversation_bridge::ConversationBridgeError
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::conversation_bridge::ConversationBridgeError>
+    for crate::api::conversation_bridge::ConversationBridgeError
+{
+    fn into_into_dart(self) -> crate::api::conversation_bridge::ConversationBridgeError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::api::conversation_bridge::ConversationBridgeErrorKind
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::InvalidInput => 0.into_dart(),
+            Self::Unavailable => 1.into_dart(),
+            Self::NotReady => 2.into_dart(),
+            Self::MissingConversation => 3.into_dart(),
+            Self::MissingMessage => 4.into_dart(),
+            Self::MissingAttachment => 5.into_dart(),
+            Self::Transfer => 6.into_dart(),
+            Self::Persistence => 7.into_dart(),
+            Self::NeedsRejoin => 8.into_dart(),
+            Self::Revoked => 9.into_dart(),
+            Self::Internal => 10.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::conversation_bridge::ConversationBridgeErrorKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::conversation_bridge::ConversationBridgeErrorKind>
+    for crate::api::conversation_bridge::ConversationBridgeErrorKind
+{
+    fn into_into_dart(self) -> crate::api::conversation_bridge::ConversationBridgeErrorKind {
         self
     }
 }
@@ -6072,6 +6521,42 @@ impl SseEncode for bool {
     }
 }
 
+impl SseEncode for crate::api::conversation::BridgeAttachmentPayload {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.file_name, serializer);
+        <String>::sse_encode(self.mime, serializer);
+        <String>::sse_encode(self.data_base64, serializer);
+        <Option<String>>::sse_encode(self.thumbnail_base64, serializer);
+        <Option<crate::attachment_runtime::VoiceMeta>>::sse_encode(self.voice, serializer);
+    }
+}
+
+impl SseEncode for crate::api::conversation::BridgeConversationKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::conversation::BridgeConversationKind::Dm => 0,
+                crate::api::conversation::BridgeConversationKind::Channel => 1,
+                crate::api::conversation::BridgeConversationKind::Group => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::conversation::BridgeConversationRef {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::conversation::BridgeConversationKind>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.id, serializer);
+    }
+}
+
 impl SseEncode for crate::private_dm_runtime::contracts::CallEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6192,6 +6677,34 @@ impl SseEncode for crate::private_dm_runtime::contracts::CloseSessionResult {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.session_id, serializer);
         <bool>::sse_encode(self.closed, serializer);
+    }
+}
+
+impl SseEncode for crate::api::conversation_bridge::ConversationBridgeError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::conversation_bridge::ConversationBridgeErrorKind>::sse_encode(
+            self.kind, serializer,
+        );
+        <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::conversation_bridge::ConversationBridgeErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(match self {crate::api::conversation_bridge::ConversationBridgeErrorKind::InvalidInput => { 0 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::Unavailable => { 1 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::NotReady => { 2 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::MissingConversation => { 3 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::MissingMessage => { 4 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::MissingAttachment => { 5 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::Transfer => { 6 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::Persistence => { 7 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::NeedsRejoin => { 8 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::Revoked => { 9 }
+crate::api::conversation_bridge::ConversationBridgeErrorKind::Internal => { 10 }
+ _ => { unimplemented!(""); }}, serializer);
     }
 }
 
