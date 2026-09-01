@@ -21,19 +21,15 @@ import 'package:mosh/src/rust/conversation/dm_offers.dart';
 import 'package:mosh/src/state/conversation_providers.dart'
     show channelsOf, conversationListProvider, groupsOf;
 
-/// The originating conversation kind for a pending DM offer. Mirrors React
-/// offer.kind === "channel" | "group" discriminator.
-///
-/// A second spelling of the two of [ConversationKind] a DM offer can come
-/// from -- a DM has no offer list, so it is deliberately absent here.
-/// Ticket 09 collapses the two enums onto [ConversationKind].
-enum PendingDmOfferKind { channel, group }
-
 /// A DM offer pending action, tagged with its originating host + kind.
 /// Mirrors React PendingDmOffer = DmOffer & { kind, host } (use-dm-offers.ts):
 /// the raw DmOffer (offerId/fromDevice/fromFingerprint/targetFingerprint/
 /// inviteUri) plus kind (channel | group) and host (channel name OR group
 /// groupId -- the key the dismiss call needs).
+///
+/// The kind is [ConversationKind], the one kind enum. A DM has no offer
+/// list, so a pending offer's kind is always channel or group -- `dm` never
+/// reaches this type.
 class PendingDmOffer {
   const PendingDmOffer({
     required this.offer,
@@ -42,7 +38,7 @@ class PendingDmOffer {
   });
 
   final DmOffer offer;
-  final PendingDmOfferKind kind;
+  final ConversationKind kind;
 
   /// The channel name (kind == channel) or group groupId (kind == group).
   /// Passed to [Gateway.dismissChannelDmOffer] / [Gateway.dismissGroupDmOffer]
@@ -64,10 +60,10 @@ final pendingDmOffersProvider = Provider<List<PendingDmOffer>>((ref) {
     for (final channel in channels)
       for (final offer in channel.dmOffers)
         PendingDmOffer(
-            offer: offer, kind: PendingDmOfferKind.channel, host: channel.name),
+            offer: offer, kind: ConversationKind.channel, host: channel.name),
     for (final group in groups)
       for (final offer in group.dmOffers)
         PendingDmOffer(
-            offer: offer, kind: PendingDmOfferKind.group, host: group.groupId),
+            offer: offer, kind: ConversationKind.group, host: group.groupId),
   ];
 });

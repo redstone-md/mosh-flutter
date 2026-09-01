@@ -1,8 +1,8 @@
 // Unread-message counts, one provider for all three conversation kinds.
 // [unreadCounts] derives a `Map<String,int>` of unread counts from one
-// [ConversationList] -- keyed by [ConversationRef.key], the same
-// `'dm:<sessionId>'` / `'channel:<name>'` / `'group:<groupId>'` shapes
-// React's `useUnreadNotifications` uses for each conversation kind.
+// [ConversationList] -- keyed by [ConversationRef.key], the same key
+// shapes React's `useUnreadNotifications` uses for each conversation kind.
+// [ConversationRef] owns that grammar; nothing here spells a key out.
 //
 // The one branch the three kinds need lives in [unreadCounts]: a DM
 // compares device names (a DM carries no per-message fingerprint, and there

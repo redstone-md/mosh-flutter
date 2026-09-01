@@ -127,5 +127,24 @@ void main() {
       expect(notificationBody('dm:abc'),
           NotificationBody(title: 'Mosh', body: 'New message - new message'));
     });
+
+    // The key is read by the one parser (ConversationRef.tryParse), so only
+    // the first colon separates the kind from the id.
+    test('keeps the whole channel name when it carries a colon', () {
+      expect(notificationBody('channel:ops:alerts'),
+          NotificationBody(title: 'Mosh', body: '#ops:alerts - new message'));
+    });
+
+    test('a key that names no conversation gets the generic label', () {
+      expect(notificationBody(''),
+          NotificationBody(title: 'Mosh', body: 'New message - new message'));
+      expect(notificationBody('nonsense'),
+          NotificationBody(title: 'Mosh', body: 'New message - new message'));
+      expect(notificationBody('unknown:abc'),
+          NotificationBody(title: 'Mosh', body: 'New message - new message'));
+      // An empty id parses to "no conversation" rather than to a bare '#'.
+      expect(notificationBody('channel:'),
+          NotificationBody(title: 'Mosh', body: 'New message - new message'));
+    });
   });
 }

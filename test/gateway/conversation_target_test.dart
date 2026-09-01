@@ -57,14 +57,10 @@ void main() {
           ));
     });
 
-    const cases = <(AnyConversationTarget, String, ActiveConversationKind)>[
-      (DmTarget('s1'), 'dm:s1', ActiveConversationKind.dm),
-      (
-        ChannelTarget('general'),
-        'channel:general',
-        ActiveConversationKind.channel
-      ),
-      (GroupTarget('g1'), 'group:g1', ActiveConversationKind.group),
+    const cases = <(AnyConversationTarget, String, ConversationKind)>[
+      (DmTarget('s1'), 'dm:s1', ConversationKind.dm),
+      (ChannelTarget('general'), 'channel:general', ConversationKind.channel),
+      (GroupTarget('g1'), 'group:g1', ConversationKind.group),
     ];
 
     for (final (target, expected, kind) in cases) {
