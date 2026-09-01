@@ -28,10 +28,9 @@ import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot, OrgMemberView;
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
 import 'package:mosh/src/state/org_providers.dart'
     show orgsProvider, orgOperationBusProvider;
-import 'package:mosh/src/state/session_providers.dart'
-    show inviteFlowProvider, sessionListProvider;
-import 'package:mosh/src/state/channel_group_providers.dart'
-    show channelListProvider, groupListProvider;
+import 'package:mosh/src/state/conversation_providers.dart'
+    show refreshConversationLists;
+import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 
 /// What we call ourselves when onboarding never set a display name.
 const String _kAnonymousDisplayName = 'anonymous';
@@ -252,8 +251,6 @@ _OrgInvite _inviteOf(WidgetRef ref) {
 Future<void> _refreshAll(WidgetRef ref) async {
   await Future.wait([
     ref.read(orgsProvider.notifier).refresh(),
-    ref.read(sessionListProvider.notifier).refresh(),
-    ref.read(channelListProvider.notifier).refresh(),
-    ref.read(groupListProvider.notifier).refresh(),
+    refreshConversationLists(ref.read),
   ]);
 }

@@ -29,26 +29,38 @@ final activeConversationKeyProvider =
 /// The active-conversation kind, parsed from the key prefix ('dm:' /
 /// 'channel:' / 'group:'). Mirrors React's branch test on `activeSession` /
 /// `activeChannel` / `activeGroup` (private-dm-screen.tsx L282-292).
+///
+/// A second spelling of [ConversationKind], kept only because the shell and
+/// the title bar still switch on it. Ticket 09 collapses the two: they carry
+/// the same three names, and [ConversationRef] already owns the key grammar
+/// both are parsed from.
 enum ActiveConversationKind { dm, channel, group }
 
-/// Parsed active key: the kind discriminator plus the snapshot-family
-/// argument (sessionId / channel name / groupId -- the suffix after the
-/// ':' prefix).
+/// Parsed active key: the conversation it names, plus the kind
+/// discriminator and the snapshot-family argument (sessionId / channel name
+/// / groupId -- the suffix after the ':' prefix) the existing callers read.
 class ActiveConversation {
-  const ActiveConversation({required this.kind, required this.arg});
+  const ActiveConversation(this.conversation);
 
-  final ActiveConversationKind kind;
-  final String arg;
+  /// The open conversation, as the value the state layer names
+  /// conversations with. A caller that re-reads it hands this straight to
+  /// `invalidateConversation` instead of branching on the kind itself.
+  final ConversationRef conversation;
+
+  /// The snapshot-family argument: the conversation's id.
+  String get arg => conversation.id;
+
+  ActiveConversationKind get kind => _kindOf(conversation.kind);
 
   /// Reads a key back, or returns null when it names no conversation.
   ///
   /// [ConversationRef.tryParse] owns the grammar; this keeps only the
-  /// projection the existing callers read, so a key with an empty id is now
-  /// "nothing open" instead of a conversation with a blank arg.
+  /// projection the existing callers read. A key with an empty id parses to
+  /// "nothing open" rather than to a conversation with a blank id.
   static ActiveConversation? parse(String? key) {
     final ref = ConversationRef.tryParse(key);
     if (ref == null) return null;
-    return ActiveConversation(kind: _kindOf(ref.kind), arg: ref.id);
+    return ActiveConversation(ref);
   }
 
   /// The two kind enums carry the same three names; [ActiveConversation] keeps

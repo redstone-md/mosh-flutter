@@ -10,18 +10,17 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AcceptInviteRequest;
-import 'package:mosh/src/state/channel_group_providers.dart'
-    show channelListProvider, groupListProvider;
+import 'package:mosh/src/state/conversation_providers.dart'
+    show conversationListProvider;
 import 'package:mosh/src/state/dm_offer_providers.dart'
     show PendingDmOffer, PendingDmOfferKind;
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
 import 'package:mosh/src/gateway/conversation_target.dart'
-    show ChannelTarget, DmOfferHost, GroupTarget;
+    show ChannelTarget, ConversationKind, DmOfferHost, GroupTarget;
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 import 'package:mosh/src/state/active_conversation_key_provider.dart'
     show activeConversationKeyProvider;
-import 'package:mosh/src/state/session_providers.dart'
-    show inviteFlowProvider, sessionListProvider;
+import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 
 // Mirrors React SessionRail.onNew: reset setup state, clear the active
 // conversation, and show the existing NewSessionPanel in the chat branch.
@@ -61,7 +60,9 @@ Future<void> acceptOfferAction(
     // The accepted invite creates a new DM session. Refresh the rail's session
     // list after the offer and its source list have been refreshed, matching
     // React use-dm-offers.ts acceptDmOffer -> refresh(true).
-    await ref.read(sessionListProvider.notifier).refresh();
+    await ref
+        .read(conversationListProvider(ConversationKind.dm).notifier)
+        .refresh();
     if (!context.mounted) return;
     context.go(AppRoutes.dmFor(session.sessionId));
   } catch (e) {
@@ -85,6 +86,10 @@ Future<void> dismissOfferAction(
   await gw.dismissDmOffer(host, offerId: pending.offer.offerId);
   // Refresh both lists so the offer row leaves the rail (the derived
   // pendingDmOffersProvider re-reads on invalidation).
-  await ref.read(channelListProvider.notifier).refresh();
-  await ref.read(groupListProvider.notifier).refresh();
+  await ref
+      .read(conversationListProvider(ConversationKind.channel).notifier)
+      .refresh();
+  await ref
+      .read(conversationListProvider(ConversationKind.group).notifier)
+      .refresh();
 }

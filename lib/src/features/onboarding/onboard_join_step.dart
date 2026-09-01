@@ -42,7 +42,10 @@ import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
-import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
+import 'package:mosh/src/state/conversation_providers.dart'
+    show conversationListProvider;
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -179,7 +182,9 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
                 staticPeer: flow.staticPeer,
               ),
             );
-        await ref.read(sessionListProvider.notifier).refresh();
+        await ref
+            .read(conversationListProvider(ConversationKind.dm).notifier)
+            .refresh();
         if (mounted) setState(() => _acceptedSessionId = snapshot.sessionId);
       } else if (kind == InviteDetectionKind.group) {
         // Group: join via the Gateway, then navigate to the group screen
@@ -195,7 +200,9 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
                 staticPeer: flow.staticPeer,
               ),
             );
-        await ref.read(groupListProvider.notifier).refresh();
+        await ref
+            .read(conversationListProvider(ConversationKind.group).notifier)
+            .refresh();
         if (!mounted) return;
         context.go(AppRoutes.groupFor(snapshot.groupId));
       } else {

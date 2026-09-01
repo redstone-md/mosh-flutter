@@ -54,9 +54,9 @@ sequenceDiagram
   slices move the confirmation to a gateway mutation.
 - `mosh://invite?...#fp=...` is parsed by ported `invite_uri.dart`; manual
   paste only, no OS deep-link association (ADR 0015).
-- Sessions list and per-session snapshot come from `sessionListProvider` and
-  `activeSessionProvider.family`; both consume `gatewayProvider`, never a
-  concrete `Gateway` (ADR 0013).
+- Sessions list and per-session snapshot come from the DM entry of
+  `conversationListProvider` and `activeSessionProvider.family`; both consume
+  `gatewayProvider`, never a concrete `Gateway` (ADR 0013).
 
 ## Proof
 

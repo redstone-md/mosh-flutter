@@ -3,7 +3,7 @@
 // use-unread-notifications.ts). This is the atomic that the
 // `unread_providers.dart` header deferred: it layers the poll-diff
 // lifecycle (clearOnActive + window-focus toasts + `lastSeen`
-// persistence) on top of the three raw count maps.
+// persistence) on top of the per-kind unread counts.
 //
 // The two regressions this fixes vs React:
 //  1. The unread badge never cleared when a conversation was opened --
@@ -22,7 +22,7 @@
 // (the poll-diff baseline) persists across count-provider rebuilds --
 // the Notifier instance is reused by Riverpod across `build` re-runs,
 // so the mutable instance field survives (mirrors React's `lastSeenRef`).
-// `build` watches the three count maps + the active-conversation key,
+// `build` watches the per-kind counts + the active-conversation key,
 // returns the current unread map (no flicker) and kicks off an async
 // `_runDiff` continuation that awaits the focus seam, computes the
 // diff, advances `lastSeen`, applies clearOnActive + newMessages, and
@@ -33,6 +33,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart'
     show
@@ -65,15 +67,20 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
 
   @override
   Map<String, int> build() {
-    // Watch the three count maps + the active key so a count-provider
-    // change re-runs `build` (and thus re-runs the diff). `.value` degrades
-    // to an empty map while loading/error so the diff sees no conversations
-    // for that slice (matching React's empty-arrays-while-loading shape).
-    final dm = ref.watch(unreadDmCountsProvider).value ?? const <String, int>{};
-    final channels =
-        ref.watch(unreadChannelCountsProvider).value ?? const <String, int>{};
+    // Watch the per-kind counts + the active key so a count change re-runs
+    // `build` (and thus re-runs the diff). `.value` degrades to an empty
+    // map while loading/error so the diff sees no conversations for that
+    // slice (matching React's empty-arrays-while-loading shape). The watch
+    // order carries no meaning -- [_runDiff] fixes the order the kinds are
+    // merged in (React's `counts[]`: dm -> group -> channel).
+    final dm = ref.watch(unreadCountsProvider(ConversationKind.dm)).value ??
+        const <String, int>{};
     final groups =
-        ref.watch(unreadGroupCountsProvider).value ?? const <String, int>{};
+        ref.watch(unreadCountsProvider(ConversationKind.group)).value ??
+            const <String, int>{};
+    final channels =
+        ref.watch(unreadCountsProvider(ConversationKind.channel)).value ??
+            const <String, int>{};
     final activeKey = ref.watch(activeConversationKeyProvider);
 
     // Kick off the async diff (focus check is awaited). Each run captures

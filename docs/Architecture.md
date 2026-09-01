@@ -86,14 +86,59 @@ flowchart LR
     Frb --> Core
 ```
 
-Slice one ships four providers behind `gatewayProvider`
-(`lib/src/state/session_providers.dart`): `sessionListProvider`
-(AsyncNotifierProvider for the session list), `activeSessionProvider.family`
+Slice one ships three providers behind `gatewayProvider` in
+`lib/src/state/session_providers.dart`: `activeSessionProvider.family`
 (FutureProvider.family for a per-session snapshot, the DM screen poll),
 `diagnosticsProvider` (AsyncNotifierProvider for `appDiagnostics`), and
 `inviteFlowProvider` (sync NotifierProvider for the cross-screen invite-create
-flow: displayName + listenPort + lastInvite). All consume `gatewayProvider`,
+flow: displayName + listenPort + lastInvite). The session LIST is no longer
+one of them: one family, `conversationListProvider`
+(`lib/src/state/conversation_providers.dart`), serves the DM, channel and
+group lists with the kind as its family arg, so the kind branch that used to
+be three list providers lives in one module. All consume `gatewayProvider`,
 never a concrete `Gateway`, so the fake<->real swap is one provider body.
+
+That one module also owns the only kind-to-invalidate switch in the state
+layer: `invalidateConversation(ref.invalidate, conversation)` re-reads the
+snapshot family the kind names, and `refreshConversation` adds the DM rail
+list (a DM row carries its last message, a channel and a group row carry a
+name only). `unreadCountsProvider` is the same shape one level up -- one
+family, one branch in `unreadCounts`, keyed by `ConversationRef.key`.
+
+```mermaid
+classDiagram
+    class ConversationList {
+        <<sealed>>
+    }
+    class DmConversationList {
+        SessionListSnapshot snapshot
+    }
+    class ChannelConversationList {
+        ChannelListSnapshot snapshot
+    }
+    class GroupConversationList {
+        GroupListSnapshot snapshot
+    }
+    ConversationList <|-- DmConversationList
+    ConversationList <|-- ChannelConversationList
+    ConversationList <|-- GroupConversationList
+
+    class ConversationKind {
+        <<enum>>
+        dm
+        channel
+        group
+    }
+    class conversationListProvider {
+        <<family>>
+        kind : ConversationKind
+    }
+    ConversationKind --> conversationListProvider : family arg
+    conversationListProvider --> ConversationList : AsyncValue
+    conversationListProvider ..> DmConversationList : listSessions()
+    conversationListProvider ..> ChannelConversationList : listChannels()
+    conversationListProvider ..> GroupConversationList : listGroups()
+```
 
 ## Private DM Slice
 

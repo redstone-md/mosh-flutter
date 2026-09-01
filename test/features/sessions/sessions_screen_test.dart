@@ -175,8 +175,8 @@ void main() {
 
 // Unread-badge rendering. Mirrors React's `UnreadBadge`: a row whose
 // unread count > 0 shows the numeral; a row with count 0 shows no badge.
-// Both `sessionListProvider` (via a seeded gateway) and
-// `unreadDmCountsProvider` are overridden so the rendered counts are
+// The DM entry of `conversationListProvider` (via a seeded gateway) and
+// the unread lifecycle map are overridden so the rendered counts are
 // deterministic and do not depend on the seeded messages.
   testWidgets(
       'renders an unread badge for sessions with count > 0 and none for 0',

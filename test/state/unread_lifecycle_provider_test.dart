@@ -1,10 +1,9 @@
 // Tests for `unreadLifecycleProvider` -- the Riverpod port of React's
 // `useUnreadNotifications` (clearOnActive + window-focus OS toasts +
-// lastSeen poll-diff). The lifecycle watches the three raw count providers
-// (unreadDmCountsProvider / unreadChannelCountsProvider /
-// unreadGroupCountsProvider) + activeConversationKeyProvider, so a
-// `_GrowingGateway` drives growth by swapping its list snapshots and
-// refreshing the list providers.
+// lastSeen poll-diff). The lifecycle watches the per-kind unread counts
+// (one `unreadCountsProvider` entry per kind) +
+// activeConversationKeyProvider, so a `_GrowingGateway` drives growth by
+// swapping its list snapshots and refreshing the list entries.
 //
 // Seams overridden (mirrors the gatewayProvider / notifications seam
 // convention):
@@ -23,14 +22,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/scriptable_gateway.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
-import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart';
-import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import 'package:mosh/src/state/unread_providers.dart';
 import 'package:mosh/src/state/window_focus_provider.dart';
@@ -199,13 +198,11 @@ class _Harness {
 /// microtasks so its async `_runDiff` (focus check + toast awaits) settles
 /// before assertions.
 Future<void> _poll(ProviderContainer container) async {
-  await container.read(sessionListProvider.notifier).refresh();
-  await container.read(channelListProvider.notifier).refresh();
-  await container.read(groupListProvider.notifier).refresh();
+  await refreshConversationLists(container.read);
   // Resolve the count providers so the lifecycle's `build` re-run sees data.
-  await container.read(unreadDmCountsProvider.future);
-  await container.read(unreadChannelCountsProvider.future);
-  await container.read(unreadGroupCountsProvider.future);
+  for (final kind in ConversationKind.values) {
+    await container.read(unreadCountsProvider(kind).future);
+  }
   // Reading the lifecycle forces its `build` to re-run (the count providers
   // changed, so it is dirty); the build fires the async `_runDiff`. Pump
   // microtasks so the focus closure + optional plugin.show awaits resolve
