@@ -65,6 +65,12 @@ const Duration kIncomingNoAnswerTimeout = Duration(milliseconds: 30000);
 const String kCallDeclineReasonUser = 'declined';
 const String kCallDeclineReasonNoAnswer = 'no_answer';
 
+/// The reason the layer emits when the user cancels an outgoing call or
+/// hangs up an active one from the modal/overlay controls. Kept as a
+/// named constant so the "string literals forbidden" standard holds and
+/// the reason stays distinguishable from a real decline.
+const String kCallDeclineReasonHangup = 'hangup';
+
 /// The incoming-call modal -- 1-в-1 with React's `IncomingCallModal`.
 ///
 /// Construct and pass to `showDialog` (the host owns the route). The
