@@ -459,9 +459,9 @@ A DM is a conversation that *can carry* a call; the call is not the DM. The
 pipeline used to live under `lib/src/features/dm/`, where nineteen of the
 directory's twenty-two files were the call stack, two were the DM itself
 (`dm_screen.dart` and `dm_screen_header.dart`), and the twenty-second — the
-fingerprint badge — was DM app-bar chrome, not a call at all. The two DM
-files moved to `lib/src/features/conversation/`, with the rest of the
-conversation chrome; the fingerprint badge sits in
+fingerprint badge — was DM app-bar chrome, not a call at all. Those three are
+now elsewhere: the two DM files in `lib/src/features/conversation/`, with the
+rest of the conversation chrome, and the fingerprint badge in
 `lib/src/features/fingerprint/`, beside the fingerprint confirm surface it was
 ported with. ADR 0018 already keeps the DM-specific part small: its header,
 and whether the safety number has been confirmed in person.
@@ -478,11 +478,11 @@ The Dart module name follows the Rust one. `mosh-core` already has
 `voice_call_runtime`, `voice_call_jitter`, `voice_call_frame_crypto` and
 `voice_call_drain`, and the `api` surface exposes `voice_call_*` operations.
 
-`lib/src/features/dm/` keeps one re-export shim per moved file, so existing
-importers — including the call tests under `test/features/dm/` — still compile
-untouched. The shims are transitional: they exist only so a relocation lands
-without a thousand broken imports, and they go away once the importers point
-at the new paths directly.
+`lib/src/features/dm/` no longer exists. Every importer — the two call
+providers in `lib/src/state/`, the two tests in `test/state/`, and the call
+tests, now under `test/features/voice_call/` — imports `features/voice_call/`
+directly. No re-export shim is left behind, so the only path that resolves to
+a call file is the one in the call module.
 
 `voice_call_orchestrator_provider.dart` still lives in `lib/src/state/`; giving
 call state one home is a separate change from giving the code one directory.

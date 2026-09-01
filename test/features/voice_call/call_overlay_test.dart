@@ -1,4 +1,4 @@
-// Parity tests for `CallOverlay` (lib/src/features/dm/call_overlay.dart)
+// Parity tests for `CallOverlay` (lib/src/features/voice_call/call_overlay.dart)
 // -- the 1-в-1 port of React's `CallOverlay.tsx`. Asserts the mute/hang-up
 // buttons fire, the mute icon + tint swap when muted, the duration timer
 // renders m:ss from `startedAtMs`, and Esc fires onHangUp.
@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/call_overlay.dart';
+import 'package:mosh/src/features/voice_call/call_overlay.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import '../../support/pump.dart';
 

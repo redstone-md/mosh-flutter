@@ -1,4 +1,4 @@
-// Parity tests for `frame_crypto` (lib/src/features/dm/frame_crypto.dart) --
+// Parity tests for `frame_crypto` (lib/src/features/voice_call/frame_crypto.dart) --
 // the 1-to-1 port of the AES-GCM seal/open surface from React
 // `src/features/private-dm/voice-call/frame-crypto.ts`. The pure helpers
 // (buildFrame / parseFrame / direction bits) are covered separately by
@@ -8,8 +8,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/frame_codec.dart';
-import 'package:mosh/src/features/dm/frame_crypto.dart';
+import 'package:mosh/src/features/voice_call/frame_codec.dart';
+import 'package:mosh/src/features/voice_call/frame_crypto.dart';
 
 const String KEY_B64 =
     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; // 32 zero bytes

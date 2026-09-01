@@ -8,7 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/dm/record_voice_capture.dart';
+import 'package:mosh/src/features/voice_call/record_voice_capture.dart';
 
 Uint8List _bytes(int n) => Uint8List(n);
 

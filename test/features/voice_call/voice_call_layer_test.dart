@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/voice_call_layer.dart';
+import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';

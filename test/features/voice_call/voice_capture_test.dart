@@ -1,10 +1,10 @@
-// Tests for `voice_capture` (lib/src/features/dm/voice_capture.dart) --
+// Tests for `voice_capture` (lib/src/features/voice_call/voice_capture.dart) --
 // the NoopVoiceCaptureFactory fake + the VoiceCaptureHandle /
 // VoiceCaptureFactory seams. Keeps the call orchestrator unit-testable
 // with no native mic backend; the real `record`-backed factory lands in
 // a later slice.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/voice_capture.dart';
+import 'package:mosh/src/features/voice_call/voice_capture.dart';
 
 void main() {
   group('voice_capture', () {

@@ -1,4 +1,4 @@
-// Parity tests for `call-state.dart` (lib/src/features/dm/
+// Parity tests for `call-state.dart` (lib/src/features/voice_call/
 // call_state.dart) -- the 1-в-1 Dart port of React's
 // `call-state.test.ts` (the same 5 cases). Keeps the state machine
 // honest: the 4 happy-path transitions, the 4 ended transitions
@@ -6,7 +6,7 @@
 // and the no-answer timeout boundary.
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/dm/call_state.dart';
+import 'package:mosh/src/features/voice_call/call_state.dart';
 
 void main() {
   test('idle -> outgoing on local dial', () {

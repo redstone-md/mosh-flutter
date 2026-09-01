@@ -1,11 +1,11 @@
-// Parity tests for `JitterBuffer` (lib/src/features/dm/jitter_buffer.dart)
+// Parity tests for `JitterBuffer` (lib/src/features/voice_call/jitter_buffer.dart)
 // -- the 1-to-1 port of React's `jitter-buffer.ts`. Mirrors the React
 // suite: in-order drain, cursor drop, gap pause, force-skip past the cap,
 // and the #14 strictly-increasing-seqs regression guard.
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/jitter_buffer.dart';
+import 'package:mosh/src/features/voice_call/jitter_buffer.dart';
 
 BufferedFrame _frame(int seq, int byte) =>
     BufferedFrame(seq: BigInt.from(seq), payload: Uint8List.fromList([byte]));

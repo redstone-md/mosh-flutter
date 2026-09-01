@@ -10,8 +10,8 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/dm/cpal_voice_playback.dart';
-import 'package:mosh/src/features/dm/voice_playback.dart';
+import 'package:mosh/src/features/voice_call/cpal_voice_playback.dart';
+import 'package:mosh/src/features/voice_call/voice_playback.dart';
 
 void main() {
   group('CpalVoicePlaybackFactory', () {

@@ -1,4 +1,4 @@
-// Parity tests for `call_drain` (lib/src/features/dm/call_drain.dart) -- the
+// Parity tests for `call_drain` (lib/src/features/voice_call/call_drain.dart) -- the
 // 1:1 port of the gateway poll-loop glue from React
 // `src/features/private-dm/voice-call/call-drain.ts`. The React source ships
 // with its own vitest parity suite; this is a fresh Dart suite proving the
@@ -10,10 +10,10 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/dm/call_drain.dart';
-import 'package:mosh/src/features/dm/frame_codec.dart';
-import 'package:mosh/src/features/dm/frame_crypto.dart';
-import 'package:mosh/src/features/dm/jitter_buffer.dart';
+import 'package:mosh/src/features/voice_call/call_drain.dart';
+import 'package:mosh/src/features/voice_call/frame_codec.dart';
+import 'package:mosh/src/features/voice_call/frame_crypto.dart';
+import 'package:mosh/src/features/voice_call/jitter_buffer.dart';
 
 const String KEY_B64 =
     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; // 32 zero bytes

@@ -7,9 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/dm/call_overlay.dart';
-import 'package:mosh/src/features/dm/voice_call_layer.dart';
-import 'package:mosh/src/features/dm/voice_capture.dart';
+import 'package:mosh/src/features/voice_call/call_overlay.dart';
+import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
+import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
