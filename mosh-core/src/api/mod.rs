@@ -63,3 +63,7 @@ pub mod voice_call_ringtone;
 /// the shared conversation actions return this instead of a flattened string,
 /// so Dart can branch on what to do about a failure rather than on its text.
 pub mod conversation_bridge;
+
+/// The six shared conversation actions (ADR 0024), kind-tagged by
+/// `BridgeConversationRef` and typed-errored by `ConversationBridgeError`.
+pub mod conversation;

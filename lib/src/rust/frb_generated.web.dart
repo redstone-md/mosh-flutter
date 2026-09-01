@@ -8,6 +8,8 @@
 
 import 'api/attachment_stream.dart';
 import 'api/channel.dart';
+import 'api/conversation.dart';
+import 'api/conversation_bridge.dart';
 import 'api/diagnostics.dart';
 import 'api/network.dart';
 import 'api/org.dart';
@@ -167,6 +169,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  BridgeAttachmentPayload dco_decode_box_autoadd_bridge_attachment_payload(
+      dynamic raw);
+
+  @protected
+  BridgeConversationRef dco_decode_box_autoadd_bridge_conversation_ref(
+      dynamic raw);
+
+  @protected
   CallEvent dco_decode_box_autoadd_call_event(dynamic raw);
 
   @protected
@@ -217,6 +227,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   VpnBypassConsent dco_decode_box_autoadd_vpn_bypass_consent(dynamic raw);
 
   @protected
+  BridgeAttachmentPayload dco_decode_bridge_attachment_payload(dynamic raw);
+
+  @protected
+  BridgeConversationKind dco_decode_bridge_conversation_kind(dynamic raw);
+
+  @protected
+  BridgeConversationRef dco_decode_bridge_conversation_ref(dynamic raw);
+
+  @protected
   CallEvent dco_decode_call_event(dynamic raw);
 
   @protected
@@ -242,6 +261,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CloseSessionResult dco_decode_close_session_result(dynamic raw);
+
+  @protected
+  ConversationBridgeError dco_decode_conversation_bridge_error(dynamic raw);
+
+  @protected
+  ConversationBridgeErrorKind dco_decode_conversation_bridge_error_kind(
+      dynamic raw);
 
   @protected
   CreateGroupRequest dco_decode_create_group_request(dynamic raw);
@@ -604,6 +630,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  BridgeAttachmentPayload sse_decode_box_autoadd_bridge_attachment_payload(
+      SseDeserializer deserializer);
+
+  @protected
+  BridgeConversationRef sse_decode_box_autoadd_bridge_conversation_ref(
+      SseDeserializer deserializer);
+
+  @protected
   CallEvent sse_decode_box_autoadd_call_event(SseDeserializer deserializer);
 
   @protected
@@ -662,6 +696,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  BridgeAttachmentPayload sse_decode_bridge_attachment_payload(
+      SseDeserializer deserializer);
+
+  @protected
+  BridgeConversationKind sse_decode_bridge_conversation_kind(
+      SseDeserializer deserializer);
+
+  @protected
+  BridgeConversationRef sse_decode_bridge_conversation_ref(
+      SseDeserializer deserializer);
+
+  @protected
   CallEvent sse_decode_call_event(SseDeserializer deserializer);
 
   @protected
@@ -690,6 +736,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CloseSessionResult sse_decode_close_session_result(
+      SseDeserializer deserializer);
+
+  @protected
+  ConversationBridgeError sse_decode_conversation_bridge_error(
+      SseDeserializer deserializer);
+
+  @protected
+  ConversationBridgeErrorKind sse_decode_conversation_bridge_error_kind(
       SseDeserializer deserializer);
 
   @protected
@@ -1089,6 +1143,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_bridge_attachment_payload(
+      BridgeAttachmentPayload self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_bridge_conversation_ref(
+      BridgeConversationRef self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_call_event(
       CallEvent self, SseSerializer serializer);
 
@@ -1151,6 +1213,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       VpnBypassConsent self, SseSerializer serializer);
 
   @protected
+  void sse_encode_bridge_attachment_payload(
+      BridgeAttachmentPayload self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bridge_conversation_kind(
+      BridgeConversationKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bridge_conversation_ref(
+      BridgeConversationRef self, SseSerializer serializer);
+
+  @protected
   void sse_encode_call_event(CallEvent self, SseSerializer serializer);
 
   @protected
@@ -1182,6 +1256,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_close_session_result(
       CloseSessionResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_conversation_bridge_error(
+      ConversationBridgeError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_conversation_bridge_error_kind(
+      ConversationBridgeErrorKind self, SseSerializer serializer);
 
   @protected
   void sse_encode_create_group_request(
