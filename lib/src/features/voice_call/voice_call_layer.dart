@@ -1,54 +1,66 @@
-// VoiceCallLayer -- the signaling-only wiring of the voice-call modals +
-// overlay into the DM screen. 1-в-1 port of the modal/overlay render block
-// in React `private-dm-screen.tsx` L459-513:
-//   - pendingCallSession?.pending_call -> <IncomingCallModal .../>
-//   - activeDmSession?.outgoing_call && !activeCall -> <OutgoingCallModal/>
-//   - activeCall && activeCallSessionId && activeDmSession -> <CallOverlay/>
+// VoiceCallLayer -- the pure renderer of the voice-call modals + overlay for
+// one DM session. It owns NO call state of its own: it reads the dialog the
+// orchestrator derived from the session snapshot (`voiceCallOrchestratorProvider
+// .dialog`) and shows exactly that one modal, and it routes every control
+// (accept / decline / hang up / mute) back to the orchestrator notifier.
 //
-// React drives the modals from `useVoiceCallOrchestration` -- a state
-// machine that ALSO pumps audio frames (callSendFrame/callDrainFrames at
-// 20 ms + frame crypto + jitter). The audio transport is slice-3 work;
-// this layer is the parity-first signaling surface: it watches
-// `SessionSnapshot` and shows the modals/overlay so the call control +
-// duration timer + accept/decline/cancel/hangup UI are testable without
-// the runtime. Call control hits the `Gateway` seam (callStart/callAccept/
-// callDecline/callEnd) and invalidates the per-session provider so the next
-// poll reflects the new phase (ringing -> active -> ended).
+// This is the parity-first port of React `private-dm-screen.tsx` L459-513,
+// but where React drives the modals from a `useVoiceCallOrchestration`
+// state machine that ALSO pumps audio frames, this layer is signaling-only:
+// the audio transport is slice-3 work and lives in `voice_call_orchestrator
+// .dart`. The layer is a `ConsumerStatefulWidget` placed in the DM body
+// `Stack`; it routes through `showDialog` so the modals get modal-route
+// focus + scrim for free (mirroring React's `.call-modal` fixed overlay).
 //
-// The layer is a `ConsumerStatefulWidget` placed in the DM body `Stack`
-// (overlays nothing itself -- it routes through `showDialog`/`OverlayEntry`
-// so the modals get the modal-route focus + scrim for free, mirroring
-// React's `.call-modal` fixed overlay). It tracks which call id each modal
-// is currently open for so a re-render with the same call does not
-// re-mount the modal (React does this implicitly because the modal is
-// keyed by the call id in the render tree).
+// Why one route record and not four `_open*For` fields: a session carries at
+// most one call (mosh-core builds all three call fields from one `CallState`
+// phase), so the UI owes the user at most one modal. Tracking four separate
+// "which modal is open" flags invited exactly the kind of re-mount / double
+// open bug this rewrite removes -- a single `_openCallId` + `_openKind` is the
+// one home for "what is on screen".
 
 library;
 
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'dart:io' show Platform;
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart' show windowManager;
+
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/voice_call/call_dialog.dart';
+import 'package:mosh/src/features/voice_call/call_overlay.dart';
+import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
+import 'package:mosh/src/features/voice_call/outgoing_call_modal.dart';
+import 'package:mosh/src/features/voice_call/ringtone_player.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/session_providers.dart'
+    show activeSessionProvider;
 import 'package:mosh/src/state/notifications_provider.dart'
     show
         flutterLocalNotificationsPluginProvider,
         moshNotificationDetails,
         notificationsReadyProvider;
-import 'package:mosh/src/features/voice_call/call_overlay.dart';
-import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
-import 'package:mosh/src/features/voice_call/outgoing_call_modal.dart';
-import 'package:mosh/src/features/voice_call/ringtone_player.dart';
-import 'package:mosh/src/gateway/gateway.dart' show Gateway;
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/state/session_providers.dart';
-import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
-import 'package:window_manager/window_manager.dart' show windowManager;
+import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
+    show
+        CallError,
+        CallErrorSource,
+        ringtonePlayerProvider,
+        voiceCallOrchestratorProvider;
 
-/// Renders the voice-call modals/overlay for one DM session based on the
-/// live `SessionSnapshot`. Place inside a `ProviderScope` + `Stack`.
+/// The shape of call dialog currently shown (or none). A session carries at
+/// most one call, so the layer shows at most one modal.
+enum _CallKind { none, incoming, outgoing, active }
+
+_CallKind _kindOf(CallDialog dialog) => switch (dialog) {
+      NoCallDialog() => _CallKind.none,
+      IncomingCallDialog() => _CallKind.incoming,
+      OutgoingCallDialog() => _CallKind.outgoing,
+      ActiveCallDialog() => _CallKind.active,
+    };
+
+/// Renders the voice-call modals/overlay for one DM session based purely on
+/// the orchestrator's `dialog`. Place inside a `ProviderScope` + `Stack`.
 class VoiceCallLayer extends ConsumerStatefulWidget {
   const VoiceCallLayer({
     super.key,
@@ -69,7 +81,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   /// [ringtonePlayerProvider], which is where the app binds one.
   final RingtonePlayer? ringtone;
 
-  /// The owning DM screen's inline error setter for audio setup failures.
+  /// The owning DM screen's inline error setter for audio-setup failures.
   final void Function(String? message)? onVoiceCallError;
 
   @override
@@ -77,242 +89,190 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
 }
 
 class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
-  final Object _errorSinkOwner = Object();
-  VoiceCallOrchestratorNotifier? _registeredErrorNotifier;
-
-  // The call id each modal is currently open for, so a snapshot re-poll
-  // does not re-mount an already-open modal (React keys by call id).
-  String? _openIncomingFor;
-  String? _openOutgoingFor;
-  String? _openOverlayFor;
-  // Whether the layer has already queued a callEnd for the active call
-  // (avoids a double endCall if the snapshot re-polls before the overlay
-  // closes).
-  bool _activeCallEnded = false;
-
-  void _registerErrorSink() {
-    final notifier = ref.read(
-      voiceCallOrchestratorProvider(widget.sessionId).notifier,
-    );
-    _registeredErrorNotifier = notifier;
-    final sink = widget.onVoiceCallError;
-    if (sink == null) {
-      notifier.clearOwnerErrorSink(_errorSinkOwner);
-    } else {
-      notifier.setOwnerErrorSink(_errorSinkOwner, sink);
-    }
-  }
-
-  void _clearRegisteredErrorSink() {
-    _registeredErrorNotifier?.clearOwnerErrorSink(_errorSinkOwner);
-    _registeredErrorNotifier = null;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _registerErrorSink();
-  }
+  // One record for "what modal is open", replacing the four `_open*For`
+  // fields. `_openCallId`/`_openKind` are set synchronously when we decide to
+  // open so a re-poll in the same frame cannot schedule a second open; the
+  // post-frame callback re-checks them before calling `showDialog`.
+  String? _openCallId;
+  _CallKind? _openKind;
+  BuildContext? _dialogContext;
 
   @override
   void didUpdateWidget(covariant VoiceCallLayer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.sessionId != widget.sessionId ||
-        oldWidget.onVoiceCallError != widget.onVoiceCallError) {
-      _clearRegisteredErrorSink();
-      _registerErrorSink();
+    if (oldWidget.sessionId != widget.sessionId) {
+      // The session we report against changed -- drop any open modal so we
+      // do not surface a stale call from the previous session.
+      _popOpen();
+      _openCallId = null;
+      _openKind = null;
+      _dialogContext = null;
     }
   }
 
-  @override
-  void dispose() {
-    _clearRegisteredErrorSink();
-    super.dispose();
+  RingtonePlayer _ringtone() =>
+      widget.ringtone ?? ref.read(ringtonePlayerProvider);
+
+  /// Closes the currently shown modal route if one is up.
+  void _popOpen() {
+    final ctx = _dialogContext;
+    if (ctx != null && Navigator.of(ctx).canPop()) {
+      Navigator.of(ctx).pop();
+    }
   }
 
-  Gateway _gateway() => ref.read(gatewayProvider);
+  /// Opens the modal the [dialog] asks for, closing whatever is already open.
+  /// No-op when the open modal already matches [dialog] (same call id + kind)
+  /// so a re-poll that changes nothing does not re-mount the dialog.
+  void _syncDialog(CallDialog dialog) {
+    final openCallId = _openCallId;
+    final openKind = _openKind;
+    final newCallId = dialog.callId;
+    final newKind = _kindOf(dialog);
+    if (openCallId == newCallId && openKind == newKind) return;
 
-  void _invalidateSession() =>
-      ref.invalidate(activeSessionProvider(widget.sessionId));
+    // Close the previously open modal (if its route is already up).
+    if (openCallId != null || openKind != null) {
+      _popOpen();
+      _openCallId = null;
+      _openKind = null;
+      _dialogContext = null;
+    }
 
-  void _onError(Object? e) {
-    // Call-control failures remain transient feedback. Audio setup failures
-    // use the owning DM screen's inline error callback instead.
-    if (!mounted) return;
-    final msg = e == null ? 'Call failed' : e.toString();
-    ScaffoldMessenger.maybeOf(context)
-        ?.showSnackBar(SnackBar(content: Text(msg)));
+    // Nothing to open.
+    if (newKind == _CallKind.none) return;
+
+    _openCallId = newCallId;
+    _openKind = newKind;
+
+    final peerLabel =
+        dialog.peerName.isEmpty ? widget.l.callPeerFallback : dialog.peerName;
+
+    // The OS toast is a one-shot: it fires only on the transition INTO an
+    // incoming dialog (this `_syncDialog` returns early on every later
+    // re-poll for the same call), mirroring React's "fire once per
+    // pendingCallId change" dep-array.
+    if (newKind == _CallKind.incoming) {
+      _maybeNotifyIncomingCall(peerLabel);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // The session / dialog may have moved on before this frame ran; the
+      // synchronous `_openCallId`/`_openKind` we set above is the guard that
+      // stops a stale scheduled open from winning.
+      if (_openCallId != newCallId || _openKind != newKind) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          _dialogContext = dialogContext;
+          return _buildDialogFor(dialog, dialogContext, peerLabel);
+        },
+      ).then((_) {
+        if (mounted) {
+          _openCallId = null;
+          _openKind = null;
+          _dialogContext = null;
+        }
+      });
+    });
   }
 
-  Future<void> _acceptCall(String callId) async {
-    try {
-      await _gateway().callAccept(
-        sessionId: widget.sessionId,
-        callId: callId,
+  /// Builds the widget for [dialog] with control callbacks routed through the
+  /// orchestrator notifier. A user action pops the modal first for snappy
+  /// feedback; the notifier then refreshes the session, which flips `dialog`
+  /// to the next shape (or none) and the layer reconciles on the next build.
+  Widget _buildDialogFor(
+    CallDialog dialog,
+    BuildContext dialogContext,
+    String peerLabel,
+  ) {
+    final notifier =
+        ref.read(voiceCallOrchestratorProvider(widget.sessionId).notifier);
+
+    if (dialog is IncomingCallDialog) {
+      return IncomingCallModal(
+        pending: dialog.pending,
+        peerLabel: peerLabel,
+        onAccept: () {
+          Navigator.of(dialogContext).pop();
+          notifier.acceptCall(dialog.callId);
+        },
+        onDecline: (reason) {
+          Navigator.of(dialogContext).pop();
+          notifier.declineCall(dialog.callId, reason);
+        },
+        ringtone: _ringtone(),
+        l: widget.l,
       );
-      _invalidateSession();
-    } catch (e) {
-      _onError(e);
     }
-  }
 
-  Future<void> _declineCall(String callId, String reason) async {
-    try {
-      await _gateway().callDecline(
-        sessionId: widget.sessionId,
-        callId: callId,
-        reason: reason,
+    if (dialog is OutgoingCallDialog) {
+      return OutgoingCallModal(
+        call: dialog.call,
+        peerLabel: peerLabel,
+        onCancel: () {
+          Navigator.of(dialogContext).pop();
+          notifier.endCall(dialog.callId, 'hangup');
+        },
+        ringtone: _ringtone(),
+        l: widget.l,
       );
-      _invalidateSession();
-    } catch (e) {
-      _onError(e);
     }
-  }
 
-  Future<void> _endCall(String callId, String reason) async {
-    if (_activeCallEnded) return;
-    _activeCallEnded = true;
-    try {
-      await _gateway().callEnd(
+    if (dialog is ActiveCallDialog) {
+      // The overlay reads live mute from the orchestrator itself (it is a
+      // Consumer), so the mic icon tracks `toggleMute` without a re-mount.
+      return CallOverlay(
+        active: dialog.active,
+        peerLabel: peerLabel,
         sessionId: widget.sessionId,
-        callId: callId,
-        reason: reason,
+        onHangUp: () {
+          Navigator.of(dialogContext).pop();
+          notifier.endCall(dialog.callId, 'hangup');
+        },
+        l: widget.l,
       );
-      _invalidateSession();
-    } catch (e) {
-      _onError(e);
-    } finally {
-      if (mounted) setState(() {});
     }
+
+    return const SizedBox.shrink();
   }
 
-  // Call modals use the runtime peer_display_name with the "Peer" fallback
-  // (React `peer_display_name || "Peer"`, private-dm-screen.tsx:462/481/494)
-  // -- NOT the full `peerLabel` ("invite sent"/"joining") used by the DM
-  // rail + header, because a call only exists once a peer is connected.
-  String _peerLabel(SessionSnapshot? s) =>
-      (s == null || s.peerDisplayName.isEmpty)
-          ? widget.l.callPeerFallback
-          : s.peerDisplayName;
+  /// Surfaces an orchestrator error: a call-control failure is transient
+  /// feedback (a snack bar); an audio-setup failure killed the call, so it
+  /// lands in the host conversation's error banner. Either way the layer
+  /// clears the surfaced error so the orchestrator does not re-show it.
+  void _surfaceError(CallError error) {
+    if (error.source == CallErrorSource.callControl) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text(error.message)));
+    } else {
+      widget.onVoiceCallError?.call(error.message);
+    }
+    ref
+        .read(voiceCallOrchestratorProvider(widget.sessionId).notifier)
+        .clearError();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Watch the per-session snapshot so a poll that flips pending -> active
-    // closes the incoming modal + opens the overlay in the same frame.
-    final async = ref.watch(activeSessionProvider(widget.sessionId));
-    final s = async.value;
-    final RingtonePlayer ringtone =
-        widget.ringtone ?? ref.read(ringtonePlayerProvider);
+    final orc = ref.watch(voiceCallOrchestratorProvider(widget.sessionId));
 
-    // --- Incoming (pending_call) ---
-    final pending = s?.pendingCall;
-    if (pending != null && _openIncomingFor != pending.callId) {
-      _openIncomingFor = pending.callId;
-      final displayName = pending.fromDevice.isEmpty
-          ? widget.l.callPeerFallback
-          : pending.fromDevice;
-      // Fire the OS toast in the SAME one-shot block that opens the modal
-      // (the `_openIncomingFor != pending.callId` guard IS the React
-      // dep-array "fire once per pendingCallId change"). Fire-and-forget,
-      // mirrors React's `void (async () => {...})()`.
-      _maybeNotifyIncomingCall(displayName);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => IncomingCallModal(
-            pending: pending,
-            peerLabel: displayName,
-            onAccept: () {
-              Navigator.of(dialogContext).pop();
-              _acceptCall(pending.callId);
-            },
-            onDecline: (reason) {
-              Navigator.of(dialogContext).pop();
-              _declineCall(pending.callId, reason);
-            },
-            ringtone: ringtone,
-            l: widget.l,
-          ),
-        ).then((_) {
-          if (mounted) setState(() => _openIncomingFor = null);
-        });
-      });
-    } else if (pending == null && _openIncomingFor != null) {
-      _openIncomingFor = null;
-    }
+    // One place owns call errors: the orchestrator. The layer only decides
+    // how to show them, and clears them once shown.
+    ref.listen<CallError?>(
+      voiceCallOrchestratorProvider(widget.sessionId).select((s) => s.error),
+      (_, error) {
+        if (error == null) return;
+        _surfaceError(error);
+      },
+    );
 
-    // --- Outgoing (outgoing_call, only when no active call) ---
-    final outgoing = (s?.activeCall == null) ? s?.outgoingCall : null;
-    if (outgoing != null && _openOutgoingFor != outgoing.callId) {
-      _openOutgoingFor = outgoing.callId;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => OutgoingCallModal(
-            call: outgoing,
-            peerLabel: _peerLabel(s),
-            onCancel: () {
-              Navigator.of(dialogContext).pop();
-              _endCall(outgoing.callId, 'hangup');
-            },
-            ringtone: ringtone,
-            l: widget.l,
-          ),
-        ).then((_) {
-          if (mounted) setState(() => _openOutgoingFor = null);
-        });
-      });
-    } else if (outgoing == null && _openOutgoingFor != null) {
-      _openOutgoingFor = null;
-    }
+    _syncDialog(orc.dialog);
 
-    // --- Active (active_call) ---
-    final active = s?.activeCall;
-    // Watch the orchestrator's mute flag so the layer rebuilds when the
-    // notifier flips it; the dialog's `muted:` is captured at open time,
-    // so a live icon swap while the overlay is open waits on a follow-up
-    // that makes `CallOverlay` itself a `Consumer` over this provider.
-    final callMuted =
-        ref.watch(voiceCallOrchestratorProvider(widget.sessionId)).muted;
-    if (active != null && _openOverlayFor != active.callId) {
-      _openOverlayFor = active.callId;
-      _activeCallEnded = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => CallOverlay(
-            active: active,
-            peerLabel: _peerLabel(s),
-            muted: callMuted,
-            onToggleMute: () {
-              // The orchestrator is the real mute owner (slice-3 landed);
-              // toggleMute flips its flag + bumps state for the rebuild.
-              ref
-                  .read(
-                      voiceCallOrchestratorProvider(widget.sessionId).notifier)
-                  .toggleMute();
-            },
-            onHangUp: () {
-              Navigator.of(dialogContext).pop();
-              _endCall(active.callId, 'hangup');
-            },
-            l: widget.l,
-          ),
-        ).then((_) {
-          if (mounted) setState(() => _openOverlayFor = null);
-        });
-      });
-    } else if (active == null && _openOverlayFor != null) {
-      _openOverlayFor = null;
-    }
-
-    // The layer renders nothing itself -- the modals route through showDialog.
+    // The layer renders nothing itself -- the modal routes through showDialog.
     return const SizedBox.shrink();
   }
 
@@ -361,6 +321,9 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 Future<Object?> startVoiceCall(WidgetRef ref, String sessionId) async {
   try {
     await ref.read(gatewayProvider).callStart(sessionId: sessionId);
+    // Force a re-fetch from the gateway so the session snapshot reflects the
+    // new outgoing call; the orchestrator (which watches this provider)
+    // then derives the OutgoingCallDialog.
     ref.invalidate(activeSessionProvider(sessionId));
     return null;
   } catch (e) {

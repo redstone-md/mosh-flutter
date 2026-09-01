@@ -439,13 +439,16 @@ One module holds the whole call pipeline. It lives in
 ```mermaid
 flowchart TD
     Layer[VoiceCallLayer]
-    Orch[VoiceCallOrchestrator]
+    Orch[VoiceCallOrchestratorNotifier]
+    Dialog["call_dialog: CallDialog + callDialogFor"]
     Modals["CallOverlay / IncomingCallModal / OutgoingCallModal"]
     Codec["frame_codec / frame_crypto"]
     Media["jitter_buffer / call_drain / call_frame_transport"]
     Adapters["VoiceCapture / VoicePlayback / RingtonePlayer"]
     Rust["mosh-core: voice_call_runtime / _jitter / _frame_crypto / _drain"]
 
+    Dialog --> Orch
+    Layer --> Dialog
     Layer --> Modals
     Layer --> Orch
     Orch --> Adapters
@@ -484,8 +487,20 @@ tests, now under `test/features/voice_call/` — imports `features/voice_call/`
 directly. No re-export shim is left behind, so the only path that resolves to
 a call file is the one in the call module.
 
-`voice_call_orchestrator_provider.dart` still lives in `lib/src/state/`; giving
-call state one home is a separate change from giving the code one directory.
+`voice_call_orchestrator_provider.dart` is the one home for call state. It
+exposes a single `VoiceCallOrchestratorNotifier` (family by `sessionId`) whose
+state is `dialog` (a `CallDialog` derived purely from the session snapshot),
+`muted`, and `error`. `call_dialog.dart` holds the derivation itself —
+`callDialogFor(SessionSnapshot)` returns `IncomingCallDialog`,
+`OutgoingCallDialog`, `ActiveCallDialog` or `NoCallDialog`, and is unit-tested
+without timers. `VoiceCallLayer` is a pure renderer: it reads `dialog` and shows
+exactly that one modal, routes every control (accept / decline / end / mute)
+back to the notifier, and surfaces `error` (a snack bar for `callControl`, the
+host's `onVoiceCallError` for `audioSetup`) before `clearError()`. The old
+phase-machine, the four "which modal is open" fields, and the dual error-sink
+ownership protocol are gone; the no-answer timeout is a deliberate 30 s
+(callee) / 45 s (caller, in `mosh-core`) pair so a real decline beats the
+caller's auto-end.
 
 ## State Ownership
 
@@ -505,7 +520,7 @@ In Dart (UI, UI-flow orchestration, human-readable-string parsing, display compu
 1. `invite_uri.dart` (parse `mosh://invite?...#fp=...` with the same contracts and error codes as `invite-uri.ts`).
 2. Clipboard invite detection via `Clipboard.getData` in a Riverpod notifier.
 3. `unread.dart`, `format.dart`, content strings (to ARB).
-4. Riverpod `AsyncNotifier`s consuming bridge streams; the `call-state` phase state machine as UI orchestration.
+4. Riverpod `AsyncNotifier`s consuming bridge streams; the call layer is a pure renderer of the `CallDialog` derived from the snapshot (see Voice Call Module).
 5. Ringtone playback via a platform audio plugin (UI sound, not transport).
 
 In `mosh-core` (crypto, binary wire formats, transport buffers, persistent state):

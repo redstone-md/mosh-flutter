@@ -23,7 +23,12 @@
 // uses `Ticker`-style 500 ms `Timer.periodic` to recompute `elapsed`
 // from `active.startedAtMs` (React's `setInterval(() => setNow(Date.now()),
 // 500)`). `formatClock` mirrors React's `formatClock`. The mute button
-// swaps icon + tint based on `muted` (React's conditional class + icon).
+// swaps icon + tint based on `muted`.
+//
+// The mute state lives in the orchestrator (the one home for call
+// decisions), so this widget is a `Consumer` that reads `muted` from
+// `voiceCallOrchestratorProvider(sessionId)` and calls its `toggleMute` --
+// the mic icon swaps live on tap with no re-mount of the overlay.
 
 library;
 
@@ -31,11 +36,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/voice_call/call_button.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
+    show voiceCallOrchestratorProvider;
 
 /// The active-call overlay tick interval -- mirrors React's
 /// `setInterval(..., 500)`.
@@ -53,13 +61,17 @@ String formatCallClock(BigInt elapsedMs) {
 }
 
 /// The active-call overlay -- 1-в-1 with React's `CallOverlay`.
-class CallOverlay extends StatefulWidget {
+///
+/// The mute state lives in the orchestrator (the one home for call
+/// decisions), so this widget is a `Consumer` that reads `muted` from
+/// `voiceCallOrchestratorProvider(sessionId)` and calls its `toggleMute` --
+/// the mic icon swaps live on tap with no re-mount of the overlay.
+class CallOverlay extends ConsumerStatefulWidget {
   const CallOverlay({
     super.key,
     required this.active,
     required this.peerLabel,
-    required this.muted,
-    required this.onToggleMute,
+    required this.sessionId,
     required this.onHangUp,
     required this.l,
     this.tickInterval = kCallOverlayTickInterval,
@@ -73,11 +85,9 @@ class CallOverlay extends StatefulWidget {
   /// The peer's display label (React `peerLabel`).
   final String peerLabel;
 
-  /// Whether the local mic is muted (React `muted`).
-  final bool muted;
-
-  /// Toggles mute (React `onToggleMute`).
-  final VoidCallback onToggleMute;
+  /// The session the call belongs to -- the key the orchestrator is family'd
+  /// by, so the overlay can read its mute flag.
+  final String sessionId;
 
   /// Hangs up (React `onHangUp`).
   final VoidCallback onHangUp;
@@ -95,12 +105,16 @@ class CallOverlay extends StatefulWidget {
   static int _defaultNow() => DateTime.now().millisecondsSinceEpoch;
 
   @override
-  State<CallOverlay> createState() => _CallOverlayState();
+  ConsumerState<CallOverlay> createState() => _CallOverlayState();
 }
 
-class _CallOverlayState extends State<CallOverlay> {
+class _CallOverlayState extends ConsumerState<CallOverlay> {
   Timer? _ticker;
   late int _now;
+  // Created once: rebuilding (the 500 ms timer tick, or a provider update)
+  // must not dispose + recreate the focus node, or Esc would stop working
+  // after the first frame.
+  late final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -116,6 +130,7 @@ class _CallOverlayState extends State<CallOverlay> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -124,13 +139,22 @@ class _CallOverlayState extends State<CallOverlay> {
     widget.onHangUp();
   }
 
+  void _toggleMute() {
+    if (!mounted) return;
+    ref
+        .read(voiceCallOrchestratorProvider(widget.sessionId).notifier)
+        .toggleMute();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final muted =
+        ref.watch(voiceCallOrchestratorProvider(widget.sessionId)).muted;
     final startedMs = widget.active.startedAtMs.toInt();
     final elapsed = _now - startedMs;
     final clampedElapsed = elapsed < 0 ? BigInt.zero : BigInt.from(elapsed);
     return KeyboardListener(
-      focusNode: FocusNode(),
+      focusNode: _focusNode,
       autofocus: true,
       // React useModalFocus(onHangUp) Esc-trap.
       onKeyEvent: (event) {
@@ -181,16 +205,16 @@ class _CallOverlayState extends State<CallOverlay> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         CallButton(
-                          icon: widget.muted ? Icons.mic_off : Icons.mic,
-                          tooltip: widget.muted
+                          icon: muted ? Icons.mic_off : Icons.mic,
+                          tooltip: muted
                               ? widget.l.callActiveUnmute
                               : widget.l.callActiveMute,
                           // React `.call-btn-muted` -> #4f8cff when muted;
                           // default neutral #2a2d33 when not.
-                          color: widget.muted
+                          color: muted
                               ? const Color(0xFF4F8CFF)
                               : const Color(0xFF2A2D33),
-                          onPressed: widget.onToggleMute,
+                          onPressed: _toggleMute,
                           iconSize: 18,
                         ),
                         const SizedBox(width: 16),

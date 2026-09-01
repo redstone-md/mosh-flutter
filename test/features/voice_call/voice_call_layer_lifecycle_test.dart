@@ -1,4 +1,8 @@
-// Lifecycle coverage for VoiceCallLayer's session-scoped error owner.
+// Lifecycle coverage for VoiceCallLayer's new error-ownership model:
+// the orchestrator is the ONE home for call errors, and the layer only
+// decides how to show them -- an audio-setup failure lands in the host
+// conversation's error banner (widget.onVoiceCallError) and is recorded in
+// the orchestrator state, and clearError drops it once shown.
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -7,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/voice_call/call_overlay.dart';
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import '../../support/scriptable_gateway.dart';
@@ -75,28 +78,19 @@ Future<void> _pumpLayer(
   await tester.pump(const Duration(milliseconds: 20));
 }
 
-Future<void> _closeCallOverlay(WidgetTester tester) async {
-  final overlay = find.byType(CallOverlay);
-  if (overlay.evaluate().isEmpty) return;
-  Navigator.of(tester.element(overlay.first)).pop();
-  await tester.pump();
-}
-
 void main() {
-  testWidgets('dispose clears owner and restores provider fallback',
+  testWidgets(
+      'audio-setup failure surfaces via onVoiceCallError and tears the call down',
       (tester) async {
-    const sessionId = 'sess-dispose';
+    const sessionId = 'sess-a';
     final capture = _DelayedCaptureFactory();
-    final ownerErrors = <String?>[];
-    final fallbackErrors = <String?>[];
+    final errors = <String?>[];
     final gateway = ScriptableGateway();
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway),
-      activeSessionProvider(sessionId).overrideWith(
-        (ref) async => _activeSnapshot(sessionId),
-      ),
+      activeSessionProvider(sessionId)
+          .overrideWith((ref) => Future.value(_activeSnapshot(sessionId))),
       voiceCaptureFactoryProvider.overrideWithValue(capture),
-      voiceCallErrorSinkProvider.overrideWithValue(fallbackErrors.add),
     ]);
     addTearDown(container.dispose);
 
@@ -106,81 +100,71 @@ void main() {
       container: container,
       sessionId: sessionId,
       l: l,
-      onError: ownerErrors.add,
+      onError: errors.add,
     );
+    // The call attached and started capture.
     expect(capture.starts, hasLength(1));
-    await _closeCallOverlay(tester);
 
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump();
-    capture.starts.single.completeError(Exception('late setup failure'));
+    // The capture that started for this call fails to set up.
+    capture.starts.single.completeError(Exception('boom'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
 
-    expect(ownerErrors, isEmpty);
-    expect(fallbackErrors, contains(contains('late setup failure')));
+    // The failure reaches the host conversation's error banner.
+    expect(errors, contains(contains('boom')));
+    // The layer surfaced the one owned error and cleared it, so it does
+    // not linger in orchestrator state.
+    expect(
+      container.read(voiceCallOrchestratorProvider(sessionId)).error,
+      isNull,
+    );
+    // The dead call is torn down.
     expect(gateway.countOf(GatewayMethod.callEnd), 1);
   });
 
-  testWidgets('session change clears old owner and keeps latest callback',
+  testWidgets('surfaced error is cleared and a second clearError is a no-op',
       (tester) async {
-    const oldSession = 'sess-old';
-    const newSession = 'sess-new';
+    const sessionId = 'sess-b';
     final capture = _DelayedCaptureFactory();
-    final oldErrors = <String?>[];
-    final newErrors = <String?>[];
-    final fallbackErrors = <String?>[];
+    final errors = <String?>[];
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(ScriptableGateway()),
-      activeSessionProvider(oldSession).overrideWith(
-        (ref) async => _activeSnapshot(oldSession),
-      ),
-      activeSessionProvider(newSession).overrideWith(
-        (ref) async => _activeSnapshot(newSession),
-      ),
+      activeSessionProvider(sessionId)
+          .overrideWith((ref) => Future.value(_activeSnapshot(sessionId))),
       voiceCaptureFactoryProvider.overrideWithValue(capture),
-      voiceCallErrorSinkProvider.overrideWithValue(fallbackErrors.add),
     ]);
     addTearDown(container.dispose);
-    final oldKeepAlive = container.listen(
-      voiceCallOrchestratorProvider(oldSession),
-      (_, __) {},
-      fireImmediately: true,
-    );
-    addTearDown(oldKeepAlive.close);
 
     final l = await AppLocalizations.delegate.load(const Locale('en'));
     await _pumpLayer(
       tester,
       container: container,
-      sessionId: oldSession,
+      sessionId: sessionId,
       l: l,
-      onError: oldErrors.add,
+      onError: errors.add,
     );
-    expect(capture.starts, hasLength(1));
-    await _closeCallOverlay(tester);
-
-    await _pumpLayer(
-      tester,
-      container: container,
-      sessionId: newSession,
-      l: l,
-      onError: newErrors.add,
-    );
-    expect(capture.starts, hasLength(2));
-    await _closeCallOverlay(tester);
-
-    capture.starts[0].completeError(Exception('old setup failure'));
-    await tester.pump();
-    capture.starts[1].completeError(Exception('new setup failure'));
+    capture.starts.single.completeError(Exception('boom'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
 
-    expect(oldErrors, isEmpty);
-    expect(newErrors, contains(contains('new setup failure')));
-    expect(fallbackErrors, contains(contains('old setup failure')));
+    // Surfaced exactly once to the host, then cleared from state.
+    expect(errors, hasLength(1));
+    expect(
+      container.read(voiceCallOrchestratorProvider(sessionId)).error,
+      isNull,
+    );
 
-    await tester.pumpWidget(const SizedBox());
+    // Clearing again with nothing pending is a no-op (no throw, no
+    // re-surface).
+    container
+        .read(voiceCallOrchestratorProvider(sessionId).notifier)
+        .clearError();
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(
+      container.read(voiceCallOrchestratorProvider(sessionId)).error,
+      isNull,
+    );
+    expect(errors, hasLength(1));
   });
 }

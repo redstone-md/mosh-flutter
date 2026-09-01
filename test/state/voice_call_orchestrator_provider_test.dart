@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_playback.dart';
 import '../support/scriptable_gateway.dart';
@@ -30,7 +31,12 @@ class _SessionController {
   SessionSnapshot? snapshot;
 }
 
-SessionSnapshot _session(String sessionId, {ActiveCall? activeCall}) =>
+SessionSnapshot _session(
+  String sessionId, {
+  ActiveCall? activeCall,
+  PendingCall? pendingCall,
+  OutgoingCall? outgoingCall,
+}) =>
     SessionSnapshot(
       sessionId: sessionId,
       meshId: 'm',
@@ -46,8 +52,8 @@ SessionSnapshot _session(String sessionId, {ActiveCall? activeCall}) =>
       attachments: const [],
       mesh: null,
       events: const [],
-      pendingCall: null,
-      outgoingCall: null,
+      pendingCall: pendingCall,
+      outgoingCall: outgoingCall,
       activeCall: activeCall,
     );
 
@@ -120,13 +126,12 @@ class _RecordingPlaybackFactory implements VoicePlaybackFactory {
 
 /// Builds a ProviderContainer with the orchestrator's full override set.
 /// The session controller seeds activeSessionProvider; the recording
-/// gateway + factories + error sink are injected for assertions.
+/// gateway + factories are injected for assertions.
 ProviderContainer _container({
   required _SessionController controller,
   required ScriptableGateway gateway,
   VoiceCaptureFactory? captureFactory,
   VoicePlaybackFactory? playbackFactory,
-  void Function(String? message)? errorSink,
 }) {
   return ProviderContainer(overrides: [
     activeSessionProvider('sess-1')
@@ -136,7 +141,6 @@ ProviderContainer _container({
         .overrideWithValue(captureFactory ?? const NoopVoiceCaptureFactory()),
     voicePlaybackFactoryProvider
         .overrideWithValue(playbackFactory ?? const NoopVoicePlaybackFactory()),
-    voiceCallErrorSinkProvider.overrideWithValue(errorSink ?? (_) {}),
   ]);
 }
 
@@ -268,30 +272,31 @@ void main() {
       expect(firstHandle!.stopCalls, 1);
     });
 
-    test('endCall callback calls gateway.callEnd + surfaces error', () async {
+    test('setup failure surfaces an audioSetup error + tears the call down',
+        () async {
       final gateway = ScriptableGateway();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _FailingCaptureFactory('boom');
       final playback = _RecordingPlaybackFactory();
-      final errors = <String?>[];
       final container = _container(
         controller: controller,
         gateway: gateway,
         captureFactory: capture,
         playbackFactory: playback,
-        errorSink: errors.add,
       );
       addTearDown(container.dispose);
 
       final sub = _subscribe(container);
       addTearDown(sub.close);
-      // attach's catch -> onError + endCall -> gateway.callEnd; the failing
-      // capture.start throws after importCallKey + playback start resolve,
-      // so wait long enough for the async chain to settle.
+      // attach's catch -> onError(audioSetup) + endCall -> gateway.callEnd;
+      // the failing capture.start throws after importCallKey + playback start
+      // resolve, so wait long enough for the async chain to settle.
       await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      expect(errors, isNotEmpty);
+      final st = container.read(voiceCallOrchestratorProvider('sess-1'));
+      expect(st.error, isNotNull);
+      expect(st.error!.source, CallErrorSource.audioSetup);
       expect(gateway.countOf(GatewayMethod.callEnd), 1);
       expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('sessionId'),
           'sess-1');
@@ -299,6 +304,158 @@ void main() {
           gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('callId'), 'a');
       expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('reason'),
           'setup_failed');
+    });
+
+    test('dialog derives from the snapshot (pending/outgoing/active/none)',
+        () async {
+      // Pending -> IncomingCallDialog (peer from fromDevice).
+      final pendingController = _SessionController(_session(
+        'sess-1',
+        pendingCall: PendingCall(callId: 'p1', fromDevice: 'Bob'),
+      ));
+      final pendingContainer = _container(
+        controller: pendingController,
+        gateway: ScriptableGateway(),
+      );
+      addTearDown(pendingContainer.dispose);
+      final pendingSub = pendingContainer.listen(
+          voiceCallOrchestratorProvider('sess-1'), (_, __) {},
+          fireImmediately: true);
+      addTearDown(pendingSub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final pendingDialog =
+          pendingContainer.read(voiceCallOrchestratorProvider('sess-1')).dialog;
+      expect(pendingDialog, isA<IncomingCallDialog>());
+      expect(pendingDialog.callId, 'p1');
+      expect(pendingDialog.peerName, 'Bob');
+
+      // Outgoing -> OutgoingCallDialog (peer from peerDisplayName).
+      final outgoingController = _SessionController(_session(
+        'sess-1',
+        outgoingCall: const OutgoingCall(callId: 'o1'),
+      ));
+      final outgoingContainer = _container(
+        controller: outgoingController,
+        gateway: ScriptableGateway(),
+      );
+      addTearDown(outgoingContainer.dispose);
+      final outgoingSub = outgoingContainer.listen(
+          voiceCallOrchestratorProvider('sess-1'), (_, __) {},
+          fireImmediately: true);
+      addTearDown(outgoingSub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final outgoingDialog = outgoingContainer
+          .read(voiceCallOrchestratorProvider('sess-1'))
+          .dialog;
+      expect(outgoingDialog, isA<OutgoingCallDialog>());
+      expect(outgoingDialog.callId, 'o1');
+      expect(outgoingDialog.peerName, 'Alice');
+
+      // Active -> ActiveCallDialog.
+      final activeController =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a1')));
+      final activeContainer = _container(
+        controller: activeController,
+        gateway: ScriptableGateway(),
+      );
+      addTearDown(activeContainer.dispose);
+      final activeSub = activeContainer.listen(
+          voiceCallOrchestratorProvider('sess-1'), (_, __) {},
+          fireImmediately: true);
+      addTearDown(activeSub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final activeDialog =
+          activeContainer.read(voiceCallOrchestratorProvider('sess-1')).dialog;
+      expect(activeDialog, isA<ActiveCallDialog>());
+      expect(activeDialog.callId, 'a1');
+
+      // None -> NoCallDialog.
+      final noneController = _SessionController(_session('sess-1'));
+      final noneContainer = _container(
+        controller: noneController,
+        gateway: ScriptableGateway(),
+      );
+      addTearDown(noneContainer.dispose);
+      final noneSub = noneContainer.listen(
+          voiceCallOrchestratorProvider('sess-1'), (_, __) {},
+          fireImmediately: true);
+      addTearDown(noneSub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(
+        noneContainer.read(voiceCallOrchestratorProvider('sess-1')).dialog,
+        isA<NoCallDialog>(),
+      );
+    });
+
+    test('clearError clears the surfaced error and is idempotent', () async {
+      final gateway = ScriptableGateway();
+      final controller =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
+      final capture = _FailingCaptureFactory('boom');
+      final playback = _RecordingPlaybackFactory();
+      final container = _container(
+        controller: controller,
+        gateway: gateway,
+        captureFactory: capture,
+        playbackFactory: playback,
+      );
+      addTearDown(container.dispose);
+
+      final sub = _subscribe(container);
+      addTearDown(sub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(
+        container.read(voiceCallOrchestratorProvider('sess-1')).error,
+        isNotNull,
+      );
+
+      container
+          .read(voiceCallOrchestratorProvider('sess-1').notifier)
+          .clearError();
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      expect(
+        container.read(voiceCallOrchestratorProvider('sess-1')).error,
+        isNull,
+      );
+
+      // Clearing again with no error is a no-op (no throw, no new error).
+      container
+          .read(voiceCallOrchestratorProvider('sess-1').notifier)
+          .clearError();
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      expect(
+        container.read(voiceCallOrchestratorProvider('sess-1')).error,
+        isNull,
+      );
+    });
+
+    test('endCall for the same call twice is a single gateway.callEnd',
+        () async {
+      final gateway = ScriptableGateway();
+      final controller =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
+      final capture = _RecordingCaptureFactory();
+      final playback = _RecordingPlaybackFactory();
+      final container = _container(
+        controller: controller,
+        gateway: gateway,
+        captureFactory: capture,
+        playbackFactory: playback,
+      );
+      addTearDown(container.dispose);
+
+      final sub = _subscribe(container);
+      addTearDown(sub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(capture.startCalls, 1);
+
+      final notifier =
+          container.read(voiceCallOrchestratorProvider('sess-1').notifier);
+      await notifier.endCall('a', 'hangup');
+      await notifier.endCall('a', 'hangup');
+
+      expect(gateway.countOf(GatewayMethod.callEnd), 1);
     });
   });
 }

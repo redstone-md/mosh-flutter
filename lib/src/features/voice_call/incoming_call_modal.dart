@@ -43,18 +43,21 @@ import 'package:flutter/services.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/features/voice_call/call_button.dart';
-import 'package:mosh/src/features/voice_call/call_state.dart'
-    show kNoAnswerTimeoutMs;
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
-/// Mirrors `kNoAnswerTimeoutMs` (call-state.dart) so the modal and the
-/// state machine share ONE source of truth -- the milliseconds come
-/// from the shared const (no behavior change; the Timer still uses
-/// 30 s). The incoming-call modal auto-declines with `'no_answer'`
-/// after this long.
-const Duration kIncomingNoAnswerTimeout =
-    Duration(milliseconds: kNoAnswerTimeoutMs);
+/// The app's one no-answer window: an incoming call the local user never
+/// picks up is declined with `'no_answer'` once it elapses.
+///
+/// The callee half of a pair agreed with mosh-core. The caller's budget is
+/// `CALL_RING_TIMEOUT_MS` (`mosh-core/src/private_dm_runtime.rs`): it
+/// re-offers every `CALL_RESEND_MS` and ends the call with the same
+/// `"no_answer"` reason once the budget is spent. This side is deliberately
+/// the shorter of the two, so on a healthy link the callee's real decline
+/// reaches the caller before the caller gives up on its own -- the budget
+/// is the backstop for a lost decline, not a competing deadline. Change the
+/// two together.
+const Duration kIncomingNoAnswerTimeout = Duration(milliseconds: 30000);
 
 /// The decline reasons the modal emits -- mirror React's
 /// `onDecline('declined')` / `onDecline('no_answer')` literals so the
