@@ -108,8 +108,12 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
+      # The same generate the repo's AGENTS.md documents, so the committed
+      # bindings stay byte-identical to a fresh regen: dart fix + dart format
+      # run here exactly as they do locally. (Dropping those flags made this
+      # gate flag every dart-formatted file; see the 2026-09-01 fix.)
       - name: Regenerate bindings
-        run: flutter_rust_bridge_codegen generate --no-dart-fix --no-dart-format --no-deps-check --no-build-runner --no-rust-format
+        run: flutter_rust_bridge_codegen generate --no-deps-check --no-build-runner --no-rust-format
 
       # Format the regenerated Rust binding with the crate's own `cargo fmt`
       # (canonical rustfmt, no rustfmt.toml = default config) so the drift
@@ -118,8 +122,8 @@ jobs:
       # fast; this step is the single source of formatting truth so the
       # `Rustfmt check` gate (cargo fmt --check on ALL .rs, incl. this
       # generated file) and this drift gate never disagree on style. Dart
-      # bindings (lib/src/rust/**) are intentionally left as the codegen
-      # `--no-dart-format` output (not touched by cargo fmt).
+      # bindings (lib/src/rust/**) are formatted by the generate step itself,
+      # matching how they are committed.
       - name: Format regenerated Rust binding
         run: cargo fmt --manifest-path mosh-core/Cargo.toml -- mosh-core/src/frb_generated.rs
 
