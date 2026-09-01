@@ -84,6 +84,9 @@ const AUTO_RESEND_MAX: u32 = 10;
 // with a fresh CallAccept, so the re-offer doubles as the accept's ack — the
 // same recovery shape as the KeyPackage/Welcome exchange. The ring budget
 // outlasts the callee's 30 s auto-decline so a real decline wins the race.
+// That callee deadline is `kIncomingNoAnswerTimeout` in
+// `lib/src/features/voice_call/incoming_call_modal.dart`; the two are a
+// pair and must be changed together.
 const CALL_RESEND_MS: u64 = 2_000;
 const CALL_RING_TIMEOUT_MS: u64 = 45_000;
 

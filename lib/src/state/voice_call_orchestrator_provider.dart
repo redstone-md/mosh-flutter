@@ -1,21 +1,19 @@
-// Voice-call orchestration wiring (ADR 0010/0013) -- the Riverpod mirror of
-// React use-voice-call-orchestration's useEffect dep array. The Notifier
-// watches activeSessionProvider(sessionId); when the ActiveCall appears,
-// changes (callId/key/nonce/direction), or disappears, it detaches the old
-// VoiceCallOrchestrator and attaches the new -- threading gatewayProvider
-// -> CallFrameTransport, the capture/playback factories, onError -> a
-// callError surfacing seam, and endCall -> gateway.callEnd + invalidate
-// activeSession. State is {bool muted} only; activeCall/pendingCallSession/
-// callSupported stay derived from activeSessionProvider in VoiceCallLayer.
+// Voice-call orchestration wiring (ADR 0010/0013) -- the one home for the
+// live-call decisions: which dialog the session asks for (derived from its
+// snapshot), whether the mic is muted, and what went wrong. The layer only
+// renders what this notifier decides and routes every control action
+// (start / accept / decline / hang up / mute) back here, so a ring bug is
+// readable in one file instead of six. activeCall / pendingCall /
+// callSupported stay derived from activeSessionProvider by VoiceCallLayer.
+//
+// Call control is a Riverpod family by sessionId; audio transport is
+// Riverpod-free and lives in `voice_call_orchestrator.dart`.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
-import 'package:mosh/src/state/session_providers.dart'
-    show activeSessionProvider;
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show ActiveCall;
+import 'package:mosh/src/features/voice_call/call_dialog.dart'
+    show CallDialog, NoCallDialog, callDialogFor;
 import 'package:mosh/src/features/voice_call/call_frame_transport.dart'
     show CallFrameTransport;
 import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart'
@@ -26,15 +24,60 @@ import 'package:mosh/src/features/voice_call/voice_playback.dart'
     show NoopVoicePlaybackFactory, VoicePlaybackFactory;
 import 'package:mosh/src/features/voice_call/ringtone_player.dart'
     show NoopRingtonePlayer, RingtonePlayer;
+import 'package:mosh/src/gateway/gateway.dart' show Gateway;
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show ActiveCall;
+import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/session_providers.dart'
+    show activeSessionProvider;
 
-/// The orchestrator state the CallOverlay reads -- just the mute flag.
-/// activeCall / pendingCallSession / callSupported are derived from
-/// activeSessionProvider by VoiceCallLayer, not duplicated here.
+/// Where a call failure came from. The orchestrator owns the failure; the
+/// UI only decides how to show it, and that decision is made here.
+enum CallErrorSource {
+  /// A call-control action (accept / decline / hang up) failed. The call is
+  /// otherwise fine, so this is transient feedback (a snack bar).
+  callControl,
+
+  /// Bringing up the audio pipeline failed: the call is dead, so the
+  /// message lands in the host conversation's error banner.
+  audioSetup,
+}
+
+/// A failure the call UI must show, and where it belongs.
+class CallError {
+  const CallError({required this.message, required this.source});
+  final String message;
+  final CallErrorSource source;
+}
+
+/// The orchestrator state the call UI reads. Nothing here is owned by the
+/// widget that renders it: the dialog comes from the session snapshot, and
+/// the mute flag and the error from the orchestrator itself.
 class VoiceCallOrchestratorState {
-  const VoiceCallOrchestratorState({this.muted = false});
+  const VoiceCallOrchestratorState({
+    this.dialog = const NoCallDialog(),
+    this.muted = false,
+    this.error,
+  });
+
+  final CallDialog dialog;
   final bool muted;
-  VoiceCallOrchestratorState copyWith({bool? muted}) =>
-      VoiceCallOrchestratorState(muted: muted ?? this.muted);
+  final CallError? error;
+
+  VoiceCallOrchestratorState copyWith({
+    CallDialog? dialog,
+    bool? muted,
+    CallError? error,
+  }) =>
+      VoiceCallOrchestratorState(
+        dialog: dialog ?? this.dialog,
+        muted: muted ?? this.muted,
+        error: error ?? this.error,
+      );
+
+  /// A new state with no error -- used after the layer has shown one.
+  VoiceCallOrchestratorState copyWithoutError() =>
+      VoiceCallOrchestratorState(dialog: dialog, muted: muted);
 }
 
 /// The capture/playback factory providers. Noop defaults keep isolated
@@ -48,14 +91,6 @@ final voicePlaybackFactoryProvider = Provider<VoicePlaybackFactory>(
 );
 final ringtonePlayerProvider = Provider<RingtonePlayer>(
   (ref) => const NoopRingtonePlayer(),
-);
-
-/// A seam for surfacing voice-call errors (React onError). DM screens install
-/// a local callback that owns their inline ChatError state; isolated provider
-/// tests can override this with a recording callback. The default is a no-op
-/// because a provider container has no UI owner to which it can report.
-final voiceCallErrorSinkProvider = Provider<void Function(String? message)>(
-  (ref) => (_) {},
 );
 
 /// Family by sessionId. Riverpod v3 passes the family arg to the Notifier's
@@ -73,58 +108,56 @@ class VoiceCallOrchestratorNotifier
   final String sessionId;
 
   VoiceCallOrchestrator? _orchestrator;
-  void Function(String? message)? _providerErrorSink;
-  void Function(String? message)? _ownerErrorSink;
-  Object? _errorSinkOwner;
-  // The callId the orchestrator is currently attached to (or null when
+  // The call the orchestrator is currently attached to (or null when
   // detached). Used to detect a call-id change and re-attach.
   String? _attachedCallId;
+  // The call a hang-up has already been sent for. A snapshot re-poll can
+  // land before the runtime clears the call; without this the second tap
+  // (or the re-poll) would end the same call twice. Reset when the call is
+  // gone or the hang-up failed, so the action stays retryable.
+  String? _endedCallId;
+  // The failure the layer has not yet surfaced. Held as a field (not
+  // reconstructed from the snapshot) so a re-poll cannot wipe an unshown
+  // error; the layer clears it once it has drawn it.
+  CallError? _error;
 
   @override
   VoiceCallOrchestratorState build() {
-    _providerErrorSink = ref.read(voiceCallErrorSinkProvider);
-    // Tear down the orchestrator when the provider is disposed (v3 Notifier
-    // has no dispose() hook -- register via ref.onDispose in build).
     ref.onDispose(() {
       final o = _orchestrator;
-      if (o != null) {
-        o.detach(); // fire-and-forget; onDispose is sync.
-      }
+      if (o != null) o.detach(); // fire-and-forget; onDispose is sync.
     });
-    final sessionAsync = ref.watch(activeSessionProvider(sessionId));
-    final session = sessionAsync.value;
-    final activeCall = session?.activeCall;
-    // Re-evaluate whenever the ActiveCall identity changes.
-    _maybeReattach(activeCall);
-    return VoiceCallOrchestratorState(muted: _orchestrator?.isMuted ?? false);
+    final session = ref.watch(activeSessionProvider(sessionId)).value;
+    _maybeReattach(session?.activeCall);
+    return VoiceCallOrchestratorState(
+      dialog: callDialogFor(session),
+      muted: _orchestrator?.isMuted ?? false,
+      error: _error,
+    );
   }
 
   void _maybeReattach(ActiveCall? activeCall) {
     if (activeCall == null) {
-      // No active call -- detach if we were attached.
       final o = _orchestrator;
       if (o != null) {
-        o.detach(); // fire-and-forget; build must stay sync.
+        o.detach();
         _orchestrator = null;
         _attachedCallId = null;
       }
+      _endedCallId = null;
       return;
     }
     if (_attachedCallId == activeCall.callId && _orchestrator != null) {
-      // Same call already attached -- nothing to do.
-      return;
+      return; // same call already attached -- nothing to do.
     }
-    // New (or changed) call -- detach the old, attach the new.
-    final old = _orchestrator;
-    if (old != null) {
-      old.detach();
-    }
-    final orchestrator = VoiceCallOrchestrator();
-    _orchestrator = orchestrator;
+    _orchestrator?.detach();
+    _orchestrator = VoiceCallOrchestrator();
     _attachedCallId = activeCall.callId;
+    _endedCallId = null;
+    final orchestrator = _orchestrator!;
+    final sid = sessionId;
     final gateway = ref.read(gatewayProvider);
     final transport = CallFrameTransport(gateway);
-    final sid = sessionId;
     orchestrator.attach(
       sessionId: sid,
       callId: activeCall.callId,
@@ -134,40 +167,85 @@ class VoiceCallOrchestratorNotifier
       transport: transport,
       captureFactory: ref.read(voiceCaptureFactoryProvider),
       playbackFactory: ref.read(voicePlaybackFactoryProvider),
-      onError: _emitError,
+      onError: (message) => _fail(message, CallErrorSource.audioSetup),
       endCall: (s, c, reason) async {
+        if (!ref.mounted) return;
         await gateway.callEnd(sessionId: s, callId: c, reason: reason);
         ref.invalidate(activeSessionProvider(sid));
       },
     );
   }
 
-  /// Installs the owning screen's local error callback. The owner token keeps
-  /// an older widget's dispose from clearing a newer widget's callback.
-  void setOwnerErrorSink(
-    Object owner,
-    void Function(String? message) sink,
-  ) {
-    _errorSinkOwner = owner;
-    _ownerErrorSink = sink;
+  /// Places a call. Resolves to the error to surface, or to null when the
+  /// call went out. Not routed through [CallError]: a call that never
+  /// started has no layer to surface it, so the caller keeps the error.
+  Future<Object?> startCall() async {
+    try {
+      await ref.read(gatewayProvider).callStart(sessionId: sessionId);
+      if (ref.mounted) ref.invalidate(activeSessionProvider(sessionId));
+      return null;
+    } catch (e) {
+      return e;
+    }
   }
 
-  /// Removes an owner callback only when it still owns this session notifier.
-  /// Once cleared, the provider override remains the effective fallback.
-  void clearOwnerErrorSink(Object owner) {
-    if (!identical(_errorSinkOwner, owner)) return;
-    _errorSinkOwner = null;
-    _ownerErrorSink = null;
-  }
+  /// Accepts the inbound call [callId] and refreshes the session.
+  Future<void> acceptCall(String callId) =>
+      _control((g) => g.callAccept(sessionId: sessionId, callId: callId));
 
-  void _emitError(String? message) {
-    (_ownerErrorSink ?? _providerErrorSink)?.call(message);
+  /// Declines the inbound call [callId] for [reason] and refreshes.
+  Future<void> declineCall(String callId, String reason) => _control(
+        (g) =>
+            g.callDecline(sessionId: sessionId, callId: callId, reason: reason),
+      );
+
+  /// Hangs up the active call [callId] for [reason] and refreshes. A second
+  /// call for the same [callId] before the first clears is a no-op; a failed
+  /// hang-up lets a retry through.
+  Future<void> endCall(String callId, String reason) async {
+    if (_endedCallId == callId) return;
+    _endedCallId = callId;
+    final ended = await _control(
+      (g) => g.callEnd(sessionId: sessionId, callId: callId, reason: reason),
+    );
+    if (!ended && _endedCallId == callId) _endedCallId = null;
   }
 
   /// Toggles mute (React toggleMute). Mirrors the orchestrator's own flag;
   /// bumps state so the CallOverlay re-renders the mic icon.
   void toggleMute() {
     _orchestrator?.toggleMute();
-    state = VoiceCallOrchestratorState(muted: _orchestrator?.isMuted ?? false);
+    if (ref.mounted) {
+      state = state.copyWith(muted: _orchestrator?.isMuted ?? false);
+    }
+  }
+
+  /// Clears the surfaced error once the layer has shown it.
+  void clearError() {
+    if (_error == null) return;
+    _error = null;
+    if (ref.mounted) state = state.copyWithoutError();
+  }
+
+  Future<bool> _control(
+    Future<void> Function(Gateway gateway) action,
+  ) async {
+    try {
+      await action(ref.read(gatewayProvider));
+      if (ref.mounted) ref.invalidate(activeSessionProvider(sessionId));
+      return true;
+    } catch (e) {
+      _fail(e, CallErrorSource.callControl);
+      return false;
+    }
+  }
+
+  void _fail(Object? error, CallErrorSource source) {
+    if (!ref.mounted) return;
+    _error = CallError(
+      message: error?.toString() ?? 'Call failed',
+      source: source,
+    );
+    state = state.copyWith(error: _error);
   }
 }
