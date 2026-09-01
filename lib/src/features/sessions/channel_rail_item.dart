@@ -6,8 +6,8 @@
 ///
 /// `onTap` navigates to `/channel/<name>` via `context.go(AppRoutes.channelFor(name))`
 /// (mirrors React `onSelect({ type: "channel", name })`). Server state for
-/// the list lives in `channelListProvider`
-/// (channel_group_providers.dart); the parent passes a resolved
+/// the list lives in the channel entry of `conversationListProvider`
+/// (conversation_providers.dart); the parent passes a resolved
 /// `ChannelSnapshot` + the unread count.
 library;
 

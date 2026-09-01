@@ -11,27 +11,28 @@
 // stayed "connecting" until BOTH sides sent, and why peer messages only
 // appeared after a local send.
 //
-// Shape: one process-lifetime `Timer.periodic` refreshing the three list
-// providers in parallel (React's `Promise.all` of listPrivateSessions /
-// listChannels / listPrivateGroups) plus the open conversation's snapshot
-// family. `_inFlight` mirrors React's `pollInFlight` ref so a slow tick is
-// skipped rather than queued.
+// Shape: one process-lifetime `Timer.periodic` refreshing the conversation
+// list of every kind in parallel (React's `Promise.all` of
+// listPrivateSessions / listChannels / listPrivateGroups) plus the open
+// conversation's snapshot family. `_inFlight` mirrors React's `pollInFlight`
+// ref so a slow tick is skipped rather than queued.
 //
-// The three list notifiers use their own `refresh()` (a guard-swap that
-// never publishes `AsyncLoading`), so the rail does not flicker. The
-// snapshot families are `FutureProvider.family`, so their reload does
-// publish `AsyncLoading` with the previous value attached -- the chat
-// screens pass `skipLoadingOnReload: true` to `.when` so a reload renders
-// the retained data instead of a spinner.
+// The list entries use their own `refresh()` (a guard-swap that never
+// publishes `AsyncLoading`), so the rail does not flicker. The snapshot
+// families are `FutureProvider.family`, so their reload does publish
+// `AsyncLoading` with the previous value attached -- the chat screens pass
+// `skipLoadingOnReload: true` to `.when` so a reload renders the retained
+// data instead of a spinner.
 library;
 
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/src/state/active_conversation_key_provider.dart';
-import 'package:mosh/src/state/channel_group_providers.dart';
-import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/state/active_conversation_key_provider.dart'
+    show activeConversationProvider;
+import 'package:mosh/src/state/conversation_providers.dart'
+    show invalidateConversation, refreshConversationLists;
 
 /// Poll cadence -- 1:1 with React's `AUTO_POLL_MS = 1000`.
 const Duration kAutoPollInterval = Duration(milliseconds: 1000);
@@ -53,21 +54,10 @@ final autoPollProvider = Provider<void>((ref) {
     if (inFlight) return;
     inFlight = true;
     try {
-      await Future.wait(<Future<void>>[
-        ref.read(sessionListProvider.notifier).refresh(),
-        ref.read(channelListProvider.notifier).refresh(),
-        ref.read(groupListProvider.notifier).refresh(),
-      ]);
+      await refreshConversationLists(ref.read);
       final active = ref.read(activeConversationProvider);
       if (active == null) return;
-      switch (active.kind) {
-        case ActiveConversationKind.dm:
-          ref.invalidate(activeSessionProvider(active.arg));
-        case ActiveConversationKind.channel:
-          ref.invalidate(channelSnapshotProvider(active.arg));
-        case ActiveConversationKind.group:
-          ref.invalidate(groupSnapshotProvider(active.arg));
-      }
+      invalidateConversation(ref.invalidate, active.conversation);
     } finally {
       inFlight = false;
     }

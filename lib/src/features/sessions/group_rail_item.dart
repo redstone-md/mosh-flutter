@@ -5,8 +5,9 @@
 /// member count, and a trailing admin crown + state dot + `UnreadBadge`.
 ///
 /// `onTap` opens `AppRoutes.groupFor(group.groupId)` (the GroupScreen route
-/// shell). Server state for the list lives in `groupListProvider`
-/// (channel_group_providers.dart); the parent passes a resolved
+/// shell). Server state for the list lives in the group entry of
+/// `conversationListProvider` (conversation_providers.dart); the parent
+/// passes a resolved
 /// `GroupSnapshot` + the unread count.
 library;
 

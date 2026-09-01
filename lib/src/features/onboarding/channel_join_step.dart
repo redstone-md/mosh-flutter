@@ -29,8 +29,10 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
-import 'package:mosh/src/state/channel_group_providers.dart'
-    show channelListProvider;
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
+import 'package:mosh/src/state/conversation_providers.dart'
+    show conversationListProvider;
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/util/format.dart' show readableError;
@@ -112,7 +114,9 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
               staticPeer: settings.staticPeer,
             ),
           );
-      await ref.read(channelListProvider.notifier).refresh();
+      await ref
+          .read(conversationListProvider(ConversationKind.channel).notifier)
+          .refresh();
       if (!mounted) return;
       context.go(AppRoutes.channelFor(name));
     } catch (e) {

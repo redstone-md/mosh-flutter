@@ -3,22 +3,23 @@
 // session, and an empty state. The combined rail order is 1-в-1 with React
 // (offers -> sessions -> groups -> channels -> orgs), separated by
 // `rail-divider` lines between two non-empty adjacent sections.
-// Unread counts: DM via `unreadDmCountsProvider` (keyed `'dm:sessionId'`),
-// channels/groups via `unreadChannelCountsProvider` /
-// `unreadGroupCountsProvider` (keyed `'channel:name'` / `'group:groupId'`,
-// mirrors the DM provider). Channel/group `onTap` stay no-ops (no room
-// screen route). Orgs render via `OrgSection` after the channels loop;
-// `org_actions.dart` backs the 7 callbacks, each reduced to its own
-// Gateway call and its own destination -- the busy flag, the refresh, the
-// error toast and the navigation belong to the one envelope they all run
-// in. `busy` mirrors React's `org.busy = offerBusy || setupBusy`
-// via `orgOperationBusProvider` (Set<orgPubkey>).
+// Unread counts: one `unreadCountsProvider` family serves all three kinds
+// (keyed `'dm:sessionId'` / `'channel:name'` / `'group:groupId'`), diffed
+// into one map by the lifecycle provider below. Orgs render after the
+// channels loop; `org_actions.dart` backs the 7 callbacks, each reduced to
+// its own Gateway call and its own destination -- the busy flag, the
+// refresh, the error toast and the navigation belong to the one envelope
+// they all run in. `busy` mirrors React's `org.busy = offerBusy ||
+// setupBusy` via `orgOperationBusProvider` (Set<orgPubkey>).
 //
-// State split (ADR 0010): server state lives in `sessionListProvider`
-// (AsyncNotifierProvider<SessionListSnapshot>) -- the TanStack-Query
-// analogue; loading/data/error flows through AsyncValue. The new-session
-// flow reuses the cross-screen `inviteFlowProvider` Notifier so display-name
-// + listen-port stay DRY. No widget-local state, so a ConsumerWidget.
+// State split (ADR 0010): server state lives in the
+// `conversationListProvider` family (one entry per conversation kind) --
+// the TanStack-Query analogue; loading/data/error flows through AsyncValue.
+// The DM entry drives the rail's loading and error states; a channel or a
+// group entry degrades to no rows, so one slow slice never blanks the rail.
+// The new-session flow reuses the cross-screen `inviteFlowProvider` Notifier
+// so display-name + listen-port stay DRY. No widget-local state, so a
+// ConsumerWidget.
 library;
 
 import 'package:flutter/material.dart';
@@ -37,14 +38,16 @@ import 'package:mosh/src/features/sessions/sessions_rail_actions.dart';
 import 'package:mosh/src/features/sessions/revoked_dm_badges.dart'
     show revokedDmBadgesProvider;
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
-import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/conversation_providers.dart'
+    show channelsOf, conversationListProvider, groupsOf, sessionsOf;
 import 'package:mosh/src/state/dm_offer_providers.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
-import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
@@ -59,12 +62,14 @@ class SessionsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final async = ref.watch(sessionListProvider);
-    // Channels/groups providers -- the React SessionRail sections after DMs.
-    // Watched here so a channel/group list update re-renders the combined rail
-    // (ADR 0010 server state, mirrors `sessionListProvider` 1:1).
-    final channelsAsync = ref.watch(channelListProvider);
-    final groupsAsync = ref.watch(groupListProvider);
+    // The three conversation kinds, one family: the DM entry drives the
+    // rail's loading/error states, the other two degrade to no rows.
+    // Watched so an update to either re-renders the combined rail.
+    final async = ref.watch(conversationListProvider(ConversationKind.dm));
+    final channelsAsync =
+        ref.watch(conversationListProvider(ConversationKind.channel));
+    final groupsAsync =
+        ref.watch(conversationListProvider(ConversationKind.group));
     // Orgs provider -- the React SessionRail section after channels. Watched
     // the same way as channels/groups so an org-roster update re-renders the
     // rail (ADR 0010 server state; mirrors `orgsProvider` 1:1).
@@ -76,13 +81,9 @@ class SessionsScreen extends ConsumerWidget {
     // rail (React SessionRail order: offers -> sessions -> groups -> channels).
     final pendingOffers = ref.watch(pendingDmOffersProvider);
     // Unread lifecycle map -- the React `useUnreadNotifications.unread`
-    // port (unread_lifecycle_provider.dart). It merges the DM/channel/group
-    // count maps into ONE diffed map keyed `dm:<id>` / `channel:<name>` /
-    // `group:<id>`, and is the source the rail reads so clearOnActive takes
-    // effect (the active conversation's badge clears when focused). The
-    // raw count providers (unreadDmCountsProvider etc.) stay the upstream
-    // the lifecycle provider watches; the screen no longer reads them
-    // directly. Reads the notifier so `clearUnread(key)` is callable on
+    // port. It merges the per-kind counts into ONE diffed map keyed
+    // `dm:<id>` / `channel:<name>` / `group:<id>`, so clearOnActive takes
+    // effect. Reads the notifier so `clearUnread(key)` is callable on
     // select (mirrors React's rail `onSelect` calling clearUnread).
     final unread = ref.watch(unreadLifecycleProvider);
     final unreadNotifier = ref.read(unreadLifecycleProvider.notifier);
@@ -132,19 +133,15 @@ class SessionsScreen extends ConsumerWidget {
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (e, _) => _ErrorState(error: e, ref: ref),
-                  data: (snapshot) {
-                    // Channels/groups augment the DM list (React's combined SessionRail).
-                    // They resolve independently via their own providers; while loading
-                    // or on error they degrade to an empty list (`.value` returns the
-                    // nullable snapshot, so `.value?.X ?? const []` contributes nothing)
-                    // so the DM rows still render -- the sessions screen is primarily
-                    // DMs and channels/groups are additive. Channels/groups auto-refresh
-                    // on their own provider invalidation, so the RefreshIndicator only
-                    // refreshes the DM list (kept minimal).
-                    final channels = channelsAsync.value?.channels ?? const [];
-                    final groups = groupsAsync.value?.groups ?? const [];
+                  data: (list) {
+                    // Channels/groups augment the DM list (React's combined
+                    // SessionRail). They are their own entries in the
+                    // conversation-list family; loading or error degrades to
+                    // no rows, so the DM rows still render.
+                    final channels = channelsOf(channelsAsync.value);
+                    final groups = groupsOf(groupsAsync.value);
                     final orgs = orgsAsync.value ?? const <OrgSnapshot>[];
-                    final sessions = snapshot.sessions;
+                    final sessions = sessionsOf(list);
                     // Empty only when ALL five slices are empty (offers + sessions +
                     // groups + channels + orgs).
                     if (pendingOffers.isEmpty &&
@@ -191,9 +188,8 @@ class SessionsScreen extends ConsumerWidget {
                       if (groups.isNotEmpty && sessions.isNotEmpty)
                         const RailDivider(),
                       for (final group in groups)
-                        // Count comes from `unreadGroupCountsProvider`, keyed
-                        // `'group:<groupId>'` (fingerprint comparison) -- mirrors the
-                        // DM row's `unread['dm:<sessionId>']` lookup.
+                        // Keyed by [ConversationRef]'s `'group:<groupId>'`;
+                        // the count compares fingerprints.
                         GroupRailItem(
                           group: group,
                           unreadCount: unread['group:${group.groupId}'] ?? 0,
@@ -212,8 +208,8 @@ class SessionsScreen extends ConsumerWidget {
                           (sessions.isNotEmpty || groups.isNotEmpty))
                         const RailDivider(),
                       for (final channel in channels)
-                        // Count comes from `unreadChannelCountsProvider`, keyed
-                        // `'channel:<name>'` (fingerprint comparison).
+                        // Keyed by [ConversationRef]'s `'channel:<name>'`;
+                        // the count compares fingerprints.
                         ChannelRailItem(
                           channel: channel,
                           unreadCount: unread['channel:${channel.name}'] ?? 0,
@@ -263,8 +259,10 @@ class SessionsScreen extends ConsumerWidget {
                       ],
                     ];
                     return RefreshIndicator(
-                      onRefresh: () =>
-                          ref.read(sessionListProvider.notifier).refresh(),
+                      onRefresh: () => ref
+                          .read(conversationListProvider(ConversationKind.dm)
+                              .notifier)
+                          .refresh(),
                       child: ListView(children: children),
                     );
                   },
@@ -403,7 +401,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-/// Error state with a Retry button that re-runs `sessionListProvider.refresh()`.
+/// Error state with a Retry button that re-runs the DM entry's refresh.
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.error, required this.ref});
 
@@ -433,7 +431,9 @@ class _ErrorState extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             FilledButton(
-              onPressed: () => ref.read(sessionListProvider.notifier).refresh(),
+              onPressed: () => ref
+                  .read(conversationListProvider(ConversationKind.dm).notifier)
+                  .refresh(),
               child: Text(l.sessionsRetry),
             ),
           ],

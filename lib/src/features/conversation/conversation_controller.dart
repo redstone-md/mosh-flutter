@@ -34,8 +34,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show StartSessionRequest;
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentState, AttachmentView;
-import 'package:mosh/src/state/channel_group_providers.dart'
-    show channelSnapshotProvider, groupSnapshotProvider;
+import 'package:mosh/src/state/conversation_providers.dart'
+    show conversationListProvider, refreshConversation;
 import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
 import 'package:mosh/src/state/org_providers.dart'
     show
@@ -43,8 +43,7 @@ import 'package:mosh/src/state/org_providers.dart'
         invitingGroupsProvider,
         offeredGroupInvitesProvider,
         orgsProvider;
-import 'package:mosh/src/state/session_providers.dart'
-    show activeSessionProvider, inviteFlowProvider, sessionListProvider;
+import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 
 /// What a recording is called when it is sent. The receiver plays it by its
 /// type, so the name only has to end in an extension that matches.
@@ -75,20 +74,10 @@ class ConversationController extends Notifier<ConversationControllerState> {
   @override
   ConversationControllerState build() => const ConversationControllerState();
 
-  /// Re-reads the conversation after a change. Each kind has its own
-  /// provider; a DM also refreshes the sessions list, where its last message
-  /// shows.
-  void refresh() {
-    switch (target) {
-      case DmTarget():
-        ref.invalidate(activeSessionProvider(target.id));
-        ref.invalidate(sessionListProvider);
-      case ChannelTarget():
-        ref.invalidate(channelSnapshotProvider(target.id));
-      case GroupTarget():
-        ref.invalidate(groupSnapshotProvider(target.id));
-    }
-  }
+  /// Re-reads the conversation after a change, and the rail row that shows
+  /// it. Which providers those are is the state layer's one kind branch, not
+  /// this controller's.
+  void refresh() => refreshConversation(ref.invalidate, target.ref);
 
   /// Runs a transfer while counting it, so the cards know something is busy.
   Future<T> _runTransfer<T>(Future<T> Function() operation) async {
@@ -313,7 +302,7 @@ class ConversationController extends Notifier<ConversationControllerState> {
       state = state.copyWith(
         offeredFingerprints: {...state.offeredFingerprints, peerFingerprint},
       );
-      ref.invalidate(sessionListProvider);
+      ref.invalidate(conversationListProvider(ConversationKind.dm));
       return ConversationPeerDmResult(invite.sessionId);
     } finally {
       state = state.copyWith(offerBusy: false);

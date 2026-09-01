@@ -11,6 +11,15 @@ import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 
 /// The three kinds of conversation. The names are also the strings the
 /// attachment streaming server keys its URLs by, so keep them in step.
+///
+/// This is the one kind enum the app is meant to keep. Two older spellings
+/// of the same three names survive next to it --
+/// `ActiveConversationKind` (state/active_conversation_key_provider.dart)
+/// and `PendingDmOfferKind` (state/dm_offer_providers.dart) -- and both are
+/// marked for removal rather than for growth: new code names this enum and
+/// converts at the one boundary that still wants the other shape.
+/// `RailItemKind` (features/sessions/rail_item.dart) is not a third
+/// spelling -- it names how a row is tinted, not what a conversation is.
 enum ConversationKind { dm, channel, group }
 
 /// Which conversation: a [kind] plus the kind-local [id].

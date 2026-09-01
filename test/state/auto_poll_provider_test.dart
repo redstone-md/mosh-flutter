@@ -10,9 +10,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../support/scriptable_gateway.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart';
+import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/state/session_providers.dart';
+
+/// The one Gateway call that lists each conversation kind.
+const _listMethods = <GatewayMethod>[
+  GatewayMethod.listSessions,
+  GatewayMethod.listChannels,
+  GatewayMethod.listGroups,
+];
 
 void main() {
   test('the auto-poll loop re-queries the gateway with no mutation', () async {
@@ -24,14 +32,21 @@ void main() {
     ]);
     addTearDown(container.dispose);
 
-    // Resolve the list once so the initial build is not what we measure.
-    await container.read(sessionListProvider.future);
-    final baseline = gateway.countOf(GatewayMethod.listSessions);
+    // Resolve the DM list once so the initial build is not what we measure.
+    await container.read(conversationListProvider(ConversationKind.dm).future);
+    final baseline = <GatewayMethod, int>{
+      for (final method in _listMethods) method: gateway.countOf(method),
+    };
 
     container.read(autoPollProvider);
     await Future<void>.delayed(const Duration(milliseconds: 60));
 
-    expect(gateway.countOf(GatewayMethod.listSessions), greaterThan(baseline));
+    // The loop refreshes every kind, not just the one that happens to be
+    // open: it goes through `refreshConversationLists`.
+    for (final entry in baseline.entries) {
+      expect(gateway.countOf(entry.key), greaterThan(entry.value),
+          reason: '${entry.key.name} was re-read by the poll');
+    }
   });
 
   test('no interval bound -> no polling (the flutter test default)', () async {
@@ -41,7 +56,7 @@ void main() {
     ]);
     addTearDown(container.dispose);
 
-    await container.read(sessionListProvider.future);
+    await container.read(conversationListProvider(ConversationKind.dm).future);
     final baseline = gateway.countOf(GatewayMethod.listSessions);
 
     container.read(autoPollProvider);

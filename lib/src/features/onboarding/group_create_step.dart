@@ -26,8 +26,10 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
-import 'package:mosh/src/state/channel_group_providers.dart'
-    show groupListProvider;
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
+import 'package:mosh/src/state/conversation_providers.dart'
+    show conversationListProvider;
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/util/format.dart' show readableError;
@@ -108,7 +110,9 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
               staticPeer: settings.staticPeer,
             ),
           );
-      await ref.read(groupListProvider.notifier).refresh();
+      await ref
+          .read(conversationListProvider(ConversationKind.group).notifier)
+          .refresh();
       await Clipboard.setData(ClipboardData(text: created.inviteUri));
       if (!mounted) return;
       setState(() {

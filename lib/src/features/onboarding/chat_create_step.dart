@@ -23,6 +23,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
+import 'package:mosh/src/state/conversation_providers.dart'
+    show conversationListProvider;
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/util/format.dart' show readableError;
 
@@ -66,7 +70,9 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
     });
     try {
       await ref.read(inviteFlowProvider.notifier).create();
-      await ref.read(sessionListProvider.notifier).refresh();
+      await ref
+          .read(conversationListProvider(ConversationKind.dm).notifier)
+          .refresh();
     } catch (e) {
       // Mirrors React's parent try/catch feeding `props.error` down: React
       // stores `readableError(err)` (the bare message) in state, so this

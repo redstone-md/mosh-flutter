@@ -1,69 +1,22 @@
-// Channels/groups list server-state providers -- the Flutter mirror of the
-// React `listChannels` / `listGroups` reads backing the channels and groups
-// sections of the SessionRail. These are the channel/group analogues of
-// `sessionListProvider` in `session_providers.dart`.
+// One channel's and one group's snapshot -- the server state the channel and
+// group screens read. The LISTS of channels and groups are not here:
+// [conversationListProvider] serves all three kinds, so the kind branch
+// lives in one module (`conversation_providers.dart`).
 //
-// Per ADR 0010: server/async state lives in `AsyncNotifierProvider<T>` (the
+// Per ADR 0010: server/async state lives in a provider family (the
 // TanStack-Query analogue -- loading/data/error flows through `AsyncValue`).
 // Both providers consume the `gatewayProvider` seam (ADR 0013), never a
 // concrete `Gateway`, so the wired backend is a single provider swap and
 // both the test gateway and `RealBridgeGateway` satisfy this file.
-//
-// The `Gateway.listChannels` / `Gateway.listGroups` methods (commit b750a87)
-// and the generated non-opaque contract types `ChannelListSnapshot` /
-// `GroupListSnapshot` already exist; this atomic adds only the providers, no
-// Rust / frb codegen. Wiring these providers into the SessionsScreen (and
-// rendering the `ChannelRailItem` / `GroupRailItem` widgets from them) is a
-// later atomic -- here the providers stand alone, ready for that wiring.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart';
 
-import 'package:mosh/src/rust/channel_runtime.dart';
-import 'package:mosh/src/rust/private_group_runtime.dart';
+import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
+import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/state/gateway_provider.dart';
-
-/// Server state: the list of all channels (sessions-screen channels section,
-/// later atomic). `AsyncValue<ChannelListSnapshot>` -- loading -> data/error
-/// per ADR 0010. Mirrors `sessionListProvider` 1:1 but against
-/// `Gateway.listChannels()`.
-final channelListProvider =
-    AsyncNotifierProvider<ChannelListNotifier, ChannelListSnapshot>(
-  ChannelListNotifier.new,
-);
-
-class ChannelListNotifier extends AsyncNotifier<ChannelListSnapshot> {
-  @override
-  Future<ChannelListSnapshot> build() =>
-      ref.watch(gatewayProvider).listChannels();
-
-  /// Re-run the server query after a mutation (join/leave/send, later atomic).
-  Future<void> refresh() async => state = await AsyncValue.guard(
-        () => ref.read(gatewayProvider).listChannels(),
-      );
-}
-
-/// Server state: the list of all groups (sessions-screen groups section,
-/// later atomic). `AsyncValue<GroupListSnapshot>` -- loading -> data/error
-/// per ADR 0010. Mirrors `sessionListProvider` 1:1 but against
-/// `Gateway.listGroups()`.
-final groupListProvider =
-    AsyncNotifierProvider<GroupListNotifier, GroupListSnapshot>(
-  GroupListNotifier.new,
-);
-
-class GroupListNotifier extends AsyncNotifier<GroupListSnapshot> {
-  @override
-  Future<GroupListSnapshot> build() => ref.watch(gatewayProvider).listGroups();
-
-  /// Re-run the server query after a mutation (create/join/send/leave,
-  /// later atomic).
-  Future<void> refresh() async => state = await AsyncValue.guard(
-        () => ref.read(gatewayProvider).listGroups(),
-      );
-}
 
 /// Server state: one channel's snapshot, parameterized by name (channel
 /// screen, S5-1). A one-shot read per watch, mirroring `activeSessionProvider`

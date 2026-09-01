@@ -8,18 +8,25 @@
 // -> channels -> orgs).
 //
 // Per ADR 0010: this is a derived provider (no Gateway call of its own --
-// it watches channelListProvider + groupListProvider, the existing
-// server-state reads), so it auto-refreshes when either list invalidates
-// (after a dismiss/join/leave). No new Rust / frb codegen.
+// it watches the channel and group entries of the conversation list, the
+// existing server-state reads), so it auto-refreshes when either list
+// invalidates (after a dismiss/join/leave). No new Rust / frb codegen.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/rust/conversation/dm_offers.dart';
-import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/conversation_providers.dart'
+    show channelsOf, conversationListProvider, groupsOf;
 
 /// The originating conversation kind for a pending DM offer. Mirrors React
 /// offer.kind === "channel" | "group" discriminator.
+///
+/// A second spelling of the two of [ConversationKind] a DM offer can come
+/// from -- a DM has no offer list, so it is deliberately absent here.
+/// Ticket 09 collapses the two enums onto [ConversationKind].
 enum PendingDmOfferKind { channel, group }
 
 /// A DM offer pending action, tagged with its originating host + kind.
@@ -44,13 +51,15 @@ class PendingDmOffer {
 }
 
 /// The flat list of pending DM offers across all channels + groups. Derived
-/// from channelListProvider + groupListProvider (the existing server-state
-/// reads), so it auto-refreshes when either invalidates. Empty when both
-/// lists are loading/error/empty. Order is channels-first-then-groups,
-/// matching React pendingOffers spread order.
+/// from the channel and group entries of the conversation list (the existing
+/// server-state reads), so it auto-refreshes when either invalidates. Empty
+/// when both lists are loading/error/empty. Order is
+/// channels-first-then-groups, matching React pendingOffers spread order.
 final pendingDmOffersProvider = Provider<List<PendingDmOffer>>((ref) {
-  final channels = ref.watch(channelListProvider).value?.channels ?? const [];
-  final groups = ref.watch(groupListProvider).value?.groups ?? const [];
+  final channels = channelsOf(
+      ref.watch(conversationListProvider(ConversationKind.channel)).value);
+  final groups = groupsOf(
+      ref.watch(conversationListProvider(ConversationKind.group)).value);
   return [
     for (final channel in channels)
       for (final offer in channel.dmOffers)

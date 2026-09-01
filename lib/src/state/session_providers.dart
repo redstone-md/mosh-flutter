@@ -1,5 +1,9 @@
 // S4.0: Riverpod server-state providers for the slice-one Gateway surface.
 //
+// The DM LIST is not one of them: [conversationListProvider] serves all
+// three kinds, so the kind branch lives in one module
+// (`conversation_providers.dart`).
+//
 // Per ADR 0010: server/async state lives in AsyncNotifierProvider / FutureProvider
 // (the TanStack-Query analogue — loading/data/error via AsyncValue<T>). All
 // providers consume the `gatewayProvider` seam (ADR 0013), never a concrete
@@ -12,24 +16,6 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
-
-/// Server state: the list of all DM sessions (sessions screen, S4.4).
-/// `AsyncValue<SessionListSnapshot>` — loading -> data/error per ADR 0010.
-final sessionListProvider =
-    AsyncNotifierProvider<SessionListNotifier, SessionListSnapshot>(
-  SessionListNotifier.new,
-);
-
-class SessionListNotifier extends AsyncNotifier<SessionListSnapshot> {
-  @override
-  Future<SessionListSnapshot> build() =>
-      ref.watch(gatewayProvider).listSessions();
-
-  /// Re-run the server query after a mutation (createInvite/sendMessage).
-  Future<void> refresh() async => state = await AsyncValue.guard(
-        () => ref.read(gatewayProvider).listSessions(),
-      );
-}
 
 /// Server state: app identity diagnostics (diagnostics screen, S4.8).
 final diagnosticsProvider =

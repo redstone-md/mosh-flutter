@@ -56,6 +56,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import 'package:mosh/src/state/conversation_providers.dart'
+    show invalidateConversation;
 import 'package:mosh/src/state/session_providers.dart';
 
 /// The two-pane shell container -- wired as the StatefulShellRoute
@@ -201,18 +203,11 @@ class _MoshShellState extends ConsumerState<MoshShell> {
   // Invalidates the active conversation's snapshot family entry so a
   // refresh re-runs the server query (mirrors dm_screen.dart L688-689's
   // `ref.invalidate(activeSessionProvider(...))`). No-op when nothing is
-  // open.
+  // open. Which family that is belongs to the state layer, not here.
   void _invalidateActiveFamily() {
     final active = ref.read(activeConversationProvider);
     if (active == null) return;
-    switch (active.kind) {
-      case ActiveConversationKind.dm:
-        ref.invalidate(activeSessionProvider(active.arg));
-      case ActiveConversationKind.channel:
-        ref.invalidate(channelSnapshotProvider(active.arg));
-      case ActiveConversationKind.group:
-        ref.invalidate(groupSnapshotProvider(active.arg));
-    }
+    invalidateConversation(ref.invalidate, active.conversation);
   }
 }
 
