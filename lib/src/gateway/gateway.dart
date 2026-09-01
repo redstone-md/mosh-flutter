@@ -10,15 +10,15 @@
 // The conversation methods are the exception: send, retry, poll, attachment
 // send/download/cancel, DM-offer dismiss and leave each take a
 // [ConversationTarget] instead of coming in a DM, a channel and a group
-// flavour. The adapter picks the frb function for the kind, so callers stop
-// dispatching on it (ADR 0017). The frb facade itself stays 1:1 with Rust.
+// flavour, so callers stop dispatching on the kind (ADR 0017). For the six
+// shared actions the adapter converts the target to one typed ref and calls
+// one shared bridge function; the dispatch lives in the bridge (ADR 0024).
 
 import 'dart:typed_data' show Uint8List;
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
@@ -64,9 +64,10 @@ abstract interface class Gateway {
   Future<void> retry(AnyConversationTarget target, {required String messageId});
 
   /// Sends a file to [target]. The caller reads the picked file into base64
-  /// and adds a thumbnail or voice metadata when it has them. The result
-  /// carries the attachment id and content hash of the new row.
-  Future<AttachmentSendResult> sendAttachment(
+  /// and adds a thumbnail or voice metadata when it has them. There is no
+  /// result: the new attachment's id and hash arrive with the next [poll]
+  /// (ADR 0024 drops the success payload).
+  Future<void> sendAttachment(
     AnyConversationTarget target, {
     required String fileName,
     required String mime,

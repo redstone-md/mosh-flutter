@@ -55,22 +55,26 @@ void main() {
     expect(status.openmlsRoundtrip.ok!.plaintextRoundtrip, isTrue);
   });
 
-  // DM attachment SEND seam: the fake returns a canned AttachmentSendResult
-  // with a deterministic attachmentId derived from the file name (so a
-  // screen-level test can invalidate a snapshot family by the returned id).
-  test('the test gateway DM sendAttachment returns a canned result', () async {
+  // Attachment SEND seam: the fake has no result to return (ADR 0024 drops
+  // the success payload), so its contract is the recorded call -- a test
+  // asserts what the screen asked for, and the new row shows up in whatever
+  // the test seeds the next poll with.
+  test('the test gateway DM sendAttachment records the call', () async {
     final gateway = ScriptableGateway();
-    final result = await gateway.sendAttachment(
+    await gateway.sendAttachment(
       const DmTarget('fake-session-1'),
       fileName: 'photo.png',
       mime: 'image/png',
       dataBase64: 'iVBORw0KGgo=',
       thumbnailBase64: 'thumb',
     );
-    expect(result.conversationId, 'fake-dm:fake-session-1');
-    expect(result.attachmentId, contains('fake-dm-attachment:'));
-    // contentHash is the data-base64 hashCode -- stable + deterministic.
-    expect(result.contentHash, isNotEmpty);
+    final call = gateway.lastCall(GatewayMethod.sendAttachment);
+    expect(call, isNotNull);
+    expect(call!.target, const DmTarget('fake-session-1'));
+    expect(call.arg<String>('fileName'), 'photo.png');
+    expect(call.arg<String>('mime'), 'image/png');
+    expect(call.arg<String>('dataBase64'), 'iVBORw0KGgo=');
+    expect(call.arg<String>('thumbnailBase64'), 'thumb');
   });
 
   // Peer-DM-offer SEND seams (channel/group): the fake no-ops (no real peer

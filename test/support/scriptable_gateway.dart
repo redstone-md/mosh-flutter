@@ -30,7 +30,6 @@ import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
@@ -369,7 +368,7 @@ class ScriptableGateway implements Gateway, ConversationSnapshotReader {
           () {});
 
   @override
-  Future<AttachmentSendResult> sendAttachment(
+  Future<void> sendAttachment(
     AnyConversationTarget target, {
     required String fileName,
     required String mime,
@@ -387,16 +386,7 @@ class ScriptableGateway implements Gateway, ConversationSnapshotReader {
             'thumbnailBase64': thumbnailBase64,
             'voice': voice,
           },
-          () => cannedAttachmentSendResult(
-                sessionPrefix: switch (target) {
-                  DmTarget() => 'fake-dm',
-                  ChannelTarget() => 'fake-channel',
-                  GroupTarget() => 'fake-group',
-                },
-                id: target.id,
-                fileName: fileName,
-                dataBase64: dataBase64,
-              ));
+          () {});
 
   @override
   Future<void> downloadAttachment(AnyConversationTarget target,
