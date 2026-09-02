@@ -3,7 +3,7 @@
 // CONTENT ONLY: body paragraph, invite Semantics+TextField
 // (aria-label="Invite link" + aria-invalid), live 3-state detection badge,
 // full-width primary Connect button (disabled until detection is valid),
-// inline accepted-session text, inline error. NO frame, NO back affordance,
+// inline error. NO frame, NO back affordance,
 // NO title -- the caller wraps this in [OnboardStepFrame] (full screen) or
 // OnboardStepBody (inline, atomic #8).
 //
@@ -18,14 +18,15 @@
 // navigation stays INSIDE this step -- context.go(AppRoutes.groupFor(id))
 // for a group join and context.go(AppRoutes.sessions) for an org join
 // (both the route screen and the inline panel land on the same
-// destinations). For a DM, the accepted session id is stored inline (no
-// navigation; React shows it inline too). Only onBack is injected (1-to-1
+// destinations) and context.go(AppRoutes.dmFor(id)) for an accepted DM
+// invite (React showed the id inline; landing in the chat saves the rail
+// hop). Only onBack is injected (1-to-1
 // with React props.onBack): the caller decides where Back goes (route
 // screen -> AppRoutes.onboarding, inline panel -> back to menu). Hence
 // go_router + app_router stay imported here for the success hops.
 //
 // State split: only the text controller + live detection value + busy/
-// acceptedSessionId/error are widget-local (ephemeral UI, like React's
+// error are widget-local (ephemeral UI, like React's
 // per-step useState), which is why this is a ConsumerStatefulWidget. The
 // displayName/listenPort/staticPeer come from [inviteFlowProvider] (ADR
 // 0010 DRY: one settings source for both flows).
@@ -54,22 +55,21 @@ import 'package:mosh/src/state/session_providers.dart';
 
 /// Embeddable invite-join step body -- the step CONTENT only: body
 /// paragraph, invite Semantics+TextField, live 3-state detection badge
-/// ([_DetectBadge]), full-width primary Connect button, inline
-/// accepted-session/error text. The caller wraps this in
+/// ([_DetectBadge]), full-width primary Connect button, inline error
+/// text. The caller wraps this in
 /// [OnboardStepFrame] (full-screen route) or OnboardStepBody (inline,
 /// atomic #8) -- mirrors React OnboardJoinStep (NewSessionPanelSteps.tsx),
 /// which coupled frame + content where here the split lets the same content
 /// compose into both frames. State stays in this widget (controller + live
-/// detection value + busy/acceptedSessionId/error are ephemeral UI).
+/// detection value + busy/error are ephemeral UI).
 ///
 /// [onBack] is injected (1-to-1 with React props.onBack): the step renders
 /// no back affordance itself; the framing widget owns the Back button.
 /// Unlike atomic #4/#5, this step KEEPS the success navigation inside itself
 /// because both the route screen and the inline panel land on the same
 /// destinations: group -> context.go(AppRoutes.groupFor(id)), org ->
-/// context.go(AppRoutes.sessions), dm -> the accepted session id stored
-/// inline (no navigation; React shows it inline too). Only Back routing is
-/// delegated to the caller.
+/// context.go(AppRoutes.sessions), dm -> context.go(AppRoutes.dmFor(id)).
+/// Only Back routing is delegated to the caller.
 ///
 /// [initialInviteUri] seeds the field on first build (1-to-1 with the
 /// deep-link seed -- the /join route passes the mosh:// URI here via
@@ -103,7 +103,6 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     kind: InviteDetectionKind.empty,
   );
   bool _busy = false;
-  String? _acceptedSessionId;
   ConversationActionError? _error;
 
   @override
@@ -171,7 +170,6 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     setState(() {
       _busy = true;
       _error = null;
-      _acceptedSessionId = null;
     });
     try {
       if (kind == InviteDetectionKind.dm) {
@@ -186,7 +184,8 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         await ref
             .read(conversationListProvider(ConversationKind.dm).notifier)
             .refresh();
-        if (mounted) setState(() => _acceptedSessionId = snapshot.sessionId);
+        if (!mounted) return;
+        context.go(AppRoutes.dmFor(snapshot.sessionId));
       } else if (kind == InviteDetectionKind.group) {
         // Group: join via the Gateway, then navigate to the group screen
         // (1-to-1 with React setActive({type:"group", id}) +
@@ -291,13 +290,6 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
                 )
               : Text(l.onboardJoinConnect),
         ),
-        if (_acceptedSessionId != null) ...[
-          const SizedBox(height: 16),
-          Text(
-            l.onboardJoinAcceptedSession(_acceptedSessionId!),
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
         if (_error != null) ...[
           const SizedBox(height: 16),
           InlineError(message: _error?.describe(l)),

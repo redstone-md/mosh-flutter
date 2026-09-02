@@ -5,7 +5,8 @@
 //   - the 3-state detection badge (neutral / ok / bad) flips with input,
 //   - the Connect button is enabled for every detected kind (dm + group +
 //     org -- all three have a wired Gateway seam),
-//   - tapping Connect on a DM invite calls bridge.acceptInvite,
+//   - tapping Connect on a DM invite calls bridge.acceptInvite and lands on
+//     the new DM,
 //   - tapping Connect on a group invite calls bridge.joinGroup and
 //     navigates to the group screen,
 //   - tapping Connect on an org bundle calls bridge.joinOrg and navigates
@@ -17,13 +18,16 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart'
     show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
+import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import '../../support/scriptable_bridge.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
-import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
+import 'package:mosh/src/state/gateway_provider.dart'
+    show bridgeFacadeProvider, gatewayProvider;
 import '../../support/pump.dart';
 
 void main() {
@@ -175,18 +179,26 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listOrgs), 0);
   });
 
-  testWidgets('tapping Connect on a DM invite calls bridge.acceptInvite',
+  testWidgets('tapping Connect on a DM invite accepts it and opens the DM',
       (tester) async {
-    final bridge = ScriptableBridge();
-    await pumpPasteStep(tester, bridge);
+    // The accepted session lands on DmScreen, which polls the gateway, so
+    // both doubles share one runtime.
+    final gateway = ScriptableGateway();
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    await pumpRoute(tester, AppRoutes.join, overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      gatewayProvider.overrideWithValue(gateway),
+    ]);
 
     await tester.enterText(find.byType(TextField),
         'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
     await tester.pump();
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Accepted session:'), findsOneWidget);
-    expect(bridge.countOf(BridgeMethod.listSessions), 2);
+
+    expect(bridge.countOf(BridgeMethod.acceptInvite), 1);
+    expect(find.byType(DmScreen), findsOneWidget);
+    expect(find.byType(InvitePasteScreen), findsNothing);
   });
 
   // The bridge throws the generated ConversationBridgeError (ticket 17); the
@@ -230,7 +242,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(message), findsOneWidget);
-    expect(find.textContaining('Accepted session:'), findsNothing);
+    expect(find.byType(InvitePasteScreen), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.listSessions), 0);
   });
 
