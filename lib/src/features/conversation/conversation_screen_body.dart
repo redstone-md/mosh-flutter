@@ -113,8 +113,12 @@ class ConversationScreenBody extends ConsumerWidget {
             ),
           // The call modals and the in-call bar, when the app has bound a
           // call module. The overlay draws nothing until there is a call.
+          // Keyed: the peer-status slot above comes and goes, and without a
+          // key its arrival shifts this slot's index, remounting the layer
+          // and leaving its open modal orphaned under a fresh one.
           if (_isDm && call != null)
             Positioned.fill(
+              key: const ValueKey('conversation-call-overlay'),
               child: call.overlay(
                 context,
                 ConversationCallHost(
