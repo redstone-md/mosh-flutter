@@ -6,6 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `unavailable`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 // These functions have error during generation (see debug logs or enable `stop_on_error: true` for more details): `new`
 
@@ -13,6 +14,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 ///
 /// `kind` is the contract. `message` is diagnostic text; callers must not
 /// branch on it because it is rendered by the runtime that produced it.
+///
+/// The generated Dart class gets a `toString` that returns `message`, so a
+/// caller that still renders the exception as text shows the runtime's
+/// sentence instead of `Instance of 'ConversationBridgeError'`.
 class ConversationBridgeError implements FrbException {
   final ConversationBridgeErrorKind kind;
   final String message;
@@ -21,6 +26,9 @@ class ConversationBridgeError implements FrbException {
     required this.kind,
     required this.message,
   });
+
+  @override
+  String toString() => message;
 
   @override
   int get hashCode => kind.hashCode ^ message.hashCode;

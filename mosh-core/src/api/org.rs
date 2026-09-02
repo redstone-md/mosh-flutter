@@ -11,8 +11,9 @@
 //! `OrgState` (managed struct + `runtime: Mutex<Option<...>>` +
 //! `load_error`). `ensure_runtime()` is the analogue of `OrgState::ready`
 //! (construction) + `with_runtime` (lock + borrow). Each public function
-//! calls `ensure_runtime()` and delegates, mapping `OrgError` to a plain
-//! `String` so the bridge surfaces it as a Dart exception (ADR 0010).
+//! calls `ensure_runtime()` and delegates. The actions return the typed
+//! `ConversationBridgeError` (ADR 0024) through `From<OrgError>`; `list`
+//! and `poll` keep the plain `String` shape (ADR 0010).
 //!
 //! SHARED RESOURCES (ADR 0016 -- shared-runtime refactor): the Moss node +
 //! persistence are borrowed from `api::shared_runtime` via
@@ -25,12 +26,11 @@
 //! runtime's own, re-exported here via `use crate::org_runtime::{...}` and
 //! (for the DM-offer commands, which in the Tauri shell also drove the
 //! private-DM runtime to mint/accept the invite) the private-DM contracts.
-//! They are NOT redefined. `Result<T, String>` matches the Tauri command
-//! shape exactly; this facade maps `OrgError` to a plain `String` so the
-//! bridge surfaces it as a Dart exception.
+//! They are NOT redefined.
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
+use crate::api::conversation_bridge::{ConversationBridgeError, ConversationBridgeErrorKind};
 use crate::org_runtime::{
     JoinOrgRequest, OrgDmOfferView, OrgError, OrgGroupOfferView, OrgRuntime, OrgSnapshot,
 };
@@ -45,6 +45,9 @@ use crate::private_group_runtime::{
 // is byte-identical across the old and new shells.
 const ORG_UNAVAILABLE: &str = "org runtime unavailable";
 const LOCK_POISONED: &str = "org runtime lock poisoned";
+// Every created or joined group stores its invite URI, so a group without
+// one is a state the runtime never produces: no caller-visible remedy.
+const GROUP_WITHOUT_INVITE: &str = "group has no invite URI";
 
 /// Process-global singleton for the org runtime (ADR 0016).
 ///
@@ -66,18 +69,20 @@ static LOAD_ERROR: OnceLock<String> = OnceLock::new();
 /// via `api::shared_runtime`), build the org runtime off them, rehydrate
 /// saved orgs from the encrypted store, and store it. On every later call:
 /// just lock. Returns a guard the public functions can drive the `&mut self`
-/// runtime through, or an error string matching the Tauri shell's
-/// `unavailable_message` shape.
-fn ensure_runtime() -> Result<MutexGuard<'static, Option<OrgRuntime>>, String> {
+/// runtime through, or an `Unavailable` bridge error carrying the
+/// Tauri shell's `unavailable_message` text.
+fn ensure_runtime() -> Result<MutexGuard<'static, Option<OrgRuntime>>, ConversationBridgeError> {
     let mutex = RUNTIME.get_or_init(|| Mutex::new(build_runtime()));
-    let guard = mutex.lock().map_err(|_| LOCK_POISONED.to_string())?;
+    let guard = mutex
+        .lock()
+        .map_err(|_| ConversationBridgeError::unavailable(LOCK_POISONED))?;
     if guard.is_none() {
         // Construction failed on the first call; the cause is cached.
         let message = LOAD_ERROR
             .get()
             .map(|error| format!("{ORG_UNAVAILABLE}: {error}"))
             .unwrap_or_else(|| ORG_UNAVAILABLE.to_string());
-        return Err(message);
+        return Err(ConversationBridgeError::unavailable(message));
     }
     Ok(guard)
 }
@@ -114,16 +119,18 @@ fn construct_runtime() -> Result<OrgRuntime, OrgError> {
 
 /// Join an org from a `mosh://org` bundle URI (1:1 port of `org_join`,
 /// src-tauri/src/lib.rs L958-964). Delegates to `OrgRuntime::join_org`.
-pub fn join_org(request: JoinOrgRequest) -> Result<OrgSnapshot, String> {
+pub fn join_org(request: JoinOrgRequest) -> Result<OrgSnapshot, ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime.join_org(request).map_err(|error| error.to_string())
+    runtime
+        .join_org(request)
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Leave an org and close its bound groups (1:1 port of `org_leave`). The
 /// Tauri command also closed the org's bound private groups; this function
 /// drives both the org and group singletons from one place.
-pub fn leave_org(org_pubkey: String) -> Result<(), String> {
+pub fn leave_org(org_pubkey: String) -> Result<(), ConversationBridgeError> {
     // Drop the org from the org runtime; close its bound private groups so
     // they do not linger frozen (mirrors Tauri lib.rs L966-984). The group
     // runtime reconciles bound groups via close_org_groups; revocation
@@ -132,9 +139,7 @@ pub fn leave_org(org_pubkey: String) -> Result<(), String> {
     {
         let mut guard = ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        runtime
-            .leave_org(&org_pubkey)
-            .map_err(|error| error.to_string())?;
+        runtime.leave_org(&org_pubkey)?;
     }
     {
         let mut guard = crate::api::private_group::ensure_runtime()?;
@@ -149,7 +154,7 @@ pub fn leave_org(org_pubkey: String) -> Result<(), String> {
 /// `Vec<OrgSnapshot>` directly (no Result), so the facade wraps it in `Ok`
 /// to match the Tauri command's `Result<Vec<OrgSnapshot>, String>` shape.
 pub fn list() -> Result<Vec<OrgSnapshot>, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     Ok(runtime.list())
 }
@@ -157,7 +162,7 @@ pub fn list() -> Result<Vec<OrgSnapshot>, String> {
 /// Poll an org for its current snapshot (1:1 port of `org_poll`,
 /// src-tauri/src/lib.rs L992-995). Delegates to `OrgRuntime::poll`.
 pub fn poll(org_pubkey: String) -> Result<OrgSnapshot, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.poll(&org_pubkey).map_err(|error| error.to_string())
 }
@@ -171,7 +176,7 @@ pub fn send_dm_offer(
     display_name: String,
     listen_port: u16,
     static_peer: Option<String>,
-) -> Result<InviteCreated, String> {
+) -> Result<InviteCreated, ConversationBridgeError> {
     // Mint the invite via the private-DM runtime, then record + link it in
     // the org runtime (mirrors Tauri lib.rs L997-1035). On an org-side failure
     // drop the orphan local invite so it does not linger as a dead "waiting"
@@ -179,23 +184,19 @@ pub fn send_dm_offer(
     let invite = {
         let mut guard = crate::api::private_dm::ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        runtime
-            .create_invite(StartSessionRequest {
-                display_name,
-                listen_port,
-                static_peer,
-            })
-            .map_err(|error| error.to_string())?
+        runtime.create_invite(StartSessionRequest {
+            display_name,
+            listen_port,
+            static_peer,
+        })?
     };
     let offered = {
         let mut guard = ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        runtime
-            .send_dm_offer(&org_pubkey, &target_peer_id, &invite.invite_uri)
-            .map_err(|error| error.to_string())?;
+        runtime.send_dm_offer(&org_pubkey, &target_peer_id, &invite.invite_uri)?;
         runtime
             .link_dm(&org_pubkey, &target_peer_id, &invite.session_id)
-            .map_err(|error| error.to_string())
+            .map_err(ConversationBridgeError::from)
     };
     if let Err(error) = offered {
         // The offer never reached the mesh: drop the orphan local invite.
@@ -216,7 +217,7 @@ pub fn accept_dm_offer(
     display_name: String,
     listen_port: u16,
     static_peer: Option<String>,
-) -> Result<SessionSnapshot, String> {
+) -> Result<SessionSnapshot, ConversationBridgeError> {
     // Accept the offer in the org runtime (returns the offer view with the
     // invite URI + the inviter peer id), then accept the invite via the
     // private-DM runtime, then link the resulting session in the org runtime
@@ -224,28 +225,22 @@ pub fn accept_dm_offer(
     let offer: OrgDmOfferView = {
         let mut guard = ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        runtime
-            .accept_dm_offer(&org_pubkey, &offer_id)
-            .map_err(|error| error.to_string())?
+        runtime.accept_dm_offer(&org_pubkey, &offer_id)?
     };
     let snapshot = {
         let mut guard = crate::api::private_dm::ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        runtime
-            .accept_invite(AcceptInviteRequest {
-                invite_uri: offer.invite_uri.clone(),
-                display_name,
-                listen_port,
-                static_peer,
-            })
-            .map_err(|error| error.to_string())?
+        runtime.accept_invite(AcceptInviteRequest {
+            invite_uri: offer.invite_uri.clone(),
+            display_name,
+            listen_port,
+            static_peer,
+        })?
     };
     {
         let mut guard = ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        runtime
-            .link_dm(&org_pubkey, &offer.from_peer_id, &snapshot.session_id)
-            .map_err(|error| error.to_string())?
+        runtime.link_dm(&org_pubkey, &offer.from_peer_id, &snapshot.session_id)?
     }
     Ok(snapshot)
 }
@@ -253,12 +248,15 @@ pub fn accept_dm_offer(
 /// Dismiss an org DM offer (1:1 port of `org_dismiss_dm_offer`,
 /// src-tauri/src/lib.rs L1070-1076). Delegates to
 /// `OrgRuntime::dismiss_dm_offer`.
-pub fn dismiss_dm_offer(org_pubkey: String, offer_id: String) -> Result<(), String> {
+pub fn dismiss_dm_offer(
+    org_pubkey: String,
+    offer_id: String,
+) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .dismiss_dm_offer(&org_pubkey, &offer_id)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Create an org-bound private group (1:1 port of `org_create_group`).
@@ -271,7 +269,7 @@ pub fn create_group(
     display_name: String,
     listen_port: u16,
     static_peer: Option<String>,
-) -> Result<GroupCreated, String> {
+) -> Result<GroupCreated, ConversationBridgeError> {
     // Create the org-bound private group via the private-group runtime
     // (org_pubkey stamped on the CreateGroupRequest so the group carries its
     // roster binding), then offer it to each listed roster member via the org
@@ -279,28 +277,24 @@ pub fn create_group(
     let created = {
         let mut guard = crate::api::private_group::ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        runtime
-            .create_group(CreateGroupRequest {
-                label: label.clone(),
-                display_name,
-                listen_port,
-                static_peer,
-                org_pubkey: Some(org_pubkey.clone()),
-            })
-            .map_err(|error| error.to_string())?
+        runtime.create_group(CreateGroupRequest {
+            label: label.clone(),
+            display_name,
+            listen_port,
+            static_peer,
+            org_pubkey: Some(org_pubkey.clone()),
+        })?
     };
     {
         let mut guard = ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
         for target in &member_peer_ids {
-            runtime
-                .send_group_offer(
-                    &org_pubkey,
-                    target,
-                    &created.invite_uri,
-                    created.label.clone(),
-                )
-                .map_err(|error| error.to_string())?;
+            runtime.send_group_offer(
+                &org_pubkey,
+                target,
+                &created.invite_uri,
+                created.label.clone(),
+            )?;
         }
     }
     Ok(created)
@@ -315,7 +309,7 @@ pub fn accept_group_offer(
     display_name: String,
     listen_port: u16,
     static_peer: Option<String>,
-) -> Result<GroupSnapshot, String> {
+) -> Result<GroupSnapshot, ConversationBridgeError> {
     // Accept the offer in the org runtime (returns the offer view with the
     // group invite URI), then join the group via the private-group runtime
     // (org_pubkey stamped on the JoinGroupRequest so the group carries its
@@ -323,9 +317,7 @@ pub fn accept_group_offer(
     let offer: OrgGroupOfferView = {
         let mut guard = ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        runtime
-            .accept_group_offer(&org_pubkey, &offer_id)
-            .map_err(|error| error.to_string())?
+        runtime.accept_group_offer(&org_pubkey, &offer_id)?
     };
     {
         let mut guard = crate::api::private_group::ensure_runtime()?;
@@ -338,19 +330,22 @@ pub fn accept_group_offer(
                 listen_port,
                 static_peer,
             })
-            .map_err(|error| error.to_string())
+            .map_err(ConversationBridgeError::from)
     }
 }
 
 /// Dismiss an org group offer (1:1 port of `org_dismiss_group_offer`,
 /// src-tauri/src/lib.rs L1154-1162). Delegates to
 /// `OrgRuntime::dismiss_group_offer`.
-pub fn dismiss_group_offer(org_pubkey: String, offer_id: String) -> Result<(), String> {
+pub fn dismiss_group_offer(
+    org_pubkey: String,
+    offer_id: String,
+) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .dismiss_group_offer(&org_pubkey, &offer_id)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// One-click invite the roster members not yet in a group (1:1 port of
@@ -360,26 +355,27 @@ pub fn group_invite_members(
     org_pubkey: String,
     group_id: String,
     member_peer_ids: Vec<String>,
-) -> Result<(), String> {
+) -> Result<(), ConversationBridgeError> {
     // The "+N roster members not in group" one-click add (spec §5): poll the
     // group for its invite URI + label, then re-offer the invite to each
     // listed roster member over org-control (mirrors Tauri lib.rs L1169-1192).
     let (invite_uri, label) = {
         let mut guard = crate::api::private_group::ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-        let snapshot = runtime.poll(&group_id).map_err(|error| error.to_string())?;
-        let uri = snapshot
-            .invite_uri
-            .ok_or_else(|| format!("group {group_id} has no invite URI"))?;
+        let snapshot = runtime.poll(&group_id)?;
+        let uri = snapshot.invite_uri.ok_or_else(|| {
+            ConversationBridgeError::new(
+                ConversationBridgeErrorKind::Internal,
+                format!("{GROUP_WITHOUT_INVITE}: {group_id}"),
+            )
+        })?;
         (uri, snapshot.label)
     };
     {
         let mut guard = ensure_runtime()?;
         let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
         for target in &member_peer_ids {
-            runtime
-                .send_group_offer(&org_pubkey, target, &invite_uri, label.clone())
-                .map_err(|error| error.to_string())?;
+            runtime.send_group_offer(&org_pubkey, target, &invite_uri, label.clone())?;
         }
     }
     Ok(())

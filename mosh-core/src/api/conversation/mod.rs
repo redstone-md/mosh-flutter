@@ -13,10 +13,9 @@
 //!
 //! ERRORS: failures surface as the typed `ConversationBridgeError` through
 //! the `From` impls over the runtime error enums, so Dart can branch on what
-//! to do about a failure. The only string left is `ensure_runtime`'s — its
-//! "unavailable" and "lock poisoned" causes both mean "the runtime cannot be
-//! driven right now", and the seam cannot tell them apart without reworking
-//! the kind facades' lock helpers, so both map to `Unavailable`.
+//! to do about a failure. Each kind facade's `ensure_runtime()` already
+//! answers `Unavailable` when the runtime cannot be driven, so a dispatch
+//! arm is two `?`s and no mapping of its own.
 //!
 //! SUCCESS PAYLOADS ARE DROPPED. The old wrappers returned send/leave result
 //! DTOs that no Dart caller read outside the generated bindings; delivery
@@ -74,24 +73,21 @@ pub struct BridgeAttachmentPayload {
 pub fn send(reference: BridgeConversationRef, body: String) -> Result<(), ConversationBridgeError> {
     match reference.kind {
         BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_dm::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .send_message(&reference.id, body)
                 .map(|_| ())?;
         }
         BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()
-                .map_err(unavailable)?
+            super::channel::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .send(&reference.id, body)
                 .map(|_| ())?;
         }
         BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_group::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .send(&reference.id, body)
@@ -108,24 +104,21 @@ pub fn retry(
 ) -> Result<(), ConversationBridgeError> {
     match reference.kind {
         BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_dm::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .retry_message(&reference.id, &message_id)
                 .map(|_| ())?;
         }
         BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()
-                .map_err(unavailable)?
+            super::channel::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .retry_message(&reference.id, &message_id)
                 .map(|_| ())?;
         }
         BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_group::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .retry_message(&reference.id, &message_id)
@@ -167,8 +160,7 @@ fn dm_send_attachment(
         voice,
         ..
     } = payload;
-    super::private_dm::ensure_runtime()
-        .map_err(unavailable)?
+    super::private_dm::ensure_runtime()?
         .as_mut()
         .expect("ensure_runtime guarantees Some")
         .send_attachment(id, file_name, mime, bytes, thumbnail_base64, voice)
@@ -189,8 +181,7 @@ fn channel_send_attachment(
         voice,
         ..
     } = payload;
-    super::channel::ensure_runtime()
-        .map_err(unavailable)?
+    super::channel::ensure_runtime()?
         .as_mut()
         .expect("ensure_runtime guarantees Some")
         .send_attachment(id, file_name, mime, bytes, thumbnail_base64, voice)
@@ -211,8 +202,7 @@ fn group_send_attachment(
         voice,
         ..
     } = payload;
-    super::private_group::ensure_runtime()
-        .map_err(unavailable)?
+    super::private_group::ensure_runtime()?
         .as_mut()
         .expect("ensure_runtime guarantees Some")
         .send_attachment(id, file_name, mime, bytes, thumbnail_base64, voice)
@@ -228,22 +218,19 @@ pub fn download_attachment(
 ) -> Result<(), ConversationBridgeError> {
     match reference.kind {
         BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_dm::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .download_attachment(&reference.id, &attachment_id)?;
         }
         BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()
-                .map_err(unavailable)?
+            super::channel::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .download_attachment(&reference.id, &attachment_id)?;
         }
         BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_group::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .download_attachment(&reference.id, &attachment_id)?;
@@ -259,22 +246,19 @@ pub fn cancel_attachment(
 ) -> Result<(), ConversationBridgeError> {
     match reference.kind {
         BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_dm::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .cancel_attachment(&reference.id, &attachment_id)?;
         }
         BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()
-                .map_err(unavailable)?
+            super::channel::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .cancel_attachment(&reference.id, &attachment_id)?;
         }
         BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_group::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .cancel_attachment(&reference.id, &attachment_id)?;
@@ -289,24 +273,21 @@ pub fn cancel_attachment(
 pub fn leave(reference: BridgeConversationRef) -> Result<(), ConversationBridgeError> {
     match reference.kind {
         BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_dm::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .close_session(&reference.id)
                 .map(|_| ())?;
         }
         BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()
-                .map_err(unavailable)?
+            super::channel::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .leave(&reference.id)
                 .map(|_| ())?;
         }
         BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()
-                .map_err(unavailable)?
+            super::private_group::ensure_runtime()?
                 .as_mut()
                 .expect("ensure_runtime guarantees Some")
                 .close(&reference.id)
@@ -314,13 +295,6 @@ pub fn leave(reference: BridgeConversationRef) -> Result<(), ConversationBridgeE
         }
     }
     Ok(())
-}
-
-/// The one mapping `ensure_runtime`'s string error gets: whichever cause it
-/// names — a failed construction or a poisoned lock — the caller's remedy is
-/// the same, "not right now".
-fn unavailable(message: String) -> ConversationBridgeError {
-    ConversationBridgeError::new(ConversationBridgeErrorKind::Unavailable, message)
 }
 
 /// Decode the bridge's base64 attachment payload. A payload that does not

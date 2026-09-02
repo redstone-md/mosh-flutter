@@ -356,7 +356,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_session_snapshot,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgAcceptDmOfferConstMeta,
       argValues: [orgPubkey, offerId, displayName, listenPort, staticPeer],
@@ -395,7 +395,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_group_snapshot,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgAcceptGroupOfferConstMeta,
       argValues: [orgPubkey, offerId, displayName, listenPort, staticPeer],
@@ -427,7 +427,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_session_snapshot,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateDmAcceptInviteConstMeta,
       argValues: [request],
@@ -478,7 +478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateDmCallAcceptConstMeta,
       argValues: [sessionId, callId],
@@ -508,7 +508,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateDmCallDeclineConstMeta,
       argValues: [sessionId, callId, reason],
@@ -565,7 +565,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateDmCallEndConstMeta,
       argValues: [sessionId, callId, reason],
@@ -619,7 +619,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_call_started,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateDmCallStartConstMeta,
       argValues: [sessionId],
@@ -682,7 +682,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_group_created,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgCreateGroupConstMeta,
       argValues: [
@@ -721,7 +721,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_group_created,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateGroupCreateGroupConstMeta,
       argValues: [request],
@@ -747,7 +747,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_invite_created,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateDmCreateInviteConstMeta,
       argValues: [request],
@@ -797,7 +797,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiChannelDismissDmOfferConstMeta,
       argValues: [name, offerId],
@@ -824,7 +824,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgDismissDmOfferConstMeta,
       argValues: [orgPubkey, offerId],
@@ -850,7 +850,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateGroupDismissDmOfferConstMeta,
       argValues: [groupId, offerId],
@@ -877,7 +877,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgDismissGroupOfferConstMeta,
       argValues: [orgPubkey, offerId],
@@ -1008,7 +1008,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgGroupInviteMembersConstMeta,
       argValues: [orgPubkey, groupId, memberPeerIds],
@@ -1034,7 +1034,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_channel_snapshot,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiChannelJoinConstMeta,
       argValues: [request],
@@ -1059,7 +1059,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_group_snapshot,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateGroupJoinGroupConstMeta,
       argValues: [request],
@@ -1084,7 +1084,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_org_snapshot,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgJoinOrgConstMeta,
       argValues: [request],
@@ -1133,7 +1133,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgLeaveOrgConstMeta,
       argValues: [orgPubkey],
@@ -1481,7 +1481,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiChannelSendDmOfferConstMeta,
       argValues: [name, targetFingerprint, inviteUri],
@@ -1514,7 +1514,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_invite_created,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiOrgSendDmOfferConstMeta,
       argValues: [orgPubkey, targetPeerId, displayName, listenPort, staticPeer],
@@ -1549,7 +1549,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_String,
+        decodeErrorData: sse_decode_conversation_bridge_error,
       ),
       constMeta: kCrateApiPrivateGroupSendDmOfferConstMeta,
       argValues: [groupId, targetFingerprint, inviteUri],

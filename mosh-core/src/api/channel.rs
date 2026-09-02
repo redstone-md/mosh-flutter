@@ -11,9 +11,9 @@
 //! shell's `ChannelState` (managed struct + `runtime: Mutex<Option<...>>`
 //! + `load_error`). `ensure_runtime()` is the analogue of
 //! `ChannelState::ready` (construction) + `with_runtime` (lock + borrow).
-//! Each public function calls `ensure_runtime()` and delegates, mapping
-//! `ChannelRuntimeError` to a plain `String` so the bridge surfaces it as
-//! a Dart exception (ADR 0010).
+//! Each public function calls `ensure_runtime()` and delegates. The
+//! actions (join, DM offers) return the typed `ConversationBridgeError`
+//! (ADR 0024); the two reads keep the plain `String` shape (ADR 0010).
 //!
 //! SHARED RESOURCES (ADR 0016 -- shared-runtime refactor): the Moss node +
 //! attachment store + persistence are borrowed from `api::shared_runtime`
@@ -24,12 +24,11 @@
 //!
 //! TYPES (ADR 0010 -- 1:1 mapping, DRY): request and return types are the
 //! runtime's own, re-exported here via `use crate::channel_runtime::{...}`.
-//! They are NOT redefined. `Result<T, String>` matches the Tauri command
-//! shape exactly; this facade maps `ChannelRuntimeError` to a plain
-//! `String` so the bridge surfaces it as a Dart exception.
+//! They are NOT redefined.
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
+use crate::api::conversation_bridge::ConversationBridgeError;
 use crate::channel_runtime::{
     ChannelListSnapshot, ChannelRuntime, ChannelRuntimeError, ChannelSnapshot, JoinChannelRequest,
 };
@@ -59,18 +58,22 @@ static LOAD_ERROR: OnceLock<String> = OnceLock::new();
 /// store + persistence via `api::shared_runtime`), build the channel
 /// runtime off them, rehydrate saved channels from the encrypted store,
 /// and store it. On every later call: just lock. Returns a guard the
-/// public functions can drive the `&mut self` runtime through, or an error
-/// string matching the Tauri shell's `unavailable_message` shape.
-pub(crate) fn ensure_runtime() -> Result<MutexGuard<'static, Option<ChannelRuntime>>, String> {
+/// public functions can drive the `&mut self` runtime through, or an
+/// `Unavailable` bridge error carrying the Tauri shell's `unavailable_message`
+/// text.
+pub(crate) fn ensure_runtime(
+) -> Result<MutexGuard<'static, Option<ChannelRuntime>>, ConversationBridgeError> {
     let mutex = RUNTIME.get_or_init(|| Mutex::new(build_runtime()));
-    let guard = mutex.lock().map_err(|_| LOCK_POISONED.to_string())?;
+    let guard = mutex
+        .lock()
+        .map_err(|_| ConversationBridgeError::unavailable(LOCK_POISONED))?;
     if guard.is_none() {
         // Construction failed on the first call; the cause is cached.
         let message = LOAD_ERROR
             .get()
             .map(|error| format!("{CHANNEL_UNAVAILABLE}: {error}"))
             .unwrap_or_else(|| CHANNEL_UNAVAILABLE.to_string());
-        return Err(message);
+        return Err(ConversationBridgeError::unavailable(message));
     }
     Ok(guard)
 }
@@ -110,23 +113,23 @@ fn construct_runtime() -> Result<ChannelRuntime, ChannelRuntimeError> {
 }
 
 /// Join a public channel (1:1 port of the `channel_join` Tauri command).
-pub fn join(request: JoinChannelRequest) -> Result<ChannelSnapshot, String> {
+pub fn join(request: JoinChannelRequest) -> Result<ChannelSnapshot, ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime.join(request).map_err(|error| error.to_string())
+    runtime.join(request).map_err(ConversationBridgeError::from)
 }
 
 /// Poll a channel for its current snapshot (1:1 port of `channel_poll`).
 /// The React frontend polled on a cadence; the Dart side polls the same way.
 pub fn poll(name: String) -> Result<ChannelSnapshot, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.poll(&name).map_err(|error| error.to_string())
 }
 
 /// List all joined channels and their snapshots (1:1 port of `channel_list`).
 pub fn list() -> Result<ChannelListSnapshot, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.list().map_err(|error| error.to_string())
 }
@@ -137,19 +140,19 @@ pub fn send_dm_offer(
     name: String,
     target_fingerprint: String,
     invite_uri: String,
-) -> Result<(), String> {
+) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .send_dm_offer(&name, target_fingerprint, invite_uri)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Dismiss a channel DM offer (1:1 port of `channel_dismiss_dm_offer`).
-pub fn dismiss_dm_offer(name: String, offer_id: String) -> Result<(), String> {
+pub fn dismiss_dm_offer(name: String, offer_id: String) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .dismiss_dm_offer(&name, &offer_id)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }

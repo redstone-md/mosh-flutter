@@ -12,6 +12,7 @@ import '../org_runtime.dart';
 import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
 import '../private_group_runtime.dart';
+import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`

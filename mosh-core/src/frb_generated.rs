@@ -89,16 +89,18 @@ fn wire__crate__api__org__accept_dm_offer_impl(
             let api_static_peer = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::org::accept_dm_offer(
-                        api_org_pubkey,
-                        api_offer_id,
-                        api_display_name,
-                        api_listen_port,
-                        api_static_peer,
-                    )?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::org::accept_dm_offer(
+                            api_org_pubkey,
+                            api_offer_id,
+                            api_display_name,
+                            api_listen_port,
+                            api_static_peer,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -132,16 +134,18 @@ fn wire__crate__api__org__accept_group_offer_impl(
             let api_static_peer = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::org::accept_group_offer(
-                        api_org_pubkey,
-                        api_offer_id,
-                        api_display_name,
-                        api_listen_port,
-                        api_static_peer,
-                    )?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::org::accept_group_offer(
+                            api_org_pubkey,
+                            api_offer_id,
+                            api_display_name,
+                            api_listen_port,
+                            api_static_peer,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -174,10 +178,12 @@ fn wire__crate__api__private_dm__accept_invite_impl(
                 );
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::private_dm::accept_invite(api_request)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_dm::accept_invite(api_request)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -241,11 +247,13 @@ fn wire__crate__api__private_dm__call_accept_impl(
             let api_call_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::private_dm::call_accept(api_session_id, api_call_id)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::private_dm::call_accept(api_session_id, api_call_id)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -277,14 +285,16 @@ fn wire__crate__api__private_dm__call_decline_impl(
             let api_reason = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::private_dm::call_decline(
-                        api_session_id,
-                        api_call_id,
-                        api_reason,
-                    )?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_dm::call_decline(
+                            api_session_id,
+                            api_call_id,
+                            api_reason,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -351,11 +361,16 @@ fn wire__crate__api__private_dm__call_end_impl(
             let api_reason = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::private_dm::call_end(api_session_id, api_call_id, api_reason)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_dm::call_end(
+                            api_session_id,
+                            api_call_id,
+                            api_reason,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -424,10 +439,12 @@ fn wire__crate__api__private_dm__call_start_impl(
             let api_session_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::private_dm::call_start(api_session_id)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_dm::call_start(api_session_id)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -502,17 +519,19 @@ fn wire__crate__api__org__create_group_impl(
             let api_static_peer = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::org::create_group(
-                        api_org_pubkey,
-                        api_label,
-                        api_member_peer_ids,
-                        api_display_name,
-                        api_listen_port,
-                        api_static_peer,
-                    )?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::org::create_group(
+                            api_org_pubkey,
+                            api_label,
+                            api_member_peer_ids,
+                            api_display_name,
+                            api_listen_port,
+                            api_static_peer,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -543,10 +562,12 @@ fn wire__crate__api__private_group__create_group_impl(
                 <crate::private_group_runtime::CreateGroupRequest>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::private_group::create_group(api_request)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_group::create_group(api_request)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -579,10 +600,12 @@ fn wire__crate__api__private_dm__create_invite_impl(
                 );
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::private_dm::create_invite(api_request)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_dm::create_invite(api_request)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -645,10 +668,13 @@ fn wire__crate__api__channel__dismiss_dm_offer_impl(
             let api_offer_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::channel::dismiss_dm_offer(api_name, api_offer_id)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::channel::dismiss_dm_offer(api_name, api_offer_id)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -679,11 +705,13 @@ fn wire__crate__api__org__dismiss_dm_offer_impl(
             let api_offer_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::org::dismiss_dm_offer(api_org_pubkey, api_offer_id)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::org::dismiss_dm_offer(api_org_pubkey, api_offer_id)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -714,11 +742,15 @@ fn wire__crate__api__private_group__dismiss_dm_offer_impl(
             let api_offer_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::private_group::dismiss_dm_offer(api_group_id, api_offer_id)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_group::dismiss_dm_offer(
+                            api_group_id,
+                            api_offer_id,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -749,11 +781,13 @@ fn wire__crate__api__org__dismiss_group_offer_impl(
             let api_offer_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::org::dismiss_group_offer(api_org_pubkey, api_offer_id)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::org::dismiss_group_offer(api_org_pubkey, api_offer_id)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -921,14 +955,16 @@ fn wire__crate__api__org__group_invite_members_impl(
             let api_member_peer_ids = <Vec<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::org::group_invite_members(
-                        api_org_pubkey,
-                        api_group_id,
-                        api_member_peer_ids,
-                    )?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::org::group_invite_members(
+                            api_org_pubkey,
+                            api_group_id,
+                            api_member_peer_ids,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -959,10 +995,12 @@ fn wire__crate__api__channel__join_impl(
                 <crate::channel_runtime::JoinChannelRequest>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::channel::join(api_request)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::channel::join(api_request)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -993,10 +1031,12 @@ fn wire__crate__api__private_group__join_group_impl(
                 <crate::private_group_runtime::JoinGroupRequest>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::private_group::join_group(api_request)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_group::join_group(api_request)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -1026,10 +1066,12 @@ fn wire__crate__api__org__join_org_impl(
             let api_request = <crate::org_runtime::JoinOrgRequest>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::org::join_org(api_request)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::org::join_org(api_request)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -1095,10 +1137,12 @@ fn wire__crate__api__org__leave_org_impl(
             let api_org_pubkey = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::org::leave_org(api_org_pubkey)?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::org::leave_org(api_org_pubkey)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -1569,14 +1613,16 @@ fn wire__crate__api__channel__send_dm_offer_impl(
             let api_invite_uri = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::channel::send_dm_offer(
-                        api_name,
-                        api_target_fingerprint,
-                        api_invite_uri,
-                    )?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::channel::send_dm_offer(
+                            api_name,
+                            api_target_fingerprint,
+                            api_invite_uri,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -1610,16 +1656,18 @@ fn wire__crate__api__org__send_dm_offer_impl(
             let api_static_peer = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::org::send_dm_offer(
-                        api_org_pubkey,
-                        api_target_peer_id,
-                        api_display_name,
-                        api_listen_port,
-                        api_static_peer,
-                    )?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::org::send_dm_offer(
+                            api_org_pubkey,
+                            api_target_peer_id,
+                            api_display_name,
+                            api_listen_port,
+                            api_static_peer,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -1651,14 +1699,16 @@ fn wire__crate__api__private_group__send_dm_offer_impl(
             let api_invite_uri = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::private_group::send_dm_offer(
-                        api_group_id,
-                        api_target_fingerprint,
-                        api_invite_uri,
-                    )?;
-                    Ok(output_ok)
-                })())
+                transform_result_sse::<_, crate::api::conversation_bridge::ConversationBridgeError>(
+                    (move || {
+                        let output_ok = crate::api::private_group::send_dm_offer(
+                            api_group_id,
+                            api_target_fingerprint,
+                            api_invite_uri,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
