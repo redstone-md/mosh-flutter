@@ -14,204 +14,128 @@ concurrency:
 permissions:
   contents: read
 
-# CI matrix (ADR 0015). The desktop jobs all run on windows-latest: the
+# CI matrix (ADR 0015). The desktop jobs run on windows-latest: the
 # integration test needs mosh_core.dll (Windows-built via cargokit), and the
-# cargo jobs need moss.dll built by `node scripts/moss-prepare.mjs` (which
-# pins GOTOOLCHAIN=go1.25.9). One OS keeps the matrix simple and avoids
-# running the moss build twice.
+# cargo jobs dlopen moss.dll. android-build runs on ubuntu-latest, whose image
+# ships the Android SDK + NDK.
 #
-# The android-build job is the exception: it runs on ubuntu-latest, whose
-# runner image ships the Android SDK + NDK. Cross-OS integration tests are
-# still a later-slice step -- this job only proves the APK links.
+# Toolchains, caches and the moss library come from .github/actions/setup so
+# every job pins the same versions. The moss build and the cargo target dirs
+# are cached; a job pays for them only when the submodule or lockfile moves.
 #
-# Job order: the four cheap gates (rust-core, codegen-drift, flutter-test,
-# l10n-drift) run in parallel; the three expensive build jobs (integration-test,
-# android-build, windows-installer) run last and only if all four pass, so a
-# cheap failure never pays for a platform build.
+# Job order: the three cheap gates (rust-core, codegen-drift, flutter-test)
+# run in parallel; the three expensive builds (integration-test,
+# android-build, windows-installer) run only if all three pass, so a cheap
+# failure never pays for a platform build.
 jobs:
   rust-core:
-    name: Rust core (cargo fmt + test, mosh-core)
+    name: Rust core (fmt + clippy + test)
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # moss-prepare.mjs pins GOTOOLCHAIN=go1.25.9; install that exact version
-      # so the toolchain directive is a no-op (no on-the-fly download).
-      - uses: actions/setup-go@v5
+      - uses: ./.github/actions/setup
         with:
-          go-version: '1.25.9'
-          cache-dependency-path: moss/go.sum
-
-      # Installs the toolchain pinned by rust-toolchain.toml (channel 1.96.0
-      # + rustfmt/clippy) so CI lints/tests match local exactly. Reuses the
-      # repo's rust-toolchain.toml as the single source of truth.
-      - name: Install pinned Rust toolchain
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: mosh-core
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      # Adapter tests dlopen moss.dll, so the shared library must exist
-      # before cargo test.
-      - name: Build Moss shared library
-        run: node scripts/moss-prepare.mjs
+          flutter: 'false'
+          rust-cache-key: desktop
 
       - name: Rustfmt check
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
 
-      # Strict lint gate (ADR 0015): warnings fail the job. Mirrors the local
-      # `cargo clippy ... -- -D warnings` invocation.
+      # Strict lint gate (ADR 0015): warnings fail the job.
       - name: Clippy check
         run: cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings
 
+      # Adapter tests dlopen moss.dll, which the setup action provides.
       - name: Cargo test
         run: cargo test --manifest-path mosh-core/Cargo.toml
 
   codegen-drift:
     name: flutter_rust_bridge codegen drift
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: ./.github/actions/setup
         with:
-          go-version: '1.25.9'
-          cache-dependency-path: moss/go.sum
+          rust-cache-key: desktop
 
-      - name: Install pinned Rust toolchain
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@v2
+      # A cargo install from source is minutes of compile for a binary that
+      # only changes when the pinned version does; cache the built binary.
+      - uses: taiki-e/cache-cargo-install-action@v2
         with:
-          workspaces: mosh-core
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          tool: flutter_rust_bridge_codegen@2.12.0
 
-      # The codegen parses compiled Rust api signatures, so mosh-core must
-      # build -- which means moss.dll must exist first.
-      - name: Build Moss shared library
-        run: node scripts/moss-prepare.mjs
-
-      - name: Install flutter_rust_bridge_codegen
-        run: cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: flutter pub get
-        run: flutter pub get
-
-      # The same generate the repo's AGENTS.md documents, so the committed
-      # bindings stay byte-identical to a fresh regen: dart fix + dart format
-      # run here exactly as they do locally. (Dropping those flags made this
-      # gate flag every dart-formatted file; see the 2026-09-01 fix.)
+      # The same generate AGENTS.md documents, so the committed bindings stay
+      # byte-identical to a fresh regen: dart fix + dart format run here
+      # exactly as they do locally.
       - name: Regenerate bindings
         run: flutter_rust_bridge_codegen generate --no-deps-check --no-build-runner --no-rust-format
 
       # Format the regenerated Rust binding with the crate's own `cargo fmt`
-      # (canonical rustfmt, no rustfmt.toml = default config) so the drift
-      # check compares apples-to-apples against the committed, cargo-fmt-
-      # formatted `frb_generated.rs`. FRB's `--no-rust-format` keeps codegen
-      # fast; this step is the single source of formatting truth so the
-      # `Rustfmt check` gate (cargo fmt --check on ALL .rs, incl. this
-      # generated file) and this drift gate never disagree on style. Dart
-      # bindings (lib/src/rust/**) are formatted by the generate step itself,
-      # matching how they are committed.
+      # so the drift check compares like with like against the committed,
+      # cargo-fmt-formatted `frb_generated.rs`. Dart bindings are formatted
+      # by the generate step itself.
       - name: Format regenerated Rust binding
         run: cargo fmt --manifest-path mosh-core/Cargo.toml -- mosh-core/src/frb_generated.rs
 
-      # The committed frb_generated.* (lib/src/rust/** +
-      # mosh-core/src/frb_generated.rs) are tracked, so a non-empty diff means
-      # the committed bindings drifted from the Rust signatures. Drift fails
-      # the gate.
+      # A non-empty diff means the committed bindings drifted from the Rust
+      # signatures. Drift fails the gate.
       - name: Check for binding drift
         run: git diff --exit-code lib/src/rust mosh-core/src/frb_generated.rs
 
   flutter-test:
-    name: Flutter widget + unit tests
+    name: Flutter gen-l10n + widget and unit tests
     runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: flutter pub get
-        run: flutter pub get
-
-      # Widget tests override gatewayProvider with the scriptable gateway in
-      # test/support/, so no Rust runtime is needed here (ADR 0013) and this
-      # job never depends on mosh_core.dll.
-      - name: flutter test
-        run: flutter test
-
-  l10n-drift:
-    name: gen-l10n validity
-    runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - uses: ./.github/actions/setup
         with:
-          channel: stable
-          cache: true
+          rust: 'false'
+          moss: none
 
-      - name: flutter pub get
-        run: flutter pub get
-
-      # The generated lib/l10n/app_localizations*.dart are gitignored (S3.1),
-      # so a git-diff drift check is meaningless -- the files are never
-      # committed. The meaningful gate is gen-l10n exiting 0: a parse/syntax
-      # error in an ARB file fails here, which is the real drift signal.
+      # The generated lib/l10n/app_localizations*.dart are gitignored, so
+      # the drift signal is gen-l10n exiting 0: a broken ARB fails here,
+      # before the tests that would fail on it less legibly.
       - name: flutter gen-l10n
         run: flutter gen-l10n
+
+      # Widget tests override gatewayProvider with the scriptable gateway in
+      # test/support/, so no Rust runtime is needed here (ADR 0013).
+      - name: flutter test
+        run: flutter test
 
   integration-test:
     name: Integration test (real bridge, slice one)
     runs-on: windows-latest
-    needs: [rust-core, codegen-drift, flutter-test, l10n-drift]
+    timeout-minutes: 60
+    needs: [rust-core, codegen-drift, flutter-test]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: ./.github/actions/setup
         with:
-          go-version: '1.25.9'
-          cache-dependency-path: moss/go.sum
+          rust-cache-key: windows
 
-      - name: Install pinned Rust toolchain
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
         with:
-          workspaces: mosh-core
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          path: build/windows/x64/plugins/rust_builder/cargokit_build
+          key: cargokit-windows-debug-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: cargokit-windows-debug-
 
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Build Moss shared library
-        run: node scripts/moss-prepare.mjs
-
-      - name: flutter pub get
-        run: flutter pub get
-
-      # Builds mosh.exe and auto-deploys mosh_core.dll (S5b fix), so the
-      # integration test runs against the real Rust backend.
+      # Debug on purpose: `flutter test -d windows` needs the VM service,
+      # which a release build strips. Builds mosh.exe and deploys
+      # mosh_core.dll so the test runs against the real Rust backend.
       - name: Build Windows app (debug)
         run: flutter build windows --debug
 
@@ -221,7 +145,8 @@ jobs:
   android-build:
     name: Android APK (arm64, debug)
     runs-on: ubuntu-latest
-    needs: [rust-core, codegen-drift, flutter-test, l10n-drift]
+    timeout-minutes: 60
+    needs: [rust-core, codegen-drift, flutter-test]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -232,49 +157,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
 
-      - uses: actions/setup-go@v5
+      - uses: ./.github/actions/setup
         with:
-          go-version: '1.25.9'
-          cache-dependency-path: moss/go.sum
-
-      - name: Install pinned Rust toolchain
-        run: rustup show
+          moss: android
+          rust-cache-key: android
 
       # Cargokit builds libmosh_core.so for the device ABI; the target has to
-      # exist before Gradle invokes it. android/app/build.gradle.kts pins
-      # abiFilters to arm64-v8a, so this is the only target needed.
+      # exist before Gradle invokes it. build.gradle.kts pins arm64-v8a.
       - name: Add Rust android target
         run: rustup target add aarch64-linux-android
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: mosh-core
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: flutter pub get
-        run: flutter pub get
-
-      # Cross-compiles moss to android/app/src/main/jniLibs/arm64-v8a/
-      # libmoss.so, which AGP packages into the APK. The script resolves the
-      # NDK through ANDROID_NDK_HOME; the runner image exposes its NDK as
-      # ANDROID_NDK_LATEST_HOME, so pin it explicitly rather than relying on
-      # whichever NDK the image happens to default to.
-      #
-      # Exported in the shell, NOT via `env: ${{ env.ANDROID_NDK_LATEST_HOME }}`
-      # -- the `env` context only holds workflow/job/step-declared variables,
-      # so reading a runner-image variable through it yields an empty string
-      # and the script fails with "ANDROID_NDK_HOME not set".
-      - name: Build Moss shared library (android/arm64)
-        run: |
-          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          echo "Using NDK: $ANDROID_NDK_HOME"
-          node scripts/moss-prepare-android.mjs
 
       # --target-platform is REQUIRED, not an optimisation: jniLibs only
       # carries an arm64-v8a libmoss.so, so a default all-ABI build would
@@ -289,66 +182,8 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
 
-  # Packages the release bundle into the single setup .exe users actually
-  # install. Separate from integration-test rather than folded into it: that
-  # job's debug build is what the integration test drives (`flutter test -d
-  # windows` needs the VM service, which a release build strips), so the two
-  # builds cannot be collapsed into one.
-  #
-  # The installer produced here is UNSIGNED — SmartScreen will flag it.
-  # Signing happens on tagged releases through SignPath (see CODE_SIGNING.md).
+  # Proves main still packages into the setup .exe users install. The same
+  # reusable workflow builds the artifact a release publishes.
   windows-installer:
-    name: Windows installer (release, unsigned)
-    runs-on: windows-latest
-    needs: [rust-core, codegen-drift, flutter-test, l10n-drift]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25.9'
-          cache-dependency-path: moss/go.sum
-
-      - name: Install pinned Rust toolchain
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: mosh-core
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Build Moss shared library
-        run: node scripts/moss-prepare.mjs
-
-      - name: flutter pub get
-        run: flutter pub get
-
-      - name: Build Windows app (release)
-        run: flutter build windows --release
-
-      # The runner image does not guarantee Inno Setup, and chocolatey is
-      # preinstalled, so install it rather than probing for a bundled copy.
-      - name: Install Inno Setup
-        run: choco install innosetup -y --no-progress
-
-      # AppVersion comes from pubspec so the installer filename and the
-      # Add/Remove Programs entry cannot drift from the app's own version.
-      - name: Build installer
-        shell: pwsh
-        run: |
-          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
-          Write-Host "Packaging Mosh $version"
-          iscc /DAppVersion=$version windows\installer\mosh.iss
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mosh-windows-setup
-          path: build/installer/*.exe
-          if-no-files-found: error
+    needs: [rust-core, codegen-drift, flutter-test]
+    uses: ./.github/workflows/build-windows.yml

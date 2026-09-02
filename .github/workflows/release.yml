@@ -1,0 +1,96 @@
+name: Release
+
+# A pushed `v*` tag cuts a GitHub release: the tag must name the version
+# pubspec carries and CHANGELOG.md must have a section for it, the Windows
+# installer is built by the same reusable workflow CI runs, and the release
+# body is the curated changelog section plus what git says is in the tag.
+#
+# Cut one with:
+#   git tag -a v1.2.3 -m "Mosh 1.2.3" && git push origin v1.2.3
+# A tag with a pre-release suffix (v1.2.3-rc.1) publishes as a pre-release.
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Tag matches pubspec and changelog
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          pubspec="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '[:space:]')"
+          if [ "$version" != "$pubspec" ]; then
+            echo "::error::tag $tag names $version but pubspec.yaml says $pubspec"
+            exit 1
+          fi
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$version]' section"
+            exit 1
+          fi
+          prerelease=false
+          case "$version" in *-*) prerelease=true ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "Releasing Mosh $version (prerelease=$prerelease)"
+
+  installer:
+    needs: verify
+    uses: ./.github/workflows/build-windows.yml
+
+  publish:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [verify, installer]
+    permissions:
+      contents: write
+    steps:
+      # Full history: the notes list the commits between this tag and the
+      # previous one.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.installer.outputs.artifact }}
+          path: dist
+
+      - name: Release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/release-notes.sh "$GITHUB_REF_NAME" > notes.md
+          echo "----- notes.md -----"
+          cat notes.md
+
+      - name: Create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          args=(--title "Mosh $VERSION" --notes-file notes.md --verify-tag)
+          [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" "${args[@]}" dist/*

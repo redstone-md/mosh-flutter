@@ -1,0 +1,89 @@
+name: Setup toolchain
+description: >-
+  Go + Rust + Flutter and the moss shared library, every piece cached. One
+  home for the toolchain pins so a job never drifts from the others.
+
+inputs:
+  flutter:
+    description: Install Flutter and run `flutter pub get`.
+    default: 'true'
+  rust:
+    description: Install the pinned Rust toolchain and restore the cargo cache.
+    default: 'true'
+  moss:
+    description: Which moss shared library to provide -- desktop, android or none.
+    default: desktop
+  rust-cache-key:
+    description: >-
+      Cargo cache namespace. Jobs building the same targets on the same OS
+      share one cache instead of each saving their own copy.
+    default: desktop
+
+runs:
+  using: composite
+  steps:
+    # moss-prepare pins GOTOOLCHAIN=go1.25.9; installing that exact version
+    # makes the toolchain directive a no-op (no on-the-fly download).
+    - if: inputs.moss != 'none'
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25.9'
+        cache-dependency-path: moss/go.sum
+
+    # rust-toolchain.toml is the single source of truth for the channel and
+    # components; `rustup show` installs whatever it names.
+    - if: inputs.rust == 'true'
+      shell: bash
+      run: rustup show
+
+    - if: inputs.rust == 'true'
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: mosh-core
+        shared-key: ${{ inputs.rust-cache-key }}
+        save-if: ${{ github.ref == 'refs/heads/main' }}
+
+    # Pinned, not `channel: stable`: a runner picking up a newer Flutter
+    # than the one the release was built with is a drift nobody asked for,
+    # and a moving version defeats the SDK cache.
+    - if: inputs.flutter == 'true'
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 3.44.8
+        channel: stable
+        cache: true
+
+    - if: inputs.flutter == 'true'
+      shell: bash
+      run: flutter pub get
+
+    # The moss library is a cgo build of the submodule: minutes per job, and
+    # byte-identical for the same sources and Go version. Cache it on the
+    # sources so only a submodule bump rebuilds it.
+    - if: inputs.moss == 'desktop'
+      id: moss-desktop
+      uses: actions/cache@v4
+      with:
+        path: moss-runtime
+        key: moss-desktop-${{ runner.os }}-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/go.sum', 'scripts/moss-prepare.mjs') }}
+
+    - if: inputs.moss == 'desktop' && steps.moss-desktop.outputs.cache-hit != 'true'
+      shell: bash
+      run: node scripts/moss-prepare.mjs
+
+    - if: inputs.moss == 'android'
+      id: moss-android
+      uses: actions/cache@v4
+      with:
+        path: android/app/src/main/jniLibs/arm64-v8a
+        key: moss-android-arm64-go1.25.9-${{ hashFiles('moss/**/*.go', 'moss/go.sum', 'scripts/moss-prepare-android.mjs') }}
+
+    # The runner image exposes its NDK as ANDROID_NDK_LATEST_HOME; the script
+    # reads ANDROID_NDK_HOME. Exported in the shell on purpose: the `env`
+    # context does not see runner-image variables.
+    - if: inputs.moss == 'android' && steps.moss-android.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+        echo "Using NDK: $ANDROID_NDK_HOME"
+        node scripts/moss-prepare-android.mjs

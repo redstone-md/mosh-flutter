@@ -1,0 +1,76 @@
+name: Build Windows installer
+
+# The one shippable Windows artifact, built the same way for a main push
+# (proof it still packages) and for a release tag (what gets published).
+# Reusable so the two callers cannot drift.
+#
+# The installer is UNSIGNED -- SmartScreen will warn. Signing is a SignPath
+# step on tagged releases (see CODE_SIGNING.md) and is not wired yet.
+
+on:
+  workflow_call:
+    outputs:
+      artifact:
+        description: Name of the uploaded artifact holding the setup .exe and its .sha256.
+        value: ${{ jobs.installer.outputs.artifact }}
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: Windows installer (release, unsigned)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    outputs:
+      artifact: mosh-windows-setup
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup
+        with:
+          rust-cache-key: windows
+
+      # cargokit compiles mosh-core into its own target dir under build/,
+      # which the cargo cache above does not see. Keyed on the lockfile and
+      # toolchain; a stale hit is safe, cargo re-fingerprints.
+      - uses: actions/cache@v4
+        with:
+          path: build/windows/x64/plugins/rust_builder/cargokit_build
+          key: cargokit-windows-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: cargokit-windows-release-
+
+      - name: Build Windows app (release)
+        run: flutter build windows --release
+
+      # The runner image does not guarantee Inno Setup; chocolatey is there.
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      # AppVersion comes from pubspec so the installer filename, the
+      # Add/Remove Programs entry and the app cannot disagree on the version.
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
+          Write-Host "Packaging Mosh $version"
+          iscc /Q /DAppVersion=$version windows\installer\mosh.iss
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          Get-ChildItem build\installer\*.exe | ForEach-Object {
+            $hash = (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Out-File -Encoding ascii -NoNewline "$($_.FullName).sha256"
+            Write-Host "$hash  $($_.Name)"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-windows-setup
+          path: |
+            build/installer/*.exe
+            build/installer/*.sha256
+          if-no-files-found: error
