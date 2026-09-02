@@ -16,14 +16,15 @@
 //! `runtime: Mutex<Option<...>>` + `load_error` pair). `ensure_runtime()` is
 //! the analogue of `PrivateDmState::ready` (construction) + `with_runtime`
 //! (lock + borrow). Every function that drives the runtime calls
-//! `ensure_runtime()` and delegates, mapping `PrivateDmRuntimeError` to a
-//! plain `String` so the bridge surfaces it as a Dart exception (ADR 0010);
-//! the two inject knobs below touch `api::shared_runtime` instead.
+//! `ensure_runtime()` and delegates. The actions (invites, call controls)
+//! return the typed `ConversationBridgeError` (ADR 0024) so Dart can branch
+//! on the kind; the reads and the voice-frame pump keep the plain `String`
+//! shape (ADR 0010). The two inject knobs below touch `api::shared_runtime`
+//! instead.
 //!
 //! TYPES (ADR 0010 — 1:1 mapping, DRY): the request/return types are the
 //! runtime's own, re-exported here via `use crate::private_dm_runtime::{...}`.
-//! They are NOT redefined. `Result<T, String>` matches the Tauri command
-//! shape exactly.
+//! They are NOT redefined.
 //!
 //! PERSISTENCE: `construct_runtime` opens the encrypted at-rest store and
 //! wires the Moss transport-identity keystore the same way the Tauri shell
@@ -58,6 +59,7 @@
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
+use crate::api::conversation_bridge::ConversationBridgeError;
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CallStarted, InviteCreated, PrivateDmRuntime, PrivateDmRuntimeError,
     SessionListSnapshot, SessionSnapshot, StartSessionRequest,
@@ -111,18 +113,21 @@ pub fn set_app_data_dir(path: String) -> Result<(), String> {
 /// store + persistence via `api::shared_runtime`), build the DM runtime
 /// off them, rehydrate saved conversations, and store it. On every later
 /// call: just lock. Returns a guard the public functions can drive the
-/// `&mut self` runtime through, or an error string matching the Tauri
-/// shell's `unavailable_message` shape.
-pub(crate) fn ensure_runtime() -> Result<MutexGuard<'static, Option<PrivateDmRuntime>>, String> {
+/// `&mut self` runtime through, or an `Unavailable` bridge error carrying
+/// the Tauri shell's `unavailable_message` text.
+pub(crate) fn ensure_runtime(
+) -> Result<MutexGuard<'static, Option<PrivateDmRuntime>>, ConversationBridgeError> {
     let mutex = RUNTIME.get_or_init(|| Mutex::new(build_runtime()));
-    let guard = mutex.lock().map_err(|_| LOCK_POISONED.to_string())?;
+    let guard = mutex
+        .lock()
+        .map_err(|_| ConversationBridgeError::unavailable(LOCK_POISONED))?;
     if guard.is_none() {
         // Construction failed on the first call; the cause is cached.
         let message = LOAD_ERROR
             .get()
             .map(|error| format!("{PRIVATE_DM_UNAVAILABLE}: {error}"))
             .unwrap_or_else(|| PRIVATE_DM_UNAVAILABLE.to_string());
-        return Err(message);
+        return Err(ConversationBridgeError::unavailable(message));
     }
     Ok(guard)
 }
@@ -164,29 +169,33 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
 
 /// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
 /// Tauri command). The inviter publishes a KeyPackage and an invite URI.
-pub fn create_invite(request: StartSessionRequest) -> Result<InviteCreated, String> {
+pub fn create_invite(
+    request: StartSessionRequest,
+) -> Result<InviteCreated, ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .create_invite(request)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Accept a private-DM invite (1:1 port of `private_dm_accept_invite`). The
 /// joiner parses the invite URI and processes the inviter's Welcome.
-pub fn accept_invite(request: AcceptInviteRequest) -> Result<SessionSnapshot, String> {
+pub fn accept_invite(
+    request: AcceptInviteRequest,
+) -> Result<SessionSnapshot, ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .accept_invite(request)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Poll a session for its current snapshot (1:1 port of
 /// `private_dm_poll_session`). The React frontend called this every
 /// AUTO_POLL_MS; no push, no StreamSink.
 pub fn poll_session(session_id: String) -> Result<SessionSnapshot, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .poll_session(&session_id)
@@ -196,7 +205,7 @@ pub fn poll_session(session_id: String) -> Result<SessionSnapshot, String> {
 /// List all sessions and their snapshots (1:1 port of
 /// `private_dm_list_sessions`).
 pub fn list_sessions() -> Result<SessionListSnapshot, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.list_sessions().map_err(|error| error.to_string())
 }
@@ -207,45 +216,53 @@ pub fn list_sessions() -> Result<SessionListSnapshot, String> {
 /// over the session MLS channel, and moves the session into the
 /// outgoing-ringing state (SessionSnapshot.outgoing_call). The bridge
 /// returns CallStarted so the caller can begin capturing + sealing frames.
-pub fn call_start(session_id: String) -> Result<CallStarted, String> {
+pub fn call_start(session_id: String) -> Result<CallStarted, ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .call_start(&session_id)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Accept an incoming voice call (1:1 port of `private_dm_call_accept`).
 /// Moves the session from pending-call into the active state. The peer
 /// learns the acceptance through the MLS CallAccept control message.
-pub fn call_accept(session_id: String, call_id: String) -> Result<(), String> {
+pub fn call_accept(session_id: String, call_id: String) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .call_accept(&session_id, &call_id)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Decline an incoming voice call (1:1 port of `private_dm_call_decline`).
 /// Publishes a CallDecline control message with the reason; the session
 /// returns to its idle state.
-pub fn call_decline(session_id: String, call_id: String, reason: String) -> Result<(), String> {
+pub fn call_decline(
+    session_id: String,
+    call_id: String,
+    reason: String,
+) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .call_decline(&session_id, &call_id, &reason)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// End an active or ringing voice call (1:1 port of `private_dm_call_end`).
 /// Publishes a CallEnd control message with the reason; the session
 /// returns to idle and the CallEvent is recorded for the call log.
-pub fn call_end(session_id: String, call_id: String, reason: String) -> Result<(), String> {
+pub fn call_end(
+    session_id: String,
+    call_id: String,
+    reason: String,
+) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .call_end(&session_id, &call_id, &reason)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Push an encrypted voice-call frame into the session outbound queue
@@ -254,7 +271,7 @@ pub fn call_end(session_id: String, call_id: String, reason: String) -> Result<(
 /// the Flutter bridge surfaces this explicitly so the Dart capture loop
 /// can drive it). The caller seals the frame before sending.
 pub fn call_send_frame(session_id: String, call_id: String, frame: Vec<u8>) -> Result<(), String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .call_send_frame(&session_id, &call_id, frame)
@@ -267,7 +284,7 @@ pub fn call_send_frame(session_id: String, call_id: String, frame: Vec<u8>) -> R
 /// shell folded this into the session poll; the Flutter bridge surfaces it
 /// explicitly so the Dart playback loop can drive it at 20ms cadence.
 pub fn call_drain_frames(session_id: String, call_id: String) -> Result<Vec<Vec<u8>>, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .call_drain_frames(&session_id, &call_id)

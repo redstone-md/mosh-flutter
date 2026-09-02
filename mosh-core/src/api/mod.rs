@@ -66,3 +66,9 @@ pub mod conversation_bridge;
 /// The six shared conversation actions (ADR 0024), kind-tagged by
 /// `BridgeConversationRef` and typed-errored by `ConversationBridgeError`.
 pub mod conversation;
+
+/// The kind facades' actions proved to answer the typed bridge error, one
+/// live test per runtime. Kept out of the facades so they stay under the
+/// file budget.
+#[cfg(test)]
+mod facade_error_tests;

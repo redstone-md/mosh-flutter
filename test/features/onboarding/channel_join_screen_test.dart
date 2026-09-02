@@ -18,6 +18,7 @@ import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import '../../support/pump.dart';
@@ -102,6 +103,28 @@ void main() {
     // the step screen is gone.
     expect(find.byType(OnboardingScreen), findsOneWidget);
     expect(find.byType(ChannelJoinScreen), findsNothing);
+  });
+
+  // The bridge throws the generated ConversationBridgeError (ticket 17).
+  // Until ticket 18 picks wording by kind, the step renders the runtime's
+  // own sentence -- never "Instance of 'ConversationBridgeError'".
+  testWidgets('a failed join renders the bridge error\'s message',
+      (tester) async {
+    const error = ConversationBridgeError(
+      kind: ConversationBridgeErrorKind.unavailable,
+      message: 'channel runtime unavailable: node down',
+    );
+    final throwing = ScriptableBridge()
+      ..failAlways(BridgeMethod.joinChannel, error: error);
+    await pumpJoinStep(tester, bridge: throwing);
+
+    await tester.enterText(find.byType(TextField), 'test-channel');
+    await tester.pump();
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text(error.message), findsOneWidget);
+    expect(find.textContaining('Instance of'), findsNothing);
   });
 
   testWidgets(

@@ -4,6 +4,7 @@
 // one runtime.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import 'package:mosh/src/rust/channel_runtime.dart' show JoinChannelRequest;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
@@ -75,6 +76,30 @@ void main() {
     expect((await bridge.getVpnBypassConsent())?.interface_, 'eth0');
     await bridge.setVpnBypassConsent(interfaceName: null);
     expect(await bridge.getVpnBypassConsent(), isNull);
+  });
+
+  // The facade actions throw the real generated ConversationBridgeError
+  // (ticket 17), so a test scripts that exact type and a screen that still
+  // renders the exception as text sees the runtime's sentence, not
+  // "Instance of 'ConversationBridgeError'".
+  test('the test bridge scripts a facade failure as the real bridge error',
+      () async {
+    const error = ConversationBridgeError(
+      kind: ConversationBridgeErrorKind.unavailable,
+      message: 'channel runtime unavailable',
+    );
+    final bridge = ScriptableBridge()
+      ..failNext(BridgeMethod.joinChannel, error: error);
+    await expectLater(
+      bridge.joinChannel(
+        request: const JoinChannelRequest(
+            name: 'general', displayName: '', listenPort: 8765),
+      ),
+      throwsA(isA<ConversationBridgeError>()
+          .having(
+              (e) => e.kind, 'kind', ConversationBridgeErrorKind.unavailable)
+          .having((e) => e.toString(), 'toString', error.message)),
+    );
   });
 
   test('the test bridge joinChannel falls back to the canned snapshot',

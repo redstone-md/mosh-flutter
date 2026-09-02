@@ -4,9 +4,12 @@
 //! module maps them into the smaller actionable category that the Dart caller
 //! needs. It is a seam contract, not a fourth runtime error hierarchy.
 //!
-//! The six shared conversation actions (`api::conversation`, ADR 0024)
-//! return this error; the specialized facades keep flattening to a `String`
-//! until a ticket moves them onto a typed return.
+//! Every conversation action returns it: the six shared actions
+//! (`api::conversation`, ADR 0024) and the kind-specific ones on the DM,
+//! channel, group and org facades. The typed poll and list reads keep a
+//! `String` — a read failure is a provider error, not a user action — and so
+//! do the platform surfaces the taxonomy does not describe (`vpn`,
+//! `network`, `diagnostics`, `shared_runtime`, the voice codec).
 
 use flutter_rust_bridge::frb;
 
@@ -47,7 +50,15 @@ pub enum ConversationBridgeErrorKind {
 ///
 /// `kind` is the contract. `message` is diagnostic text; callers must not
 /// branch on it because it is rendered by the runtime that produced it.
+///
+/// The generated Dart class gets a `toString` that returns `message`, so a
+/// caller that still renders the exception as text shows the runtime's
+/// sentence instead of `Instance of 'ConversationBridgeError'`.
 #[frb(non_opaque)]
+#[frb(dart_code = "
+    @override
+    String toString() => message;
+")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConversationBridgeError {
     pub kind: ConversationBridgeErrorKind,
@@ -60,6 +71,13 @@ impl ConversationBridgeError {
             kind,
             message: message.into(),
         }
+    }
+
+    /// The one mapping a facade's `ensure_runtime` failure gets: whichever
+    /// cause it names — a failed construction or a poisoned lock — the
+    /// caller's remedy is the same, "not right now".
+    pub(crate) fn unavailable(message: impl Into<String>) -> Self {
+        Self::new(ConversationBridgeErrorKind::Unavailable, message)
     }
 }
 

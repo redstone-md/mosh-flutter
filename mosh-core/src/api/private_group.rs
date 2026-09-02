@@ -12,8 +12,9 @@
 //! `runtime: Mutex<Option<...>>` + `load_error`). `ensure_runtime()` is
 //! the analogue of `PrivateGroupState::ready` (construction) +
 //! `with_runtime` (lock + borrow). Each public function calls
-//! `ensure_runtime()` and delegates, mapping `PrivateGroupError` to a
-//! plain `String` so the bridge surfaces it as a Dart exception (ADR 0010).
+//! `ensure_runtime()` and delegates. The actions (create, join, DM offers)
+//! return the typed `ConversationBridgeError` (ADR 0024); the two reads
+//! keep the plain `String` shape (ADR 0010).
 //!
 //! SHARED RESOURCES (ADR 0016 -- shared-runtime refactor): the Moss node +
 //! attachment store + persistence are borrowed from `api::shared_runtime`
@@ -25,12 +26,10 @@
 //! TYPES (ADR 0010 -- 1:1 mapping, DRY): the request/return types are the
 //! runtime's own, re-exported here via
 //! `use crate::private_group_runtime::{...}`. They are NOT redefined.
-//! `Result<T, String>` matches the Tauri command shape exactly; this
-//! facade maps `PrivateGroupError` to a plain `String` so the bridge
-//! surfaces it as a Dart exception.
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
+use crate::api::conversation_bridge::ConversationBridgeError;
 use crate::private_group_runtime::{
     CreateGroupRequest, GroupCreated, GroupListSnapshot, GroupSnapshot, JoinGroupRequest,
     PrivateGroupError, PrivateGroupRuntime,
@@ -62,18 +61,21 @@ static LOAD_ERROR: OnceLock<String> = OnceLock::new();
 /// store + persistence via `api::shared_runtime`), build the group
 /// runtime off them, rehydrate saved groups from the encrypted store, and
 /// store it. On every later call: just lock. Returns a guard the public
-/// functions can drive the `&mut self` runtime through, or an error string
-/// matching the Tauri shell's `unavailable_message` shape.
-pub(crate) fn ensure_runtime() -> Result<MutexGuard<'static, Option<PrivateGroupRuntime>>, String> {
+/// functions can drive the `&mut self` runtime through, or an `Unavailable`
+/// bridge error carrying the Tauri shell's `unavailable_message` text.
+pub(crate) fn ensure_runtime(
+) -> Result<MutexGuard<'static, Option<PrivateGroupRuntime>>, ConversationBridgeError> {
     let mutex = RUNTIME.get_or_init(|| Mutex::new(build_runtime()));
-    let guard = mutex.lock().map_err(|_| LOCK_POISONED.to_string())?;
+    let guard = mutex
+        .lock()
+        .map_err(|_| ConversationBridgeError::unavailable(LOCK_POISONED))?;
     if guard.is_none() {
         // Construction failed on the first call; the cause is cached.
         let message = LOAD_ERROR
             .get()
             .map(|error| format!("{PRIVATE_GROUP_UNAVAILABLE}: {error}"))
             .unwrap_or_else(|| PRIVATE_GROUP_UNAVAILABLE.to_string());
-        return Err(message);
+        return Err(ConversationBridgeError::unavailable(message));
     }
     Ok(guard)
 }
@@ -114,27 +116,27 @@ fn construct_runtime() -> Result<PrivateGroupRuntime, PrivateGroupError> {
 }
 
 /// Create a private MLS group (1:1 port of `private_group_create`).
-pub fn create_group(request: CreateGroupRequest) -> Result<GroupCreated, String> {
+pub fn create_group(request: CreateGroupRequest) -> Result<GroupCreated, ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .create_group(request)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Join a private group from an invite URI (1:1 port of `private_group_join`).
-pub fn join_group(request: JoinGroupRequest) -> Result<GroupSnapshot, String> {
+pub fn join_group(request: JoinGroupRequest) -> Result<GroupSnapshot, ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .join_group(request)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Poll a private group for its current snapshot (1:1 port of
 /// `private_group_poll`).
 pub fn poll(group_id: String) -> Result<GroupSnapshot, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.poll(&group_id).map_err(|error| error.to_string())
 }
@@ -142,7 +144,7 @@ pub fn poll(group_id: String) -> Result<GroupSnapshot, String> {
 /// List all private groups and their snapshots (1:1 port of
 /// `private_group_list`).
 pub fn list() -> Result<GroupListSnapshot, String> {
-    let mut guard = ensure_runtime()?;
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.list().map_err(|error| error.to_string())
 }
@@ -153,20 +155,20 @@ pub fn send_dm_offer(
     group_id: String,
     target_fingerprint: String,
     invite_uri: String,
-) -> Result<(), String> {
+) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .send_dm_offer(&group_id, target_fingerprint, invite_uri)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
 
 /// Dismiss a private-group DM offer (1:1 port of
 /// `private_group_dismiss_dm_offer`).
-pub fn dismiss_dm_offer(group_id: String, offer_id: String) -> Result<(), String> {
+pub fn dismiss_dm_offer(group_id: String, offer_id: String) -> Result<(), ConversationBridgeError> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .dismiss_dm_offer(&group_id, &offer_id)
-        .map_err(|error| error.to_string())
+        .map_err(ConversationBridgeError::from)
 }
