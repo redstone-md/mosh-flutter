@@ -34,8 +34,8 @@ sequenceDiagram
     Bob->>Bob: verify fingerprint == SessionSnapshot.fingerprint
     Note over Bob: slice one: local confirm flag<br/>later slice: gateway mutation
     Bob->>GW: send(DmTarget(sessionId), body)
-    GW->>Api: send_message(session_id, body)
-    Api-->>GW: SendMessageResult
+    GW->>Api: conversation::send(BridgeConversationRef { Dm, session_id }, body)
+    Api-->>GW: () — delivery state arrives in the next poll
     GW-->>Bob: done
     Bob->>GW: poll(DmTarget(sessionId)) via activeSessionProvider.family
     GW->>Api: poll_session(session_id)

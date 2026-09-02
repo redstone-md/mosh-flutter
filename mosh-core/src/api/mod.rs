@@ -1,10 +1,12 @@
 //! `flutter_rust_bridge` facade over the mosh-core runtimes.
 //!
 //! This is the *only* Rust surface the Dart bridge sees, per ADR 0010.
-//! Each public function in this module corresponds one-to-one to a former
-//! Tauri command exposed by the previous `src-tauri` shell. Each function
-//! that returns a `StreamSink<T>` corresponds one-to-one to a former Tauri
-//! event that streamed frames to the frontend.
+//! The surface has two shapes. The kind-specific facades (`private_dm`,
+//! `channel`, `private_group`, `org`, ...) keep the former Tauri commands
+//! that are genuinely one kind's: invites, join/create, typed polls and
+//! lists, DM offers, the voice-call pipeline. The actions every conversation
+//! kind shares — send, retry, attachment send/download/cancel, leave — exist
+//! once in `conversation`, kind-tagged and typed-errored (ADR 0024).
 //!
 //! The facade stays intentionally thin: it delegates to the existing
 //! runtimes (`mosh_runtime`, `private_dm_runtime`, `channel_runtime`,
@@ -12,9 +14,6 @@
 //! and does not introduce new domain logic. Argument and return types are
 //! kept bridge-friendly so `flutter_rust_bridge` can generate the Dart
 //! bindings without manual glue.
-//!
-//! Sub-modules group the facade by the former Tauri command surface:
-//! diagnostics, private_dm, channel, private_group, org, network, vpn.
 
 /// Facade for the `app_diagnostics` / `native_runtime_status` Tauri commands.
 pub mod diagnostics;
