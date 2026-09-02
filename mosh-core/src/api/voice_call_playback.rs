@@ -36,8 +36,8 @@ use std::sync::{Arc, Mutex};
 
 use audiopus::{coder::Decoder, Channels, SampleRate};
 use cpal::{
-    default_host, traits::DeviceTrait, traits::HostTrait, traits::StreamTrait, BufferSize,
-    Device, FromSample, OutputCallbackInfo, SampleFormat, SizedSample, Stream, StreamConfig,
+    default_host, traits::DeviceTrait, traits::HostTrait, traits::StreamTrait, BufferSize, Device,
+    FromSample, OutputCallbackInfo, SampleFormat, SizedSample, Stream, StreamConfig,
 };
 use flutter_rust_bridge::frb;
 use ringbuf::{
