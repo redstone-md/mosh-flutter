@@ -27,7 +27,7 @@ import 'package:mosh/src/features/voice_call/ringtone_player.dart'
     show NoopRingtonePlayer, RingtonePlayer;
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show ActiveCall;
+    show ActiveCall, SessionSnapshot;
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
@@ -126,11 +126,25 @@ class VoiceCallOrchestratorNotifier
 
   @override
   VoiceCallOrchestratorState build() {
+    // Riverpod runs `onDispose` on every rebuild, not only on disposal. The
+    // session is therefore listened to rather than watched: build never
+    // re-runs on the 1 s poll, and the detach below fires only when the
+    // provider really goes away. (Watching it detached the audio one poll
+    // after attach while the call stayed up.)
     ref.onDispose(() {
-      final o = _orchestrator;
-      if (o != null) o.detach(); // fire-and-forget; onDispose is sync.
+      _orchestrator?.detach(); // fire-and-forget; onDispose is sync.
+      _orchestrator = null;
+      _attachedCallId = null;
     });
-    final session = ref.watch(activeSessionProvider(sessionId)).value;
+    ref.listen(activeSessionProvider(sessionId), (_, next) {
+      state = _stateFor(next.value);
+    });
+    return _stateFor(ref.read(activeSessionProvider(sessionId)).value);
+  }
+
+  /// Reconciles the audio transport with [session] and derives the state
+  /// the call UI reads from it.
+  VoiceCallOrchestratorState _stateFor(SessionSnapshot? session) {
     _maybeReattach(session?.activeCall);
     return VoiceCallOrchestratorState(
       dialog: callDialogFor(session),
