@@ -21,10 +21,12 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
+import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
@@ -90,8 +92,8 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
   // URI to the clipboard (React `copyText(created.invite_uri)`), and stores
   // the GroupCreated so the InviteResult branch renders. Stays on this step
   // (React `setShowSetup(true)` -- the user shares the invite before
-  // navigating away). Mirrors ChatCreateStep's busy + reset-copied +
-  // try/finally pattern.
+  // navigating away; the card's Open button is the way in). Mirrors
+  // ChatCreateStep's busy + reset-copied + try/finally pattern.
   Future<void> _onCreate() async {
     if (_busy) return;
     final label = _labelController.text.trim();
@@ -205,6 +207,8 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
             uri: _created!.inviteUri,
             copied: _copied,
             onCopy: _onCopy,
+            openLabel: l.onboardOpenGroup,
+            onOpen: () => context.go(AppRoutes.groupFor(_created!.groupId)),
           ),
         ],
       ],

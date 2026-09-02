@@ -17,16 +17,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/features/onboarding/invite_result.dart';
+import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import '../../support/scriptable_bridge.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
-import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
+import 'package:mosh/src/state/gateway_provider.dart'
+    show bridgeFacadeProvider, gatewayProvider;
 import '../../support/pump.dart';
 
 const _groupStepBody =
     'Spin up an MLS-encrypted group. You admit members and stay the admin.';
+
+/// Stubs the flutter/services clipboard channel so the auto-copy on create
+/// (React `copyText(created.invite_uri)`) does not hang the test waiting on
+/// a real platform channel. Clipboard.setData is the only platform call
+/// this screen makes.
+void _stubClipboard() {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(SystemChannels.platform, (call) async => null);
+  addTearDown(() => TestDefaultBinaryMessengerBinding
+      .instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(SystemChannels.platform, null));
+}
 
 void main() {
   Future<void> pumpGroupStep(
@@ -73,17 +88,7 @@ void main() {
     final gateway = ScriptableBridge();
     await pumpGroupStep(tester, bridge: gateway);
 
-    // Intercept the flutter/services clipboard method channel so the
-    // auto-copy on create (React `copyText(created.invite_uri)`) does not
-    // hang the test waiting on a real platform channel.
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      // Clipboard.setData is the only platform call this screen makes.
-      return null;
-    });
-    addTearDown(() => TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null));
+    _stubClipboard();
 
     // Enter a label so the canned GroupCreated invite URI is deterministic
     // (the gateway derives it from the label).
@@ -126,15 +131,7 @@ void main() {
     final throwing = ScriptableBridge()
       ..failAlways(BridgeMethod.createGroup, error: message);
 
-    // Intercept the flutter/services clipboard channel so the auto-copy on
-    // create does not hang the test on a real platform channel.
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      return null;
-    });
-    addTearDown(() => TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null));
+    _stubClipboard();
 
     await pumpGroupStep(tester, bridge: throwing);
 
@@ -148,5 +145,23 @@ void main() {
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
     expect(throwing.countOf(BridgeMethod.listGroups), 0);
+  });
+
+  testWidgets('Open group lands on the group just created', (tester) async {
+    final gateway = ScriptableGateway();
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    await pumpRoute(tester, AppRoutes.groupCreate, overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      gatewayProvider.overrideWithValue(gateway),
+    ]);
+    _stubClipboard();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Create group'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open group'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(GroupScreen), findsOneWidget);
+    expect(find.byType(GroupCreateScreen), findsNothing);
   });
 }

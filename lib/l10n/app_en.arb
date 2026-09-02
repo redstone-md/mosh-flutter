@@ -480,6 +480,14 @@
   "@onboardCopied": {
     "description": "Button label after copying a link on onboarding"
   },
+  "onboardOpenChat": "Open chat",
+  "@onboardOpenChat": {
+    "description": "Button under the invite card that opens the private chat just created"
+  },
+  "onboardOpenGroup": "Open group",
+  "@onboardOpenGroup": {
+    "description": "Button under the invite card that opens the group just created"
+  },
   "channelCardTitle": "Join a public channel",
   "@channelCardTitle": {
     "description": "Title of the join-channel card"

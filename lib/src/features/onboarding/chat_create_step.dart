@@ -19,10 +19,12 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
+import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/state/conversation_providers.dart'
@@ -123,6 +125,8 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
             uri: lastInvite.inviteUri,
             copied: _copied,
             onCopy: () => _onCopy(lastInvite.inviteUri),
+            openLabel: l.onboardOpenChat,
+            onOpen: () => context.go(AppRoutes.dmFor(lastInvite.sessionId)),
           ),
         ],
       ],
