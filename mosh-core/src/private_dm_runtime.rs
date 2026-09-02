@@ -1,10 +1,9 @@
 pub(crate) mod contracts;
 mod invite;
-mod relay;
+pub(crate) mod transport;
 mod wire;
 
 use std::collections::HashMap;
-use std::sync::mpsc;
 use std::sync::Arc;
 
 pub use crate::attachment_runtime::VoiceMeta;
@@ -13,8 +12,8 @@ use crate::attachment_store::AttachmentStore;
 use crate::conversation::dedup::SeenFrames;
 use crate::conversation::history::Restore;
 use crate::conversation::message_log::MessageLog;
-use crate::conversation::outbound::{OnSent, Outbox, Prepared};
-use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
+use crate::conversation::outbound::{OnSent, Outbox};
+use crate::conversation::runtime::{ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::Transfer;
 use crate::conversation::{decode, encode, now_ms};
 use crate::mls_crypto::MlsSessionCrypto;
@@ -24,14 +23,16 @@ use crate::voice_call_runtime::{CallPhase, CallState};
 pub use contracts::{
     AcceptInviteRequest, ActiveCall, AttachmentDescriptor, AttachmentSendResult, AttachmentState,
     AttachmentView, CallEvent, CallOfferBody, CallStarted, ChatMessage, CloseSessionResult,
-    DmOffer, InviteCreated, MeshInfo, MessageDeliveryStatus, OutgoingCall, PeerDetail, PendingCall,
-    PrivateDmRuntimeError, SendMessageResult, SessionListSnapshot, SessionSnapshot, SnapshotEvent,
-    StartSessionRequest,
+    ConnectOutcome, DmOffer, DmSessionState, InviteCreated, MeshInfo, MessageDeliveryStatus,
+    OutgoingCall, PeerDetail, PendingCall, PrivateDmRuntimeError, SendMessageResult,
+    SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest,
 };
 use invite::{build_invite_uri, listen_address, ParsedInvite};
+use transport::PublishError;
+pub use transport::{DmTransport, MossDmTransport, PeerTransport};
 use wire::{
     blob_channel, channel_session_id, control_channel, data_channel, decode_json,
-    voice_call_channel, BlobEnvelope, ControlEnvelope, DataEnvelope,
+    voice_call_channel, BlobEnvelope, ChannelKind, ControlEnvelope, DataEnvelope,
 };
 
 /// What a DM calls itself in a log line about its room.
@@ -41,7 +42,8 @@ const KIND: &str = "dm";
 // Welcome exchange is a one-shot publish, but gossip does not buffer for a peer
 // that has not meshed yet, so the first publish is routinely lost while
 // discovery is still in progress (or the link is flapping). Bob re-sends his
-// KeyPackage on this cadence until he processes the Welcome.
+// KeyPackage on this cadence until he processes the Welcome, and each side
+// re-sends its Hello on the same cadence until the counterpart answers.
 const HANDSHAKE_RESEND_MS: u64 = 2000;
 
 // Cadence for re-announcing our moss peer id to a joined counterpart that does
@@ -52,22 +54,10 @@ const HANDSHAKE_RESEND_MS: u64 = 2000;
 // the handshake cadence: this is a repair path, not a startup path.
 const PEER_ANNOUNCE_RESEND_MS: u64 = 5_000;
 
-// How long a session stays in Discover (best-effort direct) before it gives up
-// on hole-punching and falls back to the shared relay. Sized to the existing
-// direct budget (hole-punch + MLS handshake).
-const T_FALLBACK_MS: u64 = 10_000;
-
-// How long a direct peer must be continuously present before a Relayed session
-// trusts it enough to leave the relay. Symmetric-NAT hole punches routinely
-// hold for seconds (observed up to ~30s) before the mapping dies, and every
-// false migration drops the relay ref. Discover -> Direct stays instant: there
-// is no relay to lose from Discover.
-const T_DIRECT_STABLE_MS: u64 = 30_000;
-
-// How long the direct peer set must stay continuously empty before a Direct
-// session falls back to the relay. Bridges momentary re-punch gaps without
-// stranding the session on a dead path.
-const T_DIRECT_LOST_MS: u64 = 5_000;
+// How long the counterpart must stay out of the transport's reachable set
+// before a Connected session admits it is offline. Bridges momentary
+// re-punch gaps without claiming a dead path is live.
+const LOST_WINDOW_MS: u64 = 5_000;
 
 // Cadence and cap for automatic re-sends of user messages the peer's runtime
 // has not acknowledged yet (DeliveryAck). Moss pubsub has no store-and-forward
@@ -90,66 +80,40 @@ const AUTO_RESEND_MAX: u32 = 10;
 const CALL_RESEND_MS: u64 = 2_000;
 const CALL_RING_TIMEOUT_MS: u64 = 45_000;
 
-/// Pure fallback decision. `direct_now` is the instantaneous direct-peer
-/// signal; `direct_stable` / `direct_gone` are its debounced edges (signal held
-/// continuously for T_DIRECT_STABLE_MS present / T_DIRECT_LOST_MS absent).
-/// Discover promotes on the raw signal (nothing to lose), Relayed only on the
-/// stable edge (a transient hole punch must not tear down a working relay),
-/// and Direct demotes to Relayed once the peer is confirmed gone. Direct used
-/// to be terminal, so one transient punch behind symmetric NAT released the
-/// relay and stranded the pair on a dead direct path forever.
-fn next_path(
-    current: DmPath,
-    direct_now: bool,
-    direct_stable: bool,
-    direct_gone: bool,
-    elapsed_ms: u64,
-    t_fallback: u64,
-) -> DmPath {
-    match current {
-        DmPath::Discover if direct_now => DmPath::Direct,
-        DmPath::Discover if elapsed_ms >= t_fallback => DmPath::Relayed,
-        DmPath::Relayed if direct_stable => DmPath::Direct,
-        DmPath::Direct if direct_gone => DmPath::Relayed,
-        other => other,
+/// What moved a session's state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionEvent {
+    /// The counterpart's KeyPackage or Welcome arrived.
+    HandshakeFrame,
+    /// A frame that MLS-decrypted, so only the counterpart can have sent it.
+    AuthenticatedFrame,
+    /// The counterpart stayed out of the transport's reachable set for the
+    /// whole lost window.
+    CounterpartLost,
+}
+
+/// The session state machine. `Connected` is only ever reached on evidence
+/// from the other side, and only ever left when that side goes away.
+fn next_state(current: DmSessionState, event: SessionEvent) -> DmSessionState {
+    match (current, event) {
+        (DmSessionState::Pending, SessionEvent::HandshakeFrame) => DmSessionState::Handshaking,
+        (_, SessionEvent::AuthenticatedFrame) => DmSessionState::Connected,
+        (DmSessionState::Connected, SessionEvent::CounterpartLost) => DmSessionState::Handshaking,
+        (other, _) => other,
     }
 }
 
-/// True when our specific counterpart is currently a connected peer — direct OR
-/// relayed. The per-DM node rides the SHARED substrate (its `mesh_id` is only a
-/// pub/sub room), so it connects network-wide and `peer_count` counts unrelated
-/// world nodes; it can no longer stand in for "the counterpart is here". Match
-/// moss's `peer_details` by id. Before the id is known (creator, pre-handshake)
-/// we cannot single the peer out, so fall back to "any peer"; readiness is also
-/// gated on `peer_joined`, which only flips on a verified counterpart frame.
-fn peer_is_live(peer_moss_id: Option<&str>, info: &MeshInfo) -> bool {
-    match peer_moss_id {
-        Some(id) => info.peer_details.iter().any(|p| p.id == id),
-        None => info.peer_count > 0 || info.direct_peer_count > 0 || info.relayed_peer_count > 0,
-    }
-}
-
-/// True when our counterpart is reachable as a DIRECT (non-relayed) peer — the
-/// signal to migrate to / hold the Direct path. On the shared substrate
-/// `direct_peer_count` also counts unrelated world peers, so we match
-/// `peer_details` by id and require `!relayed`. Unknown id ⇒ no confirmed direct
-/// peer, so the fallback timer moves the session to Relayed until it proves out.
-fn peer_is_direct(peer_moss_id: Option<&str>, info: &MeshInfo) -> bool {
-    let Some(id) = peer_moss_id else {
-        return false;
-    };
-    info.peer_details.iter().any(|p| p.id == id && !p.relayed)
-}
-
-/// A moss peer id is 64 hex characters; the leading 16 identify it uniquely
-/// enough for a log line without making the line unreadable.
-fn short_peer_id(peer_hex: &str) -> &str {
-    let end = peer_hex
-        .char_indices()
-        .nth(16)
-        .map(|(i, _)| i)
-        .unwrap_or(peer_hex.len());
-    &peer_hex[..end]
+/// The queued messages of one session in the order they were written. The
+/// stamp is the order the user typed in; the id breaks a same-millisecond tie
+/// the same way on every run.
+fn queued_in_order(attempts: &HashMap<String, OutboundAttemptRecord>) -> Vec<String> {
+    let mut queued: Vec<(u64, &String)> = attempts
+        .iter()
+        .filter(|(_, attempt)| attempt.delivery_status == MessageDeliveryStatus::Queued)
+        .map(|(id, attempt)| (attempt.sent_at_ms, id))
+        .collect();
+    queued.sort();
+    queued.into_iter().map(|(_, id)| id.clone()).collect()
 }
 
 fn random_b64(bytes: usize) -> String {
@@ -159,58 +123,22 @@ fn random_b64(bytes: usize) -> String {
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buf)
 }
 
-use crate::conversation::mesh;
-use crate::inbox;
-use crate::moss_ffi::{MossFfiRuntime, MossNode, MossReceivedMessage};
+use crate::moss_ffi::{MossFfiRuntime, MossReceivedMessage};
 use crate::shared_node::SharedMossNode;
 
 pub struct PrivateDmRuntime {
-    moss: Arc<MossFfiRuntime>,
     sessions: ConversationRuntime<PrivateDmSession>,
-    relay_ref: relay::RelayRef,
-    relay: Option<relay::RelayHandle>,
-    // Outcomes reported by relay send workers. A release→re-acquire cycle can
-    // briefly leave an old worker settling its last jobs, so every started
-    // worker's receiver is kept until it disconnects and drains empty —
-    // otherwise those tracked messages would sit Pending forever.
-    relay_results: Vec<mpsc::Receiver<relay::RelayJobResult>>,
-    // Debounces the snapshot's relay_ready flag (see shared_relay_ready).
-    relay_readiness: relay::RelayReadiness,
-    // The ONE moss node every conversation in this process shares — DMs,
-    // channels, groups and orgs alike. See `shared_node` for why more than one
-    // is actively harmful.
-    shared_node: Arc<SharedMossNode>,
-}
-
-/// Borrowed intake of the relay send worker, threaded through the session
-/// methods that may route a frame while the DM path is Relayed. None while
-/// the shared relay node is down.
-type RelayJobs<'a> = Option<&'a mpsc::Sender<relay::RelayJob>>;
-
-/// What `route_send` did with the frame: published on the direct pubsub node
-/// (fire-and-forget, moss owns it now) or queued for the relay worker (the
-/// outcome arrives later via `drain_relay_results`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RouteOutcome {
-    Published,
-    Queued,
+    /// The one door every DM frame goes through, in and out.
+    transport: Arc<dyn DmTransport>,
+    lost_window_ms: u64,
 }
 
 struct PrivateDmSession {
     role: SessionRole,
-    // Transport chosen for outbound control/data/blob frames. Always `Discover`
-    // in Task 5 (routes direct); Task 6 flips it to `Relayed` for hard-NAT peers.
-    path: DmPath,
-    // Wall clock when discovery started; the fallback budget is measured from
-    // here, so a session that never finds a direct peer flips to Relayed after
-    // T_FALLBACK_MS.
-    discover_started_ms: u64,
-    // Direct-peer observation edge tracker driven by pump_transports: the last
-    // sampled has_direct_peer() value and when it last flipped. next_path's
-    // hysteresis (T_DIRECT_STABLE_MS / T_DIRECT_LOST_MS) is measured from the
-    // flip, so a signal must HOLD, not merely appear, to move the path.
-    direct_present: bool,
-    direct_flip_ms: u64,
+    state: DmSessionState,
+    // When the counterpart dropped out of the transport's reachable set, if
+    // it is out now. The lost window is measured from here.
+    unreachable_since_ms: Option<u64>,
     device_id: String,
     participant_id: String,
     session_id: String,
@@ -218,7 +146,7 @@ struct PrivateDmSession {
     fingerprint: String,
     // Persisted: nothing relearns this after the handshake completes
     // (pump_handshake only resends while !peer_joined), and losing it makes the
-    // session mistake any world peer for the counterpart.
+    // session unable to tell whether the counterpart is reachable at all.
     peer_moss_id: Option<String>,
     // Set when a persisted field changed after the record was last written, so
     // persist_session_tail rewrites a record it already finalized. peer_moss_id
@@ -226,10 +154,13 @@ struct PrivateDmSession {
     // long after the MLS group exists.
     record_dirty: bool,
     last_peer_announce_ms: u64,
-    // The peer id last handed to moss as an explicit connect target. moss
-    // retries a registered target on its own, so each id value needs exactly
-    // one FFI call; a re-handshake under a fresh id re-registers.
+    last_hello_send_ms: u64,
+    // The peer id last handed to the transport as an explicit connect target.
+    // moss retries a registered target on its own, so each id value needs
+    // exactly one call; a re-handshake under a fresh id re-registers.
     connect_requested_for: Option<String>,
+    // What the last connect request answered, for the diagnostics card.
+    last_connect_outcome: Option<ConnectOutcome>,
     invite_uri: Option<String>,
     // Transport coordinates kept so the persisted session record can be
     // rebuilt verbatim (notably to refresh the joiner's group_id after join).
@@ -237,8 +168,9 @@ struct PrivateDmSession {
     static_peer: Option<String>,
     // The remote peer's display name, learned from the first inbound frame.
     peer_display_name: Option<String>,
+    // Our side of the MLS handshake is done: Alice added Bob, or Bob joined.
     peer_joined: bool,
-    node: Arc<MossNode>,
+    transport: Arc<dyn DmTransport>,
     crypto: MlsSessionCrypto,
     messages: MessageLog<ChatMessage>,
     seen: SeenFrames,
@@ -267,36 +199,7 @@ enum SessionRole {
     Bob,
 }
 
-/// Which transport a session's outbound control/data/blob frames take.
-/// `next_path` moves a session between these states as the direct path is
-/// discovered, stabilises, or fails (`T_FALLBACK_MS`, hysteresis rules in
-/// `next_path`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DmPath {
-    /// Direct not yet decided; still hole-punching. Send goes direct (best
-    /// effort) until we fall back.
-    Discover,
-    Direct,
-    Relayed,
-}
-
-impl DmPath {
-    /// Wire label for the diagnostics UI. `Discover` reads as "connecting"
-    /// because the transport is still being decided (best-effort direct).
-    fn as_str(self) -> &'static str {
-        match self {
-            DmPath::Discover => "connecting",
-            DmPath::Direct => "direct",
-            DmPath::Relayed => "relayed",
-        }
-    }
-}
-
 impl PrivateDmRuntime {
-    pub fn new(moss: MossFfiRuntime, attachment_store: Arc<AttachmentStore>) -> Self {
-        Self::from_shared(Arc::new(moss), attachment_store, None)
-    }
-
     pub fn from_shared(
         moss: Arc<MossFfiRuntime>,
         attachment_store: Arc<AttachmentStore>,
@@ -308,76 +211,50 @@ impl PrivateDmRuntime {
     /// The constructor a real client uses: every runtime in the process is
     /// handed the SAME holder, so DMs, channels, groups and orgs all end up on
     /// one node. `from_shared` mints a private holder instead, which is what
-    /// tests running two peers in one process need.
+    /// tests running two peers over real moss in one process need.
     pub fn from_shared_node(
         shared_node: Arc<SharedMossNode>,
         attachment_store: Arc<AttachmentStore>,
         persistence: Option<Arc<Persistence>>,
     ) -> Self {
-        // Claim the DM channels before any node of ours can start: a frame
-        // that lands before its owner is registered goes to the unclaimed
-        // tail, and no drain will ever see it.
-        dm_inbox();
+        Self::with_transport(
+            MossDmTransport::new(shared_node),
+            attachment_store,
+            persistence,
+        )
+    }
+
+    /// A runtime on any transport. Production passes the moss transport; a
+    /// test passes an in-memory one and decides what gets through.
+    pub fn with_transport(
+        transport: Arc<dyn DmTransport>,
+        attachment_store: Arc<AttachmentStore>,
+        persistence: Option<Arc<Persistence>>,
+    ) -> Self {
         Self {
-            moss: Arc::clone(shared_node.moss()),
             sessions: ConversationRuntime::new(attachment_store, persistence, DM_HISTORY),
-            relay_ref: relay::RelayRef::default(),
-            relay: None,
-            relay_results: Vec::new(),
-            relay_readiness: relay::RelayReadiness::new(),
-            shared_node,
+            transport,
+            lost_window_ms: LOST_WINDOW_MS,
         }
     }
 
-    /// Bring the shared node up on first demand and put this session's room on
-    /// it, subscribing its three channels.
+    /// Put this session's room on the transport, subscribing its three
+    /// channels.
     fn open_dm_room(
         &mut self,
         mesh_id: &str,
         session_id: &str,
         listen_port: u16,
         static_peer: Option<String>,
-    ) -> Result<Arc<MossNode>, PrivateDmRuntimeError> {
-        runtime::open_room(
-            &self.shared_node,
-            mesh_id,
-            &session_channels(session_id),
-            listen_port,
-            static_peer,
-        )
-        .map_err(PrivateDmRuntimeError::Moss)
-    }
-
-    /// Bring the shared relay node (and its send worker) up on first demand
-    /// and increment its refcount; later callers just bump the count and get
-    /// the same handle.
-    fn ensure_relay_up(&mut self) -> Result<&relay::RelayHandle, PrivateDmRuntimeError> {
-        // Start BEFORE bumping the refcount. Incrementing first would leak a
-        // ref on a transient dll init/start failure — the count would stick
-        // above zero while the handle stayed None, and every later call would
-        // return "relay node missing" forever. Handle presence is the source
-        // of truth for "started"; the count only tracks how many DMs rely on
-        // it.
-        if self.relay.is_none() {
-            let (handle, results) = relay::start_relay_node(&self.moss)?;
-            self.relay = Some(handle);
-            self.relay_results.push(results);
-        }
-        self.relay_ref.acquire();
-        self.relay
-            .as_ref()
-            .ok_or_else(|| PrivateDmRuntimeError::Moss("relay node missing".into()))
-    }
-
-    /// Decrement the relay refcount; the last release drops the handle, which
-    /// disconnects the worker's intake — the worker fails its queued jobs,
-    /// exits promptly, and releases the node (MossNode::drop → Moss_Stop).
-    /// The results receiver stays in `relay_results` so those final outcomes
-    /// still settle their messages instead of stranding them Pending.
-    fn release_relay(&mut self) {
-        if self.relay_ref.release() == 0 {
-            self.relay = None;
-        }
+    ) -> Result<(), PrivateDmRuntimeError> {
+        self.transport
+            .open_room(
+                mesh_id,
+                &session_channels(session_id),
+                listen_port,
+                static_peer,
+            )
+            .map_err(PrivateDmRuntimeError::Moss)
     }
 
     /// Rebuild sessions + history from the encrypted store. Best-effort: a bad
@@ -412,64 +289,62 @@ impl PrivateDmRuntime {
                     continue;
                 }
             };
-            let node = match self.open_dm_room(
+            if let Err(e) = self.open_dm_room(
                 &rec.mesh_id,
                 &rec.session_id,
                 rec.listen_port,
                 rec.static_peer.clone(),
             ) {
-                Ok(n) => n,
-                Err(e) => {
-                    eprintln!("rehydrate: node start failed for {}: {e}", rec.session_id);
-                    continue;
-                }
-            };
-            let mut session = PrivateDmSession::new(
-                if rec.role_is_alice {
-                    SessionRole::Alice
-                } else {
-                    SessionRole::Bob
-                },
-                rec.display_name.clone(),
-                rec.participant_id.clone(),
-                rec.session_id.clone(),
-                rec.mesh_id.clone(),
-                rec.fingerprint.clone(),
-                rec.invite_uri.clone(),
-                rec.listen_port,
-                rec.static_peer.clone(),
-                node,
-                crypto,
-                Arc::clone(self.sessions.attachment_store()),
-            );
-            // Without this the restored session falls back to "any peer is my
-            // peer", which on the shared substrate means it reports the
-            // counterpart online whenever ANY world peer is connected.
-            session.peer_moss_id = rec.peer_moss_id.clone();
-            self.sessions.replay(
-                &rec.session_id,
-                Restore {
-                    log: &mut session.messages,
-                    attempts: &mut session.outbound_attempts,
-                    transfer: &mut session.transfer,
-                    local_author: &rec.display_name,
-                },
-            );
-            // Recover the peer's display name from a restored inbound message so
-            // the chat/call UI still shows it after a restart.
-            session.peer_display_name = session
-                .messages
-                .iter()
-                .map(|message| message.from_device.as_str())
-                .find(|name| !name.is_empty() && *name != rec.display_name)
-                .map(str::to_string);
-            if session.peer_display_name.is_some() && session.crypto.is_ready() {
-                session.peer_joined = true;
+                eprintln!("rehydrate: node start failed for {}: {e}", rec.session_id);
+                continue;
             }
+            let session = self.restore_session(&rec, crypto);
             // The loaded record already has a valid group_id; don't rewrite it.
             self.sessions.mark_record_final(&rec.session_id);
             self.sessions.insert(rec.session_id.clone(), session);
         }
+    }
+
+    /// One session back from its record, with the history replayed into it
+    /// and the handshake state read off what came back.
+    fn restore_session(
+        &mut self,
+        rec: &contracts::PersistedSession,
+        crypto: MlsSessionCrypto,
+    ) -> PrivateDmSession {
+        let role = if rec.role_is_alice {
+            SessionRole::Alice
+        } else {
+            SessionRole::Bob
+        };
+        let mut session = PrivateDmSession::new(
+            role,
+            rec.display_name.clone(),
+            rec.participant_id.clone(),
+            rec.session_id.clone(),
+            rec.mesh_id.clone(),
+            rec.fingerprint.clone(),
+            rec.invite_uri.clone(),
+            rec.listen_port,
+            rec.static_peer.clone(),
+            Arc::clone(&self.transport),
+            crypto,
+            Arc::clone(self.sessions.attachment_store()),
+        );
+        // Without this the restored session cannot tell whether its
+        // counterpart is reachable, and cannot ask the transport to reach it.
+        session.peer_moss_id = rec.peer_moss_id.clone();
+        self.sessions.replay(
+            &rec.session_id,
+            Restore {
+                log: &mut session.messages,
+                attempts: &mut session.outbound_attempts,
+                transfer: &mut session.transfer,
+                local_author: &rec.display_name,
+            },
+        );
+        session.note_restored_history();
+        session
     }
 
     pub fn create_invite(
@@ -484,20 +359,19 @@ impl PrivateDmRuntime {
         let mesh_id = crypto.random_token("mesh")?;
         let participant_id = crypto.random_token("participant")?;
         let fingerprint = crypto.fingerprint();
-        let node = self.open_dm_room(
+        self.open_dm_room(
             &mesh_id,
             &session_id,
             request.listen_port,
             request.static_peer,
         )?;
-        // Embed our moss peer id so a hard-NAT joiner can relay-send the MLS
-        // handshake before any direct window exists (identity is per-device,
-        // so the per-DM node id equals our relay-mesh id).
+        // Embed our moss peer id so the joiner can ask the transport to reach
+        // us before organic discovery finds us.
         let invite_uri = build_invite_uri(
             &mesh_id,
             &session_id,
             &fingerprint,
-            node.public_key_hex().as_deref(),
+            self.transport.local_peer_id().as_deref(),
         );
 
         let session = PrivateDmSession::new(
@@ -510,7 +384,7 @@ impl PrivateDmRuntime {
             Some(invite_uri.clone()),
             persist_listen_port,
             persist_static_peer.clone(),
-            node,
+            Arc::clone(&self.transport),
             crypto,
             Arc::clone(self.sessions.attachment_store()),
         );
@@ -543,7 +417,7 @@ impl PrivateDmRuntime {
         let participant_id = crypto.random_token("participant")?;
         let key_package = crypto.key_package_bytes()?;
         let persist_static_peer = request.static_peer.clone().or(invite.peer_address.clone());
-        let node = self.open_dm_room(
+        self.open_dm_room(
             &invite.mesh_id,
             &invite.session_id,
             request.listen_port,
@@ -554,25 +428,13 @@ impl PrivateDmRuntime {
             participant_id: participant_id.clone(),
             from_device: request.display_name.clone(),
             key_package_b64: encode(&key_package),
-            moss_peer_id: node.public_key_hex(),
+            moss_peer_id: self.transport.local_peer_id(),
         };
         // Keep the serialized KeyPackage so the drain loop can re-publish it
         // until the Welcome arrives. The first publish below often lands before
         // the mesh link to Alice exists and is silently dropped.
         let key_package_payload = serde_json::to_vec(&envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-
-        // One-shot create-time KeyPackage: the session (and its DmPath) does not
-        // exist yet, and this always runs while the path would be Discover, which
-        // route_send maps to this exact direct publish. Kept direct on purpose.
-        // Room-scoped like every other send — the shared node's own room is the
-        // substrate, and Alice listens in the invite's room, not in that one.
-        node.publish_room_best_effort(
-            &invite.mesh_id,
-            &control_channel(&invite.session_id),
-            &key_package_payload,
-        )
-        .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
 
         let mut session = PrivateDmSession::new(
             SessionRole::Bob,
@@ -584,18 +446,18 @@ impl PrivateDmRuntime {
             Some(request.invite_uri),
             persist_listen_port,
             persist_static_peer.clone(),
-            node,
+            Arc::clone(&self.transport),
             crypto,
             Arc::clone(self.sessions.attachment_store()),
         );
-        // Pre-seed the creator's moss id from the invite so route_send can
-        // relay the handshake even if no direct window ever opens; a later
-        // KeyPackage/Welcome exchange would only confirm the same value
-        // (note_peer_moss_id keeps the first one). Tamper trade-off: a wrong
-        // id here makes drain_relay drop the real peer's frames until the
-        // session is recreated — availability only, never identity, since the
-        // fingerprint still gates MLS.
+        // Pre-seed the creator's moss id from the invite so the transport can
+        // be asked to reach it before any frame teaches it; a later
+        // KeyPackage/Welcome exchange only confirms the same value. A wrong id
+        // costs availability until the handshake corrects it, never identity:
+        // the fingerprint still gates MLS.
         session.peer_moss_id = invite.peer_moss_id;
+        // One-shot create-time KeyPackage; the handshake pump repeats it.
+        session.route_send(ChannelKind::Control, &key_package_payload)?;
         session.pending_key_package = Some(key_package_payload);
         session.last_handshake_send_ms = now_ms();
 
@@ -611,15 +473,17 @@ impl PrivateDmRuntime {
         self.poll_session(&session_id)
     }
 
+    /// Files a text message as `Queued` and lets the outbox drive it out. The
+    /// message is on disk before the transport is asked anything, so a restart
+    /// keeps it; a transport that refuses right now just leaves it queued.
     pub fn send_message(
         &mut self,
         session_id: &str,
         body: String,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let prepared = {
+        self.drain_inbound();
+        let message_id = {
             let session = self.session_mut(session_id)?;
-            let ciphertext = session.crypto.encrypt(body.as_bytes())?;
             let message = session.messages.stamp(ChatMessage {
                 from_device: session.device_id.clone(),
                 body,
@@ -632,105 +496,76 @@ impl PrivateDmRuntime {
                 retryable: None,
                 retry_count: None,
             });
-            let envelope = DataEnvelope {
-                session_id: session.session_id.clone(),
-                participant_id: session.participant_id.clone(),
-                from_device: session.device_id.clone(),
-                message_id: message.message_id.clone(),
-                sent_at_ms: message.sent_at_ms,
-                ciphertext_b64: encode(&ciphertext),
-                resend: None,
-            };
-            let payload = serde_json::to_vec(&envelope)
-                .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
             let owned_session_id = session.session_id.clone();
             session
                 .outbox()
-                .open(message, owned_session_id, payload, ciphertext.len())?
+                .queue(message, owned_session_id)?
+                .message_id
         };
-        let result = self.route_prepared(session_id, prepared, true)?;
+        self.sessions.persist_send(session_id, &message_id, true);
+        self.deliver_queued(session_id);
+        let result = self.send_result(session_id, &message_id)?;
         self.sessions.persist_tail();
         Ok(result)
     }
 
+    /// Puts a failed message back in the queue. A message that is already
+    /// waiting its turn is left alone and reported as it stands.
     pub fn retry_message(
         &mut self,
         session_id: &str,
         message_id: &str,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let prepared = {
+        self.drain_inbound();
+        {
             let session = self.session_mut(session_id)?;
             let attempt = session
                 .outbound_attempts
                 .get(message_id)
                 .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
-            // A Pending attempt is already sitting in the relay worker's
-            // queue; enqueueing a twin would race two results for one
-            // message (a late failure could overwrite a delivered Sent).
-            if attempt.delivery_status == MessageDeliveryStatus::Pending {
-                return Err(PrivateDmRuntimeError::Moss("send already in flight".into()));
+            if matches!(
+                attempt.delivery_status,
+                MessageDeliveryStatus::Queued | MessageDeliveryStatus::Pending
+            ) {
+                return self.send_result(session_id, message_id);
             }
-            session.outbox().reopen(message_id)?
-        };
-        self.route_prepared(session_id, prepared, false)
+            session.outbox().requeue(message_id)?;
+        }
+        self.sessions.persist_send(session_id, message_id, false);
+        self.deliver_queued(session_id);
+        self.send_result(session_id, message_id)
     }
 
-    /// Routes a prepared send through the DM transport and writes down how it
-    /// went. The attempt record stays after a send that lands: `Sent` only
-    /// means the frame left the device, and the record holds the bytes the
-    /// auto re-sends replay until the peer DeliveryAck arrives.
-    fn route_prepared(
-        &mut self,
+    /// Give one session's outbox a turn right now, and write down whatever it
+    /// settled.
+    fn deliver_queued(&mut self, session_id: &str) {
+        let Some(session) = self.sessions.get_mut(session_id) else {
+            return;
+        };
+        for message_id in session.pump_outbox() {
+            self.sessions.persist_send(session_id, &message_id, false);
+        }
+    }
+
+    /// How one message's send stands, as the app is told.
+    fn send_result(
+        &self,
         session_id: &str,
-        prepared: Prepared,
-        persist_snapshot: bool,
+        message_id: &str,
     ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
-        self.sessions
-            .persist_send(session_id, &prepared.message_id, persist_snapshot);
-        let publish = {
-            // Disjoint field borrows: `relay` reads only the field, so it
-            // coexists with the immutable session borrow taken by `session_ref`.
-            let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-            let session = self.session_ref(session_id)?;
-            session.route_send(
-                wire::ChannelKind::Data,
-                &prepared.payload,
-                relay,
-                Some(&prepared.message_id),
-            )
-        };
-        // Queued means the relay send worker has it: nothing to settle yet,
-        // the message stays Pending until drain_relay_results hears back.
-        let settle_with = match publish {
-            Ok(RouteOutcome::Queued) => None,
-            Ok(RouteOutcome::Published) => Some(Ok(())),
-            Err(error) => Some(Err(error.to_string())),
-        };
-        let (session_id_owned, state, status, error) = {
-            let session = self.session_mut(session_id)?;
-            let (status, error) = match settle_with {
-                None => (MessageDeliveryStatus::Pending, None),
-                Some(outcome) => {
-                    let settled =
-                        session
-                            .outbox()
-                            .settle(&prepared.message_id, outcome, OnSent::Retain)?;
-                    (settled.status, settled.error)
-                }
-            };
-            (session.session_id.clone(), session.state(), status, error)
-        };
-        self.sessions
-            .persist_send(session_id, &prepared.message_id, false);
+        let session = self.session_ref(session_id)?;
+        let attempt = session
+            .outbound_attempts
+            .get(message_id)
+            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
         Ok(SendMessageResult {
-            session_id: session_id_owned,
-            state,
-            ciphertext_bytes: prepared.ciphertext_bytes,
-            message_id: prepared.message_id,
-            sent_at_ms: prepared.sent_at_ms,
-            delivery_status: status,
-            delivery_error: error,
+            session_id: session.session_id.clone(),
+            state: session.state,
+            ciphertext_bytes: attempt.ciphertext_bytes,
+            message_id: message_id.to_string(),
+            sent_at_ms: attempt.sent_at_ms,
+            delivery_status: attempt.delivery_status,
+            delivery_error: attempt.delivery_error.clone(),
         })
     }
 
@@ -745,15 +580,9 @@ impl PrivateDmRuntime {
         thumbnail: Option<String>,
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        // Disjoint field borrows: hold `relay` (field) alongside the
-        // mutable session borrow so the manifest send can route when Relayed.
-        let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        session.send_attachment(file_name, mime, bytes, thumbnail, voice, relay)
+        self.drain_inbound();
+        let session = self.session_mut(session_id)?;
+        session.send_attachment(file_name, mime, bytes, thumbnail, voice)
     }
 
     /// Begins (or retries) downloading a peer's attachment.
@@ -762,16 +591,10 @@ impl PrivateDmRuntime {
         session_id: &str,
         attachment_id: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        // Disjoint field borrows: hold `relay` (field) alongside the
-        // mutable session borrow so pump_attachment_requests can route.
-        let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .ok_or(PrivateDmRuntimeError::MissingSession)?;
+        self.drain_inbound();
+        let session = self.session_mut(session_id)?;
         session.transfer.start_download(attachment_id)?;
-        session.pump_attachment_requests(relay);
+        session.pump_attachment_requests();
         Ok(())
     }
 
@@ -793,16 +616,10 @@ impl PrivateDmRuntime {
         start: u64,
         end: u64,
     ) -> Result<StreamRange, PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        // Disjoint field borrows: hold `relay` (field) alongside the
-        // mutable session borrow so pump_attachment_requests can route.
-        let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .ok_or(PrivateDmRuntimeError::MissingSession)?;
+        self.drain_inbound();
+        let session = self.session_mut(session_id)?;
         let outcome = session.transfer.stream_range(attachment_id, start, end);
-        session.pump_attachment_requests(relay);
+        session.pump_attachment_requests();
         Ok(outcome)
     }
 
@@ -810,47 +627,21 @@ impl PrivateDmRuntime {
         &mut self,
         session_id: &str,
     ) -> Result<SessionSnapshot, PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let relay_ready = self.shared_relay_ready();
-        let session = self.session_ref(session_id)?;
-        let mut snapshot = session.snapshot();
-        self.stamp_relay_ready(&mut snapshot, relay_ready);
-        Ok(snapshot)
+        self.drain_inbound();
+        Ok(self.session_ref(session_id)?.snapshot())
     }
 
     pub fn list_sessions(&mut self) -> Result<SessionListSnapshot, PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let relay_ready = self.shared_relay_ready();
+        self.drain_inbound();
         let mut snapshots: Vec<SessionSnapshot> = self
             .sessions
             .values()
             .map(PrivateDmSession::snapshot)
             .collect();
-        for snapshot in &mut snapshots {
-            self.stamp_relay_ready(snapshot, relay_ready);
-        }
         snapshots.sort_by(|a, b| a.session_id.cmp(&b.session_id));
         Ok(SessionListSnapshot {
             sessions: snapshots,
         })
-    }
-
-    /// Convergence state of the shared relay node, or None while it is down.
-    /// Computed once per poll — it is an FFI call into moss. Debounced via
-    /// RelayReadiness so a relay-capable peer blip does not flicker the UI
-    /// between "relayed" and "warming up".
-    fn shared_relay_ready(&mut self) -> Option<bool> {
-        let capable_now = relay::relay_ready(&self.relay.as_ref()?.node);
-        Some(
-            self.relay_readiness
-                .ready_at(capable_now, std::time::Instant::now()),
-        )
-    }
-
-    fn stamp_relay_ready(&self, snapshot: &mut SessionSnapshot, relay_ready: Option<bool>) {
-        if snapshot.path == "relayed" {
-            snapshot.relay_ready = relay_ready;
-        }
     }
 
     pub fn close_session(
@@ -859,19 +650,11 @@ impl PrivateDmRuntime {
     ) -> Result<CloseSessionResult, PrivateDmRuntimeError> {
         match self.sessions.remove(session_id) {
             Some(session) => {
-                runtime::close_room(
-                    &self.shared_node,
-                    &session.node,
+                self.transport.close_room(
                     &session.mesh_id,
                     &session_channels(&session.session_id),
                     &format!("{KIND} {session_id}"),
                 );
-                // A relayed session holds a ref on the shared relay node; drop
-                // it so the node's refcount stays accurate and it can stop once
-                // the last relayed DM closes.
-                if session.path == DmPath::Relayed {
-                    self.release_relay();
-                }
                 // Purge persisted state too, otherwise the conversation
                 // re-appears on the next launch via rehydrate.
                 self.sessions.forget(session_id);
@@ -889,305 +672,70 @@ impl PrivateDmRuntime {
         }
     }
 
-    fn drain_inbound(&mut self) -> Result<(), PrivateDmRuntimeError> {
-        let inbound = dm_inbox().drain();
-        for message in inbound {
-            // A single bad inbound frame must never abort the drain — otherwise
-            // it would also fail the caller (e.g. send_message drains first).
-            // After a restart the in-memory replay-dedup set is empty, so the
-            // mesh re-delivers already-consumed MLS messages; decrypting those
-            // fails with "secret deleted to preserve forward secrecy". That is
-            // expected, so drop the frame and keep going.
-            if let Some(session_id) = channel_session_id(&message.channel).map(str::to_string) {
-                // Disjoint field borrows: `relay` (field) alongside the
-                // mutable `sessions` borrow — see route_send threading.
-                let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-                if let Some(session) = self.sessions.get_mut(&session_id) {
-                    if let Err(error) = session.handle_moss_message(message, relay) {
-                        eprintln!("dropping inbound frame for {session_id}: {error}");
-                    }
-                }
-                continue;
+    /// Take in every frame that arrived, then give each session its tick.
+    /// Called on every runtime entry point, so the UI's ~1 s poll is the
+    /// heartbeat that drives handshakes, hellos, the outbox and re-sends.
+    fn drain_inbound(&mut self) {
+        for message in self.transport.drain() {
+            self.route_frame(message);
+        }
+        self.tick(now_ms());
+    }
+
+    /// Hand one frame to the session it names, or to every session for a
+    /// voice-call channel, which names a call rather than a session.
+    ///
+    /// A single bad inbound frame must never abort the drain — otherwise it
+    /// would also fail the caller (e.g. send_message drains first). After a
+    /// restart the in-memory replay-dedup set is empty, so the mesh
+    /// re-delivers already-consumed MLS messages; decrypting those fails with
+    /// "secret deleted to preserve forward secrecy". That is expected, so the
+    /// frame is dropped and the drain keeps going.
+    fn route_frame(&mut self, message: MossReceivedMessage) {
+        if let Some(session_id) = channel_session_id(&message.channel).map(str::to_string) {
+            let Some(session) = self.sessions.get_mut(&session_id) else {
+                return;
+            };
+            if let Err(error) = session.handle_moss_message(message) {
+                eprintln!("dropping inbound frame for {session_id}: {error}");
             }
-            if wire::channel_call_id(&message.channel).is_some() {
-                let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-                for session in self.sessions.values_mut() {
-                    if let Err(error) = session.handle_moss_message(message.clone(), relay) {
-                        eprintln!("dropping inbound call frame: {error}");
-                    }
-                }
+            return;
+        }
+        if wire::channel_call_id(&message.channel).is_none() {
+            return;
+        }
+        for session in self.sessions.values_mut() {
+            if let Err(error) = session.handle_moss_message(message.clone()) {
+                eprintln!("dropping inbound call frame: {error}");
             }
         }
-        self.drain_relay();
-        self.drain_relay_results();
-        let now = now_ms();
-        // Advance the fallback state machine before the pump loop: a session that
-        // flips to Relayed here brings the shared relay node up, so its handshake
-        // resend below routes over the relay in the same tick.
-        self.pump_transports(now);
-        // Keep every active download fed, and re-drive any incomplete MLS
-        // handshake, without waiting on a user action. The UI polls roughly
-        // once a second, so this is the heartbeat that retransmits a KeyPackage
-        // whose first publish was dropped before the mesh link formed.
-        let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-        // (session_id, message_id) pairs whose outbound attempt state changed
-        // this tick — from the peer's DeliveryAck or an auto re-send — and
-        // must be re-persisted after the mutable session borrow ends.
+    }
+
+    /// One heartbeat for every session: reachability, the handshake and hello
+    /// repeats, the outbox, the re-sends. Whatever changed an attempt is
+    /// written down afterwards, once the mutable borrow is over.
+    fn tick(&mut self, now: u64) {
+        let lost_window = self.lost_window_ms;
         let mut dirty: Vec<(String, String)> = Vec::new();
         for (session_id, session) in self.sessions.iter_mut() {
-            session.pump_attachment_requests(relay);
+            session.pump_attachment_requests();
             session.pump_peer_connect();
-            session.pump_handshake(now, relay);
+            session.pump_reachability(now, lost_window);
+            session.pump_handshake(now);
+            session.pump_hello(now);
             session.pump_peer_announce(now);
-            session.pump_call_signaling(now, relay);
-            for message_id in session.pump_unacked_resends(now, relay) {
-                dirty.push((session_id.clone(), message_id));
-            }
-            for message_id in session.take_dirty_outbound() {
-                dirty.push((session_id.clone(), message_id));
-            }
+            session.pump_call_signaling(now);
+            let changed = session
+                .pump_outbox()
+                .into_iter()
+                .chain(session.pump_unacked_resends(now))
+                .chain(session.take_dirty_outbound());
+            dirty.extend(changed.map(|message_id| (session_id.clone(), message_id)));
         }
         for (session_id, message_id) in dirty {
             self.sessions.persist_send(&session_id, &message_id, false);
         }
         self.sessions.persist_tail();
-        Ok(())
-    }
-
-    /// Whether any live session has this sender pinned as its counterpart.
-    /// Used to tell our peer's traffic apart from the substrate's.
-    fn relay_sender_is_known(&self, sender_hex: &str) -> bool {
-        self.sessions
-            .values()
-            .any(|session| session.peer_moss_id.as_deref() == Some(sender_hex))
-    }
-
-    /// Reconstruct the direct-path `MossReceivedMessage` shape for frames that
-    /// arrived over the point-to-point relay instead of pubsub, and feed them
-    /// through the same `handle_moss_message` dedup/dispatch as the direct
-    /// path — the relay callback has no channel, so `RelayFrame` re-tags it.
-    fn drain_relay(&mut self) {
-        for inbound in crate::moss_ffi::drain_relay_frames() {
-            let frame: wire::RelayFrame = match decode_json(&inbound.data) {
-                Ok(f) => f,
-                Err(e) => {
-                    // The relay inbox is process-global and carries every frame
-                    // the shared substrate routes here, not only ours, so a
-                    // stranger's payload failing to parse is ordinary
-                    // background traffic — logging it drowns the console. A
-                    // frame from a peer we hold a session with is a different
-                    // matter: that one should have parsed.
-                    if self.relay_sender_is_known(&inbound.sender_hex) {
-                        eprintln!(
-                            "dropping malformed relay frame from session peer {}: {e}",
-                            short_peer_id(&inbound.sender_hex)
-                        );
-                    }
-                    continue;
-                }
-            };
-            let Some(session) = self.sessions.get_mut(&frame.session_id) else {
-                continue;
-            };
-            // Authenticate: the frame's sender must be the peer we exchanged
-            // ids with. If we have not learned peer_moss_id yet, accept and pin
-            // it (first relay frame can precede a resent handshake). While the
-            // MLS handshake is still incomplete, a mismatched sender re-pins
-            // instead of dropping: a peer that restarted without a persisted
-            // moss identity resumes the handshake under a fresh peer-id, and
-            // holding the stale pin would deadlock a relay-only session. Once
-            // the peer has joined, mismatches drop (anti-spoof); MLS still
-            // authenticates every payload either way.
-            match session.peer_moss_id.as_deref() {
-                Some(known) if known != inbound.sender_hex => {
-                    if session.peer_joined {
-                        eprintln!(
-                            "dropping relay frame: sender {} != peer",
-                            inbound.sender_hex
-                        );
-                        continue;
-                    }
-                    session.note_peer_moss_id(Some(inbound.sender_hex.clone()));
-                }
-                None => session.note_peer_moss_id(Some(inbound.sender_hex.clone())),
-                _ => {}
-            }
-            let channel = frame.channel_kind.channel_for(&frame.session_id);
-            let message = MossReceivedMessage {
-                channel,
-                payload: frame.bytes,
-            };
-            // Disjoint field borrow: `relay` field alongside the mutable
-            // `session` borrow held out of `self.sessions`.
-            let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-            if let Err(e) = session.handle_moss_message(message, relay) {
-                eprintln!("dropping relayed frame for {}: {e}", frame.session_id);
-            }
-        }
-    }
-
-    /// Fold the relay send worker's outcomes into per-message delivery state.
-    /// Fire-and-forget frames (no message_id) only get their failures logged;
-    /// tracked Data messages settle Pending → Sent / Failed here.
-    fn drain_relay_results(&mut self) {
-        let mut outcomes: Vec<relay::RelayJobResult> = Vec::new();
-        // (session_id, message_id) of sends the relay never tried before it was
-        // released; re-routed on the session's current path below.
-        let mut reroutes: Vec<(String, String)> = Vec::new();
-        // Collect from every live worker; drop a receiver only once its worker
-        // has exited (Disconnected) and nothing is left buffered.
-        self.relay_results.retain(|receiver| loop {
-            match receiver.try_recv() {
-                Ok(outcome) => outcomes.push(outcome),
-                Err(mpsc::TryRecvError::Empty) => break true,
-                Err(mpsc::TryRecvError::Disconnected) => break false,
-            }
-        });
-        for outcome in outcomes {
-            let Some(message_id) = outcome.message_id else {
-                if let Some(error) = outcome.error {
-                    eprintln!(
-                        "relay send failed for a {} control/blob frame: {error}",
-                        outcome.session_id
-                    );
-                }
-                continue;
-            };
-            let Some(session) = self.sessions.get_mut(&outcome.session_id) else {
-                continue;
-            };
-            // No live attempt = the message already settled (the peer's ack
-            // upgraded it to Delivered, or the resend loop retired it). A
-            // buffered worker outcome must never regress that.
-            let Some(status) = session
-                .outbound_attempts
-                .get(&message_id)
-                .map(|attempt| attempt.delivery_status)
-            else {
-                continue;
-            };
-            let applied = match outcome.error {
-                // Sent over the relay, still awaiting the peer DeliveryAck -
-                // keep the attempt for the auto re-sends.
-                None => session
-                    .outbox()
-                    .settle(&message_id, Ok(()), OnSent::Retain)
-                    .map(|_| ())
-                    .map_err(PrivateDmRuntimeError::from),
-                Some(error) if status == MessageDeliveryStatus::Sent => {
-                    // A failed RE-send of a message the transport already took
-                    // once: keep Sent, the resend pump tries again later. Only
-                    // a first send (attempt still Pending) may fail the
-                    // message.
-                    eprintln!("relay re-send failed for {message_id}: {error}");
-                    Ok(())
-                }
-                // The relay went away before it ever tried this frame. Failing
-                // the message here would strand it: the resend pump only
-                // re-drives `Sent` attempts, so nothing would ever pick it up
-                // again on the path the session just migrated to.
-                Some(_) if outcome.retryable => {
-                    reroutes.push((outcome.session_id.clone(), message_id));
-                    continue;
-                }
-                Some(error) => session
-                    .outbox()
-                    .settle(&message_id, Err(error), OnSent::Retain)
-                    .map(|_| ())
-                    .map_err(PrivateDmRuntimeError::from),
-            };
-            if let Err(error) = applied {
-                eprintln!("relay outcome for {message_id} failed to apply: {error}");
-            }
-            self.sessions
-                .persist_send(&outcome.session_id, &message_id, false);
-        }
-        // Re-send on whatever path the session is on now — direct, after the
-        // migration that released the relay. `route_prepared` settles the
-        // outcome, so the message ends up Sent or honestly Failed instead of
-        // sitting in a state nothing re-drives. A relay released a second time
-        // while the re-routed job is queued just reports retryable again; the
-        // path hysteresis bounds how often that can happen.
-        for (session_id, message_id) in reroutes {
-            let prepared = match self.session_mut(&session_id).and_then(|session| {
-                session
-                    .outbox()
-                    .reopen(&message_id)
-                    .map_err(PrivateDmRuntimeError::from)
-            }) {
-                Ok(prepared) => prepared,
-                Err(error) => {
-                    eprintln!("re-routing {message_id} after relay release failed: {error}");
-                    continue;
-                }
-            };
-            if let Err(error) = self.route_prepared(&session_id, prepared, false) {
-                eprintln!("re-routing {message_id} after relay release failed: {error}");
-            }
-        }
-    }
-
-    /// Drive the per-session fallback state machine: flip stuck-in-Discover
-    /// sessions to Relayed once the direct budget elapses, migrate Relayed
-    /// sessions to Direct only once a direct peer has proven stable, and drop
-    /// Direct sessions back to Relayed when their direct peer stays gone
-    /// (see next_path for the hysteresis rules).
-    ///
-    /// The relay refcount (`ensure_relay_up`/`release_relay`) needs `&mut self`,
-    /// which cannot overlap the `self.sessions` iteration, so the decision is
-    /// split in two: first collect the session ids that need a relay
-    /// acquire/release, then apply the refcount changes afterward. A session
-    /// only actually enters `Relayed` if `ensure_relay_up` succeeds — on failure
-    /// it stays `Discover` and retries next tick, so it never sits in `Relayed`
-    /// with no relay node (which would make every send error).
-    fn pump_transports(&mut self, now_ms: u64) {
-        let mut acquires: Vec<String> = Vec::new();
-        let mut releases: Vec<String> = Vec::new();
-        for (id, session) in self.sessions.iter_mut() {
-            let has_direct = session.has_direct_peer();
-            if has_direct != session.direct_present {
-                session.direct_present = has_direct;
-                session.direct_flip_ms = now_ms;
-            }
-            let held = now_ms.saturating_sub(session.direct_flip_ms);
-            let elapsed = now_ms.saturating_sub(session.discover_started_ms);
-            let next = next_path(
-                session.path,
-                has_direct,
-                has_direct && held >= T_DIRECT_STABLE_MS,
-                !has_direct && held >= T_DIRECT_LOST_MS,
-                elapsed,
-                T_FALLBACK_MS,
-            );
-            if next == session.path {
-                continue;
-            }
-            match (session.path, next) {
-                // Entering Relayed needs the shared relay node up first; defer the
-                // path commit to the apply phase so it only flips on success.
-                (_, DmPath::Relayed) => acquires.push(id.clone()),
-                // Leaving Relayed (direct won): drop our relay ref, migrate now.
-                (DmPath::Relayed, _) => {
-                    releases.push(id.clone());
-                    session.path = next;
-                }
-                // Discover -> Direct: no relay involvement, migrate immediately.
-                _ => session.path = next,
-            }
-        }
-        for id in &acquires {
-            // ensure_relay_up starts the node before bumping the refcount, so an
-            // Err acquired nothing — leave the session on its current path
-            // (Discover or Direct) to retry next tick.
-            if self.ensure_relay_up().is_ok() {
-                if let Some(session) = self.sessions.get_mut(id) {
-                    session.path = DmPath::Relayed;
-                }
-            }
-        }
-        for _ in &releases {
-            self.release_relay();
-        }
     }
 
     fn session_mut(
@@ -1205,24 +753,9 @@ impl PrivateDmRuntime {
             .ok_or(PrivateDmRuntimeError::MissingSession)
     }
 
-    /// Disjoint field borrows so a Call* send can reach the relay worker while
-    /// the session is borrowed mutably — same shape as `drain_inbound`.
-    fn session_and_relay(
-        &mut self,
-        session_id: &str,
-    ) -> Result<(&mut PrivateDmSession, RelayJobs<'_>), PrivateDmRuntimeError> {
-        let relay = self.relay.as_ref().map(|handle| &handle.jobs);
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .ok_or(PrivateDmRuntimeError::MissingSession)?;
-        Ok((session, relay))
-    }
-
     pub fn call_start(&mut self, session_id: &str) -> Result<CallStarted, PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let (session, relay) = self.session_and_relay(session_id)?;
-        session.call_start(relay)
+        self.drain_inbound();
+        self.session_mut(session_id)?.call_start()
     }
 
     pub fn call_accept(
@@ -1230,9 +763,8 @@ impl PrivateDmRuntime {
         session_id: &str,
         call_id: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let (session, relay) = self.session_and_relay(session_id)?;
-        session.call_accept(call_id, relay)
+        self.drain_inbound();
+        self.session_mut(session_id)?.call_accept(call_id)
     }
 
     pub fn call_decline(
@@ -1241,9 +773,8 @@ impl PrivateDmRuntime {
         call_id: &str,
         reason: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let (session, relay) = self.session_and_relay(session_id)?;
-        session.call_decline(call_id, reason, relay)
+        self.drain_inbound();
+        self.session_mut(session_id)?.call_decline(call_id, reason)
     }
 
     pub fn call_end(
@@ -1252,9 +783,8 @@ impl PrivateDmRuntime {
         call_id: &str,
         reason: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let (session, relay) = self.session_and_relay(session_id)?;
-        session.call_end(call_id, reason, relay)
+        self.drain_inbound();
+        self.session_mut(session_id)?.call_end(call_id, reason)
     }
 
     pub fn call_send_frame(
@@ -1263,8 +793,8 @@ impl PrivateDmRuntime {
         call_id: &str,
         frame: Vec<u8>,
     ) -> Result<(), PrivateDmRuntimeError> {
-        let session = self.session_mut(session_id)?;
-        session.call_send_frame(call_id, frame)
+        self.session_mut(session_id)?
+            .call_send_frame(call_id, frame)
     }
 
     pub fn call_drain_frames(
@@ -1272,22 +802,9 @@ impl PrivateDmRuntime {
         session_id: &str,
         call_id: &str,
     ) -> Result<Vec<Vec<u8>>, PrivateDmRuntimeError> {
-        self.drain_inbound()?;
-        let session = self.session_mut(session_id)?;
-        Ok(session.call_drain_frames(call_id))
+        self.drain_inbound();
+        Ok(self.session_mut(session_id)?.call_drain_frames(call_id))
     }
-}
-
-fn is_private_dm_inbound(channel: &str) -> bool {
-    channel_session_id(channel).is_some() || wire::channel_call_id(channel).is_some()
-}
-
-/// The DM's own inbound queue, claimed once for the process. Two DM runtimes
-/// in one process (the two peers a test runs) share it, exactly as they shared
-/// the single global queue before.
-fn dm_inbox() -> &'static inbox::Inbox {
-    static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
-    INBOX.get_or_init(|| inbox::register(is_private_dm_inbound))
 }
 
 impl PrivateDmSession {
@@ -1302,7 +819,7 @@ impl PrivateDmSession {
         invite_uri: Option<String>,
         listen_port: u16,
         static_peer: Option<String>,
-        node: Arc<MossNode>,
+        transport: Arc<dyn DmTransport>,
         crypto: MlsSessionCrypto,
         attachment_store: Arc<AttachmentStore>,
     ) -> Self {
@@ -1311,10 +828,8 @@ impl PrivateDmSession {
         let blob_channel = blob_channel(&session_id);
         Self {
             role,
-            path: DmPath::Discover,
-            discover_started_ms: now_ms(),
-            direct_present: false,
-            direct_flip_ms: now_ms(),
+            state: DmSessionState::Pending,
+            unreachable_since_ms: None,
             device_id,
             participant_id,
             session_id,
@@ -1322,12 +837,13 @@ impl PrivateDmSession {
             fingerprint,
             peer_moss_id: None,
             connect_requested_for: None,
+            last_connect_outcome: None,
             invite_uri,
             listen_port,
             static_peer,
             peer_display_name: None,
             peer_joined: false,
-            node,
+            transport,
             crypto,
             messages: MessageLog::default(),
             seen: SeenFrames::default(),
@@ -1341,8 +857,30 @@ impl PrivateDmSession {
             pending_welcome: None,
             last_handshake_send_ms: 0,
             last_peer_announce_ms: 0,
+            last_hello_send_ms: 0,
             dirty_outbound: Vec::new(),
             record_dirty: false,
+        }
+    }
+
+    /// What a replayed history says about the handshake: the peer's display
+    /// name comes back from an inbound message, and a session that had joined
+    /// starts over as `Handshaking` — nothing from the counterpart has been
+    /// seen since the restart, so it is not Connected until it proves itself.
+    fn note_restored_history(&mut self) {
+        self.peer_display_name = self
+            .messages
+            .iter()
+            .map(|message| message.from_device.as_str())
+            .find(|name| !name.is_empty() && *name != self.device_id)
+            .map(str::to_string);
+        // Bob only ever has a group after the Welcome; Alice has one from the
+        // start, so for her only an inbound message proves the handshake ran.
+        let handshake_done = self.crypto.is_ready()
+            && (matches!(self.role, SessionRole::Bob) || self.peer_display_name.is_some());
+        if handshake_done {
+            self.peer_joined = true;
+            self.state = DmSessionState::Handshaking;
         }
     }
 
@@ -1375,17 +913,16 @@ impl PrivateDmSession {
     fn handle_moss_message(
         &mut self,
         message: MossReceivedMessage,
-        relay_jobs: RelayJobs<'_>,
     ) -> Result<(), PrivateDmRuntimeError> {
         if self.has_seen_message(&message) {
             return Ok(());
         }
         if message.channel == self.control_channel {
-            self.handle_control(message.payload, relay_jobs)
+            self.handle_control(message.payload)
         } else if message.channel == self.data_channel {
-            self.handle_data(message.payload, relay_jobs)
+            self.handle_data(message.payload)
         } else if message.channel == self.blob_channel {
-            self.handle_blob(message.payload, relay_jobs)
+            self.handle_blob(message.payload)
         } else if wire::channel_call_id(&message.channel).is_some() {
             self.handle_voice_call_frame(&message.channel, message.payload)
         } else {
@@ -1449,10 +986,10 @@ impl PrivateDmSession {
         }
     }
 
-    /// Remember the peer's moss relay peer-id from the latest KeyPackage or
-    /// Welcome that carries it. Latest wins: a peer that restarts without a
-    /// persisted moss identity re-handshakes under a fresh peer-id, and pinning
-    /// the first one strands every relayed send on a dead id.
+    /// Remember the peer's moss peer id from the latest frame that carries it.
+    /// Latest wins: a peer that restarts without a persisted moss identity
+    /// re-handshakes under a fresh peer id, and pinning the first one would
+    /// keep asking the transport for a dead id.
     fn note_peer_moss_id(&mut self, id: Option<String>) {
         if let Some(id) = id {
             if self.peer_moss_id.as_deref() != Some(id.as_str()) {
@@ -1462,11 +999,22 @@ impl PrivateDmSession {
         }
     }
 
-    fn note_verified_peer_activity(&mut self, from_device: &str) {
-        let is_peer = !from_device.is_empty() && from_device != self.device_id;
+    /// The counterpart's handshake frame arrived: the session is no longer
+    /// waiting for somebody to show up, and our Hello is due at once.
+    fn note_handshake_frame(&mut self) {
+        self.peer_joined = true;
+        self.state = next_state(self.state, SessionEvent::HandshakeFrame);
+        self.last_hello_send_ms = 0;
+    }
+
+    /// A frame decrypted, so the counterpart is alive and holds the group.
+    /// This is the only way into `Connected`.
+    fn note_authenticated_frame(&mut self, from_device: &str) {
         self.note_peer_name(from_device);
-        if is_peer && self.crypto.is_ready() {
+        if self.crypto.is_ready() {
             self.peer_joined = true;
+            self.state = next_state(self.state, SessionEvent::AuthenticatedFrame);
+            self.unreachable_since_ms = None;
         }
     }
 
@@ -1478,77 +1026,28 @@ impl PrivateDmSession {
             && now_ms.saturating_sub(self.last_handshake_send_ms) >= HANDSHAKE_RESEND_MS
     }
 
-    /// The single outbound chokepoint for control/data/blob frames. `Direct`
-    /// and `Discover` publish on the session's own pubsub channel exactly as
-    /// before; `Relayed` wraps the payload in a `RelayFrame` and sends it
-    /// point-to-point over the shared relay node to the peer's moss-id.
-    /// Route one outbound frame along the session's current path. Direct /
-    /// Discover publish synchronously on the per-DM pubsub node (cheap local
-    /// enqueue). Relayed never touches the blocking relay FFI here — the frame
-    /// is handed to the relay send worker and `Queued` is returned;
-    /// `message_id` (user Data messages only) lets the worker's outcome find
-    /// its way back to the message's delivery status.
-    fn route_send(
-        &self,
-        kind: wire::ChannelKind,
-        payload: &[u8],
-        relay_jobs: RelayJobs<'_>,
-        message_id: Option<&str>,
-    ) -> Result<RouteOutcome, PrivateDmRuntimeError> {
-        match self.path {
-            DmPath::Direct | DmPath::Discover => {
-                let channel = kind.channel_for(&self.session_id);
-                // A Data frame is the user's message and carries a delivery
-                // status, so "no peers" has to reach the caller and fail it.
-                // Control and Blob frames repeat on their own cadence and
-                // report nothing, so the same refusal is not news.
-                let published = match kind {
-                    wire::ChannelKind::Data => {
-                        self.node.publish_room(&self.mesh_id, &channel, payload)
-                    }
-                    wire::ChannelKind::Control | wire::ChannelKind::Blob => self
-                        .node
-                        .publish_room_best_effort(&self.mesh_id, &channel, payload),
-                };
-                published
-                    .map(|_| RouteOutcome::Published)
-                    .map_err(|e| PrivateDmRuntimeError::Moss(e.to_string()))
-            }
-            DmPath::Relayed => {
-                let peer = self.peer_moss_id.as_deref().ok_or_else(|| {
-                    PrivateDmRuntimeError::Moss("relayed send: peer moss-id unknown".into())
-                })?;
-                let jobs = relay_jobs.ok_or_else(|| {
-                    PrivateDmRuntimeError::Moss("relayed send: relay node down".into())
-                })?;
-                let frame = wire::RelayFrame {
-                    session_id: self.session_id.clone(),
-                    channel_kind: kind,
-                    bytes: payload.to_vec(),
-                };
-                let bytes = serde_json::to_vec(&frame)
-                    .map_err(|e| PrivateDmRuntimeError::Codec(e.to_string()))?;
-                jobs.send(relay::RelayJob {
-                    session_id: self.session_id.clone(),
-                    message_id: message_id.map(str::to_string),
-                    kind,
-                    target: peer.to_string(),
-                    bytes,
-                })
-                .map_err(|_| PrivateDmRuntimeError::Moss("relay send worker unavailable".into()))?;
-                Ok(RouteOutcome::Queued)
-            }
+    /// The single outbound chokepoint for control/data/blob frames. A Data
+    /// frame is the user's message and carries a delivery status, so a
+    /// refusal has to reach the caller. Control and Blob frames repeat on
+    /// their own cadence and report nothing, so "no peers yet" is not news
+    /// for them; every other failure still comes back.
+    fn route_send(&self, kind: ChannelKind, payload: &[u8]) -> Result<(), PrivateDmRuntimeError> {
+        let channel = kind.channel_for(&self.session_id);
+        match self.transport.publish(&self.mesh_id, &channel, payload) {
+            Ok(()) => Ok(()),
+            Err(PublishError::NoPeers(_)) if kind != ChannelKind::Data => Ok(()),
+            Err(error) => Err(PrivateDmRuntimeError::Moss(error.to_string())),
         }
     }
 
-    /// Hand the counterpart's moss id to moss as an explicit connect target.
-    /// The substrate is room-blind, so organic discovery only reaches the
-    /// counterpart by chance; the explicit target is dialed immediately and
-    /// retried by moss's maintenance loop until connected (direct first,
-    /// relay fallback), bypassing glare and dial ranking. One FFI call per id
-    /// value: moss keeps the registration, and a peer that re-handshakes
-    /// under a fresh identity re-registers on the id change. Driven by the
-    /// same ~1s drain tick as pump_handshake.
+    /// Hand the counterpart's moss id to the transport as an explicit connect
+    /// target. The substrate is room-blind, so organic discovery only reaches
+    /// the counterpart by chance; the explicit target is dialed immediately
+    /// and retried by moss's maintenance loop until connected (direct first,
+    /// then its own relay). One call per id value: moss keeps the
+    /// registration, and a peer that re-handshakes under a fresh identity
+    /// re-registers on the id change. Driven by the same ~1s drain tick as
+    /// pump_handshake.
     fn pump_peer_connect(&mut self) {
         let Some(id) = self.peer_moss_id.clone() else {
             return;
@@ -1556,11 +1055,42 @@ impl PrivateDmSession {
         if self.connect_requested_for.as_deref() == Some(id.as_str()) {
             return;
         }
-        match self.node.connect_to_peer(&id) {
-            Ok(()) => self.connect_requested_for = Some(id),
+        match self.transport.connect_peer(&id) {
+            Ok(()) => {
+                self.connect_requested_for = Some(id);
+                self.last_connect_outcome = Some(ConnectOutcome::Requested);
+            }
             // Leave connect_requested_for unset so the next tick retries the
             // registration itself (e.g. node not started yet during rehydrate).
-            Err(error) => eprintln!("connect_to_peer({id}) failed: {error}"),
+            Err(error) => {
+                eprintln!("connect_peer({id}) failed: {error}");
+                self.last_connect_outcome = Some(ConnectOutcome::Failed);
+            }
+        }
+    }
+
+    /// How the counterpart is reachable right now, or `None` before its id is
+    /// known.
+    fn reach(&self) -> PeerTransport {
+        self.peer_moss_id
+            .as_deref()
+            .map_or(PeerTransport::None, |id| self.transport.reach(id))
+    }
+
+    /// Admit the counterpart is gone once it has been out of reach for the
+    /// whole lost window. Without a known id there is nothing to observe, so
+    /// nothing is claimed either way.
+    fn pump_reachability(&mut self, now_ms: u64, lost_window_ms: u64) {
+        if self.peer_moss_id.is_none() {
+            return;
+        }
+        if self.reach() == PeerTransport::None {
+            let since = *self.unreachable_since_ms.get_or_insert(now_ms);
+            if now_ms.saturating_sub(since) >= lost_window_ms {
+                self.state = next_state(self.state, SessionEvent::CounterpartLost);
+            }
+        } else {
+            self.unreachable_since_ms = None;
         }
     }
 
@@ -1568,7 +1098,7 @@ impl PrivateDmSession {
     /// is still incomplete. Driven by the inbound drain loop (≈1/s), throttled
     /// to HANDSHAKE_RESEND_MS. Once the peer has joined the pending payload is
     /// dropped so nothing is re-sent.
-    fn pump_handshake(&mut self, now_ms: u64, relay_jobs: RelayJobs<'_>) {
+    fn pump_handshake(&mut self, now_ms: u64) {
         if self.peer_joined {
             self.pending_key_package = None;
             return;
@@ -1580,15 +1110,54 @@ impl PrivateDmSession {
             return;
         };
         self.last_handshake_send_ms = now_ms;
-        let _ = self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None);
+        let _ = self.route_send(ChannelKind::Control, &payload);
+    }
+
+    /// Say hello until the counterpart answers with anything authenticated.
+    /// Our side of the handshake is done and MLS is ready, so the counterpart
+    /// can decrypt this the moment it holds the group; receiving it is its
+    /// proof that we are here, and its reply is ours.
+    fn pump_hello(&mut self, now_ms: u64) {
+        if self.state == DmSessionState::Connected || !self.can_encrypt_for_peer() {
+            return;
+        }
+        if now_ms.saturating_sub(self.last_hello_send_ms) >= HANDSHAKE_RESEND_MS {
+            self.send_hello(now_ms);
+        }
+    }
+
+    /// Our side of the handshake is done and there is a group to encrypt
+    /// for.
+    fn can_encrypt_for_peer(&self) -> bool {
+        self.peer_joined && self.crypto.is_ready()
+    }
+
+    /// One Hello: our moss id, MLS-encrypted so only the counterpart can read
+    /// it and nobody else can forge it. Loss is fine, the pump repeats it.
+    fn send_hello(&mut self, now_ms: u64) {
+        let Some(moss_peer_id) = self.transport.local_peer_id() else {
+            return;
+        };
+        let Ok(ciphertext) = self.crypto.encrypt(moss_peer_id.as_bytes()) else {
+            return;
+        };
+        let envelope = ControlEnvelope::Hello {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            from_device: self.device_id.clone(),
+            hello_ciphertext_b64: encode(&ciphertext),
+        };
+        let Ok(payload) = serde_json::to_vec(&envelope) else {
+            return;
+        };
+        self.last_hello_send_ms = now_ms;
+        let _ = self.route_send(ChannelKind::Control, &payload);
     }
 
     /// Tell a joined counterpart our moss peer id while we do not know theirs.
     /// Symmetric by construction: whichever side is missing the id keeps
     /// announcing, the other side answers with its own announce on receipt, and
-    /// both stop as soon as they know. Published on the direct pubsub node
-    /// rather than through `route_send`, because a Relayed send has to address
-    /// the peer by the very id this is trying to recover.
+    /// both stop as soon as they know.
     fn pump_peer_announce(&mut self, now_ms: u64) {
         if !self.peer_joined || self.peer_moss_id.is_some() {
             return;
@@ -1603,7 +1172,7 @@ impl PrivateDmSession {
     }
 
     fn publish_peer_announce(&self) -> Result<(), PrivateDmRuntimeError> {
-        let Some(moss_peer_id) = self.node.public_key_hex() else {
+        let Some(moss_peer_id) = self.transport.local_peer_id() else {
             return Ok(());
         };
         let envelope = ControlEnvelope::PeerAnnounce {
@@ -1614,9 +1183,69 @@ impl PrivateDmSession {
         };
         let payload = serde_json::to_vec(&envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-        self.node
-            .publish_room_best_effort(&self.mesh_id, &self.control_channel, &payload)
-            .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
+        self.route_send(ChannelKind::Control, &payload)
+    }
+
+    /// Whether a queued message can go out now: our side of the handshake is
+    /// done, so the ciphertext is at an epoch the counterpart holds, and the
+    /// transport reports it reachable.
+    fn can_deliver(&self) -> bool {
+        self.can_encrypt_for_peer() && self.reach() != PeerTransport::None
+    }
+
+    /// Send queued messages oldest first while the counterpart is reachable.
+    /// A refusal leaves the message queued and stops the pass, so a newer
+    /// message never overtakes an older one. Returns the ids whose attempt
+    /// changed so the runtime can persist them.
+    fn pump_outbox(&mut self) -> Vec<String> {
+        if !self.can_deliver() {
+            return Vec::new();
+        }
+        let mut changed = Vec::new();
+        for message_id in queued_in_order(&self.outbound_attempts) {
+            if let Err(error) = self.publish_queued(&message_id) {
+                eprintln!("queued message {message_id} stays queued: {error}");
+                break;
+            }
+            changed.push(message_id);
+        }
+        changed
+    }
+
+    /// Encrypt one queued message at the current epoch, publish it, and settle
+    /// it `Sent`. The bytes are recorded on the attempt so the auto re-sends
+    /// replay the same ciphertext the counterpart dedups on.
+    fn publish_queued(&mut self, message_id: &str) -> Result<(), PrivateDmRuntimeError> {
+        let body = self
+            .messages
+            .iter()
+            .find(|message| message.message_id.as_deref() == Some(message_id))
+            .map(|message| message.body.clone())
+            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
+        let sent_at_ms = self
+            .outbound_attempts
+            .get(message_id)
+            .map(|attempt| attempt.sent_at_ms)
+            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
+        let ciphertext = self.crypto.encrypt(body.as_bytes())?;
+        let envelope = DataEnvelope {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            from_device: self.device_id.clone(),
+            message_id: Some(message_id.to_string()),
+            sent_at_ms: Some(sent_at_ms),
+            ciphertext_b64: encode(&ciphertext),
+            resend: None,
+        };
+        let payload = serde_json::to_vec(&envelope)
+            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+        self.route_send(ChannelKind::Data, &payload)?;
+        if let Some(attempt) = self.outbound_attempts.get_mut(message_id) {
+            attempt.publish_payload_b64 = encode(&payload);
+            attempt.ciphertext_bytes = ciphertext.len();
+        }
+        self.outbox().settle(message_id, Ok(()), OnSent::Retain)?;
+        Ok(())
     }
 
     /// Re-send user messages the peer has not acknowledged. Moss pubsub has
@@ -1625,7 +1254,7 @@ impl PrivateDmSession {
     /// the peer's DeliveryAck lands or AUTO_RESEND_MAX gives up (old client
     /// that never acks — the message keeps its Sent status). Returns the ids
     /// whose attempt state changed so the runtime can persist them.
-    fn pump_unacked_resends(&mut self, now_ms: u64, relay_jobs: RelayJobs<'_>) -> Vec<String> {
+    fn pump_unacked_resends(&mut self, now_ms: u64) -> Vec<String> {
         if !self.peer_joined {
             return Vec::new();
         }
@@ -1661,18 +1290,9 @@ impl PrivateDmSession {
             let Ok(bytes) = serde_json::to_vec(&envelope) else {
                 continue;
             };
-            // Only a re-send that actually left (published or queued) burns a
-            // slot — a relay that is down or a still-unknown peer id must not
-            // exhaust the budget with zero frames on the wire.
-            if self
-                .route_send(
-                    wire::ChannelKind::Data,
-                    &bytes,
-                    relay_jobs,
-                    Some(&message_id),
-                )
-                .is_err()
-            {
+            // Only a re-send the transport took burns a slot — a refusal must
+            // not exhaust the budget with zero frames on the wire.
+            if self.route_send(ChannelKind::Data, &bytes).is_err() {
                 continue;
             }
             if let Some(attempt) = self.outbound_attempts.get_mut(&message_id) {
@@ -1693,11 +1313,7 @@ impl PrivateDmSession {
         std::mem::take(&mut self.dirty_outbound)
     }
 
-    fn handle_control(
-        &mut self,
-        payload: Vec<u8>,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<(), PrivateDmRuntimeError> {
+    fn handle_control(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
         let envelope: ControlEnvelope = decode_json(&payload)?;
 
         match envelope {
@@ -1710,45 +1326,7 @@ impl PrivateDmSession {
             } if self.is_alice_session(&session_id, &participant_id) => {
                 self.note_peer_name(&from_device);
                 self.note_peer_moss_id(moss_peer_id);
-                // Bob re-sends his KeyPackage until he sees the Welcome. If we
-                // already added him, our first Welcome was likely lost before
-                // his node meshed, so re-answer with the cached copy rather than
-                // calling add_members again (which advances the group epoch).
-                if self.peer_joined {
-                    if let Some(welcome_payload) = self.pending_welcome.clone() {
-                        return self
-                            .route_send(
-                                wire::ChannelKind::Control,
-                                &welcome_payload,
-                                relay_jobs,
-                                None,
-                            )
-                            .map(|_| ());
-                    }
-                    return Ok(());
-                }
-                let key_package = decode(&key_package_b64)?;
-                let (welcome, tree) = self.crypto.add_peer(&key_package)?;
-                self.peer_joined = true;
-                let envelope = ControlEnvelope::Welcome {
-                    session_id: self.session_id.clone(),
-                    participant_id: self.participant_id.clone(),
-                    from_device: self.device_id.clone(),
-                    welcome_b64: encode(&welcome),
-                    ratchet_tree_b64: encode(&tree),
-                    moss_peer_id: self.node.public_key_hex(),
-                };
-                let welcome_payload = serde_json::to_vec(&envelope)
-                    .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-                self.pending_welcome = Some(welcome_payload.clone());
-
-                self.route_send(
-                    wire::ChannelKind::Control,
-                    &welcome_payload,
-                    relay_jobs,
-                    None,
-                )
-                .map(|_| ())
+                self.answer_key_package(&key_package_b64)
             }
             ControlEnvelope::Welcome {
                 session_id,
@@ -1765,16 +1343,41 @@ impl PrivateDmSession {
                 self.note_peer_moss_id(moss_peer_id);
                 self.crypto
                     .join_welcome(&decode(&welcome_b64)?, &decode(&ratchet_tree_b64)?)?;
-                self.peer_joined = true;
+                self.note_handshake_frame();
                 // Joined: stop retransmitting the KeyPackage.
                 self.pending_key_package = None;
+                Ok(())
+            }
+            ControlEnvelope::Hello {
+                session_id,
+                participant_id,
+                from_device,
+                hello_ciphertext_b64,
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                // Decrypting authenticates: only the MLS peer can produce a
+                // ciphertext this group accepts.
+                let Ok(plaintext) = self.crypto.decrypt(&decode(&hello_ciphertext_b64)?) else {
+                    eprintln!("dropping unverifiable hello for {session_id}");
+                    return Ok(());
+                };
+                if let Ok(moss_peer_id) = String::from_utf8(plaintext) {
+                    self.note_peer_moss_id(Some(moss_peer_id));
+                }
+                self.note_authenticated_frame(&from_device);
+                // Answer so the sender gets its proof too, but not inside
+                // our own cadence: two Connected sides would otherwise
+                // ping-pong hellos forever.
+                let now = now_ms();
+                if now.saturating_sub(self.last_hello_send_ms) >= HANDSHAKE_RESEND_MS {
+                    self.send_hello(now);
+                }
                 Ok(())
             }
             ControlEnvelope::DeliveryAck {
                 session_id,
                 participant_id,
                 ack_ciphertext_b64,
-            } if session_id == self.session_id && participant_id != self.participant_id => {
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
                 // Decrypting authenticates: only the MLS peer can produce a
                 // ciphertext this group accepts. Forged or garbled acks stop
                 // here and the resend loop keeps running.
@@ -1788,6 +1391,7 @@ impl PrivateDmSession {
                 let Ok(message_id) = String::from_utf8(plaintext) else {
                     return Ok(());
                 };
+                self.note_authenticated_frame("");
                 // The peer's runtime holds the message: settle it as
                 // Delivered and stop the auto-resend loop. Unknown ids (ack
                 // for an attempt a restart already dropped) are ignored.
@@ -1807,10 +1411,10 @@ impl PrivateDmSession {
                 participant_id,
                 from_device,
                 manifest_ciphertext_b64,
-            } if session_id == self.session_id && participant_id != self.participant_id => {
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
                 let manifest_json = self.crypto.decrypt(&decode(&manifest_ciphertext_b64)?)?;
                 let manifest: AttachmentManifest = decode_json(&manifest_json)?;
-                self.note_verified_peer_activity(&from_device);
+                self.note_authenticated_frame(&from_device);
                 self.accept_incoming_manifest(from_device, manifest)
             }
             ControlEnvelope::PeerAnnounce {
@@ -1818,7 +1422,7 @@ impl PrivateDmSession {
                 participant_id,
                 from_device,
                 moss_peer_id,
-            } if session_id == self.session_id && participant_id != self.participant_id => {
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
                 let was_unknown = self.peer_moss_id.is_none();
                 self.note_peer_name(&from_device);
                 self.note_peer_moss_id(Some(moss_peer_id));
@@ -1832,43 +1436,61 @@ impl PrivateDmSession {
                 }
                 Ok(())
             }
+            other => self.handle_call_control(other),
+        }
+    }
+
+    /// Alice's side of the handshake. Bob re-sends his KeyPackage until he
+    /// sees the Welcome; if we already added him, our first Welcome was
+    /// likely lost before his node meshed, so re-answer with the cached copy
+    /// rather than calling add_members again (which advances the group
+    /// epoch).
+    fn answer_key_package(&mut self, key_package_b64: &str) -> Result<(), PrivateDmRuntimeError> {
+        if self.peer_joined {
+            if let Some(welcome_payload) = self.pending_welcome.clone() {
+                return self.route_send(ChannelKind::Control, &welcome_payload);
+            }
+            return Ok(());
+        }
+        let key_package = decode(key_package_b64)?;
+        let (welcome, tree) = self.crypto.add_peer(&key_package)?;
+        self.note_handshake_frame();
+        let envelope = ControlEnvelope::Welcome {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            from_device: self.device_id.clone(),
+            welcome_b64: encode(&welcome),
+            ratchet_tree_b64: encode(&tree),
+            moss_peer_id: self.transport.local_peer_id(),
+        };
+        let welcome_payload = serde_json::to_vec(&envelope)
+            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+        self.pending_welcome = Some(welcome_payload.clone());
+        self.route_send(ChannelKind::Control, &welcome_payload)
+    }
+
+    /// The Call* control frames. Anything else is an unknown control kind and
+    /// is dropped, which is what an older build does with a frame it does not
+    /// know.
+    fn handle_call_control(
+        &mut self,
+        envelope: ControlEnvelope,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        match envelope {
             ControlEnvelope::CallOffer {
                 session_id,
                 participant_id,
                 from_device,
                 call_id,
                 offer_ciphertext_b64,
-            } if session_id == self.session_id && participant_id != self.participant_id => {
-                if let Some(existing) = self.call.as_ref() {
-                    // The caller re-offers until it sees our CallAccept, so a
-                    // re-offer of the call we already answered means that accept
-                    // was dropped. Re-send it — without this the caller rings
-                    // out against a callee sitting in an active call.
-                    if existing.call_id == call_id && existing.phase == CallPhase::Active {
-                        return self.publish_call_accept(&call_id, relay_jobs);
-                    }
-                    return Ok(());
-                }
-                let plaintext = self.crypto.decrypt(&decode(&offer_ciphertext_b64)?)?;
-                let body: CallOfferBody = decode_json(&plaintext)?;
-                self.note_verified_peer_activity(&from_device);
-                let channel = voice_call_channel(&call_id);
-                self.call = Some(CallState::ringing(
-                    call_id,
-                    body.key_b64,
-                    body.nonce_prefix_b64,
-                    from_device,
-                ));
-                self.node
-                    .subscribe_room(&self.mesh_id, &channel)
-                    .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
-                Ok(())
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                self.handle_call_offer(from_device, call_id, &offer_ciphertext_b64)
             }
             ControlEnvelope::CallAccept {
                 session_id,
                 participant_id,
                 call_id,
-            } if session_id == self.session_id && participant_id != self.participant_id => {
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
                 if let Some(call) = self.call.as_mut() {
                     if call.call_id == call_id && call.phase == CallPhase::Outgoing {
                         call.become_active(now_ms());
@@ -1881,17 +1503,9 @@ impl PrivateDmSession {
                 participant_id,
                 call_id,
                 reason: _,
-            } if session_id == self.session_id && participant_id != self.participant_id => {
-                if let Some(call) = self.call.as_ref() {
-                    if call.call_id == call_id {
-                        let _ = self
-                            .node
-                            .unsubscribe_room(&self.mesh_id, &voice_call_channel(&call.call_id));
-                        let remote = call.remote_device.clone();
-                        let call_id_owned = call.call_id.clone();
-                        self.call = None;
-                        self.append_call_event_message(&remote, "missed", 0, &call_id_owned);
-                    }
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                if self.holds_call(&call_id) {
+                    self.finish_call("missed", 0);
                 }
                 Ok(())
             }
@@ -1900,24 +1514,64 @@ impl PrivateDmSession {
                 participant_id,
                 call_id,
                 reason: _,
-            } if session_id == self.session_id && participant_id != self.participant_id => {
-                if let Some(call) = self.call.as_ref() {
-                    if call.call_id == call_id {
-                        let duration = call.duration_ms(now_ms());
-                        let kind = call.end_kind();
-                        let _ = self
-                            .node
-                            .unsubscribe_room(&self.mesh_id, &voice_call_channel(&call.call_id));
-                        let remote = call.remote_device.clone();
-                        let call_id_owned = call.call_id.clone();
-                        self.call = None;
-                        self.append_call_event_message(&remote, kind, duration, &call_id_owned);
-                    }
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                if let Some(call) = self.call.as_ref().filter(|call| call.call_id == call_id) {
+                    let duration = call.duration_ms(now_ms());
+                    let kind = call.end_kind();
+                    self.finish_call(kind, duration);
                 }
                 Ok(())
             }
             _ => Ok(()),
         }
+    }
+
+    fn holds_call(&self, call_id: &str) -> bool {
+        self.call
+            .as_ref()
+            .is_some_and(|call| call.call_id == call_id)
+    }
+
+    /// An incoming ring. The caller re-offers until it sees our CallAccept,
+    /// so a re-offer of the call we already answered means that accept was
+    /// dropped: re-send it, or the caller rings out against a callee sitting
+    /// in an active call. Any other offer while a call is held is ignored.
+    fn handle_call_offer(
+        &mut self,
+        from_device: String,
+        call_id: String,
+        offer_ciphertext_b64: &str,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        if let Some(existing) = self.call.as_ref() {
+            if existing.call_id == call_id && existing.phase == CallPhase::Active {
+                return self.publish_call_accept(&call_id);
+            }
+            return Ok(());
+        }
+        let plaintext = self.crypto.decrypt(&decode(offer_ciphertext_b64)?)?;
+        let body: CallOfferBody = decode_json(&plaintext)?;
+        self.note_authenticated_frame(&from_device);
+        let channel = voice_call_channel(&call_id);
+        self.call = Some(CallState::ringing(
+            call_id,
+            body.key_b64,
+            body.nonce_prefix_b64,
+            from_device,
+        ));
+        self.transport
+            .subscribe(&self.mesh_id, &channel)
+            .map_err(PrivateDmRuntimeError::Moss)
+    }
+
+    /// Drop the call we hold, leave its channel, and log it in the history.
+    fn finish_call(&mut self, kind: &str, duration_ms: u64) {
+        let Some(call) = self.call.take() else {
+            return;
+        };
+        let _ = self
+            .transport
+            .unsubscribe(&self.mesh_id, &voice_call_channel(&call.call_id));
+        self.append_call_event_message(&call.remote_device, kind, duration_ms, &call.call_id);
     }
 
     fn append_call_event_message(
@@ -1946,11 +1600,7 @@ impl PrivateDmSession {
         self.messages.push(message);
     }
 
-    fn handle_data(
-        &mut self,
-        payload: Vec<u8>,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<(), PrivateDmRuntimeError> {
+    fn handle_data(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
         let envelope: DataEnvelope = decode_json(&payload)?;
 
         if envelope.session_id != self.session_id || envelope.participant_id == self.participant_id
@@ -1965,13 +1615,13 @@ impl PrivateDmSession {
         // instead of erroring on the consumed MLS secret.
         if let Some(message_id) = envelope.message_id.as_deref() {
             if self.has_inbound_message(message_id) {
-                self.send_delivery_ack(message_id, relay_jobs);
+                self.send_delivery_ack(message_id);
                 return Ok(());
             }
         }
 
         let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
-        self.note_verified_peer_activity(&envelope.from_device);
+        self.note_authenticated_frame(&envelope.from_device);
         let ack_id = envelope.message_id.clone();
         let message = self.messages.stamp(ChatMessage {
             from_device: envelope.from_device,
@@ -1990,7 +1640,7 @@ impl PrivateDmSession {
         }
         self.messages.push(message);
         if let Some(message_id) = ack_id.as_deref() {
-            self.send_delivery_ack(message_id, relay_jobs);
+            self.send_delivery_ack(message_id);
         }
 
         Ok(())
@@ -2009,7 +1659,7 @@ impl PrivateDmSession {
     /// re-sending until a later duplicate provokes a fresh ack. The message
     /// id is MLS-encrypted so only the real peer can mint an ack — plaintext
     /// would let any mesh member fake ✓✓ and silence the resend loop.
-    fn send_delivery_ack(&mut self, message_id: &str, relay_jobs: RelayJobs<'_>) {
+    fn send_delivery_ack(&mut self, message_id: &str) {
         let Ok(ciphertext) = self.crypto.encrypt(message_id.as_bytes()) else {
             return;
         };
@@ -2021,14 +1671,10 @@ impl PrivateDmSession {
         let Ok(payload) = serde_json::to_vec(&envelope) else {
             return;
         };
-        let _ = self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None);
+        let _ = self.route_send(ChannelKind::Control, &payload);
     }
 
-    fn handle_blob(
-        &mut self,
-        payload: Vec<u8>,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<(), PrivateDmRuntimeError> {
+    fn handle_blob(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
         let envelope: BlobEnvelope = decode_json(&payload)?;
         match envelope {
             BlobEnvelope::Request {
@@ -2042,7 +1688,7 @@ impl PrivateDmSession {
                     };
                     let bytes = serde_json::to_vec(&chunk)
                         .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-                    self.route_send(wire::ChannelKind::Blob, &bytes, relay_jobs, None)?;
+                    self.route_send(ChannelKind::Blob, &bytes)?;
                 }
                 Ok(())
             }
@@ -2085,7 +1731,6 @@ impl PrivateDmSession {
         bytes: Vec<u8>,
         thumbnail: Option<String>,
         voice: Option<VoiceMeta>,
-        relay_jobs: RelayJobs<'_>,
     ) -> Result<AttachmentSendResult, PrivateDmRuntimeError> {
         if !self.ready_for_user_actions() {
             return Err(PrivateDmRuntimeError::NotReady);
@@ -2110,12 +1755,9 @@ impl PrivateDmSession {
             from_device: self.device_id.clone(),
             manifest_ciphertext_b64: encode(&ciphertext),
         };
-        // Manifest carries the per-attachment AES key on the control channel;
-        // route it through the chokepoint so it follows the same path as the
-        // handshake/data/blob traffic when the session is Relayed.
         let payload = serde_json::to_vec(&envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-        self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None)?;
+        self.route_send(ChannelKind::Control, &payload)?;
 
         let descriptor = self.transfer.record_sent(outgoing);
         let message = self.messages.stamp(ChatMessage {
@@ -2138,16 +1780,22 @@ impl PrivateDmSession {
         })
     }
 
-    fn pump_attachment_requests(&mut self, relay_jobs: RelayJobs<'_>) {
+    fn pump_attachment_requests(&mut self) {
         for request in self.transfer.next_requests() {
             let envelope = BlobEnvelope::Request {
                 participant_id: self.participant_id.clone(),
                 request,
             };
             if let Ok(bytes) = serde_json::to_vec(&envelope) {
-                let _ = self.route_send(wire::ChannelKind::Blob, &bytes, relay_jobs, None);
+                let _ = self.route_send(ChannelKind::Blob, &bytes);
             }
         }
+    }
+
+    /// A frame for this session from the other participant. Our own frames
+    /// come back on the shared node and are not news.
+    fn is_from_counterpart(&self, session_id: &str, participant_id: &str) -> bool {
+        self.session_id == session_id && self.participant_id != participant_id
     }
 
     fn is_alice_session(&self, session_id: &str, participant_id: &str) -> bool {
@@ -2169,17 +1817,16 @@ impl PrivateDmSession {
             role: self.role.as_str().to_string(),
             display_name: self.device_id.clone(),
             peer_display_name: self.peer_display_name.clone().unwrap_or_default(),
-            state: self.state(),
-            path: self.path.as_str().to_string(),
-            // The session cannot see the shared relay node; the runtime
-            // stamps this for relayed sessions right after snapshot().
-            relay_ready: None,
+            state: self.state,
+            transport: self.reach(),
+            peer_moss_id: self.peer_moss_id.clone(),
+            last_connect_outcome: self.last_connect_outcome,
             invite_uri: self.invite_uri.clone(),
             fingerprint: self.fingerprint.clone(),
             messages: self.messages.to_vec(),
             attachments: self.transfer.views(),
             mesh: self.mesh_info(),
-            events: mesh::snapshot_events(),
+            events: crate::conversation::mesh::snapshot_events(),
             pending_call: self.call.as_ref().and_then(|call| {
                 if call.phase == CallPhase::Ringing {
                     Some(PendingCall {
@@ -2216,67 +1863,29 @@ impl PrivateDmSession {
     }
 
     fn mesh_info(&self) -> Option<MeshInfo> {
-        let mut info = mesh::mesh_info(&self.node)?;
+        let mut info = self.transport.mesh_info()?;
         // The node is shared, so it reports every open conversation's channels.
         // This snapshot belongs to ONE of them: showing the others would put
-        // another chat's session id in this chat's diagnostics panel. Peer lists
-        // stay whole on purpose — `has_live_peer` matches the counterpart by id
+        // another chat's session id in this chat's diagnostics panel. Peer
+        // lists stay whole on purpose — `reach` matches the counterpart by id
         // against them.
         info.channels
             .retain(|channel| channel_session_id(channel) == Some(self.session_id.as_str()));
         Some(info)
     }
 
-    fn state(&self) -> String {
-        if self.ready_for_user_actions() {
-            "ready".to_string()
-        } else {
-            "waiting".to_string()
-        }
-    }
-
+    /// What needs a live path right now: an attachment, a call. A text never
+    /// asks; it queues.
     fn ready_for_user_actions(&self) -> bool {
-        self.peer_joined && self.crypto.is_ready() && self.has_live_peer()
+        self.state == DmSessionState::Connected
     }
 
-    /// True when our specific counterpart (`peer_moss_id`) is a currently
-    /// connected peer of the per-DM node — direct OR relayed. The per-DM node
-    /// now rides the SHARED substrate (mesh_id is only a pub/sub room), so it
-    /// connects to peers network-wide and a bare `peer_count` counts unrelated
-    /// world nodes — it can no longer stand in for "the counterpart is here".
-    /// We match moss's `peer_details` list by id instead. Before the id is known
-    /// (creator side, pre-handshake) we cannot single the peer out, so fall back
-    /// to "any peer"; readiness is additionally gated on `peer_joined`, which
-    /// only flips on a verified frame from the actual counterpart.
-    fn has_live_peer(&self) -> bool {
-        self.mesh_info()
-            .is_some_and(|info| peer_is_live(self.peer_moss_id.as_deref(), &info))
-    }
-
-    /// True when our counterpart is reachable as a DIRECT (non-relayed) peer of
-    /// the per-DM node — the signal to migrate to / hold the Direct path. On the
-    /// shared substrate `direct_peer_count` also counts unrelated world peers, so
-    /// we match `peer_details` by id and require `!relayed`. An unknown id means
-    /// no confirmed direct peer yet, so the fallback timer moves the session to
-    /// Relayed until the counterpart proves reachable.
-    fn has_direct_peer(&self) -> bool {
-        self.mesh_info()
-            .is_some_and(|info| peer_is_direct(self.peer_moss_id.as_deref(), &info))
-    }
-
-    /// Sends one Call* control frame down the session's current transport.
-    /// Signaling rides the same dual path as the MLS handshake — a relayed pair
-    /// must be able to ring, answer and hang up. Only the media frames stay
-    /// direct-only (see `call_send_frame`).
-    fn send_call_control(
-        &self,
-        envelope: &ControlEnvelope,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<(), PrivateDmRuntimeError> {
+    /// Sends one Call* control frame through the transport. Only the media
+    /// frames skip the chokepoint's refusal rules (see `call_send_frame`).
+    fn send_call_control(&self, envelope: &ControlEnvelope) -> Result<(), PrivateDmRuntimeError> {
         let payload = serde_json::to_vec(envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-        self.route_send(wire::ChannelKind::Control, &payload, relay_jobs, None)
-            .map(|_| ())
+        self.route_send(ChannelKind::Control, &payload)
     }
 
     /// Builds and sends a `CallOffer` for a call already in `self.call`. The
@@ -2288,7 +1897,6 @@ impl PrivateDmSession {
         call_id: &str,
         key_b64: &str,
         nonce_prefix_b64: &str,
-        relay_jobs: RelayJobs<'_>,
     ) -> Result<(), PrivateDmRuntimeError> {
         let body = CallOfferBody {
             key_b64: key_b64.to_string(),
@@ -2304,26 +1912,19 @@ impl PrivateDmSession {
             call_id: call_id.to_string(),
             offer_ciphertext_b64: encode(&ciphertext),
         };
-        self.send_call_control(&envelope, relay_jobs)
+        self.send_call_control(&envelope)
     }
 
-    fn publish_call_accept(
-        &self,
-        call_id: &str,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<(), PrivateDmRuntimeError> {
+    fn publish_call_accept(&self, call_id: &str) -> Result<(), PrivateDmRuntimeError> {
         let envelope = ControlEnvelope::CallAccept {
             session_id: self.session_id.clone(),
             participant_id: self.participant_id.clone(),
             call_id: call_id.to_string(),
         };
-        self.send_call_control(&envelope, relay_jobs)
+        self.send_call_control(&envelope)
     }
 
-    fn call_start(
-        &mut self,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<CallStarted, PrivateDmRuntimeError> {
+    fn call_start(&mut self) -> Result<CallStarted, PrivateDmRuntimeError> {
         if !self.ready_for_user_actions() {
             return Err(PrivateDmRuntimeError::NotReady);
         }
@@ -2341,10 +1942,10 @@ impl PrivateDmSession {
             nonce_prefix_b64.clone(),
             String::new(),
         ));
-        self.node
-            .subscribe_room(&self.mesh_id, &voice_call_channel(&call_id))
-            .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))?;
-        self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64, relay_jobs)?;
+        self.transport
+            .subscribe(&self.mesh_id, &voice_call_channel(&call_id))
+            .map_err(PrivateDmRuntimeError::Moss)?;
+        self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64)?;
         if let Some(call) = self.call.as_mut() {
             call.mark_offer_sent(now_ms());
         }
@@ -2356,11 +1957,7 @@ impl PrivateDmSession {
         })
     }
 
-    fn call_accept(
-        &mut self,
-        call_id: &str,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<(), PrivateDmRuntimeError> {
+    fn call_accept(&mut self, call_id: &str) -> Result<(), PrivateDmRuntimeError> {
         let Some(call) = self.call.as_mut() else {
             return Err(PrivateDmRuntimeError::MissingSession);
         };
@@ -2368,12 +1965,12 @@ impl PrivateDmSession {
             return Err(PrivateDmRuntimeError::MissingSession);
         }
         call.become_active(now_ms());
-        self.publish_call_accept(call_id, relay_jobs)
+        self.publish_call_accept(call_id)
     }
 
     /// Retransmits the ring while the caller waits, and gives up once the ring
     /// budget is spent. Driven by the same ~1s drain tick as `pump_handshake`.
-    fn pump_call_signaling(&mut self, now_ms: u64, relay_jobs: RelayJobs<'_>) {
+    fn pump_call_signaling(&mut self, now_ms: u64) {
         let Some(call) = self.call.as_ref() else {
             return;
         };
@@ -2382,7 +1979,7 @@ impl PrivateDmSession {
         }
         let call_id = call.call_id.clone();
         if now_ms.saturating_sub(call.offer_first_ms) >= CALL_RING_TIMEOUT_MS {
-            let _ = self.call_end(&call_id, "no_answer", relay_jobs);
+            let _ = self.call_end(&call_id, "no_answer");
             return;
         }
         if now_ms.saturating_sub(call.offer_last_ms) < CALL_RESEND_MS {
@@ -2390,7 +1987,7 @@ impl PrivateDmSession {
         }
         let key_b64 = call.key_b64.clone();
         let nonce_prefix_b64 = call.nonce_prefix_b64.clone();
-        match self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64, relay_jobs) {
+        match self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64) {
             // A failed send must not burn the slot: retry on the next tick.
             Err(error) => eprintln!("call offer resend failed for {call_id}: {error}"),
             Ok(()) => {
@@ -2401,62 +1998,40 @@ impl PrivateDmSession {
         }
     }
 
-    fn call_decline(
-        &mut self,
-        call_id: &str,
-        reason: &str,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        if let Some(call) = self.call.take() {
-            if call.call_id == call_id {
-                let _ = self
-                    .node
-                    .unsubscribe_room(&self.mesh_id, &voice_call_channel(&call.call_id));
-                let remote = call.remote_device.clone();
-                let call_id_owned = call.call_id.clone();
-                self.append_call_event_message(&remote, "missed", 0, &call_id_owned);
-                let envelope = ControlEnvelope::CallDecline {
-                    session_id: self.session_id.clone(),
-                    participant_id: self.participant_id.clone(),
-                    call_id: call_id.to_string(),
-                    reason: reason.to_string(),
-                };
-                self.send_call_control(&envelope, relay_jobs)?;
-            } else {
-                self.call = Some(call);
-            }
-        }
-        Ok(())
-    }
-
-    fn call_end(
-        &mut self,
-        call_id: &str,
-        reason: &str,
-        relay_jobs: RelayJobs<'_>,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        let Some(call) = self.call.take() else {
+    fn call_decline(&mut self, call_id: &str, reason: &str) -> Result<(), PrivateDmRuntimeError> {
+        let Some(call) = self.call.as_ref() else {
             return Ok(());
         };
         if call.call_id != call_id {
-            self.call = Some(call);
+            return Ok(());
+        }
+        self.finish_call("missed", 0);
+        let envelope = ControlEnvelope::CallDecline {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            call_id: call_id.to_string(),
+            reason: reason.to_string(),
+        };
+        self.send_call_control(&envelope)
+    }
+
+    fn call_end(&mut self, call_id: &str, reason: &str) -> Result<(), PrivateDmRuntimeError> {
+        let Some(call) = self.call.as_ref() else {
+            return Ok(());
+        };
+        if call.call_id != call_id {
             return Ok(());
         }
         let duration = call.duration_ms(now_ms());
-        let _ = self
-            .node
-            .unsubscribe_room(&self.mesh_id, &voice_call_channel(&call.call_id));
         let kind = call.end_kind();
-        let remote = call.remote_device.clone();
-        let call_id_owned = call.call_id.clone();
-        self.append_call_event_message(&remote, kind, duration, &call_id_owned);
+        self.finish_call(kind, duration);
         let envelope = ControlEnvelope::CallEnd {
             session_id: self.session_id.clone(),
             participant_id: self.participant_id.clone(),
             call_id: call_id.to_string(),
             reason: reason.to_string(),
         };
-        self.send_call_control(&envelope, relay_jobs)
+        self.send_call_control(&envelope)
     }
 
     fn call_send_frame(
@@ -2470,10 +2045,14 @@ impl PrivateDmSession {
         if call.call_id != call_id || call.phase != CallPhase::Active {
             return Ok(());
         }
-        // ponytail: voice stays direct-only; relay carries control/data/blob, add voice relay when a hard-NAT call actually needs it
-        self.node
-            .publish_room_best_effort(&self.mesh_id, &voice_call_channel(call_id), &frame)
-            .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
+        // A media frame is never worth a refusal: the next one is 20 ms away.
+        match self
+            .transport
+            .publish(&self.mesh_id, &voice_call_channel(call_id), &frame)
+        {
+            Ok(()) | Err(PublishError::NoPeers(_)) => Ok(()),
+            Err(error) => Err(PrivateDmRuntimeError::Moss(error.to_string())),
+        }
     }
 
     fn call_drain_frames(&mut self, call_id: &str) -> Vec<Vec<u8>> {
@@ -2545,75 +2124,21 @@ fn session_channels(session_id: &str) -> [String; 3] {
 }
 
 #[cfg(test)]
+#[path = "private_dm_runtime/state_tests.rs"]
+mod state_tests;
+
+#[cfg(test)]
+#[path = "private_dm_runtime/outbox_tests.rs"]
+mod outbox_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::attachment_runtime::CHUNK_SIZE;
     use crate::moss_ffi::{drain_received_messages, MossFfiRuntime, MOSS_TEST_LOCK};
 
-    fn peer(id: &str, relayed: bool) -> PeerDetail {
-        PeerDetail {
-            id: id.to_string(),
-            addr: "10.0.0.1:4001".to_string(),
-            relayed,
-        }
-    }
-
-    // On the shared substrate the per-DM node connects to unrelated world nodes,
-    // so presence must match our counterpart by id, not trust a bare peer count.
-    #[test]
-    fn presence_matches_counterpart_id_not_world_peer_count() {
-        let counterpart = "aa".repeat(32);
-        let stranger = "bb".repeat(32);
-
-        // World is full of peers, but not our counterpart: NOT live, NOT direct.
-        let crowd = MeshInfo {
-            peer_count: 50,
-            direct_peer_count: 40,
-            relayed_peer_count: 10,
-            peer_details: vec![peer(&stranger, false), peer(&"cc".repeat(32), false)],
-            ..Default::default()
-        };
-        assert!(!peer_is_live(Some(&counterpart), &crowd));
-        assert!(!peer_is_direct(Some(&counterpart), &crowd));
-
-        // Counterpart present but only relayed: live, but NOT a direct peer.
-        let relayed = MeshInfo {
-            peer_count: 3,
-            peer_details: vec![peer(&stranger, false), peer(&counterpart, true)],
-            ..Default::default()
-        };
-        assert!(peer_is_live(Some(&counterpart), &relayed));
-        assert!(!peer_is_direct(Some(&counterpart), &relayed));
-
-        // Counterpart present and direct: live AND direct.
-        let direct = MeshInfo {
-            peer_count: 3,
-            peer_details: vec![peer(&counterpart, false)],
-            ..Default::default()
-        };
-        assert!(peer_is_live(Some(&counterpart), &direct));
-        assert!(peer_is_direct(Some(&counterpart), &direct));
-    }
-
-    // Before the counterpart's id is known (creator, pre-handshake) `live` falls
-    // back to "any peer" while `direct` stays false so the fallback timer can run.
-    #[test]
-    fn presence_unknown_id_falls_back_to_any_peer() {
-        let crowd = MeshInfo {
-            peer_count: 5,
-            direct_peer_count: 5,
-            peer_details: vec![peer(&"dd".repeat(32), false)],
-            ..Default::default()
-        };
-        assert!(peer_is_live(None, &crowd));
-        assert!(!peer_is_direct(None, &crowd));
-
-        let empty = MeshInfo::default();
-        assert!(!peer_is_live(None, &empty));
-        assert!(!peer_is_direct(None, &empty));
-    }
-
-    fn temp_store() -> Arc<AttachmentStore> {
+    pub(super) fn temp_store() -> Arc<AttachmentStore> {
         let mut path = std::env::temp_dir();
         path.push(format!(
             "mosh-dm-attachments-{}-{}",
@@ -2627,74 +2152,6 @@ mod tests {
     }
 
     // next_path(current, direct_now, direct_stable, direct_gone, elapsed, t_fallback)
-
-    #[test]
-    fn discover_falls_back_after_budget_without_direct() {
-        assert_eq!(
-            next_path(DmPath::Discover, false, false, false, 9_999, 10_000),
-            DmPath::Discover
-        );
-        assert_eq!(
-            next_path(DmPath::Discover, false, false, true, 10_000, 10_000),
-            DmPath::Relayed
-        );
-    }
-
-    #[test]
-    fn discover_promotes_on_the_raw_direct_signal() {
-        // No relay to lose from Discover, so promotion needs no stability.
-        assert_eq!(
-            next_path(DmPath::Discover, true, false, false, 1, 10_000),
-            DmPath::Direct
-        );
-        // Even past the fallback budget, a live direct peer wins.
-        assert_eq!(
-            next_path(DmPath::Discover, true, false, false, 99_999, 10_000),
-            DmPath::Direct
-        );
-    }
-
-    #[test]
-    fn relayed_ignores_a_transient_direct_peer() {
-        // A hole punch that lives a few seconds must not tear down a working
-        // relay — symmetric NAT produces exactly such short-lived punches.
-        assert_eq!(
-            next_path(DmPath::Relayed, true, false, false, 99_999, 10_000),
-            DmPath::Relayed
-        );
-    }
-
-    #[test]
-    fn relayed_migrates_once_direct_is_stable() {
-        assert_eq!(
-            next_path(DmPath::Relayed, true, true, false, 99_999, 10_000),
-            DmPath::Direct
-        );
-    }
-
-    #[test]
-    fn relayed_stays_relayed_while_no_direct() {
-        assert_eq!(
-            next_path(DmPath::Relayed, false, false, true, 99_999, 10_000),
-            DmPath::Relayed
-        );
-    }
-
-    #[test]
-    fn direct_survives_a_momentary_peer_dropout() {
-        assert_eq!(
-            next_path(DmPath::Direct, false, false, false, 99_999, 10_000),
-            DmPath::Direct
-        );
-    }
-
-    #[test]
-    fn direct_falls_back_to_relay_once_the_peer_is_confirmed_gone() {
-        assert_eq!(
-            next_path(DmPath::Direct, false, false, true, 99_999, 10_000),
-            DmPath::Relayed
-        );
-    }
 
     // Real two-node loopback handshake; the gossipsub mesh occasionally fails
     // to form in time, so this is an on-demand smoke test (run with
@@ -2733,7 +2190,7 @@ mod tests {
             .expect("Alice should send");
 
         let snapshot = wait_for_message(&mut bob, &invite.session_id, "hello bob");
-        assert_eq!(snapshot.state, "ready");
+        assert_eq!(snapshot.state, DmSessionState::Connected);
 
         // Bob's runtime acks on receipt; Alice's message must reach the
         // Delivered (✓✓) state once she drains the ack.
@@ -2803,7 +2260,7 @@ mod tests {
             .find(|session| session.session_id == session_id)
             .expect("waiting invite should rehydrate");
 
-        assert_eq!(session.state, "waiting");
+        assert_eq!(session.state, DmSessionState::Pending);
         assert_eq!(session.role, "alice");
         assert_eq!(session.invite_uri.as_deref(), Some(invite_uri.as_str()));
         assert!(session.messages.is_empty());
@@ -2885,78 +2342,11 @@ mod tests {
             .expect("session should rehydrate");
 
         assert_eq!(session.peer_display_name, "Bob");
-        assert_eq!(session.state, "waiting");
+        // The peer was here once, but nothing proves it is now.
+        assert_eq!(session.state, DmSessionState::Handshaking);
         assert_eq!(session.messages.len(), 1);
 
         let _ = std::fs::remove_file(&db_path);
-    }
-
-    #[test]
-    fn decrypted_inbound_data_without_live_peer_stays_waiting() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42172,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-
-        let mut bob_crypto = MlsSessionCrypto::new("Bob").expect("Bob crypto should init");
-        let bob_participant = "bob-participant".to_string();
-        let key_package = bob_crypto
-            .key_package_bytes()
-            .expect("Bob key package should build");
-
-        let (welcome, tree) = {
-            let session = alice
-                .sessions
-                .get_mut(&invite.session_id)
-                .expect("Alice session should exist");
-            let result = session
-                .crypto
-                .add_peer(&key_package)
-                .expect("Alice should add Bob");
-            session.peer_joined = false;
-            result
-        };
-        bob_crypto
-            .join_welcome(&welcome, &tree)
-            .expect("Bob should join");
-        let ciphertext = bob_crypto
-            .encrypt(b"hello after flag loss")
-            .expect("Bob should encrypt");
-
-        let payload = serde_json::to_vec(&DataEnvelope {
-            session_id: invite.session_id.clone(),
-            participant_id: bob_participant,
-            from_device: "Bob".to_string(),
-            message_id: Some("live-inbound-000001".to_string()),
-            sent_at_ms: Some(2),
-            ciphertext_b64: encode(&ciphertext),
-            resend: None,
-        })
-        .expect("data envelope should serialize");
-
-        let session = alice
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Alice session should exist");
-        assert_eq!(session.state(), "waiting");
-
-        session
-            .handle_data(payload, None)
-            .expect("Alice should decrypt inbound data");
-
-        assert!(session.peer_joined);
-        assert_eq!(session.state(), "waiting");
-        assert_eq!(session.peer_display_name.as_deref(), Some("Bob"));
     }
 
     // The invite embeds the creator's moss peer id and accept_invite must copy
@@ -2997,8 +2387,8 @@ mod tests {
             .sessions
             .get(&invite.session_id)
             .expect("Alice session should exist")
-            .node
-            .public_key_hex()
+            .transport
+            .local_peer_id()
             .expect("Alice node should expose its key");
         let bob_session = bob
             .sessions
@@ -3130,7 +2520,7 @@ mod tests {
 
         // Welcome processed -> handshake complete -> stop retransmitting.
         session.peer_joined = true;
-        session.pump_handshake(HANDSHAKE_RESEND_MS * 10, None);
+        session.pump_handshake(HANDSHAKE_RESEND_MS * 10);
         assert!(
             session.pending_key_package.is_none(),
             "joining clears the pending KeyPackage"
@@ -3179,7 +2569,7 @@ mod tests {
             .expect("Alice session should exist");
 
         session
-            .handle_control(payload.clone(), None)
+            .handle_control(payload.clone())
             .expect("first KeyPackage should add Bob");
         assert!(session.peer_joined);
         assert!(
@@ -3190,7 +2580,7 @@ mod tests {
 
         // Bob's retransmit must be re-answered, never trigger a second add.
         session
-            .handle_control(payload, None)
+            .handle_control(payload)
             .expect("repeat KeyPackage should re-answer with the cached Welcome");
         assert_eq!(
             session.crypto.member_count(),
@@ -3252,65 +2642,6 @@ mod tests {
         );
     }
 
-    // Every session now shares one moss node, so a session's own room is what
-    // separates it from the others — and the node outliving the session is a
-    // new failure mode: nothing ends its subscriptions unless close_session
-    // says so.
-    #[test]
-    fn sessions_share_one_node_and_close_releases_it() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let first = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42187,
-                static_peer: None,
-            })
-            .expect("first invite should be created");
-        let second = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42188,
-                static_peer: None,
-            })
-            .expect("second invite should be created");
-
-        // One node, not two. This is the whole point: two nodes would present
-        // the same peer id from two ports and a remote peer would keep one.
-        let first_node = Arc::as_ptr(&alice.sessions[&first.session_id].node);
-        let second_node = Arc::as_ptr(&alice.sessions[&second.session_id].node);
-        assert_eq!(
-            first_node, second_node,
-            "two open conversations started two moss nodes under one identity"
-        );
-        assert_ne!(
-            alice.sessions[&first.session_id].mesh_id, alice.sessions[&second.session_id].mesh_id,
-            "sessions must stay in separate rooms on the shared node"
-        );
-
-        // Closing one leaves the node up for the other...
-        alice
-            .close_session(&first.session_id)
-            .expect("first session should close");
-        assert!(
-            alice.shared_node.current().is_some(),
-            "the shared node went down while a conversation was still open"
-        );
-        // ...and closing the last one takes it down.
-        alice
-            .close_session(&second.session_id)
-            .expect("second session should close");
-        assert!(
-            alice.shared_node.current().is_none(),
-            "the shared node outlived every conversation — nothing would ever stop moss"
-        );
-    }
-
     // The same dedup, one channel over. A receiver missing chunk 7 asks for
     // chunk 7 again, and that request is byte-identical to the last one, so
     // every repeat was dropped before handle_blob and the sender never
@@ -3365,10 +2696,10 @@ mod tests {
         };
 
         session
-            .handle_moss_message(request.clone(), None)
+            .handle_moss_message(request.clone())
             .expect("first chunk request should be served");
         session
-            .handle_moss_message(request, None)
+            .handle_moss_message(request)
             .expect("repeat chunk request should be served again");
         assert_eq!(
             session.transfer.served_count("att-1", 0),
@@ -3419,7 +2750,7 @@ mod tests {
             .expect("Alice session should exist");
 
         session
-            .handle_control(payload, None)
+            .handle_control(payload)
             .expect("KeyPackage should add Bob");
         assert_eq!(session.peer_moss_id, Some(bob_moss_peer_id));
     }
@@ -3466,115 +2797,17 @@ mod tests {
             .get_mut(&invite.session_id)
             .expect("Alice session should exist");
         session
-            .handle_control(make_payload("ab".repeat(32)), None)
+            .handle_control(make_payload("ab".repeat(32)))
             .expect("first KeyPackage should add Bob");
         assert_eq!(session.peer_moss_id, Some("ab".repeat(32)));
 
         session
-            .handle_control(make_payload("cd".repeat(32)), None)
+            .handle_control(make_payload("cd".repeat(32)))
             .expect("resent KeyPackage should be handled");
         assert_eq!(
             session.peer_moss_id,
             Some("cd".repeat(32)),
             "restarted peer's fresh moss id should replace the stale pin"
-        );
-    }
-
-    // Pre-join, a relay frame from an unknown sender re-pins peer_moss_id (the
-    // peer may have restarted with a fresh identity mid-handshake); post-join,
-    // a mismatched sender still drops to keep the anti-spoof guard.
-    #[test]
-    fn relay_frame_repins_before_join_and_drops_after() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42189,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-
-        let frame = serde_json::to_vec(&wire::RelayFrame {
-            session_id: invite.session_id.clone(),
-            channel_kind: wire::ChannelKind::Control,
-            bytes: vec![1, 2, 3],
-        })
-        .expect("relay frame should serialize");
-
-        {
-            let session = alice
-                .sessions
-                .get_mut(&invite.session_id)
-                .expect("Alice session should exist");
-            session.peer_moss_id = Some("ab".repeat(32));
-            assert!(!session.peer_joined, "handshake must be incomplete");
-        }
-        crate::moss_ffi::push_relay_for_test([0xCD; 32], frame.clone());
-        alice.drain_relay();
-        assert_eq!(
-            alice.sessions[&invite.session_id].peer_moss_id,
-            Some("cd".repeat(32)),
-            "pre-join mismatch should re-pin to the live sender"
-        );
-
-        alice
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Alice session should exist")
-            .peer_joined = true;
-        crate::moss_ffi::push_relay_for_test([0xEF; 32], frame);
-        alice.drain_relay();
-        assert_eq!(
-            alice.sessions[&invite.session_id].peer_moss_id,
-            Some("cd".repeat(32)),
-            "post-join mismatch must not re-pin"
-        );
-    }
-
-    // Task 5: a Relayed session with no peer moss-id (and no relay node) must
-    // error rather than silently fall back to the direct pubsub publish.
-    #[test]
-    fn route_send_relayed_without_peer_id_errors_not_publishes() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42190,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-
-        let session = alice
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Alice session should exist");
-
-        // Direct/Discover still publishes on the direct node (unchanged path).
-        session.path = DmPath::Direct;
-        let outcome = session
-            .route_send(wire::ChannelKind::Data, b"x", None, None)
-            .expect("direct route_send should publish on the direct node");
-        assert_eq!(outcome, RouteOutcome::Published);
-
-        // Relayed with no peer moss-id: error, do NOT publish on the direct node.
-        session.path = DmPath::Relayed;
-        session.peer_moss_id = None;
-        let err = session.route_send(wire::ChannelKind::Data, b"x", None, None);
-        assert!(
-            err.is_err(),
-            "relayed send needs a peer_moss_id + relay node"
         );
     }
 
@@ -3624,7 +2857,7 @@ mod tests {
         call.mark_offer_sent(1_000);
         session.call = Some(call);
 
-        session.pump_call_signaling(1_000 + CALL_RESEND_MS - 1, None);
+        session.pump_call_signaling(1_000 + CALL_RESEND_MS - 1);
         assert_eq!(
             session.call.as_ref().expect("call held").offer_last_ms,
             1_000,
@@ -3632,7 +2865,7 @@ mod tests {
         );
 
         let due = 1_000 + CALL_RESEND_MS;
-        session.pump_call_signaling(due, None);
+        session.pump_call_signaling(due);
         assert_eq!(
             session.call.as_ref().expect("call held").offer_last_ms,
             due,
@@ -3645,7 +2878,7 @@ mod tests {
             .as_mut()
             .expect("call held")
             .become_active(due + 1);
-        session.pump_call_signaling(due + CALL_RESEND_MS * 10, None);
+        session.pump_call_signaling(due + CALL_RESEND_MS * 10);
         assert_eq!(
             session.call.as_ref().expect("call held").offer_last_ms,
             due,
@@ -3672,7 +2905,7 @@ mod tests {
         call.mark_offer_sent(1_000 + CALL_RING_TIMEOUT_MS - 1);
         session.call = Some(call);
 
-        session.pump_call_signaling(1_000 + CALL_RING_TIMEOUT_MS, None);
+        session.pump_call_signaling(1_000 + CALL_RING_TIMEOUT_MS);
         assert!(
             session.call.is_none(),
             "the unanswered call is cleared once the budget is spent"
@@ -3704,13 +2937,12 @@ mod tests {
         call.become_active(1_000);
         session.call = Some(call);
 
-        // Relayed with no pinned peer: any send attempt errors, so the error IS
-        // the observation that a CallAccept went out.
-        session.path = DmPath::Relayed;
-        session.peer_moss_id = None;
+        // Fail the next publish, so the error IS the observation that a
+        // CallAccept went out.
+        let _publish_fail = wire::fail_next_test_publish("observe the accept");
         let offer = test_call_offer_json(&session_id, "call-3");
         assert!(
-            session.handle_control(offer.clone(), None).is_err(),
+            session.handle_control(offer.clone()).is_err(),
             "a repeated offer for an answered call re-sends the CallAccept"
         );
         assert_eq!(
@@ -3722,340 +2954,9 @@ mod tests {
         // Still ringing (user has not picked up): nothing to re-answer yet.
         session.call.as_mut().expect("call held").phase = CallPhase::Ringing;
         assert!(
-            session.handle_control(offer, None).is_ok(),
+            session.handle_control(offer).is_ok(),
             "an unanswered ring must not auto-accept on the repeat"
         );
-    }
-
-    // A Relayed session with a pinned peer must never block in the relay FFI:
-    // route_send hands the frame to the worker queue and reports Queued.
-    #[test]
-    fn route_send_relayed_queues_for_the_worker() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42191,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-
-        let session = alice
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Alice session should exist");
-        session.path = DmPath::Relayed;
-        session.peer_moss_id = Some("ab".repeat(32));
-
-        let (jobs_tx, jobs_rx) = mpsc::channel();
-        let outcome = session
-            .route_send(
-                wire::ChannelKind::Data,
-                b"payload",
-                Some(&jobs_tx),
-                Some("m1"),
-            )
-            .expect("relayed route_send should queue");
-        assert_eq!(outcome, RouteOutcome::Queued);
-
-        let job = jobs_rx.try_recv().expect("worker should receive the job");
-        assert_eq!(job.session_id, invite.session_id);
-        assert_eq!(job.message_id.as_deref(), Some("m1"));
-        assert_eq!(job.target, "ab".repeat(32));
-        let frame: wire::RelayFrame =
-            serde_json::from_slice(&job.bytes).expect("job bytes are a RelayFrame");
-        assert_eq!(frame.bytes, b"payload");
-    }
-
-    // Relayed send_message must stay Pending (attempt retained) until the
-    // worker reports, then drain_relay_results settles Sent / Failed.
-    #[test]
-    fn relayed_message_settles_via_worker_results() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42192,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-
-        // Wire a fake relay: a real (unstarted) moss node for the handle plus
-        // manual job/result channels standing in for the worker thread.
-        let relay_node = runtime
-            .init_default_node(
-                "relay-test-mesh",
-                &crate::moss_ffi::MossNodeConfig::default(),
-            )
-            .expect("relay test node should init");
-        let (jobs_tx, jobs_rx) = mpsc::channel();
-        let (results_tx, results_rx) = mpsc::channel();
-        alice.relay = Some(relay::RelayHandle {
-            node: Arc::new(relay_node),
-            jobs: jobs_tx,
-        });
-        alice.relay_results.push(results_rx);
-
-        {
-            let session = alice
-                .sessions
-                .get_mut(&invite.session_id)
-                .expect("Alice session should exist");
-            session.path = DmPath::Relayed;
-            session.peer_moss_id = Some("ab".repeat(32));
-            // send_message refuses before the MLS join; fake readiness the way
-            // the crypto layer reports it is not possible here, so bypass via
-            // direct route checks below if this ever fails.
-        }
-
-        let result = alice
-            .send_message(&invite.session_id, "hi".to_string())
-            .expect("send should queue");
-        assert_eq!(result.delivery_status, MessageDeliveryStatus::Pending);
-        let message_id = result.message_id.clone();
-        assert!(
-            alice.sessions[&invite.session_id]
-                .outbound_attempts
-                .contains_key(&message_id),
-            "attempt must stay retained while queued"
-        );
-        let job = jobs_rx.try_recv().expect("job must be queued");
-        assert_eq!(job.message_id.as_deref(), Some(message_id.as_str()));
-
-        // Worker success → Sent; the attempt stays retained awaiting the
-        // peer's DeliveryAck (auto-resend loop owns it from here).
-        results_tx
-            .send(relay::RelayJobResult {
-                session_id: invite.session_id.clone(),
-                message_id: Some(message_id.clone()),
-                error: None,
-                retryable: false,
-            })
-            .expect("result channel open");
-        alice.drain_relay_results();
-        let session = &alice.sessions[&invite.session_id];
-        assert_eq!(
-            session.outbound_attempts[&message_id].delivery_status,
-            MessageDeliveryStatus::Sent,
-            "attempt stays retained until the peer acks"
-        );
-        let message = session
-            .messages
-            .iter()
-            .find(|m| m.message_id.as_deref() == Some(message_id.as_str()))
-            .expect("message exists");
-        assert_eq!(message.delivery_status, Some(MessageDeliveryStatus::Sent));
-
-        // Second message: worker failure → Failed with the worker's error.
-        let result = alice
-            .send_message(&invite.session_id, "hi again".to_string())
-            .expect("send should queue");
-        let failed_id = result.message_id.clone();
-        results_tx
-            .send(relay::RelayJobResult {
-                session_id: invite.session_id.clone(),
-                message_id: Some(failed_id.clone()),
-                error: Some("relay not ready in time".to_string()),
-                retryable: false,
-            })
-            .expect("result channel open");
-        alice.drain_relay_results();
-        let session = &alice.sessions[&invite.session_id];
-        let message = session
-            .messages
-            .iter()
-            .find(|m| m.message_id.as_deref() == Some(failed_id.as_str()))
-            .expect("message exists");
-        assert_eq!(message.delivery_status, Some(MessageDeliveryStatus::Failed));
-        assert_eq!(
-            message.delivery_error.as_deref(),
-            Some("relay not ready in time")
-        );
-        assert!(
-            session.outbound_attempts.contains_key(&failed_id),
-            "failed attempt stays retryable"
-        );
-    }
-
-    // Bug #25: a send queued while the DM was Relayed must survive the
-    // migration off the relay. Releasing the relay hands its untried jobs back
-    // as retryable; the runtime re-routes them on the path the session moved
-    // to. Settling them Failed instead loses the message in silence — the
-    // resend pump only re-drives `Sent` attempts, so nothing would retry it.
-    #[test]
-    fn a_send_the_relay_never_tried_is_rerouted_not_failed() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42197,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-
-        let relay_node = runtime
-            .init_default_node(
-                "relay-test-mesh",
-                &crate::moss_ffi::MossNodeConfig::default(),
-            )
-            .expect("relay test node should init");
-        let (jobs_tx, jobs_rx) = mpsc::channel();
-        let (results_tx, results_rx) = mpsc::channel();
-        alice.relay = Some(relay::RelayHandle {
-            node: Arc::new(relay_node),
-            jobs: jobs_tx,
-        });
-        alice.relay_results.push(results_rx);
-        {
-            let session = alice
-                .sessions
-                .get_mut(&invite.session_id)
-                .expect("Alice session should exist");
-            session.path = DmPath::Relayed;
-            session.peer_moss_id = Some("ab".repeat(32));
-        }
-
-        let result = alice
-            .send_message(&invite.session_id, "hi".to_string())
-            .expect("send should queue");
-        assert_eq!(result.delivery_status, MessageDeliveryStatus::Pending);
-        let message_id = result.message_id.clone();
-        jobs_rx.try_recv().expect("job must be queued");
-
-        // The session migrates to Direct: the path flips, the last relay ref
-        // goes away, and the worker reports its untried job as retryable.
-        alice
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Alice session should exist")
-            .path = DmPath::Direct;
-        alice.relay = None;
-        results_tx
-            .send(relay::RelayJobResult {
-                session_id: invite.session_id.clone(),
-                message_id: Some(message_id.clone()),
-                error: Some("relay released before the send completed".to_string()),
-                retryable: true,
-            })
-            .expect("result channel open");
-
-        alice.drain_relay_results();
-
-        let session = &alice.sessions[&invite.session_id];
-        let message = session
-            .messages
-            .iter()
-            .find(|m| m.message_id.as_deref() == Some(message_id.as_str()))
-            .expect("message exists");
-        assert_eq!(
-            message.delivery_status,
-            Some(MessageDeliveryStatus::Sent),
-            "the re-route publishes it on the direct path"
-        );
-        assert_eq!(message.delivery_error, None);
-    }
-
-    // A message that dies in the worker queue when the app closes must not
-    // rehydrate as an eternal Pending spinner: restore normalizes it to a
-    // retryable failure.
-    #[test]
-    fn stale_pending_attempt_rehydrates_as_retryable_failure() {
-        use crate::persistence::Persistence;
-        use std::path::PathBuf;
-
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let mut db_path: PathBuf = std::env::temp_dir();
-        db_path.push(format!("mosh-dm-stale-pending-{}.redb", std::process::id()));
-        let _ = std::fs::remove_file(&db_path);
-        let persistence =
-            Arc::new(Persistence::open_with_dek(&db_path, [7u8; 32]).expect("store should open"));
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-
-        // Runtime #1: queue a relayed message (stays Pending) and "crash".
-        let session_id = {
-            let mut alice = PrivateDmRuntime::from_shared(
-                Arc::clone(&runtime),
-                temp_store(),
-                Some(persistence.clone()),
-            );
-            let invite = alice
-                .create_invite(StartSessionRequest {
-                    display_name: "Alice".to_string(),
-                    listen_port: 42193,
-                    static_peer: None,
-                })
-                .expect("Alice invite should be created");
-            let relay_node = alice
-                .moss
-                .init_default_node(
-                    "relay-stale-test-mesh",
-                    &crate::moss_ffi::MossNodeConfig::default(),
-                )
-                .expect("relay test node should init");
-            let (jobs_tx, _jobs_rx) = mpsc::channel();
-            alice.relay = Some(relay::RelayHandle {
-                node: Arc::new(relay_node),
-                jobs: jobs_tx,
-            });
-            {
-                let session = alice
-                    .sessions
-                    .get_mut(&invite.session_id)
-                    .expect("Alice session should exist");
-                session.path = DmPath::Relayed;
-                session.peer_moss_id = Some("ab".repeat(32));
-            }
-            let result = alice
-                .send_message(&invite.session_id, "doomed".to_string())
-                .expect("send should queue");
-            assert_eq!(result.delivery_status, MessageDeliveryStatus::Pending);
-            invite.session_id
-        };
-
-        // Runtime #2: rehydrate — the stale Pending must surface as Failed.
-        let mut revived =
-            PrivateDmRuntime::from_shared(runtime, temp_store(), Some(persistence.clone()));
-        revived.rehydrate();
-        let session = revived
-            .sessions
-            .get(&session_id)
-            .expect("session should rehydrate");
-        let message = session
-            .messages
-            .iter()
-            .find(|m| m.body == "doomed")
-            .expect("message should rehydrate");
-        assert_eq!(message.delivery_status, Some(MessageDeliveryStatus::Failed));
-        assert_eq!(message.retryable, Some(true));
-        let attempt = session
-            .outbound_attempts
-            .values()
-            .next()
-            .expect("attempt should rehydrate");
-        assert_eq!(attempt.delivery_status, MessageDeliveryStatus::Failed);
-        let _ = std::fs::remove_file(&db_path);
     }
 
     // The peer's DeliveryAck upgrades Sent → Delivered and retires the
@@ -4077,10 +2978,11 @@ mod tests {
             })
             .expect("Alice invite should be created");
 
+        // No peer is known yet, so the text waits in the queue.
         let result = alice
             .send_message(&invite.session_id, "ping".to_string())
-            .expect("send should publish");
-        assert_eq!(result.delivery_status, MessageDeliveryStatus::Sent);
+            .expect("send should queue");
+        assert_eq!(result.delivery_status, MessageDeliveryStatus::Queued);
 
         // Forgery #1: garbage ciphertext — an attacker without the MLS group
         // secrets cannot produce anything that decrypts.
@@ -4114,10 +3016,10 @@ mod tests {
             .get_mut(&invite.session_id)
             .expect("Alice session should exist");
         session
-            .handle_control(forged, None)
+            .handle_control(forged)
             .expect("forged ack must not error");
         session
-            .handle_control(self_minted, None)
+            .handle_control(self_minted)
             .expect("replayed ack must not error");
 
         let session = &alice.sessions[&invite.session_id];
@@ -4132,159 +3034,8 @@ mod tests {
             .expect("message exists");
         assert_eq!(
             message.delivery_status,
-            Some(MessageDeliveryStatus::Sent),
+            Some(MessageDeliveryStatus::Queued),
             "no forged Delivered"
-        );
-    }
-
-    // Unacked Sent messages re-publish on the resend cadence and give up
-    // (keeping Sent) after AUTO_RESEND_MAX tries.
-    #[test]
-    fn unacked_sent_message_auto_resends_then_gives_up() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42195,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-        let result = alice
-            .send_message(&invite.session_id, "ping".to_string())
-            .expect("send should publish");
-        let message_id = result.message_id;
-
-        let session = alice
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Alice session should exist");
-        session.peer_joined = true;
-
-        // Not due yet: last_send_ms is fresh.
-        assert!(session.pump_unacked_resends(now_ms(), None).is_empty());
-
-        // A re-send whose publish FAILS must not burn a resend slot.
-        session
-            .outbound_attempts
-            .get_mut(&message_id)
-            .expect("attempt retained")
-            .last_send_ms = 0;
-        {
-            let _publish_fail = wire::fail_next_test_publish("simulated outage");
-            assert!(
-                session.pump_unacked_resends(now_ms(), None).is_empty(),
-                "failed publish is not a resend"
-            );
-        }
-        assert_eq!(session.outbound_attempts[&message_id].auto_resends, 0);
-
-        for expected in 1..=AUTO_RESEND_MAX {
-            session
-                .outbound_attempts
-                .get_mut(&message_id)
-                .expect("attempt retained")
-                .last_send_ms = 0;
-            let changed = session.pump_unacked_resends(now_ms(), None);
-            assert_eq!(changed, vec![message_id.clone()], "resend #{expected}");
-            assert_eq!(
-                session.outbound_attempts[&message_id].auto_resends,
-                expected
-            );
-        }
-        // Cap reached: the loop stops but the attempt SURVIVES, so a manual
-        // retry still has its payload and the ack can still land later.
-        session
-            .outbound_attempts
-            .get_mut(&message_id)
-            .expect("attempt survives the cap")
-            .last_send_ms = 0;
-        assert!(
-            session.pump_unacked_resends(now_ms(), None).is_empty(),
-            "cap stops the automatic loop"
-        );
-        let message = session
-            .messages
-            .iter()
-            .find(|m| m.message_id.as_deref() == Some(message_id.as_str()))
-            .expect("message exists");
-        assert_eq!(
-            message.delivery_status,
-            Some(MessageDeliveryStatus::Sent),
-            "message keeps Sent when the peer never acks"
-        );
-    }
-
-    // A duplicate inbound Data frame (peer re-sent because our ack was lost)
-    // must re-ack from the stored message id, never re-decrypt.
-    #[test]
-    fn duplicate_inbound_data_reacks_without_decrypt() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42196,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-
-        let (jobs_tx, jobs_rx) = mpsc::channel();
-        let session = alice
-            .sessions
-            .get_mut(&invite.session_id)
-            .expect("Alice session should exist");
-        session.path = DmPath::Relayed;
-        session.peer_moss_id = Some("ab".repeat(32));
-        // Seed the already-received inbound message.
-        session.messages.push(ChatMessage {
-            from_device: "Peer".to_string(),
-            body: "hi".to_string(),
-            message_id: Some("m-dup".to_string()),
-            sent_at_ms: Some(1),
-            attachment: None,
-            call_event: None,
-            delivery_status: None,
-            delivery_error: None,
-            retryable: None,
-            retry_count: None,
-        });
-
-        let dup = serde_json::to_vec(&DataEnvelope {
-            session_id: invite.session_id.clone(),
-            participant_id: "peer-participant".to_string(),
-            from_device: "Peer".to_string(),
-            message_id: Some("m-dup".to_string()),
-            sent_at_ms: Some(1),
-            // Garbage ciphertext: decrypt would fail, proving the re-ack
-            // path returns before touching MLS.
-            ciphertext_b64: encode(b"not-a-ciphertext"),
-            resend: Some(1),
-        })
-        .expect("dup should serialize");
-        session
-            .handle_data(dup, Some(&jobs_tx))
-            .expect("dup must not error");
-
-        let job = jobs_rx.try_recv().expect("re-ack should queue");
-        assert_eq!(job.kind, wire::ChannelKind::Control);
-        let frame: wire::RelayFrame =
-            serde_json::from_slice(&job.bytes).expect("job bytes are a RelayFrame");
-        let ack = String::from_utf8(frame.bytes).expect("ack is JSON");
-        assert!(ack.contains("DeliveryAck"), "control frame is an ack");
-        assert!(
-            ack.contains("ack_ciphertext_b64") && !ack.contains("m-dup"),
-            "acked id travels encrypted, never in the clear"
         );
     }
 
@@ -4375,32 +3126,6 @@ mod tests {
         let _ = std::fs::remove_file(&db_path);
     }
 
-    // The unknown-id fallback answers "live" for ANY connected peer, which on
-    // the shared room-blind substrate means strangers. That is tolerable only
-    // in the pre-handshake window; a session that lost the id it already
-    // learned reports an offline counterpart as Connected.
-    #[test]
-    fn an_unknown_peer_id_cannot_tell_the_counterpart_from_a_stranger() {
-        // Every MeshInfo field is #[serde(default)], so this is the empty mesh.
-        let mut info: MeshInfo = serde_json::from_str("{}").expect("empty mesh info");
-        info.peer_count = 9;
-        info.peer_details = vec![contracts::PeerDetail {
-            id: "cd".repeat(32),
-            addr: "203.0.113.7:8765".to_string(),
-            relayed: false,
-        }];
-        let peer_id = "ab".repeat(32);
-
-        assert!(
-            !peer_is_live(Some(&peer_id), &info),
-            "a known id absent from peer_details is offline, whoever else is connected"
-        );
-        assert!(
-            peer_is_live(None, &info),
-            "the fallback counts strangers -- losing the id is what fakes Connected"
-        );
-    }
-
     // Sessions restored from a record written before peer_moss_id was persisted
     // carry None and nothing else recovers it, so the peer must be able to
     // re-announce out of band. Repairs history rather than requiring a new DM.
@@ -4430,7 +3155,7 @@ mod tests {
         .expect("announce should serialize");
 
         session
-            .handle_control(announce, None)
+            .handle_control(announce)
             .expect("announce should be accepted");
         assert_eq!(
             session.peer_moss_id.as_deref(),
@@ -4547,234 +3272,6 @@ mod tests {
         let _ = std::fs::remove_file(&db_path);
     }
 
-    // Regression: Moss answering "no peers" used to count as a successful
-    // publish, so a message nobody could receive showed as Sent. The DM resend
-    // loop only re-drives attempts that already reached `Sent`, so a refusal
-    // has to land as a retryable failure instead of a silent loss.
-    #[test]
-    fn no_peers_does_not_count_as_sent() {
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-        let mut alice = PrivateDmRuntime::from_shared(runtime, temp_store(), None);
-        let invite = alice
-            .create_invite(StartSessionRequest {
-                display_name: "Alice".to_string(),
-                listen_port: 42161,
-                static_peer: None,
-            })
-            .expect("Alice invite should be created");
-
-        let _no_peers = wire::no_peers_next_test_publish();
-        let result = alice
-            .send_message(&invite.session_id, "nobody is here".to_string())
-            .expect("send should return a result");
-
-        assert_eq!(
-            result.delivery_status,
-            contracts::MessageDeliveryStatus::Failed
-        );
-        assert_eq!(
-            result.delivery_error.as_deref(),
-            Some("Moss error: no peers yet, so the message did not go out")
-        );
-
-        let live = alice
-            .poll_session(&invite.session_id)
-            .expect("poll should pass");
-        let message = live
-            .messages
-            .iter()
-            .find(|message| message.message_id.as_deref() == Some(result.message_id.as_str()))
-            .expect("the message should be recorded");
-        assert_eq!(
-            message.delivery_status,
-            Some(contracts::MessageDeliveryStatus::Failed)
-        );
-        assert_eq!(message.retryable, Some(true));
-
-        // The attempt record survived the failure, so the existing retry path
-        // replays the same bytes without new machinery.
-        let retried = alice
-            .retry_message(&invite.session_id, &result.message_id)
-            .expect("retry should succeed once a peer is there");
-        assert_eq!(
-            retried.delivery_status,
-            contracts::MessageDeliveryStatus::Sent
-        );
-    }
-
-    #[test]
-    fn failed_send_rehydrates_as_retryable_message() {
-        use crate::persistence::Persistence;
-        use std::path::PathBuf;
-
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let mut db_path: PathBuf = std::env::temp_dir();
-        db_path.push(format!("mosh-dm-failed-send-{}.redb", std::process::id()));
-        let _ = std::fs::remove_file(&db_path);
-
-        let persistence =
-            Arc::new(Persistence::open_with_dek(&db_path, [19u8; 32]).expect("store should open"));
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-
-        let (session_id, message_id) = {
-            let mut alice = PrivateDmRuntime::from_shared(
-                Arc::clone(&runtime),
-                temp_store(),
-                Some(persistence.clone()),
-            );
-            let invite = alice
-                .create_invite(StartSessionRequest {
-                    display_name: "Alice".to_string(),
-                    listen_port: 42160,
-                    static_peer: None,
-                })
-                .expect("Alice invite should be created");
-            let _publish_fail = wire::fail_next_test_publish("simulated publish failure");
-            let result = alice
-                .send_message(&invite.session_id, "hello failed history".to_string())
-                .expect("send should return failed result");
-            assert_eq!(
-                result.delivery_status,
-                contracts::MessageDeliveryStatus::Failed
-            );
-            assert_eq!(
-                result.delivery_error.as_deref(),
-                Some("Moss error: simulated publish failure")
-            );
-            assert!(!result.message_id.is_empty());
-
-            let live = alice
-                .poll_session(&invite.session_id)
-                .expect("poll should surface failed message");
-            let failed = live
-                .messages
-                .iter()
-                .find(|message| message.message_id.as_deref() == Some(result.message_id.as_str()))
-                .expect("failed message should be recorded");
-            assert_eq!(
-                failed.delivery_status,
-                Some(contracts::MessageDeliveryStatus::Failed)
-            );
-            assert_eq!(
-                failed.delivery_error.as_deref(),
-                Some("Moss error: simulated publish failure")
-            );
-
-            (invite.session_id, result.message_id)
-        };
-
-        let mut revived =
-            PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), Some(persistence));
-        revived.rehydrate();
-        let listing = revived.list_sessions().expect("listing should pass");
-        let session = listing
-            .sessions
-            .iter()
-            .find(|session| session.session_id == session_id)
-            .expect("rehydrated session should be present");
-        let failed = session
-            .messages
-            .iter()
-            .find(|message| message.message_id.as_deref() == Some(message_id.as_str()))
-            .expect("failed message should rehydrate");
-        assert_eq!(
-            failed.delivery_status,
-            Some(contracts::MessageDeliveryStatus::Failed)
-        );
-        assert_eq!(failed.retryable, Some(true));
-
-        let _ = std::fs::remove_file(&db_path);
-    }
-
-    #[test]
-    fn retry_message_reuses_message_id_and_clears_failed_attempt() {
-        use crate::persistence::Persistence;
-        use std::path::PathBuf;
-
-        let _guard = MOSS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        drain_received_messages();
-
-        let mut db_path: PathBuf = std::env::temp_dir();
-        db_path.push(format!("mosh-dm-retry-{}.redb", std::process::id()));
-        let _ = std::fs::remove_file(&db_path);
-
-        let persistence =
-            Arc::new(Persistence::open_with_dek(&db_path, [23u8; 32]).expect("store should open"));
-        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
-
-        let (invite, failed_message_id) = {
-            let mut alice = PrivateDmRuntime::from_shared(
-                Arc::clone(&runtime),
-                temp_store(),
-                Some(persistence.clone()),
-            );
-            let invite = alice
-                .create_invite(StartSessionRequest {
-                    display_name: "Alice".to_string(),
-                    listen_port: 42161,
-                    static_peer: None,
-                })
-                .expect("Alice invite should be created");
-            let _publish_fail = wire::fail_next_test_publish("simulated publish failure");
-            let failed = alice
-                .send_message(&invite.session_id, "retry this".to_string())
-                .expect("failed send should still return a result");
-
-            let retried = alice
-                .retry_message(&invite.session_id, &failed.message_id)
-                .expect("retry should succeed");
-            assert_eq!(retried.message_id, failed.message_id);
-            assert_eq!(
-                retried.delivery_status,
-                contracts::MessageDeliveryStatus::Sent
-            );
-
-            let snapshot = alice
-                .poll_session(&invite.session_id)
-                .expect("poll should pass");
-            let matching: Vec<&ChatMessage> = snapshot
-                .messages
-                .iter()
-                .filter(|message| message.message_id.as_deref() == Some(failed.message_id.as_str()))
-                .collect();
-            assert_eq!(
-                matching.len(),
-                1,
-                "retry should update, not duplicate, the row"
-            );
-            assert_eq!(
-                matching[0].delivery_status,
-                Some(contracts::MessageDeliveryStatus::Sent)
-            );
-            assert_eq!(matching[0].retry_count, Some(1));
-
-            (invite, failed.message_id)
-        };
-
-        // The successful retry keeps the attempt persisted (as Sent) until the
-        // peer's DeliveryAck retires it — it must survive, not vanish.
-        let stored_attempt = persistence
-            .get_outbound_attempt("private_dm", &invite.session_id, &failed_message_id)
-            .expect("lookup should pass")
-            .expect("attempt should stay persisted while unacked");
-        let stored: OutboundAttemptRecord =
-            serde_json::from_slice(&stored_attempt).expect("attempt row should decode");
-        assert_eq!(stored.delivery_status, MessageDeliveryStatus::Sent);
-
-        let _ = std::fs::remove_file(&db_path);
-    }
-
     // Regression: the invite *joiner* (Bob) only obtains an MLS group after he
     // processes Alice's Welcome, so his persisted session record must be
     // refreshed with the real group_id once joined. Otherwise rehydrate cannot
@@ -4858,11 +3355,11 @@ mod tests {
 
     #[test]
     fn private_dm_inbound_filter_includes_voice_call_channels() {
-        assert!(is_private_dm_inbound("mls-control/session-one"));
-        assert!(is_private_dm_inbound("mls-data/session-one"));
-        assert!(is_private_dm_inbound("mls-blob/session-one"));
-        assert!(is_private_dm_inbound("voice-call/call-one"));
-        assert!(!is_private_dm_inbound("public-channel/general"));
+        assert!(transport::is_private_dm_inbound("mls-control/session-one"));
+        assert!(transport::is_private_dm_inbound("mls-data/session-one"));
+        assert!(transport::is_private_dm_inbound("mls-blob/session-one"));
+        assert!(transport::is_private_dm_inbound("voice-call/call-one"));
+        assert!(!transport::is_private_dm_inbound("public-channel/general"));
     }
 
     // Real Moss call E2E. This exercises the voice-call subscription and
@@ -5034,12 +3531,12 @@ mod tests {
                 .poll_session(session_id)
                 .expect("Alice poll should pass")
                 .state
-                == "ready";
+                == DmSessionState::Connected;
             let bob_ready = bob
                 .poll_session(session_id)
                 .expect("Bob poll should pass")
                 .state
-                == "ready";
+                == DmSessionState::Connected;
             if alice_ready && bob_ready {
                 return;
             }
@@ -5130,18 +3627,111 @@ mod tests {
         panic!("message did not arrive");
     }
 
-    // NOTE — S2 spec "Testing" defines two live integration scenarios that are
-    // NOT committed as tests here because they need infrastructure that does not
-    // exist until S3:
-    //   1. Two DM nodes with the direct path blocked connect via an in-process
-    //      SuperNode on `moss-relay/1`, exchange MLS messages (assert
-    //      `path == "relayed"`), then unblock direct and migrate to `"direct"`.
-    //   2. CGNAT-flap regression: with a SuperNode present reach steady
-    //      `relayed`; with none, degrade to `connecting` (no join/leave storm).
-    // Both require a local SuperNode bound to the relay mesh plus an injectable
-    // bootstrap-spore list (`RELAY_BOOTSTRAP_SPORES` is empty until S3). Rather
-    // than commit `unimplemented!()` stub tests, the scenarios are tracked in
-    // the S2 plan/ledger as an S3 deliverable. The transport logic they would
-    // exercise IS unit-covered: `next_path` (migration rules), `route_send`
-    // (direct vs relayed), the relay-drain auth path, and the ref-count edges.
+    // Two conversations share the one node the holder keeps, and the node
+    // goes down with the last of them. Two nodes would present the same peer
+    // id from two ports and a remote peer would keep one.
+    #[test]
+    fn sessions_share_one_node_and_close_releases_it() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let holder = SharedMossNode::new(runtime);
+        let mut alice = PrivateDmRuntime::from_shared_node(Arc::clone(&holder), temp_store(), None);
+        let first = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42187,
+                static_peer: None,
+            })
+            .expect("first invite should be created");
+        let node_ptr = Arc::as_ptr(&holder.current().expect("the node is up"));
+        let second = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42188,
+                static_peer: None,
+            })
+            .expect("second invite should be created");
+        assert_eq!(
+            node_ptr,
+            Arc::as_ptr(&holder.current().expect("the node is still up")),
+            "the second conversation started a second moss node"
+        );
+        assert_ne!(
+            alice.sessions[&first.session_id].mesh_id, alice.sessions[&second.session_id].mesh_id,
+            "sessions must stay in separate rooms on the shared node"
+        );
+
+        // Closing one leaves the node up for the other...
+        alice
+            .close_session(&first.session_id)
+            .expect("first session should close");
+        assert!(
+            holder.current().is_some(),
+            "the shared node went down while a conversation was still open"
+        );
+        // ...and closing the last one takes it down.
+        alice
+            .close_session(&second.session_id)
+            .expect("second session should close");
+        assert!(
+            holder.current().is_none(),
+            "the shared node outlived every conversation — nothing would ever stop moss"
+        );
+    }
+
+    // Real two-node loopback: one node per installation serves the handshake
+    // and a message, and no second node ever appears. Every snapshot along
+    // the way names the substrate room, which only the one node is born in.
+    // Timing-sensitive like the other loopback tests, so on demand
+    // (`cargo test -- --ignored`).
+    #[test]
+    #[ignore]
+    fn one_node_serves_the_handshake_and_a_message() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
+        let invite = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42132,
+                static_peer: None,
+            })
+            .expect("Alice invite should be created");
+        let mut bob = PrivateDmRuntime::from_shared(runtime, temp_store(), None);
+        bob.accept_invite(AcceptInviteRequest {
+            invite_uri: invite.invite_uri.clone(),
+            display_name: "Bob".to_string(),
+            listen_port: 42133,
+            static_peer: Some("127.0.0.1:42132".to_string()),
+        })
+        .expect("Bob should accept invite");
+
+        wait_until_ready(&mut alice, &mut bob, &invite.session_id);
+        alice
+            .send_message(&invite.session_id, "one node".to_string())
+            .expect("Alice should send");
+        let snapshot = wait_for_message(&mut bob, &invite.session_id, "one node");
+
+        for view in [
+            snapshot,
+            alice
+                .poll_session(&invite.session_id)
+                .expect("Alice poll should pass"),
+        ] {
+            assert_eq!(view.state, DmSessionState::Connected);
+            assert_ne!(view.transport, PeerTransport::None);
+            assert_eq!(
+                view.mesh.expect("the node reports").mesh_id,
+                crate::shared_node::SUBSTRATE_ROOM,
+                "a DM frame went through a node born in some other mesh"
+            );
+        }
+    }
 }

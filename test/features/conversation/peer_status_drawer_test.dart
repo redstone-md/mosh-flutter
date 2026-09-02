@@ -22,6 +22,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import '../../support/pump.dart';
 
 /// A minimal `SessionSnapshot` builder, mirroring the one in
@@ -32,9 +33,8 @@ SessionSnapshot _session({
   String sessionId = 'sess-1',
   String peerDisplayName = 'alice',
   String displayName = 'me',
-  String state = 'ready',
-  String path = 'relayed',
-  bool? relayReady = true,
+  DmSessionState state = DmSessionState.connected,
+  PeerTransport transport = PeerTransport.relayed,
   String role = 'initiator',
 }) =>
     SessionSnapshot(
@@ -44,8 +44,7 @@ SessionSnapshot _session({
       displayName: displayName,
       peerDisplayName: peerDisplayName,
       state: state,
-      path: path,
-      relayReady: relayReady,
+      transport: transport,
       inviteUri: null,
       fingerprint: 'AABB',
       messages: const [],

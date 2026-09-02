@@ -34,6 +34,7 @@ import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 import 'persistence.dart';
 import 'private_dm_runtime/contracts.dart';
+import 'private_dm_runtime/transport.dart';
 import 'private_group_runtime.dart';
 import 'secure_storage.dart';
 import 'vpn_consent.dart';
@@ -175,6 +176,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CallEvent dco_decode_box_autoadd_call_event(dynamic raw);
 
   @protected
+  ConnectOutcome dco_decode_box_autoadd_connect_outcome(dynamic raw);
+
+  @protected
   CreateGroupRequest dco_decode_box_autoadd_create_group_request(dynamic raw);
 
   @protected
@@ -249,6 +253,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage dco_decode_chat_message(dynamic raw);
 
   @protected
+  ConnectOutcome dco_decode_connect_outcome(dynamic raw);
+
+  @protected
   ConversationBridgeError dco_decode_conversation_bridge_error(dynamic raw);
 
   @protected
@@ -260,6 +267,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DmOffer dco_decode_dm_offer(dynamic raw);
+
+  @protected
+  DmSessionState dco_decode_dm_session_state(dynamic raw);
 
   @protected
   GroupCreated dco_decode_group_created(dynamic raw);
@@ -395,6 +405,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CallEvent? dco_decode_opt_box_autoadd_call_event(dynamic raw);
 
   @protected
+  ConnectOutcome? dco_decode_opt_box_autoadd_connect_outcome(dynamic raw);
+
+  @protected
   MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw);
 
   @protected
@@ -447,6 +460,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PeerDetail dco_decode_peer_detail(dynamic raw);
+
+  @protected
+  PeerTransport dco_decode_peer_transport(dynamic raw);
 
   @protected
   PendingCall dco_decode_pending_call(dynamic raw);
@@ -614,6 +630,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CallEvent sse_decode_box_autoadd_call_event(SseDeserializer deserializer);
 
   @protected
+  ConnectOutcome sse_decode_box_autoadd_connect_outcome(
+      SseDeserializer deserializer);
+
+  @protected
   CreateGroupRequest sse_decode_box_autoadd_create_group_request(
       SseDeserializer deserializer);
 
@@ -700,6 +720,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
 
   @protected
+  ConnectOutcome sse_decode_connect_outcome(SseDeserializer deserializer);
+
+  @protected
   ConversationBridgeError sse_decode_conversation_bridge_error(
       SseDeserializer deserializer);
 
@@ -713,6 +736,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DmOffer sse_decode_dm_offer(SseDeserializer deserializer);
+
+  @protected
+  DmSessionState sse_decode_dm_session_state(SseDeserializer deserializer);
 
   @protected
   GroupCreated sse_decode_group_created(SseDeserializer deserializer);
@@ -869,6 +895,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  ConnectOutcome? sse_decode_opt_box_autoadd_connect_outcome(
+      SseDeserializer deserializer);
+
+  @protected
   MeshInfo? sse_decode_opt_box_autoadd_mesh_info(SseDeserializer deserializer);
 
   @protected
@@ -926,6 +956,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PeerDetail sse_decode_peer_detail(SseDeserializer deserializer);
+
+  @protected
+  PeerTransport sse_decode_peer_transport(SseDeserializer deserializer);
 
   @protected
   PendingCall sse_decode_pending_call(SseDeserializer deserializer);
@@ -1102,6 +1135,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       CallEvent self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_connect_outcome(
+      ConnectOutcome self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_create_group_request(
       CreateGroupRequest self, SseSerializer serializer);
 
@@ -1193,6 +1230,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
 
   @protected
+  void sse_encode_connect_outcome(
+      ConnectOutcome self, SseSerializer serializer);
+
+  @protected
   void sse_encode_conversation_bridge_error(
       ConversationBridgeError self, SseSerializer serializer);
 
@@ -1206,6 +1247,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_dm_offer(DmOffer self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_dm_session_state(
+      DmSessionState self, SseSerializer serializer);
 
   @protected
   void sse_encode_group_created(GroupCreated self, SseSerializer serializer);
@@ -1369,6 +1414,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       CallEvent? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_connect_outcome(
+      ConnectOutcome? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_mesh_info(
       MeshInfo? self, SseSerializer serializer);
 
@@ -1428,6 +1477,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_peer_detail(PeerDetail self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_peer_transport(PeerTransport self, SseSerializer serializer);
 
   @protected
   void sse_encode_pending_call(PendingCall self, SseSerializer serializer);

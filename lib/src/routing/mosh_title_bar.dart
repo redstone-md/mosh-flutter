@@ -36,6 +36,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
@@ -214,7 +215,8 @@ class _StatePillSlot extends ConsumerWidget {
         final async = ref.watch(activeSessionProvider(activeKey.arg));
         final state = async.value?.state;
         if (state == null) return const SizedBox.shrink();
-        return StatePill(state: state, label: stateLabel(l, state));
+        return StatePill(
+            state: dmPillState(state), label: dmStateLabel(l, state));
       case ConversationKind.channel:
         // React: fixed ready pill + channelBroadcastBadge text
         // (private-dm-screen.tsx L286-290) -- channels are always in the

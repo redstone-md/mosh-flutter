@@ -1,7 +1,8 @@
 //! The one path a message takes on its way out.
 //!
 //! The three kinds publish differently — a channel sends in the clear, a group
-//! encrypts and publishes on its data channel, a DM routes through the relay —
+//! encrypts and publishes on its data channel, a DM queues and lets its outbox
+//! publish through its transport —
 //! but everything around that one step is the same. Stamp the message, file an
 //! attempt record so a restart can still find the bytes, publish, write down
 //! what happened on both the message and the record, and drop the record once
@@ -78,11 +79,40 @@ impl<'a, M: ConversationMessage> Outbox<'a, M> {
         payload: Vec<u8>,
         ciphertext_bytes: usize,
     ) -> Result<Prepared, LogError> {
+        self.file(
+            message,
+            conversation_id,
+            payload,
+            ciphertext_bytes,
+            MessageDeliveryStatus::Pending,
+        )
+    }
+
+    /// Files a message that waits for its transport: `Queued`, with no
+    /// payload yet. The kind builds the bytes when it takes the message out
+    /// of the queue, so they are encrypted at the epoch the peer will hold.
+    pub fn queue(&mut self, message: M, conversation_id: String) -> Result<Prepared, LogError> {
+        self.file(
+            message,
+            conversation_id,
+            Vec::new(),
+            0,
+            MessageDeliveryStatus::Queued,
+        )
+    }
+
+    fn file(
+        &mut self,
+        message: M,
+        conversation_id: String,
+        payload: Vec<u8>,
+        ciphertext_bytes: usize,
+        status: MessageDeliveryStatus,
+    ) -> Result<Prepared, LogError> {
         let message_id = message.message_id().unwrap_or_default().to_string();
         let sent_at_ms = message.sent_at_ms().unwrap_or_else(now_ms);
         self.log.upsert(message);
-        self.log
-            .mark_delivery(&message_id, MessageDeliveryStatus::Pending, None, 0)?;
+        self.log.mark_delivery(&message_id, status, None, 0)?;
         self.attempts.insert(
             message_id.clone(),
             OutboundAttemptRecord {
@@ -92,7 +122,7 @@ impl<'a, M: ConversationMessage> Outbox<'a, M> {
                 ciphertext_bytes,
                 message_json: self.log.json_for(&message_id)?,
                 publish_payload_b64: encode(&payload),
-                delivery_status: MessageDeliveryStatus::Pending,
+                delivery_status: status,
                 delivery_error: None,
                 retry_count: 0,
                 // Only a DM acks, so only a DM ever moves these two.
@@ -114,12 +144,26 @@ impl<'a, M: ConversationMessage> Outbox<'a, M> {
     /// stored payload comes back out unchanged, so the peer sees the same
     /// bytes it would have seen the first time.
     pub fn reopen(&mut self, message_id: &str) -> Result<Prepared, LogError> {
+        self.reopen_as(message_id, MessageDeliveryStatus::Pending)
+    }
+
+    /// Puts a message back in the queue: the retry count goes up and message
+    /// and record go back to `Queued`, for the kind's outbox to pick up.
+    pub fn requeue(&mut self, message_id: &str) -> Result<Prepared, LogError> {
+        self.reopen_as(message_id, MessageDeliveryStatus::Queued)
+    }
+
+    fn reopen_as(
+        &mut self,
+        message_id: &str,
+        status: MessageDeliveryStatus,
+    ) -> Result<Prepared, LogError> {
         let attempt = self
             .attempts
             .get_mut(message_id)
             .ok_or_else(|| LogError::Missing(message_id.to_string()))?;
         attempt.retry_count = attempt.retry_count.saturating_add(1);
-        attempt.delivery_status = MessageDeliveryStatus::Pending;
+        attempt.delivery_status = status;
         attempt.delivery_error = None;
         let prepared = Prepared {
             message_id: message_id.to_string(),

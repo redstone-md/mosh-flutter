@@ -45,6 +45,7 @@ import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 // Seeded test gateway: listSessions + poll return one DM session
@@ -59,9 +60,8 @@ SessionSnapshot _session({required String sessionId, required String peer}) =>
       role: 'inviter',
       displayName: 'me',
       peerDisplayName: peer,
-      state: 'ready',
-      path: 'direct',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: 'AABB',
       messages: const [],

@@ -19,6 +19,7 @@ import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
@@ -186,8 +187,8 @@ List<ConversationCase> conversationCases({
             role: 'inviter',
             displayName: ownDevice,
             peerDisplayName: 'peer',
-            state: 'ready',
-            path: 'direct',
+            state: DmSessionState.connected,
+            transport: PeerTransport.direct,
             fingerprint: ownFingerprint,
             messages: messages.map((m) => m.toDm()).toList(),
             attachments: attachments,

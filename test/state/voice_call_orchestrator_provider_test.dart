@@ -18,6 +18,7 @@ import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_playback.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart'
@@ -44,9 +45,8 @@ SessionSnapshot _session(
       role: 'caller',
       displayName: 'me',
       peerDisplayName: 'Alice',
-      state: 'ready',
-      path: 'direct',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: 'AA',
       messages: const [],

@@ -17,6 +17,7 @@ import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import '../../support/pump.dart';
@@ -33,9 +34,8 @@ SessionSnapshot _session({
       role: 'inviter',
       displayName: 'me',
       peerDisplayName: peerDisplayName,
-      state: 'ready',
-      path: 'connecting',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.none,
       inviteUri: null,
       fingerprint: 'AABB',
       messages: const [],

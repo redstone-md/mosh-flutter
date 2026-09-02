@@ -104,6 +104,18 @@ pub enum ControlEnvelope {
         call_id: String,
         reason: String,
     },
+    /// "I am here and I hold the group." Sent by each side as soon as its MLS
+    /// state is ready, repeated until the counterpart answers with any
+    /// authenticated frame. The body is the sender's moss peer id,
+    /// MLS-encrypted, so receiving one is proof the counterpart is alive and
+    /// nobody else can fake it. Old clients fail to decode the unknown
+    /// variant and drop the frame — they simply never say hello.
+    Hello {
+        session_id: String,
+        participant_id: String,
+        from_device: String,
+        hello_ciphertext_b64: String,
+    },
     /// Receipt for one Data message: the receiving runtime stored (or already
     /// had) the message. The acked message id travels MLS-encrypted — a
     /// plaintext ack could be forged by anyone on the pubsub mesh to fake
@@ -173,24 +185,9 @@ impl ChannelKind {
     }
 }
 
-/// Point-to-point relay payload. The direct path routes by pubsub channel; the
-/// relay callback carries only (sender_id, bytes), so we re-tag the channel
-/// here and reconstruct the exact MossReceivedMessage on the far side.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RelayFrame {
-    pub session_id: String,
-    pub channel_kind: ChannelKind,
-    pub bytes: Vec<u8>,
-}
-
 #[cfg(test)]
 pub fn fail_next_test_publish(message: &str) -> crate::moss_ffi::TestPublishFailureGuard {
     crate::moss_ffi::fail_next_test_publish(message)
-}
-
-#[cfg(test)]
-pub fn no_peers_next_test_publish() -> crate::moss_ffi::TestPublishFailureGuard {
-    crate::moss_ffi::no_peers_next_test_publish()
 }
 
 #[cfg(test)]
@@ -292,22 +289,27 @@ mod tests {
     }
 
     #[test]
-    fn relay_frame_roundtrips_and_rebuilds_channel() {
-        let frame = RelayFrame {
-            session_id: "sess1".into(),
-            channel_kind: ChannelKind::Control,
-            bytes: b"ct".to_vec(),
-        };
-        let json = serde_json::to_vec(&frame).unwrap();
-        let back: RelayFrame = serde_json::from_slice(&json).unwrap();
-        assert_eq!(back.session_id, "sess1");
-        assert_eq!(back.bytes, b"ct");
-        assert_eq!(
-            back.channel_kind.channel_for("sess1"),
-            control_channel("sess1")
-        );
+    fn channel_kind_names_the_session_channel() {
+        assert_eq!(ChannelKind::Control.channel_for("s"), control_channel("s"));
         assert_eq!(ChannelKind::Data.channel_for("s"), data_channel("s"));
         assert_eq!(ChannelKind::Blob.channel_for("s"), blob_channel("s"));
+    }
+
+    // An older build drops a control kind it does not know, so a Hello must
+    // decode on a build that knows it and nothing else about it matters.
+    #[test]
+    fn hello_roundtrips() {
+        let hello = ControlEnvelope::Hello {
+            session_id: "s".into(),
+            participant_id: "p".into(),
+            from_device: "d".into(),
+            hello_ciphertext_b64: "Y2lwaGVy".into(),
+        };
+        let bytes = serde_json::to_vec(&hello).unwrap();
+        assert!(matches!(
+            serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
+            ControlEnvelope::Hello { .. }
+        ));
     }
 
     #[test]

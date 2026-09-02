@@ -9,7 +9,7 @@
 //!
 //! What stays with the kind: how a manifest, a chunk request and a chunk get
 //! published. A channel sends them in the clear, a group wraps them in MLS, a
-//! DM routes them through the relay.
+//! DM wraps them in MLS too and hands them to its transport.
 
 use std::collections::HashMap;
 

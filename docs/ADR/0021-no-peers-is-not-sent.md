@@ -83,3 +83,10 @@ instead of a line hidden in the code that classifies the return value.
 - BUGS-TODO #18 (admin handoff frozen by a lost Commit) is not fixed here.
   Group control frames stay best-effort; that item needs confirmed delivery,
   which is a different mechanism.
+- **DM texts (ADR 0026, 2026-09-02).** A refusal is still never `Sent`. In the
+  DM it is no longer `Failed` either: the text stays `Queued` and the outbox
+  publishes it once the counterpart is reachable. The DM has an
+  acknowledgement channel and a resend loop, so a refusal there is a wait, not
+  an error. The presentation rule above — red, with a Retry button — now
+  applies to groups and channels only, which have neither. The
+  `drain_relay_results` re-route named in the table is gone with the relay.

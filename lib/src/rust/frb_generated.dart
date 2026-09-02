@@ -35,6 +35,7 @@ import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'persistence.dart';
 import 'private_dm_runtime/contracts.dart';
+import 'private_dm_runtime/transport.dart';
 import 'private_group_runtime.dart';
 import 'secure_storage.dart';
 import 'vpn_consent.dart';
@@ -2192,6 +2193,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConnectOutcome dco_decode_box_autoadd_connect_outcome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_connect_outcome(raw);
+  }
+
+  @protected
   CreateGroupRequest dco_decode_box_autoadd_create_group_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_create_group_request(raw);
@@ -2418,6 +2425,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConnectOutcome dco_decode_connect_outcome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ConnectOutcome.values[raw as int];
+  }
+
+  @protected
   ConversationBridgeError dco_decode_conversation_bridge_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2464,6 +2477,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       targetFingerprint: dco_decode_String(arr[3]),
       inviteUri: dco_decode_String(arr[4]),
     );
+  }
+
+  @protected
+  DmSessionState dco_decode_dm_session_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DmSessionState.values[raw as int];
   }
 
   @protected
@@ -2895,6 +2914,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConnectOutcome? dco_decode_opt_box_autoadd_connect_outcome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_connect_outcome(raw);
+  }
+
+  @protected
   MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_mesh_info(raw);
@@ -3064,6 +3089,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PeerTransport dco_decode_peer_transport(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return PeerTransport.values[raw as int];
+  }
+
+  @protected
   PendingCall dco_decode_pending_call(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3118,26 +3149,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SessionSnapshot dco_decode_session_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 17)
-      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
+    if (arr.length != 18)
+      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
     return SessionSnapshot(
       sessionId: dco_decode_String(arr[0]),
       meshId: dco_decode_String(arr[1]),
       role: dco_decode_String(arr[2]),
       displayName: dco_decode_String(arr[3]),
       peerDisplayName: dco_decode_String(arr[4]),
-      state: dco_decode_String(arr[5]),
-      path: dco_decode_String(arr[6]),
-      relayReady: dco_decode_opt_box_autoadd_bool(arr[7]),
-      inviteUri: dco_decode_opt_String(arr[8]),
-      fingerprint: dco_decode_String(arr[9]),
-      messages: dco_decode_list_chat_message(arr[10]),
-      attachments: dco_decode_list_attachment_view(arr[11]),
-      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[12]),
-      events: dco_decode_list_snapshot_event(arr[13]),
-      pendingCall: dco_decode_opt_box_autoadd_pending_call(arr[14]),
-      outgoingCall: dco_decode_opt_box_autoadd_outgoing_call(arr[15]),
-      activeCall: dco_decode_opt_box_autoadd_active_call(arr[16]),
+      state: dco_decode_dm_session_state(arr[5]),
+      transport: dco_decode_peer_transport(arr[6]),
+      peerMossId: dco_decode_opt_String(arr[7]),
+      lastConnectOutcome: dco_decode_opt_box_autoadd_connect_outcome(arr[8]),
+      inviteUri: dco_decode_opt_String(arr[9]),
+      fingerprint: dco_decode_String(arr[10]),
+      messages: dco_decode_list_chat_message(arr[11]),
+      attachments: dco_decode_list_attachment_view(arr[12]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[13]),
+      events: dco_decode_list_snapshot_event(arr[14]),
+      pendingCall: dco_decode_opt_box_autoadd_pending_call(arr[15]),
+      outgoingCall: dco_decode_opt_box_autoadd_outgoing_call(arr[16]),
+      activeCall: dco_decode_opt_box_autoadd_active_call(arr[17]),
     );
   }
 
@@ -3521,6 +3553,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConnectOutcome sse_decode_box_autoadd_connect_outcome(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_connect_outcome(deserializer));
+  }
+
+  @protected
   CreateGroupRequest sse_decode_box_autoadd_create_group_request(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -3770,6 +3809,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConnectOutcome sse_decode_connect_outcome(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ConnectOutcome.values[inner];
+  }
+
+  @protected
   ConversationBridgeError sse_decode_conversation_bridge_error(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -3817,6 +3863,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         fromFingerprint: var_fromFingerprint,
         targetFingerprint: var_targetFingerprint,
         inviteUri: var_inviteUri);
+  }
+
+  @protected
+  DmSessionState sse_decode_dm_session_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DmSessionState.values[inner];
   }
 
   @protected
@@ -4433,6 +4486,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConnectOutcome? sse_decode_opt_box_autoadd_connect_outcome(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_connect_outcome(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   MeshInfo? sse_decode_opt_box_autoadd_mesh_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -4647,6 +4712,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PeerTransport sse_decode_peer_transport(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return PeerTransport.values[inner];
+  }
+
+  @protected
   PendingCall sse_decode_pending_call(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_callId = sse_decode_String(deserializer);
@@ -4698,9 +4770,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_role = sse_decode_String(deserializer);
     var var_displayName = sse_decode_String(deserializer);
     var var_peerDisplayName = sse_decode_String(deserializer);
-    var var_state = sse_decode_String(deserializer);
-    var var_path = sse_decode_String(deserializer);
-    var var_relayReady = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_state = sse_decode_dm_session_state(deserializer);
+    var var_transport = sse_decode_peer_transport(deserializer);
+    var var_peerMossId = sse_decode_opt_String(deserializer);
+    var var_lastConnectOutcome =
+        sse_decode_opt_box_autoadd_connect_outcome(deserializer);
     var var_inviteUri = sse_decode_opt_String(deserializer);
     var var_fingerprint = sse_decode_String(deserializer);
     var var_messages = sse_decode_list_chat_message(deserializer);
@@ -4718,8 +4792,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         displayName: var_displayName,
         peerDisplayName: var_peerDisplayName,
         state: var_state,
-        path: var_path,
-        relayReady: var_relayReady,
+        transport: var_transport,
+        peerMossId: var_peerMossId,
+        lastConnectOutcome: var_lastConnectOutcome,
         inviteUri: var_inviteUri,
         fingerprint: var_fingerprint,
         messages: var_messages,
@@ -5077,6 +5152,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_connect_outcome(
+      ConnectOutcome self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_connect_outcome(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_create_group_request(
       CreateGroupRequest self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -5281,6 +5363,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_connect_outcome(
+      ConnectOutcome self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_conversation_bridge_error(
       ConversationBridgeError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -5314,6 +5403,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.fromFingerprint, serializer);
     sse_encode_String(self.targetFingerprint, serializer);
     sse_encode_String(self.inviteUri, serializer);
+  }
+
+  @protected
+  void sse_encode_dm_session_state(
+      DmSessionState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -5769,6 +5865,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_connect_outcome(
+      ConnectOutcome? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_connect_outcome(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_mesh_info(
       MeshInfo? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -5945,6 +6052,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_peer_transport(PeerTransport self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_pending_call(PendingCall self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.callId, serializer);
@@ -5987,9 +6100,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.role, serializer);
     sse_encode_String(self.displayName, serializer);
     sse_encode_String(self.peerDisplayName, serializer);
-    sse_encode_String(self.state, serializer);
-    sse_encode_String(self.path, serializer);
-    sse_encode_opt_box_autoadd_bool(self.relayReady, serializer);
+    sse_encode_dm_session_state(self.state, serializer);
+    sse_encode_peer_transport(self.transport, serializer);
+    sse_encode_opt_String(self.peerMossId, serializer);
+    sse_encode_opt_box_autoadd_connect_outcome(
+        self.lastConnectOutcome, serializer);
     sse_encode_opt_String(self.inviteUri, serializer);
     sse_encode_String(self.fingerprint, serializer);
     sse_encode_list_chat_message(self.messages, serializer);

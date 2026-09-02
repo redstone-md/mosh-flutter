@@ -37,7 +37,11 @@ import 'package:mosh/src/gateway/real_bridge_gateway.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import 'package:mosh/src/rust/channel_runtime.dart' show JoinChannelRequest;
 import 'package:mosh/src/rust/frb_generated.dart';
+import 'package:mosh/src/rust/outbound_delivery.dart'
+    show MessageDeliveryStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart'
+    show PeerTransport;
 import 'package:mosh/src/rust/private_group_runtime.dart'
     show CreateGroupRequest;
 
@@ -100,11 +104,18 @@ void main() {
       final dm = DmTarget(invite.sessionId);
       await gateway.send(dm, body: 'dm dispatch');
       final snap = await gateway.poll(dm);
+      final sent = snap.messages.where((m) => m.body == 'dm dispatch');
       expect(
-        snap.messages.any((m) => m.body == 'dm dispatch'),
-        isTrue,
+        sent,
+        isNotEmpty,
         reason: 'a DmTarget send must land in the DM runtime',
       );
+      // Nobody has joined: the text waits on this device, and the snapshot
+      // says so in the typed fields the UI switches on.
+      expect(sent.single.deliveryStatus, MessageDeliveryStatus.queued);
+      expect(snap.state, DmSessionState.pending);
+      expect(snap.transport, PeerTransport.none);
+      expect(snap.peerMossId, isNull);
       await expectLater(
         gateway.downloadAttachment(dm, attachmentId: 'no-such-attachment'),
         throwsA(_kind(ConversationBridgeErrorKind.missingAttachment)),

@@ -9,6 +9,7 @@ import '../conversation/mesh.dart';
 import '../frb_generated.dart';
 import '../outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'transport.dart';
 
 class AcceptInviteRequest {
   final String inviteUri;
@@ -192,6 +193,33 @@ class ChatMessage {
           retryCount == other.retryCount;
 }
 
+/// What the last request to reach the counterpart answered, for the
+/// diagnostics card. moss keeps retrying a requested target on its own, so
+/// "requested" is the good outcome; a failure means moss would not take the
+/// request at all, and the runtime asks again on its next tick. The error
+/// text goes to the log, where it can be read in full.
+enum ConnectOutcome {
+  requested,
+  failed,
+  ;
+}
+
+/// Where a DM stands, as proven by the other side. `Connected` is only
+/// reached on an MLS-authenticated frame from the counterpart and only left
+/// when the counterpart drops out of reach.
+enum DmSessionState {
+  /// Invite created or accepted; nothing from the counterpart yet.
+  pending,
+
+  /// The counterpart's handshake frame arrived, or it was connected and is
+  /// out of reach now. Nothing authenticated has come back since.
+  handshaking,
+
+  /// The counterpart answered with an authenticated frame.
+  connected,
+  ;
+}
+
 class InviteCreated {
   final String inviteUri;
   final String sessionId;
@@ -295,18 +323,16 @@ class SessionSnapshot {
   /// The remote peer's display name, learned from inbound messages/control.
   /// Empty until the first inbound frame from the peer is seen.
   final String peerDisplayName;
-  final String state;
+  final DmSessionState state;
 
-  /// Which transport this DM currently uses: "direct", "relayed", or
-  /// "connecting". Relayed traffic is still E2E — the supernode sees only
-  /// ciphertext.
-  final String path;
+  /// How the counterpart is reachable through moss right now.
+  final PeerTransport transport;
 
-  /// Whether the shared relay node currently sees at least one
-  /// relay-capable peer (a promoted SuperNode). Only present while `path`
-  /// is "relayed"; `false` means the relay is still warming up — queued
-  /// frames wait for convergence instead of failing.
-  final bool? relayReady;
+  /// The counterpart's moss peer id, once a handshake frame carried it.
+  final String? peerMossId;
+
+  /// What the last request to reach the counterpart answered.
+  final ConnectOutcome? lastConnectOutcome;
   final String? inviteUri;
   final String fingerprint;
   final List<ChatMessage> messages;
@@ -327,8 +353,9 @@ class SessionSnapshot {
     required this.displayName,
     required this.peerDisplayName,
     required this.state,
-    required this.path,
-    this.relayReady,
+    required this.transport,
+    this.peerMossId,
+    this.lastConnectOutcome,
     this.inviteUri,
     required this.fingerprint,
     required this.messages,
@@ -348,8 +375,9 @@ class SessionSnapshot {
       displayName.hashCode ^
       peerDisplayName.hashCode ^
       state.hashCode ^
-      path.hashCode ^
-      relayReady.hashCode ^
+      transport.hashCode ^
+      peerMossId.hashCode ^
+      lastConnectOutcome.hashCode ^
       inviteUri.hashCode ^
       fingerprint.hashCode ^
       messages.hashCode ^
@@ -371,8 +399,9 @@ class SessionSnapshot {
           displayName == other.displayName &&
           peerDisplayName == other.peerDisplayName &&
           state == other.state &&
-          path == other.path &&
-          relayReady == other.relayReady &&
+          transport == other.transport &&
+          peerMossId == other.peerMossId &&
+          lastConnectOutcome == other.lastConnectOutcome &&
           inviteUri == other.inviteUri &&
           fingerprint == other.fingerprint &&
           messages == other.messages &&

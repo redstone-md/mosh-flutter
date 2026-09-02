@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 
 SessionSnapshot _snapshot({
   PendingCall? pendingCall,
@@ -18,8 +19,8 @@ SessionSnapshot _snapshot({
       role: 'caller',
       displayName: 'me',
       peerDisplayName: peerDisplayName,
-      state: 'ready',
-      path: 'direct',
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       fingerprint: 'fp',
       messages: const [],
       attachments: const [],

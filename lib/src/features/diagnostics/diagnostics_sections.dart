@@ -33,10 +33,9 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/event_log.dart';
 import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
-import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart';
 
@@ -276,13 +275,12 @@ class DiagnosticsEmptyState extends StatelessWidget {
 /// network, and EventLog. All three groups now render (1-в-1 with React).
 ///
 /// Renders the first `.diagnostic-group` from React's `SessionDiagnostics`:
-/// the "Conversation details" label, then the Peer / MLS state / Path /
-/// (Encryption, only when `path == "relayed"`) / Role / Display / Session
-/// rows. The MLS-state value uses the shared `stateLabel` mapper (the same
-/// `stateLabels[session.state] ?? session.state` lookup the summary card
-/// and the sessions rail use). The Path value uses `pathLabel` (data, not
-/// localized). The Session value uses `shorten(session.sessionId, 14)` from
-/// `lib/src/util/format.dart`.
+/// the "Conversation details" label, then the Peer / MLS state / Transport
+/// / Peer id / Last connect / Role / Display / Session rows. The MLS-state
+/// and Transport values come from `dm_state.dart`, the same wording the
+/// header and the rail use, so "Connected" and "peer unknown" can never
+/// appear together. The Session value uses `shorten(session.sessionId, 14)`
+/// from `lib/src/util/format.dart`.
 ///
 /// The second `.diagnostic-group` is the `MeshDiagnostics` "Moss network"
 /// group (rendered below the Conversation-details group). The third is
@@ -308,17 +306,26 @@ class SessionDiagnostics extends StatelessWidget {
       ),
       DiagnosticsRow(
         label: l.diagRowMlsState,
-        value: stateLabel(l, session.state),
+        value: dmStateLabel(l, session.state),
       ),
       DiagnosticsRow(
-        label: l.diagRowPath,
-        value: pathLabel(session.path, session.relayReady),
+        label: l.diagRowTransport,
+        value: transportLabel(l, session.transport),
       ),
-      if (session.path == 'relayed')
-        DiagnosticsRow(
-          label: l.diagRowEncryption,
-          value: l.diagEncryptionRelayed,
-        ),
+      DiagnosticsRow(
+        label: l.diagRowPeerId,
+        value: session.peerMossId == null
+            ? l.diagPeerIdUnknown
+            : shorten(session.peerMossId!, 8),
+      ),
+      DiagnosticsRow(
+        label: l.diagRowLastConnect,
+        value: switch (session.lastConnectOutcome) {
+          null => l.diagConnectNotYet,
+          ConnectOutcome.requested => l.diagConnectRequested,
+          ConnectOutcome.failed => l.diagConnectFailed,
+        },
+      ),
       DiagnosticsRow(label: l.diagRowRole, value: session.role),
       DiagnosticsRow(label: l.diagRowDisplay, value: session.displayName),
       DiagnosticsRow(

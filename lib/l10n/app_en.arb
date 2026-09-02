@@ -204,6 +204,30 @@
   "@stateReady": {
     "description": "State label for the ready connection state"
   },
+  "dmStateWaiting": "Waiting for your contact",
+  "@dmStateWaiting": {
+    "description": "DM state label and header sentence while nobody has joined the chat yet"
+  },
+  "stateOffline": "Contact is offline",
+  "@stateOffline": {
+    "description": "Short DM state label while the contact is not reachable (rail badge, pill, diagnostics row)"
+  },
+  "stateOfflineSentence": "Contact is offline. Messages will be delivered when you are both online",
+  "@stateOfflineSentence": {
+    "description": "DM header sentence while the contact is not reachable"
+  },
+  "transportDirect": "direct",
+  "@transportDirect": {
+    "description": "How the contact is reached: a direct connection"
+  },
+  "transportRelayed": "relayed by the network",
+  "@transportRelayed": {
+    "description": "How the contact is reached: through the network's own relay"
+  },
+  "transportNone": "no path yet",
+  "@transportNone": {
+    "description": "How the contact is reached: not reachable right now"
+  },
   "sessionsListTitle": "Conversations",
   "@sessionsListTitle": {
     "description": "AppBar title of the DM sessions list screen"
@@ -733,13 +757,33 @@
   "@diagRowMlsState": {
     "description": "Row key for the MLS connection state in the Conversation details group"
   },
-  "diagRowPath": "Path",
-  "@diagRowPath": {
-    "description": "Row key for the transport path in the Conversation details group"
+  "diagRowTransport": "Transport",
+  "@diagRowTransport": {
+    "description": "Row key for how the contact is reached in the Conversation details group"
   },
-  "diagRowEncryption": "Encryption",
-  "@diagRowEncryption": {
-    "description": "Row key for the encryption note shown when the path is relayed"
+  "diagRowPeerId": "Peer id",
+  "@diagRowPeerId": {
+    "description": "Row key for the contact's moss peer id in the Conversation details group"
+  },
+  "diagPeerIdUnknown": "not yet known",
+  "@diagPeerIdUnknown": {
+    "description": "Value of the Peer id row before a handshake frame carried the contact's moss peer id"
+  },
+  "diagRowLastConnect": "Last connect",
+  "@diagRowLastConnect": {
+    "description": "Row key for the outcome of the last request to reach the contact"
+  },
+  "diagConnectNotYet": "not requested yet",
+  "@diagConnectNotYet": {
+    "description": "Value of the Last connect row before the runtime has asked moss to reach the contact"
+  },
+  "diagConnectRequested": "requested, moss is dialing",
+  "@diagConnectRequested": {
+    "description": "Value of the Last connect row once moss accepted the request to reach the contact and keeps trying on its own"
+  },
+  "diagConnectFailed": "moss refused the request, retrying",
+  "@diagConnectFailed": {
+    "description": "Value of the Last connect row when moss would not take the request to reach the contact; the runtime asks again on its next tick"
   },
   "diagRowRole": "Role",
   "@diagRowRole": {
@@ -752,10 +796,6 @@
   "diagPeerUnknown": "unknown",
   "@diagPeerUnknown": {
     "description": "Fallback value for the Peer row when the peer display name is empty"
-  },
-  "diagEncryptionRelayed": "E2E — supernode sees only ciphertext",
-  "@diagEncryptionRelayed": {
-    "description": "Value of the Encryption row when the path is relayed; the em dash matches the React literal"
   },
   "diagNoActiveTitle": "No active session",
   "@diagNoActiveTitle": {
@@ -995,18 +1035,18 @@
       }
     }
   },
-  "dmSubtitleConfirmed": "MLS {state} · fingerprint confirmed",
+  "dmSubtitleConfirmed": "{state} · fingerprint confirmed",
   "@dmSubtitleConfirmed": {
-    "description": "DmScreen AppBar subtitle when the peer fingerprint is confirmed (mirrors React ActiveChatPanes.tsx subtitle `MLS ${state} · fingerprint confirmed`), with the MLS connection state",
+    "description": "DmScreen AppBar subtitle when the peer fingerprint is confirmed, with the DM state sentence (waiting, offline, or connected plus the transport)",
     "placeholders": {
       "state": {
         "type": "String"
       }
     }
   },
-  "dmSubtitleUnverified": "MLS {state} · fingerprint unverified",
+  "dmSubtitleUnverified": "{state} · fingerprint unverified",
   "@dmSubtitleUnverified": {
-    "description": "DmScreen AppBar subtitle when the peer fingerprint is NOT confirmed (mirrors React ActiveChatPanes.tsx subtitle `MLS ${state} · fingerprint unverified`), with the MLS connection state",
+    "description": "DmScreen AppBar subtitle when the peer fingerprint is NOT confirmed, with the DM state sentence (waiting, offline, or connected plus the transport)",
     "placeholders": {
       "state": {
         "type": "String"
@@ -1302,6 +1342,10 @@
   "deliverySending": "sending\u2026",
   "@deliverySending": {
     "description": "Delivery-ticks label for a pending (in-flight) own-message."
+  },
+  "deliveryQueued": "queued",
+  "@deliveryQueued": {
+    "description": "Delivery-ticks label for a text that waits on the device until the contact is reachable; drawn after a clock icon."
   },
   "peerLabelInviteSent": "invite sent",
   "@peerLabelInviteSent": {

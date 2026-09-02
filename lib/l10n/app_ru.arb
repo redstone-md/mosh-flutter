@@ -54,6 +54,12 @@
   "stateIdle": "Простой",
   "stateWaiting": "Ожидание",
   "stateReady": "Подключено",
+  "dmStateWaiting": "Ожидание собеседника",
+  "stateOffline": "Собеседник не в сети",
+  "stateOfflineSentence": "Собеседник не в сети. Сообщения будут доставлены, когда вы оба будете онлайн",
+  "transportDirect": "напрямую",
+  "transportRelayed": "через ретранслятор сети",
+  "transportNone": "пути пока нет",
   "sessionsListTitle": "Диалоги",
   "backToConversations": "К диалогам",
   "sessionsError": "Не удалось загрузить сессии.",
@@ -260,14 +266,13 @@
   "@diagRowMlsState": {
     "description": "Row key for the MLS connection state in the Conversation details group"
   },
-  "diagRowPath": "Путь",
-  "@diagRowPath": {
-    "description": "Row key for the transport path in the Conversation details group"
-  },
-  "diagRowEncryption": "Шифрование",
-  "@diagRowEncryption": {
-    "description": "Row key for the encryption note shown when the path is relayed"
-  },
+  "diagRowTransport": "Транспорт",
+  "diagRowPeerId": "ID пира",
+  "diagPeerIdUnknown": "пока неизвестен",
+  "diagRowLastConnect": "Последнее подключение",
+  "diagConnectNotYet": "ещё не запрашивалось",
+  "diagConnectRequested": "запрошено, moss дозванивается",
+  "diagConnectFailed": "moss отклонил запрос, повторяем",
   "diagRowRole": "Роль",
   "@diagRowRole": {
     "description": "Row key for the local device role in the Conversation details group"
@@ -279,10 +284,6 @@
   "diagPeerUnknown": "неизвестно",
   "@diagPeerUnknown": {
     "description": "Fallback value for the Peer row when the peer display name is empty"
-  },
-  "diagEncryptionRelayed": "E2E — суперкод видит только шифртекст",
-  "@diagEncryptionRelayed": {
-    "description": "Value of the Encryption row when the path is relayed; the em dash matches the React literal"
   },
   "diagNoActiveTitle": "Нет активной сессии",
   "@diagNoActiveTitle": {
@@ -522,7 +523,7 @@
       }
     }
   },
-  "dmSubtitleConfirmed": "MLS {state} · отпечаток подтверждён",
+  "dmSubtitleConfirmed": "{state} · отпечаток подтверждён",
   "@dmSubtitleConfirmed": {
     "description": "DmScreen AppBar subtitle when the peer fingerprint is confirmed (mirrors React ActiveChatPanes.tsx subtitle `MLS ${state} · fingerprint confirmed`), with the MLS connection state",
     "placeholders": {
@@ -531,7 +532,7 @@
       }
     }
   },
-  "dmSubtitleUnverified": "MLS {state} · отпечаток не подтверждён",
+  "dmSubtitleUnverified": "{state} · отпечаток не подтверждён",
   "@dmSubtitleUnverified": {
     "description": "DmScreen AppBar subtitle when the peer fingerprint is NOT confirmed (mirrors React ActiveChatPanes.tsx subtitle `MLS ${state} · fingerprint unverified`), with the MLS connection state",
     "placeholders": {
@@ -725,6 +726,8 @@
   "deliverySent": "✓ отправлено"
   ,
   "deliverySending": "отправка…"
+  ,
+  "deliveryQueued": "в очереди"
   ,
   "peerLabelInviteSent": "Приглашение отправлено"
   ,

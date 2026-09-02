@@ -18,6 +18,7 @@ import 'package:mosh/src/features/sessions/rail_item.dart' show RailItem;
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
@@ -48,9 +49,8 @@ SessionSnapshot _session() => SessionSnapshot(
       role: 'inviter',
       displayName: 'me',
       peerDisplayName: 'Alice',
-      state: 'ready',
-      path: 'connecting',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.none,
       inviteUri: null,
       fingerprint: 'AABB',
       messages: const [],

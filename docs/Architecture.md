@@ -429,7 +429,7 @@ trait.
 
 ```mermaid
 flowchart TD
-    Dm["private_dm_runtime<br/>relay, calls, DeliveryAck"]
+    Dm["private_dm_runtime<br/>DmTransport, outbox, Hello, calls, DeliveryAck"]
     Gr["private_group_runtime<br/>roster authority, admin from the tree, rejoin"]
     Ch["channel_runtime<br/>open mesh, no MLS"]
     Shell["conversation::runtime<br/>ConversationRuntime&lt;S&gt; + ConversationSession"]
@@ -468,7 +468,7 @@ flowchart TD
     Shell --> Hist
     Shell -->|"open_room / close_room"| Moss
     Hist -->|"HistoryTables picks the tables"| Db
-    Dm -->|"MLS + relay"| Moss
+    Dm -->|"MLS + room, through DmTransport"| Moss
     Gr -->|"MLS + room"| Moss
     Ch -->|"plain + room"| Moss
 ```
@@ -512,7 +512,10 @@ flowchart TD
   settles as a retryable `Failed`, not as `Sent` — the frame reached nobody, so
   the record stays for the user's Retry (ADR 0021). Control frames, which
   repeat on their own, swallow that refusal through
-  `MossNode::publish_room_best_effort`.
+  `MossNode::publish_room_best_effort`. A DM text takes the other door:
+  `queue` files it as `Queued` with no payload, and the DM's outbox encrypts
+  and publishes it later, oldest first, whenever the counterpart is reachable;
+  a refusal leaves it queued, never failed (ADR 0026).
 - `history::History` — what a conversation keeps on disk. `replay` reads one
   conversation back (messages, cached attachments, sends that never settled),
   `write_tail` appends only the messages gained since the last write, and
@@ -533,6 +536,39 @@ flowchart TD
   we already hold. `dismiss` drops one. A DM has no such list: it is where an
   accepted offer leads, not a place offers are shown. An org keeps its own
   list, on peer-ids and gated by the roster (ADR 0019).
+
+### One node and the DM transport seam
+
+The process runs one moss node (`shared_node`), and a DM reaches it through
+one interface. `private_dm_runtime::transport::DmTransport` is the only door a
+DM frame goes through in either direction: open and close a room, subscribe a
+channel, publish a frame, ask moss to reach a peer, report how that peer is
+reachable, drain what arrived. `MossDmTransport` wraps the shared node and
+never keeps its handle, so the holder's refcount alone decides when moss
+stops. `MemoryNet` (tests only) joins two runtimes in one process and can be
+told which frames get lost and which publishes are refused. The paid mailbox
+is a second implementation behind the same trait (ADR 0026).
+
+```mermaid
+flowchart LR
+    Session["PrivateDmSession<br/>state machine, outbox, MLS"]
+    Trait["DmTransport<br/>publish · connect_peer · reach · drain"]
+    Moss["MossDmTransport → shared node"]
+    Mem["MemoryNet (tests)"]
+    Session --> Trait
+    Trait --> Moss
+    Trait --> Mem
+```
+
+What the snapshot says about a DM is proven by the other side. `state` is
+`pending` (nothing from the counterpart yet), `handshaking` (its handshake
+frame arrived, or it was connected and is out of reach now) or `connected`
+(an MLS-authenticated frame came back). `Hello` — the sender's moss peer id,
+MLS-encrypted — is what makes the proof immediate; it repeats on the handshake
+cadence until answered. `transport` is how moss reports the counterpart right
+now: `direct`, `relayed` or `none`. The Dart side renders both through
+`features/conversation/dm_state.dart`, one wording for the header, the rail,
+the title-bar pill and the diagnostics card.
 
 ## Sessions Rail
 

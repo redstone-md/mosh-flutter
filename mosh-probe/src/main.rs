@@ -27,7 +27,7 @@ use mosh_core::moss_runtime::{MossDynamicRuntime, MossRuntime};
 use mosh_core::network_inventory;
 use mosh_core::outbound_delivery::MessageDeliveryStatus;
 use mosh_core::private_dm_runtime::{
-    AcceptInviteRequest, PrivateDmRuntime, SessionSnapshot, StartSessionRequest,
+    AcceptInviteRequest, DmSessionState, PrivateDmRuntime, SessionSnapshot, StartSessionRequest,
 };
 use mosh_core::private_group_runtime::{
     CreateGroupRequest, GroupSnapshot, JoinGroupRequest, PrivateGroupRuntime,
@@ -270,8 +270,7 @@ fn snapshot_line(role: &str, snap: &SessionSnapshot) {
             "session_id": snap.session_id,
             "mesh_id": snap.mesh_id,
             "state": snap.state,
-            "path": snap.path,
-            "relay_ready": snap.relay_ready,
+            "transport": snap.transport,
             "peer_display_name": snap.peer_display_name,
             "messages": snap.messages.len(),
             "mesh": mesh_json(snap.mesh.as_ref()),
@@ -548,7 +547,7 @@ fn dial_many(
     let budget = Duration::from_secs(timeout_secs);
     let started = std::time::Instant::now();
     let ready = pump_all(role, &mut dm, &session_ids, budget, |snap| {
-        snap.state == "ready"
+        snap.state == DmSessionState::Connected
     })?;
 
     // One node or N is visible from here: every session reports the port of the
@@ -660,7 +659,7 @@ fn listen_many(
         &mut dm,
         &session_ids,
         Duration::from_secs(timeout_secs),
-        |snap| snap.state == "ready" && !snap.messages.is_empty(),
+        |snap| snap.state == DmSessionState::Connected && !snap.messages.is_empty(),
     )?;
 
     let ports: Vec<i32> = session_ids
@@ -732,7 +731,7 @@ fn listen(
         &mut dm,
         &created.session_id,
         Duration::from_secs(timeout_secs),
-        |snap| snap.state == "ready" && !snap.messages.is_empty(),
+        |snap| snap.state == DmSessionState::Connected && !snap.messages.is_empty(),
     )?;
 
     let snap = dm.poll_session(&created.session_id)?;
@@ -742,7 +741,7 @@ fn listen(
         serde_json::json!({
             "ok": ready,
             "state": snap.state,
-            "path": snap.path,
+            "transport": snap.transport,
             "messages": snap.messages.len(),
             "flags": warn_flags(snap.mesh.as_ref()),
         }),
@@ -783,7 +782,7 @@ fn dial(
     let budget = Duration::from_secs(timeout_secs);
     let started = std::time::Instant::now();
     let ready = pump(role, &mut dm, &accepted.session_id, budget, |snap| {
-        snap.state == "ready"
+        snap.state == DmSessionState::Connected
     })?;
     if !ready {
         let snap = dm.poll_session(&accepted.session_id)?;
@@ -794,7 +793,7 @@ fn dial(
                 "ok": false,
                 "stage": "mls_handshake",
                 "state": snap.state,
-                "path": snap.path,
+                "transport": snap.transport,
                 "flags": warn_flags(snap.mesh.as_ref()),
             }),
         );
@@ -825,7 +824,7 @@ fn dial(
             "ok": delivered,
             "stage": if delivered { "delivered" } else { "delivery" },
             "state": snap.state,
-            "path": snap.path,
+            "transport": snap.transport,
             "flags": warn_flags(snap.mesh.as_ref()),
         }),
     );

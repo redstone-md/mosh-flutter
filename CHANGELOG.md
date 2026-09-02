@@ -4,6 +4,25 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **One moss node per installation.** The DM runtime no longer starts a second
+  "relay" node under the same peer id. Reaching a contact behind a NAT is moss's
+  job: the app registers the contact as a connect target and moss picks direct,
+  hole punch or its own network relay. Telemetry now shows each installation as
+  one node.
+- **An honest chat status.** The chat header says one of three things: waiting
+  for your contact, contact is offline, or connected with the transport next to
+  it (direct or relayed by the network). "Connected" appears only after the
+  contact's app answered. The rail badge, title-bar pill and diagnostics card
+  say the same thing; the diagnostics card shows the contact's peer id and the
+  last connect outcome instead of a relay row.
+- **A text never fails.** A message typed before the contact is reachable
+  shows a clock, survives a restart, and goes out by itself in the order it was
+  written, moving to a tick and then a double tick. Retry stays for
+  attachments, which need a live path. See ADR 0026.
+
 ## [0.7.4] - 2026-07-29
 
 ### Fixed

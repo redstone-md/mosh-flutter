@@ -20,6 +20,7 @@ import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/conversation/dm_offers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
@@ -70,7 +71,7 @@ SessionSnapshot _session({
   required String sessionId,
   required String displayName,
   required String peerDisplayName,
-  required String state,
+  required DmSessionState state,
 }) =>
     SessionSnapshot(
       sessionId: sessionId,
@@ -79,8 +80,7 @@ SessionSnapshot _session({
       displayName: displayName,
       peerDisplayName: peerDisplayName,
       state: state,
-      path: 'connecting',
-      relayReady: null,
+      transport: PeerTransport.none,
       inviteUri: null,
       fingerprint: 'AABB',
       messages: const [],
@@ -132,21 +132,28 @@ void main() {
           sessionId: aliceId,
           displayName: 'me',
           peerDisplayName: 'Alice',
-          state: 'ready'),
+          state: DmSessionState.connected),
       _session(
           sessionId: bobId,
           displayName: 'Bob',
           peerDisplayName: 'Bob',
-          state: 'connecting'),
+          state: DmSessionState.pending),
+      _session(
+          sessionId: 'carol-session',
+          displayName: 'me',
+          peerDisplayName: 'Carol',
+          state: DmSessionState.handshaking),
     ]);
 
     await pumpSessions(tester, gateway, bridge, useRouter: true);
 
-    // Both rows render with their labels and localized state labels.
+    // Every row renders its label and the badge for its proven state.
     expect(find.text('Alice'), findsOneWidget);
     expect(find.text('Bob'), findsOneWidget);
-    expect(find.text('Connected'), findsOneWidget); // ready -> stateReady
-    expect(find.text('Waiting'), findsOneWidget); // connecting -> stateWaiting
+    expect(find.text('Carol'), findsOneWidget);
+    expect(find.text('Connected'), findsOneWidget);
+    expect(find.text('Waiting for your contact'), findsOneWidget);
+    expect(find.text('Contact is offline'), findsOneWidget);
 
     // Accessibility: the Alice row exposes the React-parity semantics label.
     // Accessibility: the Alice row exposes the React-parity semantics label.
@@ -212,12 +219,12 @@ void main() {
           sessionId: aliceId,
           displayName: 'me',
           peerDisplayName: 'Alice',
-          state: 'ready'),
+          state: DmSessionState.connected),
       _session(
           sessionId: bobId,
           displayName: 'me',
           peerDisplayName: 'Bob',
-          state: 'ready'),
+          state: DmSessionState.connected),
     ]);
 
     // Only Alice has unread messages; Bob's count is 0.

@@ -3,7 +3,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MessageDeliveryStatus {
+    /// Handed to the transport, outcome not known yet. A group and a channel
+    /// file a send this way for the moment the publish takes.
     Pending,
+    /// On disk and waiting for the counterpart to be reachable (private DM
+    /// only). Survives a restart; the DM's outbox drives it out.
+    Queued,
     Sent,
     /// The peer's runtime acknowledged receipt (private DM only). `Sent` means
     /// "handed to the transport"; only `Delivered` proves the frame arrived.

@@ -9,11 +9,41 @@ use flutter_rust_bridge::frb;
 // Shapes a DM shares with the other kinds. They live beside the shared code
 // that builds them; a DM only re-exports them so `private_dm_runtime::X` keeps
 // naming the same type it always did.
+pub use super::transport::PeerTransport;
 pub use crate::conversation::attachments::{
     AttachmentDescriptor, AttachmentSendResult, AttachmentState, AttachmentView,
 };
 pub use crate::conversation::dm_offers::DmOffer;
 pub use crate::conversation::mesh::{MeshInfo, PeerDetail, SnapshotEvent};
+
+/// Where a DM stands, as proven by the other side. `Connected` is only
+/// reached on an MLS-authenticated frame from the counterpart and only left
+/// when the counterpart drops out of reach.
+#[frb(non_opaque)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DmSessionState {
+    /// Invite created or accepted; nothing from the counterpart yet.
+    Pending,
+    /// The counterpart's handshake frame arrived, or it was connected and is
+    /// out of reach now. Nothing authenticated has come back since.
+    Handshaking,
+    /// The counterpart answered with an authenticated frame.
+    Connected,
+}
+
+/// What the last request to reach the counterpart answered, for the
+/// diagnostics card. moss keeps retrying a requested target on its own, so
+/// "requested" is the good outcome; a failure means moss would not take the
+/// request at all, and the runtime asks again on its next tick. The error
+/// text goes to the log, where it can be read in full.
+#[frb(non_opaque)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectOutcome {
+    Requested,
+    Failed,
+}
 
 #[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,17 +83,15 @@ pub struct SessionSnapshot {
     /// The remote peer's display name, learned from inbound messages/control.
     /// Empty until the first inbound frame from the peer is seen.
     pub peer_display_name: String,
-    pub state: String,
-    /// Which transport this DM currently uses: "direct", "relayed", or
-    /// "connecting". Relayed traffic is still E2E — the supernode sees only
-    /// ciphertext.
-    pub path: String,
-    /// Whether the shared relay node currently sees at least one
-    /// relay-capable peer (a promoted SuperNode). Only present while `path`
-    /// is "relayed"; `false` means the relay is still warming up — queued
-    /// frames wait for convergence instead of failing.
+    pub state: DmSessionState,
+    /// How the counterpart is reachable through moss right now.
+    pub transport: PeerTransport,
+    /// The counterpart's moss peer id, once a handshake frame carried it.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub relay_ready: Option<bool>,
+    pub peer_moss_id: Option<String>,
+    /// What the last request to reach the counterpart answered.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_connect_outcome: Option<ConnectOutcome>,
     pub invite_uri: Option<String>,
     pub fingerprint: String,
     pub messages: Vec<ChatMessage>,
@@ -211,7 +239,7 @@ pub struct CallOfferBody {
 #[derive(Debug, Clone, Serialize)]
 pub struct SendMessageResult {
     pub session_id: String,
-    pub state: String,
+    pub state: DmSessionState,
     pub ciphertext_bytes: usize,
     pub message_id: String,
     pub sent_at_ms: u64,

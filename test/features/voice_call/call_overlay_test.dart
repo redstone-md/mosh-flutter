@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/call_overlay.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
@@ -38,8 +39,8 @@ SessionSnapshot _activeSession(String sessionId) => SessionSnapshot(
       role: 'caller',
       displayName: 'me',
       peerDisplayName: 'Alice',
-      state: 'connected',
-      path: 'direct',
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       fingerprint: 'fp',
       messages: const [],
       attachments: const [],

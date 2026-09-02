@@ -12,8 +12,9 @@
 //! room is byte-identical to a room the node was born in, so a consolidated
 //! client still talks to every already-released one.
 //!
-//! The relay node is deliberately NOT here: it lives in its own mesh with its
-//! own callbacks and send worker, and there is only ever one of it.
+//! This is the only node. Reaching a peer behind a NAT is moss's job — it
+//! hole-punches or falls back to its own network relay — so nothing in this
+//! process starts a second node for that.
 
 use std::sync::{Arc, Mutex};
 

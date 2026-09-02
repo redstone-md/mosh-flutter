@@ -7,7 +7,13 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 enum MessageDeliveryStatus {
+  /// Handed to the transport, outcome not known yet. A group and a channel
+  /// file a send this way for the moment the publish takes.
   pending,
+
+  /// On disk and waiting for the counterpart to be reachable (private DM
+  /// only). Survives a restart; the DM's outbox drives it out.
+  queued,
   sent,
 
   /// The peer's runtime acknowledged receipt (private DM only). `Sent` means

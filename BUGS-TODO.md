@@ -39,6 +39,8 @@ Fixed: `RelayJobResult` now carries `retryable`, set only where the worker fails
 
 Ceiling: a relay released again while the re-routed job is queued simply reports retryable once more. The path hysteresis (`T_DIRECT_STABLE_MS` / `T_DIRECT_LOST_MS`) bounds how often that can happen, so there is no counter on the re-routes.
 
+Superseded 2026-09-02 (ADR 0026): the relay node, its worker and the path hysteresis are deleted. A DM text is `Queued` until the transport takes it and never fails on a refusal, so there is no re-route to lose a message in.
+
 ### ~~8.~~ FIXED — send stuck "Pending" on crash — `conversation/history.rs` + `persistence.rs`
 All three kinds write the attempt as `Pending` before publishing, publish, settle in memory, then write the outcome with a second `persist_send` (`route_prepared` in the DM, `publish_prepared` in the group and the channel). A crash in that window leaves a `Pending` attempt on disk.
 

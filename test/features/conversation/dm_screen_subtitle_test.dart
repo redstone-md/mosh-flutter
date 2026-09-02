@@ -11,13 +11,13 @@
 // local `_confirmedFingerprints` set membership (the same `confirmed`
 // boolean that drives the FingerprintBadge).
 //
-// Two cases, both seeded with a SessionSnapshot whose `state` is "Active"
+// Two cases, both seeded with a SessionSnapshot that is connected directly
 // and `fingerprint` is non-empty so the badge is tappable:
-//   1. Before any confirm: subtitle renders "MLS Active · fingerprint
+//   1. Before any confirm: subtitle renders "Connected · direct · fingerprint
 //      unverified" (the `confirmed=false` branch).
 //   2. After tapping the FingerprintBadge (which fires `_confirmFingerprint`
 //      -> adds the sessionId to `_confirmedFingerprints` -> `confirmed`
-//      flips true): subtitle renders "MLS Active · fingerprint confirmed".
+//      flips true): subtitle renders "Connected · direct · fingerprint confirmed".
 //
 // Mirrors the seed/override idiom of `dm_screen_close_flow_test.dart`
 // (override `activeSessionProvider` so the native cdylib is not involved).
@@ -28,11 +28,12 @@ import 'package:mosh/src/features/fingerprint/fingerprint_badge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import '../../support/pump.dart';
 
-/// A SessionSnapshot seeded with `state: "Active"` and a non-empty
+/// A SessionSnapshot seeded connected over a direct path and a non-empty
 /// `fingerprint` so the FingerprintBadge renders and is tappable (the badge
 /// returns a SizedBox.shrink when `fingerprint` is empty, and `onConfirm`
 /// is disabled when `confirmed` is already true -- neither applies here
@@ -45,9 +46,8 @@ SessionSnapshot _snapshot(
       role: 'inviter',
       displayName: 'me',
       peerDisplayName: peerName,
-      state: 'Active',
-      path: 'direct',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: 'fp-peer-1234',
       messages: const [],
@@ -80,27 +80,30 @@ void main() {
   const peerName = 'juno-phone';
 
   testWidgets(
-      'subtitle renders "MLS Active · fingerprint unverified" before confirm',
+      'subtitle renders "Connected · direct · fingerprint unverified" before confirm',
       (tester) async {
     final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 
-    // React ActiveChatPanes.tsx L88-89 unverified branch, with state="Active".
-    expect(find.text('MLS Active · fingerprint unverified'), findsOneWidget);
+    // React ActiveChatPanes.tsx L88-89 unverified branch, with a connected direct session.
+    expect(find.text('Connected · direct · fingerprint unverified'),
+        findsOneWidget);
     // The peer display name is the first line of the two-line Column title.
     expect(find.text(peerName), findsOneWidget);
     // The confirmed branch must NOT render yet.
-    expect(find.text('MLS Active · fingerprint confirmed'), findsNothing);
+    expect(
+        find.text('Connected · direct · fingerprint confirmed'), findsNothing);
   });
 
   testWidgets(
-      'subtitle flips to "MLS Active · fingerprint confirmed" after tapping '
+      'subtitle flips to "Connected · direct · fingerprint confirmed" after tapping '
       'the FingerprintBadge', (tester) async {
     final gateway = ScriptableGateway();
     await _pump(tester, gateway, sessionId: sessionId, peerName: peerName);
 
     // Unverified subtitle renders first.
-    expect(find.text('MLS Active · fingerprint unverified'), findsOneWidget);
+    expect(find.text('Connected · direct · fingerprint unverified'),
+        findsOneWidget);
 
     // Tap the FingerprintBadge (React `onClick={confirmed ? undefined :
     // onConfirm}` -- here `confirmed` is false, so the tap fires
@@ -110,8 +113,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // The subtitle now renders the confirmed branch.
-    expect(find.text('MLS Active · fingerprint confirmed'), findsOneWidget);
-    expect(find.text('MLS Active · fingerprint unverified'), findsNothing);
+    expect(find.text('Connected · direct · fingerprint confirmed'),
+        findsOneWidget);
+    expect(
+        find.text('Connected · direct · fingerprint unverified'), findsNothing);
     expect(find.byType(DmScreen), findsOneWidget);
   });
 }
