@@ -23,7 +23,10 @@ async function main() {
   // local Go, since the go.mod `toolchain` line is only a minimum.
   const result = spawnSync(
     "go",
-    ["build", "-buildmode=c-shared", "-o", OUTPUT_PATH, "./cmd/moss-ffi"],
+    // -trimpath drops build-machine paths from the binary (reproducible, no
+    // leaked usernames); -s -w drop the symbol table and DWARF, about a third
+    // of the library. Go panics still print stack traces without either.
+    ["build", "-trimpath", "-ldflags=-s -w", "-buildmode=c-shared", "-o", OUTPUT_PATH, "./cmd/moss-ffi"],
     { cwd: MOSS_DIR, stdio: "inherit", env: { ...process.env, GOTOOLCHAIN: "go1.25.9" } },
   );
 

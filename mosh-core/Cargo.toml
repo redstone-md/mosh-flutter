@@ -44,3 +44,11 @@ windows-sys = { version = "0.61.2", features = ["Win32_NetworkManagement_IpHelpe
 # (ADR 0015). No code is gated on this cfg — it is macro-internal.
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+# Ship the smallest, fastest core: whole-program LTO and one codegen unit
+# cost release-build minutes, never runtime. `panic` stays `unwind` because
+# flutter_rust_bridge turns a Rust panic into a Dart exception.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = "symbols"

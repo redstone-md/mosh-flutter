@@ -24,6 +24,14 @@
   #define AppVersion "0.8.0-dev"
 #endif
 
+; The file-version resource wants four numbers, so a pre-release suffix
+; ("0.8.0-rc.1") is cut off rather than typed by hand next to AppVersion.
+#if Pos("-", AppVersion) > 0
+  #define VerNum Copy(AppVersion, 1, Pos("-", AppVersion) - 1)
+#else
+  #define VerNum AppVersion
+#endif
+
 #define AppName "Mosh"
 #define AppExeName "mosh.exe"
 #define SourceDir "..\..\build\windows\x64\runner\Release"
@@ -35,7 +43,7 @@ AppId={{7B3F9C21-4E58-4A6D-9F2A-0C51D7E8B4A3}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
-VersionInfoVersion=0.8.0.0
+VersionInfoVersion={#VerNum}.0
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 UninstallDisplayIcon={app}\{#AppExeName}
