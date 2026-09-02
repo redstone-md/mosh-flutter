@@ -67,10 +67,15 @@ jobs:
           rust-cache-key: desktop
 
       # A cargo install from source is minutes of compile for a binary that
-      # only changes when the pinned version does; cache the built binary.
+      # only changes when the pinned version does; cache the built binaries.
+      # cargo-expand is what the codegen shells out to; without it installed
+      # the codegen installs it itself, from source, on every run.
       - uses: taiki-e/cache-cargo-install-action@v2
         with:
           tool: flutter_rust_bridge_codegen@2.12.0
+      - uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-expand@1.0.126
 
       # The same generate AGENTS.md documents, so the committed bindings stay
       # byte-identical to a fresh regen: dart fix + dart format run here
@@ -168,6 +173,21 @@ jobs:
       # exist before Gradle invokes it. build.gradle.kts pins arm64-v8a.
       - name: Add Rust android target
         run: rustup target add aarch64-linux-android
+
+      # audiopus_sys links a prebuilt arm64 libopus.a from
+      # third_party/opus-android-arm64 (gitignored: a build artifact). Built
+      # once from the crate's vendored source and cached on the script.
+      - id: opus
+        uses: actions/cache@v4
+        with:
+          path: third_party/opus-android-arm64
+          key: opus-android-arm64-audiopus_sys-0.1.8-${{ hashFiles('scripts/opus-prepare-android.sh') }}
+
+      - if: steps.opus.outputs.cache-hit != 'true'
+        name: Build libopus.a (android/arm64)
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          bash scripts/opus-prepare-android.sh
 
       # --target-platform is REQUIRED, not an optimisation: jniLibs only
       # carries an arm64-v8a libmoss.so, so a default all-ABI build would
