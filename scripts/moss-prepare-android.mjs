@@ -9,8 +9,7 @@
 // "libmoss.so" against the app's nativeLibraryDir at runtime (see
 // mosh-core/src/moss_runtime.rs default_candidate_paths).
 import { spawnSync } from "node:child_process";
-import { statSync } from "node:fs";
-import { promises as fs } from "node:fs";
+import { promises as fs, statSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -90,7 +89,8 @@ async function main() {
 
   const result = spawnSync(
     "go",
-    ["build", "-buildmode=c-shared", "-o", OUTPUT_PATH, "./cmd/moss-ffi"],
+    // Same flags as moss-prepare.mjs: no build paths, no symbols, no DWARF.
+    ["build", "-trimpath", "-ldflags=-s -w", "-buildmode=c-shared", "-o", OUTPUT_PATH, "./cmd/moss-ffi"],
     {
       cwd: MOSS_DIR,
       stdio: "inherit",
