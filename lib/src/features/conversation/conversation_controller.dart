@@ -15,6 +15,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/features/conversation/conversation_action_error.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart'
     show ConversationAttachmentCallbacks;
 import 'package:mosh/src/features/conversation/conversation_state.dart';
@@ -95,6 +96,14 @@ class ConversationController extends Notifier<ConversationControllerState> {
     }
   }
 
+  /// Shows a failed Gateway call in the banner. The bridge's typed error is
+  /// kept as its kind, so the screen chooses the wording without reading
+  /// the runtime's text.
+  void _report(Object error) {
+    if (!ref.mounted) return;
+    state = state.copyWith(chatError: ConversationActionError.of(error));
+  }
+
   /// Sends [body]. On success it clears the failed send and the error and
   /// re-reads the conversation; on failure it keeps the text so Retry can
   /// send it again, and shows the error.
@@ -109,10 +118,8 @@ class ConversationController extends Notifier<ConversationControllerState> {
       refresh();
       return ConversationSendOutcome(sent: true, body: body);
     } catch (error) {
-      state = state.copyWith(
-        lastFailedBody: body,
-        chatError: error.toString(),
-      );
+      state = state.copyWith(lastFailedBody: body);
+      _report(error);
       return ConversationSendOutcome(sent: false, body: body);
     } finally {
       if (ref.mounted) state = state.copyWith(sending: false);
@@ -157,13 +164,16 @@ class ConversationController extends Notifier<ConversationControllerState> {
   }
 
   /// The shared body of the two file sends: block a second send, run the
-  /// upload as a counted transfer, then re-read the conversation.
+  /// upload as a counted transfer, then re-read the conversation. A failure
+  /// goes to the banner without a Retry: the file is not kept.
   Future<void> _send(Future<void> Function() upload) async {
     if (state.sending) return;
-    state = state.copyWith(sending: true);
+    state = state.copyWith(sending: true, chatError: null);
     try {
       await _runTransfer(upload);
       refresh();
+    } catch (error) {
+      _report(error);
     } finally {
       if (ref.mounted) state = state.copyWith(sending: false);
     }
@@ -193,20 +203,22 @@ class ConversationController extends Notifier<ConversationControllerState> {
               );
 
   /// Starts a transfer and re-reads the conversation when it settles. The
-  /// progress shows up in the next poll, so nothing waits on the future.
+  /// progress shows up in the next poll, so nothing waits on the future; a
+  /// failure lands in the banner.
   void _transferAttachment(Future<void> Function(Gateway gateway) call) {
     unawaited(_runTransfer(
       () => call(ref.read(gatewayProvider)).then((_) => refresh()),
-    ));
+    ).catchError(_report));
   }
 
   /// Sends a failed message again. The new delivery state shows up in the
-  /// next poll.
+  /// next poll; a failure lands in the banner.
   void retryMessage(String messageId) {
     unawaited(ref
         .read(gatewayProvider)
         .retry(target, messageId: messageId)
-        .then((_) => refresh()));
+        .then((_) => refresh())
+        .catchError(_report));
   }
 
   /// Opens an attachment. A downloaded file opens straight away, streamable
@@ -337,17 +349,27 @@ class ConversationController extends Notifier<ConversationControllerState> {
     }));
   }
 
-  /// Shows a message in the error banner without touching the failed-send
-  /// state, so an error from elsewhere never offers to re-send a message.
+  /// Shows a ready-made sentence in the error banner without touching the
+  /// failed-send state, so an error from elsewhere never offers to re-send
+  /// a message.
   void showError(String? message) {
-    state = state.copyWith(chatError: message);
+    state = state.copyWith(
+      chatError: message == null ? null : ConversationActionError.text(message),
+    );
   }
 
-  /// Closes the DM, leaves the channel, or closes the group. The screen
-  /// navigates away once this returns.
-  Future<void> leave() async {
+  /// Closes the DM, leaves the channel, or closes the group. Returns whether
+  /// it happened: the screen navigates away only then, and a failure stays
+  /// in the banner.
+  Future<bool> leave() async {
     state = state.copyWith(lastFailedBody: null, chatError: null);
-    await ref.read(gatewayProvider).leave(target);
+    try {
+      await ref.read(gatewayProvider).leave(target);
+    } catch (error) {
+      _report(error);
+      return false;
+    }
     refresh();
+    return true;
   }
 }

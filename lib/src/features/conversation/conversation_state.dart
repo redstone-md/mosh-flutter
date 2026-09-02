@@ -2,6 +2,7 @@
 /// controller hands back to the screen.
 library;
 
+import 'package:mosh/src/features/conversation/conversation_action_error.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor;
 
@@ -29,8 +30,8 @@ class ConversationControllerState {
   /// Peers already invited to a DM from here, so the popover can say so.
   final Set<String> offeredFingerprints;
 
-  /// The message shown in the error banner above the conversation.
-  final String? chatError;
+  /// The failure shown in the error banner above the conversation.
+  final ConversationActionError? chatError;
 
   /// The text of the last send that failed, kept so Retry can send it again.
   final String? lastFailedBody;
@@ -57,8 +58,9 @@ class ConversationControllerState {
         transferOperations: transferOperations ?? this.transferOperations,
         offerBusy: offerBusy ?? this.offerBusy,
         offeredFingerprints: offeredFingerprints ?? this.offeredFingerprints,
-        chatError:
-            identical(chatError, _keep) ? this.chatError : chatError as String?,
+        chatError: identical(chatError, _keep)
+            ? this.chatError
+            : chatError as ConversationActionError?,
         lastFailedBody: identical(lastFailedBody, _keep)
             ? this.lastFailedBody
             : lastFailedBody as String?,

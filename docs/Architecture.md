@@ -356,17 +356,28 @@ classDiagram
     }
     class ConversationControllerState {
       +bool sending
-      +String? chatError
+      +ConversationActionError? chatError
       +String? lastFailedBody
       +AttachmentDescriptor? pendingOpen
+    }
+    class ConversationActionError {
+      +ConversationBridgeErrorKind? kind
+      +String message
+      +describe(AppLocalizations) String
     }
 
     ConversationSnapshot <|-- DmConversation
     ConversationSnapshot <|-- ChannelConversation
     ConversationSnapshot <|-- GroupConversation
     ConversationController --> ConversationControllerState
+    ConversationControllerState --> ConversationActionError
     ConversationController --> ConversationSnapshot
 ```
+
+A failed shared action reaches the banner as a `ConversationActionError`: the
+bridge's `ConversationBridgeErrorKind` when the seam threw one, ready-made
+text otherwise. The screen picks the wording from the kind and never reads
+the runtime's diagnostic sentence.
 
 `conversationSnapshotProvider` does not poll. It watches the kind provider
 the app already has and maps the result, so there is one poll per

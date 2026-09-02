@@ -593,6 +593,17 @@
    "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')"
  },
  "chatErrorRetry": "Повторить",
+  "chatActionErrorInvalidInput": "Не удалось отправить: {detail}",
+  "chatActionErrorUnavailable": "Сеть сейчас недоступна. Попробуйте ещё раз через минуту.",
+  "chatActionErrorNotReady": "Этот разговор ещё настраивается. Попробуйте ещё раз через минуту.",
+  "chatActionErrorMissingConversation": "Вы больше не участвуете в этом разговоре.",
+  "chatActionErrorMissingMessage": "Этого сообщения больше нет.",
+  "chatActionErrorMissingAttachment": "Этого вложения больше нет.",
+  "chatActionErrorTransfer": "Передача не удалась. Запустите её заново.",
+  "chatActionErrorPersistence": "Не удалось сохранить зашифрованную историю. Повтор не поможет; перезапустите Mosh.",
+  "chatActionErrorNeedsRejoin": "Этот разговор рассинхронизирован, в него нужно войти заново.",
+  "chatActionErrorRevoked": "Ваше участие в этом разговоре отозвано.",
+  "chatActionErrorInternal": "Что-то пошло не так: {detail}",
  "dialogCancel": "Отмена",
   "@dialogCancel": {
     "description": "Универсальная подпись «Отмена» для кнопки-крестика и бледной кнопки отмены в общем ConfirmDialog (React: инлайн-значение 'Cancel'; close-flow и другие деструктивные сценарии передают локализованную подпись отмены из этого ключа)"
