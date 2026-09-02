@@ -112,7 +112,6 @@
   "onboardJoinPlaceholder": "mosh://invite?…  или  mosh://group?…",
   "onboardJoinDetectChat": "Обнаружено приглашение в приватный чат",
   "onboardJoinDetectGroup": "Обнаружено приглашение в группу",
-  "onboardJoinAcceptedSession": "Сессия принята: {sessionId}",
   "onboardJoinDetectOrg": "Обнаружен бандл организации",
   "onboardJoinDetectNone": "Ожидание mosh:// ссылки…",
   "onboardJoinDetectBad": "Это не похоже на mosh:// приглашение",

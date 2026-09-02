@@ -443,11 +443,6 @@
   "@onboardJoinDetectOrg": {
     "description": "Detection message for an organization bundle"
   },
-  "onboardJoinAcceptedSession": "Accepted session: {sessionId}",
-  "@onboardJoinAcceptedSession": {
-    "description": "Inline confirmation under the Connect button after a pasted DM invite was accepted; {sessionId} is the new session's id",
-    "placeholders": {"sessionId": {"type": "String"}}
-  },
   "onboardJoinDetectNone": "Waiting for a mosh:// link…",
   "@onboardJoinDetectNone": {
     "description": "Detection message while waiting for a link"
