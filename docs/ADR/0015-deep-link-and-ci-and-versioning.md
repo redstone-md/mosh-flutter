@@ -148,3 +148,15 @@ flowchart LR
 - ADR 0009 (scheme + bundle id preservation)
 - ADR 0013 (fake gateway for slice one tests)
 - ADR 0014 (i18n, shares the gen-l10n CI drift check)
+
+## Update 2026-09-02: CI consolidated, release workflow added
+
+- Toolchains, caches and the moss build moved into `.github/actions/setup`;
+  every job pins the same Go, Rust and Flutter versions from one place.
+- `gen-l10n` runs inside the `flutter-test` job instead of a job of its own.
+- The Windows installer is built by the reusable `build-windows.yml`, called
+  both by CI on main and by `release.yml`, which a pushed `v*` tag triggers:
+  it verifies the tag against `pubspec.yaml` and `CHANGELOG.md`, then publishes
+  the installer, its SHA-256 and notes from `scripts/release-notes.sh`.
+- Release builds of `mosh-core` use fat LTO, one codegen unit and stripped
+  symbols; moss is built with `-trimpath -ldflags="-s -w"`.
