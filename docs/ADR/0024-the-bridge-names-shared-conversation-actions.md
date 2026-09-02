@@ -217,7 +217,8 @@ write a Dart compatibility shim.
 
 - Ticket 11 implements the six unified bridge functions; ticket 12 removes the
   six `switch (target)` blocks those actions no longer need; ticket 14 deletes
-  the old per-kind symbols and the now-unused result DTO types.
+  the old per-kind symbols and the now-unused result DTO types. All three
+  landed (26763f2, 9e55d4e, 0c05c8e).
 - Ticket 03 defines the error taxonomy concretely; this ADR fixes only its
   shape and its boundary.
 - If a fourth conversation kind appears, the six operations are the checklist

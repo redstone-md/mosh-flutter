@@ -174,10 +174,8 @@ sequenceDiagram
     Core->>Moss: publish MLS control message
     Moss-->>Moss: deliver over pubsub
     Core->>Mls: join group on Bob side
-    Bob->>Bridge: confirmFingerprint challenge
-    Bridge->>Core: api::private_dm::confirm_fingerprint
-    Core-->>Bridge: ConversationId
-    Bob->>Bridge: sendMessage conversationId text
+    Bob->>Bob: confirm fingerprint (UI-side gate, no bridge call)
+    Bob->>Bridge: send DmTarget(sessionId) text
     Bridge->>Core: api::conversation::send BridgeConversationRef{Dm, id}
     Core->>Mls: protect as MLS application message
     Core->>Moss: publish ciphertext
