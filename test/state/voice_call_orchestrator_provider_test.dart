@@ -245,6 +245,44 @@ void main() {
       expect(firstHandle!.stopCalls, 1);
     });
 
+    // Regression: the 1 s auto-poll re-runs the notifier's build for the
+    // same call. Riverpod runs `ref.onDispose` callbacks on every rebuild,
+    // so a detach registered there killed the audio one poll after attach
+    // while the call (and its overlay) stayed up.
+    test('a re-poll of the same ActiveCall keeps the orchestrator attached',
+        () async {
+      final gateway = ScriptableBridge();
+      final controller =
+          _SessionController(_session('sess-1', activeCall: _activeCall('a')));
+      final capture = _RecordingCaptureFactory();
+      final playback = _RecordingPlaybackFactory();
+      final container = _container(
+        controller: controller,
+        gateway: gateway,
+        captureFactory: capture,
+        playbackFactory: playback,
+      );
+      addTearDown(container.dispose);
+
+      final sub = _subscribe(container);
+      addTearDown(sub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(capture.startCalls, 1);
+      final firstHandle = capture.lastHandle;
+
+      container.invalidate(activeSessionProvider('sess-1'));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      container.invalidate(activeSessionProvider('sess-1'));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(capture.startCalls, 1);
+      expect(firstHandle!.stopCalls, 0);
+      expect(
+        container.read(voiceCallOrchestratorProvider('sess-1')).dialog,
+        isA<ActiveCallDialog>(),
+      );
+    });
+
     test('ActiveCall disappears -> orchestrator detached (handle stopped)',
         () async {
       final gateway = ScriptableBridge();
