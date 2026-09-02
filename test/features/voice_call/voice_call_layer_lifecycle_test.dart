@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
+import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -86,8 +87,10 @@ void main() {
     final capture = _DelayedCaptureFactory();
     final errors = <String?>[];
     final gateway = ScriptableGateway();
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(bridge),
       activeSessionProvider(sessionId)
           .overrideWith((ref) => Future.value(_activeSnapshot(sessionId))),
       voiceCaptureFactoryProvider.overrideWithValue(capture),
@@ -119,7 +122,7 @@ void main() {
       isNull,
     );
     // The dead call is torn down.
-    expect(gateway.countOf(GatewayMethod.callEnd), 1);
+    expect(bridge.countOf(BridgeMethod.callEnd), 1);
   });
 
   testWidgets('surfaced error is cleared and a second clearError is a no-op',
@@ -129,6 +132,7 @@ void main() {
     final errors = <String?>[];
     final container = ProviderContainer(overrides: [
       gatewayProvider.overrideWithValue(ScriptableGateway()),
+      bridgeFacadeProvider.overrideWithValue(ScriptableBridge()),
       activeSessionProvider(sessionId)
           .overrideWith((ref) => Future.value(_activeSnapshot(sessionId))),
       voiceCaptureFactoryProvider.overrideWithValue(capture),

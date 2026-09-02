@@ -13,8 +13,8 @@ import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_call_binding.dart'
     show voiceCallBinding;
+import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
-import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
@@ -58,10 +58,12 @@ void main() {
       (tester) async {
     const sessionId = 'sess-voice-error';
     final gateway = ScriptableGateway();
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
 
     await pumpScreen(tester, const DmScreen(sessionId: sessionId),
         overrides: [
-          gatewayProvider.overrideWithValue(gateway as Gateway),
+          gatewayProvider.overrideWithValue(gateway),
+          bridgeFacadeProvider.overrideWithValue(bridge),
           activeSessionProvider(sessionId).overrideWith(
             (ref) async => _activeSnapshot(sessionId),
           ),
@@ -77,7 +79,7 @@ void main() {
     expect(find.textContaining('audio setup boom'), findsOneWidget);
     final l = AppLocalizations.of(tester.element(find.byType(DmScreen)))!;
     expect(find.text(l.chatErrorRetry), findsNothing);
-    expect(gateway.countOf(GatewayMethod.callEnd), 1);
+    expect(bridge.countOf(BridgeMethod.callEnd), 1);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

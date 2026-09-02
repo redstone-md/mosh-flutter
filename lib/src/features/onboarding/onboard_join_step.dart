@@ -8,10 +8,10 @@
 // OnboardStepBody (inline, atomic #8).
 //
 // Scope: the invite-join step UI + the acceptInvite/joinGroup/joinOrg
-// Gateway seams (slice-3). Live detection re-runs [detectInvite] on every
+// bridge-facade seams (slice-3). Live detection re-runs [detectInvite] on every
 // keystroke (the ported pure function; detection is NOT re-implemented
 // here). Connect is enabled for every detected kind (dm + group + org -- all
-// three have a wired Gateway seam). The detection badge is 1-to-1 with React
+// three have a wired bridge-facade seam). The detection badge is 1-to-1 with React
 // (ok for any detected kind, bad for unknown, neutral for empty).
 //
 // Navigation split (mirrors atomic #6 ChannelJoinStep): the SUCCESS
@@ -46,7 +46,7 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
@@ -174,7 +174,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     });
     try {
       if (kind == InviteDetectionKind.dm) {
-        final snapshot = await ref.read(gatewayProvider).acceptInvite(
+        final snapshot = await ref.read(bridgeFacadeProvider).acceptInvite(
               request: AcceptInviteRequest(
                 inviteUri: uri,
                 displayName: displayName,
@@ -191,7 +191,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         // (1-to-1 with React setActive({type:"group", id}) +
         // setShowSetup(false)). orgPubkey is null -- a paste/deep-link
         // join is a direct group invite, not an org group-offer.
-        final snapshot = await ref.read(gatewayProvider).joinGroup(
+        final snapshot = await ref.read(bridgeFacadeProvider).joinGroup(
               request: JoinGroupRequest(
                 inviteUri: uri,
                 displayName: displayName,
@@ -211,7 +211,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         // leaves setup + refreshes the orgs list, so the user lands back on
         // the rail. Flutter has no org screen yet, so navigate to the
         // sessions list (mirrors where leaving a channel or group returns).
-        await ref.read(gatewayProvider).joinOrg(
+        await ref.read(bridgeFacadeProvider).joinOrg(
               request: JoinOrgRequest(
                 bundleUri: uri,
                 displayName: displayName,
@@ -235,7 +235,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     // Connect is enabled for every detected kind (dm + group + org -- all
-    // three have a wired Gateway seam). _detected already excludes empty
+    // three have a wired bridge-facade seam). _detected already excludes empty
     // + unknown, so this is just the busy guard.
     final ready = _detected && !_busy;
     return Column(

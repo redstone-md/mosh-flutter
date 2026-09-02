@@ -1,8 +1,9 @@
 // Unit tests for `unreadCounts` + `unreadCountsProvider`, the one unread
 // family all three conversation kinds share. Mirrors the established
 // provider-test pattern (test/state/session_providers_test.dart): a
-// `ProviderContainer` overrides `gatewayProvider` with a fake whose list
-// reads return a controlled snapshot, then asserts the derived unread map.
+// `ProviderContainer` overrides `bridgeFacadeProvider` with a scripted
+// bridge whose list reads return a controlled snapshot, then asserts the
+// derived unread map.
 //
 // The DM-name vs. fingerprint rationale behind [unreadCounts] is written
 // once, in `unread_providers.dart`. The channel and group cases below pin
@@ -11,7 +12,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../support/scriptable_gateway.dart';
+import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -193,7 +194,7 @@ void main() {
 
   group('unreadCountsProvider', () {
     test('resolves to the derived map over the seeded snapshot', () async {
-      final gateway = ScriptableGateway()
+      final bridge = ScriptableBridge()
         ..seedSessions([
           _session(
             sessionId: 'a',
@@ -222,7 +223,7 @@ void main() {
         ]);
 
       final container = ProviderContainer(overrides: [
-        gatewayProvider.overrideWithValue(gateway),
+        bridgeFacadeProvider.overrideWithValue(bridge),
       ]);
       addTearDown(container.dispose);
 
@@ -241,9 +242,9 @@ void main() {
     test('recomputes when the DM list refreshes', () async {
       // Start empty; refresh swaps the snapshot to one with an unread
       // session and the derived map updates on the next read.
-      final gateway = ScriptableGateway();
+      final bridge = ScriptableBridge();
       final container = ProviderContainer(overrides: [
-        gatewayProvider.overrideWithValue(gateway),
+        bridgeFacadeProvider.overrideWithValue(bridge),
       ]);
       addTearDown(container.dispose);
 
@@ -254,7 +255,7 @@ void main() {
               .read(unreadCountsProvider(ConversationKind.dm).future),
           isEmpty);
 
-      gateway.seedSessions([
+      bridge.seedSessions([
         _session(
           sessionId: 'a',
           displayName: 'me',
@@ -270,7 +271,7 @@ void main() {
     });
 
     test('each kind carries its own counts', () async {
-      final gateway = ScriptableGateway()
+      final bridge = ScriptableBridge()
         ..seedSessions([
           _session(
             sessionId: 'a',
@@ -293,7 +294,7 @@ void main() {
           ),
         ]);
       final container = ProviderContainer(overrides: [
-        gatewayProvider.overrideWithValue(gateway),
+        bridgeFacadeProvider.overrideWithValue(bridge),
       ]);
       addTearDown(container.dispose);
 

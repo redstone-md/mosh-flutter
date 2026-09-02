@@ -15,10 +15,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import '../../support/scriptable_gateway.dart';
+import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import '../../support/pump.dart';
 
 // Seeded fake gateway returning a fixed 2-session snapshot so the rail
@@ -50,7 +50,7 @@ SessionSnapshot _session({
 void main() {
   const aliceId = 'alice-session';
   const bobId = 'bob-session';
-  final gateway = ScriptableGateway()
+  final bridge = ScriptableBridge()
     ..seedSessions([
       _session(sessionId: aliceId, peerDisplayName: 'Alice'),
       _session(sessionId: bobId, peerDisplayName: 'Bob'),
@@ -66,7 +66,7 @@ void main() {
     String? activeKey,
   }) async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(bridge),
     ]);
     addTearDown(container.dispose);
     if (activeKey != null) {

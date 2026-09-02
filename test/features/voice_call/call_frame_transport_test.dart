@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_drain.dart'
     show CallFrameSource;
 import 'package:mosh/src/features/voice_call/call_frame_transport.dart';
-import '../../support/scriptable_gateway.dart';
+import '../../support/scriptable_bridge.dart';
 
 /// Proves `CallFrameTransport` is usable wherever a `CallFrameSource` is
 /// expected (i.e. the `implements` relationship holds at the type level and
@@ -20,7 +20,7 @@ void main() {
   group('call_frame_transport', () {
     test('callDrainFrames base64-encodes each raw frame from the gateway',
         () async {
-      final gateway = ScriptableGateway()
+      final gateway = ScriptableBridge()
         ..seedCallFrames([
           Uint8List.fromList([1, 2, 3]),
           Uint8List.fromList([4, 5])
@@ -34,26 +34,24 @@ void main() {
 
     test('callDrainFrames passes sessionId and callId through to the gateway',
         () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final transport = CallFrameTransport(gateway);
 
       await transport.callDrainFrames('s1', 'c1');
 
       expect(
           gateway
-              .lastCall(GatewayMethod.callDrainFrames)
+              .lastCall(BridgeMethod.callDrainFrames)
               ?.arg<String>('sessionId'),
           's1');
       expect(
-          gateway
-              .lastCall(GatewayMethod.callDrainFrames)
-              ?.arg<String>('callId'),
+          gateway.lastCall(BridgeMethod.callDrainFrames)?.arg<String>('callId'),
           'c1');
     });
 
     test('callDrainFrames returns an empty list when the gateway returns none',
         () async {
-      final gateway = ScriptableGateway()..seedCallFrames(const []);
+      final gateway = ScriptableBridge()..seedCallFrames(const []);
       final transport = CallFrameTransport(gateway);
 
       final result = await transport.callDrainFrames('s', 'c');
@@ -62,30 +60,30 @@ void main() {
     });
 
     test('sendFrameBytes forwards the raw bytes to the gateway', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final transport = CallFrameTransport(gateway);
 
       await transport.sendFrameBytes('s', 'c', Uint8List.fromList([9, 9, 9]));
 
-      expect(gateway.countOf(GatewayMethod.callSendFrame), 1);
+      expect(gateway.countOf(BridgeMethod.callSendFrame), 1);
       expect(
           gateway
-              .lastCall(GatewayMethod.callSendFrame)
+              .lastCall(BridgeMethod.callSendFrame)
               ?.arg<String>('sessionId'),
           's');
       expect(
-          gateway.lastCall(GatewayMethod.callSendFrame)?.arg<String>('callId'),
+          gateway.lastCall(BridgeMethod.callSendFrame)?.arg<String>('callId'),
           'c');
       expect(
           gateway
-              .argValues<Uint8List>(GatewayMethod.callSendFrame, 'frame')
+              .argValues<Uint8List>(BridgeMethod.callSendFrame, 'frame')
               .single,
           Uint8List.fromList([9, 9, 9]));
     });
 
     test('satisfies CallFrameSource (can be passed where a source is expected)',
         () async {
-      final gateway = ScriptableGateway()
+      final gateway = ScriptableBridge()
         ..seedCallFrames([
           Uint8List.fromList([1, 2, 3]),
           Uint8List.fromList([4, 5])

@@ -36,7 +36,8 @@ import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentState, AttachmentView;
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider, refreshConversation;
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/gateway_provider.dart'
+    show bridgeFacadeProvider, gatewayProvider;
 import 'package:mosh/src/state/org_providers.dart'
     show
         OrgAddPrompt,
@@ -269,7 +270,8 @@ class ConversationController extends Notifier<ConversationControllerState> {
 
   /// Invites a peer of this channel or group to a private DM: mint an
   /// invite, send it over the conversation, and remember the peer. Returns
-  /// the new DM so the screen can open it.
+  /// the new DM so the screen can open it. The invite mint and the offer
+  /// send are 1:1 bridge mirrors, so they go through the facade (ADR 0025).
   Future<ConversationPeerDmResult> onPeerMessage(String peerFingerprint) async {
     final host = target;
     if (host is! DmOfferHost) return ConversationPeerDmResult.none;
@@ -278,9 +280,9 @@ class ConversationController extends Notifier<ConversationControllerState> {
     }
     state = state.copyWith(offerBusy: true);
     try {
-      final gateway = ref.read(gatewayProvider);
+      final bridge = ref.read(bridgeFacadeProvider);
       final flow = ref.read(inviteFlowProvider);
-      final invite = await gateway.createInvite(
+      final invite = await bridge.createInvite(
         request: StartSessionRequest(
           displayName: flow.displayName,
           listenPort: flow.listenPort,
@@ -288,12 +290,12 @@ class ConversationController extends Notifier<ConversationControllerState> {
         ),
       );
       await switch (host) {
-        ChannelTarget() => gateway.sendChannelDmOffer(
+        ChannelTarget() => bridge.sendChannelDmOffer(
             channelName: host.id,
             peerFingerprint: peerFingerprint,
             inviteUri: invite.inviteUri,
           ),
-        GroupTarget() => gateway.sendGroupDmOffer(
+        GroupTarget() => bridge.sendGroupDmOffer(
             groupId: host.id,
             peerFingerprint: peerFingerprint,
             inviteUri: invite.inviteUri,
@@ -318,7 +320,7 @@ class ConversationController extends Notifier<ConversationControllerState> {
     if (peerIds.isEmpty) return;
     ref.read(invitingGroupsProvider.notifier).start(group.id);
     unawaited(ref
-        .read(gatewayProvider)
+        .read(bridgeFacadeProvider)
         .orgGroupInviteMembers(
           orgPubkey: prompt.orgPubkey,
           groupId: group.id,

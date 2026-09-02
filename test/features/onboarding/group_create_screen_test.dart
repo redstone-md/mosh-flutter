@@ -19,10 +19,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/group_create_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
-import '../../support/scriptable_gateway.dart';
-import 'package:mosh/src/gateway/gateway.dart';
+import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/routing/app_router.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import '../../support/pump.dart';
 
 const _groupStepBody =
@@ -31,11 +31,11 @@ const _groupStepBody =
 void main() {
   Future<void> pumpGroupStep(
     WidgetTester tester, {
-    Gateway? gateway,
+    BridgeFacade? bridge,
     String initialLocation = AppRoutes.groupCreate,
   }) {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(gateway ?? ScriptableGateway()),
+      bridgeFacadeProvider.overrideWithValue(bridge ?? ScriptableBridge()),
     ]);
     addTearDown(container.dispose);
     return pumpRoute(tester, initialLocation, container: container);
@@ -70,8 +70,8 @@ void main() {
   testWidgets(
       'tapping Create creates via the gateway and renders the InviteResult card with the invite URI',
       (tester) async {
-    final gateway = ScriptableGateway();
-    await pumpGroupStep(tester, gateway: gateway);
+    final gateway = ScriptableBridge();
+    await pumpGroupStep(tester, bridge: gateway);
 
     // Intercept the flutter/services clipboard method channel so the
     // auto-copy on create (React `copyText(created.invite_uri)`) does not
@@ -103,7 +103,7 @@ void main() {
     // Reading the notifier initializes it once, then the explicit refresh
     // performs the post-create fetch. Pin both calls so this cannot pass on
     // provider initialization alone.
-    expect(gateway.countOf(GatewayMethod.listGroups), 2);
+    expect(gateway.countOf(BridgeMethod.listGroups), 2);
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
@@ -123,8 +123,8 @@ void main() {
       'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Group runtime offline';
-    final throwing = ScriptableGateway()
-      ..failAlways(GatewayMethod.createGroup, error: message);
+    final throwing = ScriptableBridge()
+      ..failAlways(BridgeMethod.createGroup, error: message);
 
     // Intercept the flutter/services clipboard channel so the auto-copy on
     // create does not hang the test on a real platform channel.
@@ -136,7 +136,7 @@ void main() {
         .instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null));
 
-    await pumpGroupStep(tester, gateway: throwing);
+    await pumpGroupStep(tester, bridge: throwing);
 
     await tester.enterText(find.byType(TextField), 'friends');
     await tester.tap(find.byType(FilledButton));
@@ -147,6 +147,6 @@ void main() {
     // of feedback -- no transient SnackBar (the old SnackBar path is gone).
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
-    expect(throwing.countOf(GatewayMethod.listGroups), 0);
+    expect(throwing.countOf(BridgeMethod.listGroups), 0);
   });
 }

@@ -1,18 +1,22 @@
 // Widget tests for the SessionsScreen (DM sessions list). Mirrors the
-// established slice-one pattern: ProviderScope override of `gatewayProvider`
-// with a controllable fake + a localized MaterialApp. Test 3 (error/retry)
-// uses a counting fake so we can assert `listSessions` ran a second time
-// after tapping Retry. Test 2 wraps the screen in the real `appRouter` via
-// `MaterialApp.router` so `context.go(AppRoutes.dmFor(...))` resolves and
-// pushes DmScreen, which the test asserts by the DM screen's composer.
+// established slice-one pattern: ProviderScope overrides of the two bridge
+// surfaces with scripted doubles + a localized MaterialApp. The lists and
+// the offer accept run on the bridge double (1:1 mirrors, ADR 0025); the
+// offer dismiss runs on the gateway double (the conversation seam), sharing
+// the bridge's conversation state so the accept -> poll flow resolves. Test
+// 3 (error/retry) uses scripted failures so we can assert `listSessions` ran
+// a second time after tapping Retry. Test 2 wraps the screen in the real
+// `appRouter` via `MaterialApp.router` so `context.go(AppRoutes.dmFor(...))`
+// resolves and pushes DmScreen, which the test asserts by the DM screen's
+// composer.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
-import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -21,11 +25,22 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import '../../support/pump.dart';
 
-/// A gateway holding one channel that carries a DM offer, so the sessions
+/// The pair of doubles the rail flow crosses: the bridge serves the lists
+/// and the accept; the gateway answers the dismiss and the DM poll. Both see
+/// one conversation state.
+(ScriptableGateway, ScriptableBridge) _scriptedPair() {
+  final gateway = ScriptableGateway();
+  final bridge = ScriptableBridge(conversations: gateway.conversations);
+  return (gateway, bridge);
+}
+
+/// A bridge holding one channel that carries a DM offer, so the sessions
 /// rail renders an offer row (pendingDmOffersProvider derives from
-/// channel.dmOffers).
-ScriptableGateway _channelOfferGateway() => ScriptableGateway()
-  ..seedChannels([
+/// channel.dmOffers). Returns the pair so the dismiss (seam) and the accept
+/// + lists (facade) both have a double.
+(ScriptableGateway, ScriptableBridge) _channelOfferBridge() {
+  final (gateway, bridge) = _scriptedPair();
+  bridge.seedChannels([
     ChannelSnapshot(
       name: 'drift-room',
       topic: '',
@@ -47,6 +62,9 @@ ScriptableGateway _channelOfferGateway() => ScriptableGateway()
       events: const [],
     ),
   ]);
+
+  return (gateway, bridge);
+}
 
 SessionSnapshot _session({
   required String sessionId,
@@ -75,15 +93,19 @@ SessionSnapshot _session({
     );
 
 void main() {
-  // Mounts SessionsScreen with the seeded gateway. Pass useRouter when the
+  // Mounts SessionsScreen with the seeded doubles. Pass useRouter when the
   // test taps a row and expects `context.go` to land on the real route.
   Future<void> pumpSessions(
     WidgetTester tester,
-    Gateway gateway, {
+    ScriptableGateway gateway,
+    ScriptableBridge bridge, {
     bool useRouter = false,
     String initialLocation = AppRoutes.sessions,
   }) {
-    final overrides = [gatewayProvider.overrideWithValue(gateway)];
+    final overrides = [
+      gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(bridge),
+    ];
     return useRouter
         ? pumpRoute(tester, initialLocation, overrides: overrides)
         : pumpScreen(tester, const SessionsScreen(), overrides: overrides);
@@ -91,8 +113,9 @@ void main() {
 
   testWidgets('empty list renders the welcome + start-cta button',
       (tester) async {
-    // The test gateway starts with no sessions, so listSessions is empty.
-    await pumpSessions(tester, ScriptableGateway());
+    // The test bridge starts with no sessions, so listSessions is empty.
+    final (gateway, bridge) = _scriptedPair();
+    await pumpSessions(tester, gateway, bridge);
 
     expect(find.text('Welcome to Mosh.'), findsOneWidget);
     expect(find.text('New private chat'), findsOneWidget);
@@ -103,21 +126,21 @@ void main() {
       (tester) async {
     const aliceId = 'alice-session';
     const bobId = 'bob-session';
-    final gateway = ScriptableGateway()
-      ..seedSessions([
-        _session(
-            sessionId: aliceId,
-            displayName: 'me',
-            peerDisplayName: 'Alice',
-            state: 'ready'),
-        _session(
-            sessionId: bobId,
-            displayName: 'Bob',
-            peerDisplayName: 'Bob',
-            state: 'connecting'),
-      ]);
+    final (gateway, bridge) = _scriptedPair();
+    bridge.seedSessions([
+      _session(
+          sessionId: aliceId,
+          displayName: 'me',
+          peerDisplayName: 'Alice',
+          state: 'ready'),
+      _session(
+          sessionId: bobId,
+          displayName: 'Bob',
+          peerDisplayName: 'Bob',
+          state: 'connecting'),
+    ]);
 
-    await pumpSessions(tester, gateway, useRouter: true);
+    await pumpSessions(tester, gateway, bridge, useRouter: true);
 
     // Both rows render with their labels and localized state labels.
     expect(find.text('Alice'), findsOneWidget);
@@ -156,27 +179,26 @@ void main() {
   testWidgets(
       'error state renders retry and tapping it calls listSessions again',
       (tester) async {
-    final gateway = ScriptableGateway()
-      ..failAlways(GatewayMethod.listSessions,
-          error: Exception('boom-listSessions'));
-    await pumpSessions(tester, gateway);
+    final (gateway, bridge) = _scriptedPair();
+    bridge.failAlways(BridgeMethod.listSessions,
+        error: Exception('boom-listSessions'));
+    await pumpSessions(tester, gateway, bridge);
 
     expect(find.text('Could not load sessions.'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
-    final callsBefore = gateway.countOf(GatewayMethod.listSessions);
+    final callsBefore = bridge.countOf(BridgeMethod.listSessions);
 
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
-    // refresh() re-ran the gateway query (the count must increase, even if
+    // refresh() re-ran the bridge query (the count must increase, even if
     // Riverpod re-executed build() during settling -- we only assert growth).
-    expect(
-        gateway.countOf(GatewayMethod.listSessions), greaterThan(callsBefore));
+    expect(bridge.countOf(BridgeMethod.listSessions), greaterThan(callsBefore));
   });
 
 // Unread-badge rendering. Mirrors React's `UnreadBadge`: a row whose
 // unread count > 0 shows the numeral; a row with count 0 shows no badge.
-// The DM entry of `conversationListProvider` (via a seeded gateway) and
+// The DM entry of `conversationListProvider` (via a seeded bridge) and
 // the unread lifecycle map are overridden so the rendered counts are
 // deterministic and do not depend on the seeded messages.
   testWidgets(
@@ -184,25 +206,26 @@ void main() {
       (tester) async {
     const aliceId = 'alice-unread';
     const bobId = 'bob-read';
-    final gateway = ScriptableGateway()
-      ..seedSessions([
-        _session(
-            sessionId: aliceId,
-            displayName: 'me',
-            peerDisplayName: 'Alice',
-            state: 'ready'),
-        _session(
-            sessionId: bobId,
-            displayName: 'me',
-            peerDisplayName: 'Bob',
-            state: 'ready'),
-      ]);
+    final (gateway, bridge) = _scriptedPair();
+    bridge.seedSessions([
+      _session(
+          sessionId: aliceId,
+          displayName: 'me',
+          peerDisplayName: 'Alice',
+          state: 'ready'),
+      _session(
+          sessionId: bobId,
+          displayName: 'me',
+          peerDisplayName: 'Bob',
+          state: 'ready'),
+    ]);
 
     // Only Alice has unread messages; Bob's count is 0.
     final unread = {'dm:$aliceId': 3};
 
     await pumpScreen(tester, const SessionsScreen(), overrides: [
       gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(bridge),
       // The sessions screen now reads the lifecycle map (the React
       // `useUnreadNotifications.unread` port), not the raw count map. The
       // override stubs the lifecycle's `build` to return the static map so
@@ -226,10 +249,10 @@ void main() {
   testWidgets(
       'pending channel DM offer renders one rail row and dismiss removes it',
       (tester) async {
-    final gateway = _channelOfferGateway();
+    final (gateway, bridge) = _channelOfferBridge();
     // useRouter so the accept path's context.go(AppRoutes.dmFor(...)) resolves
     // and pushes DmScreen, which the test asserts via the DM screen composer.
-    await pumpSessions(tester, gateway, useRouter: true);
+    await pumpSessions(tester, gateway, bridge, useRouter: true);
 
     // The offer row renders with the offering peer's name + the
     // channel-host subtitle (`#drift-room`). The subtitle text appears in
@@ -246,18 +269,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 1);
 
-    // Accept: tapping the row calls acceptInvite (returns the seeded
-    // 'accepted-dm' session) + auto-dismiss + navigates to the DM screen.
-    // Reset dismiss counter first so the auto-dismiss after accept is the
-    // only call counted.
+    // Accept: tapping the row calls acceptInvite + auto-dismiss + navigates
+    // to the DM screen the bridge inserted. Reset dismiss counter first so
+    // the auto-dismiss after accept is the only call counted.
     final dismissBeforeAccept = gateway.countOf(GatewayMethod.dismissDmOffer);
-    final sessionCallsBeforeAccept =
-        gateway.countOf(GatewayMethod.listSessions);
+    final sessionCallsBeforeAccept = bridge.countOf(BridgeMethod.listSessions);
     await tester.tap(find.text('alpha-peer'));
     await tester.pumpAndSettle();
     expect(
         gateway.countOf(GatewayMethod.dismissDmOffer), dismissBeforeAccept + 1);
-    expect(gateway.countOf(GatewayMethod.listSessions),
+    expect(bridge.countOf(BridgeMethod.listSessions),
         sessionCallsBeforeAccept + 1);
     // The DM screen rendered (its composer is a TextField).
     expect(find.byType(TextField), findsWidgets);
@@ -266,7 +287,8 @@ void main() {
   testWidgets(
       'the offer row renders through the shared rail row, dismiss X included',
       (tester) async {
-    await pumpSessions(tester, _channelOfferGateway(), useRouter: true);
+    final (gateway, bridge) = _channelOfferBridge();
+    await pumpSessions(tester, gateway, bridge, useRouter: true);
 
     // One row shape: the offer row stops hand-rolling a `ListTile` and is a
     // `RailItem` like every other row, with the dismiss X in its trailing
@@ -281,18 +303,16 @@ void main() {
   testWidgets(
       'failed channel DM offer acceptance does not refresh sessions or navigate',
       (tester) async {
-    final gateway = _channelOfferGateway()
-      ..failAlways(GatewayMethod.acceptInvite,
-          error: Exception('accept-failed'));
-    await pumpSessions(tester, gateway, useRouter: true);
+    final (gateway, bridge) = _channelOfferBridge();
+    bridge.failAlways(BridgeMethod.acceptInvite,
+        error: Exception('accept-failed'));
+    await pumpSessions(tester, gateway, bridge, useRouter: true);
 
-    final sessionCallsBeforeAccept =
-        gateway.countOf(GatewayMethod.listSessions);
+    final sessionCallsBeforeAccept = bridge.countOf(BridgeMethod.listSessions);
     await tester.tap(find.text('alpha-peer'));
     await tester.pumpAndSettle();
 
-    expect(
-        gateway.countOf(GatewayMethod.listSessions), sessionCallsBeforeAccept);
+    expect(bridge.countOf(BridgeMethod.listSessions), sessionCallsBeforeAccept);
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 0);
     expect(find.text('Write a message\u2026'), findsNothing);
   });

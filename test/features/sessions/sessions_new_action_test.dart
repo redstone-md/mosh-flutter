@@ -9,15 +9,15 @@ import 'package:mosh/main.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import '../../support/scriptable_gateway.dart';
+import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart';
 
 Future<ProviderContainer> _pumpSessions(
   WidgetTester tester,
-  ScriptableGateway gateway, {
+  ScriptableBridge bridge, {
   required Size physicalSize,
 }) async {
   tester.view.physicalSize = physicalSize;
@@ -26,7 +26,7 @@ Future<ProviderContainer> _pumpSessions(
   addTearDown(tester.view.resetDevicePixelRatio);
   appRouter.go(AppRoutes.sessions);
   final container = ProviderContainer(
-    overrides: [gatewayProvider.overrideWithValue(gateway)],
+    overrides: [bridgeFacadeProvider.overrideWithValue(bridge)],
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -42,8 +42,8 @@ Future<ProviderContainer> _pumpSessions(
 void main() {
   testWidgets('empty CTA opens NewSessionPanel without creating an invite',
       (tester) async {
-    final gateway = ScriptableGateway();
-    await _pumpSessions(tester, gateway, physicalSize: const Size(400, 800));
+    final bridge = ScriptableBridge();
+    await _pumpSessions(tester, bridge, physicalSize: const Size(400, 800));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
     await tester.tap(find.text('New private chat'));
@@ -52,15 +52,15 @@ void main() {
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(find.byType(SessionsScreen), findsNothing);
-    expect(gateway.countOf(GatewayMethod.createInvite), 0);
+    expect(bridge.countOf(BridgeMethod.createInvite), 0);
     expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets(
       'rail New button opens NewSessionPanel on desktop without creating an invite',
       (tester) async {
-    final gateway = ScriptableGateway();
-    await _pumpSessions(tester, gateway, physicalSize: const Size(1200, 900));
+    final bridge = ScriptableBridge();
+    await _pumpSessions(tester, bridge, physicalSize: const Size(1200, 900));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
     await tester.tap(find.byType(RailNewButton));
@@ -68,15 +68,15 @@ void main() {
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
-    expect(gateway.countOf(GatewayMethod.createInvite), 0);
+    expect(bridge.countOf(BridgeMethod.createInvite), 0);
     expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets(
       'rail New button opens NewSessionPanel on mobile without creating an invite',
       (tester) async {
-    final gateway = ScriptableGateway();
-    await _pumpSessions(tester, gateway, physicalSize: const Size(400, 800));
+    final bridge = ScriptableBridge();
+    await _pumpSessions(tester, bridge, physicalSize: const Size(400, 800));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
     await tester.tap(find.byType(RailNewButton));
@@ -85,26 +85,26 @@ void main() {
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
     expect(find.byType(SessionsScreen), findsNothing);
-    expect(gateway.countOf(GatewayMethod.createInvite), 0);
+    expect(bridge.countOf(BridgeMethod.createInvite), 0);
     expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('New resets a previous invite before showing the panel',
       (tester) async {
-    final gateway = ScriptableGateway();
+    final bridge = ScriptableBridge();
     final container = await _pumpSessions(
       tester,
-      gateway,
+      bridge,
       physicalSize: const Size(1200, 900),
     );
 
     await container.read(inviteFlowProvider.notifier).create();
-    expect(gateway.countOf(GatewayMethod.createInvite), 1);
+    expect(bridge.countOf(BridgeMethod.createInvite), 1);
     await tester.tap(find.byType(RailNewButton));
     await tester.pumpAndSettle();
 
     expect(container.read(inviteFlowProvider).lastInvite, isNull);
     expect(find.byType(NewSessionPanel), findsOneWidget);
-    expect(gateway.countOf(GatewayMethod.createInvite), 1);
+    expect(bridge.countOf(BridgeMethod.createInvite), 1);
   });
 }

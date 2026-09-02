@@ -1,6 +1,6 @@
 // Widget tests for the ChatCreateScreen (chat-create step, 1-в-1 with the
 // React ChatCreateStep). Mirrors the established slice-one pattern:
-// ProviderScope override of `gatewayProvider` with a controllable fake +
+// ProviderScope override of `bridgeFacadeProvider` with a scripted bridge +
 // localized MaterialApp.router (the step's Back button uses context.go).
 //
 // Test 1: initial state -- Create button reads onboardChatCreate, no
@@ -21,15 +21,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
-import '../../support/scriptable_gateway.dart';
-import 'package:mosh/src/gateway/gateway.dart';
+import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import '../../support/pump.dart';
 
-/// A gateway whose `createInvite` hands back [inviteUri].
-ScriptableGateway _gatewayOffering(String inviteUri) => ScriptableGateway()
+/// A bridge whose `createInvite` hands back [inviteUri].
+ScriptableBridge _bridgeOffering(String inviteUri) => ScriptableBridge()
   ..seedInvite(InviteCreated(
     inviteUri: inviteUri,
     sessionId: 'controlled-1',
@@ -41,15 +41,15 @@ ScriptableGateway _gatewayOffering(String inviteUri) => ScriptableGateway()
 void main() {
   Future<void> pumpCreateStep(
     WidgetTester tester,
-    Gateway gateway, {
+    BridgeFacade bridge, {
     String initialLocation = AppRoutes.chatCreate,
   }) =>
       pumpRoute(tester, initialLocation,
-          overrides: [gatewayProvider.overrideWithValue(gateway)]);
+          overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
   testWidgets(
       'initial state shows Create button (no lastInvite) and no InviteResult',
       (tester) async {
-    await pumpCreateStep(tester, _gatewayOffering('mosh://invite?x=1'));
+    await pumpCreateStep(tester, _bridgeOffering('mosh://invite?x=1'));
 
     expect(find.text('New private chat'), findsOneWidget);
     expect(find.text('Create invite link'), findsOneWidget);
@@ -62,8 +62,8 @@ void main() {
       'tapping Create calls inviteFlowProvider.create() and surfaces the URI',
       (tester) async {
     const uri = 'mosh://invite?mesh=m&session=s#fp=Z';
-    final gateway = _gatewayOffering(uri);
-    await pumpCreateStep(tester, gateway);
+    final bridge = _bridgeOffering(uri);
+    await pumpCreateStep(tester, bridge);
 
     // Create is a FilledButton; before tap the Recreate label is absent.
     final createButton =
@@ -79,7 +79,7 @@ void main() {
     expect(find.byType(InviteResult), findsOneWidget);
     expect(find.text(uri), findsOneWidget);
     // Provider initialization plus the explicit post-create refresh.
-    expect(gateway.countOf(GatewayMethod.listSessions), 2);
+    expect(bridge.countOf(BridgeMethod.listSessions), 2);
   });
 
   testWidgets(
@@ -100,7 +100,7 @@ void main() {
         .instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null));
 
-    await pumpCreateStep(tester, _gatewayOffering(uri));
+    await pumpCreateStep(tester, _bridgeOffering(uri));
 
     // First create an invite so InviteResult + Copy button render.
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
@@ -118,7 +118,7 @@ void main() {
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
-    await pumpCreateStep(tester, _gatewayOffering('mosh://invite?back=1'));
+    await pumpCreateStep(tester, _bridgeOffering('mosh://invite?back=1'));
 
     // The step's Back affordance reads the localized "Back" label.
     expect(find.text('Back'), findsOneWidget);
@@ -134,9 +134,9 @@ void main() {
       'a failed create surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Invite service offline';
-    final gateway = ScriptableGateway()
-      ..failAlways(GatewayMethod.createInvite, error: message);
-    await pumpCreateStep(tester, gateway);
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.createInvite, error: message);
+    await pumpCreateStep(tester, bridge);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
     await tester.pumpAndSettle();
@@ -146,7 +146,7 @@ void main() {
     // of feedback -- no transient SnackBar (the old SnackBar path is gone).
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
-    expect(gateway.countOf(GatewayMethod.listSessions), 0);
+    expect(bridge.countOf(BridgeMethod.listSessions), 0);
   });
 
   testWidgets('the inline error clears on the next successful create attempt',
@@ -155,8 +155,8 @@ void main() {
     const uri = 'mosh://invite?mesh=m&session=retry#fp=R';
     await pumpCreateStep(
         tester,
-        _gatewayOffering(uri)
-          ..failNext(GatewayMethod.createInvite, error: message));
+        _bridgeOffering(uri)
+          ..failNext(BridgeMethod.createInvite, error: message));
 
     // First attempt throws -> inline error surfaces.
     await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));

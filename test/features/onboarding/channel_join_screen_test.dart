@@ -1,11 +1,12 @@
 // Widget tests for the ChannelJoinScreen (channel-join step, 1-в-1 with the
 // React ChannelJoinStep). Mirrors the chat_create_screen_test boilerplate:
-// ProviderScope override of `gatewayProvider` with the test gateway + localized
+// ProviderScope override of `bridgeFacadeProvider` with the scripted bridge +
+// localized
 // MaterialApp.router so the step's Back button (context.go) resolves.
 //
 // Test 1: initial state -- title + body + placeholder + `#` + button label.
 // Test 2: Join button is disabled when the name is empty; enabling on text.
-// Test 3: tapping Join (with a name entered) calls the gateway's joinChannel
+// Test 3: tapping Join (with a name entered) calls the bridge's joinChannel
 //   (canned snapshot) and navigates to the channel screen (slice-3 seam).
 // Test 4: Back button returns to the onboarding menu.
 import 'package:flutter/material.dart';
@@ -15,20 +16,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
-import '../../support/scriptable_gateway.dart';
-import 'package:mosh/src/gateway/gateway.dart';
+import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/routing/app_router.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import '../../support/pump.dart';
 
 void main() {
   Future<void> pumpJoinStep(
     WidgetTester tester, {
-    Gateway? gateway,
+    BridgeFacade? bridge,
     String initialLocation = AppRoutes.channelJoin,
   }) {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(gateway ?? ScriptableGateway()),
+      bridgeFacadeProvider.overrideWithValue(bridge ?? ScriptableBridge()),
     ]);
     addTearDown(container.dispose);
     return pumpRoute(tester, initialLocation, container: container);
@@ -69,17 +70,17 @@ void main() {
   });
 
   testWidgets(
-      'tapping Join with a name entered joins via the gateway and navigates to the channel screen',
+      'tapping Join with a name entered joins via the bridge and navigates to the channel screen',
       (tester) async {
-    final gateway = ScriptableGateway();
-    await pumpJoinStep(tester, gateway: gateway);
+    final bridge = ScriptableBridge();
+    await pumpJoinStep(tester, bridge: bridge);
 
     await tester.enterText(find.byType(TextField), 'test-channel');
     await tester.pump();
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
 
-    // The joinChannel seam (slice-3) calls the gateway's joinChannel (returns
+    // The joinChannel seam (slice-3) calls the bridge's joinChannel (returns
     // a canned ChannelSnapshot for 'test-channel') and navigates to the
     // channel screen. No SnackBar on the happy path.
     expect(find.byType(ChannelScreen), findsOneWidget);
@@ -87,7 +88,7 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
     // Reading the notifier initializes the provider once, then the explicit
     // post-join refresh performs the second fetch.
-    expect(gateway.countOf(GatewayMethod.listChannels), 2);
+    expect(bridge.countOf(BridgeMethod.listChannels), 2);
   });
 
   testWidgets('Back button returns to the onboarding menu', (tester) async {
@@ -107,9 +108,9 @@ void main() {
       'a failed join surfaces a persistent inline error (role="alert") and no SnackBar',
       (tester) async {
     const message = 'Channel runtime offline';
-    final throwing = ScriptableGateway()
-      ..failAlways(GatewayMethod.joinChannel, error: message);
-    await pumpJoinStep(tester, gateway: throwing);
+    final throwing = ScriptableBridge()
+      ..failAlways(BridgeMethod.joinChannel, error: message);
+    await pumpJoinStep(tester, bridge: throwing);
 
     await tester.enterText(find.byType(TextField), 'test-channel');
     await tester.pump();
@@ -125,6 +126,6 @@ void main() {
     expect(find.byType(ChannelScreen), findsNothing);
     expect(find.byType(ChannelJoinScreen), findsOneWidget);
     // A failed join must not initialize or refresh the channel list.
-    expect(throwing.countOf(GatewayMethod.listChannels), 0);
+    expect(throwing.countOf(BridgeMethod.listChannels), 0);
   });
 }

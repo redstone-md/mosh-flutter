@@ -2,7 +2,8 @@
 // callbacks that SessionScreen wires into [OrgSection]. Mirrors React's
 // per-action callbacks (leaveOrg, openMemberDm, acceptDmOffer, ...) 1:1.
 //
-// Each action is reduced to its own Gateway call and the route it lands on
+// Each action is reduced to its own bridge-facade call and the route it
+// lands on
 // (an [_OrgLanding]); [_runOrgAction] owns everything else: the busy flag,
 // the refresh, the mounted check, the error toast and the navigation. One
 // action jumps instead of landing -- a member who already has a linked DM
@@ -25,7 +26,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot, OrgMemberView;
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/org_providers.dart'
     show orgsProvider, orgOperationBusProvider;
 import 'package:mosh/src/state/conversation_providers.dart'
@@ -38,7 +39,8 @@ const String _kAnonymousDisplayName = 'anonymous';
 /// The settings an org action mints an invite with.
 typedef _OrgInvite = ({String displayName, int listenPort, String? staticPeer});
 
-/// The thought one org action carries: its Gateway call, and where it lands.
+/// The thought one org action carries: its bridge-facade call, and where
+/// it lands.
 typedef _OrgAction = Future<_OrgLanding> Function(_OrgInvite invite);
 
 /// Where an org action lands, and whether the rail must re-read first.
@@ -97,7 +99,7 @@ Future<void> leaveOrgAction(
   OrgSnapshot org,
 ) =>
     _runOrgAction(context, ref, orgPubkey: org.orgPubkey, action: (_) async {
-      await ref.read(gatewayProvider).leaveOrg(orgPubkey: org.orgPubkey);
+      await ref.read(bridgeFacadeProvider).leaveOrg(orgPubkey: org.orgPubkey);
       return const _OrgLanding.stay();
     });
 
@@ -117,7 +119,7 @@ Future<void> openMemberDmAction(
     // not a new offer.
     final linked = _linkedSessionId(org, member);
     if (linked != null) return _OrgLanding.jump(AppRoutes.dmFor(linked));
-    final offered = await ref.read(gatewayProvider).sendOrgDmOffer(
+    final offered = await ref.read(bridgeFacadeProvider).sendOrgDmOffer(
           orgPubkey: org.orgPubkey,
           targetPeerId: member.mossPeerId,
           displayName: invite.displayName,
@@ -136,7 +138,7 @@ Future<void> acceptOrgDmOfferAction(
   String offerId,
 ) =>
     _runOrgAction(context, ref, orgPubkey: orgPubkey, action: (invite) async {
-      final session = await ref.read(gatewayProvider).acceptOrgDmOffer(
+      final session = await ref.read(bridgeFacadeProvider).acceptOrgDmOffer(
             orgPubkey: orgPubkey,
             offerId: offerId,
             displayName: invite.displayName,
@@ -155,7 +157,7 @@ Future<void> dismissOrgDmOfferAction(
   String offerId,
 ) =>
     _runOrgAction(context, ref, orgPubkey: orgPubkey, action: (_) async {
-      await ref.read(gatewayProvider).dismissOrgDmOffer(
+      await ref.read(bridgeFacadeProvider).dismissOrgDmOffer(
             orgPubkey: orgPubkey,
             offerId: offerId,
           );
@@ -170,7 +172,7 @@ Future<void> acceptOrgGroupOfferAction(
   String offerId,
 ) =>
     _runOrgAction(context, ref, orgPubkey: orgPubkey, action: (invite) async {
-      final group = await ref.read(gatewayProvider).acceptOrgGroupOffer(
+      final group = await ref.read(bridgeFacadeProvider).acceptOrgGroupOffer(
             orgPubkey: orgPubkey,
             offerId: offerId,
             displayName: invite.displayName,
@@ -189,7 +191,7 @@ Future<void> dismissOrgGroupOfferAction(
   String offerId,
 ) =>
     _runOrgAction(context, ref, orgPubkey: orgPubkey, action: (_) async {
-      await ref.read(gatewayProvider).dismissOrgGroupOffer(
+      await ref.read(bridgeFacadeProvider).dismissOrgGroupOffer(
             orgPubkey: orgPubkey,
             offerId: offerId,
           );
@@ -206,7 +208,7 @@ Future<void> createOrgGroupAction(
 ) =>
     _runOrgAction(context, ref, orgPubkey: org.orgPubkey,
         action: (invite) async {
-      final created = await ref.read(gatewayProvider).createOrgGroup(
+      final created = await ref.read(bridgeFacadeProvider).createOrgGroup(
             orgPubkey: org.orgPubkey,
             label: label.trim().isEmpty ? null : label.trim(),
             // The one list this action owns: the whole roster but us.

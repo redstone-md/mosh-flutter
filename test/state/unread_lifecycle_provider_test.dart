@@ -2,12 +2,11 @@
 // `useUnreadNotifications` (clearOnActive + window-focus OS toasts +
 // lastSeen poll-diff). The lifecycle watches the per-kind unread counts
 // (one `unreadCountsProvider` entry per kind) +
-// activeConversationKeyProvider, so a `_GrowingGateway` drives growth by
-// swapping its list snapshots and refreshing the list entries.
+// activeConversationKeyProvider, so re-seeding the bridge's lists drives
+// growth by swapping its list snapshots and refreshing the list entries.
 //
-// Seams overridden (mirrors the gatewayProvider / notifications seam
-// convention):
-//  - `gatewayProvider` -> `_GrowingGateway` (mutable list snapshots).
+// Seams overridden (mirrors the notifications seam convention):
+//  - `bridgeFacadeProvider` -> `ScriptableBridge` (mutable list snapshots).
 //  - `windowFocusProvider` -> a controllable `Future<bool> Function()` so
 //    the focus check is deterministic without a window_manager method-
 //    channel mock (the lifecycle reads this seam, not windowManager).
@@ -21,7 +20,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/scriptable_gateway.dart';
+import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -163,7 +162,7 @@ GroupSnapshot _group({
 /// allows only one unnamed constructor per class).
 class _Harness {
   final ProviderContainer container;
-  final ScriptableGateway gateway;
+  final ScriptableBridge gateway;
   final _RecordingNotifications notifications;
   final void Function(bool focused) setFocus;
 
@@ -171,13 +170,13 @@ class _Harness {
       this.container, this.gateway, this.notifications, this.setFocus);
 
   factory _Harness({bool notificationsReady = true}) {
-    final gateway = ScriptableGateway();
+    final gateway = ScriptableBridge();
     final notifications = _RecordingNotifications();
     // The focus flag is mutable; the seam closure reads it each call so a
     // test can flip focus between polls.
     var focused = true;
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(gateway),
       windowFocusProvider.overrideWithValue(() async => focused),
       flutterLocalNotificationsPluginProvider.overrideWithValue(notifications),
       notificationsReadyProvider

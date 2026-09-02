@@ -8,22 +8,22 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
-import '../../support/scriptable_gateway.dart';
+import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
 import '../../support/pump.dart';
 
 /// A gateway with [interfaces] as the machine's NICs and [bind] as the one
 /// Mosh is bound to.
-ScriptableGateway _bindGateway({
+ScriptableBridge _bindGateway({
   required List<NetworkInterfaceInfo> interfaces,
   String? bind,
   bool failSetConsent = false,
 }) {
-  final gateway = ScriptableGateway()
+  final gateway = ScriptableBridge()
     ..seedInterfaces(interfaces)
     ..seedBindInterface(bind);
   if (failSetConsent) {
-    gateway.failAlways(GatewayMethod.setVpnBypassConsent,
+    gateway.failAlways(BridgeMethod.setVpnBypassConsent,
         error: Exception('boom'));
   }
   return gateway;
@@ -50,7 +50,7 @@ Future<AppLocalizations> _l() =>
 
 Future<void> _pump(
   WidgetTester tester, {
-  required ScriptableGateway gateway,
+  required ScriptableBridge gateway,
   Future<void> Function()? onAccept,
 }) async {
   onAccept ??= () async {};
@@ -58,7 +58,7 @@ Future<void> _pump(
       tester,
       Scaffold(
         body: BindInterfaceField(
-          gateway: gateway,
+          bridge: gateway,
           l: await _l(),
           onAccept: onAccept,
         ),
@@ -144,10 +144,10 @@ void main() {
       );
       await tester.tap(find.text('Bind'));
       await tester.pumpAndSettle();
-      expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
+      expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
       expect(
           gateway
-              .lastCall(GatewayMethod.setVpnBypassConsent)
+              .lastCall(BridgeMethod.setVpnBypassConsent)
               ?.arg<String?>('interfaceName'),
           'eth0');
       expect(acceptCount, 1);
@@ -171,10 +171,10 @@ void main() {
       );
       await tester.tap(find.text('Release'));
       await tester.pumpAndSettle();
-      expect(gateway.countOf(GatewayMethod.setVpnBypassConsent), 1);
+      expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
       expect(
           gateway
-              .lastCall(GatewayMethod.setVpnBypassConsent)
+              .lastCall(BridgeMethod.setVpnBypassConsent)
               ?.arg<String?>('interfaceName'),
           isNull);
       expect(acceptCount, 1);

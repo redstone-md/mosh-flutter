@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_modal.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 
 /// Wraps [child] with a top-level [VpnConsentModal] overlay. Place via
 /// `MaterialApp.router(builder: ...)` so the prompt sits above every route.
@@ -37,7 +37,7 @@ class VpnConsentOverlay extends ConsumerWidget {
         child,
         if (l != null)
           VpnConsentModal(
-            gateway: ref.watch(gatewayProvider),
+            bridge: ref.watch(bridgeFacadeProvider),
             l: l,
             onAccept: DesktopAppRelauncherScope.of(context).relaunch,
           ),

@@ -3,9 +3,12 @@
 // Runs on a real desktop target against the actual `mosh_core.dll` (built via
 // cargokit when `flutter test integration_test -d windows` runs). Unlike the
 // widget suite, integration_test executes on the real platform, so RustLib
-// init + FFI works. The test exercises the slice-one flow end-to-end through
-// RealBridgeGateway -- the proof that the whole stack (frb bindings, gateway
-// seam, Rust runtime) is wired correctly with the real backend, not the Fake.
+// init + FFI works. The test exercises the slice-one flow end-to-end
+// through the two bridge surfaces -- the BridgeFacade for the 1:1 mirrors
+// (diagnostics, runtime status, session list, invite mint, ADR 0025) and
+// RealBridgeGateway for the conversation seam (leave) -- proving the whole
+// stack (frb bindings, both surfaces, Rust runtime) is wired correctly with
+// the real backend.
 //
 // Moss-absent graceful path: createInvite needs Moss running (moss.dll built
 // via `moss:prepare`). If Moss is not present in the dev/CI env, the Rust
@@ -16,6 +19,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/real_bridge_gateway.dart';
 import 'package:mosh/src/rust/frb_generated.dart';
@@ -33,11 +37,12 @@ void main() {
 
   testWidgets('slice-one end-to-end: diagnostics + runtime + list + invite',
       (tester) async {
+    final bridge = BridgeFacade();
     final gateway = RealBridgeGateway();
 
     // 1. appDiagnostics(): the 4 const fields come from mosh_core
     //    api::diagnostics. appName is the Rust const "Mosh".
-    final diag = await gateway.appDiagnostics();
+    final diag = await bridge.appDiagnostics();
     expect(diag.appName, 'Mosh');
     expect(diag.privacyModel, isNotEmpty);
     expect(diag.discoveryModel, isNotEmpty);
@@ -49,7 +54,7 @@ void main() {
     //    (FU-1), so the fields are real Dart getters; we still only assert
     //    reachability here (plus a real field read on moss) -- the call
     //    completing is the proof the runtime layer is wired.
-    final status = await gateway.nativeRuntimeStatus();
+    final status = await bridge.nativeRuntimeStatus();
     expect(status.moss, isNotNull);
     expect(status.moss.linkMode, isNotEmpty);
     expect(status.secureStorage, isNotNull);
@@ -60,7 +65,7 @@ void main() {
     // 3. listSessions(): returns a snapshot (initially empty on a fresh
     //    runtime, or whatever a warm runtime has). Asserting the shape, not
     //    emptiness, keeps the test order-independent.
-    final list = await gateway.listSessions();
+    final list = await bridge.listSessions();
     expect(list.sessions, isA<List<SessionSnapshot>>());
 
     // 4. createInvite(): needs Moss running. If Moss is absent the Rust side
@@ -68,7 +73,7 @@ void main() {
     //    invite-shape checks. If Moss is present, assert the real invite URI
     //    and fingerprint. This branch keeps the build green without Moss.
     try {
-      final invite = await gateway.createInvite(
+      final invite = await bridge.createInvite(
         request: const StartSessionRequest(
           displayName: 'slice-one-test',
           listenPort: 0,

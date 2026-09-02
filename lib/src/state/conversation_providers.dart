@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/misc.dart'
     show ProviderListenable, ProviderOrFamily;
 
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/channel_runtime.dart'
     show ChannelListSnapshot, ChannelSnapshot;
@@ -32,8 +33,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart'
     show GroupListSnapshot, GroupSnapshot;
 import 'package:mosh/src/state/channel_group_providers.dart'
     show channelSnapshotProvider, groupSnapshotProvider;
-import 'package:mosh/src/gateway/gateway.dart' show Gateway;
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
 
@@ -86,22 +86,22 @@ class ConversationListNotifier extends AsyncNotifier<ConversationList> {
   final ConversationKind kind;
 
   @override
-  Future<ConversationList> build() => _read(ref.watch(gatewayProvider));
+  Future<ConversationList> build() => _read(ref.watch(bridgeFacadeProvider));
 
   /// Re-runs the server query after a mutation. A guard-swap, so the rail
   /// never flashes a spinner on a refresh.
-  Future<void> refresh() async =>
-      state = await AsyncValue.guard(() => _read(ref.read(gatewayProvider)));
+  Future<void> refresh() async => state =
+      await AsyncValue.guard(() => _read(ref.read(bridgeFacadeProvider)));
 
-  /// [gateway] is passed in rather than read inside, so `build` can watch
+  /// [bridge] is passed in rather than read inside, so `build` can watch
   /// the seam (a wired-backend swap re-reads every list) while `refresh`
   /// reads it once.
-  Future<ConversationList> _read(Gateway gateway) async => switch (kind) {
-        ConversationKind.dm => DmConversationList(await gateway.listSessions()),
+  Future<ConversationList> _read(BridgeFacade bridge) async => switch (kind) {
+        ConversationKind.dm => DmConversationList(await bridge.listSessions()),
         ConversationKind.channel =>
-          ChannelConversationList(await gateway.listChannels()),
+          ChannelConversationList(await bridge.listChannels()),
         ConversationKind.group =>
-          GroupConversationList(await gateway.listGroups()),
+          GroupConversationList(await bridge.listGroups()),
       };
 }
 

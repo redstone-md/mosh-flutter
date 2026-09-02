@@ -2,11 +2,12 @@
 // `useRuntimePersistenceStatus` in
 // src/features/private-dm/use-runtime-persistence-status.ts) over the five
 // branches: browser-demo, available+encrypted, available+!encrypted, !available,
-// and gateway-throws. Overrides `gatewayProvider` with a controllable fake.
+// and bridge-throws. Overrides `bridgeFacadeProvider` with a scripted
+// bridge (ADR 0025).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../support/scriptable_gateway.dart';
+import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart';
 import 'package:mosh/src/rust/moss_runtime.dart';
 import 'package:mosh/src/rust/persistence.dart';
@@ -14,9 +15,9 @@ import 'package:mosh/src/rust/secure_storage.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 
-/// A gateway whose `nativeRuntimeStatus` returns [status].
-ScriptableGateway _gatewayReporting(NativeRuntimeStatus status) =>
-    ScriptableGateway()..seedNativeRuntimeStatus(status);
+/// A bridge whose `nativeRuntimeStatus` returns [status].
+ScriptableBridge _bridgeReporting(NativeRuntimeStatus status) =>
+    ScriptableBridge()..seedNativeRuntimeStatus(status);
 
 NativeRuntimeStatus _status({
   required String linkMode,
@@ -56,7 +57,7 @@ void main() {
       'browser-demo link-mode -> null (React: status.moss.link_mode === "browser-demo")',
       () async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(_gatewayReporting(
+      bridgeFacadeProvider.overrideWithValue(_bridgeReporting(
         _status(
             linkMode: 'browser-demo', available: true, encryptedAtRest: true),
       )),
@@ -69,7 +70,7 @@ void main() {
       'available && encryptedAtRest -> null (React: persistence available && encrypted_at_rest)',
       () async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(_gatewayReporting(
+      bridgeFacadeProvider.overrideWithValue(_bridgeReporting(
         _status(linkMode: 'dynamic', available: true, encryptedAtRest: true),
       )),
     ]);
@@ -81,7 +82,7 @@ void main() {
       'available && !encryptedAtRest -> unavailable kind, reason == persistence error',
       () async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(_gatewayReporting(
+      bridgeFacadeProvider.overrideWithValue(_bridgeReporting(
         _status(
           linkMode: 'dynamic',
           available: true,
@@ -99,7 +100,7 @@ void main() {
 
   test('!available -> unavailable kind (persistence not running)', () async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(_gatewayReporting(
+      bridgeFacadeProvider.overrideWithValue(_bridgeReporting(
         _status(
           linkMode: 'dynamic',
           available: false,
@@ -119,15 +120,15 @@ void main() {
       'nativeRuntimeStatus throws -> error kind, reason set (React: catch branch)',
       () async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(ScriptableGateway()
-        ..failAlways(GatewayMethod.nativeRuntimeStatus,
-            error: StateError('gateway exploded'))),
+      bridgeFacadeProvider.overrideWithValue(ScriptableBridge()
+        ..failAlways(BridgeMethod.nativeRuntimeStatus,
+            error: StateError('bridge exploded'))),
     ]);
     addTearDown(container.dispose);
     final result = await _read(container);
     expect(result, isA<PersistenceWarning>());
     expect(result!.kind, PersistenceWarningKind.error);
     expect(result.reason, isNotEmpty);
-    expect(result.reason, contains('gateway exploded'));
+    expect(result.reason, contains('bridge exploded'));
   });
 }

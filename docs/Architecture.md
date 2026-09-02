@@ -33,11 +33,14 @@ Moss --> Trackers
 ```
 
 Dart never crosses this seam except through the generated bridge. The `api` module is the only Rust surface the bridge binds; it is a thin facade over the runtimes (private_dm, group, channel, org, voice, attachment, persistence, secure_storage). Secrets, MLS state, Moss transport, and redb persistence all live on the Rust side of the boundary (ADR 0009, ADR 0010).
-The Dart side reaches `api` through the `Gateway` seam:
-`RealBridgeGateway` delegates every call to the generated free functions in
-`lib/src/rust/api/`. It is the only implementation the app ships; tests swap
-in `ScriptableGateway` (`test/support/`) through the provider. Widgets consume
-`gatewayProvider`, never a concrete `Gateway` (ADR 0013). The `api` facade
+The Dart side reaches `api` through two surfaces (ADR 0025): the `Gateway`
+seam -- `RealBridgeGateway` delegating to the generated free functions in
+`lib/src/rust/api/` -- for the conversation methods, and the concrete
+`BridgeFacade` for everything that mirrors one bridge call 1:1. The app ships
+only the real implementations; tests swap in `ScriptableGateway` and
+`ScriptableBridge` (`test/support/`) through the providers. Conversation
+callers consume `gatewayProvider`, never a concrete `Gateway` (ADR 0013);
+mirror callers consume `bridgeFacadeProvider`. The `api` facade
 itself is real for `diagnostics` + `private_dm` (OnceLock singleton, ADR 0016)
 and stubbed (`todo!()`) for `channel`, `private_group`, `org`, `network`,
 `vpn` — five stubs whose signatures are laid so the bridge generates against
@@ -72,21 +75,24 @@ flowchart TB
 flowchart LR
     Widget[Widget / Screen]
     Providers[Riverpod providers]
-    GW[Gateway interface]
+    GW[Gateway interface -- the conversation seam]
     Real[RealBridgeGateway ships in the app]
     Fake[ScriptableGateway tests only]
+    BF[BridgeFacade -- the 1:1 mirrors]
     Frb[frb-generated api functions]
     Core[mosh_core::api Rust facade]
 
     Widget -->|ref.watch| Providers
     Providers -->|gatewayProvider| GW
+    Providers -->|bridgeFacadeProvider| BF
     GW -->|app| Real
     GW -->|"test override"| Fake
+    BF --> Frb
     Real --> Frb
     Frb --> Core
 ```
 
-Slice one ships three providers behind `gatewayProvider` in
+Slice one ships three providers behind the bridge providers in
 `lib/src/state/session_providers.dart`: `activeSessionProvider.family`
 (FutureProvider.family for a per-session snapshot, the DM screen poll),
 `diagnosticsProvider` (AsyncNotifierProvider for `appDiagnostics`), and
@@ -95,8 +101,9 @@ flow: displayName + listenPort + lastInvite). The session LIST is no longer
 one of them: one family, `conversationListProvider`
 (`lib/src/state/conversation_providers.dart`), serves the DM, channel and
 group lists with the kind as its family arg, so the kind branch that used to
-be three list providers lives in one module. All consume `gatewayProvider`,
-never a concrete `Gateway`, so the fake<->real swap is one provider body.
+be three list providers lives in one module. The snapshot poll consumes
+`gatewayProvider`, never a concrete `Gateway` (ADR 0013); the list and invite
+reads consume `bridgeFacadeProvider` (ADR 0025).
 
 That one module also owns the only kind-to-invalidate switch in the state
 layer: `invalidateConversation(ref.invalidate, conversation)` re-reads the
@@ -200,13 +207,17 @@ classDiagram
     }
 
     class Gateway {
-      +appDiagnostics() AppDiagnostics
-      +createInvite() InviteCreated
-      +acceptInvite(invite) SessionSnapshot
       +poll(target) Snapshot
       +send(target, body) void
       +sendAttachment(target, file) void
       +leave(target) void
+    }
+
+    class BridgeFacade {
+      +createInvite() InviteCreated
+      +acceptInvite(invite) SessionSnapshot
+      +listSessions() SessionListSnapshot
+      +callStart(sessionId) CallStarted
     }
 
     class ConversationTarget {
@@ -218,6 +229,9 @@ classDiagram
     }
 
     class RealBridgeGateway {
+    }
+
+    class ScriptableBridge {
     }
 
     class MossAdapter {
@@ -244,22 +258,32 @@ classDiagram
     Gateway --> ConversationTarget
     Gateway <|.. ScriptableGateway
     Gateway <|.. RealBridgeGateway
+    BridgeFacade <|.. ScriptableBridge
     RealBridgeGateway --> MossAdapter
     RealBridgeGateway --> MlsAdapter
     RealBridgeGateway --> SecureStorageAdapter
 ```
 
 `Gateway` is the Dart seam declared in slice one (ADR 0013). `ScriptableGateway` (in `test/support/`, never shipped) is the test double that lets widget tests run without the Rust runtime; `RealBridgeGateway` wraps the generated `flutter_rust_bridge` `api` and is the production path. The Rust `api` module owns the `MossAdapter`, `MlsAdapter`, and `SecureStorageAdapter` composition; Dart never instantiates them directly. The `api` surface is the verbatim Tauri command list plus a `StreamSink<T>` function for each former Tauri event (ADR 0010), except the six shared conversation actions, for which ADR 0024 replaces the mapping with one function per operation, the conversation kind carried in the argument.
-The `Gateway` surface has 42 methods. Most mirror one `mosh_core::api`
-signature 1:1; the eight conversation methods (`poll`, `send`, `retry`,
-`sendAttachment`, `downloadAttachment`, `cancelAttachment`, `dismissDmOffer`,
-`leave`) take a `ConversationTarget` instead, so one method serves the DM, the
-channel and the group (ADR 0017). For the six shared actions
+Since ADR 0025 the `Gateway` surface has 8 methods -- the conversation seam:
+`poll`, `send`, `retry`, `sendAttachment`, `downloadAttachment`,
+`cancelAttachment`, `dismissDmOffer` and `leave`, each taking a
+`ConversationTarget` instead of coming in a DM, channel and group flavour, so
+one method serves all three kinds (ADR 0017). For the six shared actions
 `RealBridgeGateway` converts the target to a typed `BridgeConversationRef` and
 calls one shared bridge function — the kind dispatch lives in the bridge
 (ADR 0024); only `dismissDmOffer`, which a DM cannot answer, still switches in
-the adapter. Otherwise it is a pass-through. `ScriptableGateway` is the test
-double with an in-memory session map. The
+the adapter. The other 34 former methods -- org, VPN, call, diagnostics,
+session setup, the channel/group joins and lists -- mirror one
+`mosh_core::api` signature 1:1, hide no decision, and left the interface:
+their callers reach the concrete `BridgeFacade` (`lib/src/gateway/
+bridge_facade.dart`) through `bridgeFacadeProvider`, and tests fake it with
+`ScriptableBridge` only where a screen needs canned data or a scripted
+failure. The two doubles share one `ScriptedConversations` state, mirroring
+the single Rust runtime both Dart surfaces are views over. The voice-call
+audio adapters (capture, playback, ringtone) stay outside both surfaces on
+purpose: they wrap OS audio through their own factory providers and hold no
+Rust domain state, so there is nothing to fake at the bridge. The
 `api` facade is real for `diagnostics` + `private_dm` and stubbed for the
 other five families until later slices.
 
@@ -667,7 +691,8 @@ Slice one is complete. Summary of the final state:
   `integration-test` (needs the other four).
 - No fake gateway ships: `gatewayProvider` always builds `RealBridgeGateway`,
   and tests override it with `ScriptableGateway` from `test/support/`. See
-  ADR 0013, "Removal of the fake gateway".
+  ADR 0013, "Removal of the fake gateway". Since ADR 0025 the 1:1 mirrors
+  ride `bridgeFacadeProvider` (tests: `ScriptableBridge`).
 - Five slice-one screens shipped: onboarding, invite paste, fingerprint
   confirm, one DM screen, diagnostics.
 - `api` facade real for `diagnostics` + `private_dm` (OnceLock singleton,
@@ -726,6 +751,7 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0015 - fork version line `0.8.0-dev`, deep-link deferral.
 - docs/ADR/0016-api-runtime-ownership-oncelock-singleton.md - api runtime ownership via OnceLock singleton.
 - docs/ADR/0017-gateway-takes-the-conversation-target.md - the Dart Gateway takes the conversation target.
+- docs/ADR/0025-the-gateway-is-the-conversation-seam.md - the Gateway narrows to the conversation seam; 1:1 mirrors call the bridge facade directly.
 - docs/ADR/0018-one-conversation-module.md - one Conversation module for the DM, the channel and the group.
 - docs/ADR/0019-shared-conversation-strata-in-the-core.md - shared conversation strata in mosh-core.
 - docs/ADR/0020-one-inbox-per-owner.md - one inbound queue per owner instead of one queue for everybody.
