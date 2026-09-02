@@ -244,12 +244,13 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   /// lands in the host conversation's error banner. Either way the layer
   /// clears the surfaced error so the orchestrator does not re-show it.
   void _surfaceError(CallError error) {
+    if (!mounted) return;
+    final message = error.cause.describe(AppLocalizations.of(context)!);
     if (error.source == CallErrorSource.callControl) {
-      if (!mounted) return;
       ScaffoldMessenger.maybeOf(context)
-          ?.showSnackBar(SnackBar(content: Text(error.message)));
+          ?.showSnackBar(SnackBar(content: Text(message)));
     } else {
-      widget.onVoiceCallError?.call(error.message);
+      widget.onVoiceCallError?.call(message);
     }
     ref
         .read(voiceCallOrchestratorProvider(widget.sessionId).notifier)

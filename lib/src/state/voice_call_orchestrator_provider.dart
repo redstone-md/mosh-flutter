@@ -12,6 +12,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart'
     show CallDialog, NoCallDialog, callDialogFor;
 import 'package:mosh/src/features/voice_call/call_frame_transport.dart'
@@ -43,10 +44,12 @@ enum CallErrorSource {
   audioSetup,
 }
 
-/// A failure the call UI must show, and where it belongs.
+/// A failure the call UI must show, and where it belongs. The cause is
+/// already classified, so the layer picks the wording from the bridge kind
+/// like every other screen.
 class CallError {
-  const CallError({required this.message, required this.source});
-  final String message;
+  const CallError({required this.cause, required this.source});
+  final ConversationActionError cause;
   final CallErrorSource source;
 }
 
@@ -243,7 +246,9 @@ class VoiceCallOrchestratorNotifier
   void _fail(Object? error, CallErrorSource source) {
     if (!ref.mounted) return;
     _error = CallError(
-      message: error?.toString() ?? 'Call failed',
+      cause: error == null
+          ? const ConversationActionError.text('Call failed')
+          : ConversationActionError.of(error),
       source: source,
     );
     state = state.copyWith(error: _error);

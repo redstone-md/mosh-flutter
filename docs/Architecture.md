@@ -382,11 +382,13 @@ the runtime's diagnostic sentence.
 `ConversationActionError` lives in `features/shared/` because it is the one
 classifier for a caught bridge error everywhere a screen acts on the bridge:
 the conversation banner, the three onboarding steps, the invite paste, the
-org-action toast in `org_actions.dart`, and the DM's start-call snack bar all
-catch, call `ConversationActionError.of(error)`, and render `describe(l)`. No
-user-facing path calls `toString()` or `readableError` on a
-`ConversationBridgeError`. Snapshot-driven state (rejoin, revocation,
-retryable delivery) stays snapshot-driven.
+org-action toast in `org_actions.dart`, the rail's accept-offer toast, the
+DM's start-call snack bar, and the voice-call layer (whose `CallError`
+carries the classified cause) all catch, call
+`ConversationActionError.of(error)`, and render `describe(l)`. No user-facing
+path calls `toString()` or `readableError` on a `ConversationBridgeError`.
+Snapshot-driven state (rejoin, revocation, retryable delivery) stays
+snapshot-driven.
 
 Every conversation action on the bridge throws that same
 `ConversationBridgeError`: the six shared actions and the kind-specific ones
