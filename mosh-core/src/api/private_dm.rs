@@ -15,9 +15,10 @@
 //! shell's `PrivateDmState` (a managed struct whose
 //! `runtime: Mutex<Option<...>>` + `load_error` pair). `ensure_runtime()` is
 //! the analogue of `PrivateDmState::ready` (construction) + `with_runtime`
-//! (lock + borrow). Each public function calls `ensure_runtime()` and
-//! delegates, mapping `PrivateDmRuntimeError` to a plain `String` so the
-//! bridge surfaces it as a Dart exception (ADR 0010).
+//! (lock + borrow). Every function that drives the runtime calls
+//! `ensure_runtime()` and delegates, mapping `PrivateDmRuntimeError` to a
+//! plain `String` so the bridge surfaces it as a Dart exception (ADR 0010);
+//! the two inject knobs below touch `api::shared_runtime` instead.
 //!
 //! TYPES (ADR 0010 — 1:1 mapping, DRY): the request/return types are the
 //! runtime's own, re-exported here via `use crate::private_dm_runtime::{...}`.

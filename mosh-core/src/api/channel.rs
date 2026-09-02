@@ -117,8 +117,7 @@ pub fn join(request: JoinChannelRequest) -> Result<ChannelSnapshot, String> {
 }
 
 /// Poll a channel for its current snapshot (1:1 port of `channel_poll`).
-/// The React frontend polled on a cadence; the bridge slice will offer the
-/// `StreamSink`-returning variant alongside this one-shot poll.
+/// The React frontend polled on a cadence; the Dart side polls the same way.
 pub fn poll(name: String) -> Result<ChannelSnapshot, String> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");

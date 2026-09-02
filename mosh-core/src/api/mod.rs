@@ -6,7 +6,7 @@
 //! that are genuinely one kind's: invites, join/create, typed polls and
 //! lists, DM offers, the voice-call pipeline. The actions every conversation
 //! kind shares — send, retry, attachment send/download/cancel, leave — exist
-//! once in `conversation`, kind-tagged and typed-errored (ADR 0024).
+//! once in `conversation`, kind-tagged and returning a typed error (ADR 0024).
 //!
 //! The facade stays intentionally thin: it delegates to the existing
 //! runtimes (`mosh_runtime`, `private_dm_runtime`, `channel_runtime`,

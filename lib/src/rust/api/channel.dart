@@ -19,8 +19,7 @@ Future<ChannelSnapshot> join({required JoinChannelRequest request}) =>
     RustLib.instance.api.crateApiChannelJoin(request: request);
 
 /// Poll a channel for its current snapshot (1:1 port of `channel_poll`).
-/// The React frontend polled on a cadence; the bridge slice will offer the
-/// `StreamSink`-returning variant alongside this one-shot poll.
+/// The React frontend polled on a cadence; the Dart side polls the same way.
 Future<ChannelSnapshot> poll({required String name}) =>
     RustLib.instance.api.crateApiChannelPoll(name: name);
 
