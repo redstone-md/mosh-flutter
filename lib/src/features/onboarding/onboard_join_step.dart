@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/onboarding/inline_error.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/invite/invite_detection.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -166,8 +167,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     }
     final uri = _controller.text.trim();
     final flow = ref.read(inviteFlowProvider);
-    final displayName =
-        flow.displayName.isEmpty ? 'anonymous' : flow.displayName;
+    final displayName = flow.senderDisplayName;
     setState(() {
       _busy = true;
       _error = null;
@@ -294,16 +294,13 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         if (_acceptedSessionId != null) ...[
           const SizedBox(height: 16),
           Text(
-            'Accepted session: $_acceptedSessionId',
+            l.onboardJoinAcceptedSession(_acceptedSessionId!),
             style: theme.textTheme.bodySmall,
           ),
         ],
         if (_error != null) ...[
           const SizedBox(height: 16),
-          Text(
-            _error!.describe(l),
-            style: TextStyle(color: theme.colorScheme.error),
-          ),
+          InlineError(message: _error?.describe(l)),
         ],
       ],
     );

@@ -11,25 +11,21 @@
 // Every call an org action makes is a 1:1 bridge mirror (ADR 0025), so the
 // whole test runs on the bridge double.
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show WidgetRef;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
-import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/api/conversation_bridge.dart'
     show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/rust/org_runtime.dart'
     show OrgDmLink, OrgMemberView, OrgSnapshot;
-import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/org_providers.dart' show orgOperationBusProvider;
 
+import '../../support/action_harness.dart';
 import '../../support/scriptable_bridge.dart'
     show BridgeCall, BridgeMethod, ScriptableBridge;
 
-const String _kStart = '/start';
-const String _kStartLabel = 'start';
 const String _kOrgPubkey = 'org-1';
 const String _kOfferId = 'offer-1';
 
@@ -102,74 +98,10 @@ List<_OrgActionCase> _allActions() => [
       ),
     ];
 
-/// The two things an org action takes that a test cannot construct by
-/// hand: a live [BuildContext] and the [WidgetRef] behind it.
-Future<({BuildContext context, WidgetRef ref})> _mount(
-  WidgetTester tester,
-  ScriptableBridge bridge,
-) async {
-  late BuildContext capturedContext;
-  late WidgetRef capturedRef;
-  final router = GoRouter(
-    initialLocation: _kStart,
-    routes: [
-      GoRoute(
-        path: _kStart,
-        builder: (_, __) => _Capture(
-          ready: (context, ref) {
-            capturedContext = context;
-            capturedRef = ref;
-          },
-        ),
-      ),
-      for (final path in [AppRoutes.dm, AppRoutes.group])
-        GoRoute(
-          path: '$path/:id',
-          builder: (_, state) => Text(state.uri.path),
-        ),
-    ],
-  );
-  final container = ProviderContainer(
-    overrides: [bridgeFacadeProvider.overrideWithValue(bridge)],
-  );
-  addTearDown(container.dispose);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp.router(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        routerConfig: router,
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-  return (context: capturedContext, ref: capturedRef);
-}
-
-/// Renders a marker the tests look for to prove no action navigated, and
-/// hands its own [BuildContext] + [WidgetRef] back through [ready].
-class _Capture extends ConsumerStatefulWidget {
-  const _Capture({required this.ready});
-
-  final void Function(BuildContext context, WidgetRef ref) ready;
-
-  @override
-  ConsumerState<_Capture> createState() => _CaptureState();
-}
-
-class _CaptureState extends ConsumerState<_Capture> {
-  @override
-  Widget build(BuildContext context) {
-    widget.ready(context, ref);
-    return const Scaffold(body: Text(_kStartLabel));
-  }
-}
-
 void main() {
   testWidgets('the org stays busy for the whole action', (tester) async {
     final bridge = ScriptableBridge()..hold(BridgeMethod.leaveOrg);
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
 
     final running = leaveOrgAction(harness.context, harness.ref, _org());
     await tester.pump();
@@ -186,7 +118,7 @@ void main() {
     for (final testCase in _allActions()) {
       final bridge = ScriptableBridge()
         ..failAlways(testCase.method, error: 'boom');
-      final harness = await _mount(tester, bridge);
+      final harness = await mountActionHarness(tester, bridge: bridge);
 
       await testCase.run(harness.context, harness.ref);
       await tester.pumpAndSettle();
@@ -215,7 +147,7 @@ void main() {
     );
     final bridge = ScriptableBridge()
       ..failAlways(BridgeMethod.leaveOrg, error: error);
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
 
     await leaveOrgAction(harness.context, harness.ref, _org());
     await tester.pumpAndSettle();
@@ -229,7 +161,7 @@ void main() {
       (tester) async {
     for (final testCase in _allActions()) {
       final bridge = ScriptableBridge();
-      final harness = await _mount(tester, bridge);
+      final harness = await mountActionHarness(tester, bridge: bridge);
 
       // The dismisses change nothing outside the org -- the refresh is the
       // runner's, not the action's, so it runs for them too.
@@ -261,7 +193,7 @@ void main() {
 
   testWidgets('leave and both dismisses stay put', (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
 
     await leaveOrgAction(harness.context, harness.ref, _org());
     await dismissOrgDmOfferAction(
@@ -273,12 +205,12 @@ void main() {
     expect(bridge.countOf(BridgeMethod.leaveOrg), 1);
     expect(bridge.countOf(BridgeMethod.dismissOrgDmOffer), 1);
     expect(bridge.countOf(BridgeMethod.dismissOrgGroupOffer), 1);
-    expect(find.text(_kStartLabel), findsOneWidget);
+    expect(find.text(kActionHarnessStartLabel), findsOneWidget);
   });
 
   testWidgets('accepting a DM offer lands on the new DM', (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
 
     await acceptOrgDmOfferAction(
         harness.context, harness.ref, _kOrgPubkey, _kOfferId);
@@ -295,7 +227,7 @@ void main() {
 
   testWidgets('accepting a group offer lands on the group', (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
 
     await acceptOrgGroupOfferAction(
         harness.context, harness.ref, _kOrgPubkey, _kOfferId);
@@ -308,7 +240,7 @@ void main() {
   testWidgets('a member with a linked DM jumps to it without an offer',
       (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
     // A link with no session id at all, and one with an empty id, are both
     // offers in flight -- only the third is a conversation to open.
     final org = _org(dmLinks: const [
@@ -326,7 +258,7 @@ void main() {
 
   testWidgets('a jump re-reads nothing', (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
     final org = _org(dmLinks: const [
       OrgDmLink(peerId: 'peer-1', sessionId: 'dm-9'),
     ]);
@@ -345,7 +277,7 @@ void main() {
 
   testWidgets('a member without a linked DM gets an offer', (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
 
     await openMemberDmAction(harness.context, harness.ref, _org(), _kPeer);
     await tester.pumpAndSettle();
@@ -362,20 +294,20 @@ void main() {
 
   testWidgets('tapping yourself does nothing', (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
 
     await openMemberDmAction(harness.context, harness.ref, _org(), _kSelf);
     await tester.pumpAndSettle();
 
     expect(bridge.calls, isEmpty);
     expect(harness.ref.read(orgOperationBusProvider), isEmpty);
-    expect(find.text(_kStartLabel), findsOneWidget);
+    expect(find.text(kActionHarnessStartLabel), findsOneWidget);
   });
 
   testWidgets('creating a group offers it to every non-self member',
       (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
     final org = _org(members: const [
       _kSelf,
       _kPeer,
@@ -399,7 +331,7 @@ void main() {
 
   testWidgets('a blank group label is dropped', (tester) async {
     final bridge = ScriptableBridge();
-    final harness = await _mount(tester, bridge);
+    final harness = await mountActionHarness(tester, bridge: bridge);
 
     await createOrgGroupAction(harness.context, harness.ref, _org(), '   ');
     await tester.pumpAndSettle();

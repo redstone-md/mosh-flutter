@@ -443,6 +443,11 @@
   "@onboardJoinDetectOrg": {
     "description": "Detection message for an organization bundle"
   },
+  "onboardJoinAcceptedSession": "Accepted session: {sessionId}",
+  "@onboardJoinAcceptedSession": {
+    "description": "Inline confirmation under the Connect button after a pasted DM invite was accepted; {sessionId} is the new session's id",
+    "placeholders": {"sessionId": {"type": "String"}}
+  },
   "onboardJoinDetectNone": "Waiting for a mosh:// link…",
   "@onboardJoinDetectNone": {
     "description": "Detection message while waiting for a link"
@@ -1068,7 +1073,7 @@
     "description": "Shown wherever a bridge action fails with ConversationBridgeErrorKind.invalidInput (chat banner, onboarding steps, invite paste, org toast, call snack bar); {detail} is the runtime's diagnostic sentence, kept because the user has to fix the input",
     "placeholders": {"detail": {"type": "String"}}
   },
-  "chatActionErrorUnavailable": "The network is unavailable right now. Try again in a moment.",
+  "chatActionErrorUnavailable": "Mosh could not reach the network. Try again in a moment.",
   "@chatActionErrorUnavailable": {
     "description": "Chat error banner for ConversationBridgeErrorKind.unavailable (node, mesh or signing identity down)"
   },
