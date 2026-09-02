@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
@@ -105,10 +106,10 @@ void main() {
     expect(find.byType(ChannelJoinScreen), findsNothing);
   });
 
-  // The bridge throws the generated ConversationBridgeError (ticket 17).
-  // Until ticket 18 picks wording by kind, the step renders the runtime's
-  // own sentence -- never "Instance of 'ConversationBridgeError'".
-  testWidgets('a failed join renders the bridge error\'s message',
+  // The bridge throws the generated ConversationBridgeError (ticket 17); the
+  // step words the inline error by its kind and never shows the runtime's
+  // diagnostic sentence (ticket 18).
+  testWidgets('a failed join is worded by the bridge error\'s kind',
       (tester) async {
     const error = ConversationBridgeError(
       kind: ConversationBridgeErrorKind.unavailable,
@@ -123,7 +124,10 @@ void main() {
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
 
-    expect(find.text(error.message), findsOneWidget);
+    final l =
+        AppLocalizations.of(tester.element(find.byType(ChannelJoinScreen)))!;
+    expect(find.text(l.chatActionErrorUnavailable), findsOneWidget);
+    expect(find.textContaining(error.message), findsNothing);
     expect(find.textContaining('Instance of'), findsNothing);
   });
 

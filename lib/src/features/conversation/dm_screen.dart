@@ -11,12 +11,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
 import 'package:mosh/src/features/conversation/dm_screen_header.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/gateway/conversation_target.dart' show DmTarget;
-import 'package:mosh/src/util/format.dart' show readableError;
 
 class DmScreen extends ConsumerStatefulWidget {
   const DmScreen({super.key, required this.sessionId});
@@ -54,8 +55,9 @@ class _DmScreenState extends ConsumerState<DmScreen> {
     if (call == null) return;
     final error = await call.start(ref, widget.sessionId);
     if (!mounted || error == null) return;
+    final l = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(readableError(error))),
+      SnackBar(content: Text(ConversationActionError.of(error).describe(l))),
     );
   }
 

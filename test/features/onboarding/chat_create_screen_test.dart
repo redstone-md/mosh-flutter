@@ -18,7 +18,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart'
+    show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import '../../support/scriptable_bridge.dart';
@@ -128,6 +131,29 @@ void main() {
     // Routing returned to '/' (onboarding): the menu screen reappears.
     expect(find.byType(OnboardingScreen), findsOneWidget);
     expect(find.byType(ChatCreateScreen), findsNothing);
+  });
+
+  // The bridge throws the generated ConversationBridgeError (ticket 17); the
+  // step words the inline error by its kind and never shows the runtime's
+  // diagnostic sentence (ticket 18).
+  testWidgets('a failed create is worded by the bridge error\'s kind',
+      (tester) async {
+    const error = ConversationBridgeError(
+      kind: ConversationBridgeErrorKind.unavailable,
+      message: 'dm runtime unavailable: node down',
+    );
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.createInvite, error: error);
+    await pumpCreateStep(tester, bridge);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
+    await tester.pumpAndSettle();
+
+    final l =
+        AppLocalizations.of(tester.element(find.byType(ChatCreateScreen)))!;
+    expect(find.text(l.chatActionErrorUnavailable), findsOneWidget);
+    expect(find.textContaining(error.message), findsNothing);
+    expect(find.textContaining('Instance of'), findsNothing);
   });
 
   testWidgets(

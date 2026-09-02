@@ -24,6 +24,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot, OrgMemberView;
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
@@ -83,9 +85,10 @@ Future<void> _runOrgAction(
     if (route != null) context.go(route);
   } catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(e.toString())));
+    final l = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ConversationActionError.of(e).describe(l))),
+    );
   } finally {
     ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
   }

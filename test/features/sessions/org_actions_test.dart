@@ -15,8 +15,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
+import 'package:mosh/src/rust/api/conversation_bridge.dart'
+    show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/rust/org_runtime.dart'
     show OrgDmLink, OrgMemberView, OrgSnapshot;
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
@@ -133,7 +136,11 @@ Future<({BuildContext context, WidgetRef ref})> _mount(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        routerConfig: router,
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -195,6 +202,27 @@ void main() {
         reason: 'a failed ${testCase.method.name} must clear the busy flag',
       );
     }
+  });
+
+  // The bridge throws the generated ConversationBridgeError (ticket 17); the
+  // toast picks its sentence from the kind and never shows the runtime's
+  // diagnostic text (ticket 18).
+  testWidgets('a bridge failure is worded by its kind in the snack bar',
+      (tester) async {
+    const error = ConversationBridgeError(
+      kind: ConversationBridgeErrorKind.persistence,
+      message: 'redb: write failed',
+    );
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.leaveOrg, error: error);
+    final harness = await _mount(tester, bridge);
+
+    await leaveOrgAction(harness.context, harness.ref, _org());
+    await tester.pumpAndSettle();
+
+    final l = AppLocalizations.of(harness.context)!;
+    expect(find.text(l.chatActionErrorPersistence), findsOneWidget);
+    expect(find.textContaining(error.message), findsNothing);
   });
 
   testWidgets('the envelope re-reads every rail list after any action',

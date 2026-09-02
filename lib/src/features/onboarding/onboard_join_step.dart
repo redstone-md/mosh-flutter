@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/invite/invite_detection.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -102,7 +103,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
   );
   bool _busy = false;
   String? _acceptedSessionId;
-  String? _error;
+  ConversationActionError? _error;
 
   @override
   void initState() {
@@ -224,7 +225,7 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         context.go(AppRoutes.sessions);
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = ConversationActionError.of(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -299,7 +300,10 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
         ],
         if (_error != null) ...[
           const SizedBox(height: 16),
-          Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+          Text(
+            _error!.describe(l),
+            style: TextStyle(color: theme.colorScheme.error),
+          ),
         ],
       ],
     );

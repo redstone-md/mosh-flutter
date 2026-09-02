@@ -379,6 +379,15 @@ bridge's `ConversationBridgeErrorKind` when the seam threw one, ready-made
 text otherwise. The screen picks the wording from the kind and never reads
 the runtime's diagnostic sentence.
 
+`ConversationActionError` lives in `features/shared/` because it is the one
+classifier for a caught bridge error everywhere a screen acts on the bridge:
+the conversation banner, the three onboarding steps, the invite paste, the
+org-action toast in `org_actions.dart`, and the DM's start-call snack bar all
+catch, call `ConversationActionError.of(error)`, and render `describe(l)`. No
+user-facing path calls `toString()` or `readableError` on a
+`ConversationBridgeError`. Snapshot-driven state (rejoin, revocation,
+retryable delivery) stays snapshot-driven.
+
 Every conversation action on the bridge throws that same
 `ConversationBridgeError`: the six shared actions and the kind-specific ones
 (DM invites and call controls, channel join and DM offers, group create/join
@@ -387,8 +396,8 @@ and DM offers, all org actions). Each facade's `ensure_runtime()` answers
 maps through one `From` impl per runtime in `api/conversation_bridge.rs`. Only
 the poll and list reads keep a plain `String` — a read failure is a provider
 error, not something the user acted on. The generated Dart class carries a
-`toString` that returns the message, so a screen that has not yet switched on
-the kind still shows the runtime's sentence.
+`toString` that returns the message, for logs and test failures; every screen
+renders it through the shared classifier above, never through `toString`.
 
 `conversationSnapshotProvider` does not poll. It watches the kind provider
 the app already has and maps the result, so there is one poll per

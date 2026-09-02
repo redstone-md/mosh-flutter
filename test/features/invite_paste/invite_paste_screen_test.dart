@@ -13,6 +13,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart'
+    show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
@@ -184,6 +187,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Accepted session:'), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.listSessions), 2);
+  });
+
+  // The bridge throws the generated ConversationBridgeError (ticket 17); the
+  // step words the inline error by its kind. `invalidInput` is the one kind
+  // that keeps the runtime's detail, because "fix the paste" needs it.
+  testWidgets('a rejected paste is worded by the bridge error\'s kind',
+      (tester) async {
+    const error = ConversationBridgeError(
+      kind: ConversationBridgeErrorKind.invalidInput,
+      message: 'invite fingerprint does not match',
+    );
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.acceptInvite, error: error);
+    await pumpPasteStep(tester, bridge);
+
+    await tester.enterText(find.byType(TextField),
+        'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
+    await tester.pump();
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    final l =
+        AppLocalizations.of(tester.element(find.byType(InvitePasteScreen)))!;
+    expect(
+        find.text(l.chatActionErrorInvalidInput(error.message)), findsOneWidget);
+    expect(find.text(error.message), findsNothing);
+    expect(find.byType(InvitePasteScreen), findsOneWidget);
   });
 
   testWidgets('a failed DM accept does not initialize or refresh sessions',

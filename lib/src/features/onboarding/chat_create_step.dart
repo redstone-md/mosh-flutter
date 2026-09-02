@@ -28,7 +28,7 @@ import 'package:mosh/src/gateway/conversation_target.dart'
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
 import 'package:mosh/src/state/session_providers.dart';
-import 'package:mosh/src/util/format.dart' show readableError;
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 
 /// Embeddable chat-create step body -- the step CONTENT only: body
 /// paragraph, Create/Recreate button (label flips once
@@ -57,7 +57,7 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
   // Persistent inline error (parity with React's `props.error` on
   // NewSessionPanel -- stays until the next create attempt). Cleared at
   // the START of the next attempt below.
-  String? _error;
+  ConversationActionError? _error;
 
   Future<void> _onCreate() async {
     if (_busy) return;
@@ -74,11 +74,9 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
           .read(conversationListProvider(ConversationKind.dm).notifier)
           .refresh();
     } catch (e) {
-      // Mirrors React's parent try/catch feeding `props.error` down: React
-      // stores `readableError(err)` (the bare message) in state, so this
-      // uses the same helper. The inline error is the ONE source of truth
-      // (no SnackBar here).
-      if (mounted) setState(() => _error = readableError(e));
+      // The inline error is the one source of truth (no SnackBar), and its
+      // wording comes from the bridge kind when the seam threw one.
+      if (mounted) setState(() => _error = ConversationActionError.of(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -116,7 +114,7 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
-          InlineError(message: _error),
+          InlineError(message: _error?.describe(l)),
         ],
         if (hasInvite) ...[
           const SizedBox(height: 20),

@@ -36,7 +36,7 @@ import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
-import 'package:mosh/src/util/format.dart' show readableError;
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 
 /// Embeddable channel-join step body -- the step CONTENT only: body
 /// paragraph, `.step-channel-input` box (`#` + borderless TextField), Join
@@ -72,7 +72,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
   // Persistent inline error (parity with React's `props.error` on
   // NewSessionPanel -- stays until the next join attempt). Cleared at
   // the START of the next join below.
-  String? _error;
+  ConversationActionError? _error;
 
   @override
   void initState() {
@@ -121,12 +121,9 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
       if (!mounted) return;
       context.go(AppRoutes.channelFor(name));
     } catch (e) {
-      // Mirrors React's parent try/catch feeding `props.error` down: React
-      // stores `readableError(err)` (the bare message) in state, so this
-      // uses the same helper. No transient SnackBar -- the inline error
-      // is the one source of truth AND is announced to assistive tech via
-      // the live region.
-      if (mounted) setState(() => _error = readableError(e));
+      // The inline error is the one source of truth (no SnackBar), and its
+      // wording comes from the bridge kind when the seam threw one.
+      if (mounted) setState(() => _error = ConversationActionError.of(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -204,7 +201,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
-          InlineError(message: _error),
+          InlineError(message: _error?.describe(l)),
         ],
       ],
     );
