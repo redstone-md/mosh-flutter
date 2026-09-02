@@ -37,7 +37,7 @@ use std::sync::{Arc, Mutex};
 use audiopus::{coder::Decoder, Channels, SampleRate};
 use cpal::{
     default_host, traits::DeviceTrait, traits::HostTrait, traits::StreamTrait, BufferSize,
-    OutputCallbackInfo, Stream, StreamConfig,
+    Device, FromSample, OutputCallbackInfo, SampleFormat, SizedSample, Stream, StreamConfig,
 };
 use flutter_rust_bridge::frb;
 use ringbuf::{
@@ -87,8 +87,83 @@ fn should_resync(occupied_s: f64, threshold_s: f64) -> bool {
     occupied_s > threshold_s
 }
 
+/// Turns the 48 kHz mono ring into whatever the output device consumes:
+/// linear resampling to the device rate and the same sample on every
+/// channel. Underrun (ring empty) reads as silence, mirroring React's
+/// `source.start(time)` producing nothing when no buffer is scheduled.
+struct Renderer {
+    consumer: Arc<Mutex<HeapCons<i16>>>,
+    channels: usize,
+    /// Source samples per output sample (48000 / device rate).
+    step: f64,
+    /// Position between `prev` and `next`, in [0, 1).
+    pos: f64,
+    prev: i16,
+    next: i16,
+}
+
+impl Renderer {
+    fn new(consumer: Arc<Mutex<HeapCons<i16>>>, config: &StreamConfig) -> Self {
+        Self {
+            consumer,
+            channels: config.channels.max(1) as usize,
+            step: f64::from(SAMPLE_RATE) / f64::from(config.sample_rate.max(1)),
+            pos: 0.0,
+            prev: 0,
+            next: 0,
+        }
+    }
+
+    fn fill<T: SizedSample + FromSample<i16>>(&mut self, buf: &mut [T]) {
+        // One lock per callback. A poisoned mutex means `stop` raced and the
+        // stream is tearing down; render silence and move on.
+        let consumer = Arc::clone(&self.consumer);
+        let mut guard = consumer.lock().ok();
+        for frame in buf.chunks_mut(self.channels) {
+            let sample = self.next_sample(&mut guard);
+            frame.fill(T::from_sample(sample));
+        }
+    }
+
+    fn next_sample(&mut self, cons: &mut Option<std::sync::MutexGuard<'_, HeapCons<i16>>>) -> i16 {
+        self.pos += self.step;
+        while self.pos >= 1.0 {
+            self.pos -= 1.0;
+            self.prev = self.next;
+            self.next = cons.as_mut().and_then(|c| c.try_pop()).unwrap_or(0);
+        }
+        lerp(self.prev, self.next, self.pos)
+    }
+}
+
+/// Linear interpolation between two samples, rounded to the nearest i16.
+fn lerp(a: i16, b: i16, t: f64) -> i16 {
+    (f64::from(a) + (f64::from(b) - f64::from(a)) * t).round() as i16
+}
+
+fn build_stream<T: SizedSample + FromSample<i16>>(
+    device: &Device,
+    config: &StreamConfig,
+    mut renderer: Renderer,
+) -> Result<Stream, String> {
+    device
+        .build_output_stream(
+            *config,
+            move |buf: &mut [T], _info: &OutputCallbackInfo| renderer.fill(buf),
+            |err| {
+                // Mirrors React's `AudioContext` error path: log-only. The
+                // stream stays alive for the call's lifetime; a hard fault
+                // surfaces on the next `push_frame` as a poisoned mutex or is
+                // cleaned up by `stop`.
+                eprintln!("voice_call_playback: cpal stream error: {err:?}");
+            },
+            None,
+        )
+        .map_err(|e| format!("cpal build_output_stream: {e:?}"))
+}
+
 /// Starts the playback pipeline: an Opus decoder (48 kHz mono) + a cpal output
-/// stream fed from a 7680-sample ring. Synchronous (audio open is blocking on
+/// stream in the device's own format, fed from a 7680-sample ring. Synchronous (audio open is blocking on
 /// every cpal backend); `Err(String)` if there is no default output device or
 /// the stream cannot be built/started. Errors are stringified via `Debug`,
 /// matching `voice_call_opus_encode`'s `Result<T, String>` style.
@@ -104,51 +179,31 @@ pub fn voice_call_playback_start() -> Result<VoicePlayback, String> {
         .default_output_device()
         .ok_or_else(|| "cpal: no default output device".to_string())?;
 
-    // Take the device's default output config (which carries a supported
-    // sample format + buffer-size policy) and override the rate + channel
-    // count to 48 kHz mono. `BufferSize::Default` lets the backend pick its
-    // native period (React leaves the AudioContext quantum size implicit too).
+    // Play in the device's own shape. WASAPI shared mode only accepts the
+    // mix format (typically 48 kHz stereo f32, sometimes 44.1 kHz), so forcing
+    // 48 kHz mono i16 here failed with StreamConfigNotSupported on most
+    // machines. The ring stays 48 kHz mono i16 (the Opus contract); the
+    // callback resamples and fans out to whatever the device wants.
     let supported = device
         .default_output_config()
         .map_err(|e| format!("cpal default_output_config: {e:?}"))?;
+    let sample_format = supported.sample_format();
     let mut config: StreamConfig = supported.config();
-    config.sample_rate = SAMPLE_RATE;
-    config.channels = 1;
     config.buffer_size = BufferSize::Default;
 
-    // The consumer is shared between the cpal callback (pop_slice) and the
-    // drift-resync path (clear), so it is wrapped in `Arc<Mutex<_>>` and a
-    // clone is moved into the `Send` closure. The struct keeps the other
-    // clone; the underlying `Arc<HeapRb>` keeps the ring alive while either
-    // half is held (and the `Stream` in the struct owns the closure).
+    // The consumer is shared between the cpal callback (via the renderer)
+    // and the drift-resync path (clear), so it is wrapped in `Arc<Mutex<_>>`
+    // and a clone is moved into the `Send` closure. The struct keeps the
+    // other clone; the underlying `Arc<HeapRb>` keeps the ring alive while
+    // either half is held (and the `Stream` in the struct owns the closure).
     let consumer = Arc::new(Mutex::new(consumer));
-    let consumer_for_cb = Arc::clone(&consumer);
-    let stream = device
-        .build_output_stream::<i16, _, _>(
-            config,
-            move |buf: &mut [i16], _info: &OutputCallbackInfo| {
-                // Underrun (ring empty) -> zero-fill, mirroring React's
-                // `source.start(time)` producing silence when no buffer is
-                // scheduled. A poisoned consumer mutex means `stop` raced and
-                // the stream is tearing down; treat as silence and move on.
-                let mut read = 0;
-                if let Ok(mut cons) = consumer_for_cb.lock() {
-                    read = cons.pop_slice(buf);
-                }
-                for slot in &mut buf[read..] {
-                    *slot = 0;
-                }
-            },
-            |err| {
-                // Mirrors React's `AudioContext` error path: log-only. The
-                // stream stays alive for the call's lifetime; a hard fault
-                // surfaces on the next `push_frame` as a poisoned mutex or is
-                // cleaned up by `stop`.
-                eprintln!("voice_call_playback: cpal stream error: {err:?}");
-            },
-            None,
-        )
-        .map_err(|e| format!("cpal build_output_stream: {e:?}"))?;
+    let renderer = Renderer::new(Arc::clone(&consumer), &config);
+    let stream = match sample_format {
+        SampleFormat::F32 => build_stream::<f32>(&device, &config, renderer),
+        SampleFormat::I16 => build_stream::<i16>(&device, &config, renderer),
+        SampleFormat::U16 => build_stream::<u16>(&device, &config, renderer),
+        other => Err(format!("cpal: unsupported output sample format {other}")),
+    }?;
     stream
         .play()
         .map_err(|e| format!("cpal stream.play: {e:?}"))?;
@@ -253,7 +308,55 @@ pub fn voice_call_playback_stop(p: &VoicePlayback) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{should_resync, PLAYBACK_RESYNC_S};
+    use std::sync::{Arc, Mutex};
+
+    use cpal::{BufferSize, StreamConfig};
+    use ringbuf::{traits::Producer, traits::Split, HeapRb};
+
+    use super::{should_resync, Renderer, PLAYBACK_RESYNC_S, SAMPLE_RATE};
+
+    /// A renderer over a ring holding `source`, for a device of `channels`
+    /// at `rate` Hz.
+    fn renderer(source: &[i16], channels: u16, rate: u32) -> Renderer {
+        let ring = HeapRb::<i16>::new(source.len().max(1));
+        let (mut producer, consumer) = ring.split();
+        producer.push_slice(source);
+        let config = StreamConfig {
+            channels,
+            sample_rate: rate,
+            buffer_size: BufferSize::Default,
+        };
+        Renderer::new(Arc::new(Mutex::new(consumer)), &config)
+    }
+
+    #[test]
+    fn same_rate_passes_samples_through_on_every_channel() {
+        let mut r = renderer(&[100, 200, 300], 2, SAMPLE_RATE);
+        let mut out = [0i16; 8];
+        r.fill(&mut out);
+        // One sample of latency from the interpolation window, then the
+        // source verbatim, duplicated per channel, silence once drained.
+        assert_eq!(out, [0, 0, 100, 100, 200, 200, 300, 300]);
+    }
+
+    #[test]
+    fn a_faster_device_gets_interpolated_samples() {
+        let mut r = renderer(&[1000, 2000], 1, SAMPLE_RATE * 2);
+        let mut out = [0i16; 6];
+        r.fill(&mut out);
+        // Two output samples per source sample, midpoints interpolated.
+        assert_eq!(out, [0, 0, 500, 1000, 1500, 2000]);
+    }
+
+    #[test]
+    fn f32_output_is_scaled_from_i16() {
+        let mut r = renderer(&[i16::MAX, i16::MIN], 1, SAMPLE_RATE);
+        let mut out = [0f32; 3];
+        r.fill(&mut out);
+        assert_eq!(out[0], 0.0);
+        assert!((out[1] - 1.0).abs() < 1e-4);
+        assert!((out[2] + 1.0).abs() < 1e-4);
+    }
 
     #[test]
     fn resync_when_over_threshold() {

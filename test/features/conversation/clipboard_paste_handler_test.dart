@@ -5,13 +5,16 @@
 // spec locks in. A fake `ClipboardDataReader` overrides `getFormats` so
 // `hasValue` (which delegates to `getFormats`) returns true for the seeded
 // formats.
+import 'package:flutter/foundation.dart'
+    show FlutterError, FlutterErrorDetails, ValueChanged;
+import 'package:flutter/widgets.dart' show PasteTextIntent;
+import 'package:flutter/services.dart' show SelectionChangedCause;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/foundation.dart' show ValueChanged;
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_native_extensions/raw_clipboard.dart' as raw;
 
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
-    show extensionForFormat, mimeForFormat, pickImageFormat;
+    show PasteImageAction, extensionForFormat, mimeForFormat, pickImageFormat;
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show AttachmentPickError, PickedAttachment;
 
@@ -120,6 +123,31 @@ void main() {
       expect(a.mime, 'image/png');
       expect(a.dataBase64, 'AA==');
       expect(a.thumbnailBase64, isNull);
+    });
+  });
+
+  // Under `flutter test` there is no platform clipboard, so the read throws
+  // the same way a Windows clipboard the process cannot open does. That
+  // failure is reported, not thrown: the composer must survive Ctrl+V.
+  group('PasteImageAction', () {
+    test('a failed clipboard read is reported and does not throw', () async {
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+      final action = PasteImageAction(
+        onAttach: (_) => fail('nothing to attach'),
+        onAttachmentPickError: (_) => fail('not a size error'),
+        gate: () => true,
+      );
+
+      await expectLater(
+        action.invoke(const PasteTextIntent(SelectionChangedCause.keyboard)),
+        completes,
+      );
+
+      expect(reported, hasLength(1));
+      expect(reported.single.library, 'clipboard_paste_handler');
     });
   });
 }

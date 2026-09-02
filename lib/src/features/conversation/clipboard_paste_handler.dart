@@ -24,6 +24,8 @@ library;
 import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:flutter/foundation.dart'
+    show ErrorDescription, FlutterError, FlutterErrorDetails;
 import 'package:flutter/widgets.dart' show Action, Intent, PasteTextIntent;
 import 'package:super_clipboard/super_clipboard.dart';
 
@@ -137,15 +139,32 @@ class PasteImageAction extends Action<PasteTextIntent> {
 
   @override
   Future<Object?> invoke(PasteTextIntent intent) async {
-    if (!gate()) return callingAction?.invoke(intent);
-    final swallowed = await handlePasteImage(
-      onAttach: onAttach,
-      onAttachmentPickError: onAttachmentPickError,
-    );
+    // `callingAction` is only set for the synchronous part of this call:
+    // the framework clears it as soon as `invoke` returns its Future, so it
+    // has to be captured before the first await or text paste never runs.
+    final textPaste = callingAction;
+    if (!gate()) return textPaste?.invoke(intent);
+    bool swallowed;
+    try {
+      swallowed = await handlePasteImage(
+        onAttach: onAttach,
+        onAttachmentPickError: onAttachmentPickError,
+      );
+    } catch (error, stackTrace) {
+      // A clipboard the platform refuses to open, or an image that will not
+      // decode, must not take the composer down: fall back to text paste.
+      FlutterError.reportError(FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'clipboard_paste_handler',
+        context: ErrorDescription('while reading an image off the clipboard'),
+      ));
+      swallowed = false;
+    }
     if (swallowed) return null; // image attached -- do NOT also paste text
     // No image on the clipboard -- defer to the default text-inserting paste
     // (EditableTextState._PasteSelectionAction), parity with React forwarding
     // only `kind === "file"` items and letting plain text paste normally.
-    return callingAction?.invoke(intent);
+    return textPaste?.invoke(intent);
   }
 }

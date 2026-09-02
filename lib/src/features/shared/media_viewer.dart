@@ -4,6 +4,8 @@
 // (Player + VideoController).
 library;
 
+import 'dart:io' show File;
+
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
@@ -250,6 +252,16 @@ class _ImageStage extends StatelessWidget {
   final double maxStageHeight;
   final Color bg0;
 
+  /// A downloaded attachment is a `file://` URL (see `localFileSrc`), which
+  /// `NetworkImage` cannot fetch: `HttpClient` rejects the scheme and the
+  /// stage would show the broken-image fallback for every local picture.
+  ImageProvider get _image {
+    final uri = Uri.parse(src);
+    return uri.scheme == 'file'
+        ? FileImage(File(uri.toFilePath()))
+        : NetworkImage(src);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -257,8 +269,8 @@ class _ImageStage extends StatelessWidget {
       child: ColoredBox(
         // React `background: var(--bg-0)`.
         color: bg0,
-        child: Image.network(
-          src,
+        child: Image(
+          image: _image,
           fit: BoxFit.contain,
           width: maxStageWidth,
           height: maxStageHeight,
