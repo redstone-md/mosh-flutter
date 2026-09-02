@@ -35,9 +35,15 @@ const READY_POLL_MS: u64 = 500;
 /// Sized to cover the observed 10-40s cold-start convergence of a fresh relay
 /// node plus margin for DPI-throttled tracker discovery.
 const JOB_TTL_MS: u64 = 60_000;
-/// Per-job send attempts once the relay looks converged.
-const MAX_SEND_ATTEMPTS: u32 = 3;
-const RETRY_BACKOFF_MS: u64 = 2_000;
+/// Per-job send attempts once the relay looks converged. A DM goes "ready"
+/// as soon as the counterpart's handshake frame lands, while the counterpart
+/// itself may still be minutes from a usable path (telemetry: a direct
+/// connect takes ~3 s, a relayed one ~6 s, and a failed attempt gives up
+/// after ~8 s), so the first message used to fail after three tries in
+/// four seconds. Eight tries three seconds apart keep it Pending across
+/// that window; JOB_TTL_MS still bounds the whole job.
+const MAX_SEND_ATTEMPTS: u32 = 8;
+const RETRY_BACKOFF_MS: u64 = 3_000;
 /// Hard bound on queued jobs; overflow fails fast instead of hoarding memory.
 const QUEUE_CAP: usize = 256;
 /// Send attempts per worker tick. Each attempt can block ~5s in the FFI, so

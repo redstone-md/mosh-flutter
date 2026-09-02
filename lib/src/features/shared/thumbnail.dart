@@ -78,8 +78,11 @@ Future<String?> _createImageThumbnail(Uint8List bytes, String fileName) async {
         : img.copyResize(decoded, height: _thumbnailMaxEdge);
     final jpeg = img.encodeJpg(resized, quality: _jpegQuality);
     return base64Encode(jpeg);
-  } on Exception {
-    return null; // never fatal -- mirrors React's try/catch -> undefined
+  } catch (_) {
+    // Never fatal -- mirrors React's try/catch -> undefined. `catch (_)` on
+    // purpose: a corrupt or oversized bitmap throws a RangeError, an Error,
+    // not an Exception, and that used to escape as an uncaught async error.
+    return null;
   }
 }
 

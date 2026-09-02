@@ -1,7 +1,7 @@
 // Widget tests for the shared MediaViewer
 // (lib/src/features/shared/media_viewer.dart) -- the 1-в-1 port of React's
 // `src/features/private-dm/MediaViewer.tsx`. Pins: the caption + close
-// button render, the mime branching (image -> Image.network, video/audio ->
+// button render, the mime branching (image -> Image, file:// from disk; video/audio ->
 // play_circle_filled placeholder, other -> insert_drive_file_outlined
 // placeholder), the close button + backdrop tap close the viewer, the stage
 // tap does NOT close, and the Semantics label == file_name (React
@@ -34,6 +34,16 @@ class _NoNetworkOverrides extends HttpOverrides {
   HttpClient createHttpClient(SecurityContext? context) =>
       throw const SocketException('no network in tests');
 }
+
+/// A valid 1x1 opaque PNG.
+const List<int> _kOnePixelPng = [
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, //
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, //
+  0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, //
+  0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00, //
+  0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D, 0xB0, 0x00, 0x00, 0x00, //
+  0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82, //
+];
 
 AttachmentDescriptor _descriptor({
   required String fileName,
@@ -147,6 +157,35 @@ void main() {
     // No placeholder play/file icon on the image branch.
     expect(find.byIcon(Icons.play_circle_filled), findsNothing);
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsNothing);
+  });
+
+  // A downloaded attachment arrives as a `file://` URL. It must load from
+  // disk -- `NetworkImage` cannot fetch that scheme, and the viewer used to
+  // show the broken-image fallback for every local picture.
+  testWidgets('a file:// image loads from disk, not the network',
+      (tester) async {
+    HttpOverrides.global = _NoNetworkOverrides();
+    addTearDown(() => HttpOverrides.global = null);
+    // Real file I/O and image decoding need the real event loop, so the
+    // whole test body runs under `runAsync`.
+    await tester.runAsync(() async {
+      final dir = await Directory.systemTemp.createTemp('mosh-viewer');
+      addTearDown(() => dir.delete(recursive: true));
+      // A non-ASCII name with spaces and a comma, as the runtime writes it.
+      final file = File('${dir.path}/Изображение 29 авг., 20_55.png');
+      await file.writeAsBytes(_kOnePixelPng);
+
+      await _pumpViewer(
+        tester,
+        descriptor: _descriptor(fileName: 'photo.png', mime: 'image/png'),
+        src: Uri.file(file.path).toString(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await tester.pump();
+    });
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
   });
 
   // Pins the video mime branch: a placeholder card with

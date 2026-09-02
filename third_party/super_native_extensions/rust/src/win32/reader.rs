@@ -30,8 +30,8 @@ use windows::{
         },
         System::{
             Com::{
-                IDataObject, IStream, STATFLAG_NONAME, STATSTG, STGMEDIUM, TYMED, TYMED_HGLOBAL,
-                TYMED_ISTREAM,
+                CoInitializeEx, CoUninitialize, IDataObject, IStream, COINIT_MULTITHREADED,
+                STATFLAG_NONAME, STATSTG, STGMEDIUM, TYMED, TYMED_HGLOBAL, TYMED_ISTREAM,
             },
             DataExchange::RegisterClipboardFormatW,
             Memory::{GlobalLock, GlobalSize, GlobalUnlock},
@@ -224,11 +224,22 @@ impl PlatformDataReader {
         let mut completer = Capsule::new(completer);
         let sender = RunLoop::current().new_sender();
 
-        // Do the actual encoding on worker thread
+        // Do the actual encoding on worker thread. WIC is COM, and a bare
+        // thread has no apartment, so initialize one for the conversion;
+        // the crate builds with `panic = "abort"`, so a None stream must be
+        // an error, not an unwrap.
         thread::spawn(move || {
-            let stream = unsafe { SHCreateMemStream(Some(&bmp)) };
-            let stream = stream.unwrap();
-            let res = convert_to_png(stream).map_err(NativeExtensionsError::from);
+            let res = unsafe {
+                let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+                let res = match SHCreateMemStream(Some(&bmp)) {
+                    Some(stream) => convert_to_png(stream).map_err(NativeExtensionsError::from),
+                    None => Err(NativeExtensionsError::OtherError(
+                        "SHCreateMemStream failed".into(),
+                    )),
+                };
+                CoUninitialize();
+                res
+            };
             sender.send(move || {
                 let completer = completer.take().unwrap();
                 completer.complete(res);

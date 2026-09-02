@@ -137,7 +137,10 @@ class VoiceCallOrchestrator {
         });
       });
     } catch (err) {
-      onError(err is Exception ? err.toString() : 'Voice call setup failed');
+      // flutter_rust_bridge throws the Rust `Err(String)` as a bare String,
+      // so anything but `err.toString()` hides the real reason (this used to
+      // print a fixed "Voice call setup failed" for every non-Exception).
+      onError('Voice call setup failed: $err');
       await endCall(sessionId, callId, kSetupFailedReason);
     }
   }
