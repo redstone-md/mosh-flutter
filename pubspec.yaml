@@ -1,7 +1,7 @@
 name: mosh
 description: "Mosh - desktop-first decentralized E2EE messenger, Flutter shell"
 publish_to: "none"
-version: 0.8.0-dev
+version: 0.8.0
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

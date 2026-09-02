@@ -6,6 +6,44 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-02
+
+The first release of Mosh on Flutter. The desktop app was rebuilt from the
+ground up: the React + Tauri shell is gone, the UI is Flutter, and everything
+that must be right lives in one Rust core (`mosh-core`) behind
+`flutter_rust_bridge` (ADR 0009, 0010, 0012). Windows ships as a per-user
+installer. The same code base runs on Android (arm64) from CI, not yet as a
+published build.
+
+### Added
+- **Voice calls.** Real microphone capture and speaker playback in the Rust
+  core (Opus, cpal), AES-GCM sealed frames over the mesh, a jitter buffer, a
+  ringtone, incoming-call OS notifications when the window is unfocused,
+  mute, and call-log entries in the conversation.
+- **Voice messages.** Record, review and send from the composer; play inline
+  in the message row.
+- **Attachments.** Drag-and-drop and paste-to-attach on desktop, image and
+  video thumbnails, a media viewer with video and audio playback, opening
+  files in the system handler, and download / cancel / retry controls.
+- **Channels, groups and orgs.** Channel and group screens with their own
+  diagnostics, DM offers from a channel or group member, the org roster
+  section in the rail with admin add, and a revoked-org badge.
+- **Onboarding.** Invite cards open the chat or group straight away; an
+  accepted DM invite opens the chat; the `mosh://` scheme is registered on
+  Windows and Android; the Advanced disclosure exposes the bind interface,
+  listen port and static peer.
+- **Diagnostics drawer.** Session, mesh and event-log sections with the
+  peer's id, transport and last connect outcome.
+- **Encrypted history.** Conversations and MLS state survive a restart. The
+  data-encryption key sits in the OS credential store and is unlocked by
+  user presence (Windows Hello on desktop, biometrics on Android) behind a
+  lock screen.
+- **Desktop shell.** A shared title bar with a live state pill, the sessions
+  rail with unread badges and the active highlight, and the welcome pane with
+  inline setup steps. Mobile gets the responsive rail-to-chat layout with its
+  own header menu and search.
+- **Two languages.** English and Russian throughout, ICU plurals included.
+
 ### Changed
 - **One moss node per installation.** The DM runtime no longer starts a second
   "relay" node under the same peer id. Reaching a contact behind a NAT is moss's
@@ -22,6 +60,34 @@ All notable changes to Mosh are documented here. Format follows
   shows a clock, survives a restart, and goes out by itself in the order it was
   written, moving to a tick and then a double tick. Retry stays for
   attachments, which need a live path. See ADR 0026.
+- **Messages read as rows, not bubbles**, with sender grouping, avatars,
+  delivery ticks, the MLS badge and a locale-aware timestamp.
+- **Release builds are smaller.** The Rust core is built with whole-program
+  LTO and stripped symbols; the moss library drops its symbol table and
+  build paths.
+
+### Fixed
+- **Calls.** Audio no longer dies one second after the call connects, a call
+  shows one overlay instead of two, ring signaling survives a dropped frame,
+  playback opens on any output device, and a failed audio setup is reported
+  inline instead of silently.
+- **Sending.** A message published with no peers is not marked sent; a send
+  interrupted by a crash comes back as failed, not pending; a send the relay
+  never tried is re-routed; every conversation kind has its own inbound queue.
+- **Groups.** The admin is derived from the commit, not from a handoff frame.
+- **Desktop.** Ctrl+V pastes again, local images open, the first send waits
+  for the runtime, and Windows bind changes relaunch the app.
+- **Peers.** The counterpart's moss id is persisted and may be re-announced
+  after the handshake, so a restart finds the peer again.
+- **Android.** The keyring panic is gone, the display cutout is respected, the
+  key is injected only once the app is in the foreground, and the build links
+  against the right native libraries.
+
+### Known limitations
+- The Windows installer is not code-signed yet; SmartScreen warns on first
+  run. Verify the SHA-256 published with the release.
+- Android is built by CI as a debug APK for arm64 and is not published.
+- macOS, Linux and iOS are not shipped in this release.
 
 ## [0.7.4] - 2026-07-29
 
