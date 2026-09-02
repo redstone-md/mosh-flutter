@@ -12,7 +12,6 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - "rust_builder/cargokit/build_tool/**"
-    - "third_party/super_native_extensions/**"
 
 linter:
   # The lint rules applied to this project can be customized in the

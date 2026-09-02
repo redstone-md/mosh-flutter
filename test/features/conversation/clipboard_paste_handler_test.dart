@@ -2,26 +2,24 @@
 // format picker in clipboard_paste_handler.dart). The platform-channel read
 // (`ClipboardReader.readClipboard`) is NOT exercised here -- only the
 // synchronous format selection + mime/extension mapping, which is what the
-// spec locks in. A fake `ClipboardDataReader` overrides `getFormats` so
-// `hasValue` (which delegates to `getFormats`) returns true for the seeded
-// formats.
+// spec locks in. A fake `ClipboardDataReader` answers `canProvide` from a
+// seeded format list.
 import 'package:flutter/foundation.dart'
-    show FlutterError, FlutterErrorDetails, ValueChanged;
+    show FlutterError, FlutterErrorDetails;
 import 'package:flutter/widgets.dart' show PasteTextIntent;
 import 'package:flutter/services.dart' show SelectionChangedCause;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:super_clipboard/super_clipboard.dart';
-import 'package:super_native_extensions/raw_clipboard.dart' as raw;
 
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
     show PasteImageAction, extensionForFormat, mimeForFormat, pickImageFormat;
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show AttachmentPickError, PickedAttachment;
 
-/// Minimal fake reader: `hasValue` delegates to `getFormats`, so seeding the
-/// format list controls which `pickImageFormat` branch fires. The other
-/// abstract members throw `UnimplementedError` -- the picker never calls them.
-class _FakeReader extends ClipboardDataReader {
+/// Minimal fake reader: `canProvide` answers from the seeded format list,
+/// which controls which `pickImageFormat` branch fires. Every other member
+/// goes through `noSuchMethod` -- the picker never calls them.
+class _FakeReader implements ClipboardDataReader {
   _FakeReader(this.formats);
   final List<DataFormat> formats;
 
@@ -30,22 +28,10 @@ class _FakeReader extends ClipboardDataReader {
       allFormats.where(formats.contains).toList();
 
   @override
-  bool isSynthetized(DataFormat format) => throw UnimplementedError();
+  bool canProvide(DataFormat format) => formats.contains(format);
+
   @override
-  bool isVirtual(DataFormat format) => throw UnimplementedError();
-  @override
-  Future<raw.VirtualFileReceiver?> getVirtualFileReceiver(
-          {VirtualFileFormat? format}) =>
-      throw UnimplementedError();
-  @override
-  Future<String?> getSuggestedName() => throw UnimplementedError();
-  @override
-  raw.ReadProgress? getValue<T extends Object>(
-          DataFormat<T> format, ValueChanged<DataReaderValue<T>> onValue) =>
-      throw UnimplementedError();
-  @override
-  Future<T?> readValue<T extends Object>(DataFormat<T> format) =>
-      throw UnimplementedError();
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
 void main() {

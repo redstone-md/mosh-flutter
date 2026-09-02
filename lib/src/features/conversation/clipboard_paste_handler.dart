@@ -21,6 +21,7 @@
 /// `event.preventDefault()`.
 library;
 
+import 'dart:async' show Completer;
 import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;
 
@@ -33,9 +34,9 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/thumbnail.dart' show createThumbnail;
 
 /// Image formats we accept from the clipboard, in priority order (matches
-/// the spec: png, jpeg, gif, webp, tiff). Each is a `SimpleDataFormat<Uint8List>`
-/// so `readValue<Uint8List>(format)` returns the raw image bytes.
-const List<SimpleDataFormat<Uint8List>> _imageFormats = [
+/// the spec: png, jpeg, gif, webp, tiff). Each is a [FileFormat], read as
+/// raw bytes through [readImageBytes].
+const List<SimpleFileFormat> _imageFormats = [
   Formats.png,
   Formats.jpeg,
   Formats.gif,
@@ -46,15 +47,15 @@ const List<SimpleDataFormat<Uint8List>> _imageFormats = [
 /// Picks the first image format present on [reader], or null when the
 /// clipboard holds no image (plain text / uri / etc.). Pure + synchronous so
 /// it is unit-testable with a fake reader (no platform channel needed).
-SimpleDataFormat<Uint8List>? pickImageFormat(ClipboardDataReader reader) {
+SimpleFileFormat? pickImageFormat(ClipboardDataReader reader) {
   for (final format in _imageFormats) {
-    if (reader.hasValue(format)) return format;
+    if (reader.canProvide(format)) return format;
   }
   return null;
 }
 
 /// MIME string for a chosen image format (1-в-1 with the React `file.type`).
-String mimeForFormat(SimpleDataFormat<Uint8List> format) {
+String mimeForFormat(SimpleFileFormat format) {
   if (identical(format, Formats.png)) return 'image/png';
   if (identical(format, Formats.jpeg)) return 'image/jpeg';
   if (identical(format, Formats.gif)) return 'image/gif';
@@ -66,13 +67,37 @@ String mimeForFormat(SimpleDataFormat<Uint8List> format) {
 
 /// File extension for a chosen image format. JPEG uses `jpg` (React parity:
 /// the synthesized filename uses the common short form).
-String extensionForFormat(SimpleDataFormat<Uint8List> format) {
+String extensionForFormat(SimpleFileFormat format) {
   if (identical(format, Formats.png)) return 'png';
   if (identical(format, Formats.jpeg)) return 'jpg';
   if (identical(format, Formats.gif)) return 'gif';
   if (identical(format, Formats.webp)) return 'webp';
   if (identical(format, Formats.tiff)) return 'tiff';
   return 'bin';
+}
+
+/// The bytes of [format] on [reader], or null when the clipboard does not
+/// offer it after all. Image formats are file formats in super_clipboard,
+/// which only exposes them through the callback-shaped `getFile`; this is
+/// that call as a Future.
+Future<Uint8List?> readImageBytes(
+  ClipboardDataReader reader,
+  FileFormat format,
+) {
+  final completer = Completer<Uint8List?>();
+  final progress = reader.getFile(
+    format,
+    (file) async {
+      try {
+        completer.complete(await file.readAll());
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      }
+    },
+    onError: completer.completeError,
+  );
+  if (progress == null) return Future.value(null);
+  return completer.future;
 }
 
 /// Reads the clipboard, and if it holds an image, synthesizes a
@@ -91,10 +116,13 @@ Future<bool> handlePasteImage({
   required AttachmentPickErrorCallback onAttachmentPickError,
   int maxBytes = 50 * 1024 * 1024,
 }) async {
-  final reader = await ClipboardReader.readClipboard();
+  // No system clipboard (web without the async API) reads as "no image".
+  final clipboard = SystemClipboard.instance;
+  if (clipboard == null) return false;
+  final reader = await clipboard.read();
   final format = pickImageFormat(reader);
   if (format == null) return false; // no image -- let text paste proceed
-  final bytes = await reader.readValue<Uint8List>(format);
+  final bytes = await readImageBytes(reader, format);
   if (bytes == null) return false; // clipboard reported an image but read empty
   if (bytes.length > maxBytes) {
     onAttachmentPickError(AttachmentPickError.tooLarge);
