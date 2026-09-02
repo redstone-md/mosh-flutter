@@ -175,7 +175,12 @@ write a Dart compatibility shim.
   rest only if a later ticket touches that file. This ADR does not authorise a
   speculative sweep of the whole module; specialized functions — invites, org
   actions, calls, diagnostics — keep the current shape until something needs
-  them to change.
+  them to change. *Landed since:* the second batch moved every
+  conversation-shaped action (DM invites and call controls, channel join and
+  DM offers, group create/join and DM offers, the org actions) onto
+  `ConversationBridgeError`, with each facade's `ensure_runtime()` answering
+  `Unavailable`. The typed poll and list reads, and the platform surfaces the
+  taxonomy does not describe, keep `String` on purpose.
 - A new shared conversation action is written once. A fourth conversation kind
   adds one enum variant and one dispatch arm, not six functions and six more
   switch arms spread across the adapter.

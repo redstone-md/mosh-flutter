@@ -379,6 +379,17 @@ bridge's `ConversationBridgeErrorKind` when the seam threw one, ready-made
 text otherwise. The screen picks the wording from the kind and never reads
 the runtime's diagnostic sentence.
 
+Every conversation action on the bridge throws that same
+`ConversationBridgeError`: the six shared actions and the kind-specific ones
+(DM invites and call controls, channel join and DM offers, group create/join
+and DM offers, all org actions). Each facade's `ensure_runtime()` answers
+`Unavailable` when its singleton cannot be driven, and the runtime's own error
+maps through one `From` impl per runtime in `api/conversation_bridge.rs`. Only
+the poll and list reads keep a plain `String` — a read failure is a provider
+error, not something the user acted on. The generated Dart class carries a
+`toString` that returns the message, so a screen that has not yet switched on
+the kind still shows the runtime's sentence.
+
 `conversationSnapshotProvider` does not poll. It watches the kind provider
 the app already has and maps the result, so there is one poll per
 conversation and invalidating a kind provider still refreshes everything that
