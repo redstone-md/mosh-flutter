@@ -183,9 +183,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   Future<void> _leave() async {
+    // A failed leave keeps the conversation on screen, so it stays the
+    // active one until the leave has actually happened.
+    if (!await _controller.leave() || !mounted) return;
     ref.read(activeConversationKeyProvider.notifier).clear();
-    await _controller.leave();
-    if (!mounted) return;
     widget.onLeft?.call();
     // On a wide window the chat route shows the "start a conversation"
     // panel; on a narrow one the rail is the way back.

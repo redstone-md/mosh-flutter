@@ -1063,6 +1063,52 @@
  "@chatErrorRetry": {
    "description": "Retry button label on the ChatError inline banner shown at the top of the chat-pane when a text send fails (React ChatError inline 'Retry' button text, private-dm-screen.tsx L519)"
  },
+  "chatActionErrorInvalidInput": "That could not be sent: {detail}",
+  "@chatActionErrorInvalidInput": {
+    "description": "Chat error banner when a conversation action fails with ConversationBridgeErrorKind.invalidInput; {detail} is the runtime's diagnostic sentence",
+    "placeholders": {"detail": {"type": "String"}}
+  },
+  "chatActionErrorUnavailable": "The network is unavailable right now. Try again in a moment.",
+  "@chatActionErrorUnavailable": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.unavailable (node, mesh or signing identity down)"
+  },
+  "chatActionErrorNotReady": "This conversation is still setting up. Try again in a moment.",
+  "@chatActionErrorNotReady": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.notReady"
+  },
+  "chatActionErrorMissingConversation": "You are no longer in this conversation.",
+  "@chatActionErrorMissingConversation": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.missingConversation"
+  },
+  "chatActionErrorMissingMessage": "That message no longer exists.",
+  "@chatActionErrorMissingMessage": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.missingMessage"
+  },
+  "chatActionErrorMissingAttachment": "That attachment no longer exists.",
+  "@chatActionErrorMissingAttachment": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.missingAttachment"
+  },
+  "chatActionErrorTransfer": "The transfer failed. Start it again to retry.",
+  "@chatActionErrorTransfer": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.transfer (an attachment send or download that can be restarted)"
+  },
+  "chatActionErrorPersistence": "Encrypted history could not be saved. Retrying will not help; restart Mosh.",
+  "@chatActionErrorPersistence": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.persistence (the encrypted store or its keychain failed, ADR 0011 fail-closed path)"
+  },
+  "chatActionErrorNeedsRejoin": "This conversation is out of sync and has to be rejoined.",
+  "@chatActionErrorNeedsRejoin": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.needsRejoin (MLS history cannot be bridged); the group's own rejoin banner stays snapshot-driven"
+  },
+  "chatActionErrorRevoked": "Your membership in this conversation was revoked.",
+  "@chatActionErrorRevoked": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.revoked"
+  },
+  "chatActionErrorInternal": "Something went wrong: {detail}",
+  "@chatActionErrorInternal": {
+    "description": "Chat error banner for ConversationBridgeErrorKind.internal; {detail} is the runtime's diagnostic sentence. A non-bridge failure shows its own text instead",
+    "placeholders": {"detail": {"type": "String"}}
+  },
  "dialogCancel": "Cancel",
   "@dialogCancel": {
     "description": "Generic Cancel label for the shared ConfirmDialog close-X and ghost cancel button (React inline default 'Cancel'; the close-flow and other destructive flows pass a localized cancel label from this key)"

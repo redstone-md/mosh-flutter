@@ -24,8 +24,9 @@
 // attachment send past its readiness gate, a download of an id nobody
 // holds) cannot be exercised positively here. For those the tests pin the
 // guarantees the bridge does make without a peer: undecodable bytes are
-// `InvalidInput` before any runtime is touched, and a missing id answers
-// with the typed error -- never a bare string.
+// `invalidInput` before any runtime is touched, a missing id answers
+// `missingAttachment`, and a left group answers `missingConversation` --
+// the kinds the UI branches on, never a bare string.
 
 import 'dart:io' show File;
 
@@ -42,6 +43,11 @@ import 'package:mosh/src/rust/private_group_runtime.dart'
 
 const _coreDll = 'mosh-core/target/release/mosh_core.dll';
 const _mossDll = 'moss-runtime/moss.dll';
+
+/// The typed error with the kind the UI branches on (issue 15): the
+/// contract is the kind, so the assertion names it.
+Matcher _kind(ConversationBridgeErrorKind kind) =>
+    isA<ConversationBridgeError>().having((e) => e.kind, 'kind', kind);
 
 void main() {
   final nativeReady =
@@ -72,7 +78,7 @@ void main() {
             mime: 'text/plain',
             dataBase64: '!!! not base64 !!!',
           ),
-          throwsA(isA<ConversationBridgeError>()),
+          throwsA(_kind(ConversationBridgeErrorKind.invalidInput)),
           reason: 'sendAttachment on $target must cross the typed seam',
         );
       }
@@ -101,7 +107,7 @@ void main() {
       );
       await expectLater(
         gateway.downloadAttachment(dm, attachmentId: 'no-such-attachment'),
-        throwsA(isA<ConversationBridgeError>()),
+        throwsA(_kind(ConversationBridgeErrorKind.missingAttachment)),
         reason: 'the DM arm must answer with the typed bridge error',
       );
       await gateway.leave(dm);
@@ -159,7 +165,7 @@ void main() {
       // The poll may still read a closed snapshot; the write cannot.
       await expectLater(
         gateway.send(group, body: 'after leave'),
-        throwsA(isA<ConversationBridgeError>()),
+        throwsA(_kind(ConversationBridgeErrorKind.missingConversation)),
       );
     },
     skip: skip,

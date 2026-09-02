@@ -93,7 +93,7 @@ class ConversationScreenBody extends ConsumerWidget {
             children: [
               if (chatError != null)
                 ChatErrorBanner(
-                  message: chatError,
+                  message: chatError.describe(l),
                   onRetry: state.canRetrySend ? onRetrySend : null,
                 ),
               ConversationBanners(target: target, snapshot: async.value),
