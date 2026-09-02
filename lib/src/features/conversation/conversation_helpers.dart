@@ -86,8 +86,8 @@ const TextStyle kMessageBodyStyle =
 /// Delivery-tick glyph row for an own-message row. Renders nothing for
 /// `failed` or null status (matches React's per-state tick rendering),
 /// and shows the state glyph (`sent` -> one tick, `delivered` -> two
-/// ticks, `pending` -> ellipsis) otherwise. Ported from the React
-/// `MessageRow` tick span.
+/// ticks, `pending` -> ellipsis, `queued` -> a clock) otherwise. Ported
+/// from the React `MessageRow` tick span.
 class DeliveryTicks extends StatelessWidget {
   const DeliveryTicks({super.key, required this.status});
 
@@ -98,15 +98,18 @@ class DeliveryTicks extends StatelessWidget {
     // Localized full label, 1-в-1 with React`s DeliveryTicks visible text
     // (src/features/private-dm/MessageLists.tsx): "✓✓ delivered" / "✓ sent" /
     // "sending…". The visible text IS the label (glyph + word), matching
-    // React`s <small>{label}</small>.
+    // React`s <small>{label}</small>. A queued message has no glyph in the
+    // font, so it draws a clock icon in front of its word.
     final l = AppLocalizations.of(context)!;
     final label = switch (status) {
       MessageDeliveryStatus.delivered => l.deliveryDelivered,
       MessageDeliveryStatus.sent => l.deliverySent,
       MessageDeliveryStatus.pending => l.deliverySending,
+      MessageDeliveryStatus.queued => l.deliveryQueued,
       MessageDeliveryStatus.failed || null => null,
     };
     if (label == null) return const SizedBox.shrink();
+    const style = TextStyle(fontSize: 10, color: MoshColors.fg4);
     // React `.delivery-ticks { font-size: 10px; color: var(--fg-4);
     // margin-top: 1px }`.
     return Padding(
@@ -117,9 +120,16 @@ class DeliveryTicks extends StatelessWidget {
       child: Semantics(
         label: 'Delivery: $label',
         excludeSemantics: true,
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 10, color: MoshColors.fg4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (status == MessageDeliveryStatus.queued)
+              const Padding(
+                padding: EdgeInsets.only(right: 2),
+                child: Icon(Icons.schedule, size: 10, color: MoshColors.fg4),
+              ),
+            Text(label, style: style),
+          ],
         ),
       ),
     );

@@ -9,8 +9,8 @@
 //!
 //! What stays with the kind: publishing. A channel puts a manifest, a chunk
 //! request and a chunk on the wire in the clear, a group wraps them in MLS, a
-//! DM routes them through the relay. So the calls here hand back the frames to
-//! publish instead of publishing them.
+//! DM wraps them in MLS too and hands them to its transport. So the calls
+//! here hand back the frames to publish instead of publishing them.
 
 use std::sync::Arc;
 

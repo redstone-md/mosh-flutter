@@ -140,7 +140,7 @@ function describe(label, snap) {
   if (!snap) return `${label}: no snapshot`;
   const m = snap.data.mesh ?? {};
   return [
-    `${label}: state=${snap.data.state} path=${snap.data.path}`,
+    `${label}: state=${snap.data.state} transport=${snap.data.transport}`,
     `nat=${m.nat_type} advertised=${m.advertised_addr}`,
     `peers=${m.peer_count} relay_capable=${m.relay_capable_peer_count} known=${m.known_peer_count}`,
   ].join("  ");

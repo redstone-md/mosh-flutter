@@ -18,7 +18,9 @@ import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/persistence.dart' show PersistenceRuntimeStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show CallStarted, ChatMessage, SessionSnapshot;
+    show DmSessionState, CallStarted, ChatMessage, SessionSnapshot;
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart'
+    show PeerTransport;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/rust/secure_storage.dart' show SecureStorageStatus;
 
@@ -173,9 +175,8 @@ SessionSnapshot fakeSession({
       role: role,
       displayName: displayName,
       peerDisplayName: '',
-      state: 'connecting',
-      path: 'connecting',
-      relayReady: null,
+      state: DmSessionState.pending,
+      transport: PeerTransport.none,
       inviteUri: inviteUri,
       fingerprint: fingerprint,
       messages: const [],
@@ -202,8 +203,7 @@ SessionSnapshot withMessage(
       displayName: base.displayName,
       peerDisplayName: base.peerDisplayName,
       state: base.state,
-      path: base.path,
-      relayReady: base.relayReady,
+      transport: base.transport,
       inviteUri: base.inviteUri,
       fingerprint: base.fingerprint,
       messages: [

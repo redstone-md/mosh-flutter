@@ -1,43 +1,43 @@
-// Widget + pure tests for the Diagnostics-drawer section primitives
-// (lib/src/features/diagnostics/diagnostics_sections.dart) and the
-// `pathLabel` helper (diagnostics_helpers.dart). Pumps the widgets directly
-// inside a localized `MaterialApp` (the established DM widget-test pattern,
-// scoped to the section -- no Riverpod/DiagnosticsScreen) and asserts:
+// Widget tests for the Diagnostics-drawer section primitives
+// (lib/src/features/diagnostics/diagnostics_sections.dart). Pumps the
+// widgets directly inside a localized `MaterialApp` (the established DM
+// widget-test pattern, scoped to the section -- no Riverpod /
+// DiagnosticsScreen) and asserts:
 //   - `DiagnosticsRow` renders its label + value.
 //   - `DiagnosticsGroup` renders its uppercased label + children.
 //   - `NoActiveSession` renders the "Session" group label + the empty-state
 //     title + description.
-//   - `SessionDiagnostics` (Conversation-details group ONLY): for a ready
-//     relayed session, the group label + the Peer / MLS-state / Path /
-//     Encryption / Role / Display / Session rows render with the right
-//     values; for a direct-path session, the Encryption row is absent; for
-//     an empty peer display name, the Peer row falls back to "unknown".
-//   - `pathLabel` pure tests for every branch (relayed+true/false/null,
-//     direct, connecting, empty, weird).
+//   - `SessionDiagnostics` (Conversation-details group ONLY): the Peer /
+//     MLS state / Transport / Peer id / Last connect / Role / Display /
+//     Session rows for each of the three states and three transports; a
+//     session whose peer id is not known yet says so next to its state, so
+//     "Connected" and "peer unknown" never share a card; no row mentions a
+//     relay the app runs itself.
 //
-// In scope (this atomic): the Conversation-details group + Row +
-// NoActiveSession + pathLabel. `MeshDiagnostics`, `EventLog`, and the
-// channel/group sections are DEFERRED (no contracts / separate atomics) and
-// are not asserted here. `DiagnosticsScreen` wiring is also a later atomic,
-// so it is not exercised.
+// `MeshDiagnostics`, `EventLog`, and the channel/group sections are covered
+// by their own tests and are not asserted here.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import '../../support/pump.dart';
+
+const String _peerId =
+    'cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd';
 
 /// A minimal `SessionSnapshot` builder for the Conversation-details tests.
 /// Only the fields the group reads are parameterized; the rest are the
 /// frb-required defaults (empty lists, null optionals).
 SessionSnapshot _session({
-  required String sessionId,
+  String sessionId = 'sess-1234567890abcdef',
   String peerDisplayName = 'alice',
   String displayName = 'me',
-  String state = 'ready',
-  String path = 'relayed',
-  bool? relayReady = true,
+  DmSessionState state = DmSessionState.connected,
+  PeerTransport transport = PeerTransport.direct,
+  String? peerMossId = _peerId,
+  ConnectOutcome? lastConnectOutcome = ConnectOutcome.requested,
   String role = 'initiator',
 }) =>
     SessionSnapshot(
@@ -47,8 +47,9 @@ SessionSnapshot _session({
       displayName: displayName,
       peerDisplayName: peerDisplayName,
       state: state,
-      path: path,
-      relayReady: relayReady,
+      transport: transport,
+      peerMossId: peerMossId,
+      lastConnectOutcome: lastConnectOutcome,
       inviteUri: null,
       fingerprint: 'AABB',
       messages: const [],
@@ -114,120 +115,80 @@ void main() {
   });
 
   group('SessionDiagnostics - Conversation details', () {
-    testWidgets('ready relayed session renders all 7 rows incl. Encryption',
+    testWidgets('a connected direct session renders all 8 rows',
         (tester) async {
-      final s = _session(sessionId: 'sess-1234567890abcdef');
-      await _pump(tester, SessionDiagnostics(session: s));
+      await _pump(tester, SessionDiagnostics(session: _session()));
 
-      // Group label (uppercased).
       expect(find.text('CONVERSATION DETAILS'), findsOneWidget);
-      // Peer row value is the peer display name.
       expect(find.text('Peer'), findsOneWidget);
       expect(find.text('alice'), findsOneWidget);
-      // MLS state row value is the localized ready label ("Connected").
       expect(find.text('MLS state'), findsOneWidget);
       expect(find.text('Connected'), findsOneWidget);
-      // Path row value is pathLabel("relayed", true).
-      expect(find.text('Path'), findsOneWidget);
-      expect(find.text('relayed via supernode'), findsOneWidget);
-      // Encryption row renders only because path == "relayed".
-      expect(find.text('Encryption'), findsOneWidget);
-      expect(
-        find.text('E2E — supernode sees only ciphertext'),
-        findsOneWidget,
-      );
-      // Role row value is the raw role.
+      expect(find.text('Transport'), findsOneWidget);
+      expect(find.text('direct'), findsOneWidget);
+      // The peer id is shortened to its ends.
+      expect(find.text('Peer id'), findsOneWidget);
+      expect(find.text('cdcdcdcd…cdcd'), findsOneWidget);
+      expect(find.text('Last connect'), findsOneWidget);
+      expect(find.text('requested, moss is dialing'), findsOneWidget);
       expect(find.text('Role'), findsOneWidget);
       expect(find.text('initiator'), findsOneWidget);
-      // Display row value is the local display name.
       expect(find.text('Display'), findsOneWidget);
       expect(find.text('me'), findsOneWidget);
-      // Session row key is "Session" (not uppercased) and the value is
-      // shorten(sessionId, 14). The id is 20 chars, which is <= 14*2+1=29,
-      // so shorten returns it unchanged.
+      // The id is 20 chars, which is <= 14*2+1=29, so shorten keeps it.
       expect(find.text('Session'), findsOneWidget);
       expect(find.text('sess-1234567890abcdef'), findsOneWidget);
     });
 
-    testWidgets('direct-path session omits the Encryption row', (tester) async {
-      final s = _session(sessionId: 'sess-direct-1234567', path: 'direct');
-      await _pump(tester, SessionDiagnostics(session: s));
-
-      // The Path row shows the direct label.
-      expect(find.text('Path'), findsOneWidget);
-      expect(find.text('direct'), findsOneWidget);
-      // The Encryption row key + value are both absent.
+    testWidgets('a relayed session says the network relays it', (tester) async {
+      await _pump(
+        tester,
+        SessionDiagnostics(session: _session(transport: PeerTransport.relayed)),
+      );
+      expect(find.text('relayed by the network'), findsOneWidget);
+      // Nothing about a relay node of the app's own.
+      expect(find.textContaining('supernode'), findsNothing);
       expect(find.text('Encryption'), findsNothing);
-      expect(
-        find.text('E2E — supernode sees only ciphertext'),
-        findsNothing,
-      );
     });
 
-    testWidgets('empty peer display name falls back to "unknown"',
+    testWidgets('a pending session has no path and no peer id yet',
         (tester) async {
-      final s = _session(
-        sessionId: 'sess-noid1234567890',
-        peerDisplayName: '',
+      await _pump(
+        tester,
+        SessionDiagnostics(
+          session: _session(
+            state: DmSessionState.pending,
+            transport: PeerTransport.none,
+            peerMossId: null,
+            lastConnectOutcome: null,
+            peerDisplayName: '',
+          ),
+        ),
       );
-      await _pump(tester, SessionDiagnostics(session: s));
-
-      expect(find.text('Peer'), findsOneWidget);
-      // The localized "unknown" fallback (en).
+      expect(find.text('Waiting for your contact'), findsOneWidget);
+      expect(find.text('no path yet'), findsOneWidget);
+      expect(find.text('not yet known'), findsOneWidget);
+      expect(find.text('not requested yet'), findsOneWidget);
+      // The localized "unknown" fallback for the display name.
       expect(find.text('unknown'), findsOneWidget);
+      expect(find.text('Connected'), findsNothing);
     });
 
-    testWidgets(
-        'relayed session with relayReady false shows the warming-up suffix',
+    testWidgets('an offline contact reads as offline with its last outcome',
         (tester) async {
-      final s = _session(
-        sessionId: 'sess-warming1234567',
-        path: 'relayed',
-        relayReady: false,
+      await _pump(
+        tester,
+        SessionDiagnostics(
+          session: _session(
+            state: DmSessionState.handshaking,
+            transport: PeerTransport.none,
+            lastConnectOutcome: ConnectOutcome.failed,
+          ),
+        ),
       );
-      await _pump(tester, SessionDiagnostics(session: s));
-
-      expect(find.text('Path'), findsOneWidget);
-      expect(
-        find.text('relayed via supernode (warming up)'),
-        findsOneWidget,
-      );
-      // Encryption still renders (path is still "relayed").
-      expect(find.text('Encryption'), findsOneWidget);
-    });
-  });
-
-  group('pathLabel', () {
-    test('relayed + relayReady true -> "relayed via supernode"', () {
-      expect(pathLabel('relayed', true), 'relayed via supernode');
-    });
-
-    test('relayed + relayReady false -> warming-up suffix', () {
-      expect(
-        pathLabel('relayed', false),
-        'relayed via supernode (warming up)',
-      );
-    });
-
-    test('relayed + relayReady null -> "relayed via supernode" (null != false)',
-        () {
-      expect(pathLabel('relayed', null), 'relayed via supernode');
-    });
-
-    test('direct -> "direct"', () {
-      expect(pathLabel('direct', null), 'direct');
-    });
-
-    test('connecting -> "connecting"', () {
-      expect(pathLabel('connecting', null), 'connecting');
-    });
-
-    test('empty path -> "unknown"', () {
-      expect(pathLabel('', null), 'unknown');
-    });
-
-    test('unknown path -> passes through', () {
-      expect(pathLabel('weird', null), 'weird');
+      expect(find.text('Contact is offline'), findsOneWidget);
+      expect(find.text('no path yet'), findsOneWidget);
+      expect(find.text('moss refused the request, retrying'), findsOneWidget);
     });
   });
 }

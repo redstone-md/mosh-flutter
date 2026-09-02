@@ -9,13 +9,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 
 ChatMessage _msg(String fromDevice) =>
     ChatMessage(fromDevice: fromDevice, body: 'x');
 
 SessionSnapshot _session({
   required String role,
-  required String state,
+  required DmSessionState state,
   String peerDisplayName = '',
   String displayName = 'me',
   List<ChatMessage> messages = const [],
@@ -27,7 +28,7 @@ SessionSnapshot _session({
       displayName: displayName,
       peerDisplayName: peerDisplayName,
       state: state,
-      path: 'direct',
+      transport: PeerTransport.direct,
       fingerprint: 'fp',
       messages: messages,
       attachments: const [],
@@ -41,7 +42,7 @@ void main() {
     test('populated peerDisplayName short-circuits (Flutter optimization)', () {
       final s = _session(
         role: 'alice',
-        state: 'pending',
+        state: DmSessionState.pending,
         peerDisplayName: 'remote-pal',
       );
       expect(peerLabel(l, s), 'remote-pal');
@@ -52,7 +53,7 @@ void main() {
         () {
       final s = _session(
         role: 'alice',
-        state: 'pending',
+        state: DmSessionState.pending,
         messages: [_msg('me'), _msg('remote-peer'), _msg('me')],
       );
       expect(peerLabel(l, s), 'remote-peer');
@@ -60,18 +61,22 @@ void main() {
 
     test('empty + no peer message + state==ready -> "Peer" (callPeerFallback)',
         () {
-      final s = _session(role: 'alice', state: 'ready', messages: [_msg('me')]);
+      final s = _session(
+          role: 'alice',
+          state: DmSessionState.connected,
+          messages: [_msg('me')]);
       expect(peerLabel(l, s), l.callPeerFallback);
     });
 
     test('empty + not ready + role==alice -> "invite sent"', () {
-      final s =
-          _session(role: 'alice', state: 'pending', messages: [_msg('me')]);
+      final s = _session(
+          role: 'alice', state: DmSessionState.pending, messages: [_msg('me')]);
       expect(peerLabel(l, s), 'invite sent');
     });
 
     test('empty + not ready + role==bob -> "joining"', () {
-      final s = _session(role: 'bob', state: 'pending', messages: [_msg('me')]);
+      final s = _session(
+          role: 'bob', state: DmSessionState.pending, messages: [_msg('me')]);
       expect(peerLabel(l, s), 'joining');
     });
 
@@ -79,7 +84,7 @@ void main() {
       // React: messages.find(m => m.from_device !== session.display_name).
       final s = _session(
         role: 'alice',
-        state: 'pending',
+        state: DmSessionState.pending,
         messages: [_msg('me'), _msg('me')],
       );
       // No peer message + not ready + alice -> invite sent.

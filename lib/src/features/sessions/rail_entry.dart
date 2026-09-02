@@ -22,7 +22,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart'
     show UnreadBadge;
 import 'package:mosh/src/features/conversation/peer_label.dart' show peerLabel;
-import 'package:mosh/src/features/diagnostics/state_label.dart' show stateLabel;
+import 'package:mosh/src/features/conversation/dm_state.dart' show dmStateLabel;
 import 'package:mosh/src/features/sessions/rail_item.dart'
     show RailItem, RailItemKind;
 import 'package:mosh/src/features/shared/avatar.dart' show Avatar;
@@ -107,7 +107,7 @@ final class DmRailEntry extends RailEntry {
         title: label,
         subtitle: revokedOrgName != null
             ? '${l.orgRevokedBadge} $revokedOrgName'
-            : stateLabel(l, session.state),
+            : dmStateLabel(l, session.state),
         // The expanded rail hides `.rail-dot`, so the badge stands alone.
         trailing: UnreadBadge(count: chrome.unreadCount),
         active: chrome.active,

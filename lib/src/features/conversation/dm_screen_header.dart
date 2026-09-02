@@ -34,6 +34,7 @@ import 'package:mosh/src/features/fingerprint/fingerprint_badge.dart';
 import 'package:mosh/src/features/conversation/chat_header_menu.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
+import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
 
 /// The DmScreen AppBar header: the two-line title Column (peer display name
@@ -119,7 +120,8 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(activeSessionProvider(widget.sessionId));
     final s = async.value;
-    final mlsState = s?.state ?? '';
+    // What the runtime has proven about the contact, in one sentence.
+    final status = s == null ? '' : dmStateSentence(l, s.state, s.transport);
     final fingerprint = s?.fingerprint ?? '';
     final confirmed = fingerprint.isNotEmpty &&
         widget.confirmedFingerprints.contains(widget.sessionId);
@@ -139,8 +141,8 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
             SizedBox(height: chatSubtitleGap(context)),
             Text(
                 confirmed
-                    ? l.dmSubtitleConfirmed(mlsState)
-                    : l.dmSubtitleUnverified(mlsState),
+                    ? l.dmSubtitleConfirmed(status)
+                    : l.dmSubtitleUnverified(status),
                 style: chatSubtitleStyle(context)),
           ]),
       actions: [

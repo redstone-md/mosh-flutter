@@ -2652,6 +2652,18 @@ impl SseDecode for crate::private_dm_runtime::contracts::ChatMessage {
     }
 }
 
+impl SseDecode for crate::private_dm_runtime::contracts::ConnectOutcome {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::private_dm_runtime::contracts::ConnectOutcome::Requested,
+            1 => crate::private_dm_runtime::contracts::ConnectOutcome::Failed,
+            _ => unreachable!("Invalid variant for ConnectOutcome: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::conversation_bridge::ConversationBridgeError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2720,6 +2732,19 @@ impl SseDecode for crate::conversation::dm_offers::DmOffer {
             from_fingerprint: var_fromFingerprint,
             target_fingerprint: var_targetFingerprint,
             invite_uri: var_inviteUri,
+        };
+    }
+}
+
+impl SseDecode for crate::private_dm_runtime::contracts::DmSessionState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::private_dm_runtime::contracts::DmSessionState::Pending,
+            1 => crate::private_dm_runtime::contracts::DmSessionState::Handshaking,
+            2 => crate::private_dm_runtime::contracts::DmSessionState::Connected,
+            _ => unreachable!("Invalid variant for DmSessionState: {}", inner),
         };
     }
 }
@@ -3203,9 +3228,10 @@ impl SseDecode for crate::outbound_delivery::MessageDeliveryStatus {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::outbound_delivery::MessageDeliveryStatus::Pending,
-            1 => crate::outbound_delivery::MessageDeliveryStatus::Sent,
-            2 => crate::outbound_delivery::MessageDeliveryStatus::Delivered,
-            3 => crate::outbound_delivery::MessageDeliveryStatus::Failed,
+            1 => crate::outbound_delivery::MessageDeliveryStatus::Queued,
+            2 => crate::outbound_delivery::MessageDeliveryStatus::Sent,
+            3 => crate::outbound_delivery::MessageDeliveryStatus::Delivered,
+            4 => crate::outbound_delivery::MessageDeliveryStatus::Failed,
             _ => unreachable!("Invalid variant for MessageDeliveryStatus: {}", inner),
         };
     }
@@ -3387,6 +3413,19 @@ impl SseDecode for Option<crate::private_dm_runtime::contracts::CallEvent> {
         if (<bool>::sse_decode(deserializer)) {
             return Some(
                 <crate::private_dm_runtime::contracts::CallEvent>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::private_dm_runtime::contracts::ConnectOutcome> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::private_dm_runtime::contracts::ConnectOutcome>::sse_decode(deserializer),
             );
         } else {
             return None;
@@ -3637,6 +3676,19 @@ impl SseDecode for crate::conversation::mesh::PeerDetail {
     }
 }
 
+impl SseDecode for crate::private_dm_runtime::transport::PeerTransport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::private_dm_runtime::transport::PeerTransport::Direct,
+            1 => crate::private_dm_runtime::transport::PeerTransport::Relayed,
+            2 => crate::private_dm_runtime::transport::PeerTransport::None,
+            _ => unreachable!("Invalid variant for PeerTransport: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::private_dm_runtime::contracts::PendingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3700,9 +3752,14 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
         let mut var_role = <String>::sse_decode(deserializer);
         let mut var_displayName = <String>::sse_decode(deserializer);
         let mut var_peerDisplayName = <String>::sse_decode(deserializer);
-        let mut var_state = <String>::sse_decode(deserializer);
-        let mut var_path = <String>::sse_decode(deserializer);
-        let mut var_relayReady = <Option<bool>>::sse_decode(deserializer);
+        let mut var_state =
+            <crate::private_dm_runtime::contracts::DmSessionState>::sse_decode(deserializer);
+        let mut var_transport =
+            <crate::private_dm_runtime::transport::PeerTransport>::sse_decode(deserializer);
+        let mut var_peerMossId = <Option<String>>::sse_decode(deserializer);
+        let mut var_lastConnectOutcome = <Option<
+            crate::private_dm_runtime::contracts::ConnectOutcome,
+        >>::sse_decode(deserializer);
         let mut var_inviteUri = <Option<String>>::sse_decode(deserializer);
         let mut var_fingerprint = <String>::sse_decode(deserializer);
         let mut var_messages =
@@ -3725,8 +3782,9 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
             display_name: var_displayName,
             peer_display_name: var_peerDisplayName,
             state: var_state,
-            path: var_path,
-            relay_ready: var_relayReady,
+            transport: var_transport,
+            peer_moss_id: var_peerMossId,
+            last_connect_outcome: var_lastConnectOutcome,
             invite_uri: var_inviteUri,
             fingerprint: var_fingerprint,
             messages: var_messages,
@@ -4479,6 +4537,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Cha
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::ConnectOutcome {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Requested => 0.into_dart(),
+            Self::Failed => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::private_dm_runtime::contracts::ConnectOutcome
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::ConnectOutcome>
+    for crate::private_dm_runtime::contracts::ConnectOutcome
+{
+    fn into_into_dart(self) -> crate::private_dm_runtime::contracts::ConnectOutcome {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::conversation_bridge::ConversationBridgeError {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4576,6 +4655,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::conversation::dm_offers::DmOffer>
     for crate::conversation::dm_offers::DmOffer
 {
     fn into_into_dart(self) -> crate::conversation::dm_offers::DmOffer {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::DmSessionState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Pending => 0.into_dart(),
+            Self::Handshaking => 1.into_dart(),
+            Self::Connected => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::private_dm_runtime::contracts::DmSessionState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::DmSessionState>
+    for crate::private_dm_runtime::contracts::DmSessionState
+{
+    fn into_into_dart(self) -> crate::private_dm_runtime::contracts::DmSessionState {
         self
     }
 }
@@ -4819,9 +4920,10 @@ impl flutter_rust_bridge::IntoDart for crate::outbound_delivery::MessageDelivery
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Pending => 0.into_dart(),
-            Self::Sent => 1.into_dart(),
-            Self::Delivered => 2.into_dart(),
-            Self::Failed => 3.into_dart(),
+            Self::Queued => 1.into_dart(),
+            Self::Sent => 2.into_dart(),
+            Self::Delivered => 3.into_dart(),
+            Self::Failed => 4.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -5158,6 +5260,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::conversation::mesh::PeerDetail>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::transport::PeerTransport {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Direct => 0.into_dart(),
+            Self::Relayed => 1.into_dart(),
+            Self::None => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::private_dm_runtime::transport::PeerTransport
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::transport::PeerTransport>
+    for crate::private_dm_runtime::transport::PeerTransport
+{
+    fn into_into_dart(self) -> crate::private_dm_runtime::transport::PeerTransport {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::PendingCall {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -5251,8 +5375,9 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Ses
             self.display_name.into_into_dart().into_dart(),
             self.peer_display_name.into_into_dart().into_dart(),
             self.state.into_into_dart().into_dart(),
-            self.path.into_into_dart().into_dart(),
-            self.relay_ready.into_into_dart().into_dart(),
+            self.transport.into_into_dart().into_dart(),
+            self.peer_moss_id.into_into_dart().into_dart(),
+            self.last_connect_outcome.into_into_dart().into_dart(),
             self.invite_uri.into_into_dart().into_dart(),
             self.fingerprint.into_into_dart().into_dart(),
             self.messages.into_into_dart().into_dart(),
@@ -5712,6 +5837,22 @@ impl SseEncode for crate::private_dm_runtime::contracts::ChatMessage {
     }
 }
 
+impl SseEncode for crate::private_dm_runtime::contracts::ConnectOutcome {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::private_dm_runtime::contracts::ConnectOutcome::Requested => 0,
+                crate::private_dm_runtime::contracts::ConnectOutcome::Failed => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::conversation_bridge::ConversationBridgeError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5759,6 +5900,23 @@ impl SseEncode for crate::conversation::dm_offers::DmOffer {
         <String>::sse_encode(self.from_fingerprint, serializer);
         <String>::sse_encode(self.target_fingerprint, serializer);
         <String>::sse_encode(self.invite_uri, serializer);
+    }
+}
+
+impl SseEncode for crate::private_dm_runtime::contracts::DmSessionState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::private_dm_runtime::contracts::DmSessionState::Pending => 0,
+                crate::private_dm_runtime::contracts::DmSessionState::Handshaking => 1,
+                crate::private_dm_runtime::contracts::DmSessionState::Connected => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -6095,9 +6253,10 @@ impl SseEncode for crate::outbound_delivery::MessageDeliveryStatus {
         <i32>::sse_encode(
             match self {
                 crate::outbound_delivery::MessageDeliveryStatus::Pending => 0,
-                crate::outbound_delivery::MessageDeliveryStatus::Sent => 1,
-                crate::outbound_delivery::MessageDeliveryStatus::Delivered => 2,
-                crate::outbound_delivery::MessageDeliveryStatus::Failed => 3,
+                crate::outbound_delivery::MessageDeliveryStatus::Queued => 1,
+                crate::outbound_delivery::MessageDeliveryStatus::Sent => 2,
+                crate::outbound_delivery::MessageDeliveryStatus::Delivered => 3,
+                crate::outbound_delivery::MessageDeliveryStatus::Failed => 4,
                 _ => {
                     unimplemented!("");
                 }
@@ -6231,6 +6390,16 @@ impl SseEncode for Option<crate::private_dm_runtime::contracts::CallEvent> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::private_dm_runtime::contracts::CallEvent>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::private_dm_runtime::contracts::ConnectOutcome> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::private_dm_runtime::contracts::ConnectOutcome>::sse_encode(value, serializer);
         }
     }
 }
@@ -6407,6 +6576,23 @@ impl SseEncode for crate::conversation::mesh::PeerDetail {
     }
 }
 
+impl SseEncode for crate::private_dm_runtime::transport::PeerTransport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::private_dm_runtime::transport::PeerTransport::Direct => 0,
+                crate::private_dm_runtime::transport::PeerTransport::Relayed => 1,
+                crate::private_dm_runtime::transport::PeerTransport::None => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::private_dm_runtime::contracts::PendingCall {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6453,9 +6639,16 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
         <String>::sse_encode(self.role, serializer);
         <String>::sse_encode(self.display_name, serializer);
         <String>::sse_encode(self.peer_display_name, serializer);
-        <String>::sse_encode(self.state, serializer);
-        <String>::sse_encode(self.path, serializer);
-        <Option<bool>>::sse_encode(self.relay_ready, serializer);
+        <crate::private_dm_runtime::contracts::DmSessionState>::sse_encode(self.state, serializer);
+        <crate::private_dm_runtime::transport::PeerTransport>::sse_encode(
+            self.transport,
+            serializer,
+        );
+        <Option<String>>::sse_encode(self.peer_moss_id, serializer);
+        <Option<crate::private_dm_runtime::contracts::ConnectOutcome>>::sse_encode(
+            self.last_connect_outcome,
+            serializer,
+        );
         <Option<String>>::sse_encode(self.invite_uri, serializer);
         <String>::sse_encode(self.fingerprint, serializer);
         <Vec<crate::private_dm_runtime::contracts::ChatMessage>>::sse_encode(

@@ -32,7 +32,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 ///   2. else scan [SessionSnapshot.messages] for the first message whose
 ///      `fromDevice` differs from [SessionSnapshot.displayName]; return that
 ///      `fromDevice` (React primary branch, private-dm-screen.tsx:537-539).
-///   3. else if [SessionSnapshot.state] == `"ready"` -> [AppLocalizations.callPeerFallback]
+///   3. else if [SessionSnapshot.state] is connected -> [AppLocalizations.callPeerFallback]
 ///      (React `"peer"`; reuses the existing "Peer" call-modal key).
 ///   4. else if [SessionSnapshot.role] == `"alice"` ->
 ///      [AppLocalizations.peerLabelInviteSent] (React `"invite sent"`).
@@ -49,7 +49,7 @@ String peerLabel(AppLocalizations l, SessionSnapshot session) {
   if (peer != null) return peer.fromDevice;
 
   // React ready branch (private-dm-screen.tsx:540-541): "peer".
-  if (session.state == 'ready') return l.callPeerFallback;
+  if (session.state == DmSessionState.connected) return l.callPeerFallback;
 
   // React role branch (private-dm-screen.tsx:542): alice -> "invite sent",
   // otherwise "joining".

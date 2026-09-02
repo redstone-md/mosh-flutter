@@ -15,6 +15,7 @@ import 'package:mosh/l10n/app_localizations_en.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/conversation/mesh.dart';
 
 AppLocalizationsEn _l = AppLocalizationsEn();
@@ -45,7 +46,7 @@ MeshInfo _mesh({
     );
 
 SessionSnapshot _session({
-  required String state,
+  required DmSessionState state,
   String displayName = 'me',
   String peerDisplayName = 'Alice',
   MeshInfo? mesh,
@@ -57,8 +58,7 @@ SessionSnapshot _session({
       displayName: displayName,
       peerDisplayName: peerDisplayName,
       state: state,
-      path: 'direct',
-      relayReady: null,
+      transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: 'AABB',
       messages: const [],
@@ -77,7 +77,8 @@ void main() {
   group('diagnosticsSummary - DM branch', () {
     test('ready session with peers -> tone ready, ready-with-peers description',
         () {
-      final s = _session(state: 'ready', mesh: _mesh(peerCount: 1));
+      final s =
+          _session(state: DmSessionState.connected, mesh: _mesh(peerCount: 1));
       final sum = diagnosticsSummary(l: _l, session: s);
 
       expect(sum.tone, DiagnosticSummaryTone.ready);
@@ -94,7 +95,8 @@ void main() {
     });
 
     test('ready session with zero peers -> ready-no-peers description', () {
-      final s = _session(state: 'ready', mesh: _mesh(peerCount: 0));
+      final s =
+          _session(state: DmSessionState.connected, mesh: _mesh(peerCount: 0));
       final sum = diagnosticsSummary(l: _l, session: s);
 
       expect(sum.tone, DiagnosticSummaryTone.ready);
@@ -105,7 +107,7 @@ void main() {
     test(
         'ready session with null mesh -> ready-no-peers description, booting facts',
         () {
-      final s = _session(state: 'ready', mesh: null);
+      final s = _session(state: DmSessionState.connected, mesh: null);
       final sum = diagnosticsSummary(l: _l, session: s);
 
       expect(sum.tone, DiagnosticSummaryTone.ready);
@@ -118,39 +120,32 @@ void main() {
       ]);
     });
 
-    test('waiting session -> tone waiting, waiting description', () {
-      final s = _session(state: 'waiting', mesh: _mesh(peerCount: 1));
+    test('pending session -> tone waiting, waiting-for-contact copy', () {
+      final s =
+          _session(state: DmSessionState.pending, mesh: _mesh(peerCount: 1));
       final sum = diagnosticsSummary(l: _l, session: s);
 
       expect(sum.tone, DiagnosticSummaryTone.waiting);
-      expect(sum.state, 'Waiting'); // stateWaiting
+      expect(sum.state, 'Waiting for your contact');
       expect(sum.description,
           'Invite created. Waiting for the peer and Moss mesh to complete discovery.');
     });
 
-    test('connecting session -> mapped to waiting label', () {
-      // React's stateLabels maps connecting -> waiting; the Flutter
-      // _stateLabel mirrors that (sessions_screen parity).
-      final s = _session(state: 'connecting', mesh: null);
+    test('handshaking session -> tone waiting, contact-is-offline copy', () {
+      final s = _session(state: DmSessionState.handshaking, mesh: null);
       final sum = diagnosticsSummary(l: _l, session: s);
 
-      expect(sum.tone, DiagnosticSummaryTone.idle); // not ready/waiting
-      expect(sum.state, 'Waiting'); // connecting -> stateWaiting
-    });
-
-    test('unknown state -> tone idle, idle description, raw-state fallback',
-        () {
-      final s = _session(state: 'something-weird', mesh: _mesh(peerCount: 1));
-      final sum = diagnosticsSummary(l: _l, session: s);
-
-      expect(sum.tone, DiagnosticSummaryTone.idle);
-      expect(sum.state, 'something-weird'); // raw fallback
-      expect(sum.description,
-          'Session exists, but the secure conversation is not connected yet.');
+      expect(sum.tone, DiagnosticSummaryTone.waiting);
+      expect(sum.state, 'Contact is offline');
+      expect(
+          sum.description,
+          'Contact is offline. Messages will be delivered when you are both '
+          'online');
     });
 
     test('DM session with error -> tone error overrides state-based tone', () {
-      final s = _session(state: 'ready', mesh: _mesh(peerCount: 1));
+      final s =
+          _session(state: DmSessionState.connected, mesh: _mesh(peerCount: 1));
       final sum = diagnosticsSummary(l: _l, session: s, error: 'boom');
 
       // Tone is error even though state is ready.
@@ -169,7 +164,7 @@ void main() {
         diagnosticsSummary(
             l: _l,
             session: _session(
-              state: 'ready',
+              state: DmSessionState.connected,
               displayName: 'bob',
               peerDisplayName: '',
             )).title,
@@ -179,7 +174,7 @@ void main() {
         diagnosticsSummary(
             l: _l,
             session: _session(
-              state: 'ready',
+              state: DmSessionState.connected,
               displayName: '',
               peerDisplayName: '',
             )).title,
@@ -281,13 +276,13 @@ void main() {
       final a = diagnosticsSummary(
           l: _l,
           session: _session(
-            state: 'ready',
+            state: DmSessionState.connected,
             mesh: _mesh(peerCount: 1),
           ));
       final b = diagnosticsSummary(
           l: _l,
           session: _session(
-            state: 'ready',
+            state: DmSessionState.connected,
             mesh: _mesh(peerCount: 1),
           ));
       expect(a, b);
@@ -298,13 +293,13 @@ void main() {
       final a = diagnosticsSummary(
           l: _l,
           session: _session(
-            state: 'ready',
+            state: DmSessionState.connected,
             mesh: _mesh(peerCount: 1),
           ));
       final b = diagnosticsSummary(
           l: _l,
           session: _session(
-            state: 'ready',
+            state: DmSessionState.connected,
             mesh: _mesh(peerCount: 2),
           ));
       expect(a == b, isFalse);

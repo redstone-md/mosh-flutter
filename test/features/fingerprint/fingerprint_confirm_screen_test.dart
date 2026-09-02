@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/fingerprint/fingerprint_confirm_screen.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import '../../support/pump.dart';
 
@@ -15,9 +16,8 @@ SessionSnapshot _snapshot() => SessionSnapshot(
       role: 'inviter',
       displayName: 'me',
       peerDisplayName: 'peer',
-      state: 'connecting',
-      path: 'connecting',
-      relayReady: null,
+      state: DmSessionState.pending,
+      transport: PeerTransport.none,
       inviteUri: null,
       fingerprint: 'AABBCCDDEEFF0011',
       messages: const [],

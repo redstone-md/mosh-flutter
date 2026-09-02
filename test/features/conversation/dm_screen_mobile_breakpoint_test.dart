@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import '../../support/pump.dart';
 
@@ -32,9 +33,8 @@ SessionSnapshot _snapshot({required String sessionId}) => SessionSnapshot(
       role: 'inviter',
       displayName: 'me',
       peerDisplayName: 'peer',
-      state: 'ready',
-      path: 'direct',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: '0123456789abcdef',
       messages: const [],

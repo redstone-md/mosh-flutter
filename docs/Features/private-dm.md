@@ -44,6 +44,54 @@ sequenceDiagram
     Note over Bob: message appears in snapshot
 ```
 
+## What the chat header says
+
+The snapshot carries a three-value state the runtime only moves on evidence
+from the other side (ADR 0026). The header, the rail badge, the title-bar pill
+and the diagnostics card all render it through `dm_state.dart`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: invite created or accepted
+    pending --> handshaking: contact's KeyPackage or Welcome arrives
+    handshaking --> connected: authenticated frame from the contact (Hello, message, ack)
+    connected --> handshaking: contact out of reach for 5 s
+```
+
+| state | header | rail badge |
+|---|---|---|
+| `pending` | Waiting for your contact | Waiting for your contact |
+| `handshaking` | Contact is offline. Messages will be delivered when you are both online | Contact is offline |
+| `connected` | Connected · direct / relayed by the network | Connected |
+
+## A text on its way out
+
+A DM text is filed as `Queued` before the transport is asked anything, so it
+survives a restart. The runtime's tick sends queued texts oldest first while
+the contact is reachable; a refusal leaves the text queued. The row shows a
+clock while queued, one tick once the transport took it, two once the contact
+acknowledged it. Only an attachment can fail and offer Retry.
+
+```mermaid
+sequenceDiagram
+    participant UI as Dart UI
+    participant RT as DM runtime
+    participant T as DmTransport
+    participant Peer
+    UI->>RT: send(body)
+    RT->>RT: message + attempt rows as Queued (one transaction)
+    loop every tick while the contact is reachable
+        RT->>RT: encrypt oldest queued at the current epoch
+        RT->>T: publish
+        alt accepted
+            T-->>RT: ok → Sent
+        else refused
+            T-->>RT: no peers → stays Queued, pass stops
+        end
+    end
+    Peer-->>RT: DeliveryAck → Delivered
+```
+
 ## Slice-one boundaries
 
 - Poll-based, no streams. `api::private_dm` exposes no `StreamSink` in slice

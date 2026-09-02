@@ -16,6 +16,7 @@ import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -47,9 +48,8 @@ SessionSnapshot _session({
       role: 'inviter',
       displayName: displayName,
       peerDisplayName: '',
-      state: 'ready',
-      path: 'direct',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: 'AA',
       messages: messages,

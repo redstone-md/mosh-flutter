@@ -9,6 +9,7 @@ import '../conversation/mesh.dart';
 import '../frb_generated.dart';
 import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
+import '../private_dm_runtime/transport.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 

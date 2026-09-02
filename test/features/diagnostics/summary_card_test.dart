@@ -16,6 +16,7 @@ import 'package:mosh/l10n/app_localizations_en.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/diagnostics/summary_card.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/conversation/mesh.dart';
 import '../../support/pump.dart';
 
@@ -43,9 +44,8 @@ SessionSnapshot _readySession() => SessionSnapshot(
       role: 'inviter',
       displayName: 'me',
       peerDisplayName: 'Alice',
-      state: 'ready',
-      path: 'direct',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: 'AABB',
       messages: const [],

@@ -23,6 +23,7 @@ import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import '../../support/pump.dart';
 
@@ -55,9 +56,8 @@ SessionSnapshot _snapshot({
       role: 'inviter',
       displayName: displayName,
       peerDisplayName: '',
-      state: 'ready',
-      path: 'direct',
-      relayReady: null,
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       inviteUri: null,
       fingerprint: '0123456789abcdef',
       messages: messages,

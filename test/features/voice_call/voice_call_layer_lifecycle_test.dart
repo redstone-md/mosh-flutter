@@ -20,6 +20,7 @@ import 'package:mosh/src/rust/api/conversation_bridge.dart'
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
@@ -47,8 +48,8 @@ SessionSnapshot _activeSnapshot(String sessionId) => SessionSnapshot(
       role: 'caller',
       displayName: 'me',
       peerDisplayName: 'Alice',
-      state: 'connected',
-      path: 'direct',
+      state: DmSessionState.connected,
+      transport: PeerTransport.direct,
       fingerprint: 'fp',
       messages: const [],
       attachments: const [],

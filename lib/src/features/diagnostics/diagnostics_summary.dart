@@ -24,6 +24,7 @@ library;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
+import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -131,15 +132,15 @@ DiagnosticSummary diagnosticsSummary({
     return DiagnosticSummary(
       tone: error != null
           ? DiagnosticSummaryTone.error
-          : _summaryTone(session.state),
+          : _summaryTone(dmPillState(session.state)),
       kicker: l.summaryDmKicker,
       title: session.peerDisplayName.isNotEmpty
           ? session.peerDisplayName
           : (session.displayName.isNotEmpty
               ? session.displayName
               : 'Private session'),
-      state: stateLabel(l, session.state),
-      description: _sessionDescription(l, session.state, mesh),
+      state: dmStateLabel(l, session.state),
+      description: _dmDescription(l, session.state, mesh),
       facts: [
         DiagnosticSummaryFact(
             label: l.summaryFactPeers, value: peerCount(mesh)),
@@ -233,17 +234,18 @@ DiagnosticSummaryTone _summaryTone(String state) {
   }
 }
 
-/// Mirrors React `sessionDescription(state, mesh)`: ready+peers -> ready-with-
-/// peers, ready+no-peers -> ready-no-peers, waiting -> waiting, else idle.
-/// The strings are localized via ARB (`summaryReadyWithPeers` etc.).
-String _sessionDescription(AppLocalizations l, String state, MeshInfo? mesh) {
-  if (state == 'ready') {
-    return mesh != null && mesh.peerCount > 0
-        ? l.summaryReadyWithPeers
-        : l.summaryReadyNoPeers;
+/// One line on what the DM's state means: connected with or without peers
+/// in the mesh report, waiting for the contact, or the contact is offline.
+String _dmDescription(
+    AppLocalizations l, DmSessionState state, MeshInfo? mesh) {
+  switch (state) {
+    case DmSessionState.connected:
+      return mesh != null && mesh.peerCount > 0
+          ? l.summaryReadyWithPeers
+          : l.summaryReadyNoPeers;
+    case DmSessionState.pending:
+      return l.summaryWaiting;
+    case DmSessionState.handshaking:
+      return l.stateOfflineSentence;
   }
-  if (state == 'waiting') {
-    return l.summaryWaiting;
-  }
-  return l.summaryIdle;
 }

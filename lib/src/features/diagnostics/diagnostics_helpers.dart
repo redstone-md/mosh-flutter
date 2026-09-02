@@ -47,32 +47,6 @@ String relayStatus(MeshInfo mesh) {
   return 'none';
 }
 
-/// Human label for a DM's transport path, 1-в-1 with React `pathLabel(path,
-/// relayReady?)`. "relayed" gets the "via supernode" suffix to make clear
-/// the path is a Mesh-TURN relay (still E2E -- the supernode only sees
-/// ciphertext). While the shared relay node has not converged yet
-/// (`relayReady === false`) the label says so -- sends are queued, not
-/// failing.
-///
-/// The "relayed via supernode" / "(warming up)" / "direct" / "connecting" /
-/// "unknown" literals are DATA values (transport-path labels), not user
-/// copy -- they match React literally and are NOT localized, mirroring the
-/// React source.
-String pathLabel(String path, bool? relayReady) {
-  switch (path) {
-    case 'relayed':
-      return relayReady == false
-          ? 'relayed via supernode (warming up)'
-          : 'relayed via supernode';
-    case 'direct':
-      return 'direct';
-    case 'connecting':
-      return 'connecting';
-    default:
-      return path.isEmpty ? 'unknown' : path;
-  }
-}
-
 /// Peer-connectivity breakdown for the `Peers` metric detail, 1-в-1 with
 /// React `peerBreakdown(mesh)`:
 /// `"${mesh.direct_peer_count} direct / ${mesh.relayed_peer_count} relayed"`.
