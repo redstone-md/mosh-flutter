@@ -12,18 +12,18 @@
 //     (React activeGroupOrg + selfIsOrgAdmin + computeMissingRosterMembers).
 //
 // Per ADR 0010/0013: server state via AsyncNotifier, ephemeral invite state
-// via class-based Notifier (StateProvider is legacy in Riverpod v3), all
-// reads/writes through gatewayProvider so the test gateway + RealBridgeGateway
-// prod both work.
+// via class-based Notifier (StateProvider is legacy in Riverpod v3). The org
+// reads are 1:1 bridge mirrors, so they go through bridgeFacadeProvider
+// (ADR 0025).
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot;
 import 'package:mosh/src/state/channel_group_providers.dart'
     show groupSnapshotProvider;
 import 'package:mosh/src/state/gateway_provider.dart';
-import 'package:mosh/src/gateway/gateway.dart' show Gateway;
 
 /// Server state: the joined orgs. Mirrors React refreshOrgs: listOrgs then
 /// pollOrg each (the backend drains roster gossip on this cadence). A later
@@ -36,20 +36,21 @@ final orgsProvider = AsyncNotifierProvider<OrgsNotifier, List<OrgSnapshot>>(
 
 class OrgsNotifier extends AsyncNotifier<List<OrgSnapshot>> {
   @override
-  Future<List<OrgSnapshot>> build() async => _poll(ref.watch(gatewayProvider));
+  Future<List<OrgSnapshot>> build() async =>
+      _poll(ref.watch(bridgeFacadeProvider));
 
   /// Re-run after a mutation (join/leave/inviteMembersToGroup). Mirrors React
   /// refreshOrgs (Riverpod invalidation is already race-safe via guard).
   Future<void> refresh() async {
-    state = await AsyncValue.guard(() => _poll(ref.read(gatewayProvider)));
+    state = await AsyncValue.guard(() => _poll(ref.read(bridgeFacadeProvider)));
   }
 
-  Future<List<OrgSnapshot>> _poll(Gateway gateway) async {
-    final listed = await gateway.listOrgs();
+  Future<List<OrgSnapshot>> _poll(BridgeFacade bridge) async {
+    final listed = await bridge.listOrgs();
     final polled = <OrgSnapshot>[];
     for (final org in listed) {
       try {
-        polled.add(await gateway.pollOrg(orgPubkey: org.orgPubkey));
+        polled.add(await bridge.pollOrg(orgPubkey: org.orgPubkey));
       } catch (_) {
         polled.add(org);
       }
@@ -175,7 +176,7 @@ final orgAddPromptProvider =
 });
 
 /// The prompt payload for [orgAddPromptProvider]. onAdd is owned by the screen
-/// (it calls gateway.orgGroupInviteMembers + updates offeredGroupInvites) so
+/// (it calls bridge.orgGroupInviteMembers + updates offeredGroupInvites) so
 /// the provider stays a pure read.
 class OrgAddPrompt {
   const OrgAddPrompt({

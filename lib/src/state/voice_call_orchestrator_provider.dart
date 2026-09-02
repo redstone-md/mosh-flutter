@@ -24,10 +24,10 @@ import 'package:mosh/src/features/voice_call/voice_playback.dart'
     show NoopVoicePlaybackFactory, VoicePlaybackFactory;
 import 'package:mosh/src/features/voice_call/ringtone_player.dart'
     show NoopRingtonePlayer, RingtonePlayer;
-import 'package:mosh/src/gateway/gateway.dart' show Gateway;
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show ActiveCall;
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
 
@@ -156,8 +156,8 @@ class VoiceCallOrchestratorNotifier
     _endedCallId = null;
     final orchestrator = _orchestrator!;
     final sid = sessionId;
-    final gateway = ref.read(gatewayProvider);
-    final transport = CallFrameTransport(gateway);
+    final bridge = ref.read(bridgeFacadeProvider);
+    final transport = CallFrameTransport(bridge);
     orchestrator.attach(
       sessionId: sid,
       callId: activeCall.callId,
@@ -170,7 +170,7 @@ class VoiceCallOrchestratorNotifier
       onError: (message) => _fail(message, CallErrorSource.audioSetup),
       endCall: (s, c, reason) async {
         if (!ref.mounted) return;
-        await gateway.callEnd(sessionId: s, callId: c, reason: reason);
+        await bridge.callEnd(sessionId: s, callId: c, reason: reason);
         ref.invalidate(activeSessionProvider(sid));
       },
     );
@@ -181,7 +181,7 @@ class VoiceCallOrchestratorNotifier
   /// started has no layer to surface it, so the caller keeps the error.
   Future<Object?> startCall() async {
     try {
-      await ref.read(gatewayProvider).callStart(sessionId: sessionId);
+      await ref.read(bridgeFacadeProvider).callStart(sessionId: sessionId);
       if (ref.mounted) ref.invalidate(activeSessionProvider(sessionId));
       return null;
     } catch (e) {
@@ -191,12 +191,12 @@ class VoiceCallOrchestratorNotifier
 
   /// Accepts the inbound call [callId] and refreshes the session.
   Future<void> acceptCall(String callId) =>
-      _control((g) => g.callAccept(sessionId: sessionId, callId: callId));
+      _control((b) => b.callAccept(sessionId: sessionId, callId: callId));
 
   /// Declines the inbound call [callId] for [reason] and refreshes.
   Future<void> declineCall(String callId, String reason) => _control(
-        (g) =>
-            g.callDecline(sessionId: sessionId, callId: callId, reason: reason),
+        (b) =>
+            b.callDecline(sessionId: sessionId, callId: callId, reason: reason),
       );
 
   /// Hangs up the active call [callId] for [reason] and refreshes. A second
@@ -206,7 +206,7 @@ class VoiceCallOrchestratorNotifier
     if (_endedCallId == callId) return;
     _endedCallId = callId;
     final ended = await _control(
-      (g) => g.callEnd(sessionId: sessionId, callId: callId, reason: reason),
+      (b) => b.callEnd(sessionId: sessionId, callId: callId, reason: reason),
     );
     if (!ended && _endedCallId == callId) _endedCallId = null;
   }
@@ -228,10 +228,10 @@ class VoiceCallOrchestratorNotifier
   }
 
   Future<bool> _control(
-    Future<void> Function(Gateway gateway) action,
+    Future<void> Function(BridgeFacade bridge) action,
   ) async {
     try {
-      await action(ref.read(gatewayProvider));
+      await action(ref.read(bridgeFacadeProvider));
       if (ref.mounted) ref.invalidate(activeSessionProvider(sessionId));
       return true;
     } catch (e) {

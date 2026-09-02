@@ -30,7 +30,7 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/util/format.dart' show readableError;
 
@@ -83,7 +83,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
     super.dispose();
   }
 
-  // Calls gateway.createGroup with a CreateGroupRequest built from the
+  // Calls bridge.createGroup with a CreateGroupRequest built from the
   // entered label (trimmed, null if empty -- React `label.trim() || null`)
   // + inviteFlowProvider's displayName/listenPort/staticPeer (the same
   // settings source createInvite uses, ADR 0010), copies the returned invite
@@ -102,7 +102,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
       _error = null;
     });
     try {
-      final created = await ref.read(gatewayProvider).createGroup(
+      final created = await ref.read(bridgeFacadeProvider).createGroup(
             request: CreateGroupRequest(
               label: label.isEmpty ? null : label,
               displayName: settings.displayName,

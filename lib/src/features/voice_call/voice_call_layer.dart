@@ -33,7 +33,7 @@ import 'package:mosh/src/features/voice_call/call_overlay.dart';
 import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
 import 'package:mosh/src/features/voice_call/outgoing_call_modal.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
 import 'package:mosh/src/state/notifications_provider.dart'
@@ -312,7 +312,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
   }
 }
 
-/// Starts a voice call for [sessionId] via the `Gateway` seam. Exposed as
+/// Starts a voice call for [sessionId] via the bridge facade. Exposed as
 /// a top-level helper so the DM AppBar's start-call IconButton can trigger
 /// a call without the layer owning the AppBar (the layer is body-local;
 /// the AppBar lives on DmScreen). Returns the thrown error so the caller
@@ -320,7 +320,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 /// use_build_context_synchronously lint for this fire-and-refresh helper).
 Future<Object?> startVoiceCall(WidgetRef ref, String sessionId) async {
   try {
-    await ref.read(gatewayProvider).callStart(sessionId: sessionId);
+    await ref.read(bridgeFacadeProvider).callStart(sessionId: sessionId);
     // Force a re-fetch from the gateway so the session snapshot reflects the
     // new outgoing call; the orchestrator (which watches this provider)
     // then derives the OutgoingCallDialog.

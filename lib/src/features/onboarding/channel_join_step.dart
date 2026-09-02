@@ -5,8 +5,9 @@
 // caller wraps this in [OnboardStepFrame] (full screen) or OnboardStepBody
 // (inline, atomic #8).
 //
-// Scope: the step UI + the joinChannel Gateway seam (slice-3). Join calls
-// `gateway.joinChannel` with the entered name + the
+// Scope: the step UI + the joinChannel bridge-facade seam (slice-3). Join
+// calls
+// `bridge.joinChannel` with the entered name + the
 // displayName/listenPort/staticPeer from [inviteFlowProvider] (ADR 0010
 // DRY: one settings source for both flows), then navigates to the channel
 // screen on success. The name is ephemeral to this step visit (React
@@ -33,7 +34,7 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/util/format.dart' show readableError;
 
@@ -92,7 +93,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
     if (canJoin != _canJoin) setState(() => _canJoin = canJoin);
   }
 
-  // Calls gateway.joinChannel with a JoinChannelRequest built from the
+  // Calls bridge.joinChannel with a JoinChannelRequest built from the
   // entered name + inviteFlowProvider's displayName/listenPort/staticPeer
   // (the same settings source createInvite uses), then navigates to the
   // channel screen on success. Mirrors channel_screen's _send/_leave busy +
@@ -106,7 +107,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
       _error = null;
     });
     try {
-      await ref.read(gatewayProvider).joinChannel(
+      await ref.read(bridgeFacadeProvider).joinChannel(
             request: JoinChannelRequest(
               name: name,
               displayName: settings.displayName,

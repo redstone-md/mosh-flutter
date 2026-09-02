@@ -5,7 +5,7 @@
 // `'channel:<name>'` and `'group:<id>'` by hand three times each; these
 // tests are what stops that coming back.
 //
-// Setup mirrors the other rail tests: a seeded `ScriptableGateway`, a
+// Setup mirrors the other rail tests: a seeded `ScriptableBridge`, a
 // localized MaterialApp, and a ProviderScope whose container the test also
 // reads, so the active-conversation key can be set before the first frame
 // and read back after a tap.
@@ -21,10 +21,10 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 import '../../support/pump.dart';
-import '../../support/scriptable_gateway.dart';
+import '../../support/scriptable_bridge.dart';
 
 /// One conversation of each kind: a DM with Alice, the `general` channel
 /// and the `Crew` group. The rail renders one row per conversation, so the
@@ -98,7 +98,7 @@ GroupSnapshot _group() => GroupSnapshot(
 
 /// One rail with a DM, a channel and a group in it.
 ProviderContainer _rail() => ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(ScriptableGateway()
+      bridgeFacadeProvider.overrideWithValue(ScriptableBridge()
         ..seedSessions([_session()])
         ..seedChannels([_channel()])
         ..seedGroups([_group()])),

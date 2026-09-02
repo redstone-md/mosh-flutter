@@ -1,24 +1,21 @@
 // S4.0: verifies the slice-one Riverpod providers that live in
-// `session_providers.dart` over the test gateway. The DM LIST is not one of
-// them: `conversationListProvider` serves all three kinds from
-// `conversation_providers.dart`, and its tests are in
-// conversation_providers_test.dart.
-// Uses ProviderContainer (Riverpod v3) + flutter_test. Per ADR 0013 + S5 the
-// gatewayProvider default is now RealBridgeGateway (real Rust), which cannot
-// run under `flutter test` (no native cdylib). These provider tests exercise
-// gateway state, so each container overrides gatewayProvider with a
-// fresh gateway instance; the test still proves the seam end-to-end.
+// `session_providers.dart` over the test bridge. The invite mint is a 1:1
+// bridge mirror, so it reads `bridgeFacadeProvider` (ADR 0025); the DM poll
+// seam has its own tests. Uses ProviderContainer (Riverpod v3) +
+// flutter_test; the provider default is the real bridge (real Rust), which
+// cannot run under `flutter test` (no native cdylib), so the container
+// overrides it with a fresh scripted bridge.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../support/scriptable_gateway.dart';
+import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
 void main() {
   test('inviteFlowProvider.create() populates lastInvite', () async {
     final container = ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(ScriptableGateway()),
+      bridgeFacadeProvider.overrideWithValue(ScriptableBridge()),
     ]);
     addTearDown(container.dispose);
 

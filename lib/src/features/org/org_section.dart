@@ -1,6 +1,6 @@
 // OrgSection -- 1-в-1 port of React `src/features/private-dm/org/
 // OrgSection.tsx`. All 7 callbacks pass through unchanged so the
-// host wires them to the Gateway seam.
+// host wires them to the bridge-facade seam (ADR 0025).
 
 library;
 

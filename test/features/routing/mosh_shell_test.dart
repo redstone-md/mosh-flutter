@@ -7,7 +7,8 @@
 // the routes (rail disappears while reading a DM) fails loudly.
 //
 // The tests pump the real MoshApp (which owns the process-global appRouter)
-// inside a ProviderScope overriding gatewayProvider with a test gateway
+// inside a ProviderScope overriding the two bridge providers with scripted
+// doubles sharing one conversation state
 // seeded with one DM session
 // (peer display name 'Alice' / 'Bob'). The surface width is set via
 // tester.view.physicalSize + devicePixelRatio so isMobileBreakpoint
@@ -39,8 +40,8 @@ import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
+import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
-import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -72,13 +73,13 @@ SessionSnapshot _session({required String sessionId, required String peer}) =>
       activeCall: null,
     );
 
-// Pumps MoshApp (owns appRouter) inside a ProviderScope overriding
-// gatewayProvider, at the given surface size. appRouter is process-global,
+// Pumps MoshApp (owns appRouter) inside a ProviderScope overriding the two
+// bridge providers, at the given surface size. appRouter is process-global,
 // so the test navigates it via appRouter.go('/sessions') before pumping so
 // the rail is the initial visible branch.
 Future<void> _pumpApp(
   WidgetTester tester, {
-  required Gateway gateway,
+  required ScriptableGateway gateway,
   required Size physical,
 }) async {
   tester.view.physicalSize = physical;
@@ -89,7 +90,11 @@ Future<void> _pumpApp(
   // does not leak in (appRouter is shared across tests in this file).
   appRouter.go(AppRoutes.sessions);
   await tester.pumpWidget(ProviderScope(
-    overrides: [gatewayProvider.overrideWithValue(gateway)],
+    overrides: [
+      gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(
+          ScriptableBridge(conversations: gateway.conversations)),
+    ],
     child: const MoshApp(),
   ));
   await tester.pumpAndSettle();

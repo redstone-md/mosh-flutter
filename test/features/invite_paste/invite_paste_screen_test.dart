@@ -5,10 +5,10 @@
 //   - the 3-state detection badge (neutral / ok / bad) flips with input,
 //   - the Connect button is enabled for every detected kind (dm + group +
 //     org -- all three have a wired Gateway seam),
-//   - tapping Connect on a DM invite calls gateway.acceptInvite,
-//   - tapping Connect on a group invite calls gateway.joinGroup and
+//   - tapping Connect on a DM invite calls bridge.acceptInvite,
+//   - tapping Connect on a group invite calls bridge.joinGroup and
 //     navigates to the group screen,
-//   - tapping Connect on an org bundle calls gateway.joinOrg and navigates
+//   - tapping Connect on an org bundle calls bridge.joinOrg and navigates
 //     to the sessions list (orgs are a container, not a chat).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,24 +17,24 @@ import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
-import '../../support/scriptable_gateway.dart';
-import 'package:mosh/src/gateway/gateway.dart';
+import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/routing/app_router.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import '../../support/pump.dart';
 
 void main() {
   Future<void> pumpPasteStep(
     WidgetTester tester,
-    Gateway gateway, {
+    BridgeFacade bridge, {
     String initialLocation = AppRoutes.join,
   }) =>
       pumpRoute(tester, initialLocation,
-          overrides: [gatewayProvider.overrideWithValue(gateway)]);
+          overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
   testWidgets(
       'renders the OnboardStepFrame title (no AppBar) and a neutral badge on empty',
       (tester) async {
-    await pumpPasteStep(tester, ScriptableGateway());
+    await pumpPasteStep(tester, ScriptableBridge());
 
     // The frame renders the join step title (h1), not an AppBar.
     expect(find.text('Join with a link'), findsOneWidget);
@@ -51,7 +51,7 @@ void main() {
 
   testWidgets('dm detection shows the ok badge and enables Connect',
       (tester) async {
-    await pumpPasteStep(tester, ScriptableGateway());
+    await pumpPasteStep(tester, ScriptableBridge());
 
     await tester.enterText(find.byType(TextField),
         'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
@@ -66,7 +66,7 @@ void main() {
 
   testWidgets('unknown detection shows the bad badge and disables Connect',
       (tester) async {
-    await pumpPasteStep(tester, ScriptableGateway());
+    await pumpPasteStep(tester, ScriptableBridge());
 
     await tester.enterText(find.byType(TextField), 'garbage');
     await tester.pump();
@@ -81,8 +81,8 @@ void main() {
   testWidgets(
       'group detection shows the ok badge and ENABLES Connect; tapping navigates to the group screen',
       (tester) async {
-    final gateway = ScriptableGateway();
-    await pumpPasteStep(tester, gateway);
+    final bridge = ScriptableBridge();
+    await pumpPasteStep(tester, bridge);
 
     // Valid group invite (mosh://group, 32-hex fingerprint).
     await tester.enterText(find.byType(TextField),
@@ -95,21 +95,21 @@ void main() {
     // group join is wired (slice-3 seam): Connect is ENABLED.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
-    // Tapping Connect calls the gateway's joinGroup (canned GroupSnapshot with
+    // Tapping Connect calls the bridge's joinGroup (canned GroupSnapshot with
     // groupId parsed from the invite URI's `group=` param) and navigates to
     // the group screen (1-в-1 with React setActive({type:"group", id})).
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
     expect(find.byType(GroupScreen), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsNothing);
-    expect(gateway.countOf(GatewayMethod.listGroups), 2);
+    expect(bridge.countOf(BridgeMethod.listGroups), 2);
   });
 
   testWidgets(
       'org detection shows the ok badge and ENABLES Connect; tapping navigates to the sessions list',
       (tester) async {
-    final gateway = ScriptableGateway();
-    await pumpPasteStep(tester, gateway);
+    final bridge = ScriptableBridge();
+    await pumpPasteStep(tester, bridge);
 
     // Valid org bundle: mosh://org + mesh= + name= + #org=<64 hex>.
     await tester.enterText(
@@ -123,7 +123,7 @@ void main() {
     // org join is wired (slice-3 seam): Connect is ENABLED.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
-    // Tapping Connect calls the gateway's joinOrg (canned OrgSnapshot). React's
+    // Tapping Connect calls the bridge's joinOrg (canned OrgSnapshot). React's
     // joinOrg does NOT navigate to a dedicated org screen -- it leaves setup
     // + refreshes the orgs list, landing the user back on the rail. Flutter
     // has no org screen, so the faithful action is AppRoutes.sessions.
@@ -131,15 +131,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SessionsScreen), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsNothing);
-    expect(gateway.countOf(GatewayMethod.listOrgs), 2);
+    expect(bridge.countOf(BridgeMethod.listOrgs), 2);
   });
 
   testWidgets('a failed group join does not refresh groups or navigate',
       (tester) async {
     const message = 'Group runtime offline';
-    final gateway = ScriptableGateway()
-      ..failAlways(GatewayMethod.joinGroup, error: message);
-    await pumpPasteStep(tester, gateway);
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.joinGroup, error: message);
+    await pumpPasteStep(tester, bridge);
 
     await tester.enterText(find.byType(TextField),
         'mosh://group?mesh=7x9v&group=drift-team#fp=91A4D2C877B091A4D2C877B091A4D2C8');
@@ -149,15 +149,15 @@ void main() {
 
     expect(find.text(message), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsOneWidget);
-    expect(gateway.countOf(GatewayMethod.listGroups), 0);
+    expect(bridge.countOf(BridgeMethod.listGroups), 0);
   });
 
   testWidgets('a failed org join does not refresh orgs or navigate',
       (tester) async {
     const message = 'Org runtime offline';
-    final gateway = ScriptableGateway()
-      ..failAlways(GatewayMethod.joinOrg, error: message);
-    await pumpPasteStep(tester, gateway);
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.joinOrg, error: message);
+    await pumpPasteStep(tester, bridge);
 
     await tester.enterText(
         find.byType(TextField),
@@ -169,13 +169,13 @@ void main() {
 
     expect(find.text(message), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsOneWidget);
-    expect(gateway.countOf(GatewayMethod.listOrgs), 0);
+    expect(bridge.countOf(BridgeMethod.listOrgs), 0);
   });
 
-  testWidgets('tapping Connect on a DM invite calls gateway.acceptInvite',
+  testWidgets('tapping Connect on a DM invite calls bridge.acceptInvite',
       (tester) async {
-    final gateway = ScriptableGateway();
-    await pumpPasteStep(tester, gateway);
+    final bridge = ScriptableBridge();
+    await pumpPasteStep(tester, bridge);
 
     await tester.enterText(find.byType(TextField),
         'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
@@ -183,15 +183,15 @@ void main() {
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
     expect(find.textContaining('Accepted session:'), findsOneWidget);
-    expect(gateway.countOf(GatewayMethod.listSessions), 2);
+    expect(bridge.countOf(BridgeMethod.listSessions), 2);
   });
 
   testWidgets('a failed DM accept does not initialize or refresh sessions',
       (tester) async {
     const message = 'DM runtime offline';
-    final gateway = ScriptableGateway()
-      ..failAlways(GatewayMethod.acceptInvite, error: message);
-    await pumpPasteStep(tester, gateway);
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.acceptInvite, error: message);
+    await pumpPasteStep(tester, bridge);
 
     await tester.enterText(find.byType(TextField),
         'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
@@ -201,11 +201,11 @@ void main() {
 
     expect(find.text(message), findsOneWidget);
     expect(find.textContaining('Accepted session:'), findsNothing);
-    expect(gateway.countOf(GatewayMethod.listSessions), 0);
+    expect(bridge.countOf(BridgeMethod.listSessions), 0);
   });
 
   testWidgets('Back returns to the onboarding menu', (tester) async {
-    await pumpPasteStep(tester, ScriptableGateway());
+    await pumpPasteStep(tester, ScriptableBridge());
 
     // The frame's Back affordance reads the localized "Back" label.
     expect(find.text('Back'), findsOneWidget);
@@ -220,7 +220,7 @@ void main() {
   testWidgets(
       'group detection badge stays ok and Connect stays enabled across edits',
       (tester) async {
-    await pumpPasteStep(tester, ScriptableGateway());
+    await pumpPasteStep(tester, ScriptableBridge());
 
     // Start empty (neutral), enter a group (ok badge, ENABLED Connect),
     // then garbage (bad badge, disabled Connect).

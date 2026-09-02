@@ -10,6 +10,7 @@ import 'package:flutter/services.dart' show MethodChannel;
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
 import '../../support/pump.dart';
+import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -108,10 +109,10 @@ void main() {
   testWidgets(
     'startVoiceCall routes through gateway.callStart',
     (tester) async {
-      final gateway = ScriptableGateway();
+      final bridge = ScriptableBridge();
       late WidgetRef ref;
       await tester.pumpWidget(ProviderScope(
-        overrides: [gatewayProvider.overrideWithValue(gateway)],
+        overrides: [bridgeFacadeProvider.overrideWithValue(bridge)],
         child: MaterialApp(
           home: Consumer(
             builder: (context, r, _) {
@@ -123,9 +124,8 @@ void main() {
       ));
       await tester.pump();
       await startVoiceCall(ref, 'sess-1');
-      expect(gateway.countOf(GatewayMethod.callStart), 1);
-      expect(
-          gateway.lastCall(GatewayMethod.callStart)?.arg<String>('sessionId'),
+      expect(bridge.countOf(BridgeMethod.callStart), 1);
+      expect(bridge.lastCall(BridgeMethod.callStart)?.arg<String>('sessionId'),
           'sess-1');
     },
   );
@@ -134,6 +134,7 @@ void main() {
     'VoiceCallLayer shows OutgoingCallModal when the snapshot has an outgoingCall',
     (tester) async {
       final gateway = ScriptableGateway();
+      final bridge = ScriptableBridge(conversations: gateway.conversations);
       gateway.seedSessions([_outgoingSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       // The layer opens the outgoing modal from a post-frame callback,
@@ -143,7 +144,10 @@ void main() {
           Scaffold(
             body: VoiceCallLayer(sessionId: 'sess-1', l: l),
           ),
-          overrides: [gatewayProvider.overrideWithValue(gateway)],
+          overrides: [
+            gatewayProvider.overrideWithValue(gateway),
+            bridgeFacadeProvider.overrideWithValue(bridge)
+          ],
           settle: false);
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.text('Alice'), findsOneWidget);
@@ -155,6 +159,7 @@ void main() {
     'toggling mute in the active-call overlay flips the orchestrator mute flag',
     (tester) async {
       final gateway = ScriptableGateway();
+      final bridge = ScriptableBridge(conversations: gateway.conversations);
       gateway.seedSessions([_activeSnapshot('sess-1')]);
       final l = await AppLocalizations.delegate.load(const Locale('en'));
       late WidgetRef ref;
@@ -174,7 +179,10 @@ void main() {
               ],
             ),
           ),
-          overrides: [gatewayProvider.overrideWithValue(gateway)],
+          overrides: [
+            gatewayProvider.overrideWithValue(gateway),
+            bridgeFacadeProvider.overrideWithValue(bridge)
+          ],
           settle: false);
       await tester.pump(const Duration(milliseconds: 50));
       // The overlay opens with the mic (unmuted) affordance.
@@ -197,6 +205,7 @@ void main() {
     'fires an OS notification for a new incoming call when notifications are ready',
     (tester) async {
       final gateway = ScriptableGateway();
+      final bridge = ScriptableBridge(conversations: gateway.conversations);
       gateway.seedSessions([_pendingSnapshot('sess-1', fromDevice: 'Alice')]);
       final notifications = _RecordingNotifications();
       final l = await AppLocalizations.delegate.load(const Locale('en'));
@@ -228,6 +237,7 @@ void main() {
           ),
           overrides: [
             gatewayProvider.overrideWithValue(gateway),
+            bridgeFacadeProvider.overrideWithValue(bridge),
             // Open the gate without running the real plugin init (which needs
             // a platform host absent under `flutter test`).
             notificationsReadyProvider

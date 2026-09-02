@@ -14,13 +14,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/call_overlay.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show voiceCallOrchestratorProvider;
 import '../../support/pump.dart';
-import '../../support/scriptable_gateway.dart';
+import '../../support/scriptable_bridge.dart';
 
 ActiveCall _active({required int startedAtMs}) => ActiveCall(
       callId: 'call-1',
@@ -54,7 +54,7 @@ Future<AppLocalizations> _l() =>
 /// active call so the overlay can read its (live) mute flag.
 ProviderContainer _containerFor(String sessionId) =>
     ProviderContainer(overrides: [
-      gatewayProvider.overrideWithValue(ScriptableGateway()),
+      bridgeFacadeProvider.overrideWithValue(ScriptableBridge()),
       activeSessionProvider(sessionId)
           .overrideWith((ref) => Future.value(_activeSession(sessionId))),
     ]);

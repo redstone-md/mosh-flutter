@@ -43,7 +43,7 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bypass_adapter.dart';
-import 'package:mosh/src/gateway/gateway.dart' show Gateway;
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
@@ -58,14 +58,14 @@ enum VpnConsentPhase { asking, saving }
 class VpnConsentModal extends StatefulWidget {
   const VpnConsentModal({
     super.key,
-    required this.gateway,
+    required this.bridge,
     required this.l,
     required this.onAccept,
   });
 
-  /// The gateway seam (getVpnBypassConsent/detectVpn/listInterfaces/
-  /// setVpnBypassConsent). Injected so tests can pass a fake.
-  final Gateway gateway;
+  /// The bridge facade (getVpnBypassConsent/detectVpn/listInterfaces/
+  /// setVpnBypassConsent). Injected so tests can pass a scripted double.
+  final BridgeFacade bridge;
 
   /// Localizations (vpnConsentTitle / vpnConsentBody / vpnConsentCaveat /
   /// vpnConsentDecline / vpnConsentAccept / vpnConsentAcceptSaving /
@@ -104,9 +104,9 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
     String? adapter = '';
     try {
       final results = await Future.wait([
-        widget.gateway.getVpnBypassConsent(),
-        widget.gateway.detectVpn(),
-        widget.gateway.listInterfaces(),
+        widget.bridge.getVpnBypassConsent(),
+        widget.bridge.detectVpn(),
+        widget.bridge.listInterfaces(),
       ]);
       final consent = results[0] as VpnBypassConsent?;
       final detection = results[1] as VpnDetection;
@@ -136,7 +136,7 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
       _error = null;
     });
     try {
-      await widget.gateway.setVpnBypassConsent(interfaceName: _adapter);
+      await widget.bridge.setVpnBypassConsent(interfaceName: _adapter);
       await widget.onAccept();
       // onAccept relaunches; if it returns (test), stay saving so the
       // dialog does not flicker back to asking.
@@ -154,7 +154,7 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
   Future<void> _decline() async {
     setState(() => _phase = VpnConsentPhase.saving);
     try {
-      await widget.gateway.setVpnBypassConsent(interfaceName: null);
+      await widget.bridge.setVpnBypassConsent(interfaceName: null);
     } catch (_) {
       // React warns on a failed decline clear; the modal still hides.
     }

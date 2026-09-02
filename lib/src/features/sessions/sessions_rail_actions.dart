@@ -13,7 +13,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
 import 'package:mosh/src/state/dm_offer_providers.dart' show PendingDmOffer;
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import 'package:mosh/src/state/gateway_provider.dart'
+    show bridgeFacadeProvider, gatewayProvider;
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ChannelTarget, ConversationKind, DmOfferHost, GroupTarget;
 import 'package:mosh/src/gateway/gateway.dart' show Gateway;
@@ -30,7 +31,7 @@ void openNewSessionAction(BuildContext context, WidgetRef ref) {
 }
 
 // Accept a pending DM offer, 1-в-1 with React `useDmOffers.acceptDmOffer`:
-// gateway.acceptInvite with the offer's inviteUri (the existing DM accept
+// bridge.acceptInvite with the offer's inviteUri (the existing DM accept
 // path -- top-level offers reuse acceptInvite, NOT org's acceptDmOffer),
 // then auto-dismiss the offer (React dismisses after accept so it leaves
 // the channel/group's offer list), then navigate to the new DM session.
@@ -44,8 +45,9 @@ Future<void> acceptOfferAction(
   final scaffold = ScaffoldMessenger.of(context);
   final flow = ref.read(inviteFlowProvider);
   final gateway = ref.read(gatewayProvider);
+  final bridge = ref.read(bridgeFacadeProvider);
   try {
-    final session = await gateway.acceptInvite(
+    final session = await bridge.acceptInvite(
       request: AcceptInviteRequest(
         inviteUri: pending.offer.inviteUri,
         displayName: flow.displayName.isEmpty ? 'anonymous' : flow.displayName,

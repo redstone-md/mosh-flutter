@@ -41,8 +41,8 @@ class PendingDmOffer {
   final ConversationKind kind;
 
   /// The channel name (kind == channel) or group groupId (kind == group).
-  /// Passed to [Gateway.dismissChannelDmOffer] / [Gateway.dismissGroupDmOffer]
-  /// as the name / groupId arg.
+  /// The dismiss goes through the Gateway's [Gateway.dismissDmOffer] with
+  /// this host as the target id.
   final String host;
 }
 

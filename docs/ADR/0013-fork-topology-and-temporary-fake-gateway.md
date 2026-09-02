@@ -161,6 +161,14 @@ flag" path recorded in Final Status above.
 
 ### Size exception
 
+> **Superseded by [ADR 0025](0025-the-gateway-is-the-conversation-seam.md)
+> (2026-09-02).** The Gateway narrowed to the eight conversation methods, and
+> both implementations named here dropped under the limits
+> (`scriptable_gateway.dart` 757 -> 192 lines; `real_bridge_gateway.dart`
+> 458 -> 138). The 1:1 mirrors left the interface for the concrete
+> `BridgeFacade`, whose size exception lives in ADR 0025. The text below is
+> the historical record of the exception as it stood.
+
 Two `Gateway` implementations exceed the AGENTS.md limits
 (`file_max_loc: 400`, `type_max_loc: 200`), and this section is the exception
 both need:

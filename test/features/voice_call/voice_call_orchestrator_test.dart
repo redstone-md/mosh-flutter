@@ -14,12 +14,13 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_frame_transport.dart';
+
+import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/features/voice_call/frame_codec.dart';
 import 'package:mosh/src/features/voice_call/frame_crypto.dart';
 import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_playback.dart';
-import '../../support/scriptable_gateway.dart';
 
 const String KEY_B64 =
     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; // 32 zero bytes
@@ -139,7 +140,7 @@ VoiceCallOrchestrator _orchestrator() => VoiceCallOrchestrator();
 void main() {
   group('voice_call_orchestrator', () {
     test('attach imports the call key and starts the poll', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       await orchestrator.attach(
@@ -156,7 +157,7 @@ void main() {
       );
       // 60ms > the 20ms poll interval, so at least one tick has fired.
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(gateway.countOf(GatewayMethod.callDrainFrames),
+      expect(gateway.countOf(BridgeMethod.callDrainFrames),
           greaterThanOrEqualTo(1));
       await orchestrator.detach();
     });
@@ -173,7 +174,7 @@ void main() {
     test('a captured frame while muted is not sent, and is sent when unmuted',
         () async {
       // Unmuted path.
-      final gateway1 = ScriptableGateway();
+      final gateway1 = ScriptableBridge();
       final transport1 = CallFrameTransport(gateway1);
       final capture1 = _FiringCaptureFactory([
         Uint8List.fromList([1, 2, 3])
@@ -192,13 +193,13 @@ void main() {
         endCall: (_, __, ___) async {},
       );
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(gateway1.countOf(GatewayMethod.callSendFrame), 1);
+      expect(gateway1.countOf(BridgeMethod.callSendFrame), 1);
       final key = await importCallKey(KEY_B64);
       final opened = await openFrame(
           key,
           PREFIX_B64,
           gateway1
-              .argValues<Uint8List>(GatewayMethod.callSendFrame, 'frame')
+              .argValues<Uint8List>(BridgeMethod.callSendFrame, 'frame')
               .single);
       expect(opened, isNotNull);
       expect(opened!.seq & SEQ_VALUE_MASK, BigInt.zero);
@@ -206,7 +207,7 @@ void main() {
       await orchestrator1.detach();
 
       // Muted path: toggleMute before the 30ms frame fires.
-      final gateway2 = ScriptableGateway();
+      final gateway2 = ScriptableBridge();
       final transport2 = CallFrameTransport(gateway2);
       final capture2 = _FiringCaptureFactory([
         Uint8List.fromList([1, 2, 3])
@@ -226,15 +227,14 @@ void main() {
       );
       orchestrator2.toggleMute();
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(
-          gateway2.argValues<Uint8List>(GatewayMethod.callSendFrame, 'frame'),
+      expect(gateway2.argValues<Uint8List>(BridgeMethod.callSendFrame, 'frame'),
           isEmpty);
       await orchestrator2.detach();
     });
 
     test('seq increments per frame and the direction bit is applied', () async {
       for (final direction in ['caller', 'callee']) {
-        final gateway = ScriptableGateway();
+        final gateway = ScriptableBridge();
         final transport = CallFrameTransport(gateway);
         final capture = _FiringCaptureFactory([
           Uint8List.fromList([10]),
@@ -256,14 +256,14 @@ void main() {
         );
         // 3 frames at 30ms cadence -> ~90ms+, plus a margin.
         await Future<void>.delayed(const Duration(milliseconds: 200));
-        expect(gateway.countOf(GatewayMethod.callSendFrame), 3);
+        expect(gateway.countOf(BridgeMethod.callSendFrame), 3);
         await orchestrator.detach();
 
         final key = await importCallKey(KEY_B64);
         final seqs = <BigInt>[];
         final highBits = <BigInt>[];
         for (final frame in gateway.argValues<Uint8List>(
-            GatewayMethod.callSendFrame, 'frame')) {
+            BridgeMethod.callSendFrame, 'frame')) {
           final opened = await openFrame(key, PREFIX_B64, frame);
           expect(opened, isNotNull);
           seqs.add(opened!.seq & SEQ_VALUE_MASK);
@@ -276,7 +276,7 @@ void main() {
     });
 
     test('drained frames surface reordered to playback', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final transport = CallFrameTransport(gateway);
       final playbackFactory = _RecordingPlaybackFactory();
       final key = await importCallKey(KEY_B64);
@@ -318,7 +318,7 @@ void main() {
 
     test('the draining guard drops a tick while a drain is in flight',
         () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       await orchestrator.attach(
@@ -335,19 +335,19 @@ void main() {
       );
       // Seed a stall: the first drain grabs the completer and does not
       // resolve, so subsequent 20ms ticks must early-return (draining guard).
-      gateway.hold(GatewayMethod.callDrainFrames);
+      gateway.hold(BridgeMethod.callDrainFrames);
       await Future<void>.delayed(const Duration(milliseconds: 70));
-      expect(gateway.countOf(GatewayMethod.callDrainFrames), 1);
+      expect(gateway.countOf(BridgeMethod.callDrainFrames), 1);
       // Complete the in-flight drain -> draining flips false -> next tick
       // fires another drain.
-      gateway.release(GatewayMethod.callDrainFrames);
+      gateway.release(BridgeMethod.callDrainFrames);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(gateway.countOf(GatewayMethod.callDrainFrames), greaterThan(1));
+      expect(gateway.countOf(BridgeMethod.callDrainFrames), greaterThan(1));
       await orchestrator.detach();
     });
 
     test('detach cancels the poll and stops capture/playback', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final transport = CallFrameTransport(gateway);
       final captureFactory = _RecordingCaptureFactory();
       final playbackFactory = _RecordingPlaybackFactory();
@@ -365,17 +365,17 @@ void main() {
         endCall: (_, __, ___) async {},
       );
       await Future<void>.delayed(const Duration(milliseconds: 30));
-      final before = gateway.countOf(GatewayMethod.callDrainFrames);
+      final before = gateway.countOf(BridgeMethod.callDrainFrames);
       expect(before, greaterThanOrEqualTo(1));
       await orchestrator.detach();
       expect(captureFactory.handle.stopped, isTrue);
       expect(playbackFactory.handle!.stopped, isTrue);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(gateway.countOf(GatewayMethod.callDrainFrames), before);
+      expect(gateway.countOf(BridgeMethod.callDrainFrames), before);
     });
 
     test('a capture onFrame firing after detach is a no-op', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final transport = CallFrameTransport(gateway);
       final capture = _FiringCaptureFactory([
         Uint8List.fromList([1, 2, 3])
@@ -397,12 +397,12 @@ void main() {
       // _cancelled is true so onFrame is a no-op.
       await orchestrator.detach();
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(gateway.argValues<Uint8List>(GatewayMethod.callSendFrame, 'frame'),
+      expect(gateway.argValues<Uint8List>(BridgeMethod.callSendFrame, 'frame'),
           isEmpty);
     });
 
     test('setup failure calls onError + endCall(setup_failed)', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       String? errorMessage;

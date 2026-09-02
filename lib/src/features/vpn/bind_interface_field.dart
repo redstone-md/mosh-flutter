@@ -39,20 +39,20 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bypass_adapter.dart';
-import 'package:mosh/src/gateway/gateway.dart' show Gateway;
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 
 /// The bind-interface field -- 1-в-1 with React's `BindInterfaceField`.
 class BindInterfaceField extends StatefulWidget {
   const BindInterfaceField({
     super.key,
-    required this.gateway,
+    required this.bridge,
     required this.l,
     required this.onAccept,
   });
 
-  /// The gateway seam (listInterfaces/getBindInterface/setVpnBypassConsent).
-  final Gateway gateway;
+  /// The bridge facade (listInterfaces/getBindInterface/setVpnBypassConsent).
+  final BridgeFacade bridge;
 
   /// Localizations (bindAdapter*).
   final AppLocalizations l;
@@ -84,8 +84,8 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
   Future<void> _refresh() async {
     try {
       final results = await Future.wait([
-        widget.gateway.listInterfaces(),
-        widget.gateway.getBindInterface(),
+        widget.bridge.listInterfaces(),
+        widget.bridge.getBindInterface(),
       ]);
       final list = results[0] as List<NetworkInterfaceInfo>;
       final bind = results[1] as String?;
@@ -115,7 +115,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
       _error = null;
     });
     try {
-      await widget.gateway.setVpnBypassConsent(interfaceName: value);
+      await widget.bridge.setVpnBypassConsent(interfaceName: value);
       await widget.onAccept();
       // onAccept relaunches; if it returns (test), refresh the local state
       // so the field reflects the new bind without a real restart.

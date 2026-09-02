@@ -237,7 +237,7 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
               // Writes the same stored VPN-bypass answer the
               // startup question does + relaunches via onAccept
               BindInterfaceField(
-                gateway: ref.read(gatewayProvider),
+                bridge: ref.read(bridgeFacadeProvider),
                 l: l,
                 onAccept: DesktopAppRelauncherScope.of(context).relaunch,
               ),

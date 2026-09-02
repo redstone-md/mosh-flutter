@@ -14,7 +14,8 @@
 // What they prove, per conversation kind, through RealBridgeGateway and the
 // shared `api::conversation` functions (ADR 0024): the one
 // ConversationTarget -> BridgeConversationRef conversion dispatches each of
-// the six actions to the RIGHT runtime. A wrong kind mapping would write the
+// the six actions to the RIGHT runtime. Setup (invite, joins) reads the
+// BridgeFacade, the 1:1 mirror surface those calls live on since ADR 0025. A wrong kind mapping would write the
 // message into a different runtime's store, and the poll below would miss
 // it. Failures surface as typed ConversationBridgeErrors, never bare
 // strings.
@@ -29,6 +30,7 @@
 import 'dart:io' show File;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/real_bridge_gateway.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
@@ -82,7 +84,8 @@ void main() {
     'dm: send lands in the DM runtime; a missing id answers typed',
     () async {
       final gateway = RealBridgeGateway();
-      final invite = await gateway.createInvite(
+      final bridge = BridgeFacade();
+      final invite = await bridge.createInvite(
         request: const StartSessionRequest(
           displayName: 'dispatch-proof',
           listenPort: 0,
@@ -110,10 +113,11 @@ void main() {
     'channel: send lands in the channel runtime',
     () async {
       final gateway = RealBridgeGateway();
+      final bridge = BridgeFacade();
       // Joined solo, so no peer is needed to record the send.
       final name = 'dispatch-${DateTime.now().millisecondsSinceEpoch}';
       final channel = ChannelTarget(name);
-      await gateway.joinChannel(
+      await bridge.joinChannel(
         request: JoinChannelRequest(
           name: name,
           displayName: name,
@@ -136,7 +140,8 @@ void main() {
     'group: send lands in the group runtime; after leave the lookup misses',
     () async {
       final gateway = RealBridgeGateway();
-      final created = await gateway.createGroup(
+      final bridge = BridgeFacade();
+      final created = await bridge.createGroup(
         request: const CreateGroupRequest(
           displayName: 'dispatch-proof-group',
           listenPort: 0,

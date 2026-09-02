@@ -129,7 +129,7 @@ final GoRouter appRouter = GoRouter(
       // Channel-join step (1-в-1 with React's ChannelJoinStep). Reached from
       // the onboarding Channel tile via context.go(AppRoutes.channelJoin);
       // the step's Back button returns to AppRoutes.onboarding. The Join
-      // button is a NO-OP STUB (Gateway joinChannel seam is a later slice).
+      // button is a NO-OP STUB (the bridge joinChannel seam is a later slice).
       path: AppRoutes.channelJoin,
       builder: (BuildContext context, GoRouterState state) =>
           const ChannelJoinScreen(),
@@ -138,7 +138,7 @@ final GoRouter appRouter = GoRouter(
       // Group-create step (1-в-1 with React's GroupCreateStep). Reached from
       // the onboarding Group tile via context.go(AppRoutes.groupCreate);
       // the step's Back button returns to AppRoutes.onboarding. The Create
-      // button is a NO-OP STUB (Gateway createGroup seam is a later slice).
+      // button is a NO-OP STUB (the bridge createGroup seam is a later slice).
       path: AppRoutes.groupCreate,
       builder: (BuildContext context, GoRouterState state) =>
           const GroupCreateScreen(),

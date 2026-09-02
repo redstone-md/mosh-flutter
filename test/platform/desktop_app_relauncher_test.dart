@@ -7,11 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
 import '../support/pump.dart';
-import '../support/scriptable_gateway.dart';
+import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/rust/api/vpn.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 
 void main() {
   group('DesktopAppRelauncher', () {
@@ -100,7 +100,7 @@ void main() {
   group('production relaunch wiring', () {
     testWidgets('VPN consent overlay invokes the scoped relauncher',
         (tester) async {
-      final gateway = ScriptableGateway()
+      final bridge = ScriptableBridge()
         ..seedVpnDetection(_ownsDefault())
         ..seedInterfaces([_iface(name: 'eth0', ipv4: '192.168.1.5')]);
       final relauncher = _RecordingRelauncher();
@@ -110,7 +110,7 @@ void main() {
           DesktopAppRelauncherScope(
               relauncher: relauncher.value,
               child: VpnConsentOverlay(child: const SizedBox())),
-          overrides: [gatewayProvider.overrideWithValue(gateway)]);
+          overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
 
       await tester.tap(find.text('Route around the VPN'));
       await tester.pumpAndSettle();
@@ -121,7 +121,7 @@ void main() {
     testWidgets(
         'OnboardMenu passes the scoped relauncher to BindInterfaceField',
         (tester) async {
-      final gateway = ScriptableGateway()
+      final bridge = ScriptableBridge()
         ..seedInterfaces([_iface(name: 'eth0', ipv4: '192.168.1.5')]);
       final relauncher = _RecordingRelauncher();
 
@@ -139,7 +139,7 @@ void main() {
                   ),
                 ),
               )),
-          overrides: [gatewayProvider.overrideWithValue(gateway)]);
+          overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
 
       final advanced = find.text('Advanced connection settings');
       await tester.ensureVisible(advanced);

@@ -5,9 +5,10 @@
 // (`conversation_providers.dart`).
 //
 // Per ADR 0010: server/async state lives in AsyncNotifierProvider / FutureProvider
-// (the TanStack-Query analogue — loading/data/error via AsyncValue<T>). All
-// providers consume the `gatewayProvider` seam (ADR 0013), never a concrete
-// Gateway, so S5 swaps fake->real by editing gatewayProvider only. Ephemeral
+// (the TanStack-Query analogue — loading/data/error via AsyncValue<T>). The
+// diagnostics reads and the invite mint are 1:1 bridge mirrors, so they go
+// through `bridgeFacadeProvider` (ADR 0025); the conversation seam (the DM
+// poll below) goes through `gatewayProvider` (ADR 0013). Ephemeral
 // cross-screen UI state (the invite-create flow) lives in a sync Notifier here
 // because it spans onboarding + invite-paste screens.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,17 +26,18 @@ final diagnosticsProvider =
 
 class DiagnosticsNotifier extends AsyncNotifier<AppDiagnostics> {
   @override
-  Future<AppDiagnostics> build() => ref.watch(gatewayProvider).appDiagnostics();
+  Future<AppDiagnostics> build() =>
+      ref.watch(bridgeFacadeProvider).appDiagnostics();
 }
 
 /// Server state: native runtime readiness (diagnostics screen, S4.8).
-/// Routed through the `gatewayProvider` seam (ADR 0013) so the screen renders
-/// real field values under both the test gateway and `RealBridgeGateway`
-/// (S5). The five `NativeRuntimeStatus` sub-structs are non-opaque across
-/// flutter_rust_bridge, so both gateways return constructible, field-readable
-/// values (no `<opaque>` fallback).
+/// Routed through the `bridgeFacadeProvider` seam (ADR 0025) so the screen
+/// renders real field values under both the test bridge and the real facade.
+/// The five `NativeRuntimeStatus` sub-structs are non-opaque across
+/// flutter_rust_bridge, so both return constructible, field-readable values
+/// (no `<opaque>` fallback).
 final nativeRuntimeStatusProvider = FutureProvider<NativeRuntimeStatus>(
-    (ref) => ref.watch(gatewayProvider).nativeRuntimeStatus());
+    (ref) => ref.watch(bridgeFacadeProvider).nativeRuntimeStatus());
 
 /// Ephemeral cross-screen UI state for the invite-create flow (onboarding sets
 /// displayName; invite-paste reads it). ADR 0010 allows widget-local state,
@@ -90,10 +92,11 @@ class InviteFlowNotifier extends Notifier<InviteFlowState> {
     );
   }
 
-  /// Calls gateway.createInvite, stores the result, and returns it so the
-  /// caller can navigate to the invite-paste screen with the URI in hand.
+  /// Calls bridgeFacadeProvider.createInvite, stores the result, and returns
+  /// it so the caller can navigate to the invite-paste screen with the URI
+  /// in hand.
   Future<InviteCreated> create() async {
-    final invite = await ref.read(gatewayProvider).createInvite(
+    final invite = await ref.read(bridgeFacadeProvider).createInvite(
           request: StartSessionRequest(
             displayName: state.displayName,
             listenPort: state.listenPort,

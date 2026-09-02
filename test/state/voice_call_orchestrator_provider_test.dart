@@ -1,7 +1,7 @@
 // Step-5 tests for the voice-call orchestrator provider -- the Riverpod
 // mirror of React use-voice-call-orchestration's useEffect dep array. Each
 // test wires a ProviderContainer that overrides activeSessionProvider with
-// a mutable controller, gatewayProvider with a recording Gateway, and the
+// a mutable controller, bridgeFacadeProvider with a scripted bridge, and the
 // capture/playback factories + error sink with recording fakes. The
 // orchestrator's attach is fire-and-forget (async); a listen(...) keeps the
 // provider alive so it rebuilds when the watched async provider resolves,
@@ -17,9 +17,9 @@ import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/incoming_call_modal.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_playback.dart';
-import '../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/state/gateway_provider.dart' show gatewayProvider;
+import '../support/scriptable_bridge.dart';
+import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart'
     show activeSessionProvider;
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
@@ -126,18 +126,18 @@ class _RecordingPlaybackFactory implements VoicePlaybackFactory {
 }
 
 /// Builds a ProviderContainer with the orchestrator's full override set.
-/// The session controller seeds activeSessionProvider; the recording
-/// gateway + factories are injected for assertions.
+/// The session controller seeds activeSessionProvider; the scripted
+/// bridge + factories are injected for assertions.
 ProviderContainer _container({
   required _SessionController controller,
-  required ScriptableGateway gateway,
+  required ScriptableBridge gateway,
   VoiceCaptureFactory? captureFactory,
   VoicePlaybackFactory? playbackFactory,
 }) {
   return ProviderContainer(overrides: [
     activeSessionProvider('sess-1')
         .overrideWith((ref) => Future.value(controller.snapshot)),
-    gatewayProvider.overrideWithValue(gateway),
+    bridgeFacadeProvider.overrideWithValue(gateway),
     voiceCaptureFactoryProvider
         .overrideWithValue(captureFactory ?? const NoopVoiceCaptureFactory()),
     voicePlaybackFactoryProvider
@@ -154,7 +154,7 @@ ProviderSubscription _subscribe(ProviderContainer c) =>
 void main() {
   group('voice_call_orchestrator_provider', () {
     test('no ActiveCall -> no orchestrator, muted false', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final controller = _SessionController(_session('sess-1'));
       final container = _container(controller: controller, gateway: gateway);
       addTearDown(container.dispose);
@@ -169,7 +169,7 @@ void main() {
 
     test('an ActiveCall appears -> attach runs (capture/playback start)',
         () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
@@ -191,7 +191,7 @@ void main() {
     });
 
     test('toggling mute updates state and the orchestrator flag', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final container = _container(controller: controller, gateway: gateway);
@@ -215,7 +215,7 @@ void main() {
 
     test('a new ActiveCall (different callId) re-attaches (old detached)',
         () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
@@ -247,7 +247,7 @@ void main() {
 
     test('ActiveCall disappears -> orchestrator detached (handle stopped)',
         () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
@@ -275,7 +275,7 @@ void main() {
 
     test('setup failure surfaces an audioSetup error + tears the call down',
         () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _FailingCaptureFactory('boom');
@@ -298,12 +298,12 @@ void main() {
       final st = container.read(voiceCallOrchestratorProvider('sess-1'));
       expect(st.error, isNotNull);
       expect(st.error!.source, CallErrorSource.audioSetup);
-      expect(gateway.countOf(GatewayMethod.callEnd), 1);
-      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('sessionId'),
+      expect(gateway.countOf(BridgeMethod.callEnd), 1);
+      expect(gateway.lastCall(BridgeMethod.callEnd)?.arg<String>('sessionId'),
           'sess-1');
       expect(
-          gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('callId'), 'a');
-      expect(gateway.lastCall(GatewayMethod.callEnd)?.arg<String>('reason'),
+          gateway.lastCall(BridgeMethod.callEnd)?.arg<String>('callId'), 'a');
+      expect(gateway.lastCall(BridgeMethod.callEnd)?.arg<String>('reason'),
           'setup_failed');
     });
 
@@ -316,7 +316,7 @@ void main() {
       ));
       final pendingContainer = _container(
         controller: pendingController,
-        gateway: ScriptableGateway(),
+        gateway: ScriptableBridge(),
       );
       addTearDown(pendingContainer.dispose);
       final pendingSub = pendingContainer.listen(
@@ -337,7 +337,7 @@ void main() {
       ));
       final outgoingContainer = _container(
         controller: outgoingController,
-        gateway: ScriptableGateway(),
+        gateway: ScriptableBridge(),
       );
       addTearDown(outgoingContainer.dispose);
       final outgoingSub = outgoingContainer.listen(
@@ -357,7 +357,7 @@ void main() {
           _SessionController(_session('sess-1', activeCall: _activeCall('a1')));
       final activeContainer = _container(
         controller: activeController,
-        gateway: ScriptableGateway(),
+        gateway: ScriptableBridge(),
       );
       addTearDown(activeContainer.dispose);
       final activeSub = activeContainer.listen(
@@ -374,7 +374,7 @@ void main() {
       final noneController = _SessionController(_session('sess-1'));
       final noneContainer = _container(
         controller: noneController,
-        gateway: ScriptableGateway(),
+        gateway: ScriptableBridge(),
       );
       addTearDown(noneContainer.dispose);
       final noneSub = noneContainer.listen(
@@ -389,7 +389,7 @@ void main() {
     });
 
     test('clearError clears the surfaced error and is idempotent', () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _FailingCaptureFactory('boom');
@@ -433,7 +433,7 @@ void main() {
 
     test('endCall for the same call twice is a single gateway.callEnd',
         () async {
-      final gateway = ScriptableGateway();
+      final gateway = ScriptableBridge();
       final controller =
           _SessionController(_session('sess-1', activeCall: _activeCall('a')));
       final capture = _RecordingCaptureFactory();
@@ -456,7 +456,7 @@ void main() {
       await notifier.endCall('a', kCallDeclineReasonHangup);
       await notifier.endCall('a', kCallDeclineReasonHangup);
 
-      expect(gateway.countOf(GatewayMethod.callEnd), 1);
+      expect(gateway.countOf(BridgeMethod.callEnd), 1);
     });
 
     test(

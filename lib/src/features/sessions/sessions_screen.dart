@@ -14,7 +14,7 @@
 // Unread counts come from `unreadLifecycleProvider`, which merges the
 // per-kind counts into ONE diffed map keyed by [ConversationRef.key].
 // Orgs render after the channels; `org_actions.dart` backs the 7 callbacks,
-// each reduced to its own Gateway call and its own destination -- the busy
+// each reduced to its own bridge-facade call and its own destination -- the busy
 // flag, the refresh, the error toast and the navigation belong to the one
 // envelope they all run in. `busy` mirrors React's
 // `org.busy = offerBusy || setupBusy` via `orgOperationBusProvider`
