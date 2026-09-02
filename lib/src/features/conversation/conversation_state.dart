@@ -2,7 +2,7 @@
 /// controller hands back to the screen.
 library;
 
-import 'package:mosh/src/features/conversation/conversation_action_error.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor;
 

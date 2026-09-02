@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show AcceptInviteRequest;
@@ -43,6 +45,7 @@ Future<void> acceptOfferAction(
   PendingDmOffer pending,
 ) async {
   final scaffold = ScaffoldMessenger.of(context);
+  final l = AppLocalizations.of(context)!;
   final flow = ref.read(inviteFlowProvider);
   final gateway = ref.read(gatewayProvider);
   final bridge = ref.read(bridgeFacadeProvider);
@@ -67,7 +70,9 @@ Future<void> acceptOfferAction(
     if (!context.mounted) return;
     context.go(AppRoutes.dmFor(session.sessionId));
   } catch (e) {
-    scaffold.showSnackBar(SnackBar(content: Text(e.toString())));
+    scaffold.showSnackBar(
+      SnackBar(content: Text(ConversationActionError.of(e).describe(l))),
+    );
   }
 }
 

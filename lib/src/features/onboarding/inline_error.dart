@@ -6,17 +6,16 @@
 // React's parent (private-dm-screen) wraps the create/join handlers in
 // try/catch and feeds the caught error down as a prop; the error stays
 // until the next attempt. Each onboarding step screen mirrors that by
-// capturing `error.toString()` into a widget-local `String? _error`,
-// clearing it at the START of the next attempt, and rendering it via this
-// widget BELOW the primary button. This is one source of truth -- the
-// transient SnackBar the screens used before auto-dismissed and was not
-// announced to assistive tech (no role="alert" equivalent).
+// keeping the caught error as a widget-local `ConversationActionError?`,
+// clearing it at the START of the next attempt, and rendering its
+// `describe(l)` via this widget BELOW the primary button. This is one
+// source of truth -- the transient SnackBar the screens used before
+// auto-dismissed and was not announced to assistive tech (no role="alert"
+// equivalent).
 //
 // `Semantics(liveRegion: true, container: true)` is the Flutter equivalent
 // of `role="alert"` (a polite live region): the same pattern invite_paste's
 // `_DetectBadge` and diagnostics `RuntimeError` already use in this repo.
-// No new ARB strings -- React stringifies the raw error (`{props.error}`);
-// this widget renders the same string verbatim.
 library;
 
 import 'package:flutter/material.dart';

@@ -1,9 +1,12 @@
-/// What the error banner shows after a shared conversation action fails.
+/// What a screen shows after a bridge action fails: the one classifier for a
+/// caught [ConversationBridgeError], wherever it is caught -- the
+/// conversation banner, the onboarding steps, the invite paste, the org
+/// toast, the DM call button.
 ///
 /// A [ConversationBridgeError] from the seam is kept as its `kind`, and the
 /// screen picks the wording from that kind alone: the runtime's `message` is
 /// diagnostic text the UI never parses. Anything else that reaches the
-/// banner -- the call module's own sentences, a non-bridge exception -- is
+/// screen -- the call module's own sentences, a non-bridge exception -- is
 /// carried as ready-made text.
 library;
 

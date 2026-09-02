@@ -15,7 +15,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/src/features/conversation/conversation_action_error.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart'
     show ConversationAttachmentCallbacks;
 import 'package:mosh/src/features/conversation/conversation_state.dart';
