@@ -1,7 +1,6 @@
 /// What a screen shows after a bridge action fails: the one classifier for a
-/// caught [ConversationBridgeError], wherever it is caught -- the
-/// conversation banner, the onboarding steps, the invite paste, the org
-/// toast, the DM call button.
+/// caught [ConversationBridgeError], wherever it is caught. The callers are
+/// listed once, in `docs/Architecture.md`.
 ///
 /// A [ConversationBridgeError] from the seam is kept as its `kind`, and the
 /// screen picks the wording from that kind alone: the runtime's `message` is
@@ -33,8 +32,8 @@ class ConversationActionError {
   /// where the kind has nothing better to say.
   final String message;
 
-  /// The banner text. Exhaustive over the bridge taxonomy, so a new kind is
-  /// a compile error here rather than a silent fallback.
+  /// The sentence the screen shows. Exhaustive over the bridge taxonomy, so a
+  /// new kind is a compile error here rather than a silent fallback.
   String describe(AppLocalizations l) => switch (kind) {
         null => message,
         ConversationBridgeErrorKind.invalidInput =>

@@ -593,7 +593,7 @@
    "description": "Screen-reader label for the Retry button in the FailedMessageRetry row (React button aria-label='Retry failed message')"
  },
  "chatErrorRetry": "Повторить",
-  "chatActionErrorInvalidInput": "Не удалось отправить: {detail}",
+  "chatActionErrorInvalidInput": "Не принято: {detail}",
   "chatActionErrorUnavailable": "Сеть сейчас недоступна. Попробуйте ещё раз через минуту.",
   "chatActionErrorNotReady": "Этот разговор ещё настраивается. Попробуйте ещё раз через минуту.",
   "chatActionErrorMissingConversation": "Вы больше не участвуете в этом разговоре.",

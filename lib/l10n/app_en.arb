@@ -1063,9 +1063,9 @@
  "@chatErrorRetry": {
    "description": "Retry button label on the ChatError inline banner shown at the top of the chat-pane when a text send fails (React ChatError inline 'Retry' button text, private-dm-screen.tsx L519)"
  },
-  "chatActionErrorInvalidInput": "That could not be sent: {detail}",
+  "chatActionErrorInvalidInput": "That was not accepted: {detail}",
   "@chatActionErrorInvalidInput": {
-    "description": "Chat error banner when a conversation action fails with ConversationBridgeErrorKind.invalidInput; {detail} is the runtime's diagnostic sentence",
+    "description": "Shown wherever a bridge action fails with ConversationBridgeErrorKind.invalidInput (chat banner, onboarding steps, invite paste, org toast, call snack bar); {detail} is the runtime's diagnostic sentence, kept because the user has to fix the input",
     "placeholders": {"detail": {"type": "String"}}
   },
   "chatActionErrorUnavailable": "The network is unavailable right now. Try again in a moment.",
