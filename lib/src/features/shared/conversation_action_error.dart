@@ -9,6 +9,8 @@
 /// carried as ready-made text.
 library;
 
+import 'package:flutter/material.dart';
+
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import 'package:mosh/src/util/format.dart' show readableError;
@@ -53,4 +55,13 @@ class ConversationActionError {
         ConversationBridgeErrorKind.internal =>
           l.chatActionErrorInternal(message),
       };
+}
+
+/// Toasts a failed action on a screen that has no error banner of its own.
+/// [context] must be mounted; the caller checks after its await.
+void showActionErrorSnackBar(BuildContext context, Object error) {
+  final l = AppLocalizations.of(context)!;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(ConversationActionError.of(error).describe(l))),
+  );
 }

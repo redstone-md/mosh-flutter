@@ -59,6 +59,11 @@ class InviteFlowState {
   final String? staticPeer;
   final InviteCreated? lastInvite;
 
+  /// What we call ourselves on the wire when onboarding never set a name.
+  /// A peer identity, not UI text, so it is not localized.
+  String get senderDisplayName =>
+      displayName.isEmpty ? 'anonymous' : displayName;
+
   InviteFlowState copyWith({
     String? displayName,
     int? listenPort,

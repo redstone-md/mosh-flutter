@@ -144,10 +144,9 @@ void main() {
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
 
-    // The inline error renders the raw error string verbatim (React
-    // `{props.error}` stringifies the caught error) and is the ONE source
-    // of feedback -- no transient SnackBar (the old SnackBar path is gone),
-    // and we did NOT navigate to the channel screen.
+    // A non-bridge error renders as its own text (the classifier's text
+    // arm) and the inline error is the ONE source of feedback -- no
+    // transient SnackBar, and we did NOT navigate to the channel screen.
     expect(find.text(message), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
     expect(find.byType(ChannelScreen), findsNothing);

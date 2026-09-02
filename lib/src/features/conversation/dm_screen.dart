@@ -11,7 +11,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
     show conversationCallBindingProvider;
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
@@ -55,10 +54,7 @@ class _DmScreenState extends ConsumerState<DmScreen> {
     if (call == null) return;
     final error = await call.start(ref, widget.sessionId);
     if (!mounted || error == null) return;
-    final l = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ConversationActionError.of(error).describe(l))),
-    );
+    showActionErrorSnackBar(context, error);
   }
 
   void _confirmFingerprint() => setState(

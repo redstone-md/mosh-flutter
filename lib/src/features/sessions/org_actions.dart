@@ -16,15 +16,13 @@
 //
 // The invite settings (displayName/listenPort/staticPeer) come from
 // inviteFlowProvider, the same settings source onboarding uses (ADR 0010
-// DRY), and reach an action as an [_OrgInvite] so this file writes the
-// default display name once.
+// DRY), and reach an action as an [_OrgInvite].
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot, OrgMemberView;
@@ -34,9 +32,6 @@ import 'package:mosh/src/state/org_providers.dart'
 import 'package:mosh/src/state/conversation_providers.dart'
     show refreshConversationLists;
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
-
-/// What we call ourselves when onboarding never set a display name.
-const String _kAnonymousDisplayName = 'anonymous';
 
 /// The settings an org action mints an invite with.
 typedef _OrgInvite = ({String displayName, int listenPort, String? staticPeer});
@@ -85,10 +80,7 @@ Future<void> _runOrgAction(
     if (route != null) context.go(route);
   } catch (e) {
     if (!context.mounted) return;
-    final l = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ConversationActionError.of(e).describe(l))),
-    );
+    showActionErrorSnackBar(context, e);
   } finally {
     ref.read(orgOperationBusProvider.notifier).finish(orgPubkey);
   }
@@ -246,8 +238,7 @@ List<String> _invitees(OrgSnapshot org) => org.members
 _OrgInvite _inviteOf(WidgetRef ref) {
   final flow = ref.read(inviteFlowProvider);
   return (
-    displayName:
-        flow.displayName.isEmpty ? _kAnonymousDisplayName : flow.displayName,
+    displayName: flow.senderDisplayName,
     listenPort: flow.listenPort,
     staticPeer: flow.staticPeer,
   );

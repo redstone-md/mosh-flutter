@@ -11,8 +11,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/voice_call/incoming_call_modal.dart'
+    show kCallDeclineReasonHangup;
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart'
+    show ConversationBridgeError, ConversationBridgeErrorKind;
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -170,5 +174,43 @@ void main() {
       isNull,
     );
     expect(errors, hasLength(1));
+  });
+
+  testWidgets("a failed call control is worded by the bridge error's kind",
+      (tester) async {
+    const sessionId = 'sess-c';
+    const error = ConversationBridgeError(
+      kind: ConversationBridgeErrorKind.unavailable,
+      message: 'dm runtime unavailable: node down',
+    );
+    final capture = _DelayedCaptureFactory();
+    final bridge = ScriptableBridge()
+      ..failAlways(BridgeMethod.callEnd, error: error);
+    final container = ProviderContainer(overrides: [
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      activeSessionProvider(sessionId)
+          .overrideWith((ref) => Future.value(_activeSnapshot(sessionId))),
+      voiceCaptureFactoryProvider.overrideWithValue(capture),
+    ]);
+    addTearDown(container.dispose);
+
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    await _pumpLayer(
+      tester,
+      container: container,
+      sessionId: sessionId,
+      l: l,
+      onError: (_) => fail('a call-control failure is a snack bar'),
+    );
+
+    await container
+        .read(voiceCallOrchestratorProvider(sessionId).notifier)
+        .endCall('call-$sessionId', kCallDeclineReasonHangup);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+
+    expect(find.text(l.chatActionErrorUnavailable), findsOneWidget);
+    expect(find.textContaining(error.message), findsNothing);
   });
 }
