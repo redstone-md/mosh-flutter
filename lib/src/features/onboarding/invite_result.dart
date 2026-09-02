@@ -2,7 +2,9 @@
 // (src/features/private-dm/NewSessionPanel.parts.tsx): a "ready" note row
 // (check icon + note), the invite URI in a monospace `code` block (so the
 // user can select + copy manually too -- matching React's `<code>`), and a
-// Copy button whose label + icon flip with the [copied] flag.
+// Copy button whose label + icon flip with the [copied] flag. On top of
+// React: an Open button that lands in the conversation just created, so
+// sharing the link and entering the chat do not need a detour via the rail.
 //
 // Extracted as its own widget so the chat-create step AND the future
 // group-create step render the invite the same way (DRY: one result card).
@@ -32,6 +34,8 @@ class InviteResult extends StatelessWidget {
     required this.uri,
     required this.copied,
     required this.onCopy,
+    required this.openLabel,
+    required this.onOpen,
   });
 
   /// Localized "ready" note (1-в-1 with React's `note` prop).
@@ -45,6 +49,12 @@ class InviteResult extends StatelessWidget {
 
   /// Copy callback (1-в-1 with React's `onCopy`).
   final VoidCallback onCopy;
+
+  /// Localized label of the Open button ("Open chat" / "Open group").
+  final String openLabel;
+
+  /// Opens the conversation this invite created.
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +118,15 @@ class InviteResult extends StatelessWidget {
             icon: Icon(copied ? Icons.check : Icons.copy, size: 16),
             label: Text(copied ? l.onboardCopied : l.onboardCopyLink),
             style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+            ),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(
+            onPressed: onOpen,
+            icon: const Icon(Icons.arrow_forward, size: 16),
+            label: Text(openLabel),
+            style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(44),
             ),
           ),

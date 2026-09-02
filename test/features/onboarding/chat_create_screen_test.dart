@@ -19,16 +19,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart'
     show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/features/onboarding/invite_result.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import '../../support/scriptable_bridge.dart';
+import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
-import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
+import 'package:mosh/src/state/gateway_provider.dart'
+    show bridgeFacadeProvider, gatewayProvider;
 import '../../support/pump.dart';
 
 /// A bridge whose `createInvite` hands back [inviteUri].
@@ -196,5 +199,22 @@ void main() {
     expect(find.text(message), findsNothing);
     expect(find.byType(InviteResult), findsOneWidget);
     expect(find.text(uri), findsOneWidget);
+  });
+
+  testWidgets('Open chat lands on the DM the invite created', (tester) async {
+    final gateway = ScriptableGateway();
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    await pumpRoute(tester, AppRoutes.chatCreate, overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      gatewayProvider.overrideWithValue(gateway),
+    ]);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Create invite link'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open chat'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DmScreen), findsOneWidget);
+    expect(find.byType(ChatCreateScreen), findsNothing);
   });
 }
