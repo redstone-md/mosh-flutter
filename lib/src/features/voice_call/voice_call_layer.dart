@@ -170,11 +170,16 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
           return _buildDialogFor(dialog, dialogContext, peerLabel);
         },
       ).then((_) {
-        if (mounted) {
-          _openCallId = null;
-          _openKind = null;
-          _dialogContext = null;
+        // Forget only the modal this route was. A pop that came from a
+        // transition (outgoing -> active) resolves here after the
+        // post-frame open already recorded the next modal; wiping that
+        // record made the next re-poll push a second overlay.
+        if (!mounted || _openCallId != newCallId || _openKind != newKind) {
+          return;
         }
+        _openCallId = null;
+        _openKind = null;
+        _dialogContext = null;
       });
     });
   }
