@@ -6,10 +6,11 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `should_resync`
+// These functions are ignored because they are not marked as `pub`: `build_stream`, `fill`, `lerp`, `new`, `next_sample`, `should_resync`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Renderer`
 
 /// Starts the playback pipeline: an Opus decoder (48 kHz mono) + a cpal output
-/// stream fed from a 7680-sample ring. Synchronous (audio open is blocking on
+/// stream in the device's own format, fed from a 7680-sample ring. Synchronous (audio open is blocking on
 /// every cpal backend); `Err(String)` if there is no default output device or
 /// the stream cannot be built/started. Errors are stringified via `Debug`,
 /// matching `voice_call_opus_encode`'s `Result<T, String>` style.
