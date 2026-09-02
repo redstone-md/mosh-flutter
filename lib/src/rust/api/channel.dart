@@ -12,25 +12,11 @@ import '../frb_generated.dart';
 import '../outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `decode_base64`, `ensure_runtime`
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
 
 /// Join a public channel (1:1 port of the `channel_join` Tauri command).
 Future<ChannelSnapshot> join({required JoinChannelRequest request}) =>
     RustLib.instance.api.crateApiChannelJoin(request: request);
-
-/// Leave a channel (1:1 port of `channel_leave`).
-Future<ChannelLeaveResult> leave({required String name}) =>
-    RustLib.instance.api.crateApiChannelLeave(name: name);
-
-/// Send a message into a channel (1:1 port of `channel_send`).
-Future<ChannelSendResult> send({required String name, required String body}) =>
-    RustLib.instance.api.crateApiChannelSend(name: name, body: body);
-
-/// Retry a failed channel message (1:1 port of `channel_retry_message`).
-Future<ChannelSendResult> retryMessage(
-        {required String name, required String messageId}) =>
-    RustLib.instance.api
-        .crateApiChannelRetryMessage(name: name, messageId: messageId);
 
 /// Poll a channel for its current snapshot (1:1 port of `channel_poll`).
 /// The React frontend polled on a cadence; the bridge slice will offer the
@@ -41,41 +27,6 @@ Future<ChannelSnapshot> poll({required String name}) =>
 /// List all joined channels and their snapshots (1:1 port of `channel_list`).
 Future<ChannelListSnapshot> list() =>
     RustLib.instance.api.crateApiChannelList();
-
-/// Send an attachment into a channel (1:1 port of `channel_send_attachment`).
-/// The bytes arrive base64-encoded (the bridge contract for all
-/// send_attachment facades); decoded here before handing the raw `Vec<u8>`
-/// to the runtime, matching the Tauri shell's `channel_send_attachment`
-/// (lib.rs). `thumbnail_base64` is forwarded verbatim (the runtime stores
-/// it as-is for the receiver's preview); `voice` is the optional `VoiceMeta`
-/// for voice clips (None for plain files). Returns the new attachment's id
-/// + content hash so the bridge caller can invalidate its snapshot.
-Future<AttachmentSendResult> sendAttachment(
-        {required String name,
-        required String fileName,
-        required String mime,
-        required String dataBase64,
-        String? thumbnailBase64,
-        VoiceMeta? voice}) =>
-    RustLib.instance.api.crateApiChannelSendAttachment(
-        name: name,
-        fileName: fileName,
-        mime: mime,
-        dataBase64: dataBase64,
-        thumbnailBase64: thumbnailBase64,
-        voice: voice);
-
-/// Download a channel attachment (1:1 port of `channel_download_attachment`).
-Future<void> downloadAttachment(
-        {required String name, required String attachmentId}) =>
-    RustLib.instance.api.crateApiChannelDownloadAttachment(
-        name: name, attachmentId: attachmentId);
-
-/// Cancel a channel attachment transfer (1:1 port of `channel_cancel_attachment`).
-Future<void> cancelAttachment(
-        {required String name, required String attachmentId}) =>
-    RustLib.instance.api.crateApiChannelCancelAttachment(
-        name: name, attachmentId: attachmentId);
 
 /// Publish a private-DM invitation to one channel member
 /// (1:1 port of `channel_send_dm_offer`).

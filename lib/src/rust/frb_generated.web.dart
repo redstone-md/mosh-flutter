@@ -138,9 +138,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw);
 
   @protected
-  AttachmentSendResult dco_decode_attachment_send_result(dynamic raw);
-
-  @protected
   AttachmentState dco_decode_attachment_state(dynamic raw);
 
   @protected
@@ -242,25 +239,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CallStarted dco_decode_call_started(dynamic raw);
 
   @protected
-  ChannelLeaveResult dco_decode_channel_leave_result(dynamic raw);
-
-  @protected
   ChannelListSnapshot dco_decode_channel_list_snapshot(dynamic raw);
 
   @protected
   ChannelMessage dco_decode_channel_message(dynamic raw);
 
   @protected
-  ChannelSendResult dco_decode_channel_send_result(dynamic raw);
-
-  @protected
   ChannelSnapshot dco_decode_channel_snapshot(dynamic raw);
 
   @protected
   ChatMessage dco_decode_chat_message(dynamic raw);
-
-  @protected
-  CloseSessionResult dco_decode_close_session_result(dynamic raw);
 
   @protected
   ConversationBridgeError dco_decode_conversation_bridge_error(dynamic raw);
@@ -279,16 +267,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GroupCreated dco_decode_group_created(dynamic raw);
 
   @protected
-  GroupLeaveResult dco_decode_group_leave_result(dynamic raw);
-
-  @protected
   GroupListSnapshot dco_decode_group_list_snapshot(dynamic raw);
 
   @protected
   GroupMessage dco_decode_group_message(dynamic raw);
-
-  @protected
-  GroupSendResult dco_decode_group_send_result(dynamic raw);
 
   @protected
   GroupSnapshot dco_decode_group_snapshot(dynamic raw);
@@ -478,9 +460,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SecureStorageStatus dco_decode_secure_storage_status(dynamic raw);
 
   @protected
-  SendMessageResult dco_decode_send_message_result(dynamic raw);
-
-  @protected
   SessionListSnapshot dco_decode_session_list_snapshot(dynamic raw);
 
   @protected
@@ -592,10 +571,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AttachmentDescriptor sse_decode_attachment_descriptor(
-      SseDeserializer deserializer);
-
-  @protected
-  AttachmentSendResult sse_decode_attachment_send_result(
       SseDeserializer deserializer);
 
   @protected
@@ -714,10 +689,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CallStarted sse_decode_call_started(SseDeserializer deserializer);
 
   @protected
-  ChannelLeaveResult sse_decode_channel_leave_result(
-      SseDeserializer deserializer);
-
-  @protected
   ChannelListSnapshot sse_decode_channel_list_snapshot(
       SseDeserializer deserializer);
 
@@ -725,18 +696,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChannelMessage sse_decode_channel_message(SseDeserializer deserializer);
 
   @protected
-  ChannelSendResult sse_decode_channel_send_result(
-      SseDeserializer deserializer);
-
-  @protected
   ChannelSnapshot sse_decode_channel_snapshot(SseDeserializer deserializer);
 
   @protected
   ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
-
-  @protected
-  CloseSessionResult sse_decode_close_session_result(
-      SseDeserializer deserializer);
 
   @protected
   ConversationBridgeError sse_decode_conversation_bridge_error(
@@ -757,17 +720,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GroupCreated sse_decode_group_created(SseDeserializer deserializer);
 
   @protected
-  GroupLeaveResult sse_decode_group_leave_result(SseDeserializer deserializer);
-
-  @protected
   GroupListSnapshot sse_decode_group_list_snapshot(
       SseDeserializer deserializer);
 
   @protected
   GroupMessage sse_decode_group_message(SseDeserializer deserializer);
-
-  @protected
-  GroupSendResult sse_decode_group_send_result(SseDeserializer deserializer);
 
   @protected
   GroupSnapshot sse_decode_group_snapshot(SseDeserializer deserializer);
@@ -984,10 +941,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
-  SendMessageResult sse_decode_send_message_result(
-      SseDeserializer deserializer);
-
-  @protected
   SessionListSnapshot sse_decode_session_list_snapshot(
       SseDeserializer deserializer);
 
@@ -1103,10 +1056,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_attachment_descriptor(
       AttachmentDescriptor self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_attachment_send_result(
-      AttachmentSendResult self, SseSerializer serializer);
 
   @protected
   void sse_encode_attachment_state(
@@ -1231,10 +1180,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_call_started(CallStarted self, SseSerializer serializer);
 
   @protected
-  void sse_encode_channel_leave_result(
-      ChannelLeaveResult self, SseSerializer serializer);
-
-  @protected
   void sse_encode_channel_list_snapshot(
       ChannelListSnapshot self, SseSerializer serializer);
 
@@ -1243,19 +1188,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       ChannelMessage self, SseSerializer serializer);
 
   @protected
-  void sse_encode_channel_send_result(
-      ChannelSendResult self, SseSerializer serializer);
-
-  @protected
   void sse_encode_channel_snapshot(
       ChannelSnapshot self, SseSerializer serializer);
 
   @protected
   void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_close_session_result(
-      CloseSessionResult self, SseSerializer serializer);
 
   @protected
   void sse_encode_conversation_bridge_error(
@@ -1276,19 +1213,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_group_created(GroupCreated self, SseSerializer serializer);
 
   @protected
-  void sse_encode_group_leave_result(
-      GroupLeaveResult self, SseSerializer serializer);
-
-  @protected
   void sse_encode_group_list_snapshot(
       GroupListSnapshot self, SseSerializer serializer);
 
   @protected
   void sse_encode_group_message(GroupMessage self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_group_send_result(
-      GroupSendResult self, SseSerializer serializer);
 
   @protected
   void sse_encode_group_snapshot(GroupSnapshot self, SseSerializer serializer);
@@ -1512,10 +1441,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_secure_storage_status(
       SecureStorageStatus self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_send_message_result(
-      SendMessageResult self, SseSerializer serializer);
 
   @protected
   void sse_encode_session_list_snapshot(

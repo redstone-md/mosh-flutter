@@ -192,27 +192,6 @@ class ChatMessage {
           retryCount == other.retryCount;
 }
 
-class CloseSessionResult {
-  final String sessionId;
-  final bool closed;
-
-  const CloseSessionResult({
-    required this.sessionId,
-    required this.closed,
-  });
-
-  @override
-  int get hashCode => sessionId.hashCode ^ closed.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is CloseSessionResult &&
-          runtimeType == other.runtimeType &&
-          sessionId == other.sessionId &&
-          closed == other.closed;
-}
-
 class InviteCreated {
   final String inviteUri;
   final String sessionId;
@@ -285,49 +264,6 @@ class PendingCall {
           runtimeType == other.runtimeType &&
           callId == other.callId &&
           fromDevice == other.fromDevice;
-}
-
-class SendMessageResult {
-  final String sessionId;
-  final String state;
-  final BigInt ciphertextBytes;
-  final String messageId;
-  final BigInt sentAtMs;
-  final MessageDeliveryStatus deliveryStatus;
-  final String? deliveryError;
-
-  const SendMessageResult({
-    required this.sessionId,
-    required this.state,
-    required this.ciphertextBytes,
-    required this.messageId,
-    required this.sentAtMs,
-    required this.deliveryStatus,
-    this.deliveryError,
-  });
-
-  @override
-  int get hashCode =>
-      sessionId.hashCode ^
-      state.hashCode ^
-      ciphertextBytes.hashCode ^
-      messageId.hashCode ^
-      sentAtMs.hashCode ^
-      deliveryStatus.hashCode ^
-      deliveryError.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SendMessageResult &&
-          runtimeType == other.runtimeType &&
-          sessionId == other.sessionId &&
-          state == other.state &&
-          ciphertextBytes == other.ciphertextBytes &&
-          messageId == other.messageId &&
-          sentAtMs == other.sentAtMs &&
-          deliveryStatus == other.deliveryStatus &&
-          deliveryError == other.deliveryError;
 }
 
 class SessionListSnapshot {

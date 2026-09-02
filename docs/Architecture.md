@@ -178,7 +178,7 @@ sequenceDiagram
     Bridge->>Core: api::private_dm::confirm_fingerprint
     Core-->>Bridge: ConversationId
     Bob->>Bridge: sendMessage conversationId text
-    Bridge->>Core: api::private_dm::send_message
+    Bridge->>Core: api::conversation::send BridgeConversationRef{Dm, id}
     Core->>Mls: protect as MLS application message
     Core->>Moss: publish ciphertext
     Moss-->>Moss: deliver to Alice node

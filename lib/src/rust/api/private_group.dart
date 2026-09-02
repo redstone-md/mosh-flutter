@@ -12,7 +12,7 @@ import '../outbound_delivery.dart';
 import '../private_group_runtime.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `decode_base64`, `ensure_runtime`
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
 
 /// Create a private MLS group (1:1 port of `private_group_create`).
 Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>
@@ -21,17 +21,6 @@ Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>
 /// Join a private group from an invite URI (1:1 port of `private_group_join`).
 Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) =>
     RustLib.instance.api.crateApiPrivateGroupJoinGroup(request: request);
-
-/// Send a message into a private group (1:1 port of `private_group_send`).
-Future<GroupSendResult> send({required String groupId, required String body}) =>
-    RustLib.instance.api.crateApiPrivateGroupSend(groupId: groupId, body: body);
-
-/// Retry a failed private-group message (1:1 port of
-/// `private_group_retry_message`).
-Future<GroupSendResult> retryMessage(
-        {required String groupId, required String messageId}) =>
-    RustLib.instance.api.crateApiPrivateGroupRetryMessage(
-        groupId: groupId, messageId: messageId);
 
 /// Poll a private group for its current snapshot (1:1 port of
 /// `private_group_poll`).
@@ -42,48 +31,6 @@ Future<GroupSnapshot> poll({required String groupId}) =>
 /// `private_group_list`).
 Future<GroupListSnapshot> list() =>
     RustLib.instance.api.crateApiPrivateGroupList();
-
-/// Close and tear down a private group (1:1 port of `private_group_close`).
-Future<GroupLeaveResult> close({required String groupId}) =>
-    RustLib.instance.api.crateApiPrivateGroupClose(groupId: groupId);
-
-/// Send an attachment into a private group (1:1 port of
-/// `private_group_send_attachment`). The bytes arrive base64-encoded (the
-/// bridge contract for all send_attachment facades); decoded here before
-/// handing the raw `Vec<u8>` to the runtime, matching the Tauri shell's
-/// `private_group_send_attachment` (lib.rs). `thumbnail_base64` is
-/// forwarded verbatim (the runtime stores it as-is for the receiver's
-/// preview); `voice` is the optional `VoiceMeta` for voice clips (None for
-/// plain files). Returns the new attachment's id + content hash so the
-/// bridge caller can invalidate its snapshot.
-Future<AttachmentSendResult> sendAttachment(
-        {required String groupId,
-        required String fileName,
-        required String mime,
-        required String dataBase64,
-        String? thumbnailBase64,
-        VoiceMeta? voice}) =>
-    RustLib.instance.api.crateApiPrivateGroupSendAttachment(
-        groupId: groupId,
-        fileName: fileName,
-        mime: mime,
-        dataBase64: dataBase64,
-        thumbnailBase64: thumbnailBase64,
-        voice: voice);
-
-/// Download a private-group attachment (1:1 port of
-/// `private_group_download_attachment`).
-Future<void> downloadAttachment(
-        {required String groupId, required String attachmentId}) =>
-    RustLib.instance.api.crateApiPrivateGroupDownloadAttachment(
-        groupId: groupId, attachmentId: attachmentId);
-
-/// Cancel a private-group attachment transfer (1:1 port of
-/// `private_group_cancel_attachment`).
-Future<void> cancelAttachment(
-        {required String groupId, required String attachmentId}) =>
-    RustLib.instance.api.crateApiPrivateGroupCancelAttachment(
-        groupId: groupId, attachmentId: attachmentId);
 
 /// Publish a private-DM invitation to one group member (1:1 port of
 /// `private_group_send_dm_offer`).

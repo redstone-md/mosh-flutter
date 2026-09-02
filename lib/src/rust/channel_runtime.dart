@@ -11,27 +11,6 @@ import 'frb_generated.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-class ChannelLeaveResult {
-  final String name;
-  final bool closed;
-
-  const ChannelLeaveResult({
-    required this.name,
-    required this.closed,
-  });
-
-  @override
-  int get hashCode => name.hashCode ^ closed.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ChannelLeaveResult &&
-          runtimeType == other.runtimeType &&
-          name == other.name &&
-          closed == other.closed;
-}
-
 class ChannelListSnapshot {
   final List<ChannelSnapshot> channels;
 
@@ -103,45 +82,6 @@ class ChannelMessage {
           deliveryError == other.deliveryError &&
           retryable == other.retryable &&
           retryCount == other.retryCount;
-}
-
-class ChannelSendResult {
-  final String name;
-  final BigInt bytes;
-  final String messageId;
-  final BigInt sentAtMs;
-  final MessageDeliveryStatus deliveryStatus;
-  final String? deliveryError;
-
-  const ChannelSendResult({
-    required this.name,
-    required this.bytes,
-    required this.messageId,
-    required this.sentAtMs,
-    required this.deliveryStatus,
-    this.deliveryError,
-  });
-
-  @override
-  int get hashCode =>
-      name.hashCode ^
-      bytes.hashCode ^
-      messageId.hashCode ^
-      sentAtMs.hashCode ^
-      deliveryStatus.hashCode ^
-      deliveryError.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ChannelSendResult &&
-          runtimeType == other.runtimeType &&
-          name == other.name &&
-          bytes == other.bytes &&
-          messageId == other.messageId &&
-          sentAtMs == other.sentAtMs &&
-          deliveryStatus == other.deliveryStatus &&
-          deliveryError == other.deliveryError;
 }
 
 class ChannelSnapshot {

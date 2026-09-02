@@ -16,16 +16,16 @@
 //! to do about a failure. The only string left is `ensure_runtime`'s — its
 //! "unavailable" and "lock poisoned" causes both mean "the runtime cannot be
 //! driven right now", and the seam cannot tell them apart without reworking
-//! the facades that ticket 14 deletes, so both map to `Unavailable`.
+//! the kind facades' lock helpers, so both map to `Unavailable`.
 //!
 //! SUCCESS PAYLOADS ARE DROPPED. The old wrappers returned send/leave result
 //! DTOs that no Dart caller read outside the generated bindings; delivery
 //! and transfer state already reach Dart through the next snapshot poll
 //! (ADR 0021, ADR 0022). Every function here answers success with `()`.
 //!
-//! MIGRATION: this is the expand half. The per-kind wrappers stay until the
-//! Dart adapter moves onto this seam (ticket 12) and they are deleted
-//! (ticket 14); nothing in Dart calls this module yet.
+//! This module is the only bridge path for the six actions: the per-kind
+//! wrappers were migration scaffolding and are gone, and `decode_base64`
+//! below is the one attachment decoder on the bridge.
 
 use flutter_rust_bridge::frb;
 

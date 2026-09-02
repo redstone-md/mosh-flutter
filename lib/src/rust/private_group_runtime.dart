@@ -84,27 +84,6 @@ class GroupCreated {
           label == other.label;
 }
 
-class GroupLeaveResult {
-  final String groupId;
-  final bool closed;
-
-  const GroupLeaveResult({
-    required this.groupId,
-    required this.closed,
-  });
-
-  @override
-  int get hashCode => groupId.hashCode ^ closed.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is GroupLeaveResult &&
-          runtimeType == other.runtimeType &&
-          groupId == other.groupId &&
-          closed == other.closed;
-}
-
 class GroupListSnapshot {
   final List<GroupSnapshot> groups;
 
@@ -176,45 +155,6 @@ class GroupMessage {
           deliveryError == other.deliveryError &&
           retryable == other.retryable &&
           retryCount == other.retryCount;
-}
-
-class GroupSendResult {
-  final String groupId;
-  final BigInt bytes;
-  final String messageId;
-  final BigInt sentAtMs;
-  final MessageDeliveryStatus deliveryStatus;
-  final String? deliveryError;
-
-  const GroupSendResult({
-    required this.groupId,
-    required this.bytes,
-    required this.messageId,
-    required this.sentAtMs,
-    required this.deliveryStatus,
-    this.deliveryError,
-  });
-
-  @override
-  int get hashCode =>
-      groupId.hashCode ^
-      bytes.hashCode ^
-      messageId.hashCode ^
-      sentAtMs.hashCode ^
-      deliveryStatus.hashCode ^
-      deliveryError.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is GroupSendResult &&
-          runtimeType == other.runtimeType &&
-          groupId == other.groupId &&
-          bytes == other.bytes &&
-          messageId == other.messageId &&
-          sentAtMs == other.sentAtMs &&
-          deliveryStatus == other.deliveryStatus &&
-          deliveryError == other.deliveryError;
 }
 
 class GroupSnapshot {

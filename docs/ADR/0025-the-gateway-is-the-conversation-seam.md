@@ -82,10 +82,11 @@ and the test surface should be the same small thing.
   fake per provider" contract tests rely on.
 - Scope: exactly these two types and their files. Nothing else may lean on
   this exception.
-- Removal plan: ticket 14 contracts the bridge surface; if the deleted
-  per-kind wrappers or a future bridge contraction remove mirrors, the two
-  files shrink with them. Revisit the exception whenever the mirror count
-  changes.
+- Removal plan: ticket 14 contracted the bridge surface (the eighteen
+  per-kind shared-action wrappers) without touching a mirror -- none of them
+  was mirrored here, so the count stays at 34. A future bridge contraction
+  that removes mirrors shrinks the two files with it. Revisit the exception
+  whenever the mirror count changes.
 
 ## References
 

@@ -1,10 +1,9 @@
-//! Channel facade.
+//! Channel facade: the channel-specific bridge operations.
 //!
-//! Surfaces the former `channel_*` Tauri command group: join, leave, send,
-//! retry_message, poll, list, attachment send/download/cancel, and the
-//! send/dismiss DM-offer commands. Poll maps to a `StreamSink`-returning
-//! facade function, mirroring the former Tauri event that streamed channel
-//! updates.
+//! Join, poll, list, and the send/dismiss DM-offer commands. The actions
+//! every conversation kind shares — send, retry, attachment
+//! send/download/cancel, leave — live once in `api::conversation` (ADR
+//! 0024) and borrow this facade's runtime lock through `ensure_runtime()`.
 //!
 //! OWNERSHIP (ADR 0016 -- api runtime ownership, OnceLock singleton): the
 //! runtime is held in a process-global
@@ -32,10 +31,8 @@
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use crate::channel_runtime::{
-    ChannelLeaveResult, ChannelListSnapshot, ChannelRuntime, ChannelRuntimeError,
-    ChannelSendResult, ChannelSnapshot, JoinChannelRequest,
+    ChannelListSnapshot, ChannelRuntime, ChannelRuntimeError, ChannelSnapshot, JoinChannelRequest,
 };
-use crate::private_dm_runtime::{AttachmentSendResult, VoiceMeta};
 
 // Mirrors the Tauri shell's `CHANNEL_UNAVAILABLE` constant so the error
 // string is byte-identical across the old and new shells.
@@ -119,29 +116,6 @@ pub fn join(request: JoinChannelRequest) -> Result<ChannelSnapshot, String> {
     runtime.join(request).map_err(|error| error.to_string())
 }
 
-/// Leave a channel (1:1 port of `channel_leave`).
-pub fn leave(name: String) -> Result<ChannelLeaveResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime.leave(&name).map_err(|error| error.to_string())
-}
-
-/// Send a message into a channel (1:1 port of `channel_send`).
-pub fn send(name: String, body: String) -> Result<ChannelSendResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime.send(&name, body).map_err(|error| error.to_string())
-}
-
-/// Retry a failed channel message (1:1 port of `channel_retry_message`).
-pub fn retry_message(name: String, message_id: String) -> Result<ChannelSendResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .retry_message(&name, &message_id)
-        .map_err(|error| error.to_string())
-}
-
 /// Poll a channel for its current snapshot (1:1 port of `channel_poll`).
 /// The React frontend polled on a cadence; the bridge slice will offer the
 /// `StreamSink`-returning variant alongside this one-shot poll.
@@ -156,48 +130,6 @@ pub fn list() -> Result<ChannelListSnapshot, String> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.list().map_err(|error| error.to_string())
-}
-
-/// Send an attachment into a channel (1:1 port of `channel_send_attachment`).
-/// The bytes arrive base64-encoded (the bridge contract for all
-/// send_attachment facades); decoded here before handing the raw `Vec<u8>`
-/// to the runtime, matching the Tauri shell's `channel_send_attachment`
-/// (lib.rs). `thumbnail_base64` is forwarded verbatim (the runtime stores
-/// it as-is for the receiver's preview); `voice` is the optional `VoiceMeta`
-/// for voice clips (None for plain files). Returns the new attachment's id
-/// + content hash so the bridge caller can invalidate its snapshot.
-pub fn send_attachment(
-    name: String,
-    file_name: String,
-    mime: String,
-    data_base64: String,
-    thumbnail_base64: Option<String>,
-    voice: Option<VoiceMeta>,
-) -> Result<AttachmentSendResult, String> {
-    let bytes = decode_base64(&data_base64)?;
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .send_attachment(&name, file_name, mime, bytes, thumbnail_base64, voice)
-        .map_err(|error| error.to_string())
-}
-
-/// Download a channel attachment (1:1 port of `channel_download_attachment`).
-pub fn download_attachment(name: String, attachment_id: String) -> Result<(), String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .download_attachment(&name, &attachment_id)
-        .map_err(|error| error.to_string())
-}
-
-/// Cancel a channel attachment transfer (1:1 port of `channel_cancel_attachment`).
-pub fn cancel_attachment(name: String, attachment_id: String) -> Result<(), String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .cancel_attachment(&name, &attachment_id)
-        .map_err(|error| error.to_string())
 }
 
 /// Publish a private-DM invitation to one channel member
@@ -220,15 +152,5 @@ pub fn dismiss_dm_offer(name: String, offer_id: String) -> Result<(), String> {
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .dismiss_dm_offer(&name, &offer_id)
-        .map_err(|error| error.to_string())
-}
-
-/// Decode a base64 string to raw bytes (1:1 port of the Tauri shell's
-/// `decode_base64`, lib.rs L539-541). Uses the standard alphabet (the same
-/// alphabet the React/Dart sides encode with -- `base64Encode`/`btoa`).
-fn decode_base64(value: &str) -> Result<Vec<u8>, String> {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD
-        .decode(value)
         .map_err(|error| error.to_string())
 }

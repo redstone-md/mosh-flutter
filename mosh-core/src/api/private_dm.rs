@@ -1,9 +1,11 @@
-//! Private-DM facade.
+//! Private-DM facade: the DM-specific bridge operations.
 //!
-//! Surfaces the former `private_dm_*` Tauri command group: invite
-//! create/accept, message send/retry, session poll/list/close,
-//! attachment send/download/cancel, and voice-call start/accept/decline/
-//! end/send-frame/drain-frames. Everything is call/response over the
+//! Invite create/accept, session poll/list, the voice-call pipeline
+//! (start/accept/decline/end/send-frame/drain-frames) and the two mobile
+//! inject knobs. The actions every conversation kind shares — send, retry,
+//! attachment send/download/cancel, leave — live once in
+//! `api::conversation` (ADR 0024) and borrow this facade's runtime lock
+//! through `ensure_runtime()`. Everything is call/response over the
 //! bridge — poll-based, no StreamSink (the React frontend polled snapshots
 //! every AUTO_POLL_MS, and the Dart side polls the same way).
 //!
@@ -56,11 +58,9 @@
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use crate::private_dm_runtime::{
-    AcceptInviteRequest, CloseSessionResult, InviteCreated, PrivateDmRuntime,
-    PrivateDmRuntimeError, SendMessageResult, SessionListSnapshot, SessionSnapshot,
-    StartSessionRequest,
+    AcceptInviteRequest, CallStarted, InviteCreated, PrivateDmRuntime, PrivateDmRuntimeError,
+    SessionListSnapshot, SessionSnapshot, StartSessionRequest,
 };
-use crate::private_dm_runtime::{AttachmentSendResult, CallStarted, VoiceMeta};
 
 // Mirrors the Tauri shell's `PRIVATE_DM_UNAVAILABLE` constant so the error
 // string is byte-identical across the old and new shells.
@@ -181,30 +181,6 @@ pub fn accept_invite(request: AcceptInviteRequest) -> Result<SessionSnapshot, St
         .map_err(|error| error.to_string())
 }
 
-/// Send a message into a session (1:1 port of `private_dm_send_message`).
-pub fn send_message(session_id: String, body: String) -> Result<SendMessageResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .send_message(&session_id, body)
-        .map_err(|error| error.to_string())
-}
-
-/// Retry a failed outbound message (1:1 port of `private_dm_retry_message`,
-/// src-tauri/src/lib.rs L359-369). Re-sends a failed outbound message by
-/// its message id; returns the send result (new delivery status) the
-/// bridge caller uses to invalidate its snapshot so the next poll
-/// re-renders the row. Mirrors React `retryDmMessage`
-/// (native-messaging-gateway.ts) and the channel/group retry facades
-/// (`channel::retry_message`, `private_group::retry_message`).
-pub fn retry_message(session_id: String, message_id: String) -> Result<SendMessageResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .retry_message(&session_id, &message_id)
-        .map_err(|error| error.to_string())
-}
-
 /// Poll a session for its current snapshot (1:1 port of
 /// `private_dm_poll_session`). The React frontend called this every
 /// AUTO_POLL_MS; no push, no StreamSink.
@@ -222,70 +198,6 @@ pub fn list_sessions() -> Result<SessionListSnapshot, String> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.list_sessions().map_err(|error| error.to_string())
-}
-
-/// Close and tear down a session (1:1 port of `private_dm_close_session`).
-pub fn close_session(session_id: String) -> Result<CloseSessionResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .close_session(&session_id)
-        .map_err(|error| error.to_string())
-}
-
-/// Begin (or retry) downloading a peer's attachment (1:1 port of
-/// `private_dm_download_attachment`). Triggers the transfer; progress is
-/// reported in the next `SessionSnapshot.attachments` poll.
-pub fn download_attachment(session_id: String, attachment_id: String) -> Result<(), String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .download_attachment(&session_id, &attachment_id)
-        .map_err(|error| error.to_string())
-}
-
-/// Cancel an in-flight attachment transfer (1:1 port of
-/// `private_dm_cancel_attachment`).
-pub fn cancel_attachment(session_id: String, attachment_id: String) -> Result<(), String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .cancel_attachment(&session_id, &attachment_id)
-        .map_err(|error| error.to_string())
-}
-
-/// Send an attachment into a session (1:1 port of `private_dm_send_attachment`).
-/// The bytes arrive base64-encoded (the bridge contract for all send_attachment
-/// facades); decoded here before handing the raw `Vec<u8>` to the runtime,
-/// matching the Tauri shell's `private_dm_send_attachment` (lib.rs L403-423).
-/// `thumbnail_base64` is forwarded verbatim (the runtime stores it as-is for
-/// the receiver's preview); `voice` is the optional `VoiceMeta` for voice
-/// clips (None for plain files). Returns the new attachment's id + content
-/// hash so the bridge caller can invalidate its snapshot.
-pub fn send_attachment(
-    session_id: String,
-    file_name: String,
-    mime: String,
-    data_base64: String,
-    thumbnail_base64: Option<String>,
-    voice: Option<VoiceMeta>,
-) -> Result<AttachmentSendResult, String> {
-    let bytes = decode_base64(&data_base64)?;
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .send_attachment(&session_id, file_name, mime, bytes, thumbnail_base64, voice)
-        .map_err(|error| error.to_string())
-}
-
-/// Decode a base64 string to raw bytes (1:1 port of the Tauri shell's
-/// `decode_base64`, lib.rs L539-541). Uses the standard alphabet (the same
-/// alphabet the React/Dart sides encode with -- `base64Encode`/`btoa`).
-fn decode_base64(value: &str) -> Result<Vec<u8>, String> {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD
-        .decode(value)
-        .map_err(|error| error.to_string())
 }
 
 /// Start a voice call in a DM session (1:1 port of the Tauri shell's

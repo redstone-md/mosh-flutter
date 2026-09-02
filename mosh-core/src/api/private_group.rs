@@ -1,10 +1,9 @@
-//! Private-group facade.
+//! Private-group facade: the group-specific bridge operations.
 //!
-//! Surfaces the former `private_group_*` Tauri command group: create, join,
-//! send, retry_message, poll, list, close, attachment send/download/cancel,
-//! and the send/dismiss DM-offer commands. Poll maps to a
-//! `StreamSink`-returning facade function, mirroring the former Tauri event
-//! that streamed private-group updates.
+//! Create, join, poll, list, and the send/dismiss DM-offer commands. The
+//! actions every conversation kind shares — send, retry, attachment
+//! send/download/cancel, leave — live once in `api::conversation` (ADR
+//! 0024) and borrow this facade's runtime lock through `ensure_runtime()`.
 //!
 //! OWNERSHIP (ADR 0016 -- api runtime ownership, OnceLock singleton): the
 //! runtime is held in a process-global
@@ -32,10 +31,9 @@
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use crate::private_dm_runtime::{AttachmentSendResult, VoiceMeta};
 use crate::private_group_runtime::{
-    CreateGroupRequest, GroupCreated, GroupLeaveResult, GroupListSnapshot, GroupSendResult,
-    GroupSnapshot, JoinGroupRequest, PrivateGroupError, PrivateGroupRuntime,
+    CreateGroupRequest, GroupCreated, GroupListSnapshot, GroupSnapshot, JoinGroupRequest,
+    PrivateGroupError, PrivateGroupRuntime,
 };
 
 // Mirrors the Tauri shell's `PRIVATE_GROUP_UNAVAILABLE` constant so the
@@ -133,25 +131,6 @@ pub fn join_group(request: JoinGroupRequest) -> Result<GroupSnapshot, String> {
         .map_err(|error| error.to_string())
 }
 
-/// Send a message into a private group (1:1 port of `private_group_send`).
-pub fn send(group_id: String, body: String) -> Result<GroupSendResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .send(&group_id, body)
-        .map_err(|error| error.to_string())
-}
-
-/// Retry a failed private-group message (1:1 port of
-/// `private_group_retry_message`).
-pub fn retry_message(group_id: String, message_id: String) -> Result<GroupSendResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .retry_message(&group_id, &message_id)
-        .map_err(|error| error.to_string())
-}
-
 /// Poll a private group for its current snapshot (1:1 port of
 /// `private_group_poll`).
 pub fn poll(group_id: String) -> Result<GroupSnapshot, String> {
@@ -166,58 +145,6 @@ pub fn list() -> Result<GroupListSnapshot, String> {
     let mut guard = ensure_runtime()?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.list().map_err(|error| error.to_string())
-}
-
-/// Close and tear down a private group (1:1 port of `private_group_close`).
-pub fn close(group_id: String) -> Result<GroupLeaveResult, String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime.close(&group_id).map_err(|error| error.to_string())
-}
-
-/// Send an attachment into a private group (1:1 port of
-/// `private_group_send_attachment`). The bytes arrive base64-encoded (the
-/// bridge contract for all send_attachment facades); decoded here before
-/// handing the raw `Vec<u8>` to the runtime, matching the Tauri shell's
-/// `private_group_send_attachment` (lib.rs). `thumbnail_base64` is
-/// forwarded verbatim (the runtime stores it as-is for the receiver's
-/// preview); `voice` is the optional `VoiceMeta` for voice clips (None for
-/// plain files). Returns the new attachment's id + content hash so the
-/// bridge caller can invalidate its snapshot.
-pub fn send_attachment(
-    group_id: String,
-    file_name: String,
-    mime: String,
-    data_base64: String,
-    thumbnail_base64: Option<String>,
-    voice: Option<VoiceMeta>,
-) -> Result<AttachmentSendResult, String> {
-    let bytes = decode_base64(&data_base64)?;
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .send_attachment(&group_id, file_name, mime, bytes, thumbnail_base64, voice)
-        .map_err(|error| error.to_string())
-}
-
-/// Download a private-group attachment (1:1 port of
-/// `private_group_download_attachment`).
-pub fn download_attachment(group_id: String, attachment_id: String) -> Result<(), String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .download_attachment(&group_id, &attachment_id)
-        .map_err(|error| error.to_string())
-}
-
-/// Cancel a private-group attachment transfer (1:1 port of
-/// `private_group_cancel_attachment`).
-pub fn cancel_attachment(group_id: String, attachment_id: String) -> Result<(), String> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .cancel_attachment(&group_id, &attachment_id)
-        .map_err(|error| error.to_string())
 }
 
 /// Publish a private-DM invitation to one group member (1:1 port of
@@ -241,15 +168,5 @@ pub fn dismiss_dm_offer(group_id: String, offer_id: String) -> Result<(), String
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime
         .dismiss_dm_offer(&group_id, &offer_id)
-        .map_err(|error| error.to_string())
-}
-
-/// Decode a base64 string to raw bytes (1:1 port of the Tauri shell's
-/// `decode_base64`, lib.rs L539-541). Uses the standard alphabet (the same
-/// alphabet the React/Dart sides encode with -- `base64Encode`/`btoa`).
-fn decode_base64(value: &str) -> Result<Vec<u8>, String> {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD
-        .decode(value)
         .map_err(|error| error.to_string())
 }

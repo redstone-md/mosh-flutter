@@ -11,7 +11,7 @@ import '../outbound_delivery.dart';
 import '../private_dm_runtime/contracts.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `decode_base64`, `ensure_runtime`
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
 
 /// Inject the at-rest history DEK from the mobile platform channel (ADR
 /// 0011). See `api::shared_runtime::set_history_dek` for the full
@@ -37,24 +37,6 @@ Future<InviteCreated> createInvite({required StartSessionRequest request}) =>
 Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request}) =>
     RustLib.instance.api.crateApiPrivateDmAcceptInvite(request: request);
 
-/// Send a message into a session (1:1 port of `private_dm_send_message`).
-Future<SendMessageResult> sendMessage(
-        {required String sessionId, required String body}) =>
-    RustLib.instance.api
-        .crateApiPrivateDmSendMessage(sessionId: sessionId, body: body);
-
-/// Retry a failed outbound message (1:1 port of `private_dm_retry_message`,
-/// src-tauri/src/lib.rs L359-369). Re-sends a failed outbound message by
-/// its message id; returns the send result (new delivery status) the
-/// bridge caller uses to invalidate its snapshot so the next poll
-/// re-renders the row. Mirrors React `retryDmMessage`
-/// (native-messaging-gateway.ts) and the channel/group retry facades
-/// (`channel::retry_message`, `private_group::retry_message`).
-Future<SendMessageResult> retryMessage(
-        {required String sessionId, required String messageId}) =>
-    RustLib.instance.api.crateApiPrivateDmRetryMessage(
-        sessionId: sessionId, messageId: messageId);
-
 /// Poll a session for its current snapshot (1:1 port of
 /// `private_dm_poll_session`). The React frontend called this every
 /// AUTO_POLL_MS; no push, no StreamSink.
@@ -65,48 +47,6 @@ Future<SessionSnapshot> pollSession({required String sessionId}) =>
 /// `private_dm_list_sessions`).
 Future<SessionListSnapshot> listSessions() =>
     RustLib.instance.api.crateApiPrivateDmListSessions();
-
-/// Close and tear down a session (1:1 port of `private_dm_close_session`).
-Future<CloseSessionResult> closeSession({required String sessionId}) =>
-    RustLib.instance.api.crateApiPrivateDmCloseSession(sessionId: sessionId);
-
-/// Begin (or retry) downloading a peer's attachment (1:1 port of
-/// `private_dm_download_attachment`). Triggers the transfer; progress is
-/// reported in the next `SessionSnapshot.attachments` poll.
-Future<void> downloadAttachment(
-        {required String sessionId, required String attachmentId}) =>
-    RustLib.instance.api.crateApiPrivateDmDownloadAttachment(
-        sessionId: sessionId, attachmentId: attachmentId);
-
-/// Cancel an in-flight attachment transfer (1:1 port of
-/// `private_dm_cancel_attachment`).
-Future<void> cancelAttachment(
-        {required String sessionId, required String attachmentId}) =>
-    RustLib.instance.api.crateApiPrivateDmCancelAttachment(
-        sessionId: sessionId, attachmentId: attachmentId);
-
-/// Send an attachment into a session (1:1 port of `private_dm_send_attachment`).
-/// The bytes arrive base64-encoded (the bridge contract for all send_attachment
-/// facades); decoded here before handing the raw `Vec<u8>` to the runtime,
-/// matching the Tauri shell's `private_dm_send_attachment` (lib.rs L403-423).
-/// `thumbnail_base64` is forwarded verbatim (the runtime stores it as-is for
-/// the receiver's preview); `voice` is the optional `VoiceMeta` for voice
-/// clips (None for plain files). Returns the new attachment's id + content
-/// hash so the bridge caller can invalidate its snapshot.
-Future<AttachmentSendResult> sendAttachment(
-        {required String sessionId,
-        required String fileName,
-        required String mime,
-        required String dataBase64,
-        String? thumbnailBase64,
-        VoiceMeta? voice}) =>
-    RustLib.instance.api.crateApiPrivateDmSendAttachment(
-        sessionId: sessionId,
-        fileName: fileName,
-        mime: mime,
-        dataBase64: dataBase64,
-        thumbnailBase64: thumbnailBase64,
-        voice: voice);
 
 /// Start a voice call in a DM session (1:1 port of the Tauri shell's
 /// `private_dm_call_start`, lib.rs L455). Mints the call id + the
