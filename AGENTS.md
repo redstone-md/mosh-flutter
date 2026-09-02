@@ -91,7 +91,7 @@ The Rust core dlopens the Moss shared library at runtime; it is never statically
 
 1. `node scripts/moss-prepare.mjs` builds the Go FFI (`go build -buildmode=c-shared` from `moss/`, GOTOOLCHAIN pin `go1.25.9`) into ignored `moss-runtime/moss.dll` (or `.so`/`.dylib`). This is the canonical candidate path.
 2. `mosh-core/src/moss_runtime.rs::default_candidate_paths()` locates the library (current dir, `moss-runtime/`, `../moss-runtime/`, next to the exe). Do not reintroduce `src-tauri`-style paths from the dead React app.
-3. CI (`codegen-drift`, `rust-core`, `integration-test`) runs `node scripts/moss-prepare.mjs` before cargo commands because adapter tests dlopen the library.
+3. CI provides the library through `.github/actions/setup` (cached on the submodule sources; `node scripts/moss-prepare.mjs` on a miss) before any cargo command, because adapter tests dlopen it.
 4. Android: `node scripts/moss-prepare-android.mjs` produces `android/app/src/main/jniLibs/arm64-v8a/libmoss.so` (ignored; regenerable).
 
 Never check in, `git add`, or commit artifacts under `moss-runtime/` except `.gitkeep`. They are regenerable.
