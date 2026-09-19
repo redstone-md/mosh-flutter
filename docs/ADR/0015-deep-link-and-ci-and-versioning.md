@@ -86,8 +86,9 @@ Minimal CI (slice one):
 Version line:
 - `mosh-flutter` starts at `0.8.0-dev`. `mosh-core` in the fork tracks the
   same version. Upstream `mosh` stays on its `0.7.x` line.
-- The Moss release pin (`moss.config.json`) is inherited unchanged from the
-  upstream pin at fork time; bumping the pin is a deliberate later step.
+- The Moss release pin is the `moss/` submodule pointer (ADR 0002); the
+  `moss.config.json` file the fork inherited was stale and is removed — the
+  submodule is the one canonical pin.
 
 ## Boundaries
 
