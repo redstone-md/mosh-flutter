@@ -52,7 +52,7 @@ the full command surface before later slices wire them.
 flowchart TB
     Fork[mosh-flutter fork root]
     Core[mosh-core Rust crate]
-    MossSub[moss submodule pin v0.8.14]
+    MossSub[moss submodule pin v0.8.30]
     Lib[lib Flutter / Dart UI]
     Docs[docs]
     SrcTauri[src-tauri read-only reference]

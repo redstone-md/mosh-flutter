@@ -222,8 +222,8 @@ void main() {
 
     final l =
         AppLocalizations.of(tester.element(find.byType(InvitePasteScreen)))!;
-    expect(
-        find.text(l.chatActionErrorInvalidInput(error.message)), findsOneWidget);
+    expect(find.text(l.chatActionErrorInvalidInput(error.message)),
+        findsOneWidget);
     expect(find.text(error.message), findsNothing);
     expect(find.byType(InvitePasteScreen), findsOneWidget);
   });
