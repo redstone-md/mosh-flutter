@@ -85,9 +85,21 @@ pub trait DmTransport: Send + Sync {
 
     fn mesh_info(&self) -> Option<MeshInfo>;
 
+    /// The stream fast path (spec #8): one framed blob frame to this peer
+    /// over the moss attachment stream. Default: no streams — a transport
+    /// that cannot stream (the memory test net, any future non-moss
+    /// transport) answers refused and the carrier falls back to the room
+    /// wire, which is exactly the mixed-version behavior.
+    fn send_to_peer_stream(&self, peer_id: &str, payload: &[u8]) -> Result<(), String> {
+        let _ = (peer_id, payload);
+        Err(STREAMS_UNSUPPORTED.to_string())
+    }
+
     /// Every frame that arrived since the last call.
     fn drain(&self) -> Vec<MossReceivedMessage>;
 }
+
+const STREAMS_UNSUPPORTED: &str = "transport has no stream fast path";
 
 /// How `peer` is reachable according to one mesh report. The shared node
 /// connects network-wide, so the counts say nothing about one counterpart;
@@ -105,7 +117,12 @@ pub fn reach_of(peer_moss_id: &str, info: &MeshInfo) -> PeerTransport {
 }
 
 pub(crate) fn is_private_dm_inbound(channel: &str) -> bool {
-    channel_session_id(channel).is_some() || channel_call_id(channel).is_some()
+    channel_session_id(channel).is_some()
+        || channel_call_id(channel).is_some()
+        // Stream-delivered frames (spec #8): the carrier deframes them in
+        // drain, so the runtime sees the ordinary blob/data/control channel
+        // inside — but the queue has to claim the frame when it lands.
+        || crate::stream_transport::is_stream_inbound(channel)
 }
 
 /// The DM's own inbound queue, claimed once for the process. Two DM runtimes
@@ -200,8 +217,32 @@ impl DmTransport for MossDmTransport {
         mesh::mesh_info(&node)
     }
 
+    fn send_to_peer_stream(&self, peer_id: &str, payload: &[u8]) -> Result<(), String> {
+        let node = self.node()?;
+        // OpenStream on a relayed peer is an immediate OK in moss — the wrap
+        // happens inside Moss_SendStream — so this never stalls waiting on a
+        // dial for the relayed case. A missing symbol surfaces as
+        // Err(Symbol), which the carrier treats like any other refusal.
+        node.open_stream(peer_id, crate::stream_transport::ATTACHMENT_STREAM_ID)
+            .map_err(|error| error.to_string())?;
+        node.send_stream(peer_id, crate::stream_transport::ATTACHMENT_STREAM_ID, payload)
+            .map_err(|error| error.to_string())
+    }
+
     fn drain(&self) -> Vec<MossReceivedMessage> {
-        dm_inbox().drain()
+        dm_inbox()
+            .drain()
+            .into_iter()
+            .map(|message| {
+                // Stream-delivered frames arrive under the reserved
+                // moss-stream/<peer> channel with the real blob channel
+                // inside; peel the framing here so the runtime's route_frame
+                // sees the ordinary channel naming. Room frames pass as-is —
+                // `ingest` is identity for them (no reserved prefix, no
+                // re-file).
+                crate::stream_transport::passthrough_or_deframe(message)
+            })
+            .collect()
     }
 }
 

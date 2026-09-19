@@ -1967,6 +1967,9 @@ impl GroupSession {
         Ok(())
     }
 
+    // Blob traffic stays on the room wire (spec #8, this slice): a group has
+    // no single direct peer to stream to, and the stream carrier is the DM
+    // fast path only. The chunk protocol below is unchanged.
     fn handle_blob(&mut self, payload: Vec<u8>) -> Result<(), PrivateGroupError> {
         let envelope: BlobEnvelope = decode_json(&payload)?;
         match envelope {
