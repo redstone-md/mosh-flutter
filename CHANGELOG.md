@@ -37,6 +37,20 @@ All notable changes to Mosh are documented here. Format follows
   carries no `axiom_*` keys. A test pins this.
 
 ### Added
+- **Typing indicators for DMs and private groups.** While you type, the
+  composer signals the counterpart (or the group) over the MLS-encrypted
+  control wire: a `TypingIndicator` frame whose body never crosses the mesh
+  in the clear, so a bystander cannot forge "someone is typing". Continued
+  input refreshes at most every 3 s; the receiving side owns a 5 s expiry and
+  clears the hint the moment a real message arrives — a delivered message
+  contradicts "typing". A group hint identifies WHICH member types
+  (fingerprint + display name in the snapshot); channels never carry typing.
+  Mixed-version tolerance rides the established unknown-envelope decode-drop:
+  an old client never shows typing and nothing breaks. The runtime files a
+  `typing` event (pinned code 10) into the diagnostics event ring, and the
+  snapshots (`SessionSnapshot.peer_typing_until_ms`,
+  `GroupSnapshot.typing_members`) carry the state to the UI through the
+  existing poll cycle — no new push channel.
 - The diagnostics event log names the messenger events moss added in
   v0.8.20 (`message_delivered`, `message_read`, `typing`, `presence`)
   instead of rendering them as `unknown`. Mosh does not act on them yet.

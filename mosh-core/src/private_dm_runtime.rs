@@ -25,7 +25,7 @@ pub use contracts::{
     AttachmentView, CallEvent, CallOfferBody, CallStarted, ChatMessage, CloseSessionResult,
     ConnectOutcome, DmOffer, DmSessionState, InviteCreated, MeshInfo, MessageDeliveryStatus,
     OutgoingCall, PeerDetail, PendingCall, PrivateDmRuntimeError, SendMessageResult,
-    SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest,
+    SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest, TypingBody,
 };
 use invite::{build_invite_uri, listen_address, ParsedInvite};
 use transport::PublishError;
@@ -80,6 +80,23 @@ const AUTO_RESEND_MAX: u32 = 10;
 const CALL_RESEND_MS: u64 = 2_000;
 const CALL_RING_TIMEOUT_MS: u64 = 45_000;
 
+// Minimum gap between TypingIndicator publishes from one side. The composer
+// re-asks on every keystroke; the runtime folds that down to this cadence so
+// continued input reads as one steady signal instead of a frame per key.
+const TYPING_REFRESH_MS: u64 = 3_000;
+
+// How long a received typing hint stays believable without a refresh. The
+// receiver owns the expiry (the sender claims nothing): a refresh inside the
+// window renews it, silence lets it lapse, and a real message clears it at
+// once — a delivered message contradicts "typing".
+const TYPING_EXPIRY_MS: u64 = 5_000;
+
+/// Event code the diagnostics panel renders as "typing" (pinned in
+/// `conversation::mesh`). Synthesized into the ring whenever a decrypted
+/// hint lands or lapses, so the panel shows typing activity like the node's
+/// own reports.
+const TYPING_EVENT_CODE: i32 = 10;
+
 /// What moved a session's state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SessionEvent {
@@ -121,6 +138,20 @@ fn random_b64(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::thread_rng().fill_bytes(&mut buf);
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buf)
+}
+
+/// Files one typing event (pinned code 10) into the diagnostics event ring,
+/// the same insert `on_moss_event` does for the node's own reports.
+fn push_typing_event(session_id: &str, phase: &str) {
+    let detail = serde_json::json!({
+        "conversation": KIND,
+        "session_id": session_id,
+        "phase": phase,
+    });
+    crate::moss_ffi::push_app_event(
+        TYPING_EVENT_CODE,
+        &detail.to_string(),
+    );
 }
 
 use crate::moss_ffi::{MossFfiRuntime, MossReceivedMessage};
@@ -191,6 +222,13 @@ struct PrivateDmSession {
     // DeliveryAck); the runtime drains this to persist those rows, since the
     // session itself cannot reach persistence.
     dirty_outbound: Vec<String>,
+    // Wall-clock deadline of the peer's typing hint, if one stands. The peer
+    // refreshes it inside the window while it keeps typing; silence lets it
+    // lapse and its own message clears it at once.
+    peer_typing_until_ms: Option<u64>,
+    // When we last published a TypingIndicator, so continued input re-emits
+    // no faster than the refresh cadence.
+    last_typing_send_ms: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -509,6 +547,17 @@ impl PrivateDmRuntime {
         Ok(result)
     }
 
+    /// Signals "I am typing" for one session, driven by the composer's input.
+    /// The per-keystroke call is folded down to the refresh cadence inside the
+    /// session; a publish the transport refuses is retried on the next call
+    /// (no error to the composer — a dropped hint only delays a hint).
+    pub fn typing_signal(&mut self, session_id: &str) -> Result<(), PrivateDmRuntimeError> {
+        self.drain_inbound();
+        let session = self.session_mut(session_id)?;
+        session.publish_typing(now_ms());
+        Ok(())
+    }
+
     /// Puts a failed message back in the queue. A message that is already
     /// waiting its turn is left alone and reported as it stands.
     pub fn retry_message(
@@ -628,14 +677,14 @@ impl PrivateDmRuntime {
         session_id: &str,
     ) -> Result<SessionSnapshot, PrivateDmRuntimeError> {
         self.drain_inbound();
-        Ok(self.session_ref(session_id)?.snapshot())
+        Ok(self.session_mut(session_id)?.snapshot())
     }
 
     pub fn list_sessions(&mut self) -> Result<SessionListSnapshot, PrivateDmRuntimeError> {
         self.drain_inbound();
         let mut snapshots: Vec<SessionSnapshot> = self
             .sessions
-            .values()
+            .values_mut()
             .map(PrivateDmSession::snapshot)
             .collect();
         snapshots.sort_by(|a, b| a.session_id.cmp(&b.session_id));
@@ -858,6 +907,8 @@ impl PrivateDmSession {
             last_handshake_send_ms: 0,
             last_peer_announce_ms: 0,
             last_hello_send_ms: 0,
+            peer_typing_until_ms: None,
+            last_typing_send_ms: 0,
             dirty_outbound: Vec::new(),
             record_dirty: false,
         }
@@ -1406,6 +1457,35 @@ impl PrivateDmSession {
                 }
                 Ok(())
             }
+            ControlEnvelope::TypingIndicator {
+                session_id,
+                participant_id,
+                from_device,
+                typing_ciphertext_b64,
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                // Decrypting authenticates: only the MLS peer can produce a
+                // ciphertext this group accepts, so a forged hint stops here
+                // and the session keeps quiet.
+                let Ok(ciphertext) = decode(&typing_ciphertext_b64) else {
+                    return Ok(());
+                };
+                let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
+                    eprintln!("dropping unverifiable typing hint for {session_id}");
+                    return Ok(());
+                };
+                // The body names the device, but the authenticated identity is
+                // the envelope's `from_device` + the fact it decrypted; accept
+                // the body only when it agrees.
+                if let Ok(body) = decode_json::<TypingBody>(&plaintext) {
+                    self.note_peer_name(&from_device);
+                    if body.device != from_device {
+                        return Ok(());
+                    }
+                }
+                self.note_authenticated_frame(&from_device);
+                self.note_peer_typing(now_ms());
+                Ok(())
+            }
             ControlEnvelope::AttachmentManifest {
                 session_id,
                 participant_id,
@@ -1622,6 +1702,9 @@ impl PrivateDmSession {
 
         let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
         self.note_authenticated_frame(&envelope.from_device);
+        // A delivered message contradicts "typing": the hint dies at once,
+        // whatever its deadline said.
+        self.clear_peer_typing();
         let ack_id = envelope.message_id.clone();
         let message = self.messages.stamp(ChatMessage {
             from_device: envelope.from_device,
@@ -1672,6 +1755,74 @@ impl PrivateDmSession {
             return;
         };
         let _ = self.route_send(ChannelKind::Control, &payload);
+    }
+
+    /// Publishes a typing hint if the refresh cadence allows one. The
+    /// composer calls this on every keystroke; continued input keeps
+    /// refreshing the peer's window at this cadence, and stopping input
+    /// simply stops the calls — the peer's own expiry does the rest. No
+    /// sender-side expiry state: the receiver owns the deadline.
+    fn publish_typing(&mut self, now: u64) {
+        if !self.can_encrypt_for_peer() {
+            return;
+        }
+        if now.saturating_sub(self.last_typing_send_ms) < TYPING_REFRESH_MS {
+            return;
+        }
+        let body = TypingBody {
+            device: self.device_id.clone(),
+            until_ms: now.saturating_add(TYPING_EXPIRY_MS),
+        };
+        let Ok(body_json) = serde_json::to_vec(&body) else {
+            return;
+        };
+        let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
+            return;
+        };
+        let envelope = ControlEnvelope::TypingIndicator {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            from_device: self.device_id.clone(),
+            typing_ciphertext_b64: encode(&ciphertext),
+        };
+        let Ok(payload) = serde_json::to_vec(&envelope) else {
+            return;
+        };
+        if self.route_send(ChannelKind::Control, &payload).is_err() {
+            return;
+        }
+        self.last_typing_send_ms = now;
+    }
+
+    /// A decrypted hint from the counterpart: stamp the deadline from OUR
+    /// clock (the sender's `until_ms` stays advisory) and file the event.
+    fn note_peer_typing(&mut self, now: u64) {
+        let lapsed = self.peer_typing_until_ms.is_none_or(|until| until <= now);
+        self.peer_typing_until_ms = Some(now.saturating_add(TYPING_EXPIRY_MS));
+        if lapsed {
+            push_typing_event(&self.session_id, "started");
+        }
+    }
+
+    /// Drops the hint once its deadline passes. Driven by the poll/tick
+    /// heartbeat, so no timer of its own; files the lapse event once.
+    fn expire_peer_typing(&mut self, now: u64) {
+        let Some(until) = self.peer_typing_until_ms else {
+            return;
+        };
+        if until > now {
+            return;
+        }
+        self.peer_typing_until_ms = None;
+        push_typing_event(&self.session_id, "stopped");
+    }
+
+    /// An inbound message contradicts "typing": the hint is cleared at once,
+    /// whatever its deadline said.
+    fn clear_peer_typing(&mut self) {
+        if self.peer_typing_until_ms.take().is_some() {
+            push_typing_event(&self.session_id, "stopped");
+        }
     }
 
     fn handle_blob(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
@@ -1810,7 +1961,10 @@ impl PrivateDmSession {
             && self.participant_id != participant_id
     }
 
-    fn snapshot(&self) -> SessionSnapshot {
+    fn snapshot(&mut self) -> SessionSnapshot {
+        // The poll is the heartbeat: a hint past its deadline stops being
+        // carried (and files its lapse into the event ring) from here.
+        self.expire_peer_typing(now_ms());
         SessionSnapshot {
             session_id: self.session_id.clone(),
             mesh_id: self.mesh_id.clone(),
@@ -1859,6 +2013,7 @@ impl PrivateDmSession {
                     None
                 }
             }),
+            peer_typing_until_ms: self.peer_typing_until_ms,
         }
     }
 

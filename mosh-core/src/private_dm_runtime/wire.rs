@@ -127,6 +127,20 @@ pub enum ControlEnvelope {
         participant_id: String,
         ack_ciphertext_b64: String,
     },
+    /// Liveness hint published while the sender types. The body — a JSON
+    /// object naming the device and the sender-claimed expiry — travels
+    /// MLS-encrypted, so a mesh bystander cannot forge "someone is typing";
+    /// only the MLS peer can produce a ciphertext this group accepts. The
+    /// sender repeats it on the refresh cadence while input continues and
+    /// simply stops when input ends; the receiver owns the expiry. Old
+    /// clients fail to decode the unknown variant and drop the frame —
+    /// they simply never show typing.
+    TypingIndicator {
+        session_id: String,
+        participant_id: String,
+        from_device: String,
+        typing_ciphertext_b64: String,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -2833,6 +2833,8 @@ impl SseDecode for crate::private_group_runtime::GroupSnapshot {
         let mut var_needsRejoin = <bool>::sse_decode(deserializer);
         let mut var_orgPubkey = <Option<String>>::sse_decode(deserializer);
         let mut var_memberPeerIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_typingMembers =
+            <Vec<crate::private_group_runtime::TypingMember>>::sse_decode(deserializer);
         return crate::private_group_runtime::GroupSnapshot {
             group_id: var_groupId,
             mesh_id: var_meshId,
@@ -2852,6 +2854,7 @@ impl SseDecode for crate::private_group_runtime::GroupSnapshot {
             needs_rejoin: var_needsRejoin,
             org_pubkey: var_orgPubkey,
             member_peer_ids: var_memberPeerIds,
+            typing_members: var_typingMembers,
         };
     }
 }
@@ -3744,6 +3747,74 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionListSnapshot {
     }
 }
 
+impl SseDecode for Vec<crate::private_group_runtime::TypingMember> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::private_group_runtime::TypingMember>::sse_decode(
+                deserializer,
+            ));
+        }
+        ans_
+    }
+}
+
+impl SseEncode for Vec<crate::private_group_runtime::TypingMember> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::private_group_runtime::TypingMember>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseDecode for crate::private_group_runtime::TypingMember {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_fingerprint = <String>::sse_decode(deserializer);
+        let mut var_displayName = <String>::sse_decode(deserializer);
+        let mut var_untilMs = <u64>::sse_decode(deserializer);
+        return crate::private_group_runtime::TypingMember {
+            fingerprint: var_fingerprint,
+            display_name: var_displayName,
+            until_ms: var_untilMs,
+        };
+    }
+}
+
+impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::TypingMember {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.fingerprint.into_into_dart().into_dart(),
+            self.display_name.into_into_dart().into_dart(),
+            self.until_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::private_group_runtime::TypingMember
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::TypingMember>
+    for crate::private_group_runtime::TypingMember
+{
+    fn into_into_dart(self) -> crate::private_group_runtime::TypingMember {
+        self
+    }
+}
+impl SseEncode for crate::private_group_runtime::TypingMember {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.fingerprint, serializer);
+        <String>::sse_encode(self.display_name, serializer);
+        <u64>::sse_encode(self.until_ms, serializer);
+    }
+}
+
 impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3775,6 +3846,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
             <Option<crate::private_dm_runtime::contracts::OutgoingCall>>::sse_decode(deserializer);
         let mut var_activeCall =
             <Option<crate::private_dm_runtime::contracts::ActiveCall>>::sse_decode(deserializer);
+        let mut var_peerTypingUntilMs = <Option<u64>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::SessionSnapshot {
             session_id: var_sessionId,
             mesh_id: var_meshId,
@@ -3794,6 +3866,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
             pending_call: var_pendingCall,
             outgoing_call: var_outgoingCall,
             active_call: var_activeCall,
+            peer_typing_until_ms: var_peerTypingUntilMs,
         };
     }
 }
@@ -4772,6 +4845,7 @@ impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::GroupSnapsh
             self.needs_rejoin.into_into_dart().into_dart(),
             self.org_pubkey.into_into_dart().into_dart(),
             self.member_peer_ids.into_into_dart().into_dart(),
+            self.typing_members.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5387,6 +5461,7 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Ses
             self.pending_call.into_into_dart().into_dart(),
             self.outgoing_call.into_into_dart().into_dart(),
             self.active_call.into_into_dart().into_dart(),
+            self.peer_typing_until_ms.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5984,6 +6059,10 @@ impl SseEncode for crate::private_group_runtime::GroupSnapshot {
         <bool>::sse_encode(self.needs_rejoin, serializer);
         <Option<String>>::sse_encode(self.org_pubkey, serializer);
         <Vec<String>>::sse_encode(self.member_peer_ids, serializer);
+        <Vec<crate::private_group_runtime::TypingMember>>::sse_encode(
+            self.typing_members,
+            serializer,
+        );
     }
 }
 
@@ -6673,6 +6752,7 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
             self.active_call,
             serializer,
         );
+        <Option<u64>>::sse_encode(self.peer_typing_until_ms, serializer);
     }
 }
 
