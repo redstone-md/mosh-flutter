@@ -18,6 +18,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::moss_ffi::{clear_event_log, MossFfiError, MossFfiRuntime, MossNode, MossNodeConfig};
 
 /// The room the shared node is born in. Carries no conversation traffic — each
@@ -99,7 +100,12 @@ impl SharedMossNode {
             Some(node) => {
                 if let Some(peer) = static_peer.as_deref() {
                     if let Err(error) = node.connect(peer) {
-                        eprintln!("shared moss node could not dial {peer}: {error}");
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::CONNECT,
+                            peer,
+                            &format!("shared moss node could not dial: {error}"),
+                        );
                     }
                 }
             }

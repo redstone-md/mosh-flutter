@@ -51,6 +51,20 @@ All notable changes to Mosh are documented here. Format follows
   snapshots (`SessionSnapshot.peer_typing_until_ms`,
   `GroupSnapshot.typing_members`) carry the state to the UI through the
   existing poll cycle — no new push channel.
+- **A field log the app can hand to support.** The Rust core's error lines
+  (dropped frames, failed handshakes, stalled resends, rehydrate failures)
+  used to go to process stderr, which a release Windows build has no console
+  for — every line was silently lost. They now land in one rotated plain
+  file under the app-private data directory (`<data dir>/mosh/logs/mosh.log`),
+  written by a single sink that owns the path and the rotation policy
+  (~2 MB per file, `mosh.log` → `mosh.log.1` → `mosh.log.2`, oldest dropped).
+  Lines are structured and greppable — `timestamp level kind context message`
+  — and the log never breaks the app: a filesystem failure drops the line
+  and the next write retries. Debug builds still mirror every line to stderr.
+  Key session transitions join the errors: handshake landed, resend attempts,
+  delivery settlement. The location is surfaced through
+  `current_log_path()` so a support conversation can end with "attach this
+  file".
 - The diagnostics event log names the messenger events moss added in
   v0.8.20 (`message_delivered`, `message_read`, `typing`, `presence`)
   instead of rendering them as `unknown`. Mosh does not act on them yet.

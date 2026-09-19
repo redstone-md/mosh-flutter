@@ -44,6 +44,8 @@ use ringbuf::{
     traits::Consumer, traits::Observer, traits::Producer, traits::Split, HeapCons, HeapProd, HeapRb,
 };
 
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+
 /// Drift-resync threshold in seconds. Mirrors React's
 /// `PLAYBACK_RESYNC_S = 0.2` -- when the ring backlog exceeds 0.2s of audio,
 /// drop it and resume from "now" (the equivalent of React resetting
@@ -155,7 +157,12 @@ fn build_stream<T: SizedSample + FromSample<i16>>(
                 // stream stays alive for the call's lifetime; a hard fault
                 // surfaces on the next `push_frame` as a poisoned mutex or is
                 // cleaned up by `stop`.
-                eprintln!("voice_call_playback: cpal stream error: {err:?}");
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::VOICE,
+                    "playback",
+                    &format!("cpal stream error: {err:?}"),
+                );
             },
             None,
         )
