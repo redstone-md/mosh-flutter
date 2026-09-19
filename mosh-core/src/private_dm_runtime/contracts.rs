@@ -72,6 +72,18 @@ pub struct AcceptInviteRequest {
     pub static_peer: Option<String>,
 }
 
+/// The MLS-encrypted body of a `TypingIndicator` (DM and group share it).
+/// The device name lets the receiver label the hint with an authenticated
+/// name; `until_ms` is the sender's own claim and stays advisory — the
+/// receiver stamps the hint with its own clock so a skewed sender cannot
+/// stretch it.
+#[frb(non_opaque)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypingBody {
+    pub device: String,
+    pub until_ms: u64,
+}
+
 #[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionSnapshot {
@@ -100,6 +112,11 @@ pub struct SessionSnapshot {
     pub events: Vec<SnapshotEvent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pending_call: Option<PendingCall>,
+    /// Wall-clock deadline of the peer's typing hint, if one stands. Absent
+    /// when the peer is not typing; a poll past the deadline simply stops
+    /// carrying the field.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub peer_typing_until_ms: Option<u64>,
     /// Present while the local user is placing a call and waiting for the peer
     /// to answer (caller-side "ringing" state).
     #[serde(skip_serializing_if = "Option::is_none")]

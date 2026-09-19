@@ -19,7 +19,7 @@ use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::{Transfer, TransferError};
-use crate::conversation::{decode, encode};
+use crate::conversation::{decode, encode, now_ms};
 use crate::inbox;
 use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
 use crate::moss_ffi::{MossFfiRuntime, MossNode, MossReceivedMessage};
@@ -36,6 +36,30 @@ const KIND: &str = "group";
 const CONTROL_CHANNEL_PREFIX: &str = "group-control/";
 const DATA_CHANNEL_PREFIX: &str = "group-data/";
 const BLOB_CHANNEL_PREFIX: &str = "group-blob/";
+
+// Minimum gap between TypingIndicator publishes from one member. Same
+// reasoning as the DM side: the composer's every keystroke folds down to
+// one steady signal at this cadence.
+const TYPING_REFRESH_MS: u64 = 3_000;
+
+// How long a member's typing hint stays believable without a refresh. The
+// receiver owns the expiry; a member's own message clears its hint at once.
+const TYPING_EXPIRY_MS: u64 = 5_000;
+
+/// Event code the diagnostics panel renders as "typing" (pinned in
+/// `conversation::mesh`).
+const TYPING_EVENT_CODE: i32 = 10;
+
+/// Files one typing event (pinned code 10) into the diagnostics event ring,
+/// the same insert `on_moss_event` does for the node's own reports.
+fn push_typing_event(group_id: &str, phase: &str) {
+    let detail = serde_json::json!({
+        "conversation": KIND,
+        "group_id": group_id,
+        "phase": phase,
+    });
+    crate::moss_ffi::push_app_event(TYPING_EVENT_CODE, &detail.to_string());
+}
 
 /// The group's own inbound queue, claimed once for the process.
 fn group_inbox() -> &'static inbox::Inbox {
@@ -171,6 +195,10 @@ pub struct GroupSnapshot {
     /// Leaf credential identities; on org groups these are moss peer-ids,
     /// letting the UI diff the roster against group membership.
     pub member_peer_ids: Vec<String>,
+    /// Members currently typing, one entry each with the deadline the
+    /// receiver stamped. Empty when nobody is.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub typing_members: Vec<TypingMember>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -329,6 +357,36 @@ enum ControlEnvelope {
         for_fingerprint: String,
         commits: Vec<ResyncCommit>,
     },
+    /// Liveness hint published while one member types. The body — a JSON
+    /// object naming the device and the sender-claimed expiry — travels
+    /// MLS-encrypted exactly like an AttachmentManifest, so only group
+    /// members can mint one and a mesh bystander cannot forge it. The
+    /// receiver owns the expiry; old clients fail to decode the unknown
+    /// variant and drop the frame.
+    TypingIndicator {
+        group_id: String,
+        from_device: String,
+        from_fingerprint: String,
+        typing_ciphertext_b64: String,
+    },
+}
+
+/// The MLS-encrypted body of a group `TypingIndicator` — the same shape the
+/// DM hint carries, re-exported through the DM contracts.
+type GroupTypingBody = crate::private_dm_runtime::contracts::TypingBody;
+
+/// One member currently typing, as the group snapshot names it.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct TypingMember {
+    /// The member's device fingerprint — the same id the message log keys
+    /// authors by, so the UI can match avatar/roster data.
+    pub fingerprint: String,
+    /// The typing member's display name, learned from the frame's
+    /// `from_device` (and re-learned through message traffic).
+    pub display_name: String,
+    /// Wall-clock deadline of the hint; the receiver's clock, not the
+    /// sender's claim.
+    pub until_ms: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -444,6 +502,16 @@ struct GroupSession {
     /// Roster version at the last lag-retry, so a change triggers exactly
     /// one retry pass.
     last_roster_version_seen: Option<u64>,
+    /// Fingerprint → wall-clock deadline of that member's typing hint. A
+    /// refresh inside the window renews the entry; silence lets it lapse.
+    typing_members: HashMap<String, u64>,
+    /// Fingerprint → the member's display name, learned from the
+    /// authenticated frames that carry it (typing hints, messages). The
+    /// roster view reads names from here instead of re-deriving them.
+    member_names: HashMap<String, String>,
+    /// When this member last published a TypingIndicator, so continued
+    /// input re-emits no faster than the refresh cadence.
+    last_typing_send_ms: u64,
 }
 
 struct RosterLaggedCommit {
@@ -599,6 +667,9 @@ impl PrivateGroupRuntime {
                 roster_cache: None,
                 roster_lag: Vec::new(),
                 last_roster_version_seen: None,
+                typing_members: HashMap::new(),
+                member_names: HashMap::new(),
+                last_typing_send_ms: 0,
             };
             // The persisted MLS tree outranks the persisted admin pointer: if
             // the admin left while we were down, the restored tree already
@@ -696,6 +767,9 @@ impl PrivateGroupRuntime {
             roster_cache: None,
             roster_lag: Vec::new(),
             last_roster_version_seen: None,
+            typing_members: HashMap::new(),
+            member_names: HashMap::new(),
+            last_typing_send_ms: 0,
         };
 
         self.groups.insert(group_id.clone(), session);
@@ -786,6 +860,9 @@ impl PrivateGroupRuntime {
             roster_cache: None,
             roster_lag: Vec::new(),
             last_roster_version_seen: None,
+            typing_members: HashMap::new(),
+            member_names: HashMap::new(),
+            last_typing_send_ms: 0,
         };
         self.groups.insert(invite.group_id.clone(), session);
         self.poll(&invite.group_id)
@@ -977,6 +1054,20 @@ impl PrivateGroupRuntime {
         self.publish_prepared(group_id, prepared, false)
     }
 
+    /// Signals "I am typing" in one group, driven by the composer's input.
+    /// The per-keystroke call is folded down to the refresh cadence inside
+    /// the session; a publish the transport refuses is retried on the next
+    /// call (no error to the composer — a dropped hint only delays a hint).
+    pub fn typing_signal(&mut self, group_id: &str) -> Result<(), PrivateGroupError> {
+        self.drain_inbound()?;
+        let session = self
+            .groups
+            .get_mut(group_id)
+            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        session.publish_typing(now_ms());
+        Ok(())
+    }
+
     /// Publishes a prepared send on the group's data channel and writes down
     /// how it went. A group has no acknowledgement, so the attempt record is
     /// gone as soon as the frame is on the wire.
@@ -1028,7 +1119,7 @@ impl PrivateGroupRuntime {
         self.groups.persist_tail();
         let session = self
             .groups
-            .get(group_id)
+            .get_mut(group_id)
             .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
         Ok(session.snapshot())
     }
@@ -1037,7 +1128,7 @@ impl PrivateGroupRuntime {
         self.drain_inbound()?;
         self.groups.persist_tail();
         let mut groups: Vec<GroupSnapshot> =
-            self.groups.values().map(GroupSession::snapshot).collect();
+            self.groups.values_mut().map(GroupSession::snapshot).collect();
         groups.sort_by(|a, b| a.group_id.cmp(&b.group_id));
         Ok(GroupListSnapshot { groups })
     }
@@ -1295,6 +1386,66 @@ impl GroupSession {
             org_context(self.org_pubkey.as_deref(), self.org_signer.as_ref()),
             value,
         )
+    }
+
+    /// Publishes a typing hint if the refresh cadence allows one. Same shape
+    /// as the DM hint: the composer calls on every keystroke, the runtime
+    /// folds it down, and the receiver owns the expiry. A hint the transport
+    /// refuses is simply retried on the next call.
+    fn publish_typing(&mut self, now: u64) {
+        if !self.joined || !self.crypto.is_ready() {
+            return;
+        }
+        if now.saturating_sub(self.last_typing_send_ms) < TYPING_REFRESH_MS {
+            return;
+        }
+        let body = GroupTypingBody {
+            device: self.display_name.clone(),
+            until_ms: now.saturating_add(TYPING_EXPIRY_MS),
+        };
+        let Ok(body_json) = serde_json::to_vec(&body) else {
+            return;
+        };
+        let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
+            return;
+        };
+        let envelope = ControlEnvelope::TypingIndicator {
+            group_id: self.group_id.clone(),
+            from_device: self.display_name.clone(),
+            from_fingerprint: self.device_fingerprint.clone(),
+            typing_ciphertext_b64: encode(&ciphertext),
+        };
+        if self.publish_control(&envelope).is_err() {
+            return;
+        }
+        self.last_typing_send_ms = now;
+    }
+
+    /// A decrypted hint from a member: stamp that member's deadline from OUR
+    /// clock (the sender's `until_ms` stays advisory), learn their display
+    /// name from the authenticated `from_device`, and file the event when
+    /// the member's hint is new (a refresh must not spam the ring).
+    fn note_member_typing(&mut self, fingerprint: String, from_device: &str, now: u64) {
+        self.member_names
+            .entry(fingerprint.clone())
+            .or_insert_with(|| from_device.to_string());
+        let fresh = match self.typing_members.get(&fingerprint) {
+            Some(until) if *until > now => false,
+            _ => true,
+        };
+        self.typing_members
+            .insert(fingerprint, now.saturating_add(TYPING_EXPIRY_MS));
+        if fresh {
+            push_typing_event(&self.group_id, "started");
+        }
+    }
+
+    /// A member's inbound message contradicts "typing": that member's hint
+    /// dies at once, whatever its deadline said.
+    fn clear_member_typing(&mut self, fingerprint: &str) {
+        if self.typing_members.remove(fingerprint).is_some() {
+            push_typing_event(&self.group_id, "stopped");
+        }
     }
 
     /// Inbound control frame → (inner payload, verified sender peer-id).
@@ -1938,6 +2089,35 @@ impl GroupSession {
                 self.dm_offers.receive(offer, &self.device_fingerprint);
                 Ok(())
             }
+            ControlEnvelope::TypingIndicator {
+                group_id,
+                from_device,
+                from_fingerprint,
+                typing_ciphertext_b64,
+            } if self.joined
+                && self.group_id == group_id
+                && from_fingerprint != own_fp =>
+            {
+                // Decrypting authenticates: only a group member can produce a
+                // ciphertext this MLS group accepts, so a forged hint stops
+                // here. A wrong fingerprint claim is likewise dropped — the
+                // claim is self-asserted, but an inconsistent one is not worth
+                // a hint.
+                let Ok(ciphertext) = decode(&typing_ciphertext_b64) else {
+                    return Ok(());
+                };
+                let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
+                    eprintln!("dropping unverifiable typing hint for {group_id}");
+                    return Ok(());
+                };
+                if let Ok(body) = decode_json::<GroupTypingBody>(&plaintext) {
+                    if body.device != from_device {
+                        return Ok(());
+                    }
+                }
+                self.note_member_typing(from_fingerprint, &from_device, now_ms());
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
@@ -1948,6 +2128,9 @@ impl GroupSession {
             return Ok(());
         }
         let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
+        // A delivered message contradicts "typing": the author's hint dies at
+        // once, whatever its deadline said.
+        self.clear_member_typing(&envelope.from_fingerprint);
         let message = self.messages.stamp(GroupMessage {
             from_device: envelope.from_device,
             from_fingerprint: envelope.from_fingerprint,
@@ -2083,7 +2266,7 @@ impl GroupSession {
         }
     }
 
-    fn snapshot(&self) -> GroupSnapshot {
+    fn snapshot(&mut self) -> GroupSnapshot {
         GroupSnapshot {
             group_id: self.group_id.clone(),
             mesh_id: self.mesh_id.clone(),
@@ -2105,8 +2288,54 @@ impl GroupSession {
                 Some(_) => self.crypto.member_identities(),
                 None => Vec::new(),
             },
+            typing_members: self.typing_members_view(now_ms()),
             events: mesh::snapshot_events(),
         }
+    }
+
+    /// The live typing roster: every entry past its deadline is dropped
+    /// first, then the rest read out in fingerprint order (stable for the
+    /// poll diff; the deadline travels along). Driven by the poll heartbeat,
+    /// so no timer of its own.
+    fn typing_members_view(&mut self, now: u64) -> Vec<TypingMember> {
+        self.typing_members.retain(|_, until| *until > now);
+        let mut members: Vec<TypingMember> = self
+            .typing_members
+            .iter()
+            .map(|(fingerprint, until)| TypingMember {
+                fingerprint: fingerprint.clone(),
+                display_name: self.member_display_name(fingerprint),
+                until_ms: *until,
+            })
+            .collect();
+        members.sort_by(|a, b| a.fingerprint.cmp(&b.fingerprint));
+        members
+    }
+
+    /// The typing roster without expiring: tests read the standing entries.
+    #[cfg(test)]
+    fn typing_members_live(&self) -> Vec<TypingMember> {
+        let mut members: Vec<TypingMember> = self
+            .typing_members
+            .iter()
+            .map(|(fingerprint, until)| TypingMember {
+                fingerprint: fingerprint.clone(),
+                display_name: self.member_display_name(fingerprint),
+                until_ms: *until,
+            })
+            .collect();
+        members.sort_by(|a, b| a.fingerprint.cmp(&b.fingerprint));
+        members
+    }
+
+    /// A member's best-known display name: the name their authenticated
+    /// frames carry, else the fingerprint. Kept cheap by construction — the
+    /// map only ever holds entries for members that typed or spoke.
+    fn member_display_name(&self, fingerprint: &str) -> String {
+        self.member_names
+            .get(fingerprint)
+            .cloned()
+            .unwrap_or_else(|| fingerprint.to_string())
     }
 
     fn state(&self) -> String {
@@ -2712,7 +2941,7 @@ mod tests {
             org_signed_control(&member_key, &control_channel, &mesh_id, &env),
         );
         {
-            let session = runtime.groups.get(&created.group_id).unwrap();
+            let session = runtime.groups.get_mut(&created.group_id).unwrap();
             assert_eq!(
                 session.crypto.member_count(),
                 2,
@@ -3362,6 +3591,102 @@ mod tests {
             let proposal = self.dane.leave_proposal_bytes().unwrap();
             self.cleo.commit_departure(&proposal).unwrap()
         }
+
+        /// Cleo's typing hint, encrypted under cleo's MLS state — exactly
+        /// what a member's runtime mints — delivered to us on the control
+        /// channel.
+        fn deliver_cleo_typing(&mut self) {
+            let body = GroupTypingBody {
+                device: "cleo".to_string(),
+                until_ms: now_ms() + TYPING_EXPIRY_MS,
+            };
+            let ciphertext = self
+                .cleo
+                .encrypt(&serde_json::to_vec(&body).unwrap())
+                .unwrap();
+            self.deliver(&ControlEnvelope::TypingIndicator {
+                group_id: self.group_id.clone(),
+                from_device: "cleo".to_string(),
+                from_fingerprint: self.cleo.fingerprint(),
+                typing_ciphertext_b64: encode(&ciphertext),
+            });
+        }
+
+        fn typing_member_of(&self) -> Option<TypingMember> {
+            self.session().typing_members_live().first().cloned()
+        }
+    }
+
+    /// Cleo types, the member sees WHO types, the sender's message clears
+    /// the hint, and a forged hint is dead on arrival.
+    #[test]
+    fn group_typing_identifies_the_member_and_stops_on_their_message() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let mut view = MemberView::open(42395);
+
+        // Cleo's hint lands: the snapshot names cleo (fingerprint + display
+        // name) with a receiver-stamped deadline.
+        view.deliver_cleo_typing();
+        let member = view
+            .typing_member_of()
+            .expect("cleo's hint must stand");
+        assert_eq!(member.fingerprint, view.cleo.fingerprint());
+        assert_eq!(member.display_name, "cleo");
+        assert!(
+            member.until_ms > now_ms(),
+            "the deadline is stamped from the receiver's clock"
+        );
+
+        // A refresh renews the same entry (no duplicate rows for one member).
+        view.deliver_cleo_typing();
+        assert_eq!(view.session().typing_members_live().len(), 1);
+
+        // Cleo's own message contradicts "typing": the hint dies at once.
+        let body = b"cleo is done typing".to_vec();
+        let ciphertext = view.cleo.encrypt(&body).unwrap();
+        let data = DataEnvelope {
+            group_id: view.group_id.clone(),
+            participant_id: "cleo-participant".to_string(),
+            from_device: "cleo".to_string(),
+            from_fingerprint: view.cleo.fingerprint(),
+            message_id: Some("g-typing-1".to_string()),
+            sent_at_ms: Some(now_ms()),
+            ciphertext_b64: encode(&ciphertext),
+        };
+        let session = view.runtime.groups.get_mut(&view.group_id).unwrap();
+        session
+            .handle_moss_message(MossReceivedMessage {
+                channel: session.data_channel.clone(),
+                payload: serde_json::to_vec(&data).unwrap(),
+            })
+            .expect("cleo's message should be handled");
+        assert!(
+            view.typing_member_of().is_none(),
+            "a member's own message clears their hint"
+        );
+    }
+
+    // A hint that never decrypts (an outsider's bytes) leaves the roster
+    // empty: the MLS decrypt is the only door, same as the DM side.
+    #[test]
+    fn a_forged_group_hint_is_dropped() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let mut view = MemberView::open(42396);
+        view.deliver(&ControlEnvelope::TypingIndicator {
+            group_id: view.group_id.clone(),
+            from_device: "stranger".to_string(),
+            from_fingerprint: "stranger-fingerprint".to_string(),
+            typing_ciphertext_b64: encode(b"not-an-mls-ciphertext"),
+        });
+        assert!(view.typing_member_of().is_none());
     }
 
     /// #18: the admin's departure travels in the Commit that drops its leaf,

@@ -794,6 +794,28 @@ unsafe extern "C" fn on_moss_event(event_type: i32, detail_json: *const c_char) 
     }
 }
 
+/// App-level event insert into the same ring the node's callback feeds: the
+/// messenger synthesizes events of its own (typing, receipts, presence) and
+/// the diagnostics panel reads them through `snapshot_event_log` like any
+/// node report. Kept one ring, one capacity, one shape.
+pub fn push_app_event(event_type: i32, detail_json: &str) {
+    let epoch_millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
+
+    let mut log = EVENT_LOG.lock().expect("Moss event lock poisoned");
+    log.push(MossEvent {
+        event_type,
+        detail_json: detail_json.to_string(),
+        epoch_millis,
+    });
+    if log.len() > EVENT_RING_CAPACITY {
+        let drop = log.len() - EVENT_RING_CAPACITY;
+        log.drain(0..drop);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
