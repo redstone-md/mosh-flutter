@@ -24,6 +24,7 @@ pub mod private_dm_runtime;
 pub mod private_group_runtime;
 pub mod secure_storage;
 pub mod shared_node;
+pub mod stream_transport;
 pub mod voice_call_drain;
 pub mod voice_call_frame_crypto;
 pub mod voice_call_jitter;

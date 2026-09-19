@@ -2,7 +2,7 @@ use std::{
     ffi::{c_void, CStr, CString},
     mem::ManuallyDrop,
     os::raw::c_char,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, LazyLock, Mutex, RwLock},
     time::Duration,
 };
 
@@ -73,6 +73,21 @@ type KeyStoreLoadCallback = unsafe extern "C" fn(*mut u8, u32) -> u32;
 type KeyStoreSaveCallback = unsafe extern "C" fn(*const u8, u32);
 type MossSetKeyStore =
     unsafe extern "C" fn(Option<KeyStoreLoadCallback>, Option<KeyStoreSaveCallback>) -> i32;
+
+// Optional capabilities, present from moss v0.8.20+ (streams) and v0.8.17+
+// (version). All are loaded with `try_load_symbol`, which stores None when the
+// library predates them: a stale copy beside the binary must degrade to the
+// room wire, never fail the whole load.
+type MossVersionFn = unsafe extern "C" fn() -> *mut c_char;
+type MossPeerRttFn = unsafe extern "C" fn(MossHandle, *const c_char) -> i64;
+type MossOpenStreamFn = unsafe extern "C" fn(MossHandle, *const c_char, u32) -> i32;
+type MossSendStreamFn =
+    unsafe extern "C" fn(MossHandle, *const c_char, u32, *const u8, u32) -> i32;
+// Callback shape mirrors moss's MossStreamCallback C typedef: a heap-allocated
+// peer-id string (hex) and the payload bytes; the caller frees both copies.
+type StreamCallback = unsafe extern "C" fn(*const c_char, *const u8, u32);
+type MossOnStreamFn =
+    unsafe extern "C" fn(MossHandle, u32, Option<StreamCallback>) -> i32;
 
 const EVENT_RING_CAPACITY: usize = 64;
 
@@ -265,6 +280,15 @@ pub struct MossFfiRuntime {
     get_public_key: MossGetPublicKey,
     free: MossFree,
     set_key_store: MossSetKeyStore,
+    // Optional capabilities. None means the loaded library predates the
+    // symbol; every caller must fall back instead of treating it as a fault
+    // (see each accessor). No `?` in the loading below — the load itself
+    // must not fail.
+    version: Option<MossVersionFn>,
+    peer_rtt: Option<MossPeerRttFn>,
+    open_stream: Option<MossOpenStreamFn>,
+    send_stream: Option<MossSendStreamFn>,
+    on_stream: Option<MossOnStreamFn>,
 }
 
 pub struct MossNode {
@@ -336,6 +360,11 @@ impl MossFfiRuntime {
             get_public_key: load_symbol(&library, b"Moss_GetPublicKey\0")?,
             free: load_symbol(&library, b"Moss_Free\0")?,
             set_key_store: load_symbol(&library, b"Moss_SetKeyStore\0")?,
+            version: try_load_symbol(&library, b"Moss_Version\0"),
+            peer_rtt: try_load_symbol(&library, b"Moss_PeerRTT\0"),
+            open_stream: try_load_symbol(&library, b"Moss_OpenStream\0"),
+            send_stream: try_load_symbol(&library, b"Moss_SendStream\0"),
+            on_stream: try_load_symbol(&library, b"Moss_OnStream\0"),
             _library: ManuallyDrop::new(library),
         })
     }
@@ -587,6 +616,138 @@ impl MossNode {
         unsafe { (self.runtime.free)(ptr as *mut c_void) };
         Some(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
     }
+
+    /// The version the loaded library was built at (its own link stamp).
+    /// `None` when the symbol is missing: the library is older than
+    /// v0.8.17, which the diagnostics panel renders as "unknown".
+    pub fn library_version(&self) -> Option<String> {
+        let version = unsafe { (self.runtime.version?)() };
+        take_heap_string(version, &self.runtime.free)
+    }
+
+    /// Last measured round-trip time to a peer, in nanoseconds. `None` when
+    /// the symbol is missing or Moss reports 0 (unknown / unprobed peer) —
+    /// 0 ns is not a measurement, so handing it back would make a UI print
+    /// "0 ms" for a stranger.
+    pub fn peer_rtt_ns(&self, peer_id: &str) -> Option<u64> {
+        let rtt = unsafe {
+            (self.runtime.peer_rtt?)(self.handle, c_string(peer_id).ok()?.as_ptr())
+        };
+        u64::try_from(rtt).ok().filter(|nanos| *nanos > 0)
+    }
+
+    /// Streams are for attachment chunks (see `stream_transport`): declare
+    /// interest on a stream id toward a peer so a reader goroutine starts
+    /// draining it. Missing symbol → `Err(Symbol)` so the caller falls back
+    /// to the room wire. A relayed peer answers OK — moss wraps those sends
+    /// itself (see `send_stream`).
+    pub fn open_stream(&self, peer_id: &str, stream_id: u32) -> Result<(), MossFfiError> {
+        let peer = c_string(peer_id)?;
+        let open = self
+            .runtime
+            .open_stream
+            .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.clone()))?;
+        check_code("open_stream", unsafe { open(self.handle, peer.as_ptr(), stream_id) })
+    }
+
+    /// One payload down a declared stream. The library routes it over the
+    /// direct session when there is one and wraps it onto the relay path
+    /// otherwise (the 8-byte "MSs1" header + big-endian stream id); a
+    /// `RELAY_FAILED` return means neither leg could deliver, which the
+    /// caller answers with a room-wire publish. Missing symbol → `Err(Symbol)`.
+    pub fn send_stream(
+        &self,
+        peer_id: &str,
+        stream_id: u32,
+        payload: &[u8],
+    ) -> Result<(), MossFfiError> {
+        let peer = c_string(peer_id)?;
+        let send = self
+            .runtime
+            .send_stream
+            .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.clone()))?;
+        check_code("send_stream", unsafe {
+            send(
+                self.handle,
+                peer.as_ptr(),
+                stream_id,
+                payload.as_ptr(),
+                payload.len() as u32,
+            )
+        })
+    }
+
+    /// Register the inbound handler for a stream id. Registration is
+    /// per-node-lifetime in moss (re-registering replaces the entry), and the
+    /// callback is a plain function pointer with no context, so it forwards
+    /// (peer id, payload) into the process inbox — see `stream_transport`
+    /// for how a frame reaches its session from there. Missing symbol →
+    /// `Err(Symbol)`; the receive side then just keeps its room subscription.
+    pub fn register_stream_handler(&self, stream_id: u32) -> Result<(), MossFfiError> {
+        let on_stream = self
+            .runtime
+            .on_stream
+            .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.clone()))?;
+        check_code("on_stream", unsafe {
+            on_stream(self.handle, stream_id, Some(on_stream_payload))
+        })
+    }
+
+    /// Whether the loaded library can carry streams. The capability set is
+    /// loaded once at load time, so this never changes under a node.
+    pub fn has_stream_capability(&self) -> bool {
+        self.runtime.send_stream.is_some() && self.runtime.on_stream.is_some()
+    }
+}
+
+/// One stream frame from the library's callback thread: a heap peer-id string
+/// (hex) plus the payload bytes, both allocated with the library's own
+/// allocator. Forwarded into the process inbox under the framing channel
+/// every stream consumer recognises — the callback has no other context.
+unsafe extern "C" fn on_stream_payload(
+    peer_id: *const c_char,
+    data: *const u8,
+    len: u32,
+) {
+    if peer_id.is_null() || data.is_null() {
+        return;
+    }
+    let peer_id = unsafe { CStr::from_ptr(peer_id) }.to_string_lossy().into_owned();
+    let payload = unsafe { std::slice::from_raw_parts(data, len as usize) }.to_vec();
+    crate::inbox::deliver(MossReceivedMessage {
+        channel: stream_receive_channel(&peer_id),
+        payload,
+    });
+}
+
+/// The channel every stream-delivered frame is filed under. The blob channel
+/// naming (with a session id) is runtime-owned; the callback only knows the
+/// peer, so the carrier strips the framing and re-serves the frame into the
+/// runtime's own inbox by its real channel (see `stream_transport::ingest`).
+fn stream_receive_channel(peer_id: &str) -> String {
+    format!("{STREAM_INBOX_CHANNEL_PREFIX}{peer_id}")
+}
+
+/// Prefix reserved for frames the stream callback files. Runtime inboxes
+/// claim channels they recognise, so an unclaimed prefix lands in the
+/// unclaimed tail — a stream frame for a conversation nobody owns must not
+/// look like a room frame (or a control frame) to any claim.
+pub const STREAM_INBOX_CHANNEL_PREFIX: &str = "moss-stream/";
+
+/// The three stream symbols share one error identity: a caller that wants
+/// "streams or room wire" branches on the kind of failure, not on which of
+/// the three was missing.
+static STREAM_SYMBOL: LazyLock<String> = LazyLock::new(|| {
+    ["Moss_OpenStream", "Moss_SendStream", "Moss_OnStream"].join("/")
+});
+
+fn take_heap_string(ptr: *mut c_char, free: &MossFree) -> Option<String> {
+    if ptr.is_null() {
+        return None;
+    }
+    let value = unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned();
+    unsafe { free(ptr as *mut c_void) };
+    Some(value)
 }
 
 impl Drop for MossNode {
@@ -679,6 +840,14 @@ fn load_symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, MossFfiErro
         unsafe { library.get(name) }.map_err(|_| MossFfiError::Symbol(symbol_name(name)))?;
 
     Ok(*symbol)
+}
+
+/// Load a capability the library may predate. `None` on a missing symbol —
+/// the caller degrades (room-wire fallback / "unknown") instead of failing the
+/// whole runtime load. Never point at a REQUIRED symbol: those go through
+/// [`load_symbol`], which fails the load loudly.
+fn try_load_symbol<T: Copy>(library: &Library, name: &[u8]) -> Option<T> {
+    unsafe { library.get::<T>(name) }.ok().map(|symbol| *symbol)
 }
 
 fn c_string(value: &str) -> Result<CString, MossFfiError> {

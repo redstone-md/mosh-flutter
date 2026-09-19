@@ -159,6 +159,16 @@ fn start_node(
     )?;
     node.set_message_callback()?;
     node.set_event_callback()?;
+    // The attachment stream handler (spec #8) must be registered on the
+    // RECEIVE side before any counterpart streams a chunk at us — "first
+    // stream use" would only cover the sender. Idempotent per node (moss
+    // replaces the entry on re-register), best-effort: a library without the
+    // stream symbols simply keeps the room wire, so a missing symbol is a
+    // note, never a start failure.
+    if let Err(error) = node.register_stream_handler(crate::stream_transport::ATTACHMENT_STREAM_ID)
+    {
+        eprintln!("attachment stream receive not available: {error}");
+    }
     clear_event_log();
     node.start()?;
     Ok(node)

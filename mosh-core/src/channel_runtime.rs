@@ -769,6 +769,9 @@ impl ChannelSession {
         }
     }
 
+    // Blob traffic stays on the room wire (spec #8, this slice): a channel
+    // has no single direct peer to stream to, and the stream carrier is the
+    // DM fast path only. The chunk protocol below is unchanged.
     fn handle_blob(&mut self, payload: Vec<u8>) -> Result<(), ChannelRuntimeError> {
         let envelope: ChannelBlobEnvelope = serde_json::from_slice(&payload)
             .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;

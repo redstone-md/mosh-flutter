@@ -1904,7 +1904,7 @@ impl PrivateDmSession {
                     };
                     let bytes = serde_json::to_vec(&chunk)
                         .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-                    self.route_send(ChannelKind::Blob, &bytes)?;
+                    self.route_blob_frame(&bytes)?;
                 }
                 Ok(())
             }
@@ -1914,6 +1914,34 @@ impl PrivateDmSession {
             } if participant_id != self.participant_id => Ok(self.transfer.ingest(&frame)?),
             _ => Ok(()),
         }
+    }
+
+    /// The blob carrier (spec #8): a chunk rides the moss stream when the
+    /// counterpart's direct peer id is known, and falls back to the room
+    /// wire otherwise — including the "no peers yet" refusals the room path
+    /// already tolerates. Requests stay room-bound either way: they are
+    /// small, they repeat on their own cadence, and a stream request would
+    /// race the room fallback for ordering. Error surfacing matches
+    /// `route_send` on the Blob kind: "no peers" is not news.
+    fn route_blob_frame(&self, bytes: &[u8]) -> Result<(), PrivateDmRuntimeError> {
+        let blob_channel = self.blob_channel.clone();
+        let stream_peer = self.peer_moss_id.clone();
+        let mesh_id = self.mesh_id.clone();
+        let transport = Arc::clone(&self.transport);
+        let stream = stream_peer
+            .as_deref()
+            .map(|peer| (&*transport as &dyn DmTransport, peer));
+        let outcome = crate::stream_transport::send_chunk(
+            stream,
+            |payload| match transport.publish(&mesh_id, &blob_channel, payload) {
+                Ok(()) => Ok(()),
+                Err(PublishError::NoPeers(_)) => Ok(()),
+                Err(error) => Err(error.to_string()),
+            },
+            &blob_channel,
+            bytes,
+        );
+        outcome.map_err(PrivateDmRuntimeError::Moss)
     }
 
     fn accept_incoming_manifest(
@@ -2003,6 +2031,10 @@ impl PrivateDmSession {
                 request,
             };
             if let Ok(bytes) = serde_json::to_vec(&envelope) {
+                // Requests ride the room wire, not the stream (spec #8):
+                // they are small, repeat on their own cadence, and the retry
+                // bookkeeping keys on them; only the CHUNK frames the
+                // request provokes take the stream fast path in handle_blob.
                 let _ = self.route_send(ChannelKind::Blob, &bytes);
             }
         }
@@ -2932,6 +2964,143 @@ mod tests {
             "an identical re-request must reach handle_blob — re-asking \
              unchanged is how a lost chunk is recovered"
         );
+    }
+
+    // The stream carrier (spec #8) at the real-library seam: Alice has the
+    // counterpart's moss id but the node has nobody connected, so every
+    // stream send answers NoPeers and the carrier must fall back to the room
+    // wire — the chunk still reaches handle_blob as a room frame, byte for
+    // byte the pre-carrier payload. This is the mixed-version behavior too:
+    // a streamless counterpart never sees the framing.
+    #[test]
+    fn chunk_serving_falls_back_to_the_room_wire_when_the_stream_refuses() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
+        let invite = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42188,
+                static_peer: None,
+            })
+            .expect("Alice invite should be created");
+        let session = alice
+            .sessions
+            .get_mut(&invite.session_id)
+            .expect("Alice session should exist");
+
+        // The stream fast path requires a known peer id; give the session
+        // one, but leave the node unmeshed so both the stream and the room
+        // refuse. The transfer must still record the serve attempt.
+        session.peer_moss_id = Some("ab".repeat(32));
+
+        session
+            .transfer
+            .prepare_outgoing(OutgoingAttachment {
+                attachment_id: "att-stream-1".to_string(),
+                file_name: "photo.bin".to_string(),
+                mime: "application/octet-stream".to_string(),
+                from_fingerprint: session.fingerprint.clone(),
+                bytes: vec![7u8; 512],
+                thumbnail_b64: None,
+                voice: None,
+            })
+            .expect("outgoing attachment should register");
+
+        let payload = serde_json::to_vec(&BlobEnvelope::Request {
+            participant_id: "peer-participant".to_string(),
+            request: crate::attachment_runtime::ChunkRequest {
+                attachment_id: "att-stream-1".to_string(),
+                chunk_indices: vec![0],
+            },
+        })
+        .expect("blob request should serialize");
+        let request = MossReceivedMessage {
+            channel: session.blob_channel.clone(),
+            payload,
+        };
+
+        session
+            .handle_moss_message(request)
+            .expect("serving through the failing carrier should not fail the request");
+
+        assert_eq!(
+            session.transfer.served_count("att-stream-1", 0),
+            1,
+            "the chunk was served (the room wire accepted the frame as always)"
+        );
+
+        // The room wire is the fallback, not a duplicate: with no stream
+        // peer the fallback carries the frame, and nothing stream-shaped
+        // leaked into the process inbox.
+        let drained = drain_received_messages();
+        assert!(
+            drained
+                .iter()
+                .all(|message| !crate::stream_transport::is_stream_inbound(&message.channel)),
+            "no stream-carried frame should leak when the stream is not in play"
+        );
+    }
+
+    // The receive seam: a frame arriving on the reserved stream channel
+    // drains into the runtime as the ordinary blob frame it wraps, and
+    // handle_blob ingests it. The stream callback itself is exercised by the
+    // library; this proves the carrier's deframe → inbox → handle_blob hop.
+    // The chunk payload here is deliberately undecryptable — the routing is
+    // the assertion; attachment_runtime tests cover the crypto underneath.
+    #[test]
+    fn a_stream_delivered_chunk_reaches_handle_blob_through_the_carrier() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
+        let invite = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42189,
+                static_peer: None,
+            })
+            .expect("Alice invite should be created");
+        let session = alice
+            .sessions
+            .get_mut(&invite.session_id)
+            .expect("Alice session should exist");
+
+        let chunk = BlobEnvelope::Chunk {
+            participant_id: "peer-participant".to_string(),
+            frame: crate::attachment_runtime::ChunkFrame {
+                attachment_id: "att-stream-in".to_string(),
+                chunk_index: 0,
+                ciphertext_b64: crate::conversation::encode(b"not-a-real-chunk"),
+            },
+        };
+        let envelope_bytes = serde_json::to_vec(&chunk).expect("chunk envelope should serialize");
+        let framed = crate::stream_transport::frame_for_channel(&session.blob_channel, &envelope_bytes)
+            .expect("the carrier should frame the envelope");
+
+        // The stream callback files the framed payload under the reserved
+        // channel; the runtime's drain must unwrap it before routing.
+        let peer_id = "ab".repeat(32);
+        let stream_message = MossReceivedMessage {
+            channel: crate::stream_transport::stream_inbox_channel(&peer_id),
+            payload: framed,
+        };
+        let routed = crate::stream_transport::passthrough_or_deframe(stream_message);
+        assert_eq!(routed.channel, session.blob_channel);
+        assert_eq!(routed.payload, envelope_bytes, "the envelope rides verbatim");
+
+        // handle_blob ingests (the transfer is unknown → swallowed) without
+        // erroring: an undecryptable chunk fails the slot, not the drain.
+        session
+            .handle_moss_message(routed)
+            .expect("a stream-delivered chunk must not error the drain");
     }
 
     // Task 3: the moss peer-id rides along in the KeyPackage so Alice can
