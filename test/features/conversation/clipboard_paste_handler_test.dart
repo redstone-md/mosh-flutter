@@ -4,8 +4,7 @@
 // synchronous format selection + mime/extension mapping, which is what the
 // spec locks in. A fake `ClipboardDataReader` answers `canProvide` from a
 // seeded format list.
-import 'package:flutter/foundation.dart'
-    show FlutterError, FlutterErrorDetails;
+import 'package:flutter/foundation.dart' show FlutterError, FlutterErrorDetails;
 import 'package:flutter/widgets.dart' show PasteTextIntent;
 import 'package:flutter/services.dart' show SelectionChangedCause;
 import 'package:flutter_test/flutter_test.dart';
