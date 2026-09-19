@@ -136,6 +136,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AppDiagnostics dco_decode_app_diagnostics(dynamic raw);
 
   @protected
+  MossLibraryInfo dco_decode_moss_library_info(dynamic raw);
+
+  @protected
   AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw);
 
   @protected
@@ -584,6 +587,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AppDiagnostics sse_decode_app_diagnostics(SseDeserializer deserializer);
+
+  @protected
+  MossLibraryInfo sse_decode_moss_library_info(
+      SseDeserializer deserializer);
 
   @protected
   AttachmentDescriptor sse_decode_attachment_descriptor(
@@ -1085,6 +1092,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_app_diagnostics(
       AppDiagnostics self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_moss_library_info(
+      MossLibraryInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_attachment_descriptor(

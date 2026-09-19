@@ -39,6 +39,19 @@ class DiagnosticsNotifier extends AsyncNotifier<AppDiagnostics> {
 final nativeRuntimeStatusProvider = FutureProvider<NativeRuntimeStatus>(
     (ref) => ref.watch(bridgeFacadeProvider).nativeRuntimeStatus());
 
+/// Server state: what the loaded moss library reports about itself --
+/// version, the active DM counterpart's last measured RTT, the field log's
+/// file (spec #5). The family arg is the counterpart's moss peer id, or
+/// null when there is no single counterpart (channel/group drawers, no
+/// session): a null asks about the library alone, and the RTT comes back
+/// honestly unknown. One read per watch, like every facade mirror.
+final mossLibraryInfoProvider =
+    FutureProvider.family<MossLibraryInfo, String?>((ref, peerMossId) {
+  return ref.watch(bridgeFacadeProvider).mossLibraryInfo(
+        peerMossId: peerMossId,
+      );
+});
+
 /// Ephemeral cross-screen UI state for the invite-create flow (onboarding sets
 /// displayName; invite-paste reads it). ADR 0010 allows widget-local state,
 /// but this flow spans screens, so a sync NotifierProvider is justified.
