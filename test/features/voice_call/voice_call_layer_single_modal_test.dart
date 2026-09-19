@@ -113,7 +113,8 @@ void main() {
 
   testWidgets('caller: ring -> active -> re-polls shows one overlay',
       (tester) async {
-    session.snapshot = _snapshot(outgoingCall: const OutgoingCall(callId: 'call-1'));
+    session.snapshot =
+        _snapshot(outgoingCall: const OutgoingCall(callId: 'call-1'));
     await pumpLayer(tester);
     expect(find.byType(OutgoingCallModal), findsOneWidget);
 
