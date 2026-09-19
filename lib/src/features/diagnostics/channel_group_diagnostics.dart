@@ -31,6 +31,7 @@ import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/features/diagnostics/event_log.dart';
 import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/util/format.dart';
@@ -53,9 +54,18 @@ import 'package:mosh/src/util/format.dart';
 /// localized token. `mesh` may be `null` (handled by `MeshDiagnostics`);
 /// `events` may be empty (handled by `EventLog`).
 class ChannelDiagnostics extends StatelessWidget {
-  const ChannelDiagnostics({super.key, required this.channel});
+  const ChannelDiagnostics({
+    super.key,
+    required this.channel,
+    this.libraryInfo,
+  });
 
   final ChannelSnapshot channel;
+
+  /// What the loaded moss library reports about itself (spec #5). A channel
+  /// has no single counterpart, so its RTT row stays off; the version and
+  /// field-log rows still render when the read is present.
+  final MossLibraryInfo? libraryInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +84,7 @@ class ChannelDiagnostics extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         DiagnosticsGroup(label: l.diagGroupChannelDetails, children: rows),
-        MeshDiagnostics(mesh: channel.mesh),
+        MeshDiagnostics(mesh: channel.mesh, libraryInfo: libraryInfo),
         EventLog(events: channel.events),
       ],
     );
@@ -104,9 +114,18 @@ class ChannelDiagnostics extends StatelessWidget {
 /// DATA (not localized). `mesh` may be `null` (handled by
 /// `MeshDiagnostics`); `events` may be empty (handled by `EventLog`).
 class GroupDiagnostics extends StatelessWidget {
-  const GroupDiagnostics({super.key, required this.group});
+  const GroupDiagnostics({
+    super.key,
+    required this.group,
+    this.libraryInfo,
+  });
 
   final GroupSnapshot group;
+
+  /// What the loaded moss library reports about itself (spec #5). A group
+  /// has no single counterpart, so its RTT row stays off; the version and
+  /// field-log rows render when the read is present.
+  final MossLibraryInfo? libraryInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +166,7 @@ class GroupDiagnostics extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         DiagnosticsGroup(label: l.diagGroupGroupDetails, children: rows),
-        MeshDiagnostics(mesh: group.mesh),
+        MeshDiagnostics(mesh: group.mesh, libraryInfo: libraryInfo),
         EventLog(events: group.events),
       ],
     );

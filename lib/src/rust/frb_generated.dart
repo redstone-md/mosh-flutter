@@ -128,6 +128,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<AppDiagnostics> crateApiDiagnosticsAppDiagnostics();
 
+  Future<MossLibraryInfo> crateApiDiagnosticsMossLibraryInfo(
+      {required String? peerMossId});
+
   Future<void> crateApiPrivateDmCallAccept(
       {required String sessionId, required String callId});
 
@@ -464,6 +467,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "app_diagnostics",
         argNames: [],
+      );
+
+  @override
+  Future<MossLibraryInfo> crateApiDiagnosticsMossLibraryInfo(
+      {required String? peerMossId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_opt_String(peerMossId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 59, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_moss_library_info,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDiagnosticsMossLibraryInfoConstMeta,
+      argValues: [peerMossId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDiagnosticsMossLibraryInfoConstMeta =>
+      const TaskConstMeta(
+        debugName: "moss_library_info",
+        argNames: ["peerMossId"],
       );
 
   @override
@@ -2082,6 +2111,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MossLibraryInfo dco_decode_moss_library_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return MossLibraryInfo(
+      version: dco_decode_String(arr[0]),
+      peerRttMs: dco_decode_opt_box_autoadd_u_64(arr[1]),
+      logPath: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
   AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3429,6 +3471,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         privacyModel: var_privacyModel,
         discoveryModel: var_discoveryModel,
         mossLinkMode: var_mossLinkMode);
+  }
+
+  @protected
+  MossLibraryInfo sse_decode_moss_library_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_version = sse_decode_String(deserializer);
+    var var_peerRttMs = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_logPath = sse_decode_opt_String(deserializer);
+    return MossLibraryInfo(
+        version: var_version,
+        peerRttMs: var_peerRttMs,
+        logPath: var_logPath);
   }
 
   @protected
@@ -5046,6 +5100,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.privacyModel, serializer);
     sse_encode_String(self.discoveryModel, serializer);
     sse_encode_String(self.mossLinkMode, serializer);
+  }
+
+
+  @protected
+  void sse_encode_moss_library_info(
+      MossLibraryInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.version, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.peerRttMs, serializer);
+    sse_encode_opt_String(self.logPath, serializer);
   }
 
   @protected

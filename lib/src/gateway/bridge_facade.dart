@@ -39,9 +39,9 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
         SessionSnapshot,
         StartSessionRequest;
 import 'package:mosh/src/rust/api/diagnostics.dart'
-    show AppDiagnostics, NativeRuntimeStatus;
+    show AppDiagnostics, MossLibraryInfo, NativeRuntimeStatus;
 import 'package:mosh/src/rust/api/diagnostics.dart' as api
-    show appDiagnostics, nativeRuntimeStatus;
+    show appDiagnostics, mossLibraryInfo, nativeRuntimeStatus;
 import 'package:mosh/src/rust/api/private_dm.dart' as api
     show
         acceptInvite,
@@ -92,6 +92,12 @@ class BridgeFacade {
 
   Future<NativeRuntimeStatus> nativeRuntimeStatus() =>
       api.nativeRuntimeStatus();
+
+  // Diagnostics: the loaded moss library's own version + the last measured
+  // RTT to the active DM counterpart (spec #5). peerMossId is the snapshot's
+  // peer id; null asks about the library alone.
+  Future<MossLibraryInfo> mossLibraryInfo({String? peerMossId}) =>
+      api.mossLibraryInfo(peerMossId: peerMossId);
 
   // Invite/session setup: mint an invite, accept one, read the DM list.
   // The DM list feeds the rail; the conversation's own state is a Gateway

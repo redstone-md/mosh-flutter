@@ -20,7 +20,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart'
-    show AppDiagnostics, NativeRuntimeStatus;
+    show AppDiagnostics, MossLibraryInfo, NativeRuntimeStatus;
 import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
 import 'package:mosh/src/rust/channel_runtime.dart'
     show ChannelListSnapshot, ChannelSnapshot, JoinChannelRequest;
@@ -52,6 +52,7 @@ import 'scripted_conversations.dart';
 /// a typo is a compile error instead of a call that is never scripted.
 enum BridgeMethod {
   appDiagnostics,
+  mossLibraryInfo,
   nativeRuntimeStatus,
   createInvite,
   acceptInvite,
@@ -106,6 +107,7 @@ class ScriptableBridge
 
   InviteCreated? _invite;
   NativeRuntimeStatus? _nativeStatus;
+  MossLibraryInfo? _mossLibraryInfo;
   List<NetworkInterfaceInfo> _interfaces = const [];
   VpnDetection? _vpnDetection;
   String? _bindInterface;
@@ -140,6 +142,9 @@ class ScriptableBridge
   void seedNativeRuntimeStatus(NativeRuntimeStatus status) =>
       _nativeStatus = status;
 
+  /// Seed what `mossLibraryInfo` returns.
+  void seedMossLibraryInfo(MossLibraryInfo info) => _mossLibraryInfo = info;
+
   /// Seed the NICs `listInterfaces` returns.
   void seedInterfaces(List<NetworkInterfaceInfo> interfaces) =>
       _interfaces = interfaces;
@@ -169,6 +174,12 @@ class ScriptableBridge
       BridgeMethod.nativeRuntimeStatus,
       const {},
       () => _nativeStatus ?? cannedNativeRuntimeStatus());
+
+  @override
+  Future<MossLibraryInfo> mossLibraryInfo({String? peerMossId}) => runScripted(
+      BridgeMethod.mossLibraryInfo,
+      {'peerMossId': peerMossId},
+      () => _mossLibraryInfo ?? cannedMossLibraryInfo());
 
   // ------------------------------------------------------------ invite + DM
 

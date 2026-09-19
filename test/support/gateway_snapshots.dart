@@ -5,6 +5,7 @@
 import 'package:mosh/src/rust/api/diagnostics.dart'
     show
         AppDiagnostics,
+        MossLibraryInfo,
         NativeRuntimeStatus,
         OpenMlsRoundTripRuntimeStatus,
         OpenMlsSmokeRuntimeStatus;
@@ -82,6 +83,15 @@ NativeRuntimeStatus cannedNativeRuntimeStatus() => NativeRuntimeStatus(
         ),
         error: null,
       ),
+    );
+
+/// Canned [MossLibraryInfo] for the test bridge mossLibraryInfo(): the
+/// prebuilt library's own dev stamp and no RTT (a fake runtime measures
+/// nothing), no log file.
+MossLibraryInfo cannedMossLibraryInfo() => const MossLibraryInfo(
+      version: 'dev',
+      peerRttMs: null,
+      logPath: null,
     );
 
 /// Canned empty [ChannelSnapshot] for a channel poll + joinChannel. Empty lists for

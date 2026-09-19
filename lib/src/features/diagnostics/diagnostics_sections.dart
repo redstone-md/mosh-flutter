@@ -36,6 +36,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/event_log.dart';
 import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
+import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/util/format.dart';
 
@@ -290,9 +291,18 @@ class DiagnosticsEmptyState extends StatelessWidget {
 /// that case is handled by `MeshDiagnostics` itself (it renders the "Mesh
 /// booting" empty-state).
 class SessionDiagnostics extends StatelessWidget {
-  const SessionDiagnostics({super.key, required this.session});
+  const SessionDiagnostics({
+    super.key,
+    required this.session,
+    this.libraryInfo,
+  });
 
   final SessionSnapshot session;
+
+  /// What the loaded moss library reports about itself (spec #5), read by
+  /// the drawer and handed down; `null` keeps the group's library rows off
+  /// the panel.
+  final MossLibraryInfo? libraryInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -341,7 +351,11 @@ class SessionDiagnostics extends StatelessWidget {
           label: l.diagConversationDetails,
           children: rows,
         ),
-        MeshDiagnostics(mesh: session.mesh),
+        MeshDiagnostics(
+          mesh: session.mesh,
+          libraryInfo: libraryInfo,
+          peerMossId: session.peerMossId,
+        ),
         EventLog(events: session.events),
       ],
     );

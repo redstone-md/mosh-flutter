@@ -7,6 +7,21 @@ All notable changes to Mosh are documented here. Format follows
 ## [Unreleased]
 
 ### Added
+- **The diagnostics panel shows which moss library is actually running**
+  (spec #5). The "Moss network" group of the peer-status drawer gains the
+  Library version row (the loaded library's own answer through the same
+  dynamic-symbol table as every other moss call; a copy older than
+  v0.8.17 answers "unknown" instead of failing the node), the Peer RTT
+  row (the last measured round-trip time to the active DM counterpart,
+  "unknown" when moss has no measurement — never a fabricated "0 ms";
+  DM drawers only, since a channel and a group have no single
+  counterpart), and the Field log row (the file ticket #4's sink
+  currently writes, so a bug report can be pointed at it). The first
+  read in a process also files the version into the field log, so the
+  attached report carries what was running. The api function is
+  `moss_library_info(peer_moss_id)` — additive; `MossLibraryInfo` is
+  constructible from Dart; frb_generated carries hand-patched additive
+  mirrors until the post-merge codegen rerun.
 - **Attachment chunks ride moss streams on direct DM sessions** (spec #8).
   The blob channel keeps its chunk protocol — requests, retry, dedup are
   byte-for-byte unchanged — and only the carrier changes: when the

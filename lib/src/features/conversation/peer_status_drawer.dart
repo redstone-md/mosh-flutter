@@ -25,14 +25,18 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
+import 'package:mosh/src/state/session_providers.dart'
+    show mossLibraryInfoProvider;
 import 'package:mosh/src/features/diagnostics/channel_group_diagnostics.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/features/diagnostics/summary_card.dart';
 import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 
@@ -297,7 +301,7 @@ class _DrawerHeader extends StatelessWidget {
 /// Branch order matches React `DiagnosticsDrawer` lines ~78-86 exactly:
 /// `session ? SessionDiagnostics : channel ? ChannelDiagnostics
 ///  : group ? GroupDiagnostics : NoActiveSession`.
-class _DrawerContent extends StatelessWidget {
+class _DrawerContent extends ConsumerWidget {
   const _DrawerContent({
     this.session,
     required this.channel,
@@ -311,10 +315,20 @@ class _DrawerContent extends StatelessWidget {
   final String? error;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final summary = diagnosticsSummary(
         l: l, session: session, channel: channel, group: group, error: error);
+    // Spec #5: what the loaded library reports. The RTT question names the
+    // active DM's counterpart (null elsewhere); one read per drawer mount,
+    // like every other facade mirror (ADR 0025). Unloaded -> null rows: the
+    // drawer renders without the library rows instead of waiting.
+    final MossLibraryInfo? libraryInfo = switch (
+          ref.watch(mossLibraryInfoProvider(session?.peerMossId))
+        ) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -327,11 +341,14 @@ class _DrawerContent extends StatelessWidget {
           ],
           const SizedBox(height: 12),
           if (session != null)
-            SessionDiagnostics(session: session!)
+            SessionDiagnostics(
+              session: session!,
+              libraryInfo: libraryInfo,
+            )
           else if (channel != null)
-            ChannelDiagnostics(channel: channel!)
+            ChannelDiagnostics(channel: channel!, libraryInfo: libraryInfo)
           else if (group != null)
-            GroupDiagnostics(group: group!)
+            GroupDiagnostics(group: group!, libraryInfo: libraryInfo)
           else
             const NoActiveSession(),
         ],

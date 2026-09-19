@@ -24,6 +24,14 @@ Future<AppDiagnostics> appDiagnostics() =>
 Future<NativeRuntimeStatus> nativeRuntimeStatus() =>
     RustLib.instance.api.crateApiDiagnosticsNativeRuntimeStatus();
 
+/// What the loaded moss library reports about itself: its own version
+/// string, the last measured RTT to the active DM counterpart, and the
+/// field log's current file. See `MossLibraryInfo` for the degradation
+/// contract.
+Future<MossLibraryInfo> mossLibraryInfo({String? peerMossId}) =>
+    RustLib.instance.api.crateApiDiagnosticsMossLibraryInfo(
+        peerMossId: peerMossId);
+
 /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
 class AppDiagnostics {
   final String appName;
@@ -92,6 +100,36 @@ class NativeRuntimeStatus {
           persistence == other.persistence &&
           openmlsSmoke == other.openmlsSmoke &&
           openmlsRoundtrip == other.openmlsRoundtrip;
+}
+
+/// What the loaded moss library itself reports, plus the panel rows that
+/// hang off it. All values degrade honestly: `version` falls back to
+/// "unknown" when the library predates `Moss_Version` (v0.8.17),
+/// `peerRttMs` stays null when there is no live node, the peer is unknown,
+/// or the library predates `Moss_PeerRTT`, and `logPath` stays null until
+/// the field log has opened its file.
+class MossLibraryInfo {
+  final String version;
+  final BigInt? peerRttMs;
+  final String? logPath;
+
+  const MossLibraryInfo({
+    required this.version,
+    required this.peerRttMs,
+    required this.logPath,
+  });
+
+  @override
+  int get hashCode => version.hashCode ^ peerRttMs.hashCode ^ logPath.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MossLibraryInfo &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          peerRttMs == other.peerRttMs &&
+          logPath == other.logPath;
 }
 
 /// Bridge-friendly view of the OpenMLS Alice/Bob roundtrip outcome; see

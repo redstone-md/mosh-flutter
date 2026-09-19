@@ -349,6 +349,22 @@
   "@diagNoEventsBody": {
     "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer"
   },
+  "diagRowLibraryVersion": "Версия библиотеки",
+  "@diagRowLibraryVersion": {
+    "description": "Row key for the loaded moss library's own version in the Moss network group"
+  },
+  "diagRowPeerRtt": "RTT пира",
+  "@diagRowPeerRtt": {
+    "description": "Row key for the last measured round-trip time to the active DM counterpart in the Moss network group"
+  },
+  "diagRowLogPath": "Журнал",
+  "@diagRowLogPath": {
+    "description": "Row key for the field log's current file in the Moss network group"
+  },
+  "diagRttUnknown": "неизвестно",
+  "@diagRttUnknown": {
+    "description": "Value of the Peer RTT row when no round-trip time is known for the counterpart"
+  },
   "peerStatusTitle": "Статус пиров",
   "@peerStatusTitle": {
     "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen"
