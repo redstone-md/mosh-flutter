@@ -221,6 +221,41 @@ fn wire__crate__api__diagnostics__app_diagnostics_impl(
         },
     )
 }
+fn wire__crate__api__diagnostics__moss_library_info_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "moss_library_info",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_peer_moss_id = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(crate::api::diagnostics::moss_library_info(
+                        api_peer_moss_id,
+                    ))?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__private_dm__call_accept_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2373,6 +2408,20 @@ impl SseDecode for crate::api::diagnostics::AppDiagnostics {
     }
 }
 
+impl SseDecode for crate::api::diagnostics::MossLibraryInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_version = <String>::sse_decode(deserializer);
+        let mut var_peerRttMs = <Option<u64>>::sse_decode(deserializer);
+        let mut var_logPath = <Option<String>>::sse_decode(deserializer);
+        return crate::api::diagnostics::MossLibraryInfo {
+            version: var_version,
+            peer_rtt_ms: var_peerRttMs,
+            log_path: var_logPath,
+        };
+    }
+}
+
 impl SseDecode for crate::conversation::attachments::AttachmentDescriptor {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4087,6 +4136,12 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
+        59 => wire__crate__api__diagnostics__moss_library_info_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -4265,6 +4320,27 @@ impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::AppDiagnostics {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
     for crate::api::diagnostics::AppDiagnostics
 {
+}
+impl flutter_rust_bridge::IntoDart for crate::api::diagnostics::MossLibraryInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.version.into_into_dart().into_dart(),
+            self.peer_rtt_ms.into_into_dart().into_dart(),
+            self.log_path.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::diagnostics::MossLibraryInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::MossLibraryInfo>
+    for crate::api::diagnostics::MossLibraryInfo
+{
+    fn into_into_dart(self) -> crate::api::diagnostics::MossLibraryInfo {
+        self
+    }
 }
 impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::AppDiagnostics>
     for crate::api::diagnostics::AppDiagnostics
@@ -5703,6 +5779,15 @@ impl SseEncode for crate::api::diagnostics::AppDiagnostics {
         <String>::sse_encode(self.privacy_model, serializer);
         <String>::sse_encode(self.discovery_model, serializer);
         <String>::sse_encode(self.moss_link_mode, serializer);
+    }
+}
+
+impl SseEncode for crate::api::diagnostics::MossLibraryInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.version, serializer);
+        <Option<u64>>::sse_encode(self.peer_rtt_ms, serializer);
+        <Option<String>>::sse_encode(self.log_path, serializer);
     }
 }
 

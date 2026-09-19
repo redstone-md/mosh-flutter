@@ -10,7 +10,10 @@
 //! touching a Tauri-typed type.
 
 use crate::api::shared_runtime::{database_path, ensure_shared_resources};
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+use crate::moss_ffi::{MossFfiRuntime, MossNodeConfig};
 use crate::moss_runtime::{MossDynamicRuntime, MossRuntime, MossRuntimeStatus};
+use crate::shared_node::SUBSTRATE_ROOM;
 pub use crate::openmls_crypto::{
     run_openmls_alice_bob_roundtrip, run_openmls_smoke_test, OpenMlsRoundTripStatus,
     OpenMlsSmokeStatus,
@@ -20,6 +23,8 @@ use crate::secure_storage::{OsSecureSecretStore, SecureStorageStatus};
 use flutter_rust_bridge::frb;
 use std::any::Any;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 // App-level identity strings. Mirror the previous Tauri shell constants; kept
 // as named consts (not inline literals) per AGENTS.md no-hardcoding rule.
@@ -27,6 +32,17 @@ const APP_NAME: &str = "Mosh";
 const PRIVACY_MODEL: &str = "OpenMLS private messages over Moss transport";
 const DISCOVERY_MODEL: &str = "default public Moss trackers";
 const MOSS_LINK_MODE: &str = "dynamic";
+
+// The version answer when the library cannot give one: the loaded copy
+// predates `Moss_Version` (moss < v0.8.17). A stale library beside the
+// binary looks exactly like a real regression, so the panel needs an honest
+// "unknown" instead of a load failure (AGENTS.md named-constant rule).
+const MOSS_VERSION_UNKNOWN: &str = "unknown";
+// The field-log context every `moss_library_info` version line carries, so
+// the line is greppable by the reporting call site rather than by session.
+const VERSION_LOG_CONTEXT: &str = "moss_library_info";
+// Nanoseconds per millisecond, for the RTT conversion Moss reports in.
+const NANOS_PER_MS: u64 = 1_000_000;
 
 // Persistence status: the Tauri shell pulled this from a managed
 // `PersistenceStatusState` that tracked the live redb instance. When this
@@ -94,6 +110,29 @@ pub struct OpenMlsSmokeRuntimeStatus {
 pub struct OpenMlsRoundTripRuntimeStatus {
     pub ok: Option<OpenMlsRoundTripStatus>,
     pub error: Option<String>,
+}
+
+/// What the loaded moss library itself reports, plus the panel rows that
+/// hang off it. All values degrade honestly: `version` falls back to
+/// [`MOSS_VERSION_UNKNOWN`] when the library predates `Moss_Version`
+/// (v0.8.17), `peer_rtt_ms` stays `None` when there is no live node, the
+/// peer is unknown, or the library predates `Moss_PeerRTT`, and `log_path`
+/// stays `None` until the field log has opened its file. The version is a
+/// library-level answer (no node required); the RTT needs the live shared
+/// node. Both load through the same dynamic-symbol table every other moss
+/// call uses -- a missing symbol never fails anything here.
+#[frb(non_opaque)]
+#[derive(serde::Serialize, Clone)]
+pub struct MossLibraryInfo {
+    /// The version the loaded library stamps itself with, or "unknown".
+    pub version: String,
+    /// Last measured round-trip time to the active DM counterpart, in
+    /// milliseconds. `None` = not measured (no live node, no peer id, or a
+    /// library without the symbol).
+    pub peer_rtt_ms: Option<u64>,
+    /// The field log's current file, so a bug report can carry it. `None`
+    /// before the first write opened the file.
+    pub log_path: Option<String>,
 }
 
 /// Reports the process-wide persistence store.
@@ -227,6 +266,67 @@ pub fn native_runtime_status() -> NativeRuntimeStatus {
     }
 }
 
+/// What the loaded moss library reports about itself: its own version
+/// string, the last measured RTT to the active DM counterpart, and the
+/// field log's current file. See [`MossLibraryInfo`] for the degradation
+/// contract.
+///
+/// The first call in a process also files the version into the field log
+/// (ticket #4's sink), so a bug report carries what was running. A
+/// process-global flag holds the once-per-process guarantee rather than
+/// trusting `diagnostics_log`'s open-file state: the sink may have been
+/// rotated or absent, and exactly one line per process is the spec's
+/// contract.
+pub fn moss_library_info(peer_moss_id: Option<String>) -> MossLibraryInfo {
+    let version = library_version().unwrap_or_else(|| MOSS_VERSION_UNKNOWN.to_string());
+    log_version_once(&version);
+    MossLibraryInfo {
+        peer_rtt_ms: peer_rtt_ms(peer_moss_id.as_deref()),
+        log_path: dlog::current_log_path().map(|path| path.display().to_string()),
+        version,
+    }
+}
+
+/// The version the loaded library stamps itself with. The answer hangs on
+/// the loaded table's `Moss_Version` export, which is process-global (it
+/// takes no node), but the accessor lives on `MossNode` in the symbol
+/// table -- so this initializes one throwaway node against the default
+/// candidates to reach it. Using the shared runtime instead would open
+/// the encrypted DB just to read a string; this load is deliberately
+/// lighter. `None` when the library predates the symbol or cannot load
+/// at all.
+fn library_version() -> Option<String> {
+    Arc::new(MossFfiRuntime::load_default().ok()?)
+        .init_default_node(SUBSTRATE_ROOM, &MossNodeConfig::default())
+        .ok()?
+        .library_version()
+}
+
+/// File the library version into the field log exactly once per process.
+/// Never fails: the log's own contract drops lines it cannot persist.
+fn log_version_once(version: &str) {
+    static LOGGED: AtomicBool = AtomicBool::new(false);
+    if !LOGGED.swap(true, Ordering::SeqCst) {
+        dlog::write(
+            LogLevel::Info,
+            kinds::IDENTITY,
+            VERSION_LOG_CONTEXT,
+            &format!("loaded moss library version {version}"),
+        );
+    }
+}
+
+/// The last measured RTT to `peer_id`, in whole milliseconds (ns -> ms,
+/// truncating: a sub-millisecond answer still shows as "0 ms", which is a
+/// measurement, not "unknown"). `None` when there is no peer id, no live
+/// shared node, or no `Moss_PeerRTT` in the library.
+fn peer_rtt_ms(peer_moss_id: Option<&str>) -> Option<u64> {
+    let peer_moss_id = peer_moss_id?;
+    let node = ensure_shared_resources().ok()?.shared_node.current()?;
+    let nanos = node.peer_rtt_ns(peer_moss_id)?;
+    Some(nanos / NANOS_PER_MS)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,6 +338,39 @@ mod tests {
         assert_eq!(diagnostics.privacy_model, PRIVACY_MODEL);
         assert_eq!(diagnostics.discovery_model, DISCOVERY_MODEL);
         assert_eq!(diagnostics.moss_link_mode, MOSS_LINK_MODE);
+    }
+
+    // Proves the panel contract against the real dlopened library: the
+    // prebuilt libmoss.so carries `Moss_Version`, so the version is Some
+    // and non-empty (its dev-build stamp "dev" is what an unstamped local
+    // build reports); with no peer id there is nothing to measure, so the
+    // RTT is honestly None; and the version line lands in the field log on
+    // the first call (exactly once per process, per the spec).
+    #[test]
+    fn moss_library_info_reports_the_loaded_library() {
+        let info = moss_library_info(None);
+        assert!(!info.version.is_empty(), "the library reports a version");
+        assert_ne!(info.version, MOSS_VERSION_UNKNOWN);
+        assert_eq!(info.peer_rtt_ms, None, "no peer id, no measurement");
+
+        // The version also lands in the field log (once per process), so a
+        // bug report carries what was running. The log path is the same
+        // file `current_log_path` reports, which this very call opened.
+        let log_path = info.log_path.clone().expect("the version write opened the log");
+        let logged = std::fs::read_to_string(&log_path).expect("log file is readable");
+        assert!(
+            logged.contains(&format!(
+                "info identity {VERSION_LOG_CONTEXT} loaded moss library version {}",
+                info.version
+            )),
+            "the version line belongs in the field log: {logged}"
+        );
+
+        // A second call answers again from the library, not from the flag:
+        // the once-guard gates only the field-log line.
+        let again = moss_library_info(None);
+        assert_eq!(again.version, info.version);
+        assert_eq!(again.log_path, info.log_path);
     }
 
     #[test]
