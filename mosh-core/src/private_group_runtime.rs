@@ -20,6 +20,7 @@ use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::{Transfer, TransferError};
 use crate::conversation::{decode, encode};
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::inbox;
 use crate::mls_crypto::{AddOutcome, MlsCryptoError, MlsSessionCrypto};
 use crate::moss_ffi::{MossFfiRuntime, MossNode, MossReceivedMessage};
@@ -516,7 +517,12 @@ impl PrivateGroupRuntime {
             let snapshot = match p.get_group_mls_snapshot(&rec.group_id) {
                 Ok(Some(snapshot)) => snapshot,
                 _ => {
-                    eprintln!("group rehydrate: missing MLS snapshot for {}", rec.group_id);
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::REHYDRATE,
+                        &rec.group_id,
+                        "missing MLS snapshot",
+                    );
                     continue;
                 }
             };
@@ -528,9 +534,11 @@ impl PrivateGroupRuntime {
             ) {
                 Ok(crypto) => crypto,
                 Err(error) => {
-                    eprintln!(
-                        "group rehydrate: crypto restore failed for {}: {error}",
-                        rec.group_id
+                    dlog::write(
+                        LogLevel::Error,
+                        kinds::REHYDRATE,
+                        &rec.group_id,
+                        &format!("crypto restore failed: {error}"),
                     );
                     continue;
                 }
@@ -543,9 +551,11 @@ impl PrivateGroupRuntime {
             ) {
                 Ok(node) => node,
                 Err(error) => {
-                    eprintln!(
-                        "group rehydrate: node start failed for {}: {error}",
-                        rec.group_id
+                    dlog::write(
+                        LogLevel::Error,
+                        kinds::REHYDRATE,
+                        &rec.group_id,
+                        &format!("node start failed: {error}"),
                     );
                     continue;
                 }
@@ -587,9 +597,11 @@ impl PrivateGroupRuntime {
                     Some(_) => match load_org_signer(Some(p.as_ref())) {
                         Ok(signer) => Some(signer),
                         Err(error) => {
-                            eprintln!(
-                                "group rehydrate: org signer unavailable for {}: {error}",
-                                rec.group_id
+                            dlog::write(
+                                LogLevel::Error,
+                                kinds::REHYDRATE,
+                                &rec.group_id,
+                                &format!("org signer unavailable: {error}"),
                             );
                             continue;
                         }
@@ -874,7 +886,12 @@ impl PrivateGroupRuntime {
             .collect();
         for group_id in bound {
             if let Err(error) = self.close(&group_id) {
-                eprintln!("group {group_id}: close on org leave failed: {error}");
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::ROOM,
+                    &group_id,
+                    &format!("close on org leave failed: {error}"),
+                );
             }
         }
     }
@@ -1093,7 +1110,12 @@ impl PrivateGroupRuntime {
         self.groups.forget(group_id);
         if let Some(p) = self.groups.persistence() {
             if let Err(error) = p.delete_group(group_id) {
-                eprintln!("failed to delete persisted group {group_id}: {error}");
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::PERSIST,
+                    group_id,
+                    &format!("failed to delete persisted group: {error}"),
+                );
             }
         }
         Ok(GroupLeaveResult {
@@ -1117,7 +1139,12 @@ impl PrivateGroupRuntime {
                 // ("secret deleted for forward secrecy"); drop and keep going,
                 // mirroring the DM runtime.
                 if let Err(error) = session.handle_moss_message(message) {
-                    eprintln!("dropping inbound group frame for {group_id}: {error}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::FRAME,
+                        &group_id,
+                        &format!("dropping inbound group frame: {error}"),
+                    );
                 }
             }
         }
@@ -1229,7 +1256,12 @@ fn absorb_resync_commits(
         if let Err(e) =
             sequence_commit(crypto, sequencer, persistence, group_id, &commit.commit_b64)
         {
-            eprintln!("group {group_id}: bad commit in resync replay: {e}");
+            dlog::write(
+                LogLevel::Warn,
+                kinds::RESYNC,
+                group_id,
+                &format!("bad commit in resync replay: {e}"),
+            );
         }
     }
     crypto.epoch().is_some_and(|current| sequencer.gap(current))
@@ -1251,7 +1283,12 @@ fn log_group_commit(
 ) {
     if let Some(p) = persistence {
         if let Err(e) = p.append_group_commit(group_id, epoch, commit_bytes) {
-            eprintln!("group {group_id}: commit log write failed: {e}");
+            dlog::write(
+                LogLevel::Warn,
+                kinds::COMMIT,
+                group_id,
+                &format!("commit log write failed: {e}"),
+            );
         }
     }
 }
@@ -1449,9 +1486,11 @@ impl GroupSession {
             let horizon = self.own_roster_version().unwrap_or(0) + ROSTER_LAG_HORIZON;
             let claimed = author_roster_version.unwrap_or(0);
             if claimed > horizon {
-                eprintln!(
-                    "group {}: commit claiming roster v{claimed} beyond horizon dropped",
-                    self.group_id
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::COMMIT,
+                    &self.group_id,
+                    &format!("commit claiming roster v{claimed} beyond horizon dropped"),
                 );
                 return Ok(());
             }
@@ -1466,9 +1505,11 @@ impl GroupSession {
             });
             return Ok(());
         }
-        eprintln!(
-            "group {}: commit from non-admin {sender} dropped",
-            self.group_id
+        dlog::write(
+            LogLevel::Warn,
+            kinds::COMMIT,
+            &self.group_id,
+            &format!("commit from non-admin {sender} dropped"),
         );
         Ok(())
     }
@@ -1486,9 +1527,11 @@ impl GroupSession {
         for entry in pending {
             if self.roster_role_is_admin(&entry.sender_peer_id) {
                 if let Err(error) = self.apply_commit_sequenced(entry.commit_b64) {
-                    eprintln!(
-                        "group {}: lagged commit apply failed: {error}",
-                        self.group_id
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::COMMIT,
+                        &self.group_id,
+                        &format!("lagged commit apply failed: {error}"),
                     );
                 }
             } else if Some(entry.roster_version) > mine {
@@ -1538,9 +1581,11 @@ impl GroupSession {
             let commit_bytes = match self.crypto.remove_members_by_identity(&peer_id) {
                 Ok(bytes) => bytes,
                 Err(error) => {
-                    eprintln!(
-                        "group {}: auto-kick of {peer_id} failed: {error}",
-                        self.group_id
+                    dlog::write(
+                        LogLevel::Error,
+                        kinds::KICK,
+                        &self.group_id,
+                        &format!("auto-kick of {peer_id} failed: {error}"),
                     );
                     continue;
                 }
@@ -1555,9 +1600,11 @@ impl GroupSession {
                 roster_version: Some(roster.version),
             };
             if let Err(error) = self.publish_control(&commit_envelope) {
-                eprintln!(
-                    "group {}: auto-kick commit publish failed: {error}",
-                    self.group_id
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::KICK,
+                    &self.group_id,
+                    &format!("auto-kick commit publish failed: {error}"),
                 );
             }
         }
@@ -1579,16 +1626,20 @@ impl GroupSession {
         };
         let identity = self.crypto.key_package_identity(key_package)?;
         if identity != sender {
-            eprintln!(
-                "group {}: key package identity does not match envelope sender; dropped",
-                self.group_id
+            dlog::write(
+                LogLevel::Warn,
+                kinds::VERIFY,
+                &self.group_id,
+                &format!("key package identity does not match envelope sender {sender}; dropped"),
             );
             return Ok(());
         }
         if !self.roster_contains(&identity) {
-            eprintln!(
-                "group {}: joiner {identity} not in org roster; dropped",
-                self.group_id
+            dlog::write(
+                LogLevel::Warn,
+                kinds::VERIFY,
+                &self.group_id,
+                &format!("joiner {identity} not in org roster; dropped"),
             );
             return Ok(());
         }
@@ -1712,7 +1763,12 @@ impl GroupSession {
         let rows = match p.list_group_commits_from(&self.group_id, have_epoch) {
             Ok(rows) => rows,
             Err(e) => {
-                eprintln!("group {}: resync read failed: {e}", self.group_id);
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::RESYNC,
+                    &self.group_id,
+                    &format!("resync read failed: {e}"),
+                );
                 return Ok(());
             }
         };

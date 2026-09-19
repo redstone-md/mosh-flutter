@@ -10,6 +10,7 @@ use std::sync::Arc;
 use ed25519_dalek::SigningKey;
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::inbox;
 use crate::moss_ffi::{MossFfiRuntime, MossNode};
 use crate::org_envelope::{self, OrgContext, OrgSigned};
@@ -303,7 +304,12 @@ impl OrgSession {
             display_name: self.display_name.clone(),
         };
         if let Err(error) = publish_signed(self, &message) {
-            eprintln!("org hello publish failed for {}: {error}", self.org_pubkey);
+            dlog::write(
+                LogLevel::Warn,
+                kinds::PUBLISH,
+                &self.org_pubkey,
+                &format!("org hello publish failed: {error}"),
+            );
         }
     }
 
@@ -329,7 +335,12 @@ impl OrgSession {
             self.node
                 .publish_room_best_effort(&self.mesh_id, &self.control_channel, &payload)
         {
-            eprintln!("org roster publish failed for {}: {error}", self.org_pubkey);
+            dlog::write(
+                LogLevel::Warn,
+                kinds::PUBLISH,
+                &self.org_pubkey,
+                &format!("org roster publish failed: {error}"),
+            );
         }
     }
 
@@ -361,7 +372,12 @@ impl OrgSession {
                     sig,
                 };
                 if org_envelope::verify(&env, &self.ctx()).is_err() {
-                    eprintln!("org envelope verify failed on {}", self.control_channel);
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::VERIFY,
+                        &self.control_channel,
+                        "org envelope verify failed",
+                    );
                     return;
                 }
                 let message: OrgMessage = match serde_json::from_slice(&env.payload) {
@@ -395,7 +411,12 @@ impl OrgSession {
                     return;
                 }
                 if !self.sender_in_roster(sender_peer_id) {
-                    eprintln!("org dm offer from non-member dropped: {sender_peer_id}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::OFFER,
+                        &self.org_pubkey,
+                        &format!("org dm offer from non-member {sender_peer_id} dropped"),
+                    );
                     return;
                 }
                 // Accept-once: gossip redelivers, and a replayed offer must
@@ -421,7 +442,12 @@ impl OrgSession {
                     return;
                 }
                 if !self.sender_in_roster(sender_peer_id) {
-                    eprintln!("org group offer from non-member dropped: {sender_peer_id}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::OFFER,
+                        &self.org_pubkey,
+                        &format!("org group offer from non-member {sender_peer_id} dropped"),
+                    );
                     return;
                 }
                 if !self.seen_offer_ids.insert(offer_id.clone()) {
@@ -453,7 +479,12 @@ impl OrgSession {
                 // (survives restarts and absorbs from any drain path).
                 if let Some(p) = persistence {
                     if let Err(error) = p.put_org_roster(&self.org_pubkey, bytes) {
-                        eprintln!("org roster persist failed: {error}");
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::PERSIST,
+                            &self.org_pubkey,
+                            &format!("org roster persist failed: {error}"),
+                        );
                     }
                 }
                 self.roster = Some(roster);
@@ -467,7 +498,12 @@ impl OrgSession {
             }
             Err(RosterError::Rollback { .. }) => {}
             Err(error) => {
-                eprintln!("org roster rejected for {}: {error}", self.org_pubkey);
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::VERIFY,
+                    &self.org_pubkey,
+                    &format!("org roster rejected: {error}"),
+                );
             }
         }
     }
@@ -490,15 +526,19 @@ fn leave_org_room(session: &OrgSession) {
         .node
         .unsubscribe_room(&session.mesh_id, &session.control_channel)
     {
-        eprintln!(
-            "org {} could not unsubscribe its control channel: {error}",
-            session.org_pubkey
+        dlog::write(
+            LogLevel::Warn,
+            kinds::ROOM,
+            &session.org_pubkey,
+            &format!("org could not unsubscribe its control channel: {error}"),
         );
     }
     if let Err(error) = session.node.leave_room(&session.mesh_id) {
-        eprintln!(
-            "org {} could not leave its room: {error}",
-            session.org_pubkey
+        dlog::write(
+            LogLevel::Warn,
+            kinds::ROOM,
+            &session.org_pubkey,
+            &format!("org could not leave its room: {error}"),
         );
     }
 }

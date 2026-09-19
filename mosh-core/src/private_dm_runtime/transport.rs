@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use super::wire::{channel_call_id, channel_session_id};
 use crate::conversation::mesh::{self, MeshInfo};
 use crate::conversation::runtime;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::inbox;
 use crate::moss_ffi::MossReceivedMessage;
 use crate::shared_node::SharedMossNode;
@@ -155,7 +156,12 @@ impl DmTransport for MossDmTransport {
     fn close_room(&self, room: &str, channels: &[String], label: &str) {
         match self.node() {
             Ok(node) => runtime::close_room(&self.shared_node, &node, room, channels, label),
-            Err(error) => eprintln!("{label} could not close its room: {error}"),
+            Err(error) => dlog::write(
+                LogLevel::Warn,
+                kinds::ROOM,
+                label,
+                &format!("could not close its room: {error}"),
+            ),
         }
     }
 

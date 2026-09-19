@@ -16,6 +16,7 @@ use crate::conversation::outbound::{OnSent, Outbox};
 use crate::conversation::runtime::{ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::Transfer;
 use crate::conversation::{decode, encode, now_ms};
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::{Persistence, DM_HISTORY};
@@ -270,7 +271,12 @@ impl PrivateDmRuntime {
             let snapshot = match p.get_mls_snapshot(&rec.session_id) {
                 Ok(Some(s)) => s,
                 _ => {
-                    eprintln!("rehydrate: missing MLS snapshot for {}", rec.session_id);
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::REHYDRATE,
+                        &rec.session_id,
+                        "missing MLS snapshot",
+                    );
                     continue;
                 }
             };
@@ -282,9 +288,11 @@ impl PrivateDmRuntime {
             ) {
                 Ok(c) => c,
                 Err(e) => {
-                    eprintln!(
-                        "rehydrate: crypto restore failed for {}: {e}",
-                        rec.session_id
+                    dlog::write(
+                        LogLevel::Error,
+                        kinds::REHYDRATE,
+                        &rec.session_id,
+                        &format!("crypto restore failed: {e}"),
                     );
                     continue;
                 }
@@ -295,7 +303,12 @@ impl PrivateDmRuntime {
                 rec.listen_port,
                 rec.static_peer.clone(),
             ) {
-                eprintln!("rehydrate: node start failed for {}: {e}", rec.session_id);
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::REHYDRATE,
+                    &rec.session_id,
+                    &format!("node start failed: {e}"),
+                );
                 continue;
             }
             let session = self.restore_session(&rec, crypto);
@@ -660,7 +673,12 @@ impl PrivateDmRuntime {
                 self.sessions.forget(session_id);
                 if let Some(p) = self.sessions.persistence() {
                     if let Err(error) = p.delete_session(session_id) {
-                        eprintln!("failed to delete persisted session {session_id}: {error}");
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::PERSIST,
+                            session_id,
+                            &format!("failed to delete persisted session: {error}"),
+                        );
                     }
                 }
                 Ok(CloseSessionResult {
@@ -697,7 +715,12 @@ impl PrivateDmRuntime {
                 return;
             };
             if let Err(error) = session.handle_moss_message(message) {
-                eprintln!("dropping inbound frame for {session_id}: {error}");
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::FRAME,
+                    &session_id,
+                    &format!("dropping inbound frame: {error}"),
+                );
             }
             return;
         }
@@ -706,7 +729,7 @@ impl PrivateDmRuntime {
         }
         for session in self.sessions.values_mut() {
             if let Err(error) = session.handle_moss_message(message.clone()) {
-                eprintln!("dropping inbound call frame: {error}");
+                dlog::write(LogLevel::Warn, kinds::FRAME, "", &format!("dropping inbound call frame: {error}"));
             }
         }
     }
@@ -1015,6 +1038,9 @@ impl PrivateDmSession {
             self.peer_joined = true;
             self.state = next_state(self.state, SessionEvent::AuthenticatedFrame);
             self.unreachable_since_ms = None;
+            // Session transition the field log carries: the handshake landed
+            // and the counterpart is authenticated.
+            dlog::write(LogLevel::Info, kinds::HANDSHAKE, &self.session_id, "handshake landed; session connected");
         }
     }
 
@@ -1063,7 +1089,7 @@ impl PrivateDmSession {
             // Leave connect_requested_for unset so the next tick retries the
             // registration itself (e.g. node not started yet during rehydrate).
             Err(error) => {
-                eprintln!("connect_peer({id}) failed: {error}");
+                dlog::write(LogLevel::Error, kinds::CONNECT, &id, &format!("connect_peer failed: {error}"));
                 self.last_connect_outcome = Some(ConnectOutcome::Failed);
             }
         }
@@ -1167,7 +1193,12 @@ impl PrivateDmSession {
         }
         self.last_peer_announce_ms = now_ms;
         if let Err(error) = self.publish_peer_announce() {
-            eprintln!("peer announce failed for {}: {error}", self.session_id);
+            dlog::write(
+                LogLevel::Error,
+                kinds::ANNOUNCE,
+                &self.session_id,
+                &format!("peer announce failed: {error}"),
+            );
         }
     }
 
@@ -1204,7 +1235,12 @@ impl PrivateDmSession {
         let mut changed = Vec::new();
         for message_id in queued_in_order(&self.outbound_attempts) {
             if let Err(error) = self.publish_queued(&message_id) {
-                eprintln!("queued message {message_id} stays queued: {error}");
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::OUTBOX,
+                    &self.session_id,
+                    &format!("queued message {message_id} stays queued: {error}"),
+                );
                 break;
             }
             changed.push(message_id);
@@ -1298,6 +1334,17 @@ impl PrivateDmSession {
             if let Some(attempt) = self.outbound_attempts.get_mut(&message_id) {
                 attempt.auto_resends += 1;
                 attempt.last_send_ms = now_ms;
+                // Session transition the field log carries: how many times a
+                // message had to be re-sent before the ack arrived.
+                dlog::write(
+                    LogLevel::Info,
+                    kinds::RESEND,
+                    &self.session_id,
+                    &format!(
+                        "resend #{} of message {message_id}",
+                        attempt.auto_resends
+                    ),
+                );
                 // At the cap the attempt STAYS: the filter above stops the
                 // automatic loop, the message honestly keeps Sent (not
                 // Delivered), and a manual retry still has its payload.
@@ -1357,7 +1404,12 @@ impl PrivateDmSession {
                 // Decrypting authenticates: only the MLS peer can produce a
                 // ciphertext this group accepts.
                 let Ok(plaintext) = self.crypto.decrypt(&decode(&hello_ciphertext_b64)?) else {
-                    eprintln!("dropping unverifiable hello for {session_id}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::HANDSHAKE,
+                        &session_id,
+                        "dropping unverifiable hello",
+                    );
                     return Ok(());
                 };
                 if let Ok(moss_peer_id) = String::from_utf8(plaintext) {
@@ -1385,7 +1437,12 @@ impl PrivateDmSession {
                     return Ok(());
                 };
                 let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
-                    eprintln!("dropping unverifiable delivery ack for {session_id}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::DELIVERY,
+                        &session_id,
+                        "dropping unverifiable delivery ack",
+                    );
                     return Ok(());
                 };
                 let Ok(message_id) = String::from_utf8(plaintext) else {
@@ -1402,7 +1459,15 @@ impl PrivateDmSession {
                         None,
                         attempt.retry_count,
                     )?;
-                    self.dirty_outbound.push(message_id);
+                    self.dirty_outbound.push(message_id.clone());
+                    // Session transition the field log carries: the
+                    // counterpart's ack settled the message as delivered.
+                    dlog::write(
+                        LogLevel::Info,
+                        kinds::DELIVERY,
+                        &self.session_id,
+                        &format!("message {message_id} settled delivered"),
+                    );
                 }
                 Ok(())
             }
@@ -1989,7 +2054,12 @@ impl PrivateDmSession {
         let nonce_prefix_b64 = call.nonce_prefix_b64.clone();
         match self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64) {
             // A failed send must not burn the slot: retry on the next tick.
-            Err(error) => eprintln!("call offer resend failed for {call_id}: {error}"),
+            Err(error) => dlog::write(
+                LogLevel::Error,
+                kinds::CALL,
+                call_id.as_str(),
+                &format!("call offer resend failed: {error}"),
+            ),
             Ok(()) => {
                 if let Some(call) = self.call.as_mut() {
                     call.mark_offer_sent(now_ms);
