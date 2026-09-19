@@ -6,6 +6,24 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+- **Attachment chunks ride moss streams on direct DM sessions** (spec #8).
+  The blob channel keeps its chunk protocol — requests, retry, dedup are
+  byte-for-byte unchanged — and only the carrier changes: when the
+  counterpart's moss id is known, a served chunk goes down attachment stream
+  id 2 (`Moss_OpenStream`/`Moss_SendStream`; moss wraps relayed peers with
+  its 8-byte `MSs1` header itself). Any stream refusal (missing symbol,
+  `RELAY_FAILED`, node gone) falls back to the room wire, so a counterpart
+  library without streams receives exactly as before; the receiver keeps its
+  room subscription, and the carrier's framing (a JSON header naming the
+  destination blob channel around the original envelope, carried on the
+  reserved `moss-stream/<peer>` inbox channel) is only ever read by peers
+  running this code. Groups and channels keep the room wire — a direct
+  single-peer stream does not exist for them. The receive-side stream
+  handler registers once per shared node at start (best-effort). `Moss_Version`,
+  `Moss_PeerRTT`, `Moss_OpenStream`, `Moss_SendStream` and `Moss_OnStream`
+  are loaded as optional symbols that degrade instead of failing the load.
+
 ### Changed
 - **Moss bumped to v0.8.30** (from v0.8.19; the pin is the `moss/` submodule
   pointer — ADR 0002). The v0.8.30 tag is a squash that already carries the
