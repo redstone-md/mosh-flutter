@@ -6,6 +6,36 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Changed
+- **Moss bumped to v0.8.30** (from v0.8.19; the pin is the `moss/` submodule
+  pointer — ADR 0002). The v0.8.30 tag is a squash that already carries the
+  0.8.31 entry and its fix, so the pinned build includes the conditional
+  UDP-handshake reap. Upstream highlights between the two pins: directed
+  delivery no longer lets one slow peer drop another peer's DMs (the exact
+  shape of Mosh's synchronous FFI callback), relay rate-limiting made
+  visible instead of silent, ping probes dispersed so one stalled write can
+  no longer serial-kill healthy sessions, and bounded fan-out for stat
+  gossip. The FFI surface Mosh uses is unchanged — all 28 symbols from
+  v0.8.19 keep their signatures; the 8 new symbols (directed sends,
+  streams, packet callback, `Moss_Version`) are additive and remain unused
+  for now.
+- **A Mosh client no longer ships Axiom telemetry.** The node config
+  hardcoded moss's own ingest token, silently opting every user into
+  error reporting; moss's sink is opt-in, and the default config now
+  carries no `axiom_*` keys. A test pins this.
+
+### Added
+- The diagnostics event log names the messenger events moss added in
+  v0.8.20 (`message_delivered`, `message_read`, `typing`, `presence`)
+  instead of rendering them as `unknown`. Mosh does not act on them yet.
+
+### Removed
+- **The dead moss release-pin flow**: `moss.config.json` (stuck on v0.8.14
+  while the submodule sat on v0.8.19) and `scripts/moss-update.mjs` (its
+  config helpers lived in the removed React app). The submodule pointer is
+  the one canonical pin; CI already keys its library cache on the
+  submodule sources.
+
 ## [0.8.0] - 2026-09-02
 
 The first release of Mosh on Flutter. The desktop app was rebuilt from the

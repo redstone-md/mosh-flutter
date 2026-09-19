@@ -28,6 +28,10 @@ impl SnapshotEvent {
             5 => "tracker_announce",
             6 => "tracker_failure",
             7 => "relay_migrated",
+            8 => "message_delivered",
+            9 => "message_read",
+            10 => "typing",
+            11 => "presence",
             _ => "unknown",
         }
     }
@@ -157,16 +161,43 @@ mod tests {
                 detail_json: "{}".to_string(),
                 epoch_millis: 7,
             },
+            // The messenger events moss added in v0.8.20 (codes 8-11). Mosh
+            // does not act on them yet, but the diagnostics panel must not
+            // render them as "unknown".
+            MossEvent {
+                event_type: 8,
+                detail_json: "{}".to_string(),
+                epoch_millis: 8,
+            },
+            MossEvent {
+                event_type: 9,
+                detail_json: "{}".to_string(),
+                epoch_millis: 9,
+            },
+            MossEvent {
+                event_type: 10,
+                detail_json: "{}".to_string(),
+                epoch_millis: 10,
+            },
+            MossEvent {
+                event_type: 11,
+                detail_json: "{}".to_string(),
+                epoch_millis: 11,
+            },
             MossEvent {
                 event_type: 99,
                 detail_json: "{}".to_string(),
-                epoch_millis: 8,
+                epoch_millis: 12,
             },
         ]);
 
         assert_eq!(named[0].event_name, "peer_joined");
         assert_eq!(named[0].event_type, 1);
         assert_eq!(named[0].epoch_millis, 7);
-        assert_eq!(named[1].event_name, "unknown");
+        assert_eq!(named[1].event_name, "message_delivered");
+        assert_eq!(named[2].event_name, "message_read");
+        assert_eq!(named[3].event_name, "typing");
+        assert_eq!(named[4].event_name, "presence");
+        assert_eq!(named[5].event_name, "unknown");
     }
 }

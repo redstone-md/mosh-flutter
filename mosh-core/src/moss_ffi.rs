@@ -653,7 +653,7 @@ pub fn node_config_json(config: &MossNodeConfig) -> String {
     };
 
     format!(
-        r#"{{"listen_port":{},"static_peers":{}{},"announce_interval_sec":15,"bootstrap_timeout_sec":12,"lan_discovery_enabled":true,"gossipsub":{{"heartbeat_ms":250}},"nat":{{"upnp_enabled":true,"natpmp_enabled":true,"pcp_enabled":true,"hole_punch_attempts":8,"port_prediction_enabled":true}},"axiom_token":"xaat-4538c70c-0b19-48ba-91d1-9f1143ef8485","axiom_dataset":"moss-events","axiom_endpoint":"https://eu-central-1.aws.edge.axiom.co","axiom_service":"mosh"}}"#,
+        r#"{{"listen_port":{},"static_peers":{}{},"announce_interval_sec":15,"bootstrap_timeout_sec":12,"lan_discovery_enabled":true,"gossipsub":{{"heartbeat_ms":250}},"nat":{{"upnp_enabled":true,"natpmp_enabled":true,"pcp_enabled":true,"hole_punch_attempts":8,"port_prediction_enabled":true}}}}"#,
         config.listen_port, peers, bind
     )
 }
@@ -894,6 +894,23 @@ mod tests {
         format!(
             r#"{{"trackers":[],"listen_port":{port},"static_peers":{peers},"gossipsub":{{"heartbeat_ms":50}},"nat":{{"upnp_enabled":false,"natpmp_enabled":false,"pcp_enabled":false}}}}"#
         )
+    }
+
+    // The Axiom sink in moss is opt-in: a node ships nothing until a host
+    // enables it with a token. The default node config must not carry the
+    // `axiom_*` keys — that silently opted every Mosh user into reporting.
+    #[test]
+    fn default_node_config_ships_no_axiom_keys() {
+        let config = MossNodeConfig {
+            listen_port: 42424,
+            static_peer: None,
+            bind_interface: None,
+        };
+        let json = node_config_json(&config);
+        assert!(
+            !json.contains("axiom"),
+            "config must not enable Axiom: {json}"
+        );
     }
 
     fn build_test_moss_library() -> std::path::PathBuf {
