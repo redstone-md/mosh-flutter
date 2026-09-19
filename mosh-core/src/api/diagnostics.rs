@@ -1,13 +1,11 @@
 //! Diagnostics facade.
 //!
 //! Surfaces the former Tauri command group that reported app-level health:
-//! `app_diagnostics` (aggregate frontend/runtime snapshot) and
-//! `native_runtime_status` (per-runtime readiness and missing-dependency
-//! messages). Returns plain bridge-friendly structs; no streams.
-//!
-//! Ports the old `src-tauri` command group verbatim; the api facade owns the
-//! structs and constants so the bridge (ADR 0010) can serialize them without
-//! touching a Tauri-typed type.
+//! `app_diagnostics` (aggregate identity snapshot) and `native_runtime_status`
+//! (per-runtime readiness), plus `moss_library_info` (spec #5: what the loaded
+//! library reports about itself). Plain bridge-friendly structs; no streams.
+//! The api facade owns the structs and constants so the bridge (ADR 0010)
+//! serializes them without touching a Tauri-typed type.
 
 use crate::api::shared_runtime::{database_path, ensure_shared_resources};
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
@@ -33,29 +31,20 @@ const PRIVACY_MODEL: &str = "OpenMLS private messages over Moss transport";
 const DISCOVERY_MODEL: &str = "default public Moss trackers";
 const MOSS_LINK_MODE: &str = "dynamic";
 
-// The version answer when the library cannot give one: the loaded copy
-// predates `Moss_Version` (moss < v0.8.17). A stale library beside the
-// binary looks exactly like a real regression, so the panel needs an honest
-// "unknown" instead of a load failure (AGENTS.md named-constant rule).
+// The version answer when the loaded copy predates `Moss_Version`
+// (moss < v0.8.17): a stale library beside the binary must read as "unknown",
+// not fail the load (AGENTS.md named-constant rule).
 const MOSS_VERSION_UNKNOWN: &str = "unknown";
-// The field-log context every `moss_library_info` version line carries, so
-// the line is greppable by the reporting call site rather than by session.
+// The field-log context the `moss_library_info` version line carries, so the
+// line is greppable by call site rather than by session.
 const VERSION_LOG_CONTEXT: &str = "moss_library_info";
 // Nanoseconds per millisecond, for the RTT conversion Moss reports in.
 const NANOS_PER_MS: u64 = 1_000_000;
 
-// Persistence status: the Tauri shell pulled this from a managed
-// `PersistenceStatusState` that tracked the live redb instance. When this
-// facade was written it had no equivalent owner, so it answered a flat
-// "available: false, no instance running here".
-//
-// It does have one now: `api::shared_runtime::SHARED_RESOURCES` opens the
-// encrypted store once per process and hands `Arc<Persistence>` to every
-// runtime. The flat answer therefore stopped being honest and became a
-// permanent false alarm -- `persistenceWarningProvider` shows its banner
-// whenever `available && encrypted_at_rest` is not true, so every session
-// was told its history "may be lost after restart" while the DM runtime was
-// persisting it perfectly well.
+// Persistence status: the facade used to answer a flat "not available"
+// before the shared store existed; `api::shared_runtime::SHARED_RESOURCES`
+// now opens it once per process, so this reports the store the app runs on
+// and `persistenceWarningProvider` stops showing a permanent false alarm.
 const PERSISTENCE_BACKEND: &str = "redb+aes-256-gcm+os-keychain";
 const PERSISTENCE_UNAVAILABLE: &str = "no persistence instance running in this api call";
 
@@ -113,75 +102,52 @@ pub struct OpenMlsRoundTripRuntimeStatus {
 }
 
 /// What the loaded moss library itself reports, plus the panel rows that
-/// hang off it. All values degrade honestly: `version` falls back to
-/// [`MOSS_VERSION_UNKNOWN`] when the library predates `Moss_Version`
-/// (v0.8.17), `peer_rtt_ms` stays `None` when there is no live node, the
-/// peer is unknown, or the library predates `Moss_PeerRTT`, and `log_path`
-/// stays `None` until the field log has opened its file. The version is a
-/// library-level answer (no node required); the RTT needs the live shared
-/// node. Both load through the same dynamic-symbol table every other moss
-/// call uses -- a missing symbol never fails anything here.
+/// hang off it (see `moss_library_info` for the degradation contract; the
+/// field docs carry the per-field honesty).
 #[frb(non_opaque)]
 #[derive(serde::Serialize, Clone)]
 pub struct MossLibraryInfo {
     /// The version the loaded library stamps itself with, or "unknown".
     pub version: String,
-    /// Last measured round-trip time to the active DM counterpart, in
-    /// milliseconds. `None` = not measured (no live node, no peer id, or a
-    /// library without the symbol).
+    /// Last measured RTT to the active DM counterpart in ms; `None` = not
+    /// measured (no live node, no peer id, or a library without the symbol).
     pub peer_rtt_ms: Option<u64>,
-    /// The field log's current file, so a bug report can carry it. `None`
-    /// before the first write opened the file.
+    /// The field log's current file; `None` before the first write opened it.
     pub log_path: Option<String>,
 }
 
-/// Reports the process-wide persistence store.
-///
-/// Goes through `ensure_shared_resources`, the same accessor every runtime
-/// uses, so this reports the store the app actually runs on rather than a
-/// guess. It is the idempotent `OnceLock` initialiser: the first caller pays
-/// for opening the DB (which the first session-list call would have paid
-/// anyway) and the rest just clone `Arc`s.
-///
-/// `encrypted_at_rest` tracks `available`: `Persistence::open` has no
-/// unencrypted mode -- it either resolves an AES-256-GCM DEK from the
-/// keychain or fails -- so a live instance is always an encrypted one.
+/// Reports the process-wide persistence store through `ensure_shared_resources`,
+/// the same accessor every runtime uses, so this reports the store the app
+/// actually runs on rather than a guess. `encrypted_at_rest` tracks
+/// `available`: `Persistence::open` has no unencrypted mode, so a live
+/// instance is always an encrypted one.
 fn persistence_status() -> PersistenceRuntimeStatus {
     let database = database_path().display().to_string();
 
-    match ensure_shared_resources() {
-        Ok(resources) if resources.persistence.is_some() => PersistenceRuntimeStatus {
-            backend: PERSISTENCE_BACKEND.to_string(),
-            database,
-            available: true,
-            encrypted_at_rest: true,
-            error: None,
-        },
-        // Resources built, but without a store: nothing owns a DB here.
-        Ok(_) => PersistenceRuntimeStatus {
-            backend: PERSISTENCE_BACKEND.to_string(),
-            database,
-            available: false,
-            encrypted_at_rest: false,
-            error: Some(PERSISTENCE_UNAVAILABLE.to_string()),
-        },
-        // Construction failed -- surface the real cause, which is what the
-        // warning banner is for.
-        Err(error) => PersistenceRuntimeStatus {
-            backend: PERSISTENCE_BACKEND.to_string(),
-            database,
-            available: false,
-            encrypted_at_rest: false,
-            error: Some(error),
-        },
+    // The three answers share every field but `available`/`error`: the two
+    // unavailable branches differ only in their error text (construction
+    // failed -- surface the real cause, which is what the warning banner is
+    // for -- vs. resources built but nothing owns a DB here).
+    let (available, error) = match ensure_shared_resources() {
+        Ok(resources) if resources.persistence.is_some() => (true, None),
+        Ok(_) => (false, Some(PERSISTENCE_UNAVAILABLE.to_string())),
+        Err(error) => (false, Some(error)),
+    };
+    PersistenceRuntimeStatus {
+        backend: PERSISTENCE_BACKEND.to_string(),
+        database,
+        available,
+        // `Persistence::open` has no unencrypted mode, so a live instance is
+        // always an encrypted one.
+        encrypted_at_rest: available,
+        error,
     }
 }
 
-/// Extracts a human-readable message from a panic payload caught by
-/// `catch_unwind`. Rust's `panic!` most commonly carries a `&'static str` or
-/// `String` message; non-string payloads (e.g. `panic!(42i32)`) collapse to a
-/// generic placeholder so the diagnostics caller always receives a usable
-/// `String` for the `error` field.
+/// A panic payload caught by `catch_unwind` as a usable message: the common
+/// `&'static str`/`String` shapes render their text; any other payload
+/// collapses to a placeholder, so the caller always receives a usable
+/// `String`.
 fn panic_payload_to_string(payload: Box<dyn Any + Send>) -> String {
     // `&'static str`: the common `panic!("literal")` form.
     if let Some(message) = payload.downcast_ref::<&'static str>() {
@@ -194,8 +160,10 @@ fn panic_payload_to_string(payload: Box<dyn Any + Send>) -> String {
     "panic: unknown panic payload".to_string()
 }
 
-/// Runs the OpenMLS smoke test and flattens the result into the bridge-friendly
-/// `OpenMlsSmokeRuntimeStatus` (see struct doc).
+/// Runs one OpenMLS probe and flattens its outcome into the pair the
+/// bridge-friendly wrappers carry: `ok` holds the success snapshot when the
+/// probe passed, `error` the message when it panicked or failed. Exactly
+/// one of the two is set.
 ///
 /// `catch_unwind` guards against an OpenMLS internal panic (e.g. a poisoned
 /// "Vaults list lock" left by an earlier panicked operation) propagating across
@@ -205,41 +173,28 @@ fn panic_payload_to_string(payload: Box<dyn Any + Send>) -> String {
 /// a fully-owned `Ok` value (consumed immediately) or a panic payload we
 /// stringify and discard; no shared mutable state is observed post-unwind on
 /// the success path.
-fn openmls_smoke_runtime_status() -> OpenMlsSmokeRuntimeStatus {
-    match catch_unwind(AssertUnwindSafe(run_openmls_smoke_test)) {
-        Ok(Ok(ok)) => OpenMlsSmokeRuntimeStatus {
-            ok: Some(ok),
-            error: None,
-        },
-        Ok(Err(error)) => OpenMlsSmokeRuntimeStatus {
-            ok: None,
-            error: Some(error.to_string()),
-        },
-        Err(payload) => OpenMlsSmokeRuntimeStatus {
-            ok: None,
-            error: Some(panic_payload_to_string(payload)),
-        },
+fn flatten_probe<T>(
+    outcome: Result<Result<T, crate::openmls_crypto::OpenMlsAdapterError>, Box<dyn Any + Send>>,
+) -> (Option<T>, Option<String>) {
+    match outcome {
+        Ok(Ok(ok)) => (Some(ok), None),
+        Ok(Err(error)) => (None, Some(error.to_string())),
+        Err(payload) => (None, Some(panic_payload_to_string(payload))),
     }
 }
 
-/// Runs the OpenMLS Alice/Bob roundtrip and flattens the result into the
-/// bridge-friendly `OpenMlsRoundTripRuntimeStatus` (see struct doc). Panic-safe
-/// for the same reason as `openmls_smoke_runtime_status` (see its doc).
+/// The OpenMLS smoke test, flattened and panic-safe (see [`flatten_probe`]).
+fn openmls_smoke_runtime_status() -> OpenMlsSmokeRuntimeStatus {
+    let (ok, error) = flatten_probe(catch_unwind(AssertUnwindSafe(run_openmls_smoke_test)));
+    OpenMlsSmokeRuntimeStatus { ok, error }
+}
+
+/// The OpenMLS Alice/Bob roundtrip, flattened and panic-safe (see
+/// [`flatten_probe`]).
 fn openmls_roundtrip_runtime_status() -> OpenMlsRoundTripRuntimeStatus {
-    match catch_unwind(AssertUnwindSafe(run_openmls_alice_bob_roundtrip)) {
-        Ok(Ok(ok)) => OpenMlsRoundTripRuntimeStatus {
-            ok: Some(ok),
-            error: None,
-        },
-        Ok(Err(error)) => OpenMlsRoundTripRuntimeStatus {
-            ok: None,
-            error: Some(error.to_string()),
-        },
-        Err(payload) => OpenMlsRoundTripRuntimeStatus {
-            ok: None,
-            error: Some(panic_payload_to_string(payload)),
-        },
-    }
+    let (ok, error) =
+        flatten_probe(catch_unwind(AssertUnwindSafe(run_openmls_alice_bob_roundtrip)));
+    OpenMlsRoundTripRuntimeStatus { ok, error }
 }
 
 /// App-level identity diagnostics. One-shot query; owned `String` fields so
@@ -268,15 +223,13 @@ pub fn native_runtime_status() -> NativeRuntimeStatus {
 
 /// What the loaded moss library reports about itself: its own version
 /// string, the last measured RTT to the active DM counterpart, and the
-/// field log's current file. See [`MossLibraryInfo`] for the degradation
-/// contract.
-///
-/// The first call in a process also files the version into the field log
-/// (ticket #4's sink), so a bug report carries what was running. A
-/// process-global flag holds the once-per-process guarantee rather than
-/// trusting `diagnostics_log`'s open-file state: the sink may have been
-/// rotated or absent, and exactly one line per process is the spec's
-/// contract.
+/// field log's current file. Every value loads through the dynamic-symbol
+/// table every other moss call uses and degrades honestly (missing symbol
+/// = "unknown"/`None`, never a load failure). The first call in a process
+/// also files the version into the field log (ticket #4's sink), so a bug
+/// report carries what was running; a process-global flag holds the
+/// once-per-process guarantee rather than trusting the sink's open-file
+/// state.
 pub fn moss_library_info(peer_moss_id: Option<String>) -> MossLibraryInfo {
     let version = library_version().unwrap_or_else(|| MOSS_VERSION_UNKNOWN.to_string());
     log_version_once(&version);
@@ -326,7 +279,6 @@ fn peer_rtt_ms(peer_moss_id: Option<&str>) -> Option<u64> {
     let nanos = node.peer_rtt_ns(peer_moss_id)?;
     Some(nanos / NANOS_PER_MS)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
