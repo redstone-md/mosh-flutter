@@ -7,6 +7,18 @@ All notable changes to Mosh are documented here. Format follows
 ## [Unreleased]
 
 ### Changed
+- **The channel probe sends the message itself as the rendezvous probe**
+  (`channel-dial`). It used to wait for "any substrate peer" before sending —
+  but substrate peers are strangers, not channel members, so a channel whose
+  real rendezvous needed more time reported a false failure. The probe now
+  sends straight away and, when moss answers "no peers yet" (the frame never
+  left the device), re-drives the same message on every tick until the send
+  is accepted or the timeout is spent. Every retry lands in the timeline with
+  its attempt number and elapsed time, making channel rendezvous latency
+  measurable for the first time. The verdict stays with the listening end;
+  the runtime's refusal of a peerless publish is unchanged (ADR 0021) — the
+  probe retries around it. `--send-without-peers` keeps its meaning: one
+  attempt, watch the refusal.
 - **Moss bumped to v0.8.30** (from v0.8.19; the pin is the `moss/` submodule
   pointer — ADR 0002). The v0.8.30 tag is a squash that already carries the
   0.8.31 entry and its fix, so the pinned build includes the conditional
