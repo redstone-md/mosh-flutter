@@ -24,6 +24,13 @@ bool isViewableMedia(String mime) =>
 bool isStreamableMedia(String mime) =>
     mime.startsWith('video/') || mime.startsWith('audio/');
 
+/// Matches a Windows path shape: a drive letter with a separator
+/// (`C:\...`, `C:/...`) or a UNC share (`\\server\share`). Such paths can sit
+/// in the database on any platform (written by a Windows install), so
+/// [localFileSrc] must parse them as Windows paths everywhere, not only on
+/// Windows where `Uri.file` defaults to it.
+final _windowsPath = RegExp(r'^([A-Za-z]:[\\/]|\\\\)');
+
 /// Resolves an already-downloaded attachment without performing a side
 /// effect. Media remains an in-app viewer intent; every other file becomes an
 /// external-open intent. A missing path returns a no-op for the caller's
@@ -52,7 +59,8 @@ AttachmentOpenIntent resolveLocalAttachmentOpen({
 /// known URL scheme (`http://`, `https://`, `file://` -- e.g. the
 /// local streaming URL) is returned verbatim. A Windows
 /// drive-letter path (`C:\...`) is NOT treated as a URL (its `C:` would
-/// otherwise parse as a scheme), so it is wrapped in `file://`.
+/// otherwise parse as a scheme), so it is wrapped in `file://`; such paths
+/// are parsed as Windows paths on every platform (see [_windowsPath]).
 String localFileSrc(String path) {
   if (path.isEmpty) return path;
   // Already a URL (http/https/file -- e.g. a local streaming URL) --
@@ -64,7 +72,10 @@ String localFileSrc(String path) {
       path.startsWith('file://')) {
     return path;
   }
-  return Uri.file(path).toString();
+  // A Windows-shaped path is parsed with `windows: true` on every platform:
+  // on POSIX `Uri.file('C:\...')` treats it as a relative POSIX path and
+  // mangles it into `C%3A%5C...` instead of `file:///C:/...`.
+  return Uri.file(path, windows: _windowsPath.hasMatch(path)).toString();
 }
 
 /// Builds the loopback media URL. [baseUri] keeps the helper deterministic in
