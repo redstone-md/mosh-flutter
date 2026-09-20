@@ -1161,6 +1161,10 @@ fn channel_listen(
     Ok(())
 }
 
+// The CLI hands clap-parsed fields straight through, one parameter per
+// `ChannelDial` flag; the arity is the command surface, not a design smell.
+// Pre-existing signature (the ticket only changed the body).
+#[allow(clippy::too_many_arguments)]
 fn channel_dial(
     moss_lib: Option<std::path::PathBuf>,
     channel: String,

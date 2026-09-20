@@ -1469,10 +1469,7 @@ impl GroupSession {
         self.member_names
             .entry(fingerprint.clone())
             .or_insert_with(|| from_device.to_string());
-        let fresh = match self.typing_members.get(&fingerprint) {
-            Some(until) if *until > now => false,
-            _ => true,
-        };
+        let fresh = !matches!(self.typing_members.get(&fingerprint), Some(until) if *until > now);
         self.typing_members
             .insert(fingerprint, now.saturating_add(TYPING_EXPIRY_MS));
         if fresh {
