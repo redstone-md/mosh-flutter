@@ -133,6 +133,28 @@ class ConversationController extends Notifier<ConversationControllerState> {
     return sendBody(body);
   }
 
+  /// The [[Typing indicator]] emit-on-input hook: hands the runtime the
+  /// keystroke, which throttles its wire frame on its own ~3 s cadence
+  /// and does nothing for kinds that never carry typing (channels).
+  void signalTyping() {
+    unawaited(ref
+        .read(gatewayProvider)
+        .typingSignal(target)
+        .catchError((_) {}));
+  }
+
+  /// The conversation is on screen: hands the runtime the view mark, which
+  /// auto-triggers the DM read receipts for every not-yet-read counterpart
+  /// message when the toggle is on. The runtime owns the toggle check, the
+  /// per-message frames and the idempotence; a failure is silent — the
+  /// next poll retries, and a banner over a receipt is noise.
+  void markViewed() {
+    unawaited(ref
+        .read(gatewayProvider)
+        .markViewed(target)
+        .catchError((_) {}));
+  }
+
   /// Sends a picked file. The picker has already read the bytes and enforced
   /// the size limit.
   Future<void> sendAttachment(PickedAttachment attachment) async {

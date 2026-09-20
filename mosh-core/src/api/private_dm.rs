@@ -291,6 +291,31 @@ pub fn call_drain_frames(session_id: String, call_id: String) -> Result<Vec<Vec<
         .map_err(|error| error.to_string())
 }
 
+/// Whether this user sends read receipts (and therefore sees others').
+/// One app-level answer covering every DM; read from the plain JSON
+/// settings file in the data dir, default off. Does not construct the
+/// runtime: the setting is a file read, not a runtime action, so the
+/// settings screen can show it before any session exists.
+pub fn read_receipts_enabled() -> bool {
+    crate::read_receipts::load(&crate::api::shared_runtime::resolved_data_dir())
+        .map(|setting| setting.enabled)
+        .unwrap_or(false)
+}
+
+/// Set the app-level read-receipts answer. Persists BOTH ways (an "off" is
+/// a decision too), then applies it to the runtime so inbound receipts are
+/// honored or dropped from this moment. Constructs the runtime when it is
+/// not up yet — a settings screen may toggle before any session exists,
+/// and the runtime reads the file at every use anyway, so a construction
+/// failure only means the value is already on disk.
+pub fn set_read_receipts_enabled(enabled: bool) -> Result<(), String> {
+    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
+    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    runtime
+        .set_read_receipts_enabled(enabled)
+        .map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::api::shared_runtime::resolve_data_dir;

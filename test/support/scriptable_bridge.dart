@@ -57,6 +57,8 @@ enum BridgeMethod {
   createInvite,
   acceptInvite,
   listSessions,
+  readReceiptsEnabled,
+  setReadReceiptsEnabled,
   listChannels,
   listGroups,
   joinChannel,
@@ -113,6 +115,7 @@ class ScriptableBridge
   String? _bindInterface;
   VpnBypassConsent? _vpnConsent;
   List<Uint8List> _callFrames = const [];
+  bool _readReceiptsEnabled = false;
 
   // ----------------------------------------------------------------- seeding
 
@@ -162,6 +165,10 @@ class ScriptableBridge
 
   /// Seed the frames `callDrainFrames` returns.
   void seedCallFrames(List<Uint8List> frames) => _callFrames = frames;
+
+  /// Seed the read-receipts answer. `setReadReceiptsEnabled` overwrites it,
+  /// so a test can set then read without touching the filesystem.
+  void seedReadReceiptsEnabled(bool enabled) => _readReceiptsEnabled = enabled;
 
   // -------------------------------------------------------------- diagnostics
 
@@ -232,6 +239,17 @@ class ScriptableBridge
         () => SessionListSnapshot(
             sessions: conversations.sessions.values.toList()),
       );
+
+  @override
+  Future<bool> readReceiptsEnabled() => runScripted(
+      BridgeMethod.readReceiptsEnabled, const {}, () => _readReceiptsEnabled);
+
+  @override
+  Future<void> setReadReceiptsEnabled({required bool enabled}) =>
+      runScripted(BridgeMethod.setReadReceiptsEnabled, {'enabled': enabled},
+          () {
+        _readReceiptsEnabled = enabled;
+      });
 
   // -------------------------------------------------------- channels/groups
 

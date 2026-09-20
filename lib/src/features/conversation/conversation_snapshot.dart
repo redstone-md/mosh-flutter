@@ -21,7 +21,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/private_group_runtime.dart'
-    show GroupMessage, GroupSnapshot;
+    show GroupMessage, GroupSnapshot, TypingMember;
 
 /// One message, whatever kind of conversation it came from.
 ///
@@ -42,6 +42,7 @@ class ConversationMessage {
     this.deliveryStatus,
     this.deliveryError,
     this.retryable,
+    this.read,
   });
 
   final String fromDevice;
@@ -64,6 +65,11 @@ class ConversationMessage {
   final MessageDeliveryStatus? deliveryStatus;
   final String? deliveryError;
   final bool? retryable;
+
+  /// The [[Read receipt]] on the local user's own message: true once the
+  /// counterpart's authenticated receipt landed. Null for other messages
+  /// and until the receipt arrives — the two ticks change color on this.
+  final bool? read;
 
   /// What consecutive rows are grouped by: the fingerprint where there is
   /// one, the device name in a DM.
@@ -92,7 +98,8 @@ class ConversationMessage {
           callEvent == other.callEvent &&
           deliveryStatus == other.deliveryStatus &&
           deliveryError == other.deliveryError &&
-          retryable == other.retryable;
+          retryable == other.retryable &&
+          read == other.read;
 
   @override
   int get hashCode => Object.hash(
@@ -107,6 +114,7 @@ class ConversationMessage {
         deliveryStatus,
         deliveryError,
         retryable,
+        read,
       );
 }
 
@@ -175,6 +183,15 @@ final class DmConversation extends ConversationSnapshot {
 
   @override
   final SessionSnapshot source;
+
+  /// When the counterpart's [[Typing indicator]] hint stands until, or null
+  /// when the counterpart is not typing. The poll cycle carries it; the
+  /// renderer treats a value in the past as "not typing" so an expired hint
+  /// needs no timer to disappear.
+  bool get peerTyping =>
+      source.peerTypingUntilMs != null &&
+      BigInt.from(DateTime.now().millisecondsSinceEpoch) <
+          source.peerTypingUntilMs!;
 }
 
 /// A public channel.
@@ -209,6 +226,13 @@ final class GroupConversation extends ConversationSnapshot {
 
   @override
   final GroupSnapshot source;
+
+  /// Members whose [[Typing indicator]] hint stands right now, each carrying
+  /// the display name the group learned. The renderer drops entries whose
+  /// deadline has passed, so an expired hint needs no timer.
+  Iterable<TypingMember> get membersTyping => source.typingMembers
+      .where((member) =>
+          BigInt.from(DateTime.now().millisecondsSinceEpoch) < member.untilMs);
 }
 
 /// A DM message. Own is the device name match the DM runtime uses, and a DM
@@ -225,6 +249,7 @@ ConversationMessage _fromDm(ChatMessage m, String ownDeviceName) =>
       deliveryStatus: m.deliveryStatus,
       deliveryError: m.deliveryError,
       retryable: m.retryable,
+      read: m.read,
     );
 
 /// A channel or group message. Both are multi-party, so own is a fingerprint

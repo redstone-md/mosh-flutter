@@ -73,6 +73,21 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   void initState() {
     super.initState();
     _markActive();
+    // The conversation is on screen: every snapshot that lands marks it
+    // viewed, which auto-triggers the DM read receipts for not-yet-read
+    // counterpart messages while the toggle is on. Fired here rather than
+    // in the body's build so it runs exactly once per poll, not once per
+    // rebuild.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.listen<AsyncValue<ConversationSnapshot>>(
+        conversationSnapshotProvider(_target),
+        (_, next) {
+          if (next.hasValue) _controller.markViewed();
+        },
+      );
+      _controller.markViewed();
+    });
   }
 
   /// Marks this conversation as the one on screen, so its unread badge

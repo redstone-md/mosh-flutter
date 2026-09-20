@@ -297,6 +297,54 @@ pub fn leave(reference: BridgeConversationRef) -> Result<(), ConversationBridgeE
     Ok(())
 }
 
+/// Tell the conversation's counterpart the user is typing. DMs and groups
+/// carry the hint over their MLS-encrypted control wire; a channel has no
+/// counterpart to tell, so its arm is a silent no-op (the UI never calls
+/// it for a channel anyway — the arm exists so the kind dispatch stays
+/// total). Fire-and-forget semantics: the runtime throttles repeats on its
+/// own cadence and the hint reaches the other side with the next poll of
+/// ITS snapshot, so success is `()`.
+pub fn typing_signal(
+    reference: BridgeConversationRef,
+) -> Result<(), ConversationBridgeError> {
+    match reference.kind {
+        BridgeConversationKind::Dm => {
+            super::private_dm::ensure_runtime()?
+                .as_mut()
+                .expect("ensure_runtime guarantees Some")
+                .typing_signal(&reference.id)?;
+        }
+        BridgeConversationKind::Group => {
+            super::private_group::ensure_runtime()?
+                .as_mut()
+                .expect("ensure_runtime guarantees Some")
+                .typing_signal(&reference.id)?;
+        }
+        BridgeConversationKind::Channel => {}
+    }
+    Ok(())
+}
+
+/// Auto-trigger the read receipts when the conversation is open: receipts
+/// every counterpart message the local user has not yet receipted. The
+/// receipts themselves ride the DM control wire; a group and a channel
+/// have no read receipts in this slice, so those arms are silent no-ops.
+/// The sender's own ticks re-color on the OTHER side with its next poll.
+pub fn mark_viewed(
+    reference: BridgeConversationRef,
+) -> Result<(), ConversationBridgeError> {
+    match reference.kind {
+        BridgeConversationKind::Dm => {
+            super::private_dm::ensure_runtime()?
+                .as_mut()
+                .expect("ensure_runtime guarantees Some")
+                .mark_viewed(&reference.id)?;
+        }
+        BridgeConversationKind::Group | BridgeConversationKind::Channel => {}
+    }
+    Ok(())
+}
+
 /// Decode the bridge's base64 attachment payload. A payload that does not
 /// decode is the caller's mistake, so it is `InvalidInput`, raised before
 /// any runtime lock is taken.
