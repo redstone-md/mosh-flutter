@@ -145,6 +145,7 @@ GroupSnapshot cannedGroupSnapshot({
       needsRejoin: false,
       orgPubkey: orgPubkey,
       memberPeerIds: const [],
+      typingMembers: const [],
     );
 
 /// Canned [OrgSnapshot] for joinOrg + pollOrg. Empty-but-valid members/offers/

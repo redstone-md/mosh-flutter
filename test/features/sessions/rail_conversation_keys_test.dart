@@ -94,6 +94,7 @@ GroupSnapshot _group() => GroupSnapshot(
       needsRejoin: false,
       orgPubkey: null,
       memberPeerIds: const [],
+      typingMembers: const [],
     );
 
 /// One rail with a DM, a channel and a group in it.

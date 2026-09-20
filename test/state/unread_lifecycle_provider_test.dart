@@ -154,6 +154,7 @@ GroupSnapshot _group({
       events: const [],
       needsRejoin: false,
       memberPeerIds: const [],
+      typingMembers: const [],
     );
 
 /// Harness wiring the four overrides + a controllable focus flag. Each

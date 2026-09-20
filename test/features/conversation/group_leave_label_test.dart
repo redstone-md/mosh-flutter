@@ -25,6 +25,7 @@ GroupSnapshot _unlabelled(String groupId) => GroupSnapshot(
       events: const [],
       needsRejoin: false,
       memberPeerIds: const [],
+      typingMembers: const [],
     );
 
 void main() {

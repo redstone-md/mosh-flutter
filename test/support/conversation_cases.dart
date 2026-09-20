@@ -251,6 +251,7 @@ List<ConversationCase> conversationCases({
             events: const [],
             needsRejoin: false,
             memberPeerIds: const [],
+            typingMembers: const [],
           ),
         ),
       ),

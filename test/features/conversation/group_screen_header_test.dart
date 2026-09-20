@@ -69,6 +69,7 @@ GroupSnapshot _snapshot({
       needsRejoin: false,
       orgPubkey: null,
       memberPeerIds: const [],
+      typingMembers: const [],
     );
 
 Future<void> _pumpGroup(
