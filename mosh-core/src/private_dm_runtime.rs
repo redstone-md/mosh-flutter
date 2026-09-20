@@ -1628,7 +1628,12 @@ impl PrivateDmSession {
                     return Ok(());
                 };
                 let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
-                    eprintln!("dropping unverifiable typing hint for {session_id}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::VERIFY,
+                        &session_id,
+                        "dropping unverifiable typing hint",
+                    );
                     return Ok(());
                 };
                 // The body names the device, but the authenticated identity is
@@ -1660,7 +1665,6 @@ impl PrivateDmSession {
                 participant_id,
                 receipt_ciphertext_b64,
             } if self.is_from_counterpart(&session_id, &participant_id) => {
-                #[cfg(test)]
                 // Decrypting authenticates: only the MLS peer can produce a
                 // ciphertext this group accepts, so a forged receipt stops
                 // here and the ticks keep their color. The symmetry rule

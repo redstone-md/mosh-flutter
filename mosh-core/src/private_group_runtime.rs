@@ -2160,7 +2160,12 @@ impl GroupSession {
                     return Ok(());
                 };
                 let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
-                    eprintln!("dropping unverifiable typing hint for {group_id}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::VERIFY,
+                        &group_id,
+                        "dropping unverifiable typing hint",
+                    );
                     return Ok(());
                 };
                 if let Ok(body) = decode_json::<GroupTypingBody>(&plaintext) {
