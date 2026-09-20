@@ -47,13 +47,20 @@
 use serde::{Deserialize, Serialize};
 
 use crate::conversation::{decode, encode};
-use crate::moss_ffi::{MossReceivedMessage, STREAM_INBOX_CHANNEL_PREFIX};
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+use crate::moss_ffi::MossReceivedMessage;
 use crate::private_dm_runtime::transport::DmTransport;
 
 /// Stream id 2: 0 (raw) and 1 (gossip) are reserved by the moss transport,
 /// 100+ are the game preset, 200+ the TUN intranet. Attachment chunks are
 /// the first messenger stream, so they take the lowest free id.
 pub const ATTACHMENT_STREAM_ID: u32 = 2;
+
+/// Prefix reserved for frames the stream callback files. Runtime inboxes
+/// claim channels they recognise, so an unclaimed prefix lands in the
+/// unclaimed tail — a stream frame for a conversation nobody owns must not
+/// look like a room frame (or a control frame) to any claim.
+pub const STREAM_INBOX_CHANNEL_PREFIX: &str = "moss-stream/";
 
 /// The channel a stream-delivered frame is filed under before deframing:
 /// the reserved prefix plus the sending peer's moss id, so [`ingest`] can
@@ -128,7 +135,12 @@ pub fn send_chunk(
         }
         // Any stream refusal — symbol missing, relay failed, node gone —
         // degrades to the room wire. The chunk protocol retries on top.
-        eprintln!("{STREAM_FALLBACK_NOTE}");
+        dlog::write(
+            LogLevel::Info,
+            kinds::STREAM,
+            blob_channel,
+            STREAM_FALLBACK_NOTE,
+        );
     }
     room(payload).map_err(|error| format!("{ROOM_REFUSED_NOTE}: {error}"))
 }
@@ -148,7 +160,12 @@ pub fn passthrough_or_deframe(message: MossReceivedMessage) -> MossReceivedMessa
         return message;
     };
     let Some((channel, payload)) = deframe(&message.payload) else {
-        eprintln!("dropping a stream frame that does not deframe: from {peer_id}");
+        dlog::write(
+            LogLevel::Warn,
+            kinds::STREAM,
+            peer_id,
+            "dropping a stream frame that does not deframe",
+        );
         return message;
     };
     MossReceivedMessage { channel, payload }

@@ -691,12 +691,22 @@ impl MossNode {
             on_stream(self.handle, stream_id, Some(on_stream_payload))
         })
     }
+}
 
-    /// Whether the loaded library can carry streams. The capability set is
-    /// loaded once at load time, so this never changes under a node.
-    pub fn has_stream_capability(&self) -> bool {
-        self.runtime.send_stream.is_some() && self.runtime.on_stream.is_some()
-    }
+/// The version the loaded library stamps itself with (its own link stamp),
+/// read once per process and cached: `Moss_Version` takes NO node handle, so
+/// the answer loads straight through the symbol table without starting a
+/// throwaway node. `None` when the library predates the symbol (older than
+/// v0.8.17) or cannot load at all — the panel renders "unknown", never a
+/// failed call. The load's own cost is paid once; every later call reads
+/// the cache.
+pub fn library_version_once() -> Option<String> {
+    static VERSION: LazyLock<Option<String>> = LazyLock::new(|| {
+        let runtime = MossFfiRuntime::load_default().ok()?;
+        let version = unsafe { (runtime.version?)() };
+        take_heap_string(version, &runtime.free)
+    });
+    VERSION.clone()
 }
 
 /// One stream frame from the library's callback thread: a heap peer-id string
@@ -717,19 +727,21 @@ unsafe extern "C" fn on_stream_payload(peer_id: *const c_char, data: *const u8, 
     });
 }
 
-/// The channel every stream-delivered frame is filed under. The blob channel
-/// naming (with a session id) is runtime-owned; the callback only knows the
-/// peer, so the carrier strips the framing and re-serves the frame into the
-/// runtime's own inbox by its real channel (see `stream_transport::ingest`).
+/// The channel every stream-delivered frame is filed under. One source of
+/// truth lives in the carrier: the framing and the inbox naming must agree,
+/// so this forwards to `stream_transport::stream_inbox_channel` rather than
+/// re-deriving the same format string here.
 fn stream_receive_channel(peer_id: &str) -> String {
-    format!("{STREAM_INBOX_CHANNEL_PREFIX}{peer_id}")
+    crate::stream_transport::stream_inbox_channel(peer_id)
 }
 
 /// Prefix reserved for frames the stream callback files. Runtime inboxes
 /// claim channels they recognise, so an unclaimed prefix lands in the
 /// unclaimed tail — a stream frame for a conversation nobody owns must not
-/// look like a room frame (or a control frame) to any claim.
-pub const STREAM_INBOX_CHANNEL_PREFIX: &str = "moss-stream/";
+/// look like a room frame (or a control frame) to any claim. The constant
+/// and its one builder live together in `stream_transport`; this re-export
+/// keeps the FFI-callback import site stable.
+pub use crate::stream_transport::STREAM_INBOX_CHANNEL_PREFIX;
 
 /// The three stream symbols share one error identity: a caller that wants
 /// "streams or room wire" branches on the kind of failure, not on which of

@@ -9,7 +9,6 @@
 
 use crate::api::shared_runtime::{database_path, ensure_shared_resources};
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
-use crate::moss_ffi::{MossFfiRuntime, MossNodeConfig};
 use crate::moss_runtime::{MossDynamicRuntime, MossRuntime, MossRuntimeStatus};
 pub use crate::openmls_crypto::{
     run_openmls_alice_bob_roundtrip, run_openmls_smoke_test, OpenMlsRoundTripStatus,
@@ -17,12 +16,10 @@ pub use crate::openmls_crypto::{
 };
 use crate::persistence::PersistenceRuntimeStatus;
 use crate::secure_storage::{OsSecureSecretStore, SecureStorageStatus};
-use crate::shared_node::SUBSTRATE_ROOM;
 use flutter_rust_bridge::frb;
 use std::any::Any;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 // App-level identity strings. Mirror the previous Tauri shell constants; kept
 // as named consts (not inline literals) per AGENTS.md no-hardcoding rule.
@@ -232,28 +229,14 @@ pub fn native_runtime_status() -> NativeRuntimeStatus {
 /// once-per-process guarantee rather than trusting the sink's open-file
 /// state.
 pub fn moss_library_info(peer_moss_id: Option<String>) -> MossLibraryInfo {
-    let version = library_version().unwrap_or_else(|| MOSS_VERSION_UNKNOWN.to_string());
+    let version = crate::moss_ffi::library_version_once()
+        .unwrap_or_else(|| MOSS_VERSION_UNKNOWN.to_string());
     log_version_once(&version);
     MossLibraryInfo {
         peer_rtt_ms: peer_rtt_ms(peer_moss_id.as_deref()),
         log_path: dlog::current_log_path().map(|path| path.display().to_string()),
         version,
     }
-}
-
-/// The version the loaded library stamps itself with. The answer hangs on
-/// the loaded table's `Moss_Version` export, which is process-global (it
-/// takes no node), but the accessor lives on `MossNode` in the symbol
-/// table -- so this initializes one throwaway node against the default
-/// candidates to reach it. Using the shared runtime instead would open
-/// the encrypted DB just to read a string; this load is deliberately
-/// lighter. `None` when the library predates the symbol or cannot load
-/// at all.
-fn library_version() -> Option<String> {
-    Arc::new(MossFfiRuntime::load_default().ok()?)
-        .init_default_node(SUBSTRATE_ROOM, &MossNodeConfig::default())
-        .ok()?
-        .library_version()
 }
 
 /// File the library version into the field log exactly once per process.

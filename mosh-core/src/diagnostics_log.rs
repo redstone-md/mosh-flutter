@@ -53,6 +53,9 @@ pub mod kinds {
     pub const KICK: &str = "kick";
     pub const RESYNC: &str = "resync";
     pub const VOICE: &str = "voice";
+    /// The attachment chunk carrier: stream sends, fallbacks, and frames
+    /// that arrive on the reserved inbox channel (spec #8).
+    pub const STREAM: &str = "stream";
     pub const TEST: &str = "test";
 }
 

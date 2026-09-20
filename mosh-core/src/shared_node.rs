@@ -144,6 +144,10 @@ fn drop_ref(state: &mut SharedNodeState) {
     }
 }
 
+/// The field-log context for the stream-handler registration result, so the
+/// line is greppable by call site rather than by peer.
+const STREAM_HANDLER_CONTEXT: &str = "stream-handler";
+
 fn start_node(
     moss: &Arc<MossFfiRuntime>,
     listen_port: u16,
@@ -167,7 +171,12 @@ fn start_node(
     // note, never a start failure.
     if let Err(error) = node.register_stream_handler(crate::stream_transport::ATTACHMENT_STREAM_ID)
     {
-        eprintln!("attachment stream receive not available: {error}");
+        dlog::write(
+            LogLevel::Warn,
+            kinds::STREAM,
+            STREAM_HANDLER_CONTEXT,
+            &format!("attachment stream receive not available: {error}"),
+        );
     }
     clear_event_log();
     node.start()?;
