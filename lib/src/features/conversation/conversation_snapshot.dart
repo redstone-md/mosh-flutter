@@ -230,8 +230,8 @@ final class GroupConversation extends ConversationSnapshot {
   /// Members whose [[Typing indicator]] hint stands right now, each carrying
   /// the display name the group learned. The renderer drops entries whose
   /// deadline has passed, so an expired hint needs no timer.
-  Iterable<TypingMember> get membersTyping => source.typingMembers
-      .where((member) =>
+  Iterable<TypingMember> get membersTyping =>
+      source.typingMembers.where((member) =>
           BigInt.from(DateTime.now().millisecondsSinceEpoch) < member.untilMs);
 }
 

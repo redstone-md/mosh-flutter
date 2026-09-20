@@ -69,8 +69,7 @@ void main() {
     expect(text.style?.color, MoshColors.fg4);
   });
 
-  testWidgets(
-      'the read receipt changes the color of the SAME delivered ticks',
+  testWidgets('the read receipt changes the color of the SAME delivered ticks',
       (tester) async {
     await _pumpRow(tester, message: _ownMessage(read: true));
 

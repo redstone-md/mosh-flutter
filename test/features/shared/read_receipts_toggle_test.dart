@@ -16,8 +16,7 @@ final AppLocalizations _l = lookupAppLocalizations(const Locale('en'));
 void main() {
   setUpAll(() => initializeDateFormatting());
 
-  testWidgets('renders the stored answer once the read lands',
-      (tester) async {
+  testWidgets('renders the stored answer once the read lands', (tester) async {
     final bridge = ScriptableBridge()..seedReadReceiptsEnabled(true);
     await pumpScreen(
         tester, Scaffold(body: ReadReceiptsToggle(bridge: bridge)));
@@ -32,8 +31,7 @@ void main() {
     expect(find.text(_l.settingsReadReceiptsTitle), findsOneWidget);
   });
 
-  testWidgets('a tap writes the new answer through the facade',
-      (tester) async {
+  testWidgets('a tap writes the new answer through the facade', (tester) async {
     final bridge = ScriptableBridge()..seedReadReceiptsEnabled(false);
     await pumpScreen(
         tester, Scaffold(body: ReadReceiptsToggle(bridge: bridge)));
@@ -56,8 +54,7 @@ void main() {
   testWidgets('a failed write rolls the switch back and shows the error',
       (tester) async {
     final bridge = ScriptableBridge()..seedReadReceiptsEnabled(true);
-    bridge.failAlways(BridgeMethod.setReadReceiptsEnabled,
-        error: 'disk full');
+    bridge.failAlways(BridgeMethod.setReadReceiptsEnabled, error: 'disk full');
     await pumpScreen(
         tester, Scaffold(body: ReadReceiptsToggle(bridge: bridge)));
     await tester.pumpAndSettle();

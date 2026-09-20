@@ -61,8 +61,7 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('clearing the draft back to empty fires nothing',
-      (tester) async {
+  testWidgets('clearing the draft back to empty fires nothing', (tester) async {
     final controller = TextEditingController(text: 'hi');
     final typing = <String>[];
     await pump(tester, c: controller, typing: typing);

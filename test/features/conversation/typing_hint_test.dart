@@ -65,8 +65,8 @@ GroupSnapshot _group({required List<TypingMember> typing}) => GroupSnapshot(
 void main() {
   testWidgets('the DM hint names the counterpart while the deadline stands',
       (tester) async {
-    final deadline = BigInt
-        .from(DateTime.now().millisecondsSinceEpoch + 4000); // inside window
+    final deadline = BigInt.from(
+        DateTime.now().millisecondsSinceEpoch + 4000); // inside window
     final snapshot =
         DmConversation(const DmTarget('s1'), _dm(peerTypingUntilMs: deadline));
     await pumpScreen(tester, TypingHint(names: typingNames(snapshot)));
@@ -75,8 +75,8 @@ void main() {
   });
 
   testWidgets('an expired DM deadline renders nothing', (tester) async {
-    final stale = BigInt
-        .from(DateTime.now().millisecondsSinceEpoch - 1000); // already past
+    final stale = BigInt.from(
+        DateTime.now().millisecondsSinceEpoch - 1000); // already past
     final snapshot =
         DmConversation(const DmTarget('s1'), _dm(peerTypingUntilMs: stale));
     await pumpScreen(tester, TypingHint(names: typingNames(snapshot)));

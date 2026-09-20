@@ -229,8 +229,8 @@ pub fn native_runtime_status() -> NativeRuntimeStatus {
 /// once-per-process guarantee rather than trusting the sink's open-file
 /// state.
 pub fn moss_library_info(peer_moss_id: Option<String>) -> MossLibraryInfo {
-    let version = crate::moss_ffi::library_version_once()
-        .unwrap_or_else(|| MOSS_VERSION_UNKNOWN.to_string());
+    let version =
+        crate::moss_ffi::library_version_once().unwrap_or_else(|| MOSS_VERSION_UNKNOWN.to_string());
     log_version_once(&version);
     MossLibraryInfo {
         peer_rtt_ms: peer_rtt_ms(peer_moss_id.as_deref()),

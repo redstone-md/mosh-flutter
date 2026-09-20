@@ -304,9 +304,7 @@ pub fn leave(reference: BridgeConversationRef) -> Result<(), ConversationBridgeE
 /// total). Fire-and-forget semantics: the runtime throttles repeats on its
 /// own cadence and the hint reaches the other side with the next poll of
 /// ITS snapshot, so success is `()`.
-pub fn typing_signal(
-    reference: BridgeConversationRef,
-) -> Result<(), ConversationBridgeError> {
+pub fn typing_signal(reference: BridgeConversationRef) -> Result<(), ConversationBridgeError> {
     match reference.kind {
         BridgeConversationKind::Dm => {
             super::private_dm::ensure_runtime()?
@@ -330,9 +328,7 @@ pub fn typing_signal(
 /// receipts themselves ride the DM control wire; a group and a channel
 /// have no read receipts in this slice, so those arms are silent no-ops.
 /// The sender's own ticks re-color on the OTHER side with its next poll.
-pub fn mark_viewed(
-    reference: BridgeConversationRef,
-) -> Result<(), ConversationBridgeError> {
+pub fn mark_viewed(reference: BridgeConversationRef) -> Result<(), ConversationBridgeError> {
     match reference.kind {
         BridgeConversationKind::Dm => {
             super::private_dm::ensure_runtime()?
