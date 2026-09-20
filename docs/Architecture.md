@@ -828,3 +828,4 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0024-the-bridge-names-shared-conversation-actions.md - the bridge exposes one function per shared conversation operation with the kind in the argument, not one per kind; amends ADR 0010's Tauri-mapping clause.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).
+- docs/Features/read-receipts.md - DM read-receipt flow: toggle, symmetric gate, persistence (Mermaid sequence).

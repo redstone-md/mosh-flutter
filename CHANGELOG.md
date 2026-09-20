@@ -84,6 +84,22 @@ All notable changes to Mosh are documented here. Format follows
   snapshots (`SessionSnapshot.peer_typing_until_ms`,
   `GroupSnapshot.typing_members`) carry the state to the UI through the
   existing poll cycle — no new push channel.
+- **Read receipts for DMs: the two delivery ticks change color.** When a DM
+  is open on screen, the runtime receipts every not-yet-read counterpart
+  message with a `ReadReceipt` frame on the MLS-encrypted control wire —
+  one message id per frame (the ack shape), so only the real MLS peer can
+  mint one and a mesh bystander cannot fake the color change. Off by
+  default and symmetric: one app-level toggle covers every DM, persisted
+  both ways (`read-receipts.json` beside the history store) — and a user
+  who does not send receipts does not see others'. Read state survives a
+  restart (ids ride the session record, capped at 512), so the counterpart
+  is never re-asked. The runtime files a `message_read` event (pinned code
+  9) into the diagnostics event ring on BOTH sides — when a receipt lands
+  and when one is sent — and the snapshot's `ChatMessage.read` (own
+  messages only, skip-when-none) carries the color to the UI through the
+  existing poll. DM only: groups ("read by N") and channels are out of
+  scope. Old counterpart clients decode-drop the unknown frame and
+  silently never color.
 - **A field log the app can hand to support.** The Rust core's error lines
   (dropped frames, failed handshakes, stalled resends, rehydrate failures)
   used to go to process stderr, which a release Windows build has no console

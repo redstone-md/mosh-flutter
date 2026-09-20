@@ -20,13 +20,15 @@ use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::{Persistence, DM_HISTORY};
+use crate::read_receipts::ReadReceiptsSetting;
 use crate::voice_call_runtime::{CallPhase, CallState};
 pub use contracts::{
     AcceptInviteRequest, ActiveCall, AttachmentDescriptor, AttachmentSendResult, AttachmentState,
     AttachmentView, CallEvent, CallOfferBody, CallStarted, ChatMessage, CloseSessionResult,
     ConnectOutcome, DmOffer, DmSessionState, InviteCreated, MeshInfo, MessageDeliveryStatus,
-    OutgoingCall, PeerDetail, PendingCall, PrivateDmRuntimeError, SendMessageResult,
-    SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest, TypingBody,
+    OutgoingCall, PeerDetail, PendingCall, PrivateDmRuntimeError, ReadReceiptBody,
+    SendMessageResult, SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest,
+    TypingBody,
 };
 use invite::{build_invite_uri, listen_address, ParsedInvite};
 use transport::PublishError;
@@ -97,6 +99,31 @@ const TYPING_EXPIRY_MS: u64 = 5_000;
 /// hint lands or lapses, so the panel shows typing activity like the node's
 /// own reports.
 const TYPING_EVENT_CODE: i32 = 10;
+
+/// Event code the diagnostics panel renders as "message_read" (pinned in
+/// `conversation::mesh`). Filed on BOTH sides of a receipt: when one lands
+/// (the sender learns its message was read) and when `mark_viewed` sends
+/// one (the receiver's own honest event log).
+const READ_EVENT_CODE: i32 = 9;
+
+// How many read ids a persisted session record keeps. A DM only ever needs
+// "already read?" for recent messages; a cap keeps a long-lived DM's record
+// from growing without bound. Receipts older than the cap re-ask once if a
+// restored session ever re-renders that far back. Lives in `contracts`
+// beside the field it bounds (`contracts::READ_HISTORY_KEEP`).
+use contracts::{prune_read_ids, READ_HISTORY_KEEP};
+
+/// Files one read event (pinned code 9) into the diagnostics event ring,
+/// the same insert `on_moss_event` does for the node's own reports.
+fn push_read_event(session_id: &str, message_id: &str, phase: &str) {
+    let detail = serde_json::json!({
+        "conversation": KIND,
+        "session_id": session_id,
+        "message_id": message_id,
+        "phase": phase,
+    });
+    crate::moss_ffi::push_app_event(READ_EVENT_CODE, &detail.to_string());
+}
 
 /// What moved a session's state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -230,6 +257,12 @@ struct PrivateDmSession {
     // When we last published a TypingIndicator, so continued input re-emits
     // no faster than the refresh cadence.
     last_typing_send_ms: u64,
+    // Message ids of OUR OWN messages the counterpart has authenticated a
+    // read of (survives a restart via the session record), plus the ids of
+    // the counterpart's messages we have already receipted, so
+    // `mark_viewed` sends nothing twice.
+    peer_read_ids: Vec<String>,
+    sent_read_ids: Vec<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -385,6 +418,10 @@ impl PrivateDmRuntime {
         // Without this the restored session cannot tell whether its
         // counterpart is reachable, and cannot ask the transport to reach it.
         session.peer_moss_id = rec.peer_moss_id.clone();
+        // Read state rides the session record: ids the counterpart had
+        // authenticated a read of before the restart. Without this a restart
+        // would re-ask the counterpart for every receipt it already sent.
+        session.peer_read_ids = rec.read_message_ids.clone();
         self.sessions.replay(
             &rec.session_id,
             Restore {
@@ -546,6 +583,7 @@ impl PrivateDmRuntime {
                 delivery_error: None,
                 retryable: None,
                 retry_count: None,
+                read: None,
             });
             let owned_session_id = session.session_id.clone();
             session
@@ -568,6 +606,44 @@ impl PrivateDmRuntime {
         self.drain_inbound();
         let session = self.session_mut(session_id)?;
         session.publish_typing(now_ms());
+        Ok(())
+    }
+
+    /// The app-level read-receipts answer, as persisted in the data dir.
+    /// Absent file means the default: off.
+    pub fn read_receipts_enabled(&self) -> bool {
+        crate::read_receipts::load(&crate::api::shared_runtime::resolved_data_dir())
+            .is_some_and(|setting| setting.enabled)
+    }
+
+    /// Records the app-level read-receipts answer. BOTH values persist: an
+    /// off is a decision too, not an absence (the default is off, so only an
+    /// explicit on — and an explicit off — must survive a restart).
+    pub fn set_read_receipts_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        crate::read_receipts::save(
+            &crate::api::shared_runtime::resolved_data_dir(),
+            &ReadReceiptsSetting { enabled },
+        )
+        .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
+    }
+
+    /// Reports "the user is looking at this DM": every counterpart message
+    /// not yet read gets its ReadReceipt (best-effort, one frame per
+    /// message), and each send files the honest `message_read` event. The
+    /// api/Dart poll calls this while the conversation screen is open. A
+    /// toggle that is off makes this a no-op — no frames, no events — and
+    /// by the symmetry rule a user who does not send receipts also ignores
+    /// the ones addressed to it.
+    pub fn mark_viewed(&mut self, session_id: &str) -> Result<(), PrivateDmRuntimeError> {
+        self.drain_inbound();
+        if !self.read_receipts_enabled() {
+            return Ok(());
+        }
+        let session = self.session_mut(session_id)?;
+        session.mark_viewed();
         Ok(())
     }
 
@@ -932,6 +1008,8 @@ impl PrivateDmSession {
             last_hello_send_ms: 0,
             peer_typing_until_ms: None,
             last_typing_send_ms: 0,
+            peer_read_ids: Vec::new(),
+            sent_read_ids: Vec::new(),
             dirty_outbound: Vec::new(),
             record_dirty: false,
         }
@@ -975,6 +1053,12 @@ impl PrivateDmSession {
             listen_port: self.listen_port,
             static_peer: self.static_peer.clone(),
             peer_moss_id: self.peer_moss_id.clone(),
+            // Only ids of our own messages the peer read survive a restart:
+            // the ids of the messages WE receipted are re-derivable from the
+            // rehydrated history (the counterpart re-asks only when its
+            // screen re-renders), and keeping just these keeps the record
+            // small.
+            read_message_ids: prune_read_ids(&self.peer_read_ids),
         }
     }
 
@@ -1562,6 +1646,44 @@ impl PrivateDmSession {
                 self.note_authenticated_frame(&from_device);
                 self.accept_incoming_manifest(from_device, manifest)
             }
+            ControlEnvelope::ReadReceipt {
+                session_id,
+                participant_id,
+                receipt_ciphertext_b64,
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+        #[cfg(test)]
+
+
+                // Decrypting authenticates: only the MLS peer can produce a
+                // ciphertext this group accepts, so a forged receipt stops
+                // here and the ticks keep their color. The symmetry rule
+                // lives in the runtime: when this user does not send
+                // receipts, the inbound ones are dropped unread.
+                let Some(true) = crate::read_receipts::load(
+                    &crate::api::shared_runtime::resolved_data_dir(),
+                )
+                .map(|setting| setting.enabled) else {
+                    return Ok(());
+                };
+                let Ok(ciphertext) = decode(&receipt_ciphertext_b64) else {
+                    return Ok(());
+                };
+                let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::VERIFY,
+                        &session_id,
+                        "dropping unverifiable read receipt",
+                    );
+                    return Ok(());
+                };
+                let Ok(body) = decode_json::<ReadReceiptBody>(&plaintext) else {
+                    return Ok(());
+                };
+                self.note_authenticated_frame("");
+                self.note_peer_read(&body.message_id);
+                Ok(())
+            }
             ControlEnvelope::PeerAnnounce {
                 session_id,
                 participant_id,
@@ -1741,6 +1863,7 @@ impl PrivateDmSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            read: None,
         });
         self.messages.push(message);
     }
@@ -1782,6 +1905,7 @@ impl PrivateDmSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            read: None,
         });
         if self.messages.holds_copy_of(&message) {
             return Ok(());
@@ -1890,6 +2014,108 @@ impl PrivateDmSession {
         }
     }
 
+    /// The read flag ONE snapshot row carries: `Some(true)` only for the
+    /// user's own message the counterpart's authenticated receipt named —
+    /// keyed off the persisted id set so a rehydrated row (whose on-disk
+    /// `read` may predate the field) reads the same after a restart.
+    /// Counterpart messages carry `None`: they have nothing to learn about
+    /// their own reads.
+    fn own_message_read(&self, message: &ChatMessage) -> Option<bool> {
+        if message.from_device != self.device_id {
+            return None;
+        }
+        let message_id = message.message_id.as_deref()?;
+        self.peer_read_ids
+            .iter()
+            .any(|id| id == message_id)
+            .then_some(true)
+    }
+
+    /// One read receipt: the counterpart has seen this message of ours.
+    /// Marks the log row (`read: Some(true)`) so the snapshot carries it,
+    /// files the pinned `message_read` event, and notes the id so a restart
+    /// does not re-ask. Unknown ids (a receipt for a message a restart
+    /// already dropped) are ignored, exactly like the DeliveryAck.
+    fn note_peer_read(&mut self, message_id: &str) {
+        if self.peer_read_ids.iter().any(|id| id == message_id) {
+            return;
+        }
+        let Some(message) = self.messages.find_mut(message_id) else {
+            return;
+        };
+        if message.from_device != self.device_id {
+            return;
+        }
+        self.peer_read_ids.push(message_id.to_string());
+        if self.peer_read_ids.len() > READ_HISTORY_KEEP {
+            self.peer_read_ids = prune_read_ids(&self.peer_read_ids);
+        }
+        message.read = Some(true);
+        self.record_dirty = true;
+        push_read_event(&self.session_id, message_id, "peer-read");
+    }
+
+    /// The user is looking at this DM: receipt every counterpart message
+    /// not yet read, one MLS-encrypted frame per message (the ack shape — a
+    /// lost receipt re-sends as the same single-frame problem). Already
+    /// receipted ids are skipped so nothing re-sends. Runs only under an
+    /// enabled toggle; the runtime checks that before calling.
+    fn mark_viewed(&mut self) {
+        if !self.can_encrypt_for_peer() {
+            return;
+        }
+        let unread: Vec<String> = self
+            .messages
+            .iter()
+            .filter(|message| self.message_needs_receipt(message))
+            .filter_map(|message| message.message_id.clone())
+            .filter(|message_id| !self.sent_read_ids.contains(message_id))
+            .collect();
+        for message_id in unread {
+            self.send_read_receipt(&message_id);
+            // The receiver's own honest event log: one `message_read` per
+            // receipt this side sent, matching the frame on the wire.
+            push_read_event(&self.session_id, &message_id, "self-read");
+            self.sent_read_ids.push(message_id);
+        }
+        // The ids we receipted are re-derivable from the rehydrated history
+        // (see `to_persisted_record`), so they stay memory-only; nothing to
+        // persist here beyond what the message rows carry.
+    }
+
+    /// True for a counterpart message that is not a call-event stub and
+    /// carries an id — the only messages a receipt means anything for.
+    fn message_needs_receipt(&self, message: &ChatMessage) -> bool {
+        message.from_device != self.device_id
+            && message.call_event.is_none()
+            && message.message_id.is_some()
+    }
+
+    /// One MLS-encrypted receipt frame for one message id. Best-effort, like
+    /// the DeliveryAck: a lost receipt is answered by the peer's next
+    /// `mark_viewed` (its `sent_read_ids` only stops re-sends while this
+    /// process lives, so a restart re-asks for anything not settled).
+    fn send_read_receipt(&mut self, message_id: &str) {
+        let body = ReadReceiptBody {
+            message_id: message_id.to_string(),
+        };
+        let Ok(body_json) = serde_json::to_vec(&body) else {
+            return;
+        };
+        let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
+            return;
+        };
+        let envelope = ControlEnvelope::ReadReceipt {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            receipt_ciphertext_b64: encode(&ciphertext),
+        };
+        let Ok(payload) = serde_json::to_vec(&envelope) else {
+            return;
+        };
+        let _ = self.route_send(ChannelKind::Control, &payload);
+    }
+
     fn handle_blob(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
         let envelope: BlobEnvelope = decode_json(&payload)?;
         match envelope {
@@ -1963,6 +2189,7 @@ impl PrivateDmSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            read: None,
         });
         self.messages.push(message);
         Ok(())
@@ -2015,6 +2242,7 @@ impl PrivateDmSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            read: None,
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {
@@ -2062,6 +2290,15 @@ impl PrivateDmSession {
         // The poll is the heartbeat: a hint past its deadline stops being
         // carried (and files its lapse into the event ring) from here.
         self.expire_peer_typing(now_ms());
+        let messages: Vec<ChatMessage> = self
+            .messages
+            .iter()
+            .map(|message| {
+                let mut stamped = message.clone();
+                stamped.read = self.own_message_read(message);
+                stamped
+            })
+            .collect();
         SessionSnapshot {
             session_id: self.session_id.clone(),
             mesh_id: self.mesh_id.clone(),
@@ -2074,7 +2311,7 @@ impl PrivateDmSession {
             last_connect_outcome: self.last_connect_outcome,
             invite_uri: self.invite_uri.clone(),
             fingerprint: self.fingerprint.clone(),
-            messages: self.messages.to_vec(),
+            messages,
             attachments: self.transfer.views(),
             mesh: self.mesh_info(),
             events: crate::conversation::mesh::snapshot_events(),
@@ -2569,6 +2806,7 @@ mod tests {
                 delivery_error: None,
                 retryable: None,
                 retry_count: None,
+                read: None,
             };
             let record = crate::conversation::history::StoredMessage {
                 conversation_id: invite.session_id.clone(),
