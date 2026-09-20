@@ -209,6 +209,15 @@ pub fn current_log_path() -> Option<PathBuf> {
     guard.as_ref()?.ready_path()
 }
 
+/// Test-only: drop the process sink so the next write re-opens it under
+/// whatever data dir the test just set. Mirrors `clear_moss_keystore`:
+/// nothing outside `cfg(test)` may rebuild process state.
+#[cfg(test)]
+pub(crate) fn reset_sink_for_tests() {
+    let mut guard = SINK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    *guard = None;
+}
+
 /// `YYYY-MM-DDTHH:MM:SSZ` for a UTC second count.
 fn iso8601_utc(unix_secs: i64) -> String {
     let (year, month, day) = civil_from_days(unix_secs.div_euclid(SECONDS_PER_DAY));
@@ -392,9 +401,20 @@ mod tests {
 
     #[test]
     fn the_global_sink_reports_the_resolved_path() {
+        // The sink freezes its directory at the FIRST process write, so an
+        // earlier test could have pinned it to the default temp dir. Point
+        // the data dir at a scratch root (a no-op when the once-lock already
+        // holds one — the reset still wins), drop the sink, and let the
+        // write below re-open it under whatever dir is in force. The
+        // assertion then reads the same source of truth either way.
+        let _ = crate::api::shared_runtime::set_app_data_dir(
+            temp_dir("global-sink").to_string_lossy().into_owned(),
+        );
+        reset_sink_for_tests();
         write(LogLevel::Info, kinds::TEST, "t", "global sink smoke");
         let path = current_log_path().expect("a write opened the global sink");
         assert_eq!(path, resolved_data_dir().join(LOGS_DIR).join(FILE_NAME));
         assert!(path.is_file());
+        let _ = fs::remove_dir_all(temp_dir("global-sink"));
     }
 }

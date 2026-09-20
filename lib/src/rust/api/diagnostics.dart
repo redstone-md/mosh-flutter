@@ -10,7 +10,7 @@ import '../persistence.dart';
 import '../secure_storage.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `flatten_probe`, `library_version`, `log_version_once`, `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `panic_payload_to_string`, `peer_rtt_ms`, `persistence_status`
+// These functions are ignored because they are not marked as `pub`: `flatten_probe`, `log_version_once`, `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `panic_payload_to_string`, `peer_rtt_ms`, `persistence_status`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`
 
 /// App-level identity diagnostics. One-shot query; owned `String` fields so
