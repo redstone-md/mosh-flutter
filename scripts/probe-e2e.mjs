@@ -26,6 +26,12 @@ const DEFAULT_REMOTE_BIN = "/usr/local/bin/mosh-probe";
 //   --remote-bin "docker run --rm -v /usr/local/bin:/opt/probe:ro \
 //                 debian:bookworm-slim /opt/probe/mosh-probe"
 const REMOTE_BIN = arg("remote-bin", DEFAULT_REMOTE_BIN);
+// The moss debug plane is the field-forensics seam (session-close reasons in a
+// .mossrec NDJSON). The local half inherits this env from the runner's own
+// environment; the remote half cannot, so the flag below ships the variable
+// inside the SSH command string.
+const REMOTE_DEBUG_DIR = arg("remote-debug-dir");
+const remoteDebugEnv = REMOTE_DEBUG_DIR ? `MOSH_DEBUG_RECORD_DIR=${REMOTE_DEBUG_DIR} ` : "";
 const LOCAL_BIN = path.resolve(
   "mosh-probe",
   "target",
@@ -182,7 +188,7 @@ async function runMany(sessions, bindArgs) {
   // exact shape this work removed — so the far end would be reproducing the
   // defect the run is trying to measure.
   const listenCmd = [
-    REMOTE_BIN,
+    `${remoteDebugEnv}${REMOTE_BIN}`,
     "listen-many",
     "--sessions",
     String(sessions),
@@ -207,11 +213,11 @@ async function runMany(sessions, bindArgs) {
 
 /** The remote (listening) half, per kind. */
 function listenCommand() {
-  if (KIND === "group") return [REMOTE_BIN, "group-listen", "--timeout-secs", TIMEOUT];
+  if (KIND === "group") return [`${remoteDebugEnv}${REMOTE_BIN}`, "group-listen", "--timeout-secs", TIMEOUT];
   if (KIND === "channel") {
-    return [REMOTE_BIN, "channel-listen", "--channel", CHANNEL, "--timeout-secs", TIMEOUT];
+    return [`${remoteDebugEnv}${REMOTE_BIN}`, "channel-listen", "--channel", CHANNEL, "--timeout-secs", TIMEOUT];
   }
-  return [REMOTE_BIN, "listen", "--timeout-secs", TIMEOUT];
+  return [`${remoteDebugEnv}${REMOTE_BIN}`, "listen", "--timeout-secs", TIMEOUT];
 }
 
 /** The local (dialing) half, per kind. `invite` is null for a channel. */

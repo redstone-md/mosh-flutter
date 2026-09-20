@@ -823,9 +823,28 @@ pub fn node_config_json(config: &MossNodeConfig) -> String {
         _ => String::new(),
     };
 
+    // Diagnostics seam, env-gated so shipping configs stay byte-identical:
+    // when the host asks for a moss debug recording (NAT-pair forensics —
+    // the ring carries session-close reasons: ping_misses, inbound_packets,
+    // "one-way path" vs "pings unanswered" vs "duplicate connection"), the
+    // node config turns the debug plane on with a recording path under the
+    // given directory. The plane is loopback-only and token-gated upstream;
+    // the recording is the artifact that answers "why did this session die"
+    // from the field.
+    let debug = match std::env::var("MOSH_DEBUG_RECORD_DIR") {
+        Ok(dir) if !dir.is_empty() => {
+            let file = format!("{dir}/moss-debug-{}.mossrec", std::process::id());
+            format!(
+                r#","debug":{{"enabled":true,"record_path":"{}","record_max_mb":64,"record_every_sec":5}}"#,
+                escape_json(&file)
+            )
+        }
+        _ => String::new(),
+    };
+
     format!(
-        r#"{{"listen_port":{},"static_peers":{}{},"announce_interval_sec":15,"bootstrap_timeout_sec":12,"lan_discovery_enabled":true,"gossipsub":{{"heartbeat_ms":250}},"nat":{{"upnp_enabled":true,"natpmp_enabled":true,"pcp_enabled":true,"hole_punch_attempts":8,"port_prediction_enabled":true}}}}"#,
-        config.listen_port, peers, bind
+        r#"{{"listen_port":{},"static_peers":{}{},"announce_interval_sec":15,"bootstrap_timeout_sec":12,"lan_discovery_enabled":true,"gossipsub":{{"heartbeat_ms":250}},"nat":{{"upnp_enabled":true,"natpmp_enabled":true,"pcp_enabled":true,"hole_punch_attempts":8,"port_prediction_enabled":true}}{}}}"#,
+        config.listen_port, peers, bind, debug
     )
 }
 
@@ -1111,6 +1130,39 @@ mod tests {
         assert!(
             !json.contains("axiom"),
             "config must not enable Axiom: {json}"
+        );
+    }
+
+    // The debug plane is the field-forensics seam: OFF by default (the
+    // shipping config stays byte-identical), ON only when the host asks for
+    // a recording directory. Both halves asserted in one test so the env
+    // mutation never races a sibling test that reads the same var.
+    #[test]
+    fn node_config_debug_plane_is_env_gated() {
+        let config = MossNodeConfig {
+            listen_port: 42424,
+            static_peer: None,
+            bind_interface: None,
+        };
+        std::env::remove_var("MOSH_DEBUG_RECORD_DIR");
+        let plain = node_config_json(&config);
+        assert!(
+            !plain.contains("debug"),
+            "shipping config must not open the debug plane: {plain}"
+        );
+
+        let dir = std::env::temp_dir().join("mosh-debug-test");
+        std::fs::create_dir_all(&dir).expect("temp dir exists");
+        std::env::set_var("MOSH_DEBUG_RECORD_DIR", &dir);
+        let debugged = node_config_json(&config);
+        std::env::remove_var("MOSH_DEBUG_RECORD_DIR");
+        assert!(
+            debugged.contains(r#""debug":{"enabled":true"#),
+            "env var must open the debug plane: {debugged}"
+        );
+        assert!(
+            debugged.contains(".mossrec"),
+            "debug plane must record to the requested dir: {debugged}"
         );
     }
 
