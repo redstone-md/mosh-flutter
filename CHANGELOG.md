@@ -52,18 +52,26 @@ All notable changes to Mosh are documented here. Format follows
   the runtime's refusal of a peerless publish is unchanged (ADR 0021) — the
   probe retries around it. `--send-without-peers` keeps its meaning: one
   attempt, watch the refusal.
-- **Moss bumped to v0.8.30** (from v0.8.19; the pin is the `moss/` submodule
-  pointer — ADR 0002). The v0.8.30 tag is a squash that already carries the
-  0.8.31 entry and its fix, so the pinned build includes the conditional
-  UDP-handshake reap. Upstream highlights between the two pins: directed
-  delivery no longer lets one slow peer drop another peer's DMs (the exact
-  shape of Mosh's synchronous FFI callback), relay rate-limiting made
-  visible instead of silent, ping probes dispersed so one stalled write can
-  no longer serial-kill healthy sessions, and bounded fan-out for stat
-  gossip. The FFI surface Mosh uses is unchanged — all 28 symbols from
-  v0.8.19 keep their signatures; the 8 new symbols (directed sends,
-  streams, packet callback, `Moss_Version`) are additive and remain unused
-  for now.
+- **Moss bumped to v0.9.0** (from v0.8.19; the pin is the `moss/`
+  submodule pointer — ADR 0002). Upstream highlights across the delta:
+  directed delivery no longer lets one slow peer drop another peer's DMs
+  (the exact shape of Mosh's synchronous FFI callback), relay
+  rate-limiting made visible instead of silent, ping probes dispersed so
+  one stalled write can no longer serial-kill healthy sessions, bounded
+  fan-out for stat gossip, and the conditional UDP-handshake reap. v0.9.0
+  itself is the fleet-census batch: bidirectional UDP confirmation
+  before a datagram session registers, NAT profiles riding signed punch
+  coordination envelopes, instantly refused dials charged to the dial
+  budget, static peers given a bounded dual-transport dial, the
+  overlay-lookup and restart-listener data races closed under the race
+  detector, advertise led by the default route's egress address (a
+  public box no longer hands its docker bridge to the fleet) with
+  docker/CNI bridges excluded and own-endpoint observations no longer
+  minting `port_restricted_cone` verdicts, and moss-lan breaking
+  self-address collisions by peer-ID rank. The FFI surface Mosh uses is
+  unchanged — all 28 symbols from v0.8.19 keep their signatures; the 8
+  newer symbols (directed sends, streams, packet callback,
+  `Moss_Version`) are additive and remain unused for now.
 - **A Mosh client no longer ships Axiom telemetry.** The node config
   hardcoded moss's own ingest token, silently opting every user into
   error reporting; moss's sink is opt-in, and the default config now
