@@ -79,32 +79,38 @@ class _ReadReceiptsToggleState extends ConsumerState<ReadReceiptsToggle> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          title: Text(l.settingsReadReceiptsTitle),
-          subtitle: Text(
-            l.settingsReadReceiptsSubtitle,
-            style: const TextStyle(fontSize: 11.5, height: 1.5),
-          ),
-          value: _enabled ?? false,
-          // Disabled until the stored answer lands: a default-on flicker
-          // would fire a write the user never asked for.
-          onChanged: _enabled == null ? null : _set,
-        ),
-        if (_error != null)
-          Text(
-            _error!,
-            style: TextStyle(
-              fontSize: 11,
-              color: Theme.of(context).colorScheme.error,
+    // The Disclosure card paints its own background, so the tile gets a
+    // transparent Material of its own — ListTile's ink splashes would
+    // otherwise be invisible under it.
+    return Material(
+      type: MaterialType.transparency,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(l.settingsReadReceiptsTitle),
+            subtitle: Text(
+              l.settingsReadReceiptsSubtitle,
+              style: const TextStyle(fontSize: 11.5, height: 1.5),
             ),
+            value: _enabled ?? false,
+            // Disabled until the stored answer lands: a default-on flicker
+            // would fire a write the user never asked for.
+            onChanged: _enabled == null ? null : _set,
           ),
-      ],
+          if (_error != null)
+            Text(
+              _error!,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

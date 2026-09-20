@@ -146,8 +146,19 @@ class ConversationController extends Notifier<ConversationControllerState> {
   /// message when the toggle is on. The runtime owns the toggle check, the
   /// per-message frames and the idempotence; a failure is silent — the
   /// next poll retries, and a banner over a receipt is noise.
+  ///
+  /// The sync guard matters: flutter_rust_bridge throws synchronously
+  /// (before any Future) when the library was never initialized — which is
+  /// every widget test. `catchError` never sees that throw, so the call is
+  /// wrapped, not just the future.
   void markViewed() {
-    unawaited(ref.read(gatewayProvider).markViewed(target).catchError((_) {}));
+    try {
+      final future = ref.read(gatewayProvider).markViewed(target);
+      unawaited(future.catchError((_) {}));
+    } catch (_) {
+      // No Rust behind the gateway (test runtime): the receipts are
+      // runtime-side state anyway, and the next poll retries.
+    }
   }
 
   /// Sends a picked file. The picker has already read the bytes and enforced
