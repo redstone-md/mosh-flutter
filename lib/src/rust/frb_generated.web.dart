@@ -136,9 +136,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AppDiagnostics dco_decode_app_diagnostics(dynamic raw);
 
   @protected
-  MossLibraryInfo dco_decode_moss_library_info(dynamic raw);
-
-  @protected
   AttachmentDescriptor dco_decode_attachment_descriptor(dynamic raw);
 
   @protected
@@ -365,10 +362,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SnapshotEvent> dco_decode_list_snapshot_event(dynamic raw);
 
   @protected
+  List<TypingMember> dco_decode_list_typing_member(dynamic raw);
+
+  @protected
   MeshInfo dco_decode_mesh_info(dynamic raw);
 
   @protected
   MessageDeliveryStatus dco_decode_message_delivery_status(dynamic raw);
+
+  @protected
+  MossLibraryInfo dco_decode_moss_library_info(dynamic raw);
 
   @protected
   MossRuntimeStatus dco_decode_moss_runtime_status(dynamic raw);
@@ -491,6 +494,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   StartSessionRequest dco_decode_start_session_request(dynamic raw);
 
   @protected
+  TypingMember dco_decode_typing_member(dynamic raw);
+
+  @protected
   int dco_decode_u_16(dynamic raw);
 
   @protected
@@ -587,10 +593,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AppDiagnostics sse_decode_app_diagnostics(SseDeserializer deserializer);
-
-  @protected
-  MossLibraryInfo sse_decode_moss_library_info(
-      SseDeserializer deserializer);
 
   @protected
   AttachmentDescriptor sse_decode_attachment_descriptor(
@@ -851,11 +853,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  List<TypingMember> sse_decode_list_typing_member(
+      SseDeserializer deserializer);
+
+  @protected
   MeshInfo sse_decode_mesh_info(SseDeserializer deserializer);
 
   @protected
   MessageDeliveryStatus sse_decode_message_delivery_status(
       SseDeserializer deserializer);
+
+  @protected
+  MossLibraryInfo sse_decode_moss_library_info(SseDeserializer deserializer);
 
   @protected
   MossRuntimeStatus sse_decode_moss_runtime_status(
@@ -995,6 +1004,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  TypingMember sse_decode_typing_member(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_16(SseDeserializer deserializer);
 
   @protected
@@ -1092,10 +1104,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_app_diagnostics(
       AppDiagnostics self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_moss_library_info(
-      MossLibraryInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_attachment_descriptor(
@@ -1374,11 +1382,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<SnapshotEvent> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_typing_member(
+      List<TypingMember> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_mesh_info(MeshInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_message_delivery_status(
       MessageDeliveryStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_moss_library_info(
+      MossLibraryInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_moss_runtime_status(
@@ -1519,6 +1535,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_start_session_request(
       StartSessionRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_typing_member(TypingMember self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);

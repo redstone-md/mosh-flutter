@@ -10,8 +10,8 @@ import '../persistence.dart';
 import '../secure_storage.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `panic_payload_to_string`, `persistence_status`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`
+// These functions are ignored because they are not marked as `pub`: `flatten_probe`, `library_version`, `log_version_once`, `openmls_roundtrip_runtime_status`, `openmls_smoke_runtime_status`, `panic_payload_to_string`, `peer_rtt_ms`, `persistence_status`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`
 
 /// App-level identity diagnostics. One-shot query; owned `String` fields so
 /// the non-opaque bridge translation serializes them cleanly (see struct).
@@ -26,11 +26,16 @@ Future<NativeRuntimeStatus> nativeRuntimeStatus() =>
 
 /// What the loaded moss library reports about itself: its own version
 /// string, the last measured RTT to the active DM counterpart, and the
-/// field log's current file. See `MossLibraryInfo` for the degradation
-/// contract.
+/// field log's current file. Every value loads through the dynamic-symbol
+/// table every other moss call uses and degrades honestly (missing symbol
+/// = "unknown"/`None`, never a load failure). The first call in a process
+/// also files the version into the field log (ticket #4's sink), so a bug
+/// report carries what was running; a process-global flag holds the
+/// once-per-process guarantee rather than trusting the sink's open-file
+/// state.
 Future<MossLibraryInfo> mossLibraryInfo({String? peerMossId}) =>
-    RustLib.instance.api.crateApiDiagnosticsMossLibraryInfo(
-        peerMossId: peerMossId);
+    RustLib.instance.api
+        .crateApiDiagnosticsMossLibraryInfo(peerMossId: peerMossId);
 
 /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
 class AppDiagnostics {
@@ -62,6 +67,39 @@ class AppDiagnostics {
           privacyModel == other.privacyModel &&
           discoveryModel == other.discoveryModel &&
           mossLinkMode == other.mossLinkMode;
+}
+
+/// What the loaded moss library itself reports, plus the panel rows that
+/// hang off it (see `moss_library_info` for the degradation contract; the
+/// field docs carry the per-field honesty).
+class MossLibraryInfo {
+  /// The version the loaded library stamps itself with, or "unknown".
+  final String version;
+
+  /// Last measured RTT to the active DM counterpart in ms; `None` = not
+  /// measured (no live node, no peer id, or a library without the symbol).
+  final BigInt? peerRttMs;
+
+  /// The field log's current file; `None` before the first write opened it.
+  final String? logPath;
+
+  const MossLibraryInfo({
+    required this.version,
+    this.peerRttMs,
+    this.logPath,
+  });
+
+  @override
+  int get hashCode => version.hashCode ^ peerRttMs.hashCode ^ logPath.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MossLibraryInfo &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          peerRttMs == other.peerRttMs &&
+          logPath == other.logPath;
 }
 
 /// Per-runtime readiness report, one row of `native_runtime_status`. Carries
@@ -100,36 +138,6 @@ class NativeRuntimeStatus {
           persistence == other.persistence &&
           openmlsSmoke == other.openmlsSmoke &&
           openmlsRoundtrip == other.openmlsRoundtrip;
-}
-
-/// What the loaded moss library itself reports, plus the panel rows that
-/// hang off it. All values degrade honestly: `version` falls back to
-/// "unknown" when the library predates `Moss_Version` (v0.8.17),
-/// `peerRttMs` stays null when there is no live node, the peer is unknown,
-/// or the library predates `Moss_PeerRTT`, and `logPath` stays null until
-/// the field log has opened its file.
-class MossLibraryInfo {
-  final String version;
-  final BigInt? peerRttMs;
-  final String? logPath;
-
-  const MossLibraryInfo({
-    required this.version,
-    required this.peerRttMs,
-    required this.logPath,
-  });
-
-  @override
-  int get hashCode => version.hashCode ^ peerRttMs.hashCode ^ logPath.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is MossLibraryInfo &&
-          runtimeType == other.runtimeType &&
-          version == other.version &&
-          peerRttMs == other.peerRttMs &&
-          logPath == other.logPath;
 }
 
 /// Bridge-friendly view of the OpenMLS Alice/Bob roundtrip outcome; see
