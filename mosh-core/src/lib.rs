@@ -22,6 +22,7 @@ pub mod outbound_delivery;
 pub mod persistence;
 pub mod private_dm_runtime;
 pub mod private_group_runtime;
+pub mod read_receipts;
 pub mod secure_storage;
 pub mod shared_node;
 pub mod stream_transport;

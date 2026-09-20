@@ -2637,6 +2637,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::ChatMessage {
         let mut var_deliveryError = <Option<String>>::sse_decode(deserializer);
         let mut var_retryable = <Option<bool>>::sse_decode(deserializer);
         let mut var_retryCount = <Option<u32>>::sse_decode(deserializer);
+        let mut var_read = <Option<bool>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::ChatMessage {
             from_device: var_fromDevice,
             body: var_body,
@@ -2648,6 +2649,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::ChatMessage {
             delivery_error: var_deliveryError,
             retryable: var_retryable,
             retry_count: var_retryCount,
+            read: var_read,
         };
     }
 }
@@ -4594,6 +4596,7 @@ impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::Cha
             self.delivery_error.into_into_dart().into_dart(),
             self.retryable.into_into_dart().into_dart(),
             self.retry_count.into_into_dart().into_dart(),
+            self.read.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5909,6 +5912,7 @@ impl SseEncode for crate::private_dm_runtime::contracts::ChatMessage {
         <Option<String>>::sse_encode(self.delivery_error, serializer);
         <Option<bool>>::sse_encode(self.retryable, serializer);
         <Option<u32>>::sse_encode(self.retry_count, serializer);
+        <Option<bool>>::sse_encode(self.read, serializer);
     }
 }
 

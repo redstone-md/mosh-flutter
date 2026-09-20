@@ -141,6 +141,19 @@ pub enum ControlEnvelope {
         from_device: String,
         typing_ciphertext_b64: String,
     },
+    /// "I have seen your message" — the [[Read receipt]]: proof a human
+    /// opened the conversation, rendered by the receiving side as the
+    /// existing two delivery ticks changing color, never a third tick. One
+    /// frame per message id (the ack shape), so re-sending a lost receipt is
+    /// the same single-frame problem as a lost ack. The message id travels
+    /// MLS-encrypted: only the real peer can mint one, so a mesh bystander
+    /// cannot fake the color change. Old clients fail to decode the unknown
+    /// variant and drop the frame — harmless, they simply never color.
+    ReadReceipt {
+        session_id: String,
+        participant_id: String,
+        receipt_ciphertext_b64: String,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -323,6 +336,22 @@ mod tests {
         assert!(matches!(
             serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
             ControlEnvelope::Hello { .. }
+        ));
+    }
+
+    // The read receipt rides the wire like the ack: one encrypted body per
+    // frame, and an old build's decode-drop keeps the pair interoperable.
+    #[test]
+    fn read_receipt_roundtrips() {
+        let receipt = ControlEnvelope::ReadReceipt {
+            session_id: "s".into(),
+            participant_id: "p".into(),
+            receipt_ciphertext_b64: "Y2lwaGVy".into(),
+        };
+        let bytes = serde_json::to_vec(&receipt).expect("receipt should serialize");
+        assert!(matches!(
+            serde_json::from_slice::<ControlEnvelope>(&bytes).unwrap(),
+            ControlEnvelope::ReadReceipt { .. }
         ));
     }
 
