@@ -323,11 +323,7 @@ fn typing_frames(net: &Arc<MemoryNet>, peer_id: &str) -> usize {
         .count()
 }
 
-fn publish_to_bob(
-    net: &Arc<MemoryNet>,
-    invite: &InviteCreated,
-    payload: &[u8],
-) {
+fn publish_to_bob(net: &Arc<MemoryNet>, invite: &InviteCreated, payload: &[u8]) {
     net.endpoint(BOB_ID)
         .publish(
             &invite.mesh_id,
@@ -420,11 +416,7 @@ fn typing_refresh_folds_keystrokes_to_one_frame_per_cadence() {
             .typing_signal(&invite.session_id)
             .expect("rapid keystrokes should pass");
     }
-    assert_eq!(
-        typing_frames(&net, BOB_ID),
-        1,
-        "five keystrokes, one frame"
-    );
+    assert_eq!(typing_frames(&net, BOB_ID), 1, "five keystrokes, one frame");
 
     // Cross the cadence the way a real clock would: the throttle reads the
     // session's last-send stamp, so aging it by the cadence (arithmetic, no
@@ -609,11 +601,7 @@ fn a_landed_hint_files_a_typing_event_into_the_ring() {
 // ---- Read receipts (#7) ----
 
 /// Alice's view of ONE of her messages, from a fresh poll.
-fn alice_message(
-    alice: &mut PrivateDmRuntime,
-    session_id: &str,
-    message_id: &str,
-) -> ChatMessage {
+fn alice_message(alice: &mut PrivateDmRuntime, session_id: &str, message_id: &str) -> ChatMessage {
     alice
         .poll_session(session_id)
         .expect("Alice poll should pass")
@@ -802,7 +790,8 @@ fn a_disabled_toggle_sends_nothing_and_ignores_inbound_receipts() {
     // directly is not the point — drive the real path: Bob's runtime, with
     // his toggle flipped on for one instant, receipts and reverts.
     bob.set_read_receipts_enabled(true).expect("flip on");
-    bob.mark_viewed(&invite.session_id).expect("receipt goes out");
+    bob.mark_viewed(&invite.session_id)
+        .expect("receipt goes out");
     deliver_inbox(&net, ALICE_ID, BOB_ID, &invite);
     alice.drain_inbound();
     assert_eq!(
@@ -963,7 +952,11 @@ fn a_receipt_travels_encrypted_per_message() {
     assert_eq!(frames, 1, "only the NEW message receipts again");
     assert!(
         !payload_says(
-            &(net.endpoint(BOB_ID).drain().first().map(|f| f.payload.clone())
+            &(net
+                .endpoint(BOB_ID)
+                .drain()
+                .first()
+                .map(|f| f.payload.clone())
                 .unwrap_or_default()),
             &second.message_id
         ),

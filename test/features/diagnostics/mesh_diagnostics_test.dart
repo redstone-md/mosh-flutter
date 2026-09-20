@@ -191,73 +191,73 @@ void main() {
     });
 
     group('MeshDiagnostics - library info (spec #5)', () {
-    final info = MossLibraryInfo(
-      version: 'v0.8.30',
-      peerRttMs: BigInt.from(42),
-      logPath: '/data/mosh/logs/mosh.log',
-    );
-
-    testWidgets('renders version, RTT, and the field log path',
-        (tester) async {
-      await _pump(
-        tester,
-        MeshDiagnostics(
-          mesh: _mesh(),
-          libraryInfo: info,
-          peerMossId: 'peer-cdcd',
-        ),
+      final info = MossLibraryInfo(
+        version: 'v0.8.30',
+        peerRttMs: BigInt.from(42),
+        logPath: '/data/mosh/logs/mosh.log',
       );
 
-      expect(find.text('Library version'), findsOneWidget);
-      expect(find.text('v0.8.30'), findsOneWidget);
-      expect(find.text('Peer RTT'), findsOneWidget);
-      expect(find.text('42 ms'), findsOneWidget);
-      expect(find.text('Field log'), findsOneWidget);
-      expect(find.text('/data/mosh/logs/mosh.log'), findsOneWidget);
-    });
-
-    testWidgets('a null RTT renders the honest unknown', (tester) async {
-      await _pump(
-        tester,
-        MeshDiagnostics(
-          mesh: _mesh(),
-          libraryInfo: const MossLibraryInfo(
-            version: 'v0.8.30',
-            peerRttMs: null,
-            logPath: null,
+      testWidgets('renders version, RTT, and the field log path',
+          (tester) async {
+        await _pump(
+          tester,
+          MeshDiagnostics(
+            mesh: _mesh(),
+            libraryInfo: info,
+            peerMossId: 'peer-cdcd',
           ),
-          peerMossId: 'peer-cdcd',
-        ),
-      );
+        );
 
-      expect(find.text('Peer RTT'), findsOneWidget);
-      expect(find.text('unknown'), findsOneWidget);
-      // No field log opened yet: the dash fallback.
-      expect(find.text('Field log'), findsOneWidget);
-      expect(find.text('-'), findsOneWidget);
-    });
+        expect(find.text('Library version'), findsOneWidget);
+        expect(find.text('v0.8.30'), findsOneWidget);
+        expect(find.text('Peer RTT'), findsOneWidget);
+        expect(find.text('42 ms'), findsOneWidget);
+        expect(find.text('Field log'), findsOneWidget);
+        expect(find.text('/data/mosh/logs/mosh.log'), findsOneWidget);
+      });
 
-    testWidgets('no peer id keeps the RTT row off (channel/group panels)',
-        (tester) async {
-      await _pump(
-        tester,
-        MeshDiagnostics(mesh: _mesh(), libraryInfo: info),
-      );
+      testWidgets('a null RTT renders the honest unknown', (tester) async {
+        await _pump(
+          tester,
+          MeshDiagnostics(
+            mesh: _mesh(),
+            libraryInfo: const MossLibraryInfo(
+              version: 'v0.8.30',
+              peerRttMs: null,
+              logPath: null,
+            ),
+            peerMossId: 'peer-cdcd',
+          ),
+        );
 
-      expect(find.text('Library version'), findsOneWidget);
-      expect(find.text('v0.8.30'), findsOneWidget);
-      expect(find.text('Peer RTT'), findsNothing);
-      expect(find.text('Field log'), findsOneWidget);
-    });
+        expect(find.text('Peer RTT'), findsOneWidget);
+        expect(find.text('unknown'), findsOneWidget);
+        // No field log opened yet: the dash fallback.
+        expect(find.text('Field log'), findsOneWidget);
+        expect(find.text('-'), findsOneWidget);
+      });
 
-    testWidgets('no library info keeps all the library rows off',
-        (tester) async {
-      await _pump(tester, MeshDiagnostics(mesh: _mesh()));
+      testWidgets('no peer id keeps the RTT row off (channel/group panels)',
+          (tester) async {
+        await _pump(
+          tester,
+          MeshDiagnostics(mesh: _mesh(), libraryInfo: info),
+        );
 
-      expect(find.text('Library version'), findsNothing);
-      expect(find.text('Peer RTT'), findsNothing);
-      expect(find.text('Field log'), findsNothing);
+        expect(find.text('Library version'), findsOneWidget);
+        expect(find.text('v0.8.30'), findsOneWidget);
+        expect(find.text('Peer RTT'), findsNothing);
+        expect(find.text('Field log'), findsOneWidget);
+      });
+
+      testWidgets('no library info keeps all the library rows off',
+          (tester) async {
+        await _pump(tester, MeshDiagnostics(mesh: _mesh()));
+
+        expect(find.text('Library version'), findsNothing);
+        expect(find.text('Peer RTT'), findsNothing);
+        expect(find.text('Field log'), findsNothing);
+      });
     });
   });
-});
 }

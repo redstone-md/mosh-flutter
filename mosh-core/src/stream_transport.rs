@@ -159,8 +159,8 @@ mod tests {
     use super::*;
     use std::cell::RefCell;
 
-    use crate::private_dm_runtime::transport::{PeerTransport, PublishError};
     use crate::conversation::mesh::MeshInfo;
+    use crate::private_dm_runtime::transport::{PeerTransport, PublishError};
 
     const BLOB: &str = "mls-blob/session-1";
 
@@ -281,8 +281,15 @@ mod tests {
             Ok(())
         }
 
-        fn publish(&self, _room: &str, _channel: &str, _payload: &[u8]) -> Result<(), PublishError> {
-            Err(PublishError::Other("transport publish is not under test".to_string()))
+        fn publish(
+            &self,
+            _room: &str,
+            _channel: &str,
+            _payload: &[u8],
+        ) -> Result<(), PublishError> {
+            Err(PublishError::Other(
+                "transport publish is not under test".to_string(),
+            ))
         }
 
         fn connect_peer(&self, _peer_moss_id: &str) -> Result<(), String> {
@@ -332,7 +339,11 @@ mod tests {
             .expect("the room fallback should carry the chunk");
 
         assert_eq!(
-            transport.attempts.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).len(),
+            transport
+                .attempts
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .len(),
             1,
             "one stream try"
         );
@@ -360,14 +371,14 @@ mod tests {
     #[test]
     fn send_chunk_reports_the_room_refusal_when_both_paths_fail() {
         let payload = envelope("alice-participant", 2);
-        let room = |_bytes: &[u8]| -> Result<(), String> {
-            Err(ROOM_REFUSAL.to_string())
-        };
+        let room = |_bytes: &[u8]| -> Result<(), String> { Err(ROOM_REFUSAL.to_string()) };
 
-        let error =
-            send_chunk(None, room, BLOB, &payload).expect_err("both paths refuse");
+        let error = send_chunk(None, room, BLOB, &payload).expect_err("both paths refuse");
 
-        assert!(error.contains(ROOM_REFUSAL), "the refusal rides out: {error}");
+        assert!(
+            error.contains(ROOM_REFUSAL),
+            "the refusal rides out: {error}"
+        );
     }
 
     const ROOM_REFUSAL: &str = "no peers reachable";

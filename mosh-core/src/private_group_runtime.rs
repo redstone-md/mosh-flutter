@@ -1144,8 +1144,11 @@ impl PrivateGroupRuntime {
     pub fn list(&mut self) -> Result<GroupListSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
         self.groups.persist_tail();
-        let mut groups: Vec<GroupSnapshot> =
-            self.groups.values_mut().map(GroupSession::snapshot).collect();
+        let mut groups: Vec<GroupSnapshot> = self
+            .groups
+            .values_mut()
+            .map(GroupSession::snapshot)
+            .collect();
         groups.sort_by(|a, b| a.group_id.cmp(&b.group_id));
         Ok(GroupListSnapshot { groups })
     }
@@ -2150,10 +2153,7 @@ impl GroupSession {
                 from_device,
                 from_fingerprint,
                 typing_ciphertext_b64,
-            } if self.joined
-                && self.group_id == group_id
-                && from_fingerprint != own_fp =>
-            {
+            } if self.joined && self.group_id == group_id && from_fingerprint != own_fp => {
                 // Decrypting authenticates: only a group member can produce a
                 // ciphertext this MLS group accepts, so a forged hint stops
                 // here. A wrong fingerprint claim is likewise dropped — the
@@ -3690,9 +3690,7 @@ mod tests {
         // Cleo's hint lands: the snapshot names cleo (fingerprint + display
         // name) with a receiver-stamped deadline.
         view.deliver_cleo_typing();
-        let member = view
-            .typing_member_of()
-            .expect("cleo's hint must stand");
+        let member = view.typing_member_of().expect("cleo's hint must stand");
         assert_eq!(member.fingerprint, view.cleo.fingerprint());
         assert_eq!(member.display_name, "cleo");
         assert!(

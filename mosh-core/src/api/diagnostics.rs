@@ -11,13 +11,13 @@ use crate::api::shared_runtime::{database_path, ensure_shared_resources};
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::moss_ffi::{MossFfiRuntime, MossNodeConfig};
 use crate::moss_runtime::{MossDynamicRuntime, MossRuntime, MossRuntimeStatus};
-use crate::shared_node::SUBSTRATE_ROOM;
 pub use crate::openmls_crypto::{
     run_openmls_alice_bob_roundtrip, run_openmls_smoke_test, OpenMlsRoundTripStatus,
     OpenMlsSmokeStatus,
 };
 use crate::persistence::PersistenceRuntimeStatus;
 use crate::secure_storage::{OsSecureSecretStore, SecureStorageStatus};
+use crate::shared_node::SUBSTRATE_ROOM;
 use flutter_rust_bridge::frb;
 use std::any::Any;
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -192,8 +192,9 @@ fn openmls_smoke_runtime_status() -> OpenMlsSmokeRuntimeStatus {
 /// The OpenMLS Alice/Bob roundtrip, flattened and panic-safe (see
 /// [`flatten_probe`]).
 fn openmls_roundtrip_runtime_status() -> OpenMlsRoundTripRuntimeStatus {
-    let (ok, error) =
-        flatten_probe(catch_unwind(AssertUnwindSafe(run_openmls_alice_bob_roundtrip)));
+    let (ok, error) = flatten_probe(catch_unwind(AssertUnwindSafe(
+        run_openmls_alice_bob_roundtrip,
+    )));
     OpenMlsRoundTripRuntimeStatus { ok, error }
 }
 
@@ -308,7 +309,10 @@ mod tests {
         // The version also lands in the field log (once per process), so a
         // bug report carries what was running. The log path is the same
         // file `current_log_path` reports, which this very call opened.
-        let log_path = info.log_path.clone().expect("the version write opened the log");
+        let log_path = info
+            .log_path
+            .clone()
+            .expect("the version write opened the log");
         let logged = std::fs::read_to_string(&log_path).expect("log file is readable");
         assert!(
             logged.contains(&format!(

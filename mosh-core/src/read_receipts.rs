@@ -48,10 +48,8 @@ mod tests {
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "mosh-read-receipts-{}-{name}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("mosh-read-receipts-{}-{name}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         dir
     }
@@ -85,8 +83,16 @@ mod tests {
         let dir = scratch("broken");
         fs::create_dir_all(&dir).expect("scratch dir should exist");
         fs::write(setting_path(&dir), b"{not json").expect("broken file should write");
-        assert_eq!(load(&dir), None, "a malformed file is the default, not an error");
-        assert_eq!(load(&dir.join("missing")), None, "a missing dir is the default");
+        assert_eq!(
+            load(&dir),
+            None,
+            "a malformed file is the default, not an error"
+        );
+        assert_eq!(
+            load(&dir.join("missing")),
+            None,
+            "a missing dir is the default"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 }

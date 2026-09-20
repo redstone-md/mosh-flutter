@@ -420,7 +420,11 @@ impl Persistence {
                     LogLevel::Warn,
                     kinds::PERSIST,
                     tables.label,
-                    &format!("skipping undecryptable {} row {}: {e}", tables.label, k.value()),
+                    &format!(
+                        "skipping undecryptable {} row {}: {e}",
+                        tables.label,
+                        k.value()
+                    ),
                 ),
             }
         }

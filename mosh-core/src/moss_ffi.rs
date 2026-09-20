@@ -81,13 +81,11 @@ type MossSetKeyStore =
 type MossVersionFn = unsafe extern "C" fn() -> *mut c_char;
 type MossPeerRttFn = unsafe extern "C" fn(MossHandle, *const c_char) -> i64;
 type MossOpenStreamFn = unsafe extern "C" fn(MossHandle, *const c_char, u32) -> i32;
-type MossSendStreamFn =
-    unsafe extern "C" fn(MossHandle, *const c_char, u32, *const u8, u32) -> i32;
+type MossSendStreamFn = unsafe extern "C" fn(MossHandle, *const c_char, u32, *const u8, u32) -> i32;
 // Callback shape mirrors moss's MossStreamCallback C typedef: a heap-allocated
 // peer-id string (hex) and the payload bytes; the caller frees both copies.
 type StreamCallback = unsafe extern "C" fn(*const c_char, *const u8, u32);
-type MossOnStreamFn =
-    unsafe extern "C" fn(MossHandle, u32, Option<StreamCallback>) -> i32;
+type MossOnStreamFn = unsafe extern "C" fn(MossHandle, u32, Option<StreamCallback>) -> i32;
 
 const EVENT_RING_CAPACITY: usize = 64;
 
@@ -630,9 +628,8 @@ impl MossNode {
     /// 0 ns is not a measurement, so handing it back would make a UI print
     /// "0 ms" for a stranger.
     pub fn peer_rtt_ns(&self, peer_id: &str) -> Option<u64> {
-        let rtt = unsafe {
-            (self.runtime.peer_rtt?)(self.handle, c_string(peer_id).ok()?.as_ptr())
-        };
+        let rtt =
+            unsafe { (self.runtime.peer_rtt?)(self.handle, c_string(peer_id).ok()?.as_ptr()) };
         u64::try_from(rtt).ok().filter(|nanos| *nanos > 0)
     }
 
@@ -647,7 +644,9 @@ impl MossNode {
             .runtime
             .open_stream
             .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.clone()))?;
-        check_code("open_stream", unsafe { open(self.handle, peer.as_ptr(), stream_id) })
+        check_code("open_stream", unsafe {
+            open(self.handle, peer.as_ptr(), stream_id)
+        })
     }
 
     /// One payload down a declared stream. The library routes it over the
@@ -704,15 +703,13 @@ impl MossNode {
 /// (hex) plus the payload bytes, both allocated with the library's own
 /// allocator. Forwarded into the process inbox under the framing channel
 /// every stream consumer recognises — the callback has no other context.
-unsafe extern "C" fn on_stream_payload(
-    peer_id: *const c_char,
-    data: *const u8,
-    len: u32,
-) {
+unsafe extern "C" fn on_stream_payload(peer_id: *const c_char, data: *const u8, len: u32) {
     if peer_id.is_null() || data.is_null() {
         return;
     }
-    let peer_id = unsafe { CStr::from_ptr(peer_id) }.to_string_lossy().into_owned();
+    let peer_id = unsafe { CStr::from_ptr(peer_id) }
+        .to_string_lossy()
+        .into_owned();
     let payload = unsafe { std::slice::from_raw_parts(data, len as usize) }.to_vec();
     crate::inbox::deliver(MossReceivedMessage {
         channel: stream_receive_channel(&peer_id),
@@ -737,15 +734,16 @@ pub const STREAM_INBOX_CHANNEL_PREFIX: &str = "moss-stream/";
 /// The three stream symbols share one error identity: a caller that wants
 /// "streams or room wire" branches on the kind of failure, not on which of
 /// the three was missing.
-static STREAM_SYMBOL: LazyLock<String> = LazyLock::new(|| {
-    ["Moss_OpenStream", "Moss_SendStream", "Moss_OnStream"].join("/")
-});
+static STREAM_SYMBOL: LazyLock<String> =
+    LazyLock::new(|| ["Moss_OpenStream", "Moss_SendStream", "Moss_OnStream"].join("/"));
 
 fn take_heap_string(ptr: *mut c_char, free: &MossFree) -> Option<String> {
     if ptr.is_null() {
         return None;
     }
-    let value = unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned();
+    let value = unsafe { CStr::from_ptr(ptr) }
+        .to_string_lossy()
+        .into_owned();
     unsafe { free(ptr as *mut c_void) };
     Some(value)
 }

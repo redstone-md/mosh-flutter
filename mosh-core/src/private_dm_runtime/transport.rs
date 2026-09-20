@@ -231,8 +231,12 @@ impl DmTransport for MossDmTransport {
         // Err(Symbol), which the carrier treats like any other refusal.
         node.open_stream(peer_id, crate::stream_transport::ATTACHMENT_STREAM_ID)
             .map_err(|error| error.to_string())?;
-        node.send_stream(peer_id, crate::stream_transport::ATTACHMENT_STREAM_ID, payload)
-            .map_err(|error| error.to_string())
+        node.send_stream(
+            peer_id,
+            crate::stream_transport::ATTACHMENT_STREAM_ID,
+            payload,
+        )
+        .map_err(|error| error.to_string())
     }
 
     fn drain(&self) -> Vec<MossReceivedMessage> {

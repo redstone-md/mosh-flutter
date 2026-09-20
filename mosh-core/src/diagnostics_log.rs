@@ -173,7 +173,10 @@ impl LogSink {
         self.file = None;
         let current = self.dir.join(FILE_NAME);
         let _ = fs::remove_file(self.dir.join(ROTATED_NAMES[1]));
-        let _ = fs::rename(self.dir.join(ROTATED_NAMES[0]), self.dir.join(ROTATED_NAMES[1]));
+        let _ = fs::rename(
+            self.dir.join(ROTATED_NAMES[0]),
+            self.dir.join(ROTATED_NAMES[1]),
+        );
         let _ = fs::rename(&current, self.dir.join(ROTATED_NAMES[0]));
         self.open_file();
     }
@@ -238,11 +241,7 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
     } else {
         month_index - 9
     } as u32;
-    (
-        year + i64::from(month <= 2),
-        month,
-        day as u32,
-    )
+    (year + i64::from(month <= 2), month, day as u32)
 }
 
 /// A field that joins the line with spaces must not carry its own.
@@ -290,8 +289,15 @@ mod tests {
         assert_eq!(&first[4..5], "-");
         assert_eq!(&first[10..11], "T");
         assert_eq!(&first[19..20], "Z", "ISO8601 UTC: {first}");
-        assert!(first.contains(" error handshake s1 handshake failed"), "{first}");
-        assert!(lines[1].contains(" info test plain message"), "{}", lines[1]);
+        assert!(
+            first.contains(" error handshake s1 handshake failed"),
+            "{first}"
+        );
+        assert!(
+            lines[1].contains(" info test plain message"),
+            "{}",
+            lines[1]
+        );
         assert!(!lines[1].contains("  "), "an empty context leaves no gap");
         let _ = fs::remove_dir_all(&dir);
     }
@@ -308,14 +314,29 @@ mod tests {
         let dir = temp_dir("rotate");
         let mut sink = LogSink::new(dir.clone(), 200);
         for event in 1..=12 {
-            sink.write_line(LogLevel::Info, kinds::TEST, "c1", &format!("event-{event:02}"));
+            sink.write_line(
+                LogLevel::Info,
+                kinds::TEST,
+                "c1",
+                &format!("event-{event:02}"),
+            );
         }
         let live = read_lines(&dir, FILE_NAME);
         let first = read_lines(&dir, ROTATED_NAMES[0]);
         let second = read_lines(&dir, ROTATED_NAMES[1]);
-        assert_eq!(live.len() + first.len() + second.len(), 12, "nothing dropped yet");
-        assert!(second[0].contains("event-01"), "oldest land in .2: {second:?}");
-        assert!(first[0].contains("event-05"), "middle land in .1: {first:?}");
+        assert_eq!(
+            live.len() + first.len() + second.len(),
+            12,
+            "nothing dropped yet"
+        );
+        assert!(
+            second[0].contains("event-01"),
+            "oldest land in .2: {second:?}"
+        );
+        assert!(
+            first[0].contains("event-05"),
+            "middle land in .1: {first:?}"
+        );
         assert!(live.last().is_some_and(|l| l.contains("event-12")));
         for name in [FILE_NAME, ROTATED_NAMES[0], ROTATED_NAMES[1]] {
             if let Ok(metadata) = fs::metadata(dir.join(name)) {
@@ -348,7 +369,10 @@ mod tests {
         drop(first);
         let mut second = LogSink::new(dir.clone(), 60);
         second.write_line(LogLevel::Info, kinds::TEST, "c1", "two");
-        assert!(read_lines(&dir, ROTATED_NAMES[0])[0].contains("one"), "old moved to .1");
+        assert!(
+            read_lines(&dir, ROTATED_NAMES[0])[0].contains("one"),
+            "old moved to .1"
+        );
         assert!(read_lines(&dir, FILE_NAME)[0].contains("two"));
         let _ = fs::remove_dir_all(&dir);
     }

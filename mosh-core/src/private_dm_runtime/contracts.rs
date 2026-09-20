@@ -469,7 +469,9 @@ mod tests {
     // NEWEST ids are the ones that stay.
     #[test]
     fn pruned_read_ids_keep_the_newest() {
-        let ids: Vec<String> = (0..READ_HISTORY_KEEP + 3).map(|i| format!("m{i:06}")).collect();
+        let ids: Vec<String> = (0..READ_HISTORY_KEEP + 3)
+            .map(|i| format!("m{i:06}"))
+            .collect();
         let kept = prune_read_ids(&ids);
         assert_eq!(kept.len(), READ_HISTORY_KEEP, "the cap holds");
         assert_eq!(kept[0], "m000003", "the oldest ids are dropped");

@@ -323,9 +323,8 @@ class _DrawerContent extends ConsumerWidget {
     // active DM's counterpart (null elsewhere); one read per drawer mount,
     // like every other facade mirror (ADR 0025). Unloaded -> null rows: the
     // drawer renders without the library rows instead of waiting.
-    final MossLibraryInfo? libraryInfo = switch (
-          ref.watch(mossLibraryInfoProvider(session?.peerMossId))
-        ) {
+    final MossLibraryInfo? libraryInfo =
+        switch (ref.watch(mossLibraryInfoProvider(session?.peerMossId))) {
       AsyncData(:final value) => value,
       _ => null,
     };

@@ -176,10 +176,7 @@ fn push_typing_event(session_id: &str, phase: &str) {
         "session_id": session_id,
         "phase": phase,
     });
-    crate::moss_ffi::push_app_event(
-        TYPING_EVENT_CODE,
-        &detail.to_string(),
-    );
+    crate::moss_ffi::push_app_event(TYPING_EVENT_CODE, &detail.to_string());
 }
 
 use crate::moss_ffi::{MossFfiRuntime, MossReceivedMessage};
@@ -854,7 +851,12 @@ impl PrivateDmRuntime {
         }
         for session in self.sessions.values_mut() {
             if let Err(error) = session.handle_moss_message(message.clone()) {
-                dlog::write(LogLevel::Warn, kinds::FRAME, "", &format!("dropping inbound call frame: {error}"));
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::FRAME,
+                    "",
+                    &format!("dropping inbound call frame: {error}"),
+                );
             }
         }
     }
@@ -1175,7 +1177,12 @@ impl PrivateDmSession {
             self.unreachable_since_ms = None;
             // Session transition the field log carries: the handshake landed
             // and the counterpart is authenticated.
-            dlog::write(LogLevel::Info, kinds::HANDSHAKE, &self.session_id, "handshake landed; session connected");
+            dlog::write(
+                LogLevel::Info,
+                kinds::HANDSHAKE,
+                &self.session_id,
+                "handshake landed; session connected",
+            );
         }
     }
 
@@ -1224,7 +1231,12 @@ impl PrivateDmSession {
             // Leave connect_requested_for unset so the next tick retries the
             // registration itself (e.g. node not started yet during rehydrate).
             Err(error) => {
-                dlog::write(LogLevel::Error, kinds::CONNECT, &id, &format!("connect_peer failed: {error}"));
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::CONNECT,
+                    &id,
+                    &format!("connect_peer failed: {error}"),
+                );
                 self.last_connect_outcome = Some(ConnectOutcome::Failed);
             }
         }
@@ -1475,10 +1487,7 @@ impl PrivateDmSession {
                     LogLevel::Info,
                     kinds::RESEND,
                     &self.session_id,
-                    &format!(
-                        "resend #{} of message {message_id}",
-                        attempt.auto_resends
-                    ),
+                    &format!("resend #{} of message {message_id}", attempt.auto_resends),
                 );
                 // At the cap the attempt STAYS: the filter above stops the
                 // automatic loop, the message honestly keeps Sent (not
@@ -1651,18 +1660,16 @@ impl PrivateDmSession {
                 participant_id,
                 receipt_ciphertext_b64,
             } if self.is_from_counterpart(&session_id, &participant_id) => {
-        #[cfg(test)]
-
-
+                #[cfg(test)]
                 // Decrypting authenticates: only the MLS peer can produce a
                 // ciphertext this group accepts, so a forged receipt stops
                 // here and the ticks keep their color. The symmetry rule
                 // lives in the runtime: when this user does not send
                 // receipts, the inbound ones are dropped unread.
-                let Some(true) = crate::read_receipts::load(
-                    &crate::api::shared_runtime::resolved_data_dir(),
-                )
-                .map(|setting| setting.enabled) else {
+                let Some(true) =
+                    crate::read_receipts::load(&crate::api::shared_runtime::resolved_data_dir())
+                        .map(|setting| setting.enabled)
+                else {
                     return Ok(());
                 };
                 let Ok(ciphertext) = decode(&receipt_ciphertext_b64) else {
@@ -3320,8 +3327,9 @@ mod tests {
             },
         };
         let envelope_bytes = serde_json::to_vec(&chunk).expect("chunk envelope should serialize");
-        let framed = crate::stream_transport::frame_for_channel(&session.blob_channel, &envelope_bytes)
-            .expect("the carrier should frame the envelope");
+        let framed =
+            crate::stream_transport::frame_for_channel(&session.blob_channel, &envelope_bytes)
+                .expect("the carrier should frame the envelope");
 
         // The stream callback files the framed payload under the reserved
         // channel; the runtime's drain must unwrap it before routing.
@@ -3332,7 +3340,10 @@ mod tests {
         };
         let routed = crate::stream_transport::passthrough_or_deframe(stream_message);
         assert_eq!(routed.channel, session.blob_channel);
-        assert_eq!(routed.payload, envelope_bytes, "the envelope rides verbatim");
+        assert_eq!(
+            routed.payload, envelope_bytes,
+            "the envelope rides verbatim"
+        );
 
         // handle_blob ingests (the transfer is unknown → swallowed) without
         // erroring: an undecryptable chunk fails the slot, not the drain.
