@@ -829,3 +829,6 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
 - docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).
 - docs/Features/read-receipts.md - DM read-receipt flow: toggle, symmetric gate, persistence (Mermaid sequence).
+- docs/Features/typing.md - typing indicator flow: cadence, receiver-owned expiry, group member identity (Mermaid sequence).
+- docs/Features/field-log.md - the field log: sink, rotation policy, kinds vocabulary (Mermaid flowchart).
+- docs/ADR/0027-attachments-ride-moss-streams.md - attachment chunks ride moss streams on direct DMs: carrier swap with the room wire fallback, reserved inbox channel, DM-only scope.

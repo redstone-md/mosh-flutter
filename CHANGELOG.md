@@ -20,8 +20,8 @@ All notable changes to Mosh are documented here. Format follows
   read in a process also files the version into the field log, so the
   attached report carries what was running. The api function is
   `moss_library_info(peer_moss_id)` — additive; `MossLibraryInfo` is
-  constructible from Dart; frb_generated carries hand-patched additive
-  mirrors until the post-merge codegen rerun.
+  constructible from Dart; the frb-generated mirrors for it are regenerated
+  and committed (9df8ace).
 - **Attachment chunks ride moss streams on direct DM sessions** (spec #8).
   The blob channel keeps its chunk protocol — requests, retry, dedup are
   byte-for-byte unchanged — and only the carrier changes: when the
