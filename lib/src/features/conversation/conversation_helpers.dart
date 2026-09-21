@@ -10,7 +10,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 
 import 'package:mosh/src/rust/outbound_delivery.dart';
 
@@ -246,7 +247,7 @@ class UnreadBadge extends StatelessWidget {
             color: Theme.of(context).colorScheme.onPrimary,
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+            fontFeatures: kLiveNumberFontFeatures,
           ),
         ),
       ),

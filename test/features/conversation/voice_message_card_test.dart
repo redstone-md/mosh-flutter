@@ -12,6 +12,7 @@
 // (the card already renders its fallback there); the wired callback is one
 // line in voice_message_card.dart.
 import 'dart:typed_data' show Uint8List;
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,5 +59,21 @@ void main() {
     final ratio = await tapWaveAt(tester, const Offset(1, 18));
 
     expect(ratio, closeTo(0.0, 0.02));
+  });
+
+  testWidgets('the time label renders with tabular figures', (tester) async {
+    // The label is pumped directly: the card's fallback row overflows under
+    // the test font (Ahem glyphs are ~14px wide), and the label itself is
+    // the contract under test (extracted like MediaAudioTimeLabel).
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(child: VoiceCardTimeLabel(ms: 5000)),
+        ),
+      ),
+    );
+
+    final text = tester.widget<Text>(find.text('0:05'));
+    expect(text.style!.fontFeatures, contains(FontFeature.tabularFigures()));
   });
 }

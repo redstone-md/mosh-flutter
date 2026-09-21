@@ -14,7 +14,8 @@ import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 
 import 'package:media_kit/media_kit.dart';
 
@@ -219,15 +220,39 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
             onSeekRatio: _seek,
           ),
           const SizedBox(width: 8),
-          // `.voice-message-time { font-size: 12px; opacity: 0.75 }`.
-          Opacity(
-            opacity: 0.75,
-            child: Text(
-              _formatClock(showMs),
-              style: const TextStyle(fontSize: 12, color: MoshColors.fg1),
-            ),
-          ),
+          // `.voice-message-time { font-size: 12px; opacity: 0.75 }`. Live
+          // number -> tabular figures so the label does not reflow while
+          // playback ticks (audit 2026-09-21).
+          VoiceCardTimeLabel(ms: showMs),
         ],
+      ),
+    );
+  }
+}
+
+/// `.voice-message-time` -- the card's live m:ss label, extracted so the
+/// format and the tabular figures are testable without the media_kit native
+/// library (the card falls back where the player is unavailable). Tabular
+/// figures: the digits change while playback ticks, and proportional
+/// numerals reflow the label (audit 2026-09-21).
+class VoiceCardTimeLabel extends StatelessWidget {
+  const VoiceCardTimeLabel({super.key, required this.ms});
+
+  /// The moment to render: playback position while playing/seeked, else the
+  /// clip's full duration (React's `showMs`).
+  final int ms;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.75,
+      child: Text(
+        _formatClock(ms),
+        style: const TextStyle(
+          fontSize: 12,
+          color: MoshColors.fg1,
+          fontFeatures: kLiveNumberFontFeatures,
+        ),
       ),
     );
   }

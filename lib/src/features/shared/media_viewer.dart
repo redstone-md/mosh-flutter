@@ -7,7 +7,8 @@ library;
 import 'dart:io' show File;
 
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -377,6 +378,39 @@ class _VideoStageState extends State<_VideoStage> {
   }
 }
 
+/// The audio stage's live "m:ss / m:ss" label, extracted so the format and
+/// the tabular figures are testable without the media_kit native library
+/// (the stage falls back to a placeholder where the player is unavailable).
+/// Tabular figures: the digits change on every position tick, and
+/// proportional numerals reflow the fixed 80px box (audit 2026-09-21).
+class MediaAudioTimeLabel extends StatelessWidget {
+  const MediaAudioTimeLabel({
+    super.key,
+    required this.position,
+    required this.duration,
+  });
+
+  final Duration position;
+  final Duration duration;
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds.remainder(60);
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '${_fmt(position)} / ${_fmt(duration)}',
+      style: Theme.of(context)
+          .textTheme
+          .bodySmall
+          ?.copyWith(fontFeatures: kLiveNumberFontFeatures),      textAlign: TextAlign.center,
+    );
+  }
+}
+
 /// The audio branch -- 1-в-1 with React `media-viewer-audio` (IconPlayerPlay
 /// + strong file_name + an `audio` element with `src controls autoPlay`).
 /// Uses media_kit [Player] (audio-only -- no VideoController); a minimal
@@ -433,12 +467,6 @@ class _AudioStageState extends State<_AudioStage> {
   void dispose() {
     _player?.dispose();
     super.dispose();
-  }
-
-  String _fmt(Duration d) {
-    final m = d.inMinutes;
-    final s = d.inSeconds.remainder(60);
-    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -503,10 +531,9 @@ class _AudioStageState extends State<_AudioStage> {
                 ),
                 SizedBox(
                   width: 80,
-                  child: Text(
-                    '${_fmt(_position)} / ${_fmt(_duration)}',
-                    style: theme.textTheme.bodySmall,
-                    textAlign: TextAlign.center,
+                  child: MediaAudioTimeLabel(
+                    position: _position,
+                    duration: _duration,
                   ),
                 ),
               ],

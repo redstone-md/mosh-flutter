@@ -21,6 +21,7 @@ import 'dart:io' show File;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show kLiveNumberFontFeatures;
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:record/record.dart';
 import 'package:media_kit/media_kit.dart';
@@ -55,6 +56,13 @@ String _formatElapsed(Duration d) {
   final s = d.inSeconds.remainder(60);
   return '$m:${s.toString().padLeft(2, '0')}';
 }
+
+/// The live m:ss timers (record elapsed, preview duration). Tabular figures:
+/// the digits change every tick, and proportional numerals let the row
+/// (discard/stop after the timer) shift horizontally -- the call overlay's
+/// timer already renders this way (audit 2026-09-21).
+const TextStyle kVoiceTimerStyle =
+    TextStyle(fontFeatures: kLiveNumberFontFeatures);
 
 enum _Phase { idle, recording, review }
 
@@ -297,7 +305,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
               ),
             ),
             const SizedBox(width: 8),
-            Text(_formatElapsed(_elapsed)),
+            Text(_formatElapsed(_elapsed), style: kVoiceTimerStyle),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: widget.discardLabel,
@@ -323,7 +331,10 @@ class _VoiceComposerState extends State<VoiceComposer> {
               onPressed: _togglePreview,
             ),
             const SizedBox(width: 8),
-            Text(_formatElapsed(Duration(milliseconds: _durationMs))),
+            Text(
+              _formatElapsed(Duration(milliseconds: _durationMs)),
+              style: kVoiceTimerStyle,
+            ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: widget.discardLabel,

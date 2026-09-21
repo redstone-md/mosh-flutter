@@ -68,6 +68,14 @@ class MoshColors {
   static const Color info = Color(0xFF6CB7E8); // --info
 }
 
+/// Font features for LIVE numbers (voice timers, audio position, unread
+/// counts): tabular figures keep every digit the same width, so a row whose
+/// value ticks does not shift its neighbours horizontally (audit
+/// 2026-09-21). The call overlay's timer was already rendered this way.
+const List<FontFeature> kLiveNumberFontFeatures = <FontFeature>[
+  FontFeature.tabularFigures(),
+];
+
 /// Material 3 `ColorScheme` mapping the React dark palette onto the standard
 /// semantic slots. Slot assignment rationale (grounded in React CSS usage):
 ///
