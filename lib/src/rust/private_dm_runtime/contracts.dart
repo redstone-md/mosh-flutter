@@ -45,13 +45,13 @@ class AcceptInviteRequest {
 class ActiveCall {
   final String callId;
 
-  /// "caller" or "callee" — drives the nonce direction bit on the frontend.
+  /// "caller" or "callee" — drives the nonce direction bit.
   final String direction;
   final String keyB64;
   final String noncePrefixB64;
 
-  /// Unix millis when the call became Active. The frontend renders the
-  /// running timer from this anchor.
+  /// Unix millis when the call became Active; the running timer
+  /// renders from this anchor.
   final BigInt startedAtMs;
 
   const ActiveCall({

@@ -29,29 +29,25 @@ Future<void> setHistoryDek({required List<int> dek}) =>
 Future<void> setAppDataDir({required String path}) =>
     RustLib.instance.api.crateApiPrivateDmSetAppDataDir(path: path);
 
-/// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
-/// Tauri command). The inviter publishes a KeyPackage and an invite URI.
+/// Create a private-DM invite. The inviter publishes a KeyPackage and an invite URI.
 Future<InviteCreated> createInvite({required StartSessionRequest request}) =>
     RustLib.instance.api.crateApiPrivateDmCreateInvite(request: request);
 
-/// Accept a private-DM invite (1:1 port of `private_dm_accept_invite`). The
+/// Accept a private-DM invite. The
 /// joiner parses the invite URI and processes the inviter's Welcome.
 Future<SessionSnapshot> acceptInvite({required AcceptInviteRequest request}) =>
     RustLib.instance.api.crateApiPrivateDmAcceptInvite(request: request);
 
-/// Poll a session for its current snapshot (1:1 port of
-/// `private_dm_poll_session`). The React frontend called this every
-/// AUTO_POLL_MS; no push, no StreamSink.
+/// Poll a session for its current snapshot. The Dart side calls this
+/// on a poll cadence; no push, no StreamSink.
 Future<SessionSnapshot> pollSession({required String sessionId}) =>
     RustLib.instance.api.crateApiPrivateDmPollSession(sessionId: sessionId);
 
-/// List all sessions and their snapshots (1:1 port of
-/// `private_dm_list_sessions`).
+/// List all sessions and their snapshots.
 Future<SessionListSnapshot> listSessions() =>
     RustLib.instance.api.crateApiPrivateDmListSessions();
 
-/// Start a voice call in a DM session (1:1 port of the Tauri shell's
-/// `private_dm_call_start`, lib.rs L455). Mints the call id + the
+/// Start a voice call in a DM session. Mints the call id + the
 /// symmetric call key + nonce prefix, publishes a CallOffer to the peer
 /// over the session MLS channel, and moves the session into the
 /// outgoing-ringing state (SessionSnapshot.outgoing_call). The bridge
@@ -59,14 +55,14 @@ Future<SessionListSnapshot> listSessions() =>
 Future<CallStarted> callStart({required String sessionId}) =>
     RustLib.instance.api.crateApiPrivateDmCallStart(sessionId: sessionId);
 
-/// Accept an incoming voice call (1:1 port of `private_dm_call_accept`).
+/// Accept an incoming voice call.
 /// Moves the session from pending-call into the active state. The peer
 /// learns the acceptance through the MLS CallAccept control message.
 Future<void> callAccept({required String sessionId, required String callId}) =>
     RustLib.instance.api
         .crateApiPrivateDmCallAccept(sessionId: sessionId, callId: callId);
 
-/// Decline an incoming voice call (1:1 port of `private_dm_call_decline`).
+/// Decline an incoming voice call.
 /// Publishes a CallDecline control message with the reason; the session
 /// returns to its idle state.
 Future<void> callDecline(
@@ -76,7 +72,7 @@ Future<void> callDecline(
     RustLib.instance.api.crateApiPrivateDmCallDecline(
         sessionId: sessionId, callId: callId, reason: reason);
 
-/// End an active or ringing voice call (1:1 port of `private_dm_call_end`).
+/// End an active or ringing voice call.
 /// Publishes a CallEnd control message with the reason; the session
 /// returns to idle and the CallEvent is recorded for the call log.
 Future<void> callEnd(
@@ -86,11 +82,9 @@ Future<void> callEnd(
     RustLib.instance.api.crateApiPrivateDmCallEnd(
         sessionId: sessionId, callId: callId, reason: reason);
 
-/// Push an encrypted voice-call frame into the session outbound queue
-/// (1:1 port of the runtime `call_send_frame`; the Tauri shell did not
-/// expose a separate command -- frames went through the session poll, but
-/// the Flutter bridge surfaces this explicitly so the Dart capture loop
-/// can drive it). The caller seals the frame before sending.
+/// Push an encrypted voice-call frame into the session outbound queue.
+/// The Flutter bridge surfaces this explicitly so the Dart capture loop
+/// can drive it. The caller seals the frame before sending.
 Future<void> callSendFrame(
         {required String sessionId,
         required String callId,
@@ -98,11 +92,10 @@ Future<void> callSendFrame(
     RustLib.instance.api.crateApiPrivateDmCallSendFrame(
         sessionId: sessionId, callId: callId, frame: frame);
 
-/// Drain the inbound voice-call frames for an active call (1:1 port of the
-/// runtime `call_drain_frames`). Returns the sealed frames the peer sent; the
-/// caller opens + queues them into the playback jitter buffer. The Tauri
-/// shell folded this into the session poll; the Flutter bridge surfaces it
-/// explicitly so the Dart playback loop can drive it at 20ms cadence.
+/// Drain the inbound voice-call frames for an active call. Returns the
+/// sealed frames the peer sent; the caller opens + queues them into the
+/// playback jitter buffer. The Flutter bridge surfaces this explicitly so
+/// the Dart playback loop can drive it at 20ms cadence.
 Future<List<Uint8List>> callDrainFrames(
         {required String sessionId, required String callId}) =>
     RustLib.instance.api

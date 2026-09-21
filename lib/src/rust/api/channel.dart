@@ -15,21 +15,19 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
 
-/// Join a public channel (1:1 port of the `channel_join` Tauri command).
+/// Join a public channel.
 Future<ChannelSnapshot> join({required JoinChannelRequest request}) =>
     RustLib.instance.api.crateApiChannelJoin(request: request);
 
-/// Poll a channel for its current snapshot (1:1 port of `channel_poll`).
-/// The React frontend polled on a cadence; the Dart side polls the same way.
+/// Poll a channel for its current snapshot. The Dart side polls on a cadence.
 Future<ChannelSnapshot> poll({required String name}) =>
     RustLib.instance.api.crateApiChannelPoll(name: name);
 
-/// List all joined channels and their snapshots (1:1 port of `channel_list`).
+/// List all joined channels and their snapshots.
 Future<ChannelListSnapshot> list() =>
     RustLib.instance.api.crateApiChannelList();
 
-/// Publish a private-DM invitation to one channel member
-/// (1:1 port of `channel_send_dm_offer`).
+/// Publish a private-DM invitation to one channel member.
 Future<void> sendDmOffer(
         {required String name,
         required String targetFingerprint,
@@ -37,7 +35,7 @@ Future<void> sendDmOffer(
     RustLib.instance.api.crateApiChannelSendDmOffer(
         name: name, targetFingerprint: targetFingerprint, inviteUri: inviteUri);
 
-/// Dismiss a channel DM offer (1:1 port of `channel_dismiss_dm_offer`).
+/// Dismiss a channel DM offer.
 Future<void> dismissDmOffer({required String name, required String offerId}) =>
     RustLib.instance.api
         .crateApiChannelDismissDmOffer(name: name, offerId: offerId);

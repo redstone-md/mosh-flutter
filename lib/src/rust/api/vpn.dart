@@ -9,35 +9,28 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
 
-/// Detect whether a VPN appears to own the default route (1:1 port of the
-/// `detect_vpn` Tauri command).
+/// Detect whether a VPN appears to own the default route.
 Future<VpnDetection> detectVpn() => RustLib.instance.api.crateApiVpnDetectVpn();
 
-/// Report the interface the live Moss node is currently bound to (1:1 port
-/// of `get_bind_interface`). `None` before any node has started; matches the
-/// Tauri command's `Option<String>` return shape directly (no Result wrap —
-/// the Tauri command returned `Option<String>`, not `Result`).
+/// Report the interface the live Moss node is currently bound to.
+/// `None` before any node has started.
 Future<String?> getBindInterface() =>
     RustLib.instance.api.crateApiVpnGetBindInterface();
 
-/// Read the stored VPN-bypass consent (1:1 port of
-/// `get_vpn_bypass_consent`). `None` means no prior answer; the bridge asks
-/// again next launch. Matches the Tauri command's
-/// `Option<VpnBypassConsent>` return shape directly (no Result wrap).
+/// Read the stored VPN-bypass consent. `None` means no prior answer; the
+/// bridge asks again next launch.
 Future<VpnBypassConsent?> getVpnBypassConsent() =>
     RustLib.instance.api.crateApiVpnGetVpnBypassConsent();
 
-/// Record the VPN-bypass consent (1:1 port of `set_vpn_bypass_consent`).
+/// Record the VPN-bypass consent.
 /// `Some(name)` is a yes (remembered); `None` is a refusal (deliberately not
 /// stored, so the question returns next launch). Validates the interface
-/// against `network_inventory::list_interfaces` before saving, exactly as
-/// the Tauri command did.
+/// against `network_inventory::list_interfaces` before saving.
 Future<void> setVpnBypassConsent({String? interface_}) =>
     RustLib.instance.api.crateApiVpnSetVpnBypassConsent(interface_: interface_);
 
-/// VPN-detection result. Verbatim port of the struct the former Tauri shell
-/// defined inline for the `detect_vpn` command, owned here so the bridge
-/// serializes it without touching a Tauri-typed type.
+/// VPN-detection result, owned here so the bridge
+/// serializes it without touching a runtime-typed type.
 class VpnDetection {
   final bool vpnLikely;
   final List<String> suspectInterfaces;
