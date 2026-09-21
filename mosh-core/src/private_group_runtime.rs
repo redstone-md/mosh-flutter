@@ -584,12 +584,35 @@ impl PrivateGroupRuntime {
         for rec in self.groups.stored_records::<PersistedGroupSession>() {
             let snapshot = match p.get_group_mls_snapshot(&rec.group_id) {
                 Ok(Some(snapshot)) => snapshot,
-                _ => {
+                Ok(None) => {
+                    // A record without its MLS group can never rebuild: a
+                    // joiner placeholder (not joined, empty MLS group id) is
+                    // dead data and gets deleted; anything else is corruption
+                    // whose history rows stay recoverable, so the row is kept.
+                    if rec.mls_group_id.is_empty() && !rec.joined {
+                        let message = match p.delete_group(&rec.group_id) {
+                            Ok(()) => "dropping joiner record without MLS snapshot".to_string(),
+                            Err(e) => {
+                                format!("joiner record without MLS snapshot; delete failed: {e}")
+                            }
+                        };
+                        dlog::write(LogLevel::Info, kinds::REHYDRATE, &rec.group_id, &message);
+                    } else {
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::REHYDRATE,
+                            &rec.group_id,
+                            "record without MLS snapshot; row kept",
+                        );
+                    }
+                    continue;
+                }
+                Err(e) => {
                     dlog::write(
                         LogLevel::Warn,
                         kinds::REHYDRATE,
                         &rec.group_id,
-                        "missing MLS snapshot",
+                        &format!("MLS snapshot unreadable: {e}"),
                     );
                     continue;
                 }
@@ -1272,7 +1295,19 @@ impl ConversationSession for GroupSession {
     }
 
     fn write_extra(&self, persistence: &Persistence) {
-        let _ = persistence.put_group_mls_snapshot(&self.group_id, &self.crypto.snapshot());
+        // A snapshot write that fails while the record write after it
+        // succeeds leaves a row rehydrate can never rebuild. Surface the
+        // failure instead of swallowing it.
+        if let Err(error) =
+            persistence.put_group_mls_snapshot(&self.group_id, &self.crypto.snapshot())
+        {
+            dlog::write(
+                LogLevel::Error,
+                kinds::PERSIST,
+                &self.group_id,
+                &format!("MLS snapshot persist failed: {error}"),
+            );
+        }
     }
 
     /// Until the MLS group exists the record's group id is an empty
@@ -3907,5 +3942,130 @@ mod tests {
             !session.sequencer.should_request(epoch),
             "a resync request must already be outstanding for this epoch"
         );
+    }
+
+    // ---- rehydrate snapshot hygiene ---------------------------------------
+    //
+    // A group record whose MLS snapshot is missing can never rebuild. A
+    // joiner placeholder (not joined, empty MLS group id) is dead data and
+    // gets deleted at rehydrate; a real record missing its snapshot stays on
+    // disk (its history rows remain recoverable) and is skipped with a
+    // distinct warning.
+
+    /// A per-test redb path, so rehydrate tests never share one store.
+    fn rehydrate_db(name: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "mosh-group-rehydrate-{name}-{}.redb",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        path
+    }
+
+    #[test]
+    fn a_group_joiner_record_without_snapshot_is_dropped_at_rehydrate() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let db_path = rehydrate_db("orphan");
+        let persistence =
+            Arc::new(Persistence::open_with_dek(&db_path, [31u8; 32]).expect("store should open"));
+
+        // A joiner placeholder the way an interrupted invite could leave it:
+        // not joined, no MLS group, no snapshot behind the record.
+        let record = PersistedGroupSession {
+            group_id: "group-orphan".to_string(),
+            mesh_id: "mesh-orphan".to_string(),
+            label: None,
+            display_name: "Bob".to_string(),
+            participant_id: "participant-1".to_string(),
+            device_fingerprint: "FP".to_string(),
+            creator_fingerprint: "ADMIN-FP".to_string(),
+            current_admin_fingerprint: "ADMIN-FP".to_string(),
+            is_admin: false,
+            invite_uri: None,
+            joined: false,
+            signer_public: vec![1, 2, 3],
+            mls_group_id: vec![],
+            listen_port: 0,
+            static_peer: None,
+            org_pubkey: None,
+        };
+        crate::conversation::history::History::new(GROUP_HISTORY).write_record(
+            &persistence,
+            "group-orphan",
+            &record,
+        );
+        assert_eq!(
+            persisted_group_rows(&persistence).len(),
+            1,
+            "the placeholder is on disk"
+        );
+
+        let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+        let mut runtime =
+            PrivateGroupRuntime::from_shared(moss, temp_store(), Some(persistence.clone()));
+        runtime.rehydrate();
+
+        assert!(
+            persisted_group_rows(&persistence).is_empty(),
+            "a group record that can never rebuild is deleted, not kept as a warning"
+        );
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn a_real_group_record_without_snapshot_is_kept_and_reported() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let db_path = rehydrate_db("corrupt");
+        let persistence =
+            Arc::new(Persistence::open_with_dek(&db_path, [32u8; 32]).expect("store should open"));
+
+        // A record that claims a real MLS group but lost its snapshot: the
+        // state a silently failed snapshot write leaves behind.
+        let record = PersistedGroupSession {
+            group_id: "group-corrupt".to_string(),
+            mesh_id: "mesh-corrupt".to_string(),
+            label: None,
+            display_name: "Alice".to_string(),
+            participant_id: "participant-1".to_string(),
+            device_fingerprint: "FP".to_string(),
+            creator_fingerprint: "FP".to_string(),
+            current_admin_fingerprint: "FP".to_string(),
+            is_admin: true,
+            invite_uri: None,
+            joined: true,
+            signer_public: vec![1, 2, 3],
+            mls_group_id: vec![9u8; 16],
+            listen_port: 0,
+            static_peer: None,
+            org_pubkey: None,
+        };
+        crate::conversation::history::History::new(GROUP_HISTORY).write_record(
+            &persistence,
+            "group-corrupt",
+            &record,
+        );
+        assert_eq!(persisted_group_rows(&persistence).len(), 1);
+
+        let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+        let mut runtime =
+            PrivateGroupRuntime::from_shared(moss, temp_store(), Some(persistence.clone()));
+        runtime.rehydrate();
+
+        assert_eq!(
+            persisted_group_rows(&persistence).len(),
+            1,
+            "a real record missing its snapshot stays recoverable on disk"
+        );
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// The group records off disk, through the kind's own history reader.
+    fn persisted_group_rows(persistence: &Persistence) -> Vec<PersistedGroupSession> {
+        crate::conversation::history::History::new(GROUP_HISTORY).stored_conversations(persistence)
     }
 }
