@@ -28,16 +28,20 @@ A new Flutter FFI plugin project.
   # audiopus_sys links a prebuilt universal libopus.a (built by
   # scripts/opus-prepare-macos.sh; its own vendored build cannot cross-
   # compile opus for the x86_64 slice), and OPUS_NO_PKG keeps a stray
-  # brew opus from winning over it. __dir__ is the canonicalized podspec
-  # directory (Kernel#__dir__ resolves symlinks), so the path survives
-  # the .symlinks/plugins/mosh_core/macos layout CocoaPods builds from;
-  # a $PODS_TARGET_SRCROOT-relative chain does not.
-  opus_lib_dir = File.expand_path('../../third_party/opus-macos-universal', __dir__)
+  # brew opus from winning over it. The path must be resolved at pod
+  # install time through File.realpath (__dir__ alone is lexical and
+  # the podspec is evaluated through CocoaPods' .symlinks layout), and
+  # the script itself guards loudly so a missing prebuilt is one-glance
+  # diagnosable in the build log.
+  opus_lib_dir = File.expand_path('../../third_party/opus-macos-universal', File.realpath(__dir__))
+
+  build_rust = %(test -d "#{opus_lib_dir}" || { echo "opus prebuilt missing at #{opus_lib_dir} -- run scripts/opus-prepare-macos.sh first" >&2; exit 1; }
+LIBOPUS_LIB_DIR="#{opus_lib_dir}" OPUS_NO_PKG=1 sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../mosh-core mosh-core)
 
   s.script_phase = {
     :name => 'Build Rust library',
     # First argument is relative path to the `rust` folder, second is name of rust library
-    :script => "LIBOPUS_LIB_DIR=\"#{opus_lib_dir}\" OPUS_NO_PKG=1 sh \"$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh\" ../../mosh-core mosh-core",
+    :script => build_rust,
     :execution_position => :before_compile,
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     # Let XCode know that the static library referenced in -force_load below is
