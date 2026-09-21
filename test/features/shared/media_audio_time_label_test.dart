@@ -8,7 +8,6 @@
 // Limitation: the label is pumped directly. The full audio stage needs the
 // media_kit native library, absent in test envs (the viewer renders its
 // placeholder there), so the wiring inside _AudioStage is one line.
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

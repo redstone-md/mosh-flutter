@@ -12,7 +12,6 @@
 // (the card already renders its fallback there); the wired callback is one
 // line in voice_message_card.dart.
 import 'dart:typed_data' show Uint8List;
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

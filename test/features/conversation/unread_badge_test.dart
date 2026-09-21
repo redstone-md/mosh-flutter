@@ -5,7 +5,6 @@
 // the correct on-accent token (`onPrimary` = mossInk), so the badge must read
 // it instead of hardcoding white. The count is also a live number, so it
 // renders with tabular figures like the other live timers.
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

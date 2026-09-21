@@ -21,7 +21,8 @@ import 'dart:io' show File;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show kLiveNumberFontFeatures;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:record/record.dart';
 import 'package:media_kit/media_kit.dart';
@@ -63,6 +64,26 @@ String _formatElapsed(Duration d) {
 /// timer already renders this way (audit 2026-09-21).
 const TextStyle kVoiceTimerStyle =
     TextStyle(fontFeatures: kLiveNumberFontFeatures);
+
+/// The recording indicator's 8px dot (React `.recording-dot`). Palette
+/// accent, not a raw Material red: the theme's danger token (audit
+/// 2026-09-21 palette-drift). Public so the accent is testable without the
+/// platform microphone.
+class VoiceRecordingDot extends StatelessWidget {
+  const VoiceRecordingDot({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: const BoxDecoration(
+        color: MoshColors.danger,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
 
 enum _Phase { idle, recording, review }
 
@@ -296,14 +317,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Colors.redAccent,
-                shape: BoxShape.circle,
-              ),
-            ),
+            const VoiceRecordingDot(),
             const SizedBox(width: 8),
             Text(_formatElapsed(_elapsed), style: kVoiceTimerStyle),
             IconButton(

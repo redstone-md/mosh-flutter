@@ -70,7 +70,7 @@ class ConfirmDialog extends StatefulWidget {
     this.cancelLabel,
     required this.onCancel,
     required this.onConfirm,
-    this.dangerColor = const Color(0xFFE86A5A),
+    this.dangerColor = MoshColors.danger,
   });
 
   /// The dialog title (React `title` -> `<h2 id="confirm-dialog-title">`).

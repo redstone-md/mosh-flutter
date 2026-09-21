@@ -15,6 +15,7 @@ import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/voice_composer.dart';
 
 void main() {
@@ -24,5 +25,16 @@ void main() {
       kVoiceTimerStyle.fontFeatures,
       contains(FontFeature.tabularFigures()),
     );
+  });
+
+  testWidgets('the recording dot paints the theme danger accent, not a raw '
+      'Material red', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: Center(child: VoiceRecordingDot()))),
+    );
+
+    final container = tester.widget<Container>(find.byType(Container));
+    final decoration = container.decoration! as BoxDecoration;
+    expect(decoration.color, MoshColors.danger);
   });
 }

@@ -9,8 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 
-/// Gap between the title text and the lock.
-const double _lockGap = 4;
 
 /// The lock tap area's inset: the 15px glyph plus 13px on every side keeps
 /// the InkWell at 41x41 -- the audit's >=40px tap floor for a control that
