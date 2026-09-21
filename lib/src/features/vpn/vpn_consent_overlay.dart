@@ -1,11 +1,9 @@
 // VpnConsentOverlay -- mounts the [VpnConsentModal] once at the app-shell
-// level so it can show above any route. React renders
-// `<VpnConsentModal gateway={gateway} />` near the root of
-// `private-dm-screen.tsx`; the modal decides whether to show (it fetches
-// consent + detectVpn + interfaces on mount and renders a scrim only when
-// it should ask). Here the overlay wraps the router child in a `Stack`,
-// so the consent prompt appears above onboarding / sessions / dm /
-// channel / group alike. The relaunch comes from the app-level
+// level so it can show above any route. The modal decides whether to show
+// (it fetches consent + detectVpn + interfaces on mount and renders a
+// scrim only when it should ask). Here the overlay wraps the router child
+// in a `Stack`, so the consent prompt appears above onboarding / sessions
+// / dm / channel / group alike. The relaunch comes from the app-level
 // DesktopAppRelauncherScope so the modal keeps its injectable onAccept
 // seam.
 

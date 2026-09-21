@@ -81,7 +81,6 @@ class ConversationTools extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // React `.conversation-tools { margin: 12px 22px 0; gap: 10px }`.
     return Padding(
       padding: kConversationToolsMargin,
       child: Row(

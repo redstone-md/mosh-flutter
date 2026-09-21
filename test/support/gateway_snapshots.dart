@@ -1,6 +1,6 @@
 // Canned snapshots the test Gateway returns when a test seeds nothing.
 // Every function here is pure: ScriptableGateway owns all mutable state.
-// The shapes mirror the real runtime 1:1.
+// The shapes mirror the real runtime exactly.
 
 import 'package:mosh/src/rust/api/diagnostics.dart'
     show
@@ -268,9 +268,9 @@ String orgPubkeyFromBundleUri(String bundleUri) {
   return (org == null || org.isEmpty) ? 'fake-org-joined' : org;
 }
 
-/// Canned [CallStarted] for the test gateway callStart (1:1 with React demo
-/// gateway). Deterministic call id + dummy key/nonce so a future call-UI
-/// test can assert against the canned value without the runtime.
+/// Canned [CallStarted] for the test gateway callStart. Deterministic
+/// call id + dummy key/nonce so a future call-UI test can assert against
+/// the canned value without the runtime.
 CallStarted cannedCallStarted(String sessionId) => CallStarted(
       sessionId: sessionId,
       callId: 'fake-call',

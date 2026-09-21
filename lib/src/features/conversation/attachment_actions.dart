@@ -1,10 +1,9 @@
-// Attachment actions row, ported 1:1 from React's
-// `<div className="attachment-actions">` (src/features/private-dm/AttachmentCard.tsx).
-// Extracted out of attachment_card.dart to keep that file under the 500-line
-// ceiling; the card's file/media branches still compose [AttachmentActions]
-// to the right of the shared name + meta + progress bar. The 4-state machine
-// (available/!outgoing offered|cancelled/failed/downloading) and the empty
-// `SizedBox.shrink` fallback are preserved exactly -- do NOT simplify.
+// Attachment actions row. Extracted out of attachment_card.dart to keep that
+// file under the 500-line ceiling; the card's file/media branches still
+// compose [AttachmentActions] to the right of the shared name + meta +
+// progress bar. The 4-state machine (available/!outgoing
+// offered|cancelled/failed/downloading) and the empty `SizedBox.shrink`
+// fallback are intentional -- do NOT simplify.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,23 +11,19 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
-/// The ACTIONS ROW, ported 1:1 from React's `<div className="attachment-actions">`.
-/// At most ONE `IconButton` renders, gated on `state` + `outgoing` (the
-/// outgoing sender only ever gets Open):
+/// The actions row. At most ONE `IconButton` renders, gated on `state` +
+/// `outgoing` (the outgoing sender only ever gets Open):
 ///   - available              -> Open (Icons.open_in_new), disabled when
-///                               `view.localPath` is null or empty (React
-///                               `disabled={!view?.local_path}`).
+///                               `view.localPath` is null or empty.
 ///   - !outgoing && offered   -> Download (Icons.download).
 ///   - !outgoing && cancelled -> Retry-download (Icons.download, the same
 ///                               button with the "Retry download" label).
 ///   - !outgoing && failed    -> Retry (Icons.refresh).
 ///   - !outgoing && downloading -> Cancel (Icons.close).
-/// Download/Retry are disabled when `busy` (React `attachments.busy`);
-/// Cancel is always enabled (React has no `disabled` guard on cancel).
-/// Each button's `Semantics(label:)` carries the React `aria-label`
-/// (interpolates the file name) and `IconButton.tooltip` carries the React
-/// `title` (short label). Compact density + small `splashRadius` match
-/// React's `btn-icon` sizing.
+/// Download/Retry are disabled when `busy`; Cancel is always enabled.
+/// Each button's `Semantics(label:)` carries the full accessible label
+/// (interpolates the file name) and `IconButton.tooltip` carries the short
+/// label. Compact density + small `splashRadius` keep the row dense.
 class AttachmentActions extends StatelessWidget {
   const AttachmentActions({
     super.key,
@@ -120,9 +115,9 @@ class AttachmentActions extends StatelessWidget {
 }
 
 /// One compact action button. Wraps `IconButton` in a `Semantics` with the
-/// full aria-label (file name interpolated); `IconButton.tooltip` carries
-/// the short title. `busy` toggles `Semantics(enabled: !busy)` so screen
-/// readers announce the disabled state (React's `aria-busy`).
+/// full accessible label (file name interpolated); `IconButton.tooltip`
+/// carries the short label. `busy` toggles `Semantics(enabled: !busy)` so
+/// screen readers announce the disabled state.
 class _ActionIcon extends StatelessWidget {
   const _ActionIcon({
     required this.icon,

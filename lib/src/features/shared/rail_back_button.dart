@@ -8,8 +8,8 @@
 // leading arrow of its own. The result was a dead end: once branch B was
 // active, nothing on screen returned to the conversation list.
 //
-// React's mobile shell solves the same problem with the `.titlebar-nav`
-// hamburger that reopens the rail as a drawer. The Flutter shell mounts no
+// A mobile shell solves the same problem with a hamburger that reopens
+// the rail as a drawer. The Flutter shell mounts no
 // titlebar on mobile, so the affordance lives on each chat pane's own
 // AppBar instead.
 library;

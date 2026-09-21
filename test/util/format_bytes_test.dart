@@ -1,9 +1,7 @@
-// Unit tests for `formatBytes(BigInt)` in lib/src/util/format.dart, ported
-// 1:1 from the React `formatBytes(total: number)` in
-// `src/features/private-dm/attachment-utils.ts`. Each case mirrors the
-// React behavior: < 1024 -> "{n} B"; otherwise divide by 1024 through
-// KB/MB/GB with `value >= 10 ? 0 : 1` decimal places. Uses `BigInt.from`
-// since the contract's `totalSize` is a `BigInt`.
+// Unit tests for `formatBytes(BigInt)` in lib/src/util/format.dart:
+// < 1024 -> "{n} B"; otherwise divide by 1024 through KB/MB/GB with
+// `value >= 10 ? 0 : 1` decimal places. Uses `BigInt.from` since the
+// contract's `totalSize` is a `BigInt`.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/util/format.dart';
 

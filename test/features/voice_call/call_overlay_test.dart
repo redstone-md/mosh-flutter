@@ -1,5 +1,5 @@
-// Parity tests for `CallOverlay` (lib/src/features/voice_call/call_overlay.dart)
-// -- the 1-в-1 port of React's `CallOverlay.tsx`. The overlay reads its mute
+// Widget tests for `CallOverlay` (lib/src/features/voice_call/call_overlay.dart).
+// The overlay reads its mute
 // flag from the orchestrator (the one home for call state) and toggles it
 // there, so these tests mount the orchestrator provider (seeded with an
 // active call) and assert the icon + tint swap from the live provider state.
@@ -221,7 +221,7 @@ void main() {
     },
   );
 
-  test('formatCallClock mirrors React formatClock', () {
+  test('formatCallClock renders clock-shaped time', () {
     expect(formatCallClock(BigInt.zero), '0:00');
     expect(formatCallClock(BigInt.from(-1000)), '0:00');
     expect(formatCallClock(BigInt.from(1000)), '0:01');

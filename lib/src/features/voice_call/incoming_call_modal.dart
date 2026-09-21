@@ -1,36 +1,11 @@
-// IncomingCallModal -- 1-в-1 port of React `src/features/private-dm/
-// voice-call/IncomingCallModal.tsx`. Shown when a session's
-// `SessionSnapshot.pendingCall` is non-null: a centered modal card with
-// the peer label, an "Incoming voice call..." status, and two round
-// action buttons (decline red, accept green). On mount it starts a
-// ringtone (via [RingtonePlayer]) and arms a 30 s no-answer timer; when
-// the timer fires it calls `onDecline('no_answer')`. Esc calls
-// `onDecline('declined')` (React's `useModalFocus(() => onDecline(
-// 'declined'))`).
+// IncomingCallModal -- shown when a session's `SessionSnapshot.pendingCall`
+// is non-null: a centered modal card with the peer label, an "Incoming
+// voice call..." status, and two round action buttons (decline red, accept
+// green). On mount it starts a ringtone (via [RingtonePlayer]) and arms a
+// 30 s no-answer timer; when the timer fires it calls `onDecline('no_answer')`.
+// Esc calls `onDecline('declined')`.
 //
-// React structure (IncomingCallModal.tsx):
-//   .call-modal (role=dialog aria-modal aria-label="Incoming call"
-//      tabIndex=-1) + useModalFocus(() => onDecline('declined'))
-//     -> .call-modal-card (column, gap 18, padding 32/36, radius 14,
-//        bg #1d1f24, min-width 280)
-//        -> strong.call-modal-peer (peerLabel, 18px)
-//        -> span.call-modal-status ("Incoming voice call...", 14px,
-//           opacity .75)
-//        -> .call-modal-actions (row, gap 16)
-//           -> button.call-btn.call-btn-decline (IconPhoneOff 20,
-//              aria-label "Decline call", onClick onDecline('declined'))
-//           -> button.call-btn.call-btn-accept (IconPhone 20,
-//              aria-label "Accept call", onClick onAccept)
-//
-// Flutter port: `showDialog` provides the `.call-modal` fixed overlay
-// (rgba(0,0,0,0.55) barrier) + modal-route focus; the card mirrors
-// `.call-modal-card` (dark #1d1f24, white text, 14 radius, 280 min-width,
-// 32/36 padding, 18 gap). Round 48x48 buttons: decline #e5484d, accept
-// #2ea043 (React's `call-btn-decline` / `call-btn-accept`). Esc is wired
-// via `KeyboardListener` (the `useModalFocus` Esc-trap equivalent);
-// `showDialog(barrierDismissible: true)` already maps outside-tap to
-// pop, but the modal does NOT rely on that for decline -- the host
-// routes barrier-dismiss through `onDecline` so a no-answer vs
+// The host routes barrier-dismiss through `onDecline` so the no-answer vs
 // explicit-decline distinction survives.
 
 library;
@@ -59,9 +34,8 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 /// two together.
 const Duration kIncomingNoAnswerTimeout = Duration(milliseconds: 30000);
 
-/// The decline reasons the modal emits -- mirror React's
-/// `onDecline('declined')` / `onDecline('no_answer')` literals so the
-/// orchestration layer can distinguish them.
+/// The decline reasons the modal emits, so the orchestration layer can
+/// distinguish a user decline from a no-answer timeout.
 const String kCallDeclineReasonUser = 'declined';
 const String kCallDeclineReasonNoAnswer = 'no_answer';
 
@@ -71,11 +45,9 @@ const String kCallDeclineReasonNoAnswer = 'no_answer';
 /// the reason stays distinguishable from a real decline.
 const String kCallDeclineReasonHangup = 'hangup';
 
-/// The incoming-call modal -- 1-в-1 with React's `IncomingCallModal`.
-///
-/// Construct and pass to `showDialog` (the host owns the route). The
-/// modal starts the ringtone + arms the no-answer timer in `initState`
-/// and tears both down in `dispose`, mirroring React's `useEffect` cleanup.
+/// The incoming-call modal. Construct and pass to `showDialog` (the host
+/// owns the route). The modal starts the ringtone + arms the no-answer
+/// timer in `initState` and tears both down in `dispose`.
 class IncomingCallModal extends StatefulWidget {
   const IncomingCallModal({
     super.key,
@@ -88,13 +60,13 @@ class IncomingCallModal extends StatefulWidget {
     this.noAnswerTimeout = kIncomingNoAnswerTimeout,
   });
 
-  /// The pending incoming call (React `pending: PendingCall`).
+  /// The pending incoming call.
   final PendingCall pending;
 
-  /// The peer's display label (React `peerLabel: string`).
+  /// The peer's display label.
   final String peerLabel;
 
-  /// Fired on the accept button (React `onAccept: () => void`).
+  /// Fired on the accept button.
   final VoidCallback onAccept;
 
   /// Fired on decline (button/Esc) or no-answer timeout, with the
@@ -123,13 +95,12 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
   @override
   void initState() {
     super.initState();
-    // React: `try { ringtoneRef.current = startRingtone() } catch { null }`.
+    // Ringtone start is best-effort: a failure leaves it silent.
     try {
       _ringtone = widget.ringtone.start();
     } catch (_) {
       _ringtone = null;
     }
-    // React: `timerRef = setTimeout(() => onDecline('no_answer'), 30_000)`.
     _noAnswerTimer = Timer(
       widget.noAnswerTimeout,
       () => _decline(kCallDeclineReasonNoAnswer),
@@ -154,7 +125,6 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
     return KeyboardListener(
       focusNode: FocusNode(),
       autofocus: true,
-      // React useModalFocus Esc -> onDecline('declined').
       onKeyEvent: (event) {
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.escape) {
@@ -180,7 +150,6 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // React strong.call-modal-peer (18px).
                     Text(
                       widget.peerLabel,
                       style: const TextStyle(
@@ -190,7 +159,6 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    // React span.call-modal-status (14px, opacity .75).
                     Text(
                       widget.l.callIncomingStatus,
                       style: const TextStyle(
@@ -199,7 +167,6 @@ class _IncomingCallModalState extends State<IncomingCallModal> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    // React .call-modal-actions (row, gap 16).
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

@@ -1,7 +1,7 @@
 // Widget tests for the SessionsScreen (DM sessions list). Mirrors the
 // established slice-one pattern: ProviderScope overrides of the two bridge
 // surfaces with scripted doubles + a localized MaterialApp. The lists and
-// the offer accept run on the bridge double (1:1 mirrors, ADR 0025); the
+// the offer accept run on the bridge double (exact mirrors, ADR 0025); the
 // offer dismiss runs on the gateway double (the conversation seam), sharing
 // the bridge's conversation state so the accept -> poll flow resolves. Test
 // 3 (error/retry) uses scripted failures so we can assert `listSessions` ran
@@ -155,15 +155,14 @@ void main() {
     expect(find.text('Waiting for your contact'), findsOneWidget);
     expect(find.text('Contact is offline'), findsOneWidget);
 
-    // Accessibility: the Alice row exposes the React-parity semantics label.
-    // Accessibility: the Alice row exposes the React-parity semantics label.
+    // Accessibility: the Alice row exposes the expected semantics label.
     // The two-pane StatefulShellRoute (mosh_shell.dart) lays the rail + chat
     // branches out as two live Navigators on desktop, and two simultaneous
     // ModalRoutes change the merged-semantics tree enough that
     // find.bySemanticsLabel no longer resolves the row's label (the node
     // ends up non-leaf with an empty label). The row's Semantics widget
     // still carries the label in its properties, so assert on the widget
-    // directly -- layout-independent and pins the React `aria-label` parity
+    // directly -- layout-independent and pins the row semantics label
     // the bySemanticsLabel check was guarding.
     final rowSemantics = tester.widgetList<Semantics>(
       find.ancestor(of: find.text('Alice'), matching: find.byType(Semantics)),
@@ -203,7 +202,7 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listSessions), greaterThan(callsBefore));
   });
 
-// Unread-badge rendering. Mirrors React's `UnreadBadge`: a row whose
+// Unread-badge rendering: a row whose
 // unread count > 0 shows the numeral; a row with count 0 shows no badge.
 // The DM entry of `conversationListProvider` (via a seeded bridge) and
 // the unread lifecycle map are overridden so the rendered counts are
@@ -233,8 +232,8 @@ void main() {
     await pumpScreen(tester, const SessionsScreen(), overrides: [
       gatewayProvider.overrideWithValue(gateway),
       bridgeFacadeProvider.overrideWithValue(bridge),
-      // The sessions screen now reads the lifecycle map (the React
-      // `useUnreadNotifications.unread` port), not the raw count map. The
+      // The sessions screen reads the lifecycle map's unread counts, not
+      // the raw count map. The
       // override stubs the lifecycle's `build` to return the static map so
       // the rendered badges are deterministic (Alice=3, Bob absent -> 0).
       unreadLifecycleProvider.overrideWithBuild((ref, notifier) => unread),
@@ -299,7 +298,7 @@ void main() {
 
     // One row shape: the offer row stops hand-rolling a `ListTile` and is a
     // `RailItem` like every other row, with the dismiss X in its trailing
-    // slot (React's `rail-offer-dismiss` inside `rail-offer-accept`).
+    // slot next to the accept button.
     final offerRow = tester.widget<RailItem>(find.ancestor(
       of: find.byTooltip('Dismiss invite'),
       matching: find.byType(RailItem),

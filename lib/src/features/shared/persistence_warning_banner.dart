@@ -1,7 +1,5 @@
-// 1-в-1 Flutter port of React's `PersistenceWarningBanner`
-// (src/features/private-dm/NewSessionPanel.parts.tsx) and its CSS classes
-// `.persistence-warning` / `.persistence-warning-icon` in
-// src/features/private-dm/styles/desktop-shell.css.
+// Persistence warning banner (`.persistence-warning` /
+// `.persistence-warning-icon` styling).
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -25,7 +23,7 @@ class PersistenceWarningBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final isUnavailable = warning.kind == PersistenceWarningKind.unavailable;
-    // React prefixes the persistence error with ` Reason: ` (leading space);
+    // The persistence error is prefixed with ` Reason: ` (leading space);
     // the gateway-error body already embeds `Reason: ` in the ARB string.
     final unavailableReason =
         warning.reason != null ? ' Reason: ${warning.reason}' : '';

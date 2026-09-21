@@ -11,8 +11,8 @@ void main() {
   // Rust cdylib loaded. RustLib.init() and appDiagnostics() cannot exercise
   // the real FFI path here, so we do NOT call main() (it would throw on
   // RustLib.init). Instead we pump MoshApp directly. The app opens directly
-  // inside the StatefulShellRoute (mosh_shell.dart -- the React
-  // PrivateDmScreen parity: rail + chat-pane two-pane shell), with
+  // inside the StatefulShellRoute (mosh_shell.dart: the rail + chat-pane
+  // two-pane shell), with
   // initialLocation = AppRoutes.sessions (branch A, the rail). Branch B
   // (/chat, ChatPaneWelcome with the inline NewSessionPanel) is preloaded so
   // the desktop right pane renders on startup. The shell + welcome read
@@ -44,8 +44,8 @@ void main() {
     expect(find.text('Start a conversation'), findsOneWidget);
 
     // The inline welcome's OnboardMenu also surfaces the Join / New group
-    // tiles (React NewSessionPanel parity -- they live in the welcome, not
-    // the onboarding route), so they render here too.
+    // tiles (they live in the welcome, not the onboarding route), so they
+    // render here too.
     expect(find.text('Join with a link'), findsOneWidget);
     expect(find.text('New group'), findsOneWidget);
   });

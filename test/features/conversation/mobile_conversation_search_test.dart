@@ -1,7 +1,6 @@
-// Widget tests for the mobile conversation search/filter trio ported 1-1
-// from React `MobileSearchToggle` / `MobileConversationSearch` /
-// `MobileConversationFilterNotice` (ConversationTools.tsx L54-112 +
-// ActiveChatHeader.tsx L113-131). Covers: the toggle's open-state tooltip +
+// Widget tests for the mobile conversation search/filter trio:
+// `MobileSearchToggle` / `MobileConversationSearch` /
+// `MobileConversationFilterNotice`. Covers: the toggle's open-state tooltip +
 // onToggle tap; the search panel's autofocus + the close-button
 // clear-then-close call order; the filter notice's null-collapse on
 // `all` + its paperclip/label/"All" reset on `attachments` + the reset tap.
@@ -36,8 +35,7 @@ void main() {
                 )),
       );
       final l = _l(tester);
-      // Closed -> the search placeholder tooltip (React reuses
-      // searchPlaceholder for the non-open aria-label).
+      // Closed -> the search placeholder tooltip.
       expect(find.byTooltip(l.chatSearchPlaceholder), findsOneWidget);
       expect(find.byTooltip(l.closeMessageSearch), findsNothing);
       await tester.tap(find.byType(MobileSearchToggle));
@@ -56,12 +54,10 @@ void main() {
                 )),
       );
       final l = _l(tester);
-      // Open -> the dedicated close tooltip (mirrors React's open-state
-      // "Close message search" aria-label).
+      // Open -> the dedicated close tooltip.
       expect(find.byTooltip(l.closeMessageSearch), findsOneWidget);
       expect(find.byTooltip(l.chatSearchPlaceholder), findsNothing);
-      // The icon is tinted with colorScheme.primary while open (mirrors
-      // React's `is-active` class highlight).
+      // The icon is tinted with colorScheme.primary while open.
       final icon = tester.widget<Icon>(
         find.descendant(
           of: find.byType(MobileSearchToggle),
@@ -110,7 +106,7 @@ void main() {
     testWidgets('close button calls onSearch("") THEN onClose (order)',
         (tester) async {
       // Record every call into one list so the ORDER is observable -- the
-      // close button must clear the query before it closes (React L84-87).
+      // close button must clear the query before it closes.
       final calls = <String>[];
       await _pump(
         tester,
@@ -126,7 +122,7 @@ void main() {
       // The close IconButton carries the closeMessageSearch tooltip.
       await tester.tap(find.byTooltip(l.closeMessageSearch));
       await tester.pump();
-      // Order matters: clear THEN close (1-1 with React L84-87).
+      // Order matters: clear THEN close.
       expect(calls, equals(['search:', 'close']));
     });
 
@@ -160,13 +156,11 @@ void main() {
                   l: AppLocalizations.of(context)!,
                 )),
       );
-      // React returns null; the Flutter port returns a zero-size box that
-      // takes no layout space. The notice renders neither the paperclip nor
-      // the "All" reset button.
+      // The notice collapses to a zero-size box that takes no layout space,
+      // rendering neither the paperclip nor the "All" reset button.
       expect(find.byIcon(Icons.attach_file), findsNothing);
       expect(find.byType(TextButton), findsNothing);
-      // The returned SizedBox.shrink() renders at zero size (mirrors
-      // React's `null` taking no layout space in the column).
+      // The returned SizedBox.shrink() renders at zero size.
       final size = tester.getSize(find.byType(MobileConversationFilterNotice));
       expect(size, Size.zero);
     });
@@ -184,7 +178,7 @@ void main() {
       );
       final l = _l(tester);
       // Paperclip icon (Icons.attach_file) + the "Files" label + the "All"
-      // reset button, 1-1 with React L103-111.
+      // reset button.
       expect(find.byIcon(Icons.attach_file), findsOneWidget);
       expect(find.text(l.chatFilterAttachments), findsOneWidget);
       expect(find.text(l.chatFilterAll), findsOneWidget);

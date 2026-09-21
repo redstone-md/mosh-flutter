@@ -234,12 +234,12 @@ pub struct OutgoingCall {
 #[derive(Debug, Clone, Serialize)]
 pub struct ActiveCall {
     pub call_id: String,
-    /// "caller" or "callee" — drives the nonce direction bit on the frontend.
+    /// "caller" or "callee" — drives the nonce direction bit.
     pub direction: String,
     pub key_b64: String,
     pub nonce_prefix_b64: String,
-    /// Unix millis when the call became Active. The frontend renders the
-    /// running timer from this anchor.
+    /// Unix millis when the call became Active; the running timer
+    /// renders from this anchor.
     pub started_at_ms: u64,
 }
 

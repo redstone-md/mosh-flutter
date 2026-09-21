@@ -1,34 +1,28 @@
-// The unread-message OS-toast lifecycle, 1-1 port of React's
-// `useUnreadNotifications` (mosh/src/features/private-dm/notifications/
-// use-unread-notifications.ts). This is the atomic that the
+// The unread-message OS-toast lifecycle. This is the atomic that the
 // `unread_providers.dart` header deferred: it layers the poll-diff
 // lifecycle (clearOnActive + window-focus toasts + `lastSeen`
 // persistence) on top of the per-kind unread counts.
 //
-// The two regressions this fixes vs React:
+// It fixes two problems:
 //  1. The unread badge never cleared when a conversation was opened --
 //     the raw count maps recompute the full not-own count every poll
-//     regardless of which conversation is active. React clears the
-//     active conversation's badge on window-focus (clearUnread(activeKey)
-//     when focused). This provider exposes a `clearUnread` mutation +
-//     clears the active key on a focused poll.
-//  2. No OS toast fired on new messages in the background. React fires
-//     one Tauri sendNotification per newly-grown conversation gated on
-//     `!focused && notificationsReady`. This provider fires one
-//     flutter_local_notifications `show` per diffed non-active
-//     conversation when the window is unfocused + the gate is open.
+//     regardless of which conversation is active. This provider exposes
+//     a `clearUnread` mutation + clears the active key on a focused poll.
+//  2. No OS toast fired on new messages in the background. This provider
+//     fires one flutter_local_notifications `show` per diffed non-active
+//     conversation when the window is unfocused + the notifications gate
+//     is open.
 //
 // Shape: a non-autoDispose `Notifier<Map<String,int>>` so `lastSeen`
 // (the poll-diff baseline) persists across count-provider rebuilds --
 // the Notifier instance is reused by Riverpod across `build` re-runs,
-// so the mutable instance field survives (mirrors React's `lastSeenRef`).
+// so the mutable instance field survives.
 // `build` watches the per-kind counts + the active-conversation key,
 // returns the current unread map (no flicker) and kicks off an async
 // `_runDiff` continuation that awaits the focus seam, computes the
 // diff, advances `lastSeen`, applies clearOnActive + newMessages, and
 // fires the OS toasts. A `_runToken` cancels stale continuations when
-// another watch fires before the focus check resolves (mirrors React's
-// `cancelled` flag).
+// another watch fires before the focus check resolves.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,7 +48,7 @@ final unreadLifecycleProvider =
 );
 
 class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
-  // Poll-diff baseline, 1-1 with React's `lastSeenRef.current`. Persists
+  // Poll-diff baseline. Persists
   // across `build` re-runs because the Notifier instance is reused.
   Map<String, int> _lastSeen = {};
 
@@ -62,7 +56,7 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
   // without a flicker while the async diff runs.
   Map<String, int> _unread = {};
 
-  // Cancels stale async diff continuations (mirrors React's `cancelled`).
+  // Cancels stale async diff continuations.
   int _runToken = 0;
 
   @override
@@ -70,9 +64,8 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     // Watch the per-kind counts + the active key so a count change re-runs
     // `build` (and thus re-runs the diff). `.value` degrades to an empty
     // map while loading/error so the diff sees no conversations for that
-    // slice (matching React's empty-arrays-while-loading shape). The watch
-    // order carries no meaning -- [_runDiff] fixes the order the kinds are
-    // merged in (React's `counts[]`: dm -> group -> channel).
+    // slice. The watch order carries no meaning -- [_runDiff] fixes the
+    // order the kinds are merged in (dm -> group -> channel).
     final dm = ref.watch(unreadCountsProvider(ConversationKind.dm)).value ??
         const <String, int>{};
     final groups =
@@ -91,8 +84,7 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     _runDiff(token, dm, channels, groups, activeKey);
 
     // Return the current unread immediately so the UI does not flicker
-    // while the focus check resolves (React renders with the prior unread
-    // until the effect's async IIFE updates it).
+    // while the focus check resolves.
     return _unread;
   }
 
@@ -103,8 +95,8 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     Map<String, int> groups,
     String? activeKey,
   ) async {
-    // Build the combined counts list, 1-1 with React's `counts[]` (dm +
-    // group + channel, keyed by the same shapes the count maps use).
+    // Build the combined counts list (dm + group + channel, keyed by the
+    // same shapes the count maps use).
     final counts = <ConversationCount>[
       for (final entry in dm.entries)
         ConversationCount(id: entry.key, messageCount: entry.value),
@@ -115,14 +107,13 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     ];
 
     final focused = await ref.read(windowFocusProvider)();
-    // A newer run superseded this one: drop it (React's `cancelled`).
+    // A newer run superseded this one: drop it.
     if (token != _runToken) return;
 
     final diff = diffConversations(counts, _lastSeen, activeKey, !focused);
     _lastSeen = diff.nextLastSeen;
 
-    // clearOnActive: if focused + an active key, clear its unread (React's
-    // `if (focused && activeKey) clearUnread(activeKey)`).
+    // clearOnActive: if focused + an active key, clear its unread.
     if (focused && activeKey != null) {
       if (_unread.containsKey(activeKey)) {
         _unread = {..._unread}..remove(activeKey);
@@ -135,7 +126,7 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     }
 
     // Apply newMessages to the unread map, skipping the active conversation
-    // when focused (React's `if (id === activeKey && focused) continue`).
+    // when focused.
     var next = _unread;
     var mutated = false;
     for (final message in diff.newMessages) {
@@ -149,9 +140,7 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     if (mutated) _unread = next;
 
     // OS toasts: one per diffed conversation when unfocused + the gate is
-    // open (React's `if (!focused && notifyReadyRef.current)`). The body
-    // comes from the existing `notificationBody` (mirrors React's
-    // sendNotification(notificationBody(id))).
+    // open. The body comes from the existing `notificationBody`.
     if (!focused) {
       final ready = ref.read(notificationsReadyProvider).value ?? false;
       if (ready) {
@@ -166,8 +155,7 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
               notificationDetails: moshNotificationDetails,
             );
           } catch (_) {
-            // Notification host unavailable; the badge still updates
-            // (mirrors React's catch around sendNotification).
+            // Notification host unavailable; the badge still updates.
           }
         }
       }
@@ -176,10 +164,9 @@ class _UnreadLifecycleNotifier extends Notifier<Map<String, int>> {
     state = _unread;
   }
 
-  /// Removes `key` from the exposed unread map, 1-1 with React's
-  /// `clearUnread`. Called by the sessions rail on select + the chat
-  /// screens on open so the badge clears the moment a conversation is
-  /// opened (not waiting for the next poll).
+  /// Removes `key` from the exposed unread map. Called by the sessions rail
+  /// on select + the chat screens on open so the badge clears the moment a
+  /// conversation is opened (not waiting for the next poll).
   void clearUnread(String key) {
     if (!_unread.containsKey(key)) return;
     _unread = {..._unread}..remove(key);

@@ -1,9 +1,7 @@
-// S4.2: Invite-URI parser, Dart port of src/features/private-dm/invite/invite-uri.ts.
-// Per ADR 0012, invite-URI parsing is UI work and lives here in Dart (NOT in mosh-core).
-// 1:1 contract with the TypeScript implementation.
+// Invite-URI parser. Per ADR 0012, invite-URI parsing is UI work and
+// lives here in Dart (NOT in mosh-core).
 
-/// Error codes emitted by [InviteParseError]. Mirrors the TS `InviteParseErrorCode`
-/// union. Dart idiom: camelCase enum variants (TS used snake_case string literals).
+/// Error codes emitted by [InviteParseError].
 enum InviteParseErrorCode {
   invalidUrl,
   invalidScheme,
@@ -14,7 +12,7 @@ enum InviteParseErrorCode {
   invalidFingerprint,
 }
 
-/// Exception carrying a single [InviteParseErrorCode]. Mirrors the TS `InviteParseError`.
+/// Exception carrying a single [InviteParseErrorCode].
 class InviteParseError implements Exception {
   final InviteParseErrorCode code;
 

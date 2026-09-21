@@ -2,7 +2,7 @@
 //!
 //! This is the *only* Rust surface the Dart bridge sees, per ADR 0010.
 //! The surface has two shapes. The kind-specific facades (`private_dm`,
-//! `channel`, `private_group`, `org`, ...) keep the former Tauri commands
+//! `channel`, `private_group`, `org`, ...) keep the commands
 //! that are genuinely one kind's: invites, join/create, typed polls and
 //! lists, DM offers, the voice-call pipeline. The actions every conversation
 //! kind shares — send, retry, attachment send/download/cancel, leave — exist
@@ -15,7 +15,8 @@
 //! kept bridge-friendly so `flutter_rust_bridge` can generate the Dart
 //! bindings without manual glue.
 
-/// Facade for the `app_diagnostics` / `native_runtime_status` Tauri commands.
+/// Facade for app-level health: `app_diagnostics` /
+/// `native_runtime_status`.
 pub mod diagnostics;
 
 /// Shared process-global runtime resources (Moss node + attachment store +
@@ -23,26 +24,26 @@ pub mod diagnostics;
 /// `set_app_data_dir`). Borrowed by every runtime facade.
 pub mod shared_runtime;
 
-/// Facade for the `private_dm_*` family of Tauri commands.
+/// Facade for the `private_dm_*` family of commands.
 pub mod private_dm;
 
-/// Facade for the `channel_*` family of Tauri commands.
+/// Facade for the `channel_*` family of commands.
 pub mod channel;
 
-/// Facade for the `private_group_*` family of Tauri commands.
+/// Facade for the `private_group_*` family of commands.
 pub mod private_group;
 
 /// Unified attachment range facade used by the local media HTTP server.
 pub mod attachment_stream;
 
-/// Facade for the `org_*` family of Tauri commands.
+/// Facade for the `org_*` family of commands.
 pub mod org;
 
-/// Facade for the `list_network_interfaces` Tauri command.
+/// Facade for `list_network_interfaces`.
 pub mod network;
 
 /// Facade for the `detect_vpn` / `get_bind_interface` / VPN-bypass-consent
-/// Tauri commands.
+/// commands.
 pub mod vpn;
 
 /// Facade for the voice-call Opus encoder (real mic capture pipeline:

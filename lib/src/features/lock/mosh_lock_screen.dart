@@ -7,10 +7,6 @@
 // `MoshLockScreen` instead; retry re-runs `initMobileDek` (re-prompting
 // biometric per ADR 0011), and on success the root swaps to `MoshApp`.
 //
-// No React equivalent: this is a Flutter-native fail-closed surface (the
-// React app loads its DEK over IPC and surfaces a JS error boundary; there
-// is no OS biometric prompt in that flow).
-//
 // SWAP MECHANISM: a top-level `ValueNotifier<Widget>` owned by `main()`
 // (`_appRoot` in `lib/main.dart`) that `runApp` mounts via
 // `ValueListenableBuilder`. `MoshLockScreen` is constructed by `main()`

@@ -1,5 +1,5 @@
-// Widget tests for the ChatCreateScreen (chat-create step, 1-в-1 with the
-// React ChatCreateStep). Mirrors the established slice-one pattern:
+// Widget tests for the ChatCreateScreen (chat-create step). Mirrors the
+// established slice-one pattern:
 // ProviderScope override of `bridgeFacadeProvider` with a scripted bridge +
 // localized MaterialApp.router (the step's Back button uses context.go).
 //

@@ -1,16 +1,13 @@
-/// The React `MeshDiagnostics` "Moss network" section + its `Metric`
-/// sub-widget, 1-в-1 with React's
-/// `src/features/private-dm/DiagnosticsDrawerSections.tsx`. Extracted into
-/// its own file so `diagnostics_sections.dart` stays under 500 lines.
+/// The "Moss network" diagnostics section + its `Metric` sub-widget.
+/// Extracted into its own file so `diagnostics_sections.dart` stays
+/// under 500 lines.
 ///
-/// In scope (this atomic): `MeshDiagnostics` (the "Moss network"
-/// `.diagnostic-group`) and the `Metric` widget that fills its 2x2 grid.
-/// Reuses the shared primitives `DiagnosticsGroup` / `DiagnosticsRow` /
+/// `MeshDiagnostics` is the "Moss network" group; `Metric` fills its 2x2
+/// grid. Reuses the shared primitives `DiagnosticsGroup` / `DiagnosticsRow` /
 /// `DiagnosticsEmptyState` (from `diagnostics_sections.dart`) and the
 /// pure helpers `peerCount` / `natType` / `relayStatus` / `peerBreakdown`
 /// / `relayBreakdown` (from `diagnostics_helpers.dart`), plus `shorten`
-/// from `lib/src/util/format.dart`. `EventLog` (the third
-/// `SessionDiagnostics` group) is DEFERRED to a later atomic.
+/// from `lib/src/util/format.dart`.
 library;
 
 import 'package:flutter/material.dart';
@@ -22,8 +19,7 @@ import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 import 'package:mosh/src/rust/conversation/mesh.dart';
 import 'package:mosh/src/util/format.dart';
 
-/// The React `MeshDiagnostics`: the "Moss network" `.diagnostic-group`.
-/// Mirrors React's `MeshDiagnostics({ mesh })`:
+/// The "Moss network" diagnostics group.
 ///   - `mesh == null` -> a `DiagnosticsGroup` whose body is the
 ///     `DiagnosticsEmptyState` ("Mesh booting" title + its description).
 ///   - else -> the "Moss network" label, a 2x2 `Metric` grid of
@@ -33,8 +29,8 @@ import 'package:mosh/src/util/format.dart';
 ///
 /// Metric VALUES are data (peerCount / natType / relayStatus /
 /// supernodeReady ? "ready" : "standby") and the small detail words
-/// ("reported type", "can assist peers" / "not promoted") are tight status
-/// tokens -- both kept literal to match React. The metric LABELS, the row
+/// ("reported type", "can assist peers" / "not promoted") are status
+/// tokens -- both kept literal. The metric LABELS, the row
 /// keys, the group label, and the booting title/description are localized.
 /// The Peers/NAT/Relay metric labels reuse the summary-card fact keys
 /// (`summaryFactPeers` / `summaryFactNat` / `summaryFactRelay`) since the
@@ -145,8 +141,8 @@ class MeshDiagnostics extends StatelessWidget {
 }
 
 /// The 2x2 `Metric` grid (Peers / NAT / Relay / Supernode) inside
-/// `MeshDiagnostics`. Mirrors React's `.diagnostic-mesh-grid`. Extracted so
-/// `MeshDiagnostics.build` stays readable; private to this file.
+/// `MeshDiagnostics`. Extracted so `MeshDiagnostics.build` stays
+/// readable; private to this file.
 class _MetricGrid extends StatelessWidget {
   const _MetricGrid({required this.mesh});
 
@@ -206,10 +202,9 @@ class _MetricGrid extends StatelessWidget {
   }
 }
 
-/// The React `Metric`: a label span + a strong value + a small detail.
-/// Mirrors React's `.diagnostic-metric` (a compact cell that fits a 2x2
-/// grid). The label is `fg-3` (onSurfaceVariant), the strong value is
-/// `fg-1` (onSurface), the small detail is `fg-3` again.
+/// A metric cell: a label + a strong value + a small detail. The label is
+/// muted (onSurfaceVariant), the strong value is onSurface, the small
+/// detail is muted again.
 class Metric extends StatelessWidget {
   const Metric({
     super.key,
@@ -218,13 +213,13 @@ class Metric extends StatelessWidget {
     required this.detail,
   });
 
-  /// The metric label (React `span`), already localized by the caller.
+  /// The metric label, already localized by the caller.
   final String label;
 
-  /// The metric value (React `strong`), a data status token -- literal.
+  /// The metric value, a data status token -- literal.
   final String value;
 
-  /// The metric detail (React `small`), a status token -- literal.
+  /// The metric detail, a status token -- literal.
   final String detail;
 
   @override

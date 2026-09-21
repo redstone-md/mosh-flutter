@@ -1,11 +1,8 @@
-// DM-offer rail server-state provider -- the Flutter mirror of React
-// useDmOffers pendingOffers (src/features/private-dm/use-dm-offers.ts).
-// Flattens the per-channel + per-group dmOffers lists into one flat list
-// of [PendingDmOffer] tagged with the originating host + kind, exactly as
-// React pendingOffers = [...channels.flatMap(...), ...groups.flatMap(...)]
-// does. The sessions rail renders one [OfferRailEntry] per pending offer at
-// the top of the rail (React SessionRail order: offers -> sessions -> groups
-// -> channels -> orgs).
+// DM-offer rail server-state provider. Flattens the per-channel + per-group
+// dmOffers lists into one flat list of [PendingDmOffer] tagged with the
+// originating host + kind. The sessions rail renders one [OfferRailEntry]
+// per pending offer at the top of the rail (order: offers -> sessions ->
+// groups -> channels -> orgs).
 //
 // Per ADR 0010: this is a derived provider (no Gateway call of its own --
 // it watches the channel and group entries of the conversation list, the
@@ -21,8 +18,7 @@ import 'package:mosh/src/rust/conversation/dm_offers.dart';
 import 'package:mosh/src/state/conversation_providers.dart'
     show channelsOf, conversationListProvider, groupsOf;
 
-/// A DM offer pending action, tagged with its originating host + kind.
-/// Mirrors React PendingDmOffer = DmOffer & { kind, host } (use-dm-offers.ts):
+/// A DM offer pending action, tagged with its originating host + kind:
 /// the raw DmOffer (offerId/fromDevice/fromFingerprint/targetFingerprint/
 /// inviteUri) plus kind (channel | group) and host (channel name OR group
 /// groupId -- the key the dismiss call needs).
@@ -50,7 +46,7 @@ class PendingDmOffer {
 /// from the channel and group entries of the conversation list (the existing
 /// server-state reads), so it auto-refreshes when either invalidates. Empty
 /// when both lists are loading/error/empty. Order is
-/// channels-first-then-groups, matching React pendingOffers spread order.
+/// channels-first-then-groups.
 final pendingDmOffersProvider = Provider<List<PendingDmOffer>>((ref) {
   final channels = channelsOf(
       ref.watch(conversationListProvider(ConversationKind.channel)).value);

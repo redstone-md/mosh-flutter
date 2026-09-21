@@ -1,4 +1,4 @@
-// Primary controls carry a >= 40px tap area while their React-parity visuals
+// Primary controls carry a >= 40px tap area while their painted visuals
 // stay unchanged (audit 2026-09-21, hit-areas finding).
 //
 // Per control:
@@ -57,10 +57,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final rect = tester.getRect(find.byKey(kComposerSendButtonKey));
-    // Composer layout parity: the Row child is the button's own M3 padded
+    // Composer layout: the Row child is the button's own M3 padded
     // layout box (>= 40px on every platform; the exact height tracks the
-    // row). React parity: the painted square inside stays 32x32. No wrapper
-    // consumes composer Row space (CodeAnt #12 comment on
+    // row). The painted square inside stays 32x32. No wrapper consumes
+    // composer Row space (CodeAnt #12 comment on
     // conversation_composer.dart).
     expect(rect.width, greaterThanOrEqualTo(40));
     expect(rect.height, greaterThanOrEqualTo(40));

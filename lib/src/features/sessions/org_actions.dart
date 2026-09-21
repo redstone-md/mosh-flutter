@@ -1,6 +1,5 @@
-// Org-roster rail actions -- the Flutter mirror of React's `use-orgs.ts`
-// callbacks that SessionScreen wires into [OrgSection]. Mirrors React's
-// per-action callbacks (leaveOrg, openMemberDm, acceptDmOffer, ...) 1:1.
+// Org-roster rail actions -- one action per callback that SessionsScreen
+// wires into [OrgSection] (leaveOrg, openMemberDm, acceptDmOffer, ...).
 //
 // Each action is reduced to its own bridge-facade call and the route it
 // lands on
@@ -86,7 +85,7 @@ Future<void> _runOrgAction(
   }
 }
 
-/// Leave an org (React leaveOrg). The org row leaves the rail on the
+/// Leave an org. The org row leaves the rail on the
 /// refresh; nothing to open.
 Future<void> leaveOrgAction(
   BuildContext context,
@@ -98,7 +97,7 @@ Future<void> leaveOrgAction(
       return const _OrgLanding.stay();
     });
 
-/// Open a DM with a roster member (React openMemberDm): jump to the linked
+/// Open a DM with a roster member: jump to the linked
 /// session if one exists, else send an org DM offer + land on the new DM.
 Future<void> openMemberDmAction(
   BuildContext context,
@@ -125,7 +124,7 @@ Future<void> openMemberDmAction(
   });
 }
 
-/// Accept an org DM offer (React acceptDmOffer) + land on the new DM.
+/// Accept an org DM offer + land on the new DM.
 Future<void> acceptOrgDmOfferAction(
   BuildContext context,
   WidgetRef ref,
@@ -143,7 +142,7 @@ Future<void> acceptOrgDmOfferAction(
       return _OrgLanding.land(AppRoutes.dmFor(session.sessionId));
     });
 
-/// Dismiss an org DM offer (React dismissDmOffer). The offer row leaves the
+/// Dismiss an org DM offer. The offer row leaves the
 /// roster on the refresh; nothing to open.
 Future<void> dismissOrgDmOfferAction(
   BuildContext context,
@@ -159,7 +158,7 @@ Future<void> dismissOrgDmOfferAction(
       return const _OrgLanding.stay();
     });
 
-/// Accept an org group offer (React acceptGroupOffer) + land on the group.
+/// Accept an org group offer + land on the group.
 Future<void> acceptOrgGroupOfferAction(
   BuildContext context,
   WidgetRef ref,
@@ -177,7 +176,7 @@ Future<void> acceptOrgGroupOfferAction(
       return _OrgLanding.land(AppRoutes.groupFor(group.groupId));
     });
 
-/// Dismiss an org group offer (React dismissGroupOffer). The offer row
+/// Dismiss an org group offer. The offer row
 /// leaves the roster on the refresh; nothing to open.
 Future<void> dismissOrgGroupOfferAction(
   BuildContext context,
@@ -193,8 +192,8 @@ Future<void> dismissOrgGroupOfferAction(
       return const _OrgLanding.stay();
     });
 
-/// Create an org-bound group + offer it to every non-self roster member
-/// (React createOrgGroup), then land on the new group.
+/// Create an org-bound group + offer it to every non-self roster member,
+/// then land on the new group.
 Future<void> createOrgGroupAction(
   BuildContext context,
   WidgetRef ref,

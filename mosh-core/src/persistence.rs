@@ -12,9 +12,8 @@ use crate::secure_storage::{OsSecureSecretStore, SecureSecretStore};
 const NONCE_LEN: usize = 12;
 
 /// Runtime status snapshot for the persistence module. Canonical home for the
-/// readiness marker the diagnostics facade reports; fields mirror the struct
-/// the previous Tauri shell carried (backend id, database path, availability,
-/// at-rest encryption flag, and an optional error string).
+/// readiness marker the diagnostics facade reports: backend id, database
+/// path, availability, at-rest encryption flag, and an optional error string.
 #[derive(serde::Serialize, Clone)]
 #[frb(non_opaque)]
 pub struct PersistenceRuntimeStatus {

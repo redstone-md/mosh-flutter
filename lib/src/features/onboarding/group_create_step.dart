@@ -1,21 +1,19 @@
-// Embeddable group-create step body -- 1:1 with React `GroupCreateStep`
-// (src/features/private-dm/NewSessionPanelSteps.tsx): body, OPTIONAL label
-// input, Create/Recreate button (label flips once an invite exists),
-// InlineError, InviteResult. NO frame, NO back affordance, NO title -- the
+// Embeddable group-create step body: body, OPTIONAL label input,
+// Create/Recreate button (label flips once an invite exists),
+// InlineError, InviteResult. No frame, back affordance, or title -- the
 // caller wraps this in [OnboardStepFrame] (full screen) or OnboardStepBody
 // (inline, atomic #8).
 //
 // State split (ADR 0010): the group label + GroupCreated result are
-// per-step widget-local (React keeps the label as per-step `value` and
-// `groupCreateState` in `usePrivateDmSetup`, NOT in the DM
-// inviteFlowProvider). Only `_busy`/`_copied`/`_error` are also ephemeral
-// UI. The displayName/listenPort/staticPeer come from [inviteFlowProvider]
-// -- the same settings source createInvite uses.
+// per-step widget-local, NOT in the DM inviteFlowProvider. Only
+// `_busy`/`_copied`/`_error` are also ephemeral UI. The
+// displayName/listenPort/staticPeer come from [inviteFlowProvider] -- the
+// same settings source createInvite uses.
 //
-// `onBack` is injected (1:1 with React `props.onBack`): the step renders no
-// back affordance itself; the framing widget owns the Back button. The step
-// does NOT context.go itself; the caller decides routing (route for
-// GroupCreateScreen, inline step-switch for the chat-pane in atomic #8).
+// `onBack` is injected: the step renders no back affordance itself; the
+// framing widget owns the Back button. The step does NOT context.go
+// itself; the caller decides routing (route for GroupCreateScreen,
+// inline step-switch for the chat-pane in atomic #8).
 library;
 
 import 'package:flutter/material.dart';
@@ -41,17 +39,16 @@ import 'package:mosh/src/features/shared/conversation_action_error.dart';
 /// `_created` is set), persistent [InlineError], and [InviteResult] card
 /// shown after the first successful create. Caller wraps this in
 /// [OnboardStepFrame] (full-screen route, e.g. GroupCreateScreen) or
-/// OnboardStepBody (inline, atomic #8). Mirrors React `GroupCreateStep`
-/// (NewSessionPanelSteps.tsx). State stays in this widget (label,
+/// OnboardStepBody (inline, atomic #8). State stays in this widget (label,
 /// GroupCreated, busy/copied/error are ephemeral UI); the
 /// displayName/listenPort/staticPeer settings come from
 /// [inviteFlowProvider].
 class GroupCreateStep extends ConsumerStatefulWidget {
   const GroupCreateStep({super.key, required this.onBack});
 
-  /// Back-navigation callback (1:1 with React `props.onBack`). The step
-  /// body does not render a back affordance itself; the framing widget
-  /// owns the Back button and wires it to this callback.
+  /// Back-navigation callback. The step body does not render a back
+  /// affordance itself; the framing widget owns the Back button and
+  /// wires it to this callback.
   final VoidCallback onBack;
 
   @override
@@ -62,15 +59,12 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
   late final TextEditingController _labelController;
   bool _busy = false;
   bool _copied = false;
-  // Persistent inline error (parity with React's `props.error` on
-  // NewSessionPanel -- stays until the next create attempt). Cleared at
-  // the START of the next create below.
+  // Persistent inline error -- stays until the next create attempt.
+  // Cleared at the START of the next create below.
   ConversationActionError? _error;
   // The GroupCreated from the last successful create (null until the first
-  // create). Kept widget-local -- React's `groupCreateState` lives in
-  // `usePrivateDmSetup` per-step state, not the DM inviteFlowProvider, so
-  // this mirrors that separation (ADR 0010 widget-local state for per-step
-  // UI state).
+  // create). Kept widget-local -- per-step UI state stays out of the DM
+  // inviteFlowProvider (ADR 0010).
   GroupCreated? _created;
 
   @override
@@ -86,13 +80,12 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
   }
 
   // Calls bridge.createGroup with a CreateGroupRequest built from the
-  // entered label (trimmed, null if empty -- React `label.trim() || null`)
-  // + inviteFlowProvider's displayName/listenPort/staticPeer (the same
-  // settings source createInvite uses, ADR 0010), copies the returned invite
-  // URI to the clipboard (React `copyText(created.invite_uri)`), and stores
-  // the GroupCreated so the InviteResult branch renders. Stays on this step
-  // (React `setShowSetup(true)` -- the user shares the invite before
-  // navigating away; the card's Open button is the way in). Mirrors
+  // entered label (trimmed, null if empty) + inviteFlowProvider's
+  // displayName/listenPort/staticPeer (the same settings source
+  // createInvite uses, ADR 0010), copies the returned invite URI to the
+  // clipboard, and stores the GroupCreated so the InviteResult branch
+  // renders. Stays on this step -- the user shares the invite before
+  // navigating away; the card's Open button is the way in. Mirrors
   // ChatCreateStep's busy + reset-copied + try/finally pattern.
   Future<void> _onCreate() async {
     if (_busy) return;
@@ -146,7 +139,6 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // .step-body: 12.5px, 1.6 line-height, fg-3 (onSurfaceVariant).
         Text(
           l.onboardGroupStepBody,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -156,9 +148,8 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
           ),
         ),
         const SizedBox(height: 20),
-        // .step-input: rounded bordered TextField, 12.5px text. The
-        // label is OPTIONAL in React (Create is `disabled={busy}` only),
-        // so the input stays enabled regardless of whether text exists.
+        // Rounded bordered TextField, 12.5px text. The label is OPTIONAL:
+        // the input stays enabled regardless of whether text exists.
         TextField(
           controller: _labelController,
           decoration: InputDecoration(
@@ -174,10 +165,9 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
           onSubmitted: (_) => _onCreate(),
         ),
         const SizedBox(height: 20),
-        // .btn.btn-primary.btn-block: full-width primary (mirrors
-        // ChatCreateStep's FilledButton with minimumSize 48h). The label
-        // flips Create/Recreate based on `_created` (null = first create).
-        // NOT disabled by an empty label (React `disabled={busy}` only).
+        // Full-width primary button (mirrors ChatCreateStep's FilledButton
+        // with minimumSize 48h). The label flips Create/Recreate based on
+        // `_created` (null = first create). NOT disabled by an empty label.
         FilledButton(
           onPressed: _busy ? null : _onCreate,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
@@ -198,8 +188,7 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
           InlineError(message: _error?.describe(l)),
         ],
         // Renders only after a successful create (`_created != null`).
-        // Mirrors React's GroupCreateStep InviteResult card; the URI is
-        // auto-copied on create and re-copyable via `_onCopy`.
+        // The URI is auto-copied on create and re-copyable via `_onCopy`.
         if (_created != null) ...[
           const SizedBox(height: 20),
           InviteResult(

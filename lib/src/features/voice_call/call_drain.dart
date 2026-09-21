@@ -1,10 +1,9 @@
-/// Gateway poll-loop glue for voice-call frame draining -- 1:1 port of
-/// React `mosh/src/features/private-dm/voice-call/call-drain.ts`. Pulls
-/// pending wire frames for a call from the [CallFrameSource] gateway,
-/// decrypts each (skipping any that fail auth), pushes the survivors
-/// into the [JitterBuffer], then drains the ready (reordered) frames to
-/// the [CallFrameSink] playback handle. Pure of Flutter/Tauri so the
-/// poll loop can guard it and so it is unit-testable.
+/// Gateway poll-loop glue for voice-call frame draining. Pulls pending wire
+/// frames for a call from the [CallFrameSource] gateway, decrypts each
+/// (skipping any that fail auth), pushes the survivors into the
+/// [JitterBuffer], then drains the ready (reordered) frames to the
+/// [CallFrameSink] playback handle. Pure of Flutter so the poll loop can
+/// guard it and so it is unit-testable.
 library;
 
 import 'dart:typed_data';
@@ -15,23 +14,21 @@ import 'frame_codec.dart';
 import 'frame_crypto.dart';
 import 'jitter_buffer.dart';
 
-/// Pulls pending wire frames for a call -- 1:1 with React `CallFrameSource`.
-/// The only gateway method this module needs.
+/// Pulls pending wire frames for a call. The only gateway method this
+/// module needs.
 abstract interface class CallFrameSource {
   Future<List<String>> callDrainFrames(String sessionId, String callId);
 }
 
-/// Where decoded, reordered frames go -- 1:1 with React `CallFrameSink`.
-/// The playback handle, narrowed.
+/// Where decoded, reordered frames go. The playback handle, narrowed.
 abstract interface class CallFrameSink {
   void pushFrame(BigInt seq, Uint8List payload);
 }
 
 /// Drains pending wire frames, decrypts each (skipping any that fail
 /// auth), reorders them through the jitter buffer, and feeds the ready
-/// ones to playback -- 1:1 with React `drainCallFrames`. Uses named
-/// params (Dart idiom for a 7-arg surface; matches the call-site
-/// convention elsewhere in this feature).
+/// ones to playback. Uses named params (Dart idiom for a 7-arg surface;
+/// matches the call-site convention elsewhere in this feature).
 Future<void> drainCallFrames({
   required CallFrameSource source,
   required String sessionId,

@@ -1,7 +1,6 @@
-// Embeddable chat-create step body -- 1:1 with React `ChatCreateStep`
-// (src/features/private-dm/NewSessionPanelSteps.tsx): body, Create/Recreate
-// button (label flips once an invite exists), InlineError, InviteResult.
-// NO frame, NO back affordance, NO title -- the caller wraps this in
+// Embeddable chat-create step body: body, Create/Recreate button (label
+// flips once an invite exists), InlineError, InviteResult. No frame,
+// back affordance, or title -- the caller wraps this in
 // [OnboardStepFrame] (full screen) or OnboardStepBody (inline, atomic #8).
 //
 // State split (ADR 0010): the invite URI is server-derived state read from
@@ -9,11 +8,11 @@
 // Only the local `_busy` (create in flight) and `_copied` (just-copied)
 // flags are widget-local -- ephemeral UI state.
 //
-// `onBack` is injected (1:1 with React `props.onBack`): the step body
-// renders no back affordance itself; the framing widget owns the Back
-// button and wires it to the callback the caller passes here. The step
-// does NOT context.go itself; the caller decides routing (route for
-// ChatCreateScreen, inline step-switch for the chat-pane in atomic #8).
+// `onBack` is injected: the step body renders no back affordance itself;
+// the framing widget owns the Back button and wires it to the callback
+// the caller passes here. The step does NOT context.go itself; the caller
+// decides routing (route for ChatCreateScreen, inline step-switch for the
+// chat-pane in atomic #8).
 library;
 
 import 'package:flutter/material.dart';
@@ -37,16 +36,15 @@ import 'package:mosh/src/features/shared/conversation_action_error.dart';
 /// `inviteFlowProvider.lastInvite` is set), persistent [InlineError], and
 /// the [InviteResult] card shown after the first successful create. Caller
 /// wraps this in [OnboardStepFrame] (full-screen route, e.g.
-/// ChatCreateScreen) or OnboardStepBody (inline, atomic #8). Mirrors React
-/// `ChatCreateStep` (NewSessionPanelSteps.tsx). State stays in this widget
-/// (busy/copied/error are ephemeral UI); the invite URI is server-derived
-/// via the provider.
+/// ChatCreateScreen) or OnboardStepBody (inline, atomic #8). State stays
+/// in this widget (busy/copied/error are ephemeral UI); the invite URI is
+/// server-derived via the provider.
 class ChatCreateStep extends ConsumerStatefulWidget {
   const ChatCreateStep({super.key, required this.onBack});
 
-  /// Back-navigation callback (1:1 with React `props.onBack`). The step
-  /// body does not render a back affordance itself; the framing widget
-  /// owns the Back button and wires it to this callback.
+  /// Back-navigation callback. The step body does not render a back
+  /// affordance itself; the framing widget owns the Back button and
+  /// wires it to this callback.
   final VoidCallback onBack;
 
   @override
@@ -56,15 +54,14 @@ class ChatCreateStep extends ConsumerStatefulWidget {
 class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
   bool _busy = false;
   bool _copied = false;
-  // Persistent inline error (parity with React's `props.error` on
-  // NewSessionPanel -- stays until the next create attempt). Cleared at
-  // the START of the next attempt below.
+  // Persistent inline error -- stays until the next create attempt.
+  // Cleared at the START of the next attempt below.
   ConversationActionError? _error;
 
   Future<void> _onCreate() async {
     if (_busy) return;
-    // React resets `copied` whenever a new create begins; the previous
-    // invite's "Copied" badge should not persist onto a fresh link.
+    // Reset `copied` whenever a new create begins; the previous invite's
+    // "Copied" badge should not persist onto a fresh link.
     setState(() {
       _busy = true;
       _copied = false;

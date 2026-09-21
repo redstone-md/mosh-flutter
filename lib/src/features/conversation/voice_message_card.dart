@@ -1,12 +1,10 @@
-// Slice-3 voice-message card -- 1-в-1 port of React
-// src/features/private-dm/voice/VoiceMessage.tsx. Rendered by AttachmentCard
-// when descriptor.voice != null (React: if (voice) return VoiceMessage). An
-// inline player: a play/pause button + a 64-bucket waveform (CustomPaint,
-// played/unplayed split at the live progress) + a position/duration label.
-// Tapping the waveform seeks. Playback uses media_kit (the same engine
-// MediaViewer + VoiceComposer preview use); the file path comes from
-// view.localPath. If the file is not local yet (offered/offered incoming),
-// the play button triggers onDownload (React toggle's download branch).
+// Voice-message card, rendered by AttachmentCard when descriptor.voice
+// != null. An inline player: a play/pause button + a 64-bucket waveform
+// (CustomPaint, played/unplayed split at the live progress) + a
+// position/duration label. Tapping the waveform seeks. Playback uses
+// media_kit (the same engine MediaViewer + VoiceComposer preview use); the
+// file path comes from view.localPath. If the file is not local yet
+// (offered/offered incoming), the play button triggers onDownload.
 library;
 
 import 'dart:convert' show base64Decode;
@@ -21,7 +19,7 @@ import 'package:media_kit/media_kit.dart';
 
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
-/// 64 amplitude buckets (mirrors React WAVEFORM_BUCKETS / voice_composer).
+/// 64 amplitude buckets (same count as voice_composer).
 const int _waveformBuckets = 64;
 
 String _formatClock(int ms) {
@@ -31,8 +29,7 @@ String _formatClock(int ms) {
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
-/// Decode the base64 peaks (React peaksFromBase64). Malformed -> flat zeros,
-/// never fatal.
+/// Decode the base64 peaks. Malformed -> flat zeros, never fatal.
 Uint8List _peaksFromBase64(String? b64) {
   final peaks = Uint8List(_waveformBuckets);
   if (b64 == null || b64.isEmpty) return peaks;
@@ -49,7 +46,7 @@ Uint8List _peaksFromBase64(String? b64) {
 
 /// Inline voice-message player. [descriptor] carries the VoiceMeta (duration
 /// + peaks); [view] carries the local path + transfer state; [onDownload] is
-/// fired when the user taps play before the file is local (React toggle).
+/// fired when the user taps play before the file is local.
 class VoiceMessageCard extends StatefulWidget {
   const VoiceMessageCard({
     super.key,
@@ -105,7 +102,7 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   void didUpdateWidget(covariant VoiceMessageCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     // If the local path arrived (download finished), open it on the player so
-    // the queued play can proceed (React playWhenReady effect).
+    // the queued play can proceed.
     final newPath = widget.view?.localPath;
     final oldPath = oldWidget.view?.localPath;
     if (newPath != null && newPath != oldPath) {
@@ -135,7 +132,7 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     final player = _player;
     final localPath = widget.view?.localPath;
     if (localPath == null) {
-      // React toggle download branch: not local yet -> trigger download.
+      // Not local yet -> trigger download.
       if (!_downloading) {
         widget.onDownload(widget.descriptor.attachmentId);
       }
@@ -163,17 +160,16 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     final voice = widget.descriptor.voice;
     final durationMs = voice?.durationMs ?? 0;
     final peaks = _peaksFromBase64(voice?.peaksB64);
-    // React: progress = durationMs > 0 ? min(1, positionMs / durationMs) : 0.
+    // Progress clamps to 0..1; 0 when duration is unknown.
     final progress = durationMs > 0
         ? (math.min(1.0, _position.inMilliseconds / durationMs))
         : 0.0;
-    // React: time shows position while playing/seeked, else the full duration.
+    // Time shows position while playing/seeked, else the full duration.
     final showMs = (_playing || _position.inMilliseconds > 0)
         ? _position.inMilliseconds
         : durationMs;
     final playLabel = _playing ? widget.pauseLabel : widget.playLabel;
-    // React `.voice-message { gap: 8px; padding: 6px 8px; border-radius:
-    // 10px; background: rgba(127,127,127,0.12); max-width: 280px }`.
+    // 12% gray rounded pill, 280px max width, 8px gaps.
     final enabled = !(widget.busy && widget.view?.localPath == null);
     return Container(
       constraints: const BoxConstraints(maxWidth: 280),
@@ -239,7 +235,7 @@ class VoiceCardTimeLabel extends StatelessWidget {
   const VoiceCardTimeLabel({super.key, required this.ms});
 
   /// The moment to render: playback position while playing/seeked, else the
-  /// clip's full duration (React's `showMs`).
+  /// clip's full duration.
   final int ms;
 
   @override
@@ -261,8 +257,7 @@ class VoiceCardTimeLabel extends StatelessWidget {
 /// The voice wave: 64 buckets with a played/unplayed split, plus the seek
 /// gesture. Owns its own box: the ratio is measured against the WAVE's
 /// width, not the card's (`Builder` context), so a tap near the right edge
-/// reports ~1.0 no matter how wide the card renders -- the React contract
-/// `ratio = (clientX - rect.left) / rect.width` with `rect` = the wave.
+/// reports ~1.0 no matter how wide the card renders.
 class VoiceWaveform extends StatelessWidget {
   const VoiceWaveform({
     super.key,
@@ -313,10 +308,10 @@ class VoiceWaveform extends StatelessWidget {
   }
 }
 
-/// Draws the 64-bucket waveform with a played/unplayed split (React
-/// drawWaveform): each bucket is a centered vertical bar whose height is the
-/// bucket's amplitude (0..255 -> 0..height, min 2px); bars below the progress
-/// use the played color, the rest the unplayed color.
+/// Draws the 64-bucket waveform with a played/unplayed split: each bucket
+/// is a centered vertical bar whose height is the bucket's amplitude
+/// (0..255 -> 0..height, min 2px); bars below the progress use the played
+/// color, the rest the unplayed color.
 class _WaveformPainter extends CustomPainter {
   const _WaveformPainter({
     required this.peaks,

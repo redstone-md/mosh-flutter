@@ -1,13 +1,9 @@
 // VoicePlayback -- the seam between the call orchestrator and an actual
-// audio playback pipeline. React's `audio-playback.ts` schedules decoded
-// Opus frames via Web Audio with drift-resync. Flutter's real playback
-// (the `media_kit` package) is a later slice; to keep the orchestrator
-// unit-testable without a native audio backend, the orchestrator takes a
-// [VoicePlaybackFactory] and calls `start()` to get a [VoicePlaybackHandle]
-// it feeds via `pushFrame` and `stop()`s on detach -- exactly mirroring
-// React's `playbackRef.current = startVoicePlayback()` /
-// `playbackRef.current.pushFrame(seq, payload)` / `playbackRef.current
-// ?.stop()` lifecycle.
+// audio playback pipeline (decoded Opus frames scheduled for playback
+// with drift-resync). To keep the orchestrator unit-testable without a
+// native audio backend, the orchestrator takes a [VoicePlaybackFactory]
+// and calls `start()` to get a [VoicePlaybackHandle] it feeds via
+// `pushFrame` and `stop()`s on detach.
 //
 // Note: [VoicePlaybackHandle.pushFrame] is signature-identical to
 // [CallFrameSink.pushFrame] (call_drain.dart), so the orchestrator passes
@@ -29,17 +25,14 @@ import 'dart:typed_data';
 
 import 'call_drain.dart';
 
-/// A handle to a started voice playback -- mirrors React's
-/// `VoicePlaybackHandle` (`{ pushFrame(seq, payload); stop(): void }`).
-/// The orchestrator holds this from `start()` until `detach()`, feeds
-/// it decoded frames via `pushFrame`, then calls `stop()`. Implements
+/// A handle to a started voice playback. The orchestrator holds this from
+/// `start()` until `detach()`, feeds it decoded frames via `pushFrame`, then
+/// calls `stop()`. Implements
 /// [CallFrameSink] so the orchestrator can pass it straight into
 /// [drainCallFrames] as the playback sink with no adapter.
 abstract interface class VoicePlaybackHandle implements CallFrameSink {
   /// Schedules a decoded frame for playback. Signature-identical to
-  /// [CallFrameSink.pushFrame]; the parameter is named `opusFrame` here
-  /// to mirror the React source's semantic, while [CallFrameSink] names
-  /// it `payload` -- the signatures match, only the name differs.
+  /// [CallFrameSink.pushFrame]; only the parameter name differs.
   @override
   void pushFrame(BigInt seq, Uint8List opusFrame);
 

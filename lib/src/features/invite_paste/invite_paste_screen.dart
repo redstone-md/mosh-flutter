@@ -5,7 +5,7 @@
 // navigation) was extracted to [OnboardJoinStep] so atomic #8 can compose
 // the SAME content inline in the desktop chat-pane. This screen owns only
 // the routing decision (Back -> AppRoutes.onboarding). The AppBar is gone
-// (the frame's Back button replaces it), 1-to-1 with React OnboardJoinStep.
+// (the frame's Back button replaces it).
 //
 // Navigation split (mirrors atomic #6 ChannelJoinStep): the SUCCESS
 // navigation (group -> groupFor, org -> sessions, dm -> inline

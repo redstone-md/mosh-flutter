@@ -1,8 +1,7 @@
-// Parity tests for VoiceCallOrchestrator -- the 1:1 port of React
-// use-voice-call-orchestration's useEffect pump. Each test drives the
+// Tests for VoiceCallOrchestrator. Each test drives the
 // orchestrator with Noop / recording / firing capture + playback factories
-// and a recording transport over a recording Gateway, so the React
-// effect's full surface (cancelled windows, draining guard, seq
+// and a recording transport over a recording Gateway, so the orchestrator's
+// full surface (cancelled windows, draining guard, seq
 // snapshot+inc, jitter reorder, setup-failure -> endCall) is exercised
 // without any native audio backend. Real Future.delayed matches the
 // repo convention; the crypto futures (sealFrame/openFrame) use real

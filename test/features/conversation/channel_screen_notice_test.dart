@@ -1,11 +1,8 @@
-// Widget test for the public-channel notice banner -- the 1-в-1 port of
-// React `PublicNotice` (ActiveChatPanes.tsx ~L434-445), wired into
-// ChannelScreen at the top of the body Column (matching React's
-// `afterHeader` slot, ABOVE ConversationTools). Asserts the banner renders
-// with the localized title + body so a regression that drops the banner
-// (or wires it in the wrong slot) fails. Mirrors the seed/override idiom
-// of `channel_screen_grouping_test.dart` (override `channelSnapshotProvider`
-// so the native cdylib is not involved).
+// Widget test for the public-channel notice banner wired into ChannelScreen
+// at the top of the body Column, above ConversationTools. Asserts the
+// banner renders with the localized title + body so a regression that drops
+// the banner (or wires it in the wrong slot) fails. Overrides
+// `channelSnapshotProvider` so the native cdylib is not involved.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/channel_screen.dart';
@@ -51,10 +48,9 @@ ChannelSnapshot _snapshot({
     );
 
 void main() {
-  // The banner is ALWAYS shown for a channel (no conditional -- every
-  // channel renders `PublicNotice`), so a channel with messages is enough
-  // to assert it appears alongside the list. Resolves the localized en
-  // strings via AppLocalizations so the test pins the exact ARB values.
+  // The banner is always shown for a channel, so a channel with messages is
+  // enough to assert it appears alongside the list. Resolves the localized
+  // en strings via AppLocalizations so the test pins the exact ARB values.
   testWidgets('channel screen renders the public-channel notice banner',
       (tester) async {
     const name = 'chan-notice';

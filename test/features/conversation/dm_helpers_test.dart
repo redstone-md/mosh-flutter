@@ -1,8 +1,7 @@
-// Unit tests for [avatarInitials] -- the Flutter port of React's `Avatar`
-// initials algorithm (src/features/private-dm/Avatar.tsx):
+// Unit tests for [avatarInitials]:
 //   name.split(/[\s_-]+/).map(p => p[0]).filter(Boolean).join("").slice(0,2).toUpperCase() || "?"
-// Each case below mirrors the React behavior 1-в-1 so a future change to
-// either side surfaces as a test failure. Pure function -- no widget harness.
+// Each case below pins the expected behavior so a future change surfaces
+// as a test failure. Pure function -- no widget harness.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 
@@ -12,7 +11,7 @@ import '../../support/pump.dart';
 
 void main() {
   group('avatarInitials', () {
-    // --- Parity cases (React Avatar.tsx behavior) ---
+    // --- Behavior cases ---
     test('compound dash name -> two initials', () {
       expect(avatarInitials('juno-phone'), 'JP');
     });
@@ -82,17 +81,15 @@ void main() {
     });
   });
 
-  // Widget tests for [DeliveryTicks] -- the Flutter port of React's
-  // `DeliveryTicks` (src/features/private-dm/MessageLists.tsx:411-432).
-  // React renders the FULL readable label (glyph + word) inside
-  // `<small className="delivery-ticks" aria-label="Delivery: {label}">`:
+  // Widget tests for [DeliveryTicks]. The widget renders the FULL readable
+  // label (glyph + word) with a matching semantics label:
   //   delivered -> "✓✓ delivered"
   //   sent      -> "✓ sent"
   //   pending   -> "sending…"
-  //   failed/null -> renders nothing (return null).
+  //   failed/null -> renders nothing.
   // Each case pumps [DeliveryTicks] in a localized `MaterialApp` (en) and
   // asserts BOTH the visible `Text` matches the localized label AND the
-  // `Semantics` label is "Delivery: <label>" (mirroring React's aria-label).
+  // `Semantics` label is "Delivery: <label>".
   group('DeliveryTicks', () {
     testWidgets(
         'delivered -> "✓✓ delivered" text + "Delivery: ✓✓ delivered" semantics',

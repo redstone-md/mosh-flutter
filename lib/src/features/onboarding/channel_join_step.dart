@@ -1,25 +1,20 @@
-// Embeddable channel-join step body -- 1:1 with React `ChannelJoinStep`
-// (src/features/private-dm/NewSessionPanelSteps.tsx): body, the
-// `.step-channel-input` box (`#` prefix + borderless TextField), Join
-// button, InlineError. NO frame, NO back affordance, NO title -- the
-// caller wraps this in [OnboardStepFrame] (full screen) or OnboardStepBody
-// (inline, atomic #8).
+// Embeddable channel-join step body: the `#`-prefixed channel-name
+// input, Join button, and InlineError. No frame, back affordance, or
+// title -- the caller wraps this in [OnboardStepFrame] (full screen) or
+// OnboardStepBody (inline, atomic #8).
 //
-// Scope: the step UI + the joinChannel bridge-facade seam (slice-3). Join
-// calls
-// `bridge.joinChannel` with the entered name + the
-// displayName/listenPort/staticPeer from [inviteFlowProvider] (ADR 0010
-// DRY: one settings source for both flows), then navigates to the channel
-// screen on success. The name is ephemeral to this step visit (React
-// per-step `useState`), so the controller stays widget-local.
+// Join calls `bridge.joinChannel` with the entered name plus the
+// displayName/listenPort/staticPeer from [inviteFlowProvider] (ADR 0010:
+// one settings source for both flows), then navigates to the channel
+// screen on success. The name is ephemeral to this step visit, so the
+// controller stays widget-local.
 //
 // Navigation split (differs from atomic #4/#5): the SUCCESS navigation
 // (`context.go(AppRoutes.channelFor(name))`) stays INSIDE this step -- the
 // same destination for the full-screen route and the inline desktop panel.
-// Only `onBack` is injected (1:1 with React `props.onBack`): the caller
-// decides where Back goes (route screen -> AppRoutes.onboarding, inline
-// panel -> back to menu). Hence go_router + app_router stay imported here
-// for the success hop.
+// Only `onBack` is injected: the caller decides where Back goes (route
+// screen -> AppRoutes.onboarding, inline panel -> back to menu). Hence
+// go_router + app_router stay imported here for the success hop.
 library;
 
 import 'package:flutter/material.dart';
@@ -39,26 +34,23 @@ import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 
 /// Embeddable channel-join step body -- the step CONTENT only: body
-/// paragraph, `.step-channel-input` box (`#` + borderless TextField), Join
-/// button, persistent [InlineError]. Caller wraps this in
-/// [OnboardStepFrame] (full-screen route, e.g. ChannelJoinScreen) or
-/// OnboardStepBody (inline, atomic #8). Mirrors React `ChannelJoinStep`
-/// (NewSessionPanelSteps.tsx). State stays in this widget
-/// (name/canJoin/busy/error are ephemeral UI).
+/// paragraph, `#`-prefixed name input, Join button, persistent
+/// [InlineError]. Caller wraps this in [OnboardStepFrame] (full-screen
+/// route, e.g. ChannelJoinScreen) or OnboardStepBody (inline, atomic #8).
+/// State stays in this widget (name/canJoin/busy/error are ephemeral UI).
 ///
-/// [onBack] is an injected VoidCallback (1:1 with React `props.onBack`)
-/// reserved for caller parity -- the step body renders no back affordance
-/// itself; the framing widget owns the Back button and wires it to this
-/// callback. Unlike atomic #4/#5, this step KEEPS the success navigation
-/// (`context.go(AppRoutes.channelFor(name))`) inside itself because both the
-/// route screen and the inline panel land on the same channel destination.
-/// Only Back routing is delegated to the caller.
+/// [onBack] is reserved for the framing widget, which owns the Back
+/// button and wires it to this callback; the step body renders no back
+/// affordance itself. Unlike atomic #4/#5, this step KEEPS the success
+/// navigation (`context.go(AppRoutes.channelFor(name))`) inside itself
+/// because both the route screen and the inline panel land on the same
+/// channel destination. Only Back routing is delegated to the caller.
 class ChannelJoinStep extends ConsumerStatefulWidget {
   const ChannelJoinStep({super.key, required this.onBack});
 
-  /// Back-navigation callback (1:1 with React `props.onBack`). The step
-  /// body does not render a back affordance itself; the framing widget
-  /// owns the Back button and wires it to this callback.
+  /// Back-navigation callback. The step body does not render a back
+  /// affordance itself; the framing widget owns the Back button and
+  /// wires it to this callback.
   final VoidCallback onBack;
 
   @override
@@ -69,9 +61,8 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
   late final TextEditingController _nameController;
   bool _canJoin = false;
   bool _busy = false;
-  // Persistent inline error (parity with React's `props.error` on
-  // NewSessionPanel -- stays until the next join attempt). Cleared at
-  // the START of the next join below.
+  // Persistent inline error -- stays until the next join attempt.
+  // Cleared at the START of the next join below.
   ConversationActionError? _error;
 
   @override
@@ -136,7 +127,6 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // .step-body: 12.5px, 1.6 line-height, fg-3 (onSurfaceVariant).
         Text(
           l.onboardChannelStepBody,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -146,8 +136,8 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
           ),
         ),
         const SizedBox(height: 16),
-        // .step-channel-input: rounded bordered box with `#` + borderless
-        // input. The `#` is aria-hidden in React (decorative).
+        // Rounded bordered box with a decorative `#` prefix and a
+        // borderless input.
         Container(
           padding: const EdgeInsets.only(left: 12),
           decoration: BoxDecoration(
@@ -186,8 +176,8 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
           ),
         ),
         const SizedBox(height: 16),
-        // .btn.btn-primary.btn-block: full-width primary (mirrors
-        // ChatCreateScreen's FilledButton with minimumSize 48h).
+        // Full-width primary button (mirrors ChatCreateScreen's
+        // FilledButton with minimumSize 48h).
         FilledButton(
           onPressed: (_canJoin && !_busy) ? _onJoin : null,
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),

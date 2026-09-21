@@ -1,10 +1,10 @@
 // Unit tests for the shared `createThumbnail` helper
-// (lib/src/features/shared/thumbnail.dart) -- the 1-в-1 port of React's
-// `createThumbnail`. We synthesize a tiny PNG in-memory via the same `image`
-// package the helper uses (so the test needs no fixture file), then assert:
+// (lib/src/features/shared/thumbnail.dart). We synthesize a tiny PNG
+// in-memory via the same `image` package the helper uses (so the test
+// needs no fixture file), then assert:
 //   - a PNG image pick -> a non-null base64 JPEG string (the 320px preview)
-//   - a non-image (mime not image/*) -> null (mirrors React's non-image branch)
-//   - a corrupt .png (random bytes) -> null (mirrors React's try/catch -> undefined)
+//   - a non-image (mime not image/*) -> null
+//   - a corrupt .png (random bytes) -> null
 
 import 'dart:convert' show base64Decode;
 import 'dart:io' show File;
@@ -23,12 +23,10 @@ Uint8List _png(int width, int height, int rgb) {
 
 void main() {
   group('createThumbnail', () {
-    test(
-        'returns a base64 JPEG for an image pick (1-в-1 with React imageThumbnail)',
-        () async {
+    test('returns a base64 JPEG for an image pick', () async {
       // A 100x80 PNG larger than the test default; the helper should resize
-      // to the 320px max-edge (here the width 100 < 320, so no upscale -- the
-      // React scale = min(1, ...) clamps at 1). The output is a JPEG base64.
+      // to the 320px max-edge (here the width 100 < 320, so no upscale --
+      // the scale clamps at 1). The output is a JPEG base64.
       final bytes = _png(100, 80, 0xFFAABBCC);
       final result = await createThumbnail(bytes, 'pick.png');
       expect(result, isNotNull);
@@ -39,9 +37,7 @@ void main() {
       expect(jpeg[2], 0xFF);
     });
 
-    test(
-        'resizes a large image to the 320px max-edge (React THUMBNAIL_MAX_EDGE)',
-        () async {
+    test('resizes a large image to the 320px max-edge', () async {
       // A 800x600 image: the longest edge is 800, so the thumbnail should be
       // 320x240 (320 * 600/800 = 240). Decode the JPEG and assert dimensions.
       final bytes = _png(800, 600, 0xFF0000FF);
@@ -67,15 +63,13 @@ void main() {
       expect(decoded.height, 320);
     });
 
-    test('returns null for a non-image pick (React non-image branch)',
-        () async {
+    test('returns null for a non-image pick', () async {
       final bytes = Uint8List.fromList([1, 2, 3, 4]);
       final result = await createThumbnail(bytes, 'doc.pdf');
       expect(result, isNull);
     });
 
-    test('returns null for a corrupt .png (React try/catch -> undefined)',
-        () async {
+    test('returns null for a corrupt .png', () async {
       // Random bytes with a .png extension: decodeNamedImage returns null,
       // so the helper resolves null (never fatal).
       final bytes = Uint8List.fromList(List.filled(64, 0x42));
@@ -90,9 +84,8 @@ void main() {
   // build windows` CMake artifact and is ABSENT from the `flutter test`
   // isolate (see test/features/shared/media_kit_tracer_test.dart header
   // for the full diagnosis). So in `flutter test` the video branch MUST
-  // hit its defensive try/catch and resolve null -- never fatal, mirrors
-  // React's videoThumbnail resolving undefined on any error. A real mp4
-  // capture is exercised via integration_test, not here.
+  // hit its defensive try/catch and resolve null -- never fatal. A real
+  // mp4 capture is exercised via integration_test, not here.
   group(
       'createThumbnail (video branch) -- media_kit unavailable in flutter test',
       () {
@@ -124,8 +117,7 @@ void main() {
       expect(result, isNull);
     }, timeout: const Timeout(Duration(seconds: 30)));
 
-    test('returns null for a non-image/non-video pick (React non-media branch)',
-        () async {
+    test('returns null for a non-image/non-video pick', () async {
       // application/pdf: neither image/* nor video/* -> null (unchanged).
       final bytes = Uint8List.fromList([1, 2, 3, 4]);
       final result = await createThumbnail(bytes, 'doc.pdf');

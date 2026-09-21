@@ -1,27 +1,21 @@
-/// Desktop drag-and-drop file attach -- the 1-в-1 port of React's
-/// `ChatDropZone` (ChatComposer.tsx:8-43). Wraps the message list so a dropped
+/// Desktop drag-and-drop file attach. Wraps the message list so a dropped
 /// file ingests through the SAME `onAttach`/`onError` contract the paperclip
-/// picker uses (DRY via [ingestAttachment]); React wraps `<div className=
-/// chat-pane>` and on drop calls `onAttach(files[0])`.
+/// picker uses (DRY via [ingestAttachment]).
 //
-// React structure (ChatDropZone.tsx): `onDragOver`/`onDragEnter` set `dragging`
-// and preventDefault; `onDragLeave`/`onDrop` clear it; `onDrop` reads
-// `e.dataTransfer.files[0]` and calls `onAttach(file)`. `disabled` (while a
-// send is in flight) makes every handler a no-op so no overlay shows.
+// Behavior: `onDragEntered` sets `dragging`; `onDragExited`/`onDragDone`
+// clear it; `onDragDone` reads the first `DropItem` (a `cross_file`
+// `XFile`), reads its bytes, runs them through [ingestAttachment]
+// (50 MB ceiling), and hands a ready-to-send [PickedAttachment] to
+// `onAttach` (or fires `onError(tooLarge)` -- same path the paperclip
+// uses). `disabled` (while a send is in flight) makes every handler a
+// no-op so no overlay shows. The overlay is a `Stack` layer over `child`
+// shown only while `dragging`: an 82%-opaque backdrop with a 2px dashed
+// `--moss` border and centered `l.chatDropHint` text.
 //
-// Flutter port: built on `desktop_drop`'s `DropTarget` -- `onDragEntered`
-// sets `dragging`, `onDragExited`/`onDragDone` clear it, `onDragDone` reads
-// the first `DropItem` (a `cross_file` `XFile`), reads its bytes, runs them
-// through [ingestAttachment] (50 MB ceiling), and hands a ready-to-send
-// [PickedAttachment] to `onAttach` (or fires `onError(tooLarge)` -- same path
-// the paperclip uses). The overlay is a `Stack` layer over `child` shown only
-// while `dragging`: an 82%-opaque backdrop with a 2px dashed `--moss` border
-// (React chat-pane.css:665-685) and centered `l.chatDropHint` text.
-//
-// Dashed border: React uses CSS `border: 2px dashed var(--moss)`. Flutter has
+// Dashed border: Flutter has
 // no built-in dashed border; rather than pull a `dotted_border` package dep
-// (not currently a dep), a tiny `CustomPainter` strokes the dashes. This
-// matches React visually; `--moss` is `#B7D84A` (summary_card.dart).
+// (not currently a dep), a tiny `CustomPainter` strokes the dashes.
+// `--moss` is `#B7D84A` (summary_card.dart).
 library;
 
 import 'dart:math' as math;
@@ -40,8 +34,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart'
         AttachmentPickedCallback,
         ingestAttachment;
 
-/// 50 MB attach ceiling -- mirrors React `ATTACHMENT_MAX_BYTES` and the
-/// paperclip picker's default `maxBytes`.
+/// 50 MB attach ceiling -- the paperclip picker's default `maxBytes`.
 const int kAttachmentMaxBytes = 50 * 1024 * 1024;
 
 /// `--moss` accent, from the shared theme tokens.
@@ -51,7 +44,7 @@ const Color _kMoss = MoshColors.moss;
 /// the same `onAttach`/`onError` pair the paperclip uses.
 ///
 /// Stateful because `dragging` (whether a file is hovering) is transient UI
-/// state owned here, not by the screen. `disabled` mirrors React: while a
+/// state owned here, not by the screen. While a
 /// send is in flight the drop zone does not ingest and shows no overlay.
 class ChatDropZone extends StatefulWidget {
   const ChatDropZone({
@@ -74,12 +67,11 @@ class ChatDropZone extends StatefulWidget {
 }
 
 class _ChatDropZoneState extends State<ChatDropZone> {
-  /// Whether a file is hovering over the zone (drives the overlay). Mirrors
-  /// React's `dragging` state.
+  /// Whether a file is currently hovering over the zone (drives the overlay).
   bool _dragging = false;
 
   void _onDragEntered(DropEventDetails _) {
-    if (widget.disabled) return; // React: no-op while disabled (no overlay)
+    if (widget.disabled) return; // no-op while disabled (no overlay)
     if (!_dragging) setState(() => _dragging = true);
   }
 
@@ -90,14 +82,14 @@ class _ChatDropZoneState extends State<ChatDropZone> {
   Future<void> _onDragDone(DropDoneDetails detail) async {
     // Clear the overlay first so the UI is responsive while bytes read.
     if (_dragging) setState(() => _dragging = false);
-    if (widget.disabled) return; // React: no-op while disabled (no ingest)
+    if (widget.disabled) return; // no-op while disabled (no ingest)
     if (detail.files.isEmpty) return;
     final xfile = detail.files.first;
     final Uint8List bytes;
     try {
       bytes = await xfile.readAsBytes();
     } on Exception {
-      return; // unreadable file -- mirror React (drop silently ignored)
+      return; // unreadable file -- drop silently ignored
     }
     final picked = await ingestAttachment(
       bytes: bytes,
@@ -145,7 +137,7 @@ class _ChatDropZoneState extends State<ChatDropZone> {
 }
 
 /// The drag overlay: an 82%-opaque backdrop with a 2px dashed `--moss`
-/// border and centered hint text (React chat-pane.css:665-685).
+/// border and centered hint text.
 class _DropOverlay extends StatelessWidget {
   const _DropOverlay({
     required this.hint,
@@ -162,7 +154,7 @@ class _DropOverlay extends StatelessWidget {
     return ColoredBox(
       color: scaffoldBg.withValues(alpha: 0.82),
       child: Padding(
-        // React offsets the border -8px from the pane edges; Flutter uses an
+        // The border is offset -8px from the pane edges; Flutter uses an
         // 8px inset so the dashes sit just inside the message list.
         padding: const EdgeInsets.all(8),
         child: CustomPaint(
@@ -183,7 +175,7 @@ class _DropOverlay extends StatelessWidget {
 }
 
 /// Strokes a dashed rectangle border -- Flutter has no built-in dashed
-/// border, so this tiny painter matches React's `border: 2px dashed`. Dashes
+/// border, so this tiny painter draws a 2px dashed border. Dashes
 /// are 6px on / 4px off along the rect path (visual match, not pixel-exact).
 class _DashedBorderPainter extends CustomPainter {
   const _DashedBorderPainter({required this.color, required this.strokeWidth});

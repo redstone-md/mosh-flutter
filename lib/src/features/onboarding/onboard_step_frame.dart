@@ -1,7 +1,6 @@
-// Shared onboarding step-frame, 1-to-1 with the React `OnboardStepFrame`
-// (src/features/private-dm/NewSessionPanel.parts.tsx): a Back button at the
-// top (arrow-back icon + the localized "Back" label), then an h1-equivalent
-// title (headlineSmall), then the step body (the `child`).
+// Shared onboarding step-frame: a Back button at the top (arrow-back
+// icon + the localized "Back" label), then the step title
+// (headlineSmall), then the step body (the `child`).
 //
 // Two widgets live here:
 //  - `OnboardStepFrame`: full-screen route wrapper -- Scaffold + SafeArea +
@@ -14,8 +13,7 @@
 //
 // The frame is intentionally presentation-only: it owns no state and calls
 // back through `onBack` -- the parent owns the busy / copied / lastInvite
-// state and the routing decisions, matching the React component (a pure
-// render with `title` + `onBack` + `children`).
+// state and the routing decisions.
 library;
 
 import 'package:flutter/material.dart';
@@ -25,9 +23,9 @@ import 'package:mosh/l10n/app_localizations.dart';
 
 /// Scaffold-free step body shared by the onboarding step screens.
 ///
-/// Renders the React `OnboardStepFrame` body layout: a leading Back
-/// affordance (`Icons.arrow_back` + the `onboardBack` label), the step title
-/// as a headline, then [child] as the step body. State stays in the caller.
+/// Renders the step body layout: a leading Back affordance
+/// (`Icons.arrow_back` + the `onboardBack` label), the step title as a
+/// headline, then [child] as the step body. State stays in the caller.
 ///
 /// Use this directly when composing a step INLINE (e.g. inside the desktop
 /// chat-pane's own scroll container). Use [OnboardStepFrame] when the step
@@ -40,10 +38,10 @@ class OnboardStepBody extends StatelessWidget {
     required this.child,
   });
 
-  /// Step title (1-to-1 with React's `title` prop -> h1.step-title).
+  /// Step title.
   final String title;
 
-  /// Back-navigation callback (1-to-1 with React's `onBack`).
+  /// Back-navigation callback.
   final VoidCallback onBack;
 
   /// Step body. The caller composes the body paragraph + buttons + result
@@ -66,7 +64,6 @@ class OnboardStepBody extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: onBack,
                 icon: const Icon(Icons.arrow_back, size: 16),
-                // `.step-back { font-size: 12px; color: var(--fg-3) }`.
                 label: Text(
                   l.onboardBack,
                   style: const TextStyle(fontSize: 12, color: MoshColors.fg3),
@@ -81,8 +78,6 @@ class OnboardStepBody extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            // `.step-title { font-size: 19px; letter-spacing: -0.01em;
-            // color: var(--fg-1) }` -- not Material's 24px headlineSmall.
             Text(
               title,
               style: const TextStyle(
@@ -91,7 +86,6 @@ class OnboardStepBody extends StatelessWidget {
                 color: MoshColors.fg1,
               ),
             ),
-            // `.step-frame { gap: 14px }`.
             const SizedBox(height: 14),
             child,
           ],
@@ -104,8 +98,7 @@ class OnboardStepBody extends StatelessWidget {
 /// Reusable step frame for the NewSessionPanel step screens.
 ///
 /// Full-screen route wrapper: [Scaffold] + [SafeArea] + [Center] around
-/// [OnboardStepBody]. Renders the React `OnboardStepFrame` layout. State
-/// stays in the caller.
+/// [OnboardStepBody]. State stays in the caller.
 class OnboardStepFrame extends StatelessWidget {
   const OnboardStepFrame({
     super.key,
@@ -114,10 +107,10 @@ class OnboardStepFrame extends StatelessWidget {
     required this.child,
   });
 
-  /// Step title (1-to-1 with React's `title` prop -> h1.step-title).
+  /// Step title.
   final String title;
 
-  /// Back-navigation callback (1-to-1 with React's `onBack`).
+  /// Back-navigation callback.
   final VoidCallback onBack;
 
   /// Step body. The caller composes the body paragraph + buttons + result

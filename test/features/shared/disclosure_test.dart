@@ -1,5 +1,4 @@
-// Widget test for `Disclosure` (1-в-1 with React `Disclosure` in
-// src/features/private-dm/NewSessionPanel.parts.tsx). Asserts the
+// Widget test for `Disclosure`. Asserts the
 // collapsible contract: body hidden when closed, shown when open, and
 // toggling collapses it again.
 import 'package:flutter/material.dart';
@@ -71,7 +70,7 @@ void main() {
     expect(find.text('body text'), findsNothing);
   });
 
-  testWidgets('head is a tappable button widget (React aria-expanded)',
+  testWidgets('head is a tappable button widget (expanded state exposed)',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(

@@ -1,7 +1,6 @@
-//! AES-GCM frame seal/open for a 1:1 voice call. Direct port of
-//! `src/features/private-dm/voice-call/frame-crypto.ts` per ADR 0012 — the
-//! Rust and TS produce/consume the same wire bytes (single source of truth
-//! for the wire format).
+//! AES-GCM frame seal/open for a 1:1 voice call, per ADR 0012. This crate
+//! owns the wire format; both call participants must produce/consume the
+//! same wire bytes.
 //!
 //! Wire frame layout: `[seq:u64 BE][ciphertext-with-tag]`. AES-GCM nonce =
 //! `[nonce_prefix (4)][seq (8 BE)]`. The high bit of `seq` distinguishes
@@ -69,7 +68,7 @@ pub fn seal_frame(
     let nonce_bytes = build_nonce(nonce_prefix, seq);
     let nonce = Nonce::from_slice(&nonce_bytes);
     // aes-gcm appends the 16-byte tag to the ciphertext, matching the
-    // Web Crypto AES-GCM output the TS relies on for the shared wire frame.
+    // Web Crypto AES-GCM layout the wire frame is specified in.
     let ciphertext = cipher
         .encrypt(nonce, plaintext)
         .expect("AES-256-GCM encryption of in-memory plaintext cannot fail");
@@ -135,8 +134,7 @@ pub struct ParsedFrame<'a> {
     pub ciphertext: &'a [u8],
 }
 
-/// Build a wire frame from a pre-computed seq and ciphertext (parity with the
-/// TS `buildFrame` helper, used by tests).
+/// Build a wire frame from a pre-computed seq and ciphertext (test helper).
 pub fn build_frame(seq: u64, ciphertext: &[u8]) -> Vec<u8> {
     let mut frame = Vec::with_capacity(SEQ_LEN + ciphertext.len());
     frame.extend_from_slice(&seq.to_be_bytes());
@@ -149,8 +147,8 @@ mod tests {
     use super::*;
 
     // KEY_B64 = "AAAA...AAAA==" decodes to 32 zero bytes; PREFIX_B64 =
-    // "AAAAAA==" decodes to 4 zero bytes. The TS tests use these — the Rust
-    // port takes raw bytes, so construct them directly.
+    // "AAAAAA==" decodes to 4 zero bytes. The tests use all-zero raw bytes
+    // directly.
     const KEY: [u8; KEY_LEN] = [0u8; KEY_LEN];
     const PREFIX: [u8; NONCE_PREFIX_LEN] = [0u8; NONCE_PREFIX_LEN];
 
@@ -200,8 +198,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "call frame seq out of range")]
     fn rejects_a_seq_value_above_the_mask() {
-        // u64 has no negative values, but the TS guard rejects -1n; the Rust
-        // equivalent is any value > SEQ_VALUE_MASK.
+        // u64 has no negative values; the equivalent rejection is any value
+        // > SEQ_VALUE_MASK.
         let _ = seal_frame(
             SEQ_VALUE_MASK + 1,
             CALLER_DIRECTION_BIT,
@@ -224,7 +222,7 @@ mod tests {
 
     #[test]
     fn nonce_layout_is_prefix_then_seq_big_endian() {
-        // Direct port check: the 12-byte nonce is [prefix(4)][seq(8 BE)].
+        // The 12-byte nonce is [prefix(4)][seq(8 BE)].
         // seq = 7 (caller) -> nonce = [0,0,0,0, 0,0,0,0,0,0,0,7].
         let prefix = [0xDEu8, 0xAD, 0xBE, 0xEF];
         let nonce = build_nonce(&prefix, 7);

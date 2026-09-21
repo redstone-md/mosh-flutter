@@ -1,17 +1,12 @@
-// Inline NewSessionPanel -- 1-to-1 with React `NewSessionPanel`
-// (src/features/private-dm/NewSessionPanel.tsx:18-67), rendered in the
-// desktop chat-pane welcome when no conversation is open: an `OnboardStep`
-// enum, the PersistenceWarningBanner, OnboardMenu(onPick -> setStep), and
-// the four steps each with onBack: backToMenu. The rail stays mounted.
+// Inline NewSessionPanel for the desktop chat-pane welcome when no
+// conversation is open: an `OnboardStep` enum, the
+// PersistenceWarningBanner, OnboardMenu(onPick -> setStep), and the four
+// steps each with onBack: backToMenu. The rail stays mounted.
 //
-// Flutter parity: an [IndexedStack] keeps all five step widgets MOUNTED
-// simultaneously, so each step's controllers/state survive a menu
-// round-trip -- mirrors React's lifted per-step state (joinValue /
-// channelValue / groupLabelValue) by keeping the widgets alive instead of
-// lifting the text values; equivalent UX.
+// An [IndexedStack] keeps all five step widgets MOUNTED simultaneously,
+// so each step's controllers/state survive a menu round-trip.
 //
-// The banner renders inside the scroll (like React's `.onboard-shell`
-// placement, NewSessionPanel.tsx:46) so it scrolls with the step body.
+// The banner renders inside the scroll so it scrolls with the step body.
 library;
 
 import 'package:flutter/material.dart';
@@ -27,24 +22,23 @@ import 'package:mosh/src/features/onboarding/onboard_step_frame.dart';
 import 'package:mosh/src/features/shared/persistence_warning_banner.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 
-/// The inline NewSessionPanel step enum (1-to-1 with React's `OnboardStep`,
-/// NewSessionPanel.types.ts). The active step drives the [IndexedStack]
-/// index; switching is local (no route navigation -- the rail stays).
+/// The inline NewSessionPanel step enum. The active step drives the
+/// [IndexedStack] index; switching is local (no route navigation -- the
+/// rail stays).
 enum OnboardStep { menu, chat, group, join, channel }
 
 /// Inline NewSessionPanel -- the desktop chat-pane welcome body when no
-/// conversation is open. Mirrors React `NewSessionPanel`
-/// (NewSessionPanel.tsx:18-67): owns the active [OnboardStep], renders the
-/// PersistenceWarningBanner at the top of the scroll, then the active step.
+/// conversation is open. Owns the active [OnboardStep], renders the
+/// PersistenceWarningBanner at the top of the scroll, then the active
+/// step.
 ///
 /// The caller composes the outer body (Center > SingleChildScrollView >
 /// ConstrainedBox(maxWidth: 460)), the same composition OnboardingScreen
 /// uses, so the inline panel renders identically to the onboarding menu.
 ///
 /// Per-step state survives a menu round-trip via the [IndexedStack] keep-
-/// alive (all five widgets stay mounted: the create step's invite, the join
-/// step's pasted link all survive -- React lifts them, Flutter keeps the
-/// widgets). Do NOT remove the keep-alive.
+/// alive (all five widgets stay mounted: the create step's invite, the
+/// join step's pasted link all survive). Do NOT remove the keep-alive.
 class NewSessionPanel extends ConsumerStatefulWidget {
   const NewSessionPanel({super.key});
 
@@ -60,10 +54,10 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    // React renders the banner INSIDE onboard-shell before the step branch
-    // (NewSessionPanel.tsx:46). It scrolls with the step body (no fixed
-    // header). OnboardMenu also renders its own banner via the provider,
-    // but the step screens do NOT, so this banner covers the steps too.
+    // The banner renders before the step branch and scrolls with the step
+    // body (no fixed header). OnboardMenu also renders its own banner via
+    // the provider, but the step screens do NOT, so this banner covers the
+    // steps too.
     final warning = ref.watch(persistenceWarningProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -1,17 +1,12 @@
-// The currently-active conversation key, 1-1 with React's
-// `activeConversationKey` (private-dm-screen.tsx): the key
-// `ConversationRef.key` renders, or null when no conversation is open.
+// The currently-active conversation key: the key [ConversationRef.key]
+// renders, or null when no conversation is open.
 //
-// This is the small prerequisite state for the unread-lifecycle diff
-// (clearOnActive + window-focus toasts): React passes `activeKey` into
-// `useUnreadNotifications` and clears it on close. The Flutter side keeps
-// the same value in a Riverpod Notifier so the lifecycle provider can read
-// it + the chat screens can set/clear it on open/leave without threading a
+// Kept in a Riverpod Notifier so the unread-lifecycle provider can read it
+// and the chat screens can set/clear it on open/leave without threading a
 // prop through every rebuild.
 //
 // Set by the sessions rail on select + the chat screens on open (initState);
-// cleared on leave/close. null = no conversation open (React's empty-string
-// `activeConversationKey` maps to `activeKey: null`).
+// cleared on leave/close. null = no conversation open.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,8 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 
 /// Holds the active conversation key ([ConversationRef.key] renders the
-/// format) or null when nothing is open. Mirrors React's
-/// `activeConversationKey || null` shape passed to `useUnreadNotifications`.
+/// format) or null when nothing is open.
 final activeConversationKeyProvider =
     NotifierProvider<_ActiveConversationKeyNotifier, String?>(
   _ActiveConversationKeyNotifier.new,

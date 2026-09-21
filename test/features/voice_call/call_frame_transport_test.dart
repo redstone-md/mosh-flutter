@@ -1,7 +1,7 @@
 // Tests for `CallFrameTransport` -- the base64<->raw-bytes adapter between
 // the raw-Uint8List Rust FFI `Gateway` and the base64-string `CallFrameSource`
-// consumed by call_drain. Mirrors the parity intent of React's call-drain seam
-// but proves the encoding boundary in isolation, no device needed.
+// consumed by call_drain. Proves the encoding boundary in isolation, no
+// device needed.
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
