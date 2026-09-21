@@ -209,7 +209,6 @@ fn select_native_store() -> Result<(), SecureStorageError> {
 /// Whether the sandboxed macOS build runs on the protected store and so
 /// needs the one-time legacy hand-over in `load_secret`. False until
 /// `select_sandboxed_mac_store` succeeds.
-
 #[cfg(target_os = "macos")]
 static PROTECTED_STORE_ACTIVE: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
@@ -226,7 +225,6 @@ fn protected_store_active() -> bool {
 /// proving it works with a real roundtrip first. The probe key is unique
 /// per launch so the created item is always fresh — a stale probe item
 /// created by a different build could ACL-prompt instead.
-
 #[cfg(target_os = "macos")]
 fn select_sandboxed_mac_store() -> Result<(), SecureStorageError> {
     use std::sync::atomic::Ordering;
@@ -265,7 +263,6 @@ fn select_sandboxed_mac_store() -> Result<(), SecureStorageError> {
 /// A set/get/delete roundtrip in the data-protection keychain. Ad-hoc
 /// signing can be rejected by entitlement checks that only surface on a
 /// real write, so the store is proven before the DEK is trusted to it.
-
 #[cfg(target_os = "macos")]
 fn probe_protected_store(probe_key: &str) -> Result<(), SecureStorageError> {
     let probe_service = format!("{SERVICE_NAME}.probe");
@@ -301,7 +298,6 @@ fn probe_protected_store(probe_key: &str) -> Result<(), SecureStorageError> {
 /// keychain is only touched from `Persistence::open` (once per process,
 /// behind the resources OnceLock), so the brief default-store swap is
 /// single-threaded by construction.
-
 #[cfg(target_os = "macos")]
 fn load_from_legacy_keychain(key: &str) -> Option<Vec<u8>> {
     if !protected_store_active() {
