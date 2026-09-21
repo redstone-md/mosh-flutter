@@ -237,8 +237,13 @@ fn select_sandboxed_mac_store() -> Result<(), SecureStorageError> {
             .map(|d| d.as_millis())
             .unwrap_or_default()
     );
-    let probe = probe_protected_store(&probe_key);
-    if let Err(error) = probe {
+    // Select the data-protection store FIRST, then prove it: the probe
+    // creates entries through the process-default store, so the default
+    // must already be the protected store here.
+    let selected = keyring::use_named_store("protected")
+        .map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
+        .and_then(|()| probe_protected_store(&probe_key));
+    if let Err(error) = selected {
         dlog::write(
             LogLevel::Warn,
             kinds::IDENTITY,
