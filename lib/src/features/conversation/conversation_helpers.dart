@@ -88,10 +88,18 @@ const TextStyle kMessageBodyStyle =
 /// and shows the state glyph (`sent` -> one tick, `delivered` -> two
 /// ticks, `pending` -> ellipsis, `queued` -> a clock) otherwise. Ported
 /// from the React `MessageRow` tick span.
+///
+/// [read] is the [[Read receipt]]: when true the SAME two ticks change
+/// color (never a third tick) — the counterpart's authenticated receipt
+/// landed, so the delivered marks read as "seen". The label stays
+/// "delivered"; the color carries the read fact.
 class DeliveryTicks extends StatelessWidget {
-  const DeliveryTicks({super.key, required this.status});
+  const DeliveryTicks({super.key, required this.status, this.read = false});
 
   final MessageDeliveryStatus? status;
+
+  /// Whether the counterpart's read receipt has landed on this message.
+  final bool read;
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +117,13 @@ class DeliveryTicks extends StatelessWidget {
       MessageDeliveryStatus.failed || null => null,
     };
     if (label == null) return const SizedBox.shrink();
-    const style = TextStyle(fontSize: 10, color: MoshColors.fg4);
+    // The read receipt changes the COLOR of the same glyphs, never adds a
+    // third tick: the delivered marks carry the theme's accent instead of
+    // the faint --fg-4, exactly like a "seen" mark. Everything else keeps
+    // the React `.delivery-ticks` color.
+    final style = read
+        ? const TextStyle(fontSize: 10, color: MoshColors.moss)
+        : const TextStyle(fontSize: 10, color: MoshColors.fg4);
     // React `.delivery-ticks { font-size: 10px; color: var(--fg-4);
     // margin-top: 1px }`.
     return Padding(

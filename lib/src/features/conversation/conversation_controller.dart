@@ -133,6 +133,34 @@ class ConversationController extends Notifier<ConversationControllerState> {
     return sendBody(body);
   }
 
+  /// The [[Typing indicator]] emit-on-input hook: hands the runtime the
+  /// keystroke, which throttles its wire frame on its own ~3 s cadence
+  /// and does nothing for kinds that never carry typing (channels).
+  void signalTyping() {
+    unawaited(
+        ref.read(gatewayProvider).typingSignal(target).catchError((_) {}));
+  }
+
+  /// The conversation is on screen: hands the runtime the view mark, which
+  /// auto-triggers the DM read receipts for every not-yet-read counterpart
+  /// message when the toggle is on. The runtime owns the toggle check, the
+  /// per-message frames and the idempotence; a failure is silent — the
+  /// next poll retries, and a banner over a receipt is noise.
+  ///
+  /// The sync guard matters: flutter_rust_bridge throws synchronously
+  /// (before any Future) when the library was never initialized — which is
+  /// every widget test. `catchError` never sees that throw, so the call is
+  /// wrapped, not just the future.
+  void markViewed() {
+    try {
+      final future = ref.read(gatewayProvider).markViewed(target);
+      unawaited(future.catchError((_) {}));
+    } catch (_) {
+      // No Rust behind the gateway (test runtime): the receipts are
+      // runtime-side state anyway, and the next poll retries.
+    }
+  }
+
   /// Sends a picked file. The picker has already read the bytes and enforced
   /// the size limit.
   Future<void> sendAttachment(PickedAttachment attachment) async {

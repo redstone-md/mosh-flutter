@@ -150,6 +150,13 @@ class ChatMessage {
   final bool? retryable;
   final int? retryCount;
 
+  /// The [[Read receipt]] on the user's OWN message: `Some(true)` once the
+  /// counterpart's authenticated receipt landed, absent until then (and
+  /// always absent for the counterpart's messages — they have nothing to
+  /// learn about their own reads). Additive and skip-when-none, so old
+  /// snapshots and old history rows stay valid.
+  final bool? read;
+
   const ChatMessage({
     required this.fromDevice,
     required this.body,
@@ -161,6 +168,7 @@ class ChatMessage {
     this.deliveryError,
     this.retryable,
     this.retryCount,
+    this.read,
   });
 
   @override
@@ -174,7 +182,8 @@ class ChatMessage {
       deliveryStatus.hashCode ^
       deliveryError.hashCode ^
       retryable.hashCode ^
-      retryCount.hashCode;
+      retryCount.hashCode ^
+      read.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -190,7 +199,8 @@ class ChatMessage {
           deliveryStatus == other.deliveryStatus &&
           deliveryError == other.deliveryError &&
           retryable == other.retryable &&
-          retryCount == other.retryCount;
+          retryCount == other.retryCount &&
+          read == other.read;
 }
 
 /// What the last request to reach the counterpart answered, for the
@@ -341,6 +351,11 @@ class SessionSnapshot {
   final List<SnapshotEvent> events;
   final PendingCall? pendingCall;
 
+  /// Wall-clock deadline of the peer's typing hint, if one stands. Absent
+  /// when the peer is not typing; a poll past the deadline simply stops
+  /// carrying the field.
+  final BigInt? peerTypingUntilMs;
+
   /// Present while the local user is placing a call and waiting for the peer
   /// to answer (caller-side "ringing" state).
   final OutgoingCall? outgoingCall;
@@ -363,6 +378,7 @@ class SessionSnapshot {
     this.mesh,
     required this.events,
     this.pendingCall,
+    this.peerTypingUntilMs,
     this.outgoingCall,
     this.activeCall,
   });
@@ -385,6 +401,7 @@ class SessionSnapshot {
       mesh.hashCode ^
       events.hashCode ^
       pendingCall.hashCode ^
+      peerTypingUntilMs.hashCode ^
       outgoingCall.hashCode ^
       activeCall.hashCode;
 
@@ -409,6 +426,7 @@ class SessionSnapshot {
           mesh == other.mesh &&
           events == other.events &&
           pendingCall == other.pendingCall &&
+          peerTypingUntilMs == other.peerTypingUntilMs &&
           outgoingCall == other.outgoingCall &&
           activeCall == other.activeCall;
 }

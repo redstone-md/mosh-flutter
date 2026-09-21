@@ -25,9 +25,11 @@ import 'package:mosh/src/rust/api/conversation.dart' as conversation_api
         cancelAttachment,
         downloadAttachment,
         leave,
+        markViewed,
         retry,
         send,
-        sendAttachment;
+        sendAttachment,
+        typingSignal;
 // channel.dart and private_group.dart each define a `poll` free function, so
 // the two imports MUST use distinct prefixes to avoid collision; the
 // snapshot types come in unqualified from their *_runtime.dart modules.
@@ -135,4 +137,12 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
   @override
   Future<void> leave(AnyConversationTarget target) =>
       conversation_api.leave(reference: _bridgeRef(target));
+
+  @override
+  Future<void> typingSignal(AnyConversationTarget target) =>
+      conversation_api.typingSignal(reference: _bridgeRef(target));
+
+  @override
+  Future<void> markViewed(AnyConversationTarget target) =>
+      conversation_api.markViewed(reference: _bridgeRef(target));
 }

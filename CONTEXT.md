@@ -72,3 +72,24 @@ The single per-group authority in **non-org** private groups (a
 [[Conversation]] with no org binding), tracked by MLS fingerprint and
 transferred by handoff. Does not exist in org groups — org groups derive
 authority from the roster instead.
+
+## Read receipt
+
+A counterpart's MLS-authenticated notice that the user opened the
+conversation — rendered as the existing delivery ticks changing color,
+never as a third tick. Off by default and symmetric: a user who does not
+send receipts does not see others'. DM only; channels never carry it.
+_Avoid_: read tick, "delivered" (that term is taken by [[Delivery]])
+
+## Delivery
+
+The runtime-level fact that a message's frame reached the counterpart's
+runtime (MLS-encrypted ack, two ticks). Says nothing about the user having
+seen anything. Distinct from [[Read receipt]].
+
+## Typing indicator
+
+A live "the counterpart is typing" signal (emit-on-input, ~3s refresh, 5s
+expiry), MLS-encrypted so a mesh bystander cannot forge it. DM and groups;
+channels never carry it.
+_Avoid_: typing status, composing

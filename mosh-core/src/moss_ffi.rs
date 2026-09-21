@@ -2,7 +2,7 @@ use std::{
     ffi::{c_void, CStr, CString},
     mem::ManuallyDrop,
     os::raw::c_char,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, LazyLock, Mutex, RwLock},
     time::Duration,
 };
 
@@ -73,6 +73,19 @@ type KeyStoreLoadCallback = unsafe extern "C" fn(*mut u8, u32) -> u32;
 type KeyStoreSaveCallback = unsafe extern "C" fn(*const u8, u32);
 type MossSetKeyStore =
     unsafe extern "C" fn(Option<KeyStoreLoadCallback>, Option<KeyStoreSaveCallback>) -> i32;
+
+// Optional capabilities, present from moss v0.8.20+ (streams) and v0.8.17+
+// (version). All are loaded with `try_load_symbol`, which stores None when the
+// library predates them: a stale copy beside the binary must degrade to the
+// room wire, never fail the whole load.
+type MossVersionFn = unsafe extern "C" fn() -> *mut c_char;
+type MossPeerRttFn = unsafe extern "C" fn(MossHandle, *const c_char) -> i64;
+type MossOpenStreamFn = unsafe extern "C" fn(MossHandle, *const c_char, u32) -> i32;
+type MossSendStreamFn = unsafe extern "C" fn(MossHandle, *const c_char, u32, *const u8, u32) -> i32;
+// Callback shape mirrors moss's MossStreamCallback C typedef: a heap-allocated
+// peer-id string (hex) and the payload bytes; the caller frees both copies.
+type StreamCallback = unsafe extern "C" fn(*const c_char, *const u8, u32);
+type MossOnStreamFn = unsafe extern "C" fn(MossHandle, u32, Option<StreamCallback>) -> i32;
 
 const EVENT_RING_CAPACITY: usize = 64;
 
@@ -265,6 +278,15 @@ pub struct MossFfiRuntime {
     get_public_key: MossGetPublicKey,
     free: MossFree,
     set_key_store: MossSetKeyStore,
+    // Optional capabilities. None means the loaded library predates the
+    // symbol; every caller must fall back instead of treating it as a fault
+    // (see each accessor). No `?` in the loading below — the load itself
+    // must not fail.
+    version: Option<MossVersionFn>,
+    peer_rtt: Option<MossPeerRttFn>,
+    open_stream: Option<MossOpenStreamFn>,
+    send_stream: Option<MossSendStreamFn>,
+    on_stream: Option<MossOnStreamFn>,
 }
 
 pub struct MossNode {
@@ -336,6 +358,11 @@ impl MossFfiRuntime {
             get_public_key: load_symbol(&library, b"Moss_GetPublicKey\0")?,
             free: load_symbol(&library, b"Moss_Free\0")?,
             set_key_store: load_symbol(&library, b"Moss_SetKeyStore\0")?,
+            version: try_load_symbol(&library, b"Moss_Version\0"),
+            peer_rtt: try_load_symbol(&library, b"Moss_PeerRTT\0"),
+            open_stream: try_load_symbol(&library, b"Moss_OpenStream\0"),
+            send_stream: try_load_symbol(&library, b"Moss_SendStream\0"),
+            on_stream: try_load_symbol(&library, b"Moss_OnStream\0"),
             _library: ManuallyDrop::new(library),
         })
     }
@@ -587,6 +614,150 @@ impl MossNode {
         unsafe { (self.runtime.free)(ptr as *mut c_void) };
         Some(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
     }
+
+    /// The version the loaded library was built at (its own link stamp).
+    /// `None` when the symbol is missing: the library is older than
+    /// v0.8.17, which the diagnostics panel renders as "unknown".
+    pub fn library_version(&self) -> Option<String> {
+        let version = unsafe { (self.runtime.version?)() };
+        take_heap_string(version, &self.runtime.free)
+    }
+
+    /// Last measured round-trip time to a peer, in nanoseconds. `None` when
+    /// the symbol is missing or Moss reports 0 (unknown / unprobed peer) —
+    /// 0 ns is not a measurement, so handing it back would make a UI print
+    /// "0 ms" for a stranger.
+    pub fn peer_rtt_ns(&self, peer_id: &str) -> Option<u64> {
+        let rtt =
+            unsafe { (self.runtime.peer_rtt?)(self.handle, c_string(peer_id).ok()?.as_ptr()) };
+        u64::try_from(rtt).ok().filter(|nanos| *nanos > 0)
+    }
+
+    /// Streams are for attachment chunks (see `stream_transport`): declare
+    /// interest on a stream id toward a peer so a reader goroutine starts
+    /// draining it. Missing symbol → `Err(Symbol)` so the caller falls back
+    /// to the room wire. A relayed peer answers OK — moss wraps those sends
+    /// itself (see `send_stream`).
+    pub fn open_stream(&self, peer_id: &str, stream_id: u32) -> Result<(), MossFfiError> {
+        let peer = c_string(peer_id)?;
+        let open = self
+            .runtime
+            .open_stream
+            .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.clone()))?;
+        check_code("open_stream", unsafe {
+            open(self.handle, peer.as_ptr(), stream_id)
+        })
+    }
+
+    /// One payload down a declared stream. The library routes it over the
+    /// direct session when there is one and wraps it onto the relay path
+    /// otherwise (the 8-byte "MSs1" header + big-endian stream id); a
+    /// `RELAY_FAILED` return means neither leg could deliver, which the
+    /// caller answers with a room-wire publish. Missing symbol → `Err(Symbol)`.
+    pub fn send_stream(
+        &self,
+        peer_id: &str,
+        stream_id: u32,
+        payload: &[u8],
+    ) -> Result<(), MossFfiError> {
+        let peer = c_string(peer_id)?;
+        let send = self
+            .runtime
+            .send_stream
+            .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.clone()))?;
+        check_code("send_stream", unsafe {
+            send(
+                self.handle,
+                peer.as_ptr(),
+                stream_id,
+                payload.as_ptr(),
+                payload.len() as u32,
+            )
+        })
+    }
+
+    /// Register the inbound handler for a stream id. Registration is
+    /// per-node-lifetime in moss (re-registering replaces the entry), and the
+    /// callback is a plain function pointer with no context, so it forwards
+    /// (peer id, payload) into the process inbox — see `stream_transport`
+    /// for how a frame reaches its session from there. Missing symbol →
+    /// `Err(Symbol)`; the receive side then just keeps its room subscription.
+    pub fn register_stream_handler(&self, stream_id: u32) -> Result<(), MossFfiError> {
+        let on_stream = self
+            .runtime
+            .on_stream
+            .ok_or_else(|| MossFfiError::Symbol(STREAM_SYMBOL.clone()))?;
+        check_code("on_stream", unsafe {
+            on_stream(self.handle, stream_id, Some(on_stream_payload))
+        })
+    }
+}
+
+/// The version the loaded library stamps itself with (its own link stamp),
+/// read once per process and cached: `Moss_Version` takes NO node handle, so
+/// the answer loads straight through the symbol table without starting a
+/// throwaway node. `None` when the library predates the symbol (older than
+/// v0.8.17) or cannot load at all — the panel renders "unknown", never a
+/// failed call. The load's own cost is paid once; every later call reads
+/// the cache.
+pub fn library_version_once() -> Option<String> {
+    static VERSION: LazyLock<Option<String>> = LazyLock::new(|| {
+        let runtime = MossFfiRuntime::load_default().ok()?;
+        let version = unsafe { (runtime.version?)() };
+        take_heap_string(version, &runtime.free)
+    });
+    VERSION.clone()
+}
+
+/// One stream frame from the library's callback thread: a heap peer-id string
+/// (hex) plus the payload bytes, both allocated with the library's own
+/// allocator. Forwarded into the process inbox under the framing channel
+/// every stream consumer recognises — the callback has no other context.
+unsafe extern "C" fn on_stream_payload(peer_id: *const c_char, data: *const u8, len: u32) {
+    if peer_id.is_null() || data.is_null() {
+        return;
+    }
+    let peer_id = unsafe { CStr::from_ptr(peer_id) }
+        .to_string_lossy()
+        .into_owned();
+    let payload = unsafe { std::slice::from_raw_parts(data, len as usize) }.to_vec();
+    crate::inbox::deliver(MossReceivedMessage {
+        channel: stream_receive_channel(&peer_id),
+        payload,
+    });
+}
+
+/// The channel every stream-delivered frame is filed under. One source of
+/// truth lives in the carrier: the framing and the inbox naming must agree,
+/// so this forwards to `stream_transport::stream_inbox_channel` rather than
+/// re-deriving the same format string here.
+fn stream_receive_channel(peer_id: &str) -> String {
+    crate::stream_transport::stream_inbox_channel(peer_id)
+}
+
+/// Prefix reserved for frames the stream callback files. Runtime inboxes
+/// claim channels they recognise, so an unclaimed prefix lands in the
+/// unclaimed tail — a stream frame for a conversation nobody owns must not
+/// look like a room frame (or a control frame) to any claim. The constant
+/// and its one builder live together in `stream_transport`; this re-export
+/// keeps the FFI-callback import site stable.
+pub use crate::stream_transport::STREAM_INBOX_CHANNEL_PREFIX;
+
+/// The three stream symbols share one error identity: a caller that wants
+/// "streams or room wire" branches on the kind of failure, not on which of
+/// the three was missing.
+static STREAM_SYMBOL: LazyLock<String> =
+    LazyLock::new(|| ["Moss_OpenStream", "Moss_SendStream", "Moss_OnStream"].join("/"));
+
+fn take_heap_string(ptr: *mut c_char, free: &MossFree) -> Option<String> {
+    if ptr.is_null() {
+        return None;
+    }
+    let value = unsafe { CStr::from_ptr(ptr) }
+        .to_string_lossy()
+        .into_owned();
+    unsafe { free(ptr as *mut c_void) };
+    Some(value)
 }
 
 impl Drop for MossNode {
@@ -652,9 +823,28 @@ pub fn node_config_json(config: &MossNodeConfig) -> String {
         _ => String::new(),
     };
 
+    // Diagnostics seam, env-gated so shipping configs stay byte-identical:
+    // when the host asks for a moss debug recording (NAT-pair forensics —
+    // the ring carries session-close reasons: ping_misses, inbound_packets,
+    // "one-way path" vs "pings unanswered" vs "duplicate connection"), the
+    // node config turns the debug plane on with a recording path under the
+    // given directory. The plane is loopback-only and token-gated upstream;
+    // the recording is the artifact that answers "why did this session die"
+    // from the field.
+    let debug = match std::env::var("MOSH_DEBUG_RECORD_DIR") {
+        Ok(dir) if !dir.is_empty() => {
+            let file = format!("{dir}/moss-debug-{}.mossrec", std::process::id());
+            format!(
+                r#","debug":{{"enabled":true,"record_path":"{}","record_max_mb":64,"record_every_sec":5}}"#,
+                escape_json(&file)
+            )
+        }
+        _ => String::new(),
+    };
+
     format!(
-        r#"{{"listen_port":{},"static_peers":{}{},"announce_interval_sec":15,"bootstrap_timeout_sec":12,"lan_discovery_enabled":true,"gossipsub":{{"heartbeat_ms":250}},"nat":{{"upnp_enabled":true,"natpmp_enabled":true,"pcp_enabled":true,"hole_punch_attempts":8,"port_prediction_enabled":true}}}}"#,
-        config.listen_port, peers, bind
+        r#"{{"listen_port":{},"static_peers":{}{},"announce_interval_sec":15,"bootstrap_timeout_sec":12,"lan_discovery_enabled":true,"gossipsub":{{"heartbeat_ms":250}},"nat":{{"upnp_enabled":true,"natpmp_enabled":true,"pcp_enabled":true,"hole_punch_attempts":8,"port_prediction_enabled":true}}{}}}"#,
+        config.listen_port, peers, bind, debug
     )
 }
 
@@ -679,6 +869,14 @@ fn load_symbol<T: Copy>(library: &Library, name: &[u8]) -> Result<T, MossFfiErro
         unsafe { library.get(name) }.map_err(|_| MossFfiError::Symbol(symbol_name(name)))?;
 
     Ok(*symbol)
+}
+
+/// Load a capability the library may predate. `None` on a missing symbol —
+/// the caller degrades (room-wire fallback / "unknown") instead of failing the
+/// whole runtime load. Never point at a REQUIRED symbol: those go through
+/// [`load_symbol`], which fails the load loudly.
+fn try_load_symbol<T: Copy>(library: &Library, name: &[u8]) -> Option<T> {
+    unsafe { library.get::<T>(name) }.ok().map(|symbol| *symbol)
 }
 
 fn c_string(value: &str) -> Result<CString, MossFfiError> {
@@ -786,6 +984,28 @@ unsafe extern "C" fn on_moss_event(event_type: i32, detail_json: *const c_char) 
     log.push(MossEvent {
         event_type,
         detail_json: detail,
+        epoch_millis,
+    });
+    if log.len() > EVENT_RING_CAPACITY {
+        let drop = log.len() - EVENT_RING_CAPACITY;
+        log.drain(0..drop);
+    }
+}
+
+/// App-level event insert into the same ring the node's callback feeds: the
+/// messenger synthesizes events of its own (typing, receipts, presence) and
+/// the diagnostics panel reads them through `snapshot_event_log` like any
+/// node report. Kept one ring, one capacity, one shape.
+pub fn push_app_event(event_type: i32, detail_json: &str) {
+    let epoch_millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
+
+    let mut log = EVENT_LOG.lock().expect("Moss event lock poisoned");
+    log.push(MossEvent {
+        event_type,
+        detail_json: detail_json.to_string(),
         epoch_millis,
     });
     if log.len() > EVENT_RING_CAPACITY {
@@ -910,6 +1130,39 @@ mod tests {
         assert!(
             !json.contains("axiom"),
             "config must not enable Axiom: {json}"
+        );
+    }
+
+    // The debug plane is the field-forensics seam: OFF by default (the
+    // shipping config stays byte-identical), ON only when the host asks for
+    // a recording directory. Both halves asserted in one test so the env
+    // mutation never races a sibling test that reads the same var.
+    #[test]
+    fn node_config_debug_plane_is_env_gated() {
+        let config = MossNodeConfig {
+            listen_port: 42424,
+            static_peer: None,
+            bind_interface: None,
+        };
+        std::env::remove_var("MOSH_DEBUG_RECORD_DIR");
+        let plain = node_config_json(&config);
+        assert!(
+            !plain.contains("debug"),
+            "shipping config must not open the debug plane: {plain}"
+        );
+
+        let dir = std::env::temp_dir().join("mosh-debug-test");
+        std::fs::create_dir_all(&dir).expect("temp dir exists");
+        std::env::set_var("MOSH_DEBUG_RECORD_DIR", &dir);
+        let debugged = node_config_json(&config);
+        std::env::remove_var("MOSH_DEBUG_RECORD_DIR");
+        assert!(
+            debugged.contains(r#""debug":{"enabled":true"#),
+            "env var must open the debug plane: {debugged}"
+        );
+        assert!(
+            debugged.contains(".mossrec"),
+            "debug plane must record to the requested dir: {debugged}"
         );
     }
 

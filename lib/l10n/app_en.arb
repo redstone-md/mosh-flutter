@@ -861,6 +861,22 @@
   "@diagNoEventsBody": {
     "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer"
   },
+  "diagRowLibraryVersion": "Library version",
+  "@diagRowLibraryVersion": {
+    "description": "Row key for the loaded moss library's own version in the Moss network group"
+  },
+  "diagRowPeerRtt": "Peer RTT",
+  "@diagRowPeerRtt": {
+    "description": "Row key for the last measured round-trip time to the active DM counterpart in the Moss network group"
+  },
+  "diagRowLogPath": "Field log",
+  "@diagRowLogPath": {
+    "description": "Row key for the field log's current file in the Moss network group"
+  },
+  "diagRttUnknown": "unknown",
+  "@diagRttUnknown": {
+    "description": "Value of the Peer RTT row when no round-trip time is known for the counterpart"
+  },
   "peerStatusTitle": "Peer status",
   "@peerStatusTitle": {
     "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen"
@@ -1553,5 +1569,21 @@
   "lockScreenInsecureDeviceMessage": "Mosh requires a screen lock (PIN, pattern, or biometric) to protect your conversations. Set one in Settings - Security, then reopen Mosh.",
   "@lockScreenInsecureDeviceMessage": {
     "description": "Body shown on MoshLockScreen in the insecureDevice state; explains the screen-lock requirement and points the user at Settings - Security (no Open Settings button is wired: android_intent_plus / url_launcher are not deps, so the deep-link is a documented follow-up)"
+  },
+  "typingHint": "{name} is typing…",
+  "@typingHint": {
+    "description": "Typing indicator hint shown under the DM/group message list while the counterpart types; {name} is the display name"
+  },
+  "typingHintAnd": "and more are typing…",
+  "@typingHintAnd": {
+    "description": "Tail of the multi-member typing hint in a group, appended after the comma-joined names"
+  },
+  "settingsReadReceiptsTitle": "Read receipts",
+  "@settingsReadReceiptsTitle": {
+    "description": "Settings row title for the app-level read-receipts toggle (one answer for every DM)"
+  },
+  "settingsReadReceiptsSubtitle": "When on, you tell your DM counterparts when you open the conversation — and see theirs. Off by default; a user who does not send receipts does not see others'.",
+  "@settingsReadReceiptsSubtitle": {
+    "description": "Settings row body for the read-receipts toggle; explains the symmetric default-off contract"
   }
 }

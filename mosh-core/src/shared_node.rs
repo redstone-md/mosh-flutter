@@ -18,6 +18,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::moss_ffi::{clear_event_log, MossFfiError, MossFfiRuntime, MossNode, MossNodeConfig};
 
 /// The room the shared node is born in. Carries no conversation traffic — each
@@ -99,7 +100,12 @@ impl SharedMossNode {
             Some(node) => {
                 if let Some(peer) = static_peer.as_deref() {
                     if let Err(error) = node.connect(peer) {
-                        eprintln!("shared moss node could not dial {peer}: {error}");
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::CONNECT,
+                            peer,
+                            &format!("shared moss node could not dial: {error}"),
+                        );
                     }
                 }
             }
@@ -138,6 +144,10 @@ fn drop_ref(state: &mut SharedNodeState) {
     }
 }
 
+/// The field-log context for the stream-handler registration result, so the
+/// line is greppable by call site rather than by peer.
+const STREAM_HANDLER_CONTEXT: &str = "stream-handler";
+
 fn start_node(
     moss: &Arc<MossFfiRuntime>,
     listen_port: u16,
@@ -153,6 +163,21 @@ fn start_node(
     )?;
     node.set_message_callback()?;
     node.set_event_callback()?;
+    // The attachment stream handler (spec #8) must be registered on the
+    // RECEIVE side before any counterpart streams a chunk at us — "first
+    // stream use" would only cover the sender. Idempotent per node (moss
+    // replaces the entry on re-register), best-effort: a library without the
+    // stream symbols simply keeps the room wire, so a missing symbol is a
+    // note, never a start failure.
+    if let Err(error) = node.register_stream_handler(crate::stream_transport::ATTACHMENT_STREAM_ID)
+    {
+        dlog::write(
+            LogLevel::Warn,
+            kinds::STREAM,
+            STREAM_HANDLER_CONTEXT,
+            &format!("attachment stream receive not available: {error}"),
+        );
+    }
     clear_event_log();
     node.start()?;
     Ok(node)

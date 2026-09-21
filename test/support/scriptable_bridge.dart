@@ -20,7 +20,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart'
-    show AppDiagnostics, NativeRuntimeStatus;
+    show AppDiagnostics, MossLibraryInfo, NativeRuntimeStatus;
 import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
 import 'package:mosh/src/rust/channel_runtime.dart'
     show ChannelListSnapshot, ChannelSnapshot, JoinChannelRequest;
@@ -52,10 +52,13 @@ import 'scripted_conversations.dart';
 /// a typo is a compile error instead of a call that is never scripted.
 enum BridgeMethod {
   appDiagnostics,
+  mossLibraryInfo,
   nativeRuntimeStatus,
   createInvite,
   acceptInvite,
   listSessions,
+  readReceiptsEnabled,
+  setReadReceiptsEnabled,
   listChannels,
   listGroups,
   joinChannel,
@@ -106,11 +109,13 @@ class ScriptableBridge
 
   InviteCreated? _invite;
   NativeRuntimeStatus? _nativeStatus;
+  MossLibraryInfo? _mossLibraryInfo;
   List<NetworkInterfaceInfo> _interfaces = const [];
   VpnDetection? _vpnDetection;
   String? _bindInterface;
   VpnBypassConsent? _vpnConsent;
   List<Uint8List> _callFrames = const [];
+  bool _readReceiptsEnabled = false;
 
   // ----------------------------------------------------------------- seeding
 
@@ -140,6 +145,9 @@ class ScriptableBridge
   void seedNativeRuntimeStatus(NativeRuntimeStatus status) =>
       _nativeStatus = status;
 
+  /// Seed what `mossLibraryInfo` returns.
+  void seedMossLibraryInfo(MossLibraryInfo info) => _mossLibraryInfo = info;
+
   /// Seed the NICs `listInterfaces` returns.
   void seedInterfaces(List<NetworkInterfaceInfo> interfaces) =>
       _interfaces = interfaces;
@@ -158,6 +166,10 @@ class ScriptableBridge
   /// Seed the frames `callDrainFrames` returns.
   void seedCallFrames(List<Uint8List> frames) => _callFrames = frames;
 
+  /// Seed the read-receipts answer. `setReadReceiptsEnabled` overwrites it,
+  /// so a test can set then read without touching the filesystem.
+  void seedReadReceiptsEnabled(bool enabled) => _readReceiptsEnabled = enabled;
+
   // -------------------------------------------------------------- diagnostics
 
   @override
@@ -169,6 +181,12 @@ class ScriptableBridge
       BridgeMethod.nativeRuntimeStatus,
       const {},
       () => _nativeStatus ?? cannedNativeRuntimeStatus());
+
+  @override
+  Future<MossLibraryInfo> mossLibraryInfo({String? peerMossId}) => runScripted(
+      BridgeMethod.mossLibraryInfo,
+      {'peerMossId': peerMossId},
+      () => _mossLibraryInfo ?? cannedMossLibraryInfo());
 
   // ------------------------------------------------------------ invite + DM
 
@@ -221,6 +239,17 @@ class ScriptableBridge
         () => SessionListSnapshot(
             sessions: conversations.sessions.values.toList()),
       );
+
+  @override
+  Future<bool> readReceiptsEnabled() => runScripted(
+      BridgeMethod.readReceiptsEnabled, const {}, () => _readReceiptsEnabled);
+
+  @override
+  Future<void> setReadReceiptsEnabled({required bool enabled}) =>
+      runScripted(BridgeMethod.setReadReceiptsEnabled, {'enabled': enabled},
+          () {
+        _readReceiptsEnabled = enabled;
+      });
 
   // -------------------------------------------------------- channels/groups
 

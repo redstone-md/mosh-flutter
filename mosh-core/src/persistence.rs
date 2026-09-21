@@ -6,6 +6,7 @@ use aes_gcm::{Aes256Gcm, Key, Nonce};
 use rand::RngCore;
 use redb::{Database, ReadableTable, TableDefinition};
 
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::secure_storage::{OsSecureSecretStore, SecureSecretStore};
 
 const NONCE_LEN: usize = 12;
@@ -415,10 +416,15 @@ impl Persistence {
             let (k, v) = item.map_err(|e| PersistenceError::Db(e.to_string()))?;
             match decrypt_blob(&self.dek, v.value()) {
                 Ok(plain) => out.push(plain),
-                Err(e) => eprintln!(
-                    "skipping undecryptable {} row {}: {e}",
+                Err(e) => dlog::write(
+                    LogLevel::Warn,
+                    kinds::PERSIST,
                     tables.label,
-                    k.value()
+                    &format!(
+                        "skipping undecryptable {} row {}: {e}",
+                        tables.label,
+                        k.value()
+                    ),
                 ),
             }
         }
@@ -911,7 +917,12 @@ impl crate::moss_ffi::MossKeyStore for Persistence {
         match self.get_moss_identity() {
             Ok(value) => value,
             Err(e) => {
-                eprintln!("moss identity load failed: {e}");
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::IDENTITY,
+                    "",
+                    &format!("moss identity load failed: {e}"),
+                );
                 None
             }
         }
@@ -919,7 +930,12 @@ impl crate::moss_ffi::MossKeyStore for Persistence {
 
     fn save_identity(&self, bytes: &[u8]) {
         if let Err(e) = self.put_moss_identity(bytes) {
-            eprintln!("moss identity save failed: {e}");
+            dlog::write(
+                LogLevel::Error,
+                kinds::IDENTITY,
+                "",
+                &format!("moss identity save failed: {e}"),
+            );
         }
     }
 }

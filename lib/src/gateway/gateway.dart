@@ -85,4 +85,16 @@ abstract interface class Gateway {
   /// Leaves [target]: closes the DM session, leaves the channel, or closes
   /// the group. The caller invalidates its snapshot and navigates away.
   Future<void> leave(AnyConversationTarget target);
+
+  /// Tells the counterpart the local user is typing (DMs and groups; a
+  /// channel has no counterpart to tell and this is a no-op for it).
+  /// Fire-and-forget: the runtime throttles repeats to its own cadence, so
+  /// the composer may call this on every keystroke.
+  Future<void> typingSignal(AnyConversationTarget target);
+
+  /// Reports the conversation is on screen, auto-triggering the DM read
+  /// receipts for every not-yet-read counterpart message when the toggle
+  /// is on. Groups and channels have no receipts in this slice, so this
+  /// is a no-op for them.
+  Future<void> markViewed(AnyConversationTarget target);
 }

@@ -42,6 +42,8 @@ enum GatewayMethod {
   cancelAttachment,
   dismissDmOffer,
   leave,
+  typingSignal,
+  markViewed,
 }
 
 /// One recorded call to the conversation seam.
@@ -178,4 +180,16 @@ class ScriptableGateway
             conversations.groups.remove(target.id);
         }
       });
+
+  /// Records the typing signal; no seeded state changes (the counterpart's
+  /// hint lives on the other side, which a test seeds directly).
+  @override
+  Future<void> typingSignal(AnyConversationTarget target) =>
+      runScripted(GatewayMethod.typingSignal, {'target': target}, () {});
+
+  /// Records the view mark; no seeded state changes (the receipts live on
+  /// the other side, which a test seeds directly).
+  @override
+  Future<void> markViewed(AnyConversationTarget target) =>
+      runScripted(GatewayMethod.markViewed, {'target': target}, () {});
 }

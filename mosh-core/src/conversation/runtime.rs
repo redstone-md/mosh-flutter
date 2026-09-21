@@ -25,6 +25,7 @@ use serde::Serialize;
 use super::history::{History, Restore};
 use super::message_log::{ConversationMessage, MessageLog};
 use crate::attachment_store::AttachmentStore;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::moss_ffi::MossNode;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::{HistoryTables, Persistence};
@@ -331,11 +332,21 @@ pub fn close_room(
 ) {
     for channel in channels {
         if let Err(error) = node.unsubscribe_room(mesh_id, channel) {
-            eprintln!("{label} could not unsubscribe {channel}: {error}");
+            dlog::write(
+                LogLevel::Warn,
+                kinds::ROOM,
+                label,
+                &format!("could not unsubscribe {channel}: {error}"),
+            );
         }
     }
     if let Err(error) = node.leave_room(mesh_id) {
-        eprintln!("{label} could not leave its room: {error}");
+        dlog::write(
+            LogLevel::Warn,
+            kinds::ROOM,
+            label,
+            &format!("could not leave its room: {error}"),
+        );
     }
     shared_node.release();
 }

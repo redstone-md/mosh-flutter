@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
+import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 import 'package:mosh/src/rust/conversation/mesh.dart';
 import 'package:mosh/src/util/format.dart';
 
@@ -39,10 +40,25 @@ import 'package:mosh/src/util/format.dart';
 /// (`summaryFactPeers` / `summaryFactNat` / `summaryFactRelay`) since the
 /// strings are identical (DRY).
 class MeshDiagnostics extends StatelessWidget {
-  const MeshDiagnostics({super.key, required this.mesh});
+  const MeshDiagnostics({
+    super.key,
+    required this.mesh,
+    this.libraryInfo,
+    this.peerMossId,
+  });
 
   /// The session's mesh info, or `null` while the mesh is still booting.
   final MeshInfo? mesh;
+
+  /// What the loaded moss library reports about itself (spec #5), or `null`
+  /// when the caller has no library read (legacy callers, tests that only
+  /// exercise the mesh rows): the library rows stay off the panel then.
+  final MossLibraryInfo? libraryInfo;
+
+  /// The active DM counterpart's moss peer id. Non-null (DM panels only) is
+  /// what turns the Peer RTT row on: a channel and a group have no single
+  /// counterpart, so asking about one would be a lie.
+  final String? peerMossId;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +104,7 @@ class MeshDiagnostics extends StatelessWidget {
         label: l.diagRowPublicKey,
         value: shorten(m.publicKey, 12),
       ),
+      ..._libraryRows(l),
     ];
     return DiagnosticsGroup(
       label: l.diagGroupMossNetwork,
@@ -96,6 +113,34 @@ class MeshDiagnostics extends StatelessWidget {
         ...rows,
       ],
     );
+  }
+
+  /// The spec-#5 rows the loaded library answers for: its own version, the
+  /// active counterpart's last measured RTT (DM panels only), and the field
+  /// log's file. Rendered after the mesh rows; `libraryInfo == null` adds
+  /// nothing, so a caller without the read keeps the panel exactly as
+  /// before.
+  List<DiagnosticsRow> _libraryRows(AppLocalizations l) {
+    final info = libraryInfo;
+    if (info == null) return const [];
+    final rows = <DiagnosticsRow>[
+      DiagnosticsRow(
+        label: l.diagRowLibraryVersion,
+        value: info.version,
+      ),
+      if (peerMossId != null)
+        DiagnosticsRow(
+          label: l.diagRowPeerRtt,
+          value: info.peerRttMs == null
+              ? l.diagRttUnknown
+              : '${info.peerRttMs} ms',
+        ),
+      DiagnosticsRow(
+        label: l.diagRowLogPath,
+        value: info.logPath ?? '-',
+      ),
+    ];
+    return rows;
   }
 }
 

@@ -107,3 +107,21 @@ Future<List<Uint8List>> callDrainFrames(
         {required String sessionId, required String callId}) =>
     RustLib.instance.api
         .crateApiPrivateDmCallDrainFrames(sessionId: sessionId, callId: callId);
+
+/// Whether this user sends read receipts (and therefore sees others').
+/// One app-level answer covering every DM; read from the plain JSON
+/// settings file in the data dir, default off. Does not construct the
+/// runtime: the setting is a file read, not a runtime action, so the
+/// settings screen can show it before any session exists.
+Future<bool> readReceiptsEnabled() =>
+    RustLib.instance.api.crateApiPrivateDmReadReceiptsEnabled();
+
+/// Set the app-level read-receipts answer. Persists BOTH ways (an "off" is
+/// a decision too), then applies it to the runtime so inbound receipts are
+/// honored or dropped from this moment. Constructs the runtime when it is
+/// not up yet — a settings screen may toggle before any session exists,
+/// and the runtime reads the file at every use anyway, so a construction
+/// failure only means the value is already on disk.
+Future<void> setReadReceiptsEnabled({required bool enabled}) =>
+    RustLib.instance.api
+        .crateApiPrivateDmSetReadReceiptsEnabled(enabled: enabled);

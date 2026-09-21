@@ -39,9 +39,9 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
         SessionSnapshot,
         StartSessionRequest;
 import 'package:mosh/src/rust/api/diagnostics.dart'
-    show AppDiagnostics, NativeRuntimeStatus;
+    show AppDiagnostics, MossLibraryInfo, NativeRuntimeStatus;
 import 'package:mosh/src/rust/api/diagnostics.dart' as api
-    show appDiagnostics, nativeRuntimeStatus;
+    show appDiagnostics, mossLibraryInfo, nativeRuntimeStatus;
 import 'package:mosh/src/rust/api/private_dm.dart' as api
     show
         acceptInvite,
@@ -52,7 +52,9 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api
         callSendFrame,
         callStart,
         createInvite,
-        listSessions;
+        listSessions,
+        readReceiptsEnabled,
+        setReadReceiptsEnabled;
 import 'package:mosh/src/rust/api/channel.dart' as channel_api
     show join, list, sendDmOffer;
 import 'package:mosh/src/rust/api/private_group.dart' as group_api
@@ -93,6 +95,12 @@ class BridgeFacade {
   Future<NativeRuntimeStatus> nativeRuntimeStatus() =>
       api.nativeRuntimeStatus();
 
+  // Diagnostics: the loaded moss library's own version + the last measured
+  // RTT to the active DM counterpart (spec #5). peerMossId is the snapshot's
+  // peer id; null asks about the library alone.
+  Future<MossLibraryInfo> mossLibraryInfo({String? peerMossId}) =>
+      api.mossLibraryInfo(peerMossId: peerMossId);
+
   // Invite/session setup: mint an invite, accept one, read the DM list.
   // The DM list feeds the rail; the conversation's own state is a Gateway
   // poll.
@@ -104,6 +112,15 @@ class BridgeFacade {
       api.acceptInvite(request: request);
 
   Future<SessionListSnapshot> listSessions() => api.listSessions();
+
+  // The app-level read-receipts answer (issue #2): one toggle covering
+  // every DM, persisted on the Rust side. `readReceiptsEnabled` is a file
+  // read, not a runtime action, so the settings screen can show it before
+  // any session exists.
+  Future<bool> readReceiptsEnabled() => api.readReceiptsEnabled();
+
+  Future<void> setReadReceiptsEnabled({required bool enabled}) =>
+      api.setReadReceiptsEnabled(enabled: enabled);
 
   // Channels/groups read seam (1:1 port of `channel_list`/
   // `private_group_list`). One conversation's own state comes from the

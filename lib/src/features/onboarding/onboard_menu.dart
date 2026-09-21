@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/disclosure.dart';
 import 'package:mosh/src/features/shared/field.dart';
+import 'package:mosh/src/features/shared/read_receipts_toggle.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -241,6 +242,12 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
                 l: l,
                 onAccept: DesktopAppRelauncherScope.of(context).relaunch,
               ),
+              const SizedBox(height: 12),
+              // The app-level read-receipts answer (one toggle for every
+              // DM; issue #2). Lives beside the bind-interface override
+              // because both are Advanced-level settings with a persisted
+              // answer read at call time.
+              ReadReceiptsToggle(),
             ],
           ),
         ),
