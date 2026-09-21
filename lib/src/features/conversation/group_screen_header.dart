@@ -27,6 +27,7 @@ import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/chat_header_menu.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 
 /// The GroupScreen AppBar header: the two-line title Column (group label +
@@ -128,10 +129,28 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(async.maybeWhen(
-            data: (group) => group.label ?? l.groupUntitled,
-            orElse: () => widget.groupId,
-          )),
+          // Group label with the fingerprint lock beside it. The lock
+          // shows the group's `creator_fingerprint` -- the same value
+          // every member reads -- and renders nothing while the
+          // snapshot has not resolved or the fingerprint is empty.
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(async.maybeWhen(
+                  data: (group) => group.label ?? l.groupUntitled,
+                  orElse: () => widget.groupId,
+                )),
+              ),
+              FingerprintLock(
+                fingerprint: async.maybeWhen(
+                  data: (group) => group.creatorFingerprint,
+                  orElse: () => '',
+                ),
+                hint: l.groupFingerprintHint,
+              ),
+            ],
+          ),
           SizedBox(height: chatSubtitleGap(context)),
           Text(
             async.maybeWhen(

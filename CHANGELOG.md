@@ -7,6 +7,25 @@ All notable changes to Mosh are documented here. Format follows
 ## [Unreleased]
 
 ### Added
+- **Telegram-style fingerprint lock in the DM and group headers.** A small
+  lock next to the peer name (DM) or group label (group) opens one shared
+  dialog: the 4-emoji fingerprint derived from Telegram Desktop's own
+  333-emoji pool (`fingerprint_emoji.dart`, pool extracted from
+  `calls_emoji_fingerprint.cpp` by script), the hex string, and a
+  compare-out-of-band hint. Both sides of a chat read the same
+  fingerprint (the creator's / `creator_fingerprint`), so the emoji match
+  when nobody swapped the invite. Groups get a "compare with the creator"
+  hint; channels stay unchanged.
+
+### Removed
+- **The fingerprint confirm flow.** The header confirm pill, the dead
+  `FingerprintConfirmScreen`, the screen's in-memory confirmed set, the
+  kebab "Confirm fingerprint" item, and the confirmed/unverified subtitle
+  variants are gone: a local confirm flag gates nothing and dies on
+  restart, so the surface is now read-only (the lock + dialog above).
+  The DM header subtitle is the plain connection status sentence.
+
+### Changed
 - **macOS release channel: a universal (Apple Silicon + Intel) DMG.** One
   `build-macos.yml` workflow builds it — reusable, same artifact for the
   main-push proof and the tagged release, plus `workflow_dispatch` for the

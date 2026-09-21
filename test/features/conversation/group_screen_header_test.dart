@@ -49,6 +49,7 @@ GroupSnapshot _snapshot({
   required String state,
   required List<GroupMessage> messages,
   String? inviteUri,
+  String? creatorFingerprint,
 }) =>
     GroupSnapshot(
       groupId: groupId,
@@ -56,7 +57,7 @@ GroupSnapshot _snapshot({
       label: null,
       displayName: 'me',
       deviceFingerprint: deviceFingerprint,
-      creatorFingerprint: deviceFingerprint,
+      creatorFingerprint: creatorFingerprint ?? deviceFingerprint,
       isAdmin: isAdmin,
       state: state,
       memberCount: memberCount,
@@ -340,5 +341,74 @@ void main() {
     // No copy-invite button: neither invite tooltip present.
     expect(find.byTooltip('Copy invite'), findsNothing);
     expect(find.byTooltip('Invite copied'), findsNothing);
+  });
+
+  // --- Fingerprint lock next to the group label ---
+
+  testWidgets(
+      'a non-empty creator fingerprint renders the lock next to the label',
+      (tester) async {
+    const groupId = 'grp-lock';
+    final snapshot = _snapshot(
+      groupId: groupId,
+      deviceFingerprint: 'fp-me',
+      creatorFingerprint: '0011223344556677',
+      isAdmin: false,
+      memberCount: BigInt.two,
+      state: 'Active',
+      messages: [
+        _msg(
+          fromDevice: 'bob',
+          fromFingerprint: 'fp-bob',
+          body: 'hi',
+          sentAtMs: BigInt.from(1700000000000),
+        ),
+      ],
+    );
+    await _pumpGroup(tester, snapshot);
+
+    // The header lock carries the E2EE tooltip (the body's group E2EE
+    // banner also uses Icons.lock, so the icon alone is ambiguous).
+    expect(find.byTooltip('End-to-end encrypted'), findsOneWidget);
+  });
+
+  testWidgets('tapping the group lock opens the dialog with the group hint',
+      (tester) async {
+    const fingerprint = '0011223344556677';
+    const groupId = 'grp-lock-tap';
+    final snapshot = _snapshot(
+      groupId: groupId,
+      deviceFingerprint: 'fp-me',
+      creatorFingerprint: fingerprint,
+      isAdmin: false,
+      memberCount: BigInt.two,
+      state: 'Active',
+      messages: [
+        _msg(
+          fromDevice: 'bob',
+          fromFingerprint: 'fp-bob',
+          body: 'hi',
+          sentAtMs: BigInt.from(1700000000000),
+        ),
+      ],
+    );
+    await _pumpGroup(tester, snapshot);
+
+    await tester.tap(find.byTooltip('End-to-end encrypted'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Encryption fingerprint'), findsOneWidget);
+    expect(find.text(fingerprint), findsOneWidget);
+    // The group wording, not the DM wording.
+    expect(
+      find.text(
+          'The same for every member. Compare it with the group creator.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+          'The same on both sides. Compare it with your peer over a call or in person.'),
+      findsNothing,
+    );
   });
 }
