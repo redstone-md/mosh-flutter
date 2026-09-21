@@ -4,7 +4,15 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.1] - 2026-09-21
+
+The macOS-first maintenance release. Mac users get the universal DMG
+channel and three frictions gone: no more login-keychain password
+prompts to reach the history DEK, no more chats silently vanishing
+after a restart behind `missing MLS snapshot`, and Rust panics now
+leave a line in the field log so a crash report has evidence to attach.
+Everyone gets the fingerprint lock that replaces the dead confirm pill
+and a pass of UI polish.
 
 ### Added
 - **Rust panics mirror into the field log.** A panic hook installed from the
@@ -12,32 +20,6 @@ All notable changes to Mosh are documented here. Format follows
   (new `panic` kind) before the default hook runs, so a release build that
   dies on a foreign thread (a Go callback, an audio worker) leaves evidence
   in `mosh.log` instead of going silent.
-
-### Fixed
-- **macOS no longer prompts for the login password to reach the history
-  DEK.** Sandboxed macOS builds (dev runs and the DMG both enable the app
-  sandbox) now use the data-protection keychain instead of the legacy
-  login-keychain store, whose ACL flow can show the "app wants to access
-  your keychain" prompt at every launch for an ad-hoc-signed build — and the
-  legacy-slot migration fallback could fire a second prompt in one launch.
-  The protected store is probed with a real set/get/delete roundtrip before
-  it is trusted, and the two legacy login-keychain slots are handed over
-  once (one possible last prompt), after which the prompt is gone.
-- **Chats no longer vanish after a restart with `missing MLS snapshot`.**
-  A DM record whose MLS snapshot write failed silently, or a joiner
-  placeholder written before its Welcome, used to stay on disk forever while
-  rehydrate skipped it with the same warning. Now: `accept_invite` writes no
-  record until the Welcome lands (record + snapshot go down together);
-  rehydrate deletes joiner placeholder rows (empty group id) instead of
-  warning at every startup; a final record missing its snapshot is kept —
-  its history rows stay recoverable — and reported distinctly; and a failed
-  snapshot write is logged (`persist` kind) instead of swallowed.
-- **DM/group rehydrate distinguishes a missing snapshot row from an
-  unreadable one.** `Ok(None)` vs `Err` from the snapshot read now produce
-  different log lines, so a DEK mismatch no longer masquerades as a
-  `missing MLS snapshot`.
-
-### Added
 - **Telegram-style fingerprint lock in the DM and group headers.** A small
   lock next to the peer name (DM) or group label (group) opens one shared
   dialog: the 4-emoji fingerprint derived from Telegram Desktop's own
@@ -47,14 +29,6 @@ All notable changes to Mosh are documented here. Format follows
   fingerprint (the creator's / `creator_fingerprint`), so the emoji match
   when nobody swapped the invite. Groups get a "compare with the creator"
   hint; channels stay unchanged.
-
-### Removed
-- **The fingerprint confirm flow.** The header confirm pill, the dead
-  `FingerprintConfirmScreen`, the screen's in-memory confirmed set, the
-  kebab "Confirm fingerprint" item, and the confirmed/unverified subtitle
-  variants are gone: a local confirm flag gates nothing and dies on
-  restart, so the surface is now read-only (the lock + dialog above).
-  The DM header subtitle is the plain connection status sentence.
 
 ### Changed
 - **macOS release channel: a universal (Apple Silicon + Intel) DMG.** One
@@ -81,6 +55,38 @@ All notable changes to Mosh are documented here. Format follows
   SignPath Foundation application was declined, so the Windows artifacts
   stay unsigned too; `CODE_SIGNING.md` now documents what a user sees on
   both platforms and what would change if a certificate ever exists.
+
+### Removed
+- **The fingerprint confirm flow.** The header confirm pill, the dead
+  `FingerprintConfirmScreen`, the screen's in-memory confirmed set, the
+  kebab "Confirm fingerprint" item, and the confirmed/unverified subtitle
+  variants are gone: a local confirm flag gates nothing and dies on
+  restart, so the surface is now read-only (the lock + dialog above).
+  The DM header subtitle is the plain connection status sentence.
+
+### Fixed
+- **macOS no longer prompts for the login password to reach the history
+  DEK.** Sandboxed macOS builds (dev runs and the DMG both enable the app
+  sandbox) now use the data-protection keychain instead of the legacy
+  login-keychain store, whose ACL flow can show the "app wants to access
+  your keychain" prompt at every launch for an ad-hoc-signed build — and the
+  legacy-slot migration fallback could fire a second prompt in one launch.
+  The protected store is probed with a real set/get/delete roundtrip before
+  it is trusted, and the two legacy login-keychain slots are handed over
+  once (one possible last prompt), after which the prompt is gone.
+- **Chats no longer vanish after a restart with `missing MLS snapshot`.**
+  A DM record whose MLS snapshot write failed silently, or a joiner
+  placeholder written before its Welcome, used to stay on disk forever while
+  rehydrate skipped it with the same warning. Now: `accept_invite` writes no
+  record until the Welcome lands (record + snapshot go down together);
+  rehydrate deletes joiner placeholder rows (empty group id) instead of
+  warning at every startup; a final record missing its snapshot is kept —
+  its history rows stay recoverable — and reported distinctly; and a failed
+  snapshot write is logged (`persist` kind) instead of swallowed.
+- **DM/group rehydrate distinguishes a missing snapshot row from an
+  unreadable one.** `Ok(None)` vs `Err` from the snapshot read now produce
+  different log lines, so a DEK mismatch no longer masquerades as a
+  `missing MLS snapshot`.
 
 ## [0.9.0] - 2026-09-21
 
