@@ -14,7 +14,8 @@ import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 
 import 'package:media_kit/media_kit.dart';
 
@@ -211,38 +212,102 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
             ),
           ),
           const SizedBox(width: 8),
-          GestureDetector(
-            onTapDown: (details) {
-              // React seek: ratio = (clientX - rect.left) / rect.width.
-              final box = context.findRenderObject() as RenderBox?;
-              if (box == null) return;
-              final width = box.size.width;
-              if (width == 0) return;
-              _seek((details.localPosition.dx / width).clamp(0.0, 1.0));
-            },
-            child: SizedBox(
-              width: 168,
-              height: 36,
-              child: CustomPaint(
-                painter: _WaveformPainter(
-                  peaks: peaks,
-                  progress: progress,
-                  played: theme.colorScheme.primary,
-                  unplayed: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
+          VoiceWaveform(
+            peaks: peaks,
+            progress: progress,
+            played: theme.colorScheme.primary,
+            unplayed: theme.colorScheme.onSurfaceVariant,
+            onSeekRatio: _seek,
           ),
           const SizedBox(width: 8),
-          // `.voice-message-time { font-size: 12px; opacity: 0.75 }`.
-          Opacity(
-            opacity: 0.75,
-            child: Text(
-              _formatClock(showMs),
-              style: const TextStyle(fontSize: 12, color: MoshColors.fg1),
+          // `.voice-message-time { font-size: 12px; opacity: 0.75 }`. Live
+          // number -> tabular figures so the label does not reflow while
+          // playback ticks (audit 2026-09-21).
+          VoiceCardTimeLabel(ms: showMs),
+        ],
+      ),
+    );
+  }
+}
+
+/// `.voice-message-time` -- the card's live m:ss label, extracted so the
+/// format and the tabular figures are testable without the media_kit native
+/// library (the card falls back where the player is unavailable). Tabular
+/// figures: the digits change while playback ticks, and proportional
+/// numerals reflow the label (audit 2026-09-21).
+class VoiceCardTimeLabel extends StatelessWidget {
+  const VoiceCardTimeLabel({super.key, required this.ms});
+
+  /// The moment to render: playback position while playing/seeked, else the
+  /// clip's full duration (React's `showMs`).
+  final int ms;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.75,
+      child: Text(
+        _formatClock(ms),
+        style: const TextStyle(
+          fontSize: 12,
+          color: MoshColors.fg1,
+          fontFeatures: kLiveNumberFontFeatures,
+        ),
+      ),
+    );
+  }
+}
+
+/// The voice wave: 64 buckets with a played/unplayed split, plus the seek
+/// gesture. Owns its own box: the ratio is measured against the WAVE's
+/// width, not the card's (`Builder` context), so a tap near the right edge
+/// reports ~1.0 no matter how wide the card renders -- the React contract
+/// `ratio = (clientX - rect.left) / rect.width` with `rect` = the wave.
+class VoiceWaveform extends StatelessWidget {
+  const VoiceWaveform({
+    super.key,
+    required this.peaks,
+    required this.progress,
+    required this.played,
+    required this.unplayed,
+    required this.onSeekRatio,
+  });
+
+  static const double width = 168;
+  static const double height = 36;
+
+  final Uint8List peaks;
+  final double progress;
+  final Color played;
+  final Color unplayed;
+
+  /// Called with the tapped position as a 0..1 fraction of the wave width.
+  final ValueChanged<double> onSeekRatio;
+
+  @override
+  Widget build(BuildContext context) {
+    // The Builder's context resolves to the wave's own render object: the
+    // card's context would measure the whole card (the audit's HIGH finding).
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTapDown: (details) {
+          final box = context.findRenderObject() as RenderBox?;
+          final width = box?.size.width ?? 0;
+          if (width == 0) return;
+          onSeekRatio((details.localPosition.dx / width).clamp(0.0, 1.0));
+        },
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: CustomPaint(
+            painter: _WaveformPainter(
+              peaks: peaks,
+              progress: progress,
+              played: played,
+              unplayed: unplayed,
             ),
           ),
-        ],
+        ),
       ),
     );
   }

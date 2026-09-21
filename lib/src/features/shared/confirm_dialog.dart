@@ -70,7 +70,7 @@ class ConfirmDialog extends StatefulWidget {
     this.cancelLabel,
     required this.onCancel,
     required this.onConfirm,
-    this.dangerColor = const Color(0xFFE86A5A),
+    this.dangerColor = MoshColors.danger,
   });
 
   /// The dialog title (React `title` -> `<h2 id="confirm-dialog-title">`).
@@ -305,7 +305,15 @@ class _ConfirmDialogCard extends StatelessWidget {
                       onPressed: onConfirm,
                       style: FilledButton.styleFrom(
                         backgroundColor: dangerColor,
-                        foregroundColor: Colors.white,
+                        // The on-fill ink follows the fill's luminance. The
+                        // crossover is where dark-ink and light-ink
+                        // contrasts are equal (WCAG midpoint, ~0.183), NOT
+                        // 0.5: the default danger (L≈0.28) is a light fill
+                        // and takes the dark ink; a dark custom fill takes
+                        // the light one (CodeAnt PR #12).
+                        foregroundColor: dangerColor.computeLuminance() > 0.183
+                            ? MoshColors.mossInk
+                            : MoshColors.fg1,
                       ),
                       child: Text(confirmLabel),
                     ),

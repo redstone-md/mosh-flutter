@@ -43,14 +43,15 @@ import 'package:mosh/src/gateway/conversation_target.dart'
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 // React CSS color tokens -- the same literals summary_card.dart and
 // bind_interface_field.dart already use (--moss / --warn / --fg-3). Kept
 // here as file-local constants so the pill chrome is self-describing
 // without threading a theme extension through the seed ColorScheme.
-const Color _kMoss = Color(0xFFB7D84A); // --moss
-const Color _kWarn = Color(0xFFE8B65A); // --warn
-const Color _kFg3 = Color(0xFF6B7075); // --fg-3 (idle dot)
+const Color _kMoss = MoshColors.moss;
+const Color _kWarn = MoshColors.warn;
+const Color _kFg3 = MoshColors.fg3;
 // --moss-glow background: rgba(183,216,74,~0.14). summary_card.dart uses
 // `Color(0x24B7D84A).withValues(alpha: 0.14)` for the ready badge; this
 // file mirrors that exact recipe.

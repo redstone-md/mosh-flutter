@@ -20,12 +20,13 @@ import 'package:mosh/src/features/org/org_add_missing_banner.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/org_providers.dart' show orgAddPromptProvider;
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// The tint on the channel notice: the same info blue the web app used.
-const Color _channelNoticeAccent = Color(0xFF6CB7E8);
+const Color _channelNoticeAccent = MoshColors.info;
 
 /// The tint on the group notice: moss green.
-const Color _groupNoticeAccent = Color(0xFFB7D84A);
+const Color _groupNoticeAccent = MoshColors.moss;
 
 class ConversationBanners extends StatelessWidget {
   const ConversationBanners({

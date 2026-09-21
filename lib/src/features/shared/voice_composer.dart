@@ -21,6 +21,8 @@ import 'dart:io' show File;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:record/record.dart';
 import 'package:media_kit/media_kit.dart';
@@ -54,6 +56,33 @@ String _formatElapsed(Duration d) {
   final m = d.inMinutes;
   final s = d.inSeconds.remainder(60);
   return '$m:${s.toString().padLeft(2, '0')}';
+}
+
+/// The live m:ss timers (record elapsed, preview duration). Tabular figures:
+/// the digits change every tick, and proportional numerals let the row
+/// (discard/stop after the timer) shift horizontally -- the call overlay's
+/// timer already renders this way (audit 2026-09-21).
+const TextStyle kVoiceTimerStyle =
+    TextStyle(fontFeatures: kLiveNumberFontFeatures);
+
+/// The recording indicator's 8px dot (React `.recording-dot`). Palette
+/// accent, not a raw Material red: the theme's danger token (audit
+/// 2026-09-21 palette-drift). Public so the accent is testable without the
+/// platform microphone.
+class VoiceRecordingDot extends StatelessWidget {
+  const VoiceRecordingDot({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: const BoxDecoration(
+        color: MoshColors.danger,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
 }
 
 enum _Phase { idle, recording, review }
@@ -288,16 +317,9 @@ class _VoiceComposerState extends State<VoiceComposer> {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Colors.redAccent,
-                shape: BoxShape.circle,
-              ),
-            ),
+            const VoiceRecordingDot(),
             const SizedBox(width: 8),
-            Text(_formatElapsed(_elapsed)),
+            Text(_formatElapsed(_elapsed), style: kVoiceTimerStyle),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: widget.discardLabel,
@@ -323,7 +345,10 @@ class _VoiceComposerState extends State<VoiceComposer> {
               onPressed: _togglePreview,
             ),
             const SizedBox(width: 8),
-            Text(_formatElapsed(Duration(milliseconds: _durationMs))),
+            Text(
+              _formatElapsed(Duration(milliseconds: _durationMs)),
+              style: kVoiceTimerStyle,
+            ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: widget.discardLabel,
