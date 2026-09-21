@@ -68,8 +68,12 @@ async function buildUniversalLibrary() {
   const slicePaths = DARWIN_SLICES.map((slice) => path.join(sliceDir, `libmoss.${slice.goarch}.dylib`));
 
   for (const [index, slice] of DARWIN_SLICES.entries()) {
+    // An explicit GOARCH (even one matching the host) makes Go treat the
+    // build as a cross-compile and default CGO_ENABLED to 0 -- and
+    // c-shared cannot link without cgo. Force it on for every slice.
     buildLibrary(slicePaths[index], {
       GOARCH: slice.goarch,
+      CGO_ENABLED: "1",
       CC: `clang -arch ${slice.clangArch}`,
     });
   }
