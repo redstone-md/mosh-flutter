@@ -128,7 +128,7 @@ class _Header extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 10),
+            icon: const Icon(Icons.close, size: 14),
             tooltip: l.orgLeave,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -184,13 +184,13 @@ class _DmOfferRow extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chat_bubble_outline, size: 10),
+                  const Icon(Icons.chat_bubble_outline, size: 14),
                 ],
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 10),
+            icon: const Icon(Icons.close, size: 14),
             tooltip: l.orgDismissDmAria(offer.fromName),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -257,7 +257,7 @@ class _GroupOfferRow extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 10),
+            icon: const Icon(Icons.close, size: 14),
             tooltip: l.orgDismissGroupAria(offer.fromName),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),

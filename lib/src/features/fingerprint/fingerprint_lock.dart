@@ -12,6 +12,11 @@ import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 /// Gap between the title text and the lock.
 const double _lockGap = 4;
 
+/// The lock tap area's inset: the 15px glyph plus 13px on every side keeps
+/// the InkWell at 41x41 -- the audit's >=40px tap floor for a control that
+/// opens the security dialog (audit 2026-09-21 hit-areas).
+const double _lockTapInset = 13;
+
 /// Lock icon size -- small enough to read as a suffix of the name, not
 /// as a header action.
 const double _lockIconSize = 15;
@@ -56,9 +61,12 @@ class FingerprintLock extends StatelessWidget {
         child: InkWell(
           onTap: () => showFingerprintDialog(context,
               fingerprint: fingerprint, hint: hint),
-          borderRadius: BorderRadius.circular(_lockIconSize),
+          borderRadius: BorderRadius.circular(_lockIconSize + _lockTapInset),
           child: Padding(
-            padding: const EdgeInsets.only(left: _lockGap),
+            // Symmetric 13px sides: the 15px glyph gets a 41x41 tap box.
+            // Chat headers are 70px (54 compact), so the box fits the title
+            // row.
+            padding: const EdgeInsets.all(_lockTapInset),
             child: Icon(
               Icons.lock,
               size: _lockIconSize,

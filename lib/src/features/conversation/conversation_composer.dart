@@ -28,6 +28,10 @@ const double kComposerGap = 8;
 /// React `.send-button` / `.composer-attach` are both 32x32 squares.
 const double kComposerButtonSize = 32;
 
+/// Hit slop on each side of the send square: 32 + 8*2 = the 48px Material
+/// tap floor, without growing the paint (audit 2026-09-21 hit-areas).
+const double kComposerButtonSlop = 8;
+
 /// The send square's key. React's `.send-button` holds an icon, not a
 /// label, so widget tests address it by key rather than by text.
 const Key kComposerSendButtonKey = Key('composer-send-button');
@@ -202,25 +206,42 @@ class ConversationComposer extends StatelessWidget {
                 // var(--moss-ink) }`, dropping to --bg-3/--fg-4 when disabled.
                 Tooltip(
                   message: sendLabel,
-                  child: FilledButton(
-                    key: kComposerSendButtonKey,
-                    onPressed: enabled ? onSend : null,
-                    style: FilledButton.styleFrom(
-                      fixedSize: const Size.square(kComposerButtonSize),
-                      minimumSize: const Size.square(kComposerButtonSize),
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  // The painted 32px square is React parity; a wrapper
+                  // hit-slop layer extends the tap target to the 48px
+                  // Material floor without growing the paint (audit
+                  // 2026-09-21 hit-areas). Inside the paint the arena gives
+                  // the tap to the FilledButton (ink + feedback); the
+                  // wrapper only catches the surrounding ring.
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: enabled ? onSend : null,
+                    child: SizedBox.square(
+                      dimension: kComposerButtonSize + kComposerButtonSlop * 2,
+                      child: Center(
+                        child: FilledButton(
+                          key: kComposerSendButtonKey,
+                          onPressed: enabled ? onSend : null,
+                          style: FilledButton.styleFrom(
+                            fixedSize: const Size.square(kComposerButtonSize),
+                            minimumSize:
+                                const Size.square(kComposerButtonSize),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            disabledBackgroundColor: MoshColors.bg3,
+                            disabledForegroundColor: MoshColors.fg4,
+                          ),
+                          child: sending
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2))
+                              : const Icon(Icons.send, size: 16),
+                        ),
                       ),
-                      disabledBackgroundColor: MoshColors.bg3,
-                      disabledForegroundColor: MoshColors.fg4,
                     ),
-                    child: sending
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.send, size: 16),
                   ),
                 ),
               ],
