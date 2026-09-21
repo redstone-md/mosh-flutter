@@ -318,6 +318,10 @@ Ask first:
 - The product name is Mosh. Do not use Quiver/Quier naming.
 - Build the desktop app first, then Android, then iOS.
 - Prefer an actual Flutter app with the smallest needed screens over building a full design-system library first.
+- Security indicators show a VALUE, never a fake confirm. If the runtime has
+  no confirm/verify call, the UI must not invent a local confirmed flag:
+  a state that gates nothing is noise (the fingerprint lock replaced the
+  old confirm pill this way; 2026-09-21).
 
 ### Dislikes
 

@@ -96,21 +96,21 @@
   "@inviteJoinButton": {
     "description": "Button label for joining an invite"
   },
-  "inviteFingerprintLabel": "Peer fingerprint",
+  "inviteFingerprintLabel": "Encryption fingerprint",
   "@inviteFingerprintLabel": {
-    "description": "Label for the peer fingerprint field"
+    "description": "Title of the fingerprint dialog opened from the header lock"
   },
-  "inviteFingerprintHint": "Verify out-of-band (voice / in person). Then click confirm.",
+  "inviteFingerprintHint": "The same on both sides. Compare it with your peer over a call or in person.",
   "@inviteFingerprintHint": {
-    "description": "Hint explaining fingerprint verification"
+    "description": "Hint shown under the fingerprint in the fingerprint dialog (DM wording)"
   },
-  "inviteConfirmButton": "Confirm fingerprint",
-  "@inviteConfirmButton": {
-    "description": "Button label for confirming a fingerprint"
+  "groupFingerprintHint": "The same for every member. Compare it with the group creator.",
+  "@groupFingerprintHint": {
+    "description": "Hint shown under the fingerprint in the fingerprint dialog (group wording)"
   },
-  "inviteConfirmedButton": "Fingerprint confirmed",
-  "@inviteConfirmedButton": {
-    "description": "Button label after a fingerprint is confirmed"
+  "dialogClose": "Close",
+  "@dialogClose": {
+    "description": "Generic close button label for dialogs"
   },
   "chatEmptyTitle": "No messages yet.",
   "@chatEmptyTitle": {
@@ -246,11 +246,11 @@
   },
   "cryptoNoticeTitle": "End-to-end encrypted",
   "@cryptoNoticeTitle": {
-    "description": "Title of the end-to-end encryption notice"
+    "description": "Lock tooltip in the chat header, and the title of the end-to-end encryption notice"
   },
   "cryptoNoticeBody": "OpenMLS protects message content. Moss carries ciphertext via public trackers + supernodes for NAT punching — peer discovery metadata is NOT hidden.",
   "@cryptoNoticeBody": {
-    "description": "Body of the end-to-end encryption notice"
+    "description": "Body of the end-to-end encryption notice (onboarding About card)"
   },
   "groupCreateCardTitle": "Create private group",
   "@groupCreateCardTitle": {
@@ -1045,24 +1045,6 @@
   "groupScreenMlsStateSuffix": " · MLS {state}",
   "@groupScreenMlsStateSuffix": {
     "description": "MLS-state suffix appended to the GroupScreen AppBar subtitle (mirrors React ' · MLS {state}'), with the MLS connection state",
-    "placeholders": {
-      "state": {
-        "type": "String"
-      }
-    }
-  },
-  "dmSubtitleConfirmed": "{state} · fingerprint confirmed",
-  "@dmSubtitleConfirmed": {
-    "description": "DmScreen AppBar subtitle when the peer fingerprint is confirmed, with the DM state sentence (waiting, offline, or connected plus the transport)",
-    "placeholders": {
-      "state": {
-        "type": "String"
-      }
-    }
-  },
-  "dmSubtitleUnverified": "{state} · fingerprint unverified",
-  "@dmSubtitleUnverified": {
-    "description": "DmScreen AppBar subtitle when the peer fingerprint is NOT confirmed, with the DM state sentence (waiting, offline, or connected plus the transport)",
     "placeholders": {
       "state": {
         "type": "String"

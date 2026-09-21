@@ -24,10 +24,10 @@
   "inviteJoinHint": "Вставьте mosh:// URI, который отправил ваш собеседник.",
   "inviteJoinPlaceholder": "mosh://invite?mesh=...&session=...#fp=...",
   "inviteJoinButton": "Подключиться",
-  "inviteFingerprintLabel": "Fingerprint собеседника",
-  "inviteFingerprintHint": "Проверьте по другому каналу (голосом / лично). Затем нажмите «Подтвердить».",
-  "inviteConfirmButton": "Подтвердить fingerprint",
-  "inviteConfirmedButton": "Fingerprint подтверждён",
+  "inviteFingerprintLabel": "Fingerprint шифрования",
+  "inviteFingerprintHint": "Одинаков у вас и у собеседника — сравните его по голосу или лично.",
+  "groupFingerprintHint": "Одинаков у всех участников. Сравните его с создателем группы.",
+  "dialogClose": "Закрыть",
   "chatEmptyTitle": "Сообщений пока нет.",
   "chatEmptyBody": "Когда собеседник присоединится и завершится MLS-рукопожатие, открытый текст останется только на ваших устройствах.",
   "chatComposerPlaceholder": "Напишите сообщение…",
@@ -533,24 +533,6 @@
   "groupScreenMlsStateSuffix": " · MLS {state}",
   "@groupScreenMlsStateSuffix": {
     "description": "MLS-state suffix appended to the GroupScreen AppBar subtitle (mirrors React ' · MLS {state}'), with the MLS connection state",
-    "placeholders": {
-      "state": {
-        "type": "String"
-      }
-    }
-  },
-  "dmSubtitleConfirmed": "{state} · отпечаток подтверждён",
-  "@dmSubtitleConfirmed": {
-    "description": "DmScreen AppBar subtitle when the peer fingerprint is confirmed (mirrors React ActiveChatPanes.tsx subtitle `MLS ${state} · fingerprint confirmed`), with the MLS connection state",
-    "placeholders": {
-      "state": {
-        "type": "String"
-      }
-    }
-  },
-  "dmSubtitleUnverified": "{state} · отпечаток не подтверждён",
-  "@dmSubtitleUnverified": {
-    "description": "DmScreen AppBar subtitle when the peer fingerprint is NOT confirmed (mirrors React ActiveChatPanes.tsx subtitle `MLS ${state} · fingerprint unverified`), with the MLS connection state",
     "placeholders": {
       "state": {
         "type": "String"

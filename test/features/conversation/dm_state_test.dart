@@ -4,6 +4,7 @@
 // `dm_state.dart`, so this is where the wording is pinned.
 import 'dart:ui';
 
+import 'package:flutter/material.dart' show AppBar;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
@@ -110,8 +111,14 @@ void main() {
   group('DM header subtitle', () {
     testWidgets('waiting for the contact', (tester) async {
       await _pumpHeader(tester, _snapshot(state: DmSessionState.pending));
+      // Scoped to the AppBar: the rail badge shows the same words for
+      // `pending` (its label IS the sentence), so the bare finder
+      // matches both.
       expect(
-        find.text('Waiting for your contact · fingerprint unverified'),
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text('Waiting for your contact'),
+        ),
         findsOneWidget,
       );
     });
@@ -120,7 +127,7 @@ void main() {
       await _pumpHeader(tester, _snapshot(state: DmSessionState.handshaking));
       expect(
         find.text('Contact is offline. Messages will be delivered when you '
-            'are both online · fingerprint unverified'),
+            'are both online'),
         findsOneWidget,
       );
     });
@@ -133,9 +140,11 @@ void main() {
           transport: PeerTransport.relayed,
         ),
       );
+      // The subtitle is the plain status sentence: the fingerprint
+      // suffix (confirmed/unverified) is gone with the confirm state --
+      // the fingerprint now lives behind the header lock's dialog.
       expect(
-        find.text(
-            'Connected · relayed by the network · fingerprint unverified'),
+        find.text('Connected · relayed by the network'),
         findsOneWidget,
       );
       expect(find.byType(DmScreen), findsOneWidget);

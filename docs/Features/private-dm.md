@@ -1,7 +1,7 @@
 # Private DM (slice one)
 
 Feature doc for the slice-one private-DM flow under the Flutter + Rust bridge.
-Scope: invite create -> paste -> accept -> fingerprint confirm -> send ->
+Scope: invite create -> paste -> accept -> send ->
 snapshot poll. Reference: [ADR 0013](../ADR/0013-fork-topology-and-temporary-fake-gateway.md),
 [Architecture](../Architecture.md).
 
@@ -10,7 +10,7 @@ The flow runs through the `Gateway` seam. The app always runs
 override the provider with `ScriptableGateway` from `test/support/`. The
 sequence below is the real path.
 
-## Invite -> confirm -> send (Real path)
+## Invite -> send (Real path)
 
 ```mermaid
 sequenceDiagram
@@ -31,8 +31,7 @@ sequenceDiagram
     GW->>Api: accept_invite(request)
     Api-->>GW: SessionSnapshot { fingerprint }
     GW-->>Bob: SessionSnapshot
-    Bob->>Bob: verify fingerprint == SessionSnapshot.fingerprint
-    Note over Bob: slice one: local confirm flag<br/>later slice: gateway mutation
+    Note over Bob: fingerprint readable via the header lock<br/>(no gate — see below)
     Bob->>GW: send(DmTarget(sessionId), body)
     GW->>Api: conversation::send(BridgeConversationRef { Dm, session_id }, body)
     Api-->>GW: () — delivery state arrives in the next poll
@@ -92,14 +91,47 @@ sequenceDiagram
     Peer-->>RT: DeliveryAck → Delivered
 ```
 
+## The fingerprint lock
+
+The DM fingerprint is the **creator's** fingerprint: Alice's runtime
+derives it from her key (`create_invite`), the invite carries it, and
+Bob's session stores the invite's value — so both sides read the same
+string. Because both sides see the same value, there is nothing to
+"confirm": a local confirm flag would gate nothing and lie about
+having verified anything. The old confirm pill, its dead full-screen
+confirm page and the confirmed/unverified subtitle are gone.
+
+What remains is Telegram-style and read-only:
+
+- a small **lock** next to the peer name in the chat header (hover:
+  "End-to-end encrypted"), and
+- tapping it opens one shared **dialog**: the 4-emoji fingerprint
+  (Telegram's 333-emoji pool, deterministic from the fingerprint
+  string — `fingerprint_emoji.dart`), the hex string, and a hint to
+  compare the emoji over a call or in person. Groups show the same
+  dialog fed `creator_fingerprint`, with a "compare with the creator"
+  hint; channels stay as they are (open groups, no shared value).
+
+```mermaid
+flowchart LR
+    Snap["SessionSnapshot.fingerprint<br/>(creator's, same on both sides)"]
+    Lock["Lock in the header title<br/>(renders when non-empty)"]
+    Dialog["Dialog: emoji quartet + hex + hint"]
+    Compare["Both sides read the<br/>same emoji out-of-band"]
+    Snap --> Lock --> Dialog --> Compare
+```
+
+A swapped invite shows up here: the two sides' emoji differ, and no
+local state ever marked anything "verified".
+
 ## Slice-one boundaries
 
 - Poll-based, no streams. `api::private_dm` exposes no `StreamSink` in slice
   one (the React frontend polled on `AUTO_POLL_MS`); the Dart DM screen
   re-polls via `activeSessionProvider.family`.
-- Fingerprint confirm is a UI-side gate in slice one: the Dart orchestration
-  blocks `Gateway.send` until the user confirms the safety number. Later
-  slices move the confirmation to a gateway mutation.
+- The fingerprint surface is read-only (the lock + dialog above); the
+  runtime has no confirm-fingerprint call, and the UI keeps no
+  confirmed-fingerprint state.
 - `mosh://invite?...#fp=...` is parsed by ported `invite_uri.dart`; manual
   paste only, no OS deep-link association (ADR 0015).
 - Sessions list and per-session snapshot come from the DM entry of
