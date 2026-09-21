@@ -83,47 +83,17 @@ const AUTO_RESEND_MAX: u32 = 10;
 const CALL_RESEND_MS: u64 = 2_000;
 const CALL_RING_TIMEOUT_MS: u64 = 45_000;
 
-// Minimum gap between TypingIndicator publishes from one side. The composer
-// re-asks on every keystroke; the runtime folds that down to this cadence so
-// continued input reads as one steady signal instead of a frame per key.
-const TYPING_REFRESH_MS: u64 = 3_000;
-
-// How long a received typing hint stays believable without a refresh. The
-// receiver owns the expiry (the sender claims nothing): a refresh inside the
-// window renews it, silence lets it lapse, and a real message clears it at
-// once — a delivered message contradicts "typing".
-const TYPING_EXPIRY_MS: u64 = 5_000;
-
-/// Event code the diagnostics panel renders as "typing" (pinned in
-/// `conversation::mesh`). Synthesized into the ring whenever a decrypted
-/// hint lands or lapses, so the panel shows typing activity like the node's
-/// own reports.
-const TYPING_EVENT_CODE: i32 = 10;
-
-/// Event code the diagnostics panel renders as "message_read" (pinned in
-/// `conversation::mesh`). Filed on BOTH sides of a receipt: when one lands
-/// (the sender learns its message was read) and when `mark_viewed` sends
-/// one (the receiver's own honest event log).
-const READ_EVENT_CODE: i32 = 9;
+// The typing cadence, the expiry window, and the pinned event codes live in
+// `conversation::typing` / `conversation::read_events`, shared with the group.
+use crate::conversation::typing::{self as typing_shared, TypingGate};
 
 // How many read ids a persisted session record keeps. A DM only ever needs
 // "already read?" for recent messages; a cap keeps a long-lived DM's record
 // from growing without bound. Receipts older than the cap re-ask once if a
 // restored session ever re-renders that far back. Lives in `contracts`
 // beside the field it bounds (`contracts::READ_HISTORY_KEEP`).
+use crate::conversation::read_events::push_read_event;
 use contracts::{prune_read_ids, READ_HISTORY_KEEP};
-
-/// Files one read event (pinned code 9) into the diagnostics event ring,
-/// the same insert `on_moss_event` does for the node's own reports.
-fn push_read_event(session_id: &str, message_id: &str, phase: &str) {
-    let detail = serde_json::json!({
-        "conversation": KIND,
-        "session_id": session_id,
-        "message_id": message_id,
-        "phase": phase,
-    });
-    crate::moss_ffi::push_app_event(READ_EVENT_CODE, &detail.to_string());
-}
 
 /// What moved a session's state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,17 +136,6 @@ fn random_b64(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::thread_rng().fill_bytes(&mut buf);
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buf)
-}
-
-/// Files one typing event (pinned code 10) into the diagnostics event ring,
-/// the same insert `on_moss_event` does for the node's own reports.
-fn push_typing_event(session_id: &str, phase: &str) {
-    let detail = serde_json::json!({
-        "conversation": KIND,
-        "session_id": session_id,
-        "phase": phase,
-    });
-    crate::moss_ffi::push_app_event(TYPING_EVENT_CODE, &detail.to_string());
 }
 
 use crate::moss_ffi::{MossFfiRuntime, MossReceivedMessage};
@@ -251,9 +210,8 @@ struct PrivateDmSession {
     // refreshes it inside the window while it keeps typing; silence lets it
     // lapse and its own message clears it at once.
     peer_typing_until_ms: Option<u64>,
-    // When we last published a TypingIndicator, so continued input re-emits
-    // no faster than the refresh cadence.
-    last_typing_send_ms: u64,
+    // The send-cadence gate for our own TypingIndicator publishes.
+    typing_gate: TypingGate,
     // Message ids of OUR OWN messages the counterpart has authenticated a
     // read of (survives a restart via the session record), plus the ids of
     // the counterpart's messages we have already receipted, so
@@ -1033,7 +991,7 @@ impl PrivateDmSession {
             last_peer_announce_ms: 0,
             last_hello_send_ms: 0,
             peer_typing_until_ms: None,
-            last_typing_send_ms: 0,
+            typing_gate: TypingGate::default(),
             peer_read_ids: Vec::new(),
             sent_read_ids: Vec::new(),
             dirty_outbound: Vec::new(),
@@ -1990,12 +1948,12 @@ impl PrivateDmSession {
         if !self.can_encrypt_for_peer() {
             return;
         }
-        if now.saturating_sub(self.last_typing_send_ms) < TYPING_REFRESH_MS {
+        if !self.typing_gate.send_due(now) {
             return;
         }
         let body = TypingBody {
             device: self.device_id.clone(),
-            until_ms: now.saturating_add(TYPING_EXPIRY_MS),
+            until_ms: TypingGate::deadline(now),
         };
         let Ok(body_json) = serde_json::to_vec(&body) else {
             return;
@@ -2012,19 +1970,16 @@ impl PrivateDmSession {
         let Ok(payload) = serde_json::to_vec(&envelope) else {
             return;
         };
-        if self.route_send(ChannelKind::Control, &payload).is_err() {
-            return;
-        }
-        self.last_typing_send_ms = now;
+        let _ = self.route_send(ChannelKind::Control, &payload);
     }
 
     /// A decrypted hint from the counterpart: stamp the deadline from OUR
     /// clock (the sender's `until_ms` stays advisory) and file the event.
     fn note_peer_typing(&mut self, now: u64) {
         let lapsed = self.peer_typing_until_ms.is_none_or(|until| until <= now);
-        self.peer_typing_until_ms = Some(now.saturating_add(TYPING_EXPIRY_MS));
+        self.peer_typing_until_ms = Some(TypingGate::deadline(now));
         if lapsed {
-            push_typing_event(&self.session_id, "started");
+            typing_shared::push_typing_event(&self.session_id, "started");
         }
     }
 
@@ -2038,14 +1993,14 @@ impl PrivateDmSession {
             return;
         }
         self.peer_typing_until_ms = None;
-        push_typing_event(&self.session_id, "stopped");
+        typing_shared::push_typing_event(&self.session_id, "stopped");
     }
 
     /// An inbound message contradicts "typing": the hint is cleared at once,
     /// whatever its deadline said.
     fn clear_peer_typing(&mut self) {
         if self.peer_typing_until_ms.take().is_some() {
-            push_typing_event(&self.session_id, "stopped");
+            typing_shared::push_typing_event(&self.session_id, "stopped");
         }
     }
 
