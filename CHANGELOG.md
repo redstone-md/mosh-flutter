@@ -39,6 +39,13 @@ change (all 838 Dart tests and 366 Rust tests green throughout).
 
 ### Removed
 - Dead `PrivateGroupRuntime::new` constructor (nothing called it).
+- Dead Rust voice-call modules: `voice_call_drain` (196 lines, never
+  wired), `voice_call_frame_crypto` + `voice_call_jitter` (463 lines —
+  the Dart twins in `lib/src/features/voice_call/` are the live path
+  and carry their own tests).
+- `docs/superpowers/` — the port-era process archive (10,495 lines):
+  task plans for the deleted React/Tauri app. Superseded by the ADRs;
+  nothing references the directory.
 
 ## [0.9.1] - 2026-09-21
 
