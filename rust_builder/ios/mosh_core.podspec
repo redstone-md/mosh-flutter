@@ -1,9 +1,9 @@
 #
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
-# Run `pod lib lint mosh-core.podspec` to validate before publishing.
+# Run `pod lib lint mosh_core.podspec` to validate before publishing.
 #
 Pod::Spec.new do |s|
-  s.name             = 'mosh-core'
+  s.name             = 'mosh_core'
   s.version          = '0.0.1'
   s.summary          = 'A new Flutter FFI plugin project.'
   s.description      = <<-DESC
