@@ -36,11 +36,17 @@ spellings; one vocabulary keeps the file filterable. The slugs so far:
 
 `rehydrate` `persist` `identity` `publish` `verify` `offer` `room`
 `frame` `connect` `announce` `outbox` `handshake` `delivery` `resend`
-`call` `commit` `kick` `resync` `voice` `stream` `test`
+`call` `commit` `kick` `resync` `voice` `stream` `panic` `test`
 
 The `stream` kind carries the attachment chunk carrier (spec #8): the
 room-wire fallback note and frames that arrive on the reserved inbox
 channel but do not deframe.
+
+The `panic` kind carries Rust panics mirrored by the process panic hook
+(installed from the first Rust entry point): one `error` line per panic
+with its source location, before the default hook runs. It is the only
+evidence a release build leaves when a panic on a foreign thread aborts
+the process.
 
 ## Rotation policy
 
