@@ -17,15 +17,17 @@ permissions:
 # CI matrix (ADR 0015). The desktop jobs run on windows-latest: the
 # integration test needs mosh_core.dll (Windows-built via cargokit), and the
 # cargo jobs dlopen moss.dll. android-build runs on ubuntu-latest, whose image
-# ships the Android SDK + NDK.
+# ships the Android SDK + NDK. The macOS lanes (rust-core-macos, macos-dmg) run
+# on macos-latest (arm64): the darwin compile and the universal DMG can only
+# be proven there.
 #
 # Toolchains, caches and the moss library come from .github/actions/setup so
 # every job pins the same versions. The moss build and the cargo target dirs
 # are cached; a job pays for them only when the submodule or lockfile moves.
 #
 # Job order: the three cheap gates (rust-core, codegen-drift, flutter-test)
-# run in parallel; the three expensive builds (integration-test,
-# android-build, windows-installer) run only if all three pass, so a cheap
+# run in parallel; the expensive builds (integration-test, android-build,
+# windows-installer, macos builds) run only if all three pass, so a cheap
 # failure never pays for a platform build.
 jobs:
   rust-core:
@@ -202,8 +204,38 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
 
+  # The darwin compile of mosh-core (keychain, coreaudio, unix cfg paths)
+  # and its runtime behaviour under dlopen of the real universal dylib.
+  # fmt is OS-independent and stays gated on the windows job.
+  rust-core-macos:
+    name: Rust core on macOS (clippy + test)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          rust-cache-key: macos
+
+      # Strict lint gate (ADR 0015): warnings fail the job.
+      - name: Clippy check
+        run: cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings
+
+      # Adapter tests dlopen the universal libmoss.dylib the setup action built.
+      - name: Cargo test
+        run: cargo test --manifest-path mosh-core/Cargo.toml
+
   # Proves main still packages into the setup .exe users install. The same
   # reusable workflow builds the artifact a release publishes.
   windows-installer:
     needs: [rust-core, codegen-drift, flutter-test]
     uses: ./.github/workflows/build-windows.yml
+
+  # Same proof for the macOS DMG.
+  macos-dmg:
+    needs: [rust-core-macos, codegen-drift, flutter-test]
+    uses: ./.github/workflows/build-macos.yml
