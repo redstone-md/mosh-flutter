@@ -71,8 +71,7 @@ Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
     ));
 
 void main() {
-  testWidgets('Esc calls onClose',
-      (tester) async {
+  testWidgets('Esc calls onClose', (tester) async {
     var closeCount = 0;
     await _pump(
       tester,

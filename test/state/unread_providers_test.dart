@@ -14,7 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../support/scriptable_bridge.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
-import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';

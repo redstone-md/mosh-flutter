@@ -27,7 +27,7 @@ import 'package:mosh/src/features/diagnostics/event_log.dart';
 import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
-import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/util/format.dart';
 

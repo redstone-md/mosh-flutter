@@ -16,7 +16,7 @@ import 'package:mosh/src/features/conversation/conversation_helpers.dart'
     show UnreadBadge;
 import 'package:mosh/src/features/sessions/rail_item.dart' show RailItem;
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
