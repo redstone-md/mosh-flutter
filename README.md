@@ -8,14 +8,23 @@ is no central server.
 
 ## Download
 
-Windows installers are published on the
+Windows installers and the macOS disk image are published on the
 [**Releases**](https://github.com/redstone-md/mosh-flutter/releases) page,
-each with a SHA-256 checksum. The installer is per-user (no admin prompt) and
-upgrades in place; message history is kept.
+each with a SHA-256 checksum. The Windows installer is per-user (no admin
+prompt) and upgrades in place; message history is kept. The macOS DMG is a
+universal binary (Apple Silicon + Intel) — drag the app to Applications.
 
-The installer is not code-signed yet, so SmartScreen warns on first run
-(**More info**, then **Run anyway**). Signing through the SignPath Foundation
-is planned; see [`CODE_SIGNING.md`](CODE_SIGNING.md).
+Mosh ships unsigned (see [`CODE_SIGNING.md`](CODE_SIGNING.md)); both
+platforms warn on first run.
+
+- **Windows** — SmartScreen: **More info**, then **Run anyway**.
+- **macOS (12 Monterey or later)** — Gatekeeper blocks the first launch:
+  try to open the app once, then **System Settings → Privacy & Security →
+  Security → Open Anyway** (the button appears for about an hour after
+  the blocked attempt; enter your login password). This is Apple's
+  documented flow. On macOS 14 and older the right-click → **Open**
+  shortcut also works. The terminal equivalent is
+  `xattr -dr com.apple.quarantine /Applications/mosh.app`.
 
 ## Features
 
@@ -48,9 +57,10 @@ is planned; see [`CODE_SIGNING.md`](CODE_SIGNING.md).
 ```powershell
 git clone --recursive https://github.com/redstone-md/mosh-flutter
 cd mosh-flutter
-node scripts/moss-prepare.mjs      # builds moss.dll (needs Go)
+node scripts/moss-prepare.mjs      # builds the Moss library (needs Go;
+                                    # on macOS it is universal, arm64+x86_64)
 flutter pub get
-flutter run -d windows
+flutter run -d windows              # or: flutter run -d macos
 ```
 
 Rust (see `rust-toolchain.toml`), Go and Flutter are required. `AGENTS.md`
