@@ -28,8 +28,9 @@ const DARWIN_SLICES = [
   { goarch: "amd64", clangArch: "x86_64" },
 ];
 
-async function main() {
-  await ensureMossCheckout();
+await ensureMossCheckout();
+
+try {
   await mkdir(TARGET_DIR, { recursive: true });
 
   if (process.platform === "darwin") {
@@ -40,6 +41,9 @@ async function main() {
 
   await removeGeneratedHeader();
   console.log(`moss.runtime=${OUTPUT_PATH}`);
+} catch (error) {
+  console.error(`moss-prepare: ${error.message}`);
+  process.exitCode = 1;
 }
 
 // -trimpath drops build-machine paths from the binary (reproducible, no
@@ -53,7 +57,7 @@ function buildLibrary(outputPath, extraEnv = {}) {
   );
 
   if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+    throw new Error(`go build failed with status ${result.status ?? 1} (GOARCH=${extraEnv.GOARCH ?? "host"})`);
   }
 }
 
@@ -65,27 +69,31 @@ async function buildUniversalLibrary() {
   const sliceDir = path.join(TARGET_DIR, ".universal-tmp");
   await mkdir(sliceDir, { recursive: true });
 
-  const slicePaths = DARWIN_SLICES.map((slice) => path.join(sliceDir, `libmoss.${slice.goarch}.dylib`));
+  // finally, not process.exit paths: a failed slice or lipo must still
+  // clean .universal-tmp, or moss-runtime/ litters with half-built slices.
+  try {
+    const slicePaths = DARWIN_SLICES.map((slice) => path.join(sliceDir, `libmoss.${slice.goarch}.dylib`));
 
-  for (const [index, slice] of DARWIN_SLICES.entries()) {
-    // An explicit GOARCH (even one matching the host) makes Go treat the
-    // build as a cross-compile and default CGO_ENABLED to 0 -- and
-    // c-shared cannot link without cgo. Force it on for every slice.
-    buildLibrary(slicePaths[index], {
-      GOARCH: slice.goarch,
-      CGO_ENABLED: "1",
-      CC: `clang -arch ${slice.clangArch}`,
-    });
+    for (const [index, slice] of DARWIN_SLICES.entries()) {
+      // An explicit GOARCH (even one matching the host) makes Go treat the
+      // build as a cross-compile and default CGO_ENABLED to 0 -- and
+      // c-shared cannot link without cgo. Force it on for every slice.
+      buildLibrary(slicePaths[index], {
+        GOARCH: slice.goarch,
+        CGO_ENABLED: "1",
+        CC: `clang -arch ${slice.clangArch}`,
+      });
+    }
+
+    const result = spawnSync("lipo", ["-create", "-output", OUTPUT_PATH, ...slicePaths], { stdio: "inherit" });
+    if (result.status !== 0) {
+      throw new Error(`lipo failed with status ${result.status ?? 1}`);
+    }
+  } finally {
+    // The per-slice builds drop a header next to each -o output; the temp
+    // dir holds them all and disappears with it -- also on failure.
+    await rm(sliceDir, { recursive: true, force: true });
   }
-
-  const result = spawnSync("lipo", ["-create", "-output", OUTPUT_PATH, ...slicePaths], { stdio: "inherit" });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
-
-  // The per-slice builds drop a header next to each -o output; the temp
-  // dir holds them all and disappears with it.
-  await rm(sliceDir, { recursive: true, force: true });
 }
 
 async function removeGeneratedHeader() {
@@ -100,5 +108,3 @@ async function ensureMossCheckout() {
     throw new Error(`Moss checkout not found at ${MOSS_DIR}`);
   }
 }
-
-await main();
