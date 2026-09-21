@@ -51,6 +51,20 @@ jobs:
       - name: Add Rust macos target
         run: rustup target add x86_64-apple-darwin
 
+      # audiopus_sys links a prebuilt universal libopus.a from
+      # third_party/opus-macos-universal (gitignored: a build artifact),
+      # because its vendored configure cannot cross-compile opus for the
+      # x86_64 slice. Built once and cached on the script + crate version.
+      - id: opus
+        uses: actions/cache@v4
+        with:
+          path: third_party/opus-macos-universal
+          key: opus-macos-universal-audiopus_sys-0.1.8-${{ hashFiles('scripts/opus-prepare-macos.sh') }}
+
+      - if: steps.opus.outputs.cache-hit != 'true'
+        name: Build libopus.a (macOS universal)
+        run: bash scripts/opus-prepare-macos.sh
+
       - name: Build macOS app (release)
         run: flutter build macos --release
 

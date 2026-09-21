@@ -20,6 +20,13 @@ All notable changes to Mosh are documented here. Format follows
   12 Monterey (the Go 1.25 runtime's minimum). The DMG is unsigned:
   Apple's documented first-launch flow — try to open, then System
   Settings → Privacy & Security → **Open Anyway** — is in README.
+- **macOS universal libopus.a provisioning** (`scripts/opus-prepare-macos.sh`).
+  audiopus_sys's vendored opus cannot cross-compile (no `--host` in its
+  configure), so the x86_64 slice of the universal app had nothing to
+  link; the script builds one slice per arch from the crate's own vendored
+  source, lipos them, and the podspec points `LIBOPUS_LIB_DIR` at the
+  result — the same shape the Android lane uses with the NDK. CI caches
+  the artifact.
 - **Code signing policy updated: Mosh ships unsigned everywhere.** The
   SignPath Foundation application was declined, so the Windows artifacts
   stay unsigned too; `CODE_SIGNING.md` now documents what a user sees on

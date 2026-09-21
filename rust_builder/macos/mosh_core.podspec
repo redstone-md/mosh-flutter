@@ -28,7 +28,11 @@ A new Flutter FFI plugin project.
   s.script_phase = {
     :name => 'Build Rust library',
     # First argument is relative path to the `rust` folder, second is name of rust library
-    :script => 'sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../mosh-core mosh-core',
+    # LIBOPUS_LIB_DIR points audiopus_sys at the universal prebuilt built by
+    # scripts/opus-prepare-macos.sh (its own vendored build cannot cross-
+    # compile opus for the x86_64 slice); OPUS_NO_PKG keeps a stray brew
+    # opus from winning over it.
+    :script => 'LIBOPUS_LIB_DIR="$PODS_TARGET_SRCROOT/../../../third_party/opus-macos-universal" OPUS_NO_PKG=1 sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../mosh-core mosh-core',
     :execution_position => :before_compile,
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     # Let XCode know that the static library referenced in -force_load below is

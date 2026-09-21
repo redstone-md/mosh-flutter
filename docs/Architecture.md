@@ -753,6 +753,11 @@ flowchart LR
 - `scripts/moss-prepare.mjs` builds the Go FFI twice on darwin (one slice
   per `GOARCH`, cross-cgo through `clang -arch`) and `lipo`s one universal
   `libmoss.dylib`.
+- `scripts/opus-prepare-macos.sh` builds a universal `libopus.a` the same
+  way (per-arch configure/make, then `lipo`): audiopus_sys's vendored
+  build cannot cross-compile opus, so the podspec's cargokit script sets
+  `LIBOPUS_LIB_DIR` at the provisioned archive — the pattern the Android
+  lane established first.
 - The Xcode "Moss Runtime" copy phase drops `libmoss.dylib` into
   `Contents/MacOS/` — the "next to the executable" candidate
   `moss_runtime.rs::default_candidate_paths` probes — so local builds and
