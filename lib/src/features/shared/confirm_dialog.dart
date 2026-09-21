@@ -308,8 +308,7 @@ class _ConfirmDialogCard extends StatelessWidget {
                         // Danger is a light fill: the theme's dark on-accent
                         // ink, not white (white reads at ~3.1:1 -- audit
                         // 2026-09-21; same mapping as onSecondary/onTertiary).
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onError,
+                        foregroundColor: Theme.of(context).colorScheme.onError,
                       ),
                       child: Text(confirmLabel),
                     ),

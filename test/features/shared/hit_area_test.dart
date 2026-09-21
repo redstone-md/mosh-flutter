@@ -59,10 +59,12 @@ void main() {
     // React parity: the PAINTED square stays 32x32 -- the button's Material
     // is the painted layer; the 48x48 wrapper only carries the tap target.
     final paintedRect = tester.getRect(
-      find.descendant(
-        of: find.byKey(kComposerSendButtonKey),
-        matching: find.byType(Material),
-      ).first,
+      find
+          .descendant(
+            of: find.byKey(kComposerSendButtonKey),
+            matching: find.byType(Material),
+          )
+          .first,
     );
     expect(paintedRect.size, const Size(32, 32));
     expect(rect.size, const Size(48, 48));

@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 
-
 /// The lock tap area's inset: the 15px glyph plus 13px on every side keeps
 /// the InkWell at 41x41 -- the audit's >=40px tap floor for a control that
 /// opens the security dialog (audit 2026-09-21 hit-areas).

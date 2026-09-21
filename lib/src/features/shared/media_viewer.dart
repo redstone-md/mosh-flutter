@@ -406,7 +406,8 @@ class MediaAudioTimeLabel extends StatelessWidget {
       style: Theme.of(context)
           .textTheme
           .bodySmall
-          ?.copyWith(fontFeatures: kLiveNumberFontFeatures),      textAlign: TextAlign.center,
+          ?.copyWith(fontFeatures: kLiveNumberFontFeatures),
+      textAlign: TextAlign.center,
     );
   }
 }

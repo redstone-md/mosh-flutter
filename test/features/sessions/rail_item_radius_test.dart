@@ -10,12 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/sessions/rail_item.dart';
 
-Material _rowMaterial(WidgetTester tester) =>
-    tester.widget<Material>(
-      find.descendant(
-        of: find.byType(RailItem),
-        matching: find.byType(Material),
-      ).first,
+Material _rowMaterial(WidgetTester tester) => tester.widget<Material>(
+      find
+          .descendant(
+            of: find.byType(RailItem),
+            matching: find.byType(Material),
+          )
+          .first,
     );
 
 void main() {

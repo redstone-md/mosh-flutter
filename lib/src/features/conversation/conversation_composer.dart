@@ -223,8 +223,7 @@ class ConversationComposer extends StatelessWidget {
                           onPressed: enabled ? onSend : null,
                           style: FilledButton.styleFrom(
                             fixedSize: const Size.square(kComposerButtonSize),
-                            minimumSize:
-                                const Size.square(kComposerButtonSize),
+                            minimumSize: const Size.square(kComposerButtonSize),
                             padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -236,8 +235,8 @@ class ConversationComposer extends StatelessWidget {
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2))
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
                               : const Icon(Icons.send, size: 16),
                         ),
                       ),
