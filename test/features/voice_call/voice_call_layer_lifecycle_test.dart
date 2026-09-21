@@ -20,10 +20,10 @@ import 'package:mosh/src/rust/api/conversation_bridge.dart'
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 
 class _DelayedCaptureFactory implements VoiceCaptureFactory {
@@ -42,25 +42,13 @@ class _DelayedCaptureFactory implements VoiceCaptureFactory {
   }
 }
 
-SessionSnapshot _activeSnapshot(String sessionId) => SessionSnapshot(
+SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
       sessionId: sessionId,
       meshId: 'mesh',
       role: 'caller',
-      displayName: 'me',
       peerDisplayName: 'Alice',
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
       fingerprint: 'fp',
-      messages: const [],
-      attachments: const [],
-      events: const [],
-      activeCall: ActiveCall(
-        callId: 'call-$sessionId',
-        direction: 'caller',
-        keyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-        noncePrefixB64: 'AAAAAAAAAAA=',
-        startedAtMs: BigInt.zero,
-      ),
+      activeCall: TestCalls.active(callId: 'call-$sessionId'),
     );
 
 Future<void> _pumpLayer(

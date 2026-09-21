@@ -12,52 +12,9 @@ import 'package:intl/intl.dart';
 
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
-
-ChatMessage _msg({
-  required String fromDevice,
-  required String body,
-  BigInt? sentAtMs,
-}) =>
-    ChatMessage(
-      fromDevice: fromDevice,
-      body: body,
-      messageId: null,
-      sentAtMs: sentAtMs,
-      attachment: null,
-      callEvent: null,
-      deliveryStatus: null,
-      deliveryError: null,
-      retryable: null,
-      retryCount: null,
-    );
-
-SessionSnapshot _snapshot({
-  required String sessionId,
-  required String displayName,
-  required List<ChatMessage> messages,
-}) =>
-    SessionSnapshot(
-      sessionId: sessionId,
-      meshId: 'testmesh',
-      role: 'inviter',
-      displayName: displayName,
-      peerDisplayName: '',
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
-      inviteUri: null,
-      fingerprint: '0123456789abcdef',
-      messages: messages,
-      attachments: const [],
-      mesh: null,
-      events: const [],
-      pendingCall: null,
-      outgoingCall: null,
-      activeCall: null,
-    );
 
 void main() {
   // `initializeDateFormatting` is required for non-en locale symbols; the
@@ -120,11 +77,11 @@ void main() {
 
     testWidgets('renders the visible HH:mm + a Tooltip with the full date-time',
         (tester) async {
-      final snapshot = _snapshot(
+      final snapshot = TestSnapshots.dm(
         sessionId: sessionId,
         displayName: 'alice',
         messages: [
-          _msg(fromDevice: 'bob', body: 'first', sentAtMs: epoch),
+          TestMessages.dm(fromDevice: 'bob', body: 'first', sentAtMs: epoch),
         ],
       );
 

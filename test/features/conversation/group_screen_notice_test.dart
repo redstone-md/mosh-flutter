@@ -8,55 +8,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/group_screen.dart';
-import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
-
-GroupMessage _msg({
-  required String fromDevice,
-  required String fromFingerprint,
-  required String body,
-  BigInt? sentAtMs,
-}) =>
-    GroupMessage(
-      fromDevice: fromDevice,
-      fromFingerprint: fromFingerprint,
-      body: body,
-      messageId: null,
-      sentAtMs: sentAtMs,
-      attachment: null,
-      deliveryStatus: null,
-      deliveryError: null,
-      retryable: null,
-      retryCount: null,
-    );
-
-GroupSnapshot _snapshot({
-  required String groupId,
-  required String deviceFingerprint,
-  required List<GroupMessage> messages,
-}) =>
-    GroupSnapshot(
-      groupId: groupId,
-      meshId: 'testmesh',
-      label: null,
-      displayName: 'me',
-      deviceFingerprint: deviceFingerprint,
-      creatorFingerprint: deviceFingerprint,
-      isAdmin: true,
-      state: 'ready',
-      memberCount: BigInt.from(2),
-      inviteUri: null,
-      messages: messages,
-      attachments: const [],
-      dmOffers: const [],
-      mesh: null,
-      events: const [],
-      needsRejoin: false,
-      orgPubkey: null,
-      memberPeerIds: const [],
-      typingMembers: const [],
-    );
 
 void main() {
   // The banner is always shown for a group, so a group with messages is
@@ -65,11 +19,11 @@ void main() {
   testWidgets('group screen renders the group encryption notice banner',
       (tester) async {
     const groupId = 'grp-notice';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
