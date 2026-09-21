@@ -204,8 +204,8 @@ pub struct GroupLeaveResult {
 
 mod error;
 pub use error::*;
-mod wire_types;
-pub(super) use wire_types::*;
+pub(crate) mod wire_types;
+pub(crate) use wire_types::*;
 
 struct GroupSession {
     group_id: String,

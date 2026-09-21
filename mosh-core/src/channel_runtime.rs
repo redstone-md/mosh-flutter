@@ -42,7 +42,7 @@ pub struct JoinChannelRequest {
     pub static_peer: Option<String>,
 }
 
-mod types;
+pub(crate) mod types;
 pub use types::*;
 struct ChannelSession {
     pub(super) name: String,
