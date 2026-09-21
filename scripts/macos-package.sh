@@ -70,6 +70,7 @@ create-dmg \
   --window-size 660 400 \
   --icon-size 128 \
   --icon "mosh.app" 180 190 \
+  --hide-extension "mosh.app" \
   --app-drop-link 480 190 \
   "$DMG" \
   "$APP"
