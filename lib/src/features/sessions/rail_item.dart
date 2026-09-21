@@ -81,7 +81,10 @@ class RailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(active ? 14 : 12);
+    // React keeps `.rail-item { border-radius: 12px }` in every state; the
+    // active ring is an inset border and must not move the outer geometry
+    // (audit 2026-09-21: radius jumped 12 -> 14 when a row was selected).
+    final radius = BorderRadius.circular(12);
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
       child: Material(
