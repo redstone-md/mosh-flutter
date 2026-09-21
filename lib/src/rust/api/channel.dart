@@ -5,6 +5,7 @@
 
 import '../attachment_runtime.dart';
 import '../channel_runtime.dart';
+import '../channel_runtime/types.dart';
 import '../conversation/attachments.dart';
 import '../conversation/dm_offers.dart';
 import '../conversation/mesh.dart';
