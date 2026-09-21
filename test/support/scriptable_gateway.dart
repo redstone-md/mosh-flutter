@@ -22,7 +22,8 @@
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
-import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
+import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;

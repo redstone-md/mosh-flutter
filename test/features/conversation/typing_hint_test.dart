@@ -9,13 +9,15 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/typing_hint.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
-import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
+import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show DmSessionState, SessionSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart'
     show PeerTransport;
-import 'package:mosh/src/rust/private_group_runtime.dart'
-    show GroupSnapshot, TypingMember;
+import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
+import 'package:mosh/src/rust/private_group_runtime/wire_types.dart'
+    show TypingMember;
 
 import '../../support/gateway_snapshots.dart' show cannedChannelSnapshot;
 import '../../support/pump.dart';

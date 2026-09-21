@@ -41,7 +41,7 @@ import 'package:mosh/src/rust/api/private_dm.dart' as api show pollSession;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;
 import 'package:mosh/src/rust/attachment_runtime.dart';
-import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 
 /// Real `mosh_core`-backed conversation seam. See file doc for the lifecycle

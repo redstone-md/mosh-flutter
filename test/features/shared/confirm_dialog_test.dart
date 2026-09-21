@@ -293,8 +293,7 @@ void main() {
   // Pins that Esc (via the `KeyboardListener`) resolves the helper with
   // `false` -- the same path the call modals + `PeerStatusDrawer` use for
   // the Esc-trap.
-  testWidgets('showConfirmDialog returns false on Esc',
-      (tester) async {
+  testWidgets('showConfirmDialog returns false on Esc', (tester) async {
     final result = await _pumpHelper(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);

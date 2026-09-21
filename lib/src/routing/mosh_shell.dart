@@ -48,7 +48,7 @@ import 'package:mosh/src/features/sessions/rail_item.dart' show kRailWidth;
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/routing/mosh_title_bar.dart';
-import 'package:mosh/src/rust/channel_runtime.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
