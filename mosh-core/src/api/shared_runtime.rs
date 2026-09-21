@@ -90,6 +90,10 @@ pub fn set_app_data_dir(path: String) -> Result<(), String> {
     if path.trim().is_empty() {
         return Err("set_app_data_dir: path must be a non-empty directory".to_string());
     }
+    // The first Rust entry point from Dart on every platform: from here on,
+    // any Rust panic anywhere in the process leaves a line in the field log
+    // instead of dying silently.
+    crate::diagnostics_log::install_panic_hook();
     // Idempotent across main() re-runs in a live process; see `set_history_dek`
     // for the rationale. Accept a re-inject of the SAME path as Ok (true
     // no-op); reject only a DIFFERENT path, which would be a real divergence
