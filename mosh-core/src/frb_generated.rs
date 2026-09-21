@@ -2717,18 +2717,18 @@ impl SseDecode for crate::private_dm_runtime::contracts::CallStarted {
     }
 }
 
-impl SseDecode for crate::channel_runtime::ChannelListSnapshot {
+impl SseDecode for crate::channel_runtime::types::ChannelListSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_channels =
-            <Vec<crate::channel_runtime::ChannelSnapshot>>::sse_decode(deserializer);
-        return crate::channel_runtime::ChannelListSnapshot {
+            <Vec<crate::channel_runtime::types::ChannelSnapshot>>::sse_decode(deserializer);
+        return crate::channel_runtime::types::ChannelListSnapshot {
             channels: var_channels,
         };
     }
 }
 
-impl SseDecode for crate::channel_runtime::ChannelMessage {
+impl SseDecode for crate::channel_runtime::types::ChannelMessage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_fromDevice = <String>::sse_decode(deserializer);
@@ -2745,7 +2745,7 @@ impl SseDecode for crate::channel_runtime::ChannelMessage {
         let mut var_deliveryError = <Option<String>>::sse_decode(deserializer);
         let mut var_retryable = <Option<bool>>::sse_decode(deserializer);
         let mut var_retryCount = <Option<u32>>::sse_decode(deserializer);
-        return crate::channel_runtime::ChannelMessage {
+        return crate::channel_runtime::types::ChannelMessage {
             from_device: var_fromDevice,
             from_fingerprint: var_fromFingerprint,
             body: var_body,
@@ -2760,7 +2760,7 @@ impl SseDecode for crate::channel_runtime::ChannelMessage {
     }
 }
 
-impl SseDecode for crate::channel_runtime::ChannelSnapshot {
+impl SseDecode for crate::channel_runtime::types::ChannelSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_name = <String>::sse_decode(deserializer);
@@ -2769,7 +2769,7 @@ impl SseDecode for crate::channel_runtime::ChannelSnapshot {
         let mut var_displayName = <String>::sse_decode(deserializer);
         let mut var_deviceFingerprint = <String>::sse_decode(deserializer);
         let mut var_messages =
-            <Vec<crate::channel_runtime::ChannelMessage>>::sse_decode(deserializer);
+            <Vec<crate::channel_runtime::types::ChannelMessage>>::sse_decode(deserializer);
         let mut var_attachments =
             <Vec<crate::conversation::attachments::AttachmentView>>::sse_decode(deserializer);
         let mut var_dmOffers =
@@ -2777,7 +2777,7 @@ impl SseDecode for crate::channel_runtime::ChannelSnapshot {
         let mut var_mesh = <Option<crate::conversation::mesh::MeshInfo>>::sse_decode(deserializer);
         let mut var_events =
             <Vec<crate::conversation::mesh::SnapshotEvent>>::sse_decode(deserializer);
-        return crate::channel_runtime::ChannelSnapshot {
+        return crate::channel_runtime::types::ChannelSnapshot {
             name: var_name,
             topic: var_topic,
             mesh_id: var_meshId,
@@ -3009,7 +3009,7 @@ impl SseDecode for crate::private_group_runtime::GroupSnapshot {
         let mut var_orgPubkey = <Option<String>>::sse_decode(deserializer);
         let mut var_memberPeerIds = <Vec<String>>::sse_decode(deserializer);
         let mut var_typingMembers =
-            <Vec<crate::private_group_runtime::TypingMember>>::sse_decode(deserializer);
+            <Vec<crate::private_group_runtime::wire_types::TypingMember>>::sse_decode(deserializer);
         return crate::private_group_runtime::GroupSnapshot {
             group_id: var_groupId,
             mesh_id: var_meshId,
@@ -3133,13 +3133,13 @@ impl SseDecode for Vec<crate::conversation::attachments::AttachmentView> {
     }
 }
 
-impl SseDecode for Vec<crate::channel_runtime::ChannelMessage> {
+impl SseDecode for Vec<crate::channel_runtime::types::ChannelMessage> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::channel_runtime::ChannelMessage>::sse_decode(
+            ans_.push(<crate::channel_runtime::types::ChannelMessage>::sse_decode(
                 deserializer,
             ));
         }
@@ -3147,15 +3147,13 @@ impl SseDecode for Vec<crate::channel_runtime::ChannelMessage> {
     }
 }
 
-impl SseDecode for Vec<crate::channel_runtime::ChannelSnapshot> {
+impl SseDecode for Vec<crate::channel_runtime::types::ChannelSnapshot> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::channel_runtime::ChannelSnapshot>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(<crate::channel_runtime::types::ChannelSnapshot>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -3361,15 +3359,15 @@ impl SseDecode for Vec<crate::conversation::mesh::SnapshotEvent> {
     }
 }
 
-impl SseDecode for Vec<crate::private_group_runtime::TypingMember> {
+impl SseDecode for Vec<crate::private_group_runtime::wire_types::TypingMember> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::private_group_runtime::TypingMember>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(
+                <crate::private_group_runtime::wire_types::TypingMember>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -4036,13 +4034,13 @@ impl SseDecode for crate::private_dm_runtime::contracts::StartSessionRequest {
     }
 }
 
-impl SseDecode for crate::private_group_runtime::TypingMember {
+impl SseDecode for crate::private_group_runtime::wire_types::TypingMember {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_fingerprint = <String>::sse_decode(deserializer);
         let mut var_displayName = <String>::sse_decode(deserializer);
         let mut var_untilMs = <u64>::sse_decode(deserializer);
-        return crate::private_group_runtime::TypingMember {
+        return crate::private_group_runtime::wire_types::TypingMember {
             fingerprint: var_fingerprint,
             display_name: var_displayName,
             until_ms: var_untilMs,
@@ -4672,24 +4670,24 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Cal
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::channel_runtime::ChannelListSnapshot {
+impl flutter_rust_bridge::IntoDart for crate::channel_runtime::types::ChannelListSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.channels.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::channel_runtime::ChannelListSnapshot
+    for crate::channel_runtime::types::ChannelListSnapshot
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::ChannelListSnapshot>
-    for crate::channel_runtime::ChannelListSnapshot
+impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::types::ChannelListSnapshot>
+    for crate::channel_runtime::types::ChannelListSnapshot
 {
-    fn into_into_dart(self) -> crate::channel_runtime::ChannelListSnapshot {
+    fn into_into_dart(self) -> crate::channel_runtime::types::ChannelListSnapshot {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::channel_runtime::ChannelMessage {
+impl flutter_rust_bridge::IntoDart for crate::channel_runtime::types::ChannelMessage {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.from_device.into_into_dart().into_dart(),
@@ -4707,18 +4705,18 @@ impl flutter_rust_bridge::IntoDart for crate::channel_runtime::ChannelMessage {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::channel_runtime::ChannelMessage
+    for crate::channel_runtime::types::ChannelMessage
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::ChannelMessage>
-    for crate::channel_runtime::ChannelMessage
+impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::types::ChannelMessage>
+    for crate::channel_runtime::types::ChannelMessage
 {
-    fn into_into_dart(self) -> crate::channel_runtime::ChannelMessage {
+    fn into_into_dart(self) -> crate::channel_runtime::types::ChannelMessage {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::channel_runtime::ChannelSnapshot {
+impl flutter_rust_bridge::IntoDart for crate::channel_runtime::types::ChannelSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.name.into_into_dart().into_dart(),
@@ -4736,13 +4734,13 @@ impl flutter_rust_bridge::IntoDart for crate::channel_runtime::ChannelSnapshot {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::channel_runtime::ChannelSnapshot
+    for crate::channel_runtime::types::ChannelSnapshot
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::ChannelSnapshot>
-    for crate::channel_runtime::ChannelSnapshot
+impl flutter_rust_bridge::IntoIntoDart<crate::channel_runtime::types::ChannelSnapshot>
+    for crate::channel_runtime::types::ChannelSnapshot
 {
-    fn into_into_dart(self) -> crate::channel_runtime::ChannelSnapshot {
+    fn into_into_dart(self) -> crate::channel_runtime::types::ChannelSnapshot {
         self
     }
 }
@@ -5712,7 +5710,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Sta
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::TypingMember {
+impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::wire_types::TypingMember {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.fingerprint.into_into_dart().into_dart(),
@@ -5723,13 +5721,13 @@ impl flutter_rust_bridge::IntoDart for crate::private_group_runtime::TypingMembe
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::private_group_runtime::TypingMember
+    for crate::private_group_runtime::wire_types::TypingMember
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::TypingMember>
-    for crate::private_group_runtime::TypingMember
+impl flutter_rust_bridge::IntoIntoDart<crate::private_group_runtime::wire_types::TypingMember>
+    for crate::private_group_runtime::wire_types::TypingMember
 {
-    fn into_into_dart(self) -> crate::private_group_runtime::TypingMember {
+    fn into_into_dart(self) -> crate::private_group_runtime::wire_types::TypingMember {
         self
     }
 }
@@ -6050,14 +6048,17 @@ impl SseEncode for crate::private_dm_runtime::contracts::CallStarted {
     }
 }
 
-impl SseEncode for crate::channel_runtime::ChannelListSnapshot {
+impl SseEncode for crate::channel_runtime::types::ChannelListSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Vec<crate::channel_runtime::ChannelSnapshot>>::sse_encode(self.channels, serializer);
+        <Vec<crate::channel_runtime::types::ChannelSnapshot>>::sse_encode(
+            self.channels,
+            serializer,
+        );
     }
 }
 
-impl SseEncode for crate::channel_runtime::ChannelMessage {
+impl SseEncode for crate::channel_runtime::types::ChannelMessage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.from_device, serializer);
@@ -6079,7 +6080,7 @@ impl SseEncode for crate::channel_runtime::ChannelMessage {
     }
 }
 
-impl SseEncode for crate::channel_runtime::ChannelSnapshot {
+impl SseEncode for crate::channel_runtime::types::ChannelSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.name, serializer);
@@ -6087,7 +6088,7 @@ impl SseEncode for crate::channel_runtime::ChannelSnapshot {
         <String>::sse_encode(self.mesh_id, serializer);
         <String>::sse_encode(self.display_name, serializer);
         <String>::sse_encode(self.device_fingerprint, serializer);
-        <Vec<crate::channel_runtime::ChannelMessage>>::sse_encode(self.messages, serializer);
+        <Vec<crate::channel_runtime::types::ChannelMessage>>::sse_encode(self.messages, serializer);
         <Vec<crate::conversation::attachments::AttachmentView>>::sse_encode(
             self.attachments,
             serializer,
@@ -6271,7 +6272,7 @@ impl SseEncode for crate::private_group_runtime::GroupSnapshot {
         <bool>::sse_encode(self.needs_rejoin, serializer);
         <Option<String>>::sse_encode(self.org_pubkey, serializer);
         <Vec<String>>::sse_encode(self.member_peer_ids, serializer);
-        <Vec<crate::private_group_runtime::TypingMember>>::sse_encode(
+        <Vec<crate::private_group_runtime::wire_types::TypingMember>>::sse_encode(
             self.typing_members,
             serializer,
         );
@@ -6347,22 +6348,22 @@ impl SseEncode for Vec<crate::conversation::attachments::AttachmentView> {
     }
 }
 
-impl SseEncode for Vec<crate::channel_runtime::ChannelMessage> {
+impl SseEncode for Vec<crate::channel_runtime::types::ChannelMessage> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::channel_runtime::ChannelMessage>::sse_encode(item, serializer);
+            <crate::channel_runtime::types::ChannelMessage>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::channel_runtime::ChannelSnapshot> {
+impl SseEncode for Vec<crate::channel_runtime::types::ChannelSnapshot> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::channel_runtime::ChannelSnapshot>::sse_encode(item, serializer);
+            <crate::channel_runtime::types::ChannelSnapshot>::sse_encode(item, serializer);
         }
     }
 }
@@ -6517,12 +6518,12 @@ impl SseEncode for Vec<crate::conversation::mesh::SnapshotEvent> {
     }
 }
 
-impl SseEncode for Vec<crate::private_group_runtime::TypingMember> {
+impl SseEncode for Vec<crate::private_group_runtime::wire_types::TypingMember> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::private_group_runtime::TypingMember>::sse_encode(item, serializer);
+            <crate::private_group_runtime::wire_types::TypingMember>::sse_encode(item, serializer);
         }
     }
 }
@@ -7006,7 +7007,7 @@ impl SseEncode for crate::private_dm_runtime::contracts::StartSessionRequest {
     }
 }
 
-impl SseEncode for crate::private_group_runtime::TypingMember {
+impl SseEncode for crate::private_group_runtime::wire_types::TypingMember {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.fingerprint, serializer);
