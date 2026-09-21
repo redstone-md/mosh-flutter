@@ -26,7 +26,6 @@ pub mod read_receipts;
 pub mod secure_storage;
 pub mod shared_node;
 pub mod stream_transport;
-pub mod voice_call_drain;
 pub mod voice_call_frame_crypto;
 pub mod voice_call_jitter;
 pub mod voice_call_runtime;
