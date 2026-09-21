@@ -1,16 +1,12 @@
-/// A public channel. Everything but the header comes from the shared
-/// conversation screen.
+/// A public channel. Everything but the title comes from the shared
+/// conversation screen and the shared conversation AppBar.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/conversation/chat_header_menu.dart';
-import 'package:mosh/src/features/conversation/conversation_helpers.dart';
-import 'package:mosh/src/features/conversation/conversation_chrome.dart';
+import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
-import 'package:mosh/src/features/conversation/conversation_tools.dart';
-import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/gateway/conversation_target.dart' show ChannelTarget;
 
 class ChannelScreen extends StatelessWidget {
@@ -22,73 +18,18 @@ class ChannelScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ConversationScreen(
         target: ChannelTarget(name),
-        header: (context, chrome) => _ChannelHeader(name: name, chrome: chrome),
+        header: (context, chrome) => ConversationAppBar(
+          title: Text(name),
+          onOpenPeerStatus: chrome.onOpenPeerStatus,
+          onRequestLeave: () => chrome.onRequestLeave(),
+          filter: chrome.filter,
+          onFilter: chrome.onFilter,
+          mobileSearchOpen: chrome.mobileSearchOpen,
+          onToggleMobileSearch: chrome.onToggleMobileSearch,
+          leaveMenuLabel: AppLocalizations.of(context)!.channelLeaveLabel,
+          leaveMenuIcon: Icons.logout,
+          desktopLeaveIcon: const Icon(Icons.logout),
+          desktopLeaveTooltip: AppLocalizations.of(context)!.channelLeaveLabel,
+        ),
       );
-}
-
-/// The channel's app bar: its name, and the buttons that drive the shared
-/// screen. On a narrow window the search and the leave action move into the
-/// menu.
-class _ChannelHeader extends StatelessWidget implements PreferredSizeWidget {
-  const _ChannelHeader({required this.name, required this.chrome});
-
-  final String name;
-  final ConversationChrome chrome;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final mobile = isMobileBreakpoint(context);
-    return AppBar(
-      toolbarHeight: chatHeaderHeight(context),
-      titleTextStyle: chatTitleStyle(context),
-      leading: railBackButton(context),
-      title: Text(name),
-      actions: [
-        if (mobile)
-          MobileSearchToggle(
-            open: chrome.mobileSearchOpen,
-            onToggle: chrome.onToggleMobileSearch,
-            l: l,
-          ),
-        ChatHeaderMenu(
-          l: l,
-          actions: [
-            if (chrome.filter == ConversationFilter.attachments)
-              ChatHeaderMenuAction(
-                label: l.chatFilterAll,
-                icon: Icons.chat_bubble_outline,
-                onSelect: () => chrome.onFilter(ConversationFilter.all),
-              )
-            else
-              ChatHeaderMenuAction(
-                label: l.chatFilterAttachments,
-                icon: Icons.attach_file,
-                onSelect: () => chrome.onFilter(ConversationFilter.attachments),
-              ),
-            ChatHeaderMenuAction(
-              label: l.channelLeaveLabel,
-              icon: Icons.logout,
-              danger: true,
-              onSelect: chrome.onRequestLeave,
-            ),
-          ],
-        ),
-        IconButton(
-          icon: const Icon(Icons.electrical_services, size: 18),
-          tooltip: l.openPeerStatus,
-          onPressed: chrome.onOpenPeerStatus,
-        ),
-        if (!mobile)
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: l.channelLeaveLabel,
-            onPressed: chrome.onRequestLeave,
-          ),
-      ],
-    );
-  }
 }
