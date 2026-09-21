@@ -17,10 +17,12 @@ pub mod history;
 pub mod mesh;
 pub mod message_log;
 pub mod outbound;
+pub mod read_events;
 pub mod runtime;
 #[cfg(test)]
 pub mod test_message;
 pub mod transfer;
+pub mod typing;
 
 use message_log::LogError;
 
