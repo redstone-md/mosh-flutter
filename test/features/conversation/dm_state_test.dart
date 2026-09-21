@@ -15,6 +15,7 @@ import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_gateway.dart';
 
@@ -22,18 +23,13 @@ SessionSnapshot _snapshot({
   required DmSessionState state,
   PeerTransport transport = PeerTransport.none,
 }) =>
-    SessionSnapshot(
+    TestSnapshots.dm(
       sessionId: 'dm-state-1',
-      meshId: 'testmesh',
       role: 'alice',
-      displayName: 'me',
       peerDisplayName: 'juno',
       state: state,
       transport: transport,
       fingerprint: 'fp-peer-1234',
-      messages: const [],
-      attachments: const [],
-      events: const [],
     );
 
 Future<void> _pumpHeader(WidgetTester tester, SessionSnapshot snapshot) =>

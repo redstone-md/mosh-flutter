@@ -17,9 +17,9 @@ import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 
 /// A SessionSnapshot seeded connected over a direct path, with a
@@ -28,23 +28,10 @@ SessionSnapshot _snapshot(
         {required String sessionId,
         required String peerName,
         required String fingerprint}) =>
-    SessionSnapshot(
+    TestSnapshots.dm(
       sessionId: sessionId,
-      meshId: 'testmesh',
-      role: 'inviter',
-      displayName: 'me',
       peerDisplayName: peerName,
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
-      inviteUri: null,
       fingerprint: fingerprint,
-      messages: const [],
-      attachments: const [],
-      mesh: null,
-      events: const [],
-      pendingCall: null,
-      outgoingCall: null,
-      activeCall: null,
     );
 
 Future<void> _pump(

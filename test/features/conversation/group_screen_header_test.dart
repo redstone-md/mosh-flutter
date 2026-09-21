@@ -15,60 +15,10 @@ import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/group_screen.dart';
-import 'package:mosh/src/rust/private_group_runtime.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
-
-GroupMessage _msg({
-  required String fromDevice,
-  required String fromFingerprint,
-  required String body,
-  BigInt? sentAtMs,
-}) =>
-    GroupMessage(
-      fromDevice: fromDevice,
-      fromFingerprint: fromFingerprint,
-      body: body,
-      messageId: null,
-      sentAtMs: sentAtMs,
-      attachment: null,
-      deliveryStatus: null,
-      deliveryError: null,
-      retryable: null,
-      retryCount: null,
-    );
-
-GroupSnapshot _snapshot({
-  required String groupId,
-  required String deviceFingerprint,
-  required bool isAdmin,
-  required BigInt memberCount,
-  required String state,
-  required List<GroupMessage> messages,
-  String? inviteUri,
-  String? creatorFingerprint,
-}) =>
-    GroupSnapshot(
-      groupId: groupId,
-      meshId: 'testmesh',
-      label: null,
-      displayName: 'me',
-      deviceFingerprint: deviceFingerprint,
-      creatorFingerprint: creatorFingerprint ?? deviceFingerprint,
-      isAdmin: isAdmin,
-      state: state,
-      memberCount: memberCount,
-      inviteUri: inviteUri,
-      messages: messages,
-      attachments: const [],
-      dmOffers: const [],
-      mesh: null,
-      events: const [],
-      needsRejoin: false,
-      orgPubkey: null,
-      memberPeerIds: const [],
-      typingMembers: const [],
-    );
 
 Future<void> _pumpGroup(
   WidgetTester tester,
@@ -90,14 +40,14 @@ void main() {
   testWidgets('admin user sees the admin-pill + the admin subtitle prefix',
       (tester) async {
     const groupId = 'grp-admin';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       isAdmin: true,
       memberCount: BigInt.two,
       state: 'Active',
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -118,14 +68,14 @@ void main() {
   testWidgets('non-admin user sees no admin-pill and no admin subtitle prefix',
       (tester) async {
     const groupId = 'grp-member';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       isAdmin: false,
       memberCount: BigInt.two,
       state: 'Active',
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -144,14 +94,14 @@ void main() {
 
   testWidgets('member count plural: 1 member (singular form)', (tester) async {
     const groupId = 'grp-one';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       isAdmin: true,
       memberCount: BigInt.one,
       state: 'Active',
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -166,14 +116,14 @@ void main() {
 
   testWidgets('member count plural: 2 members (plural form)', (tester) async {
     const groupId = 'grp-two';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       isAdmin: true,
       memberCount: BigInt.two,
       state: 'Active',
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -201,7 +151,7 @@ void main() {
       'invite present renders the copy-invite button with a copy '
       'icon and "Copy invite" tooltip', (tester) async {
     const groupId = 'grp-copy';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       isAdmin: false,
@@ -209,7 +159,7 @@ void main() {
       state: 'Active',
       inviteUri: 'mosh://invite?mesh=m&session=g#fp=Y',
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -236,7 +186,7 @@ void main() {
       'flips the icon to a check + "Invite copied" tooltip', (tester) async {
     const uri = 'mosh://invite?mesh=m&session=g#fp=Y';
     const groupId = 'grp-copy-tap';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       isAdmin: false,
@@ -244,7 +194,7 @@ void main() {
       state: 'Active',
       inviteUri: uri,
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -317,7 +267,7 @@ void main() {
 
   testWidgets('invite null renders no copy-invite button', (tester) async {
     const groupId = 'grp-no-invite';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       isAdmin: true,
@@ -325,7 +275,7 @@ void main() {
       state: 'Active',
       // inviteUri omitted (null).
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -346,7 +296,7 @@ void main() {
       'a non-empty creator fingerprint renders the lock next to the label',
       (tester) async {
     const groupId = 'grp-lock';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       creatorFingerprint: '0011223344556677',
@@ -354,7 +304,7 @@ void main() {
       memberCount: BigInt.two,
       state: 'Active',
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -373,7 +323,7 @@ void main() {
       (tester) async {
     const fingerprint = '0011223344556677';
     const groupId = 'grp-lock-tap';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       creatorFingerprint: fingerprint,
@@ -381,7 +331,7 @@ void main() {
       memberCount: BigInt.two,
       state: 'Active',
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',

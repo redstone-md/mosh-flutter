@@ -21,52 +21,9 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/session_providers.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
-
-ChatMessage _msg({
-  required String fromDevice,
-  required String body,
-  BigInt? sentAtMs,
-}) =>
-    ChatMessage(
-      fromDevice: fromDevice,
-      body: body,
-      messageId: null,
-      sentAtMs: sentAtMs,
-      attachment: null,
-      callEvent: null,
-      deliveryStatus: null,
-      deliveryError: null,
-      retryable: null,
-      retryCount: null,
-    );
-
-SessionSnapshot _snapshot({
-  required String sessionId,
-  required String displayName,
-  required List<ChatMessage> messages,
-}) =>
-    SessionSnapshot(
-      sessionId: sessionId,
-      meshId: 'testmesh',
-      role: 'inviter',
-      displayName: displayName,
-      peerDisplayName: '',
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
-      inviteUri: null,
-      fingerprint: '0123456789abcdef',
-      messages: messages,
-      attachments: const [],
-      mesh: null,
-      events: const [],
-      pendingCall: null,
-      outgoingCall: null,
-      activeCall: null,
-    );
 
 void main() {
   group('MlsBadge', () {
@@ -96,11 +53,11 @@ void main() {
 
     testWidgets('renders next to the sender name on a non-grouped row',
         (tester) async {
-      final snapshot = _snapshot(
+      final snapshot = TestSnapshots.dm(
         sessionId: sessionId,
         displayName: 'alice',
         messages: [
-          _msg(fromDevice: 'bob', body: 'first', sentAtMs: base),
+          TestMessages.dm(fromDevice: 'bob', body: 'first', sentAtMs: base),
         ],
       );
 
@@ -127,12 +84,12 @@ void main() {
     testWidgets(
         'renders EXACTLY ONCE when the second message groups under the first',
         (tester) async {
-      final snapshot = _snapshot(
+      final snapshot = TestSnapshots.dm(
         sessionId: sessionId,
         displayName: 'alice',
         messages: [
-          _msg(fromDevice: 'bob', body: 'first', sentAtMs: base),
-          _msg(
+          TestMessages.dm(fromDevice: 'bob', body: 'first', sentAtMs: base),
+          TestMessages.dm(
               fromDevice: 'bob',
               body: 'second',
               sentAtMs: base + BigInt.from(60 * 1000)),

@@ -8,44 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
-
-ChannelMessage _msg({
-  required String fromDevice,
-  required String fromFingerprint,
-  required String body,
-  BigInt? sentAtMs,
-}) =>
-    ChannelMessage(
-      fromDevice: fromDevice,
-      fromFingerprint: fromFingerprint,
-      body: body,
-      messageId: null,
-      sentAtMs: sentAtMs,
-      attachment: null,
-      deliveryStatus: null,
-      deliveryError: null,
-      retryable: null,
-      retryCount: null,
-    );
-
-ChannelSnapshot _snapshot({
-  required String name,
-  required String deviceFingerprint,
-  required List<ChannelMessage> messages,
-}) =>
-    ChannelSnapshot(
-      name: name,
-      topic: '',
-      meshId: 'testmesh',
-      displayName: 'me',
-      deviceFingerprint: deviceFingerprint,
-      messages: messages,
-      attachments: const [],
-      dmOffers: const [],
-      mesh: null,
-      events: const [],
-    );
 
 void main() {
   // The banner is always shown for a channel, so a channel with messages is
@@ -54,11 +18,11 @@ void main() {
   testWidgets('channel screen renders the public-channel notice banner',
       (tester) async {
     const name = 'chan-notice';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.channel(
       name: name,
       deviceFingerprint: 'fp-me',
       messages: [
-        _msg(
+        TestMessages.channel(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
