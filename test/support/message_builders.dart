@@ -9,7 +9,7 @@
 // defaults (`meshId: 'testmesh'`, empty attachments/events, etc.);
 // every field a test varied in practice is an override-able named param.
 
-import 'package:mosh/src/rust/channel_runtime.dart'
+import 'package:mosh/src/rust/channel_runtime/types.dart'
     show ChannelMessage, ChannelSnapshot;
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor;
@@ -28,7 +28,9 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart'
     show PeerTransport;
 import 'package:mosh/src/rust/private_group_runtime.dart'
-    show GroupMessage, GroupSnapshot, TypingMember;
+    show GroupMessage, GroupSnapshot;
+import 'package:mosh/src/rust/private_group_runtime/wire_types.dart'
+    show TypingMember;
 
 /// Bare message constructors; every optional field defaults to null.
 class TestMessages {
