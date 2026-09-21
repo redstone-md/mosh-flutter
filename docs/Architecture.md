@@ -40,11 +40,9 @@ seam -- `RealBridgeGateway` delegating to the generated free functions in
 only the real implementations; tests swap in `ScriptableGateway` and
 `ScriptableBridge` (`test/support/`) through the providers. Conversation
 callers consume `gatewayProvider`, never a concrete `Gateway` (ADR 0013);
-mirror callers consume `bridgeFacadeProvider`. The `api` facade
-itself is real for `diagnostics` + `private_dm` (OnceLock singleton, ADR 0016)
-and stubbed (`todo!()`) for `channel`, `private_group`, `org`, `network`,
-`vpn` — five stubs whose signatures are laid so the bridge generates against
-the full command surface before later slices wire them.
+mirror callers consume `bridgeFacadeProvider`. The `api` facade is real
+for every command family (`diagnostics`, `private_dm`, `channel`,
+`private_group`, `org`, `network`, `vpn`; OnceLock singletons, ADR 0016).
 
 ## Repository Boundaries
 
@@ -52,23 +50,19 @@ the full command surface before later slices wire them.
 flowchart TB
     Fork[mosh-flutter fork root]
     Core[mosh-core Rust crate]
-    MossSub[moss submodule pin v0.8.30]
+    MossSub[moss submodule pin v0.9.0]
     Lib[lib Flutter / Dart UI]
     Docs[docs]
-    SrcTauri[src-tauri read-only reference]
-    Src[src read-only reference]
 
     Fork --> Core
     Fork --> MossSub
     Fork --> Lib
     Fork --> Docs
-    Fork --> SrcTauri
-    Fork --> Src
     Lib -. FFI bridge .-> Core
     Core -. loads shared lib .-> MossSub
 ```
 
-`mosh-core/` is the built Rust runtime. `moss/` is the Moss Go shared library, pinned at `v0.8.14` inherited from upstream. `lib/` is the Flutter + Dart frontend. `docs/` holds this map, the ADRs, the glossary, and the plan. `src-tauri/` and `src/` are kept on disk as read-only design reference for the bridge API contract (the Tauri command list is the verbatim checklist for the `api` module) but are NOT built or shipped from this fork (ADR 0013). Do not modify `src-tauri/` or `src/` from this fork; they exist to guide the port and are removed at upstream merge time.
+`mosh-core/` is the built Rust runtime. `moss/` is the Moss Go shared library, pinned at `v0.9.0`. `lib/` is the Flutter + Dart frontend. `docs/` holds this map, the ADRs, the glossary, and the plan. The dead React/Tauri app is gone from this fork: nothing under the old `src/`/`src-tauri/` paths exists here (ADR 0013).
 ## Gateway and Provider Layer (slice one)
 
 ```mermaid
@@ -185,11 +179,16 @@ sequenceDiagram
     Bridge-->>Alice: decrypted message stream
 ```
 
-This reuses the invite / fingerprint / send flow already proven in the Tauri frontend; only the seam between UI and runtime changes from Tauri commands to the generated bridge. Snapshot delivery is a `StreamSink<T>` on the Rust side and a Dart `Stream<T>` on the UI side, replacing the old Tauri `app.emit` events (ADR 0009, ADR 0010). The fingerprint confirmation gate blocks `sendMessage` until the user confirms the safety number; this is a UI-side gate enforced by the Dart orchestration layer over the `Gateway` interface.
-Slice one is poll-based, not stream-based: `api::private_dm` exposes no
-`StreamSink` in slice one (the React frontend polled on `AUTO_POLL_MS`), so
-the DM screen re-polls `activeSessionProvider.family`. The sequence above is
-the design intent; the slice-one proof is
+This reuses the invite / fingerprint / send flow proven across the fork's
+history; the seam between UI and runtime is the generated bridge
+(ADR 0009, ADR 0010). The fingerprint confirmation gate blocks
+`sendMessage` until the user confirms the safety number; this is a UI-side
+gate enforced by the Dart orchestration layer over the `Gateway` interface.
+
+Snapshot delivery is poll-based, not stream-based: `api::private_dm` exposes
+no `StreamSink`, and the DM screen re-polls `activeSessionProvider.family`
+— the poll cadence is a UI choice, and the DM screen owns it. The sequence
+above is the design intent; the slice-one proof is
 `integration_test/slice_one_test.dart` (see Features/private-dm.md).
 
 ## Interface Contracts
@@ -262,7 +261,7 @@ classDiagram
     RealBridgeGateway --> SecureStorageAdapter
 ```
 
-`Gateway` is the Dart seam declared in slice one (ADR 0013). `ScriptableGateway` (in `test/support/`, never shipped) is the test double that lets widget tests run without the Rust runtime; `RealBridgeGateway` wraps the generated `flutter_rust_bridge` `api` and is the production path. The Rust `api` module owns the `MossAdapter`, `MlsAdapter`, and `SecureStorageAdapter` composition; Dart never instantiates them directly. The `api` surface is the verbatim Tauri command list plus a `StreamSink<T>` function for each former Tauri event (ADR 0010), except the six shared conversation actions, for which ADR 0024 replaces the mapping with one function per operation, the conversation kind carried in the argument.
+`Gateway` is the Dart seam declared in slice one (ADR 0013). `ScriptableGateway` (in `test/support/`, never shipped) is the test double that lets widget tests run without the Rust runtime; `RealBridgeGateway` wraps the generated `flutter_rust_bridge` `api` and is the production path. The Rust `api` module owns the `MossAdapter`, `MlsAdapter`, and `SecureStorageAdapter` composition; Dart never instantiates them directly. The `api` surface carries one function per operation (ADR 0010 as amended by ADR 0024: the six shared conversation actions take the conversation kind in the argument instead of one function per kind).
 Since ADR 0025 the `Gateway` surface has 8 methods -- the conversation seam:
 `poll`, `send`, `retry`, `sendAttachment`, `downloadAttachment`,
 `cancelAttachment`, `dismissDmOffer` and `leave`, each taking a
@@ -282,8 +281,8 @@ the single Rust runtime both Dart surfaces are views over. The voice-call
 audio adapters (capture, playback, ringtone) stay outside both surfaces on
 purpose: they wrap OS audio through their own factory providers and hold no
 Rust domain state, so there is nothing to fake at the bridge. The
-`api` facade is real for `diagnostics` + `private_dm` and stubbed for the
-other five families until later slices.
+`api` facade is real for every command family (OnceLock singletons,
+ADR 0016).
 
 ## Conversation Module
 
@@ -429,9 +428,9 @@ trait.
 
 ```mermaid
 flowchart TD
-    Dm["private_dm_runtime<br/>DmTransport, outbox, Hello, calls, DeliveryAck"]
-    Gr["private_group_runtime<br/>roster authority, admin from the tree, rejoin"]
-    Ch["channel_runtime<br/>open mesh, no MLS"]
+    Dm["private_dm_runtime/<br/>session, control, data, typing, blob, snapshot, calls"]
+    Gr["private_group_runtime/<br/>lifecycle, wires, org_gate, commits, control, data, snapshot"]
+    Ch["channel_runtime/<br/>lifecycle, session, blob, types"]
     Shell["conversation::runtime<br/>ConversationRuntime&lt;S&gt; + ConversationSession"]
     Slots["conversation::attachments<br/>AttachmentSlots"]
     Xfer["conversation::transfer<br/>Transfer: prepare, accept, serve, ingest"]
@@ -537,6 +536,55 @@ flowchart TD
   accepted offer leads, not a place offers are shown. An org keeps its own
   list, on peer-ids and gated by the roster (ADR 0019).
 
+### Runtime file layout
+
+Each kind runtime is a thin root (the public facade) plus focused modules,
+split by channel and concern. The root owns the public types and the
+facade methods; the modules are `impl` blocks on the same session struct
+and see each other through `pub(super)`.
+
+```mermaid
+flowchart TD
+    subgraph DM["private_dm_runtime/"]
+        DmRoot["root: facade, constants, PrivateDmSession struct"]
+        DmS["session.rs: new, restore, persist record"]
+        DmC["control.rs: handshake, receipts, call envelopes"]
+        DmD["data.rs: messages, acks, dedup"]
+        DmT["typing.rs: cadence, hint window"]
+        DmB["blob.rs: chunk requests, manifests"]
+        DmV["snapshot.rs: the poll shape"]
+        DmX["calls.rs: offer/accept/decline/end, frames"]
+    end
+    subgraph GRP["private_group_runtime/"]
+        GrRoot["root: facade, wire types, GroupSession"]
+        GrL["lifecycle.rs: rehydrate, create, join"]
+        GrW["wires.rs: publish, typing"]
+        GrO["org_gate.rs: roster authority, admission"]
+        GrM["commits.rs: MLS commits, resync"]
+        GrC["control.rs: control channel handlers"]
+        GrD2["data.rs: data + blob channels"]
+        GrS2["snapshot.rs: poll, typing roster"]
+        GrE["error.rs, wire_types.rs"]
+    end
+    subgraph CH["channel_runtime/"]
+        ChRoot["root: facade, drain"]
+        ChL2["lifecycle.rs: rehydrate, join, leave"]
+        ChT["types.rs: wire types, error"]
+        ChS3["session.rs: message handling"]
+        ChB2["blob.rs: blob topic + snapshot"]
+    end
+    Shared["conversation/: runtime shell, typing, read_events, dedup, log, outbox, transfer, history, mesh, dm_offers"]
+    DmRoot --> Shared
+        GrRoot --> Shared
+    ChRoot --> Shared
+```
+
+A module file never crosses 400 lines (the repo's file budget); the
+inline test modules live beside them (`state_tests.rs`,
+`runtime_tests.rs`, `outbox_tests.rs`), and the pinned typing/read-event
+codes the diagnostics panel keys on live once in
+`conversation/typing.rs` and `conversation/read_events.rs`.
+
 ### One node and the DM transport seam
 
 The process runs one moss node (`shared_node`), and a DM reaches it through
@@ -578,8 +626,8 @@ The rail is one list of rows, not one list per conversation kind. It lives in
 and `org_actions.dart` / `sessions_rail_actions.dart` own what a tap does.
 
 A row is a `RailEntry`: the conversation it opens plus the chrome that
-conversation's kind wants. The screen builds one list of entries per paint,
-in React's order (offers, sessions, groups, channels, then the orgs), and
+conversation's kind wants. The screen builds one list of entries per paint
+(offers, sessions, groups, channels, then the orgs), and
 loops over it once — a `RailDivider` goes between two non-empty neighbours.
 The unread lookup, the active highlight and the clear-on-tap all come from
 `RailEntry.ref.key`, so the `kind:id` grammar is written once, by
@@ -679,10 +727,10 @@ caller's auto-end.
 
 ## State Ownership
 
-- Server / runtime state (sessions, messages, snapshots, diagnostics, delivery status) comes from `mosh-core` through the bridge and lives in Riverpod `AsyncNotifierProvider`s as `AsyncValue<T>`. UI consumes it with `.when(loading:, error:, data:)`. This is the direct analogue of TanStack Query server state (ADR 0010).
-- Ephemeral UI state (open drawer, selected session, composer draft, modal visibility, animation controllers) lives in `StatefulWidget` state or `flutter_hooks`, never in providers. This is the direct analogue of Zustand granular stores vs local React state.
+- Server / runtime state (sessions, messages, snapshots, diagnostics, delivery status) comes from `mosh-core` through the bridge and lives in Riverpod `AsyncNotifierProvider`s as `AsyncValue<T>`. UI consumes it with `.when(loading:, error:, data:)`. Riverpod is the server-state seam here (ADR 0010's Dart-side choice).
+- Ephemeral UI state (open drawer, selected session, composer draft, modal visibility, animation controllers) lives in `StatefulWidget` state or `flutter_hooks`, never in providers. Local state stays local; nothing else moves it.
 - Reads use `ref.watch(provider.select(...))` so widgets rebuild only on the slice they care about.
-- There is no `useEffect + useState` analogue for fetching; `AsyncNotifier.build` is the single entry point for async state.
+- Fetching has one entry point: `AsyncNotifier.build`.
 - Secrets (MLS keys, org root keys, the redb at-rest history key) live in `mosh-core` secure storage, never in Dart. Desktop uses the `keyring`-backed `OsSecureSecretStore`; mobile uses a Flutter platform channel into Android Keystore / iOS Keychain. The at-rest history key never touches disk in plaintext (ADR 0011).
 - Private message history stores ciphertext plus minimal metadata in redb; the store is encrypted at rest.
 
@@ -711,7 +759,7 @@ Dart never touches AES-GCM, binary frame layouts, or transport buffers directly.
 
 - `mosh-core` `Cargo.toml` sets `[lib] crate-type = ["lib", "cdylib", "staticlib"]` so one crate serves all six targets: desktop links the `cdylib`, Android links `cdylib`, iOS links `staticlib` (ADR 0010).
 - `flutter_rust_bridge` generates typed Dart bindings from `mosh_core::api`; `rust_input: crate::api`, `rust_root: mosh-core/`, `dart_output: lib/src/rust`. Codegen runs in the build script and in CI, not manually; a drift job fails if committed bindings desync from Rust signatures (ADR 0010, plan S7).
-- The `moss/` submodule stays pinned at `v0.8.14` inherited from upstream. Slice one does NOT bump the pin; any future bump is a deliberate step with its own ADR note (plan, Moss release pin).
+- The `moss/` submodule is pinned (currently `v0.9.0`, bumped deliberately with the runtime features that need it; see the release history). Any future bump is a deliberate step with its own note.
 - i18n uses Flutter's `gen-l10n`: ARB files under `lib/l10n` (`app_en.arb` template, `app_ru.arb`), `l10n.yaml` config, `AppLocalizations` output. `flutter: generate: true` in `pubspec.yaml`. A `gen-l10n`-drift CI job fails if generated output or ARB desync (ADR 0014, plan S7).
 - Animation uses Flutter's own primitives (`AnimationController`, `Tween`, `AnimatedBuilder`) under a feature-local helper; no GSAP-equivalent third-party library until a concrete need forces it (ADR 0010).
 - Fork version line is `0.8.0-dev`, separate from upstream `mosh` 0.7.x (ADR 0015).
@@ -821,9 +869,10 @@ Slice one is complete. Summary of the final state:
   ride `bridgeFacadeProvider` (tests: `ScriptableBridge`).
 - Five slice-one screens shipped: onboarding, invite paste, fingerprint
   confirm, one DM screen, diagnostics.
-- `api` facade real for `diagnostics` + `private_dm` (OnceLock singleton,
-  ADR 0016); five stubs (`channel`, `private_group`, `org`, `network`,
-  `vpn`) carry signatures only, bodies `todo!()`.
+- `api` facade is real for every family now (`diagnostics`, `private_dm`,
+  `channel`, `private_group`, `org`, `network`, `vpn`; OnceLock singleton,
+  ADR 0016) — the five slice-one `todo!()` placeholders were wired in later
+  slices and none remain.
 
 ## Slice Two Status
 
@@ -836,8 +885,8 @@ first laid a route shell, then wired the OS deep-link into it.
   with `/` (OnboardingScreen home), `/join` (InvitePasteScreen),
   `/diagnostics`, `/dm/:sessionId` (DmScreen). `MoshApp` is
   `MaterialApp.router(routerConfig: appRouter)`. The Join tile navigates
-  to `/join`; the Group tile stays a "later slice" placeholder (1:1 with
-  the React OnboardMenu); Diagnostics is an AppBar action. `MoshHome` is
+  to `/join`; the Group tile stays a "later slice" placeholder;
+  Diagnostics is an AppBar action. `MoshHome` is
   gone.
 - **Windows scheme registration (S2-2):** `mosh://` registered under
   `HKCU\Software\Classes\mosh` via `win32_registry` 3.0.3
