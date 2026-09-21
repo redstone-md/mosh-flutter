@@ -16,9 +16,9 @@
 ; wants -- nothing here needs machine-wide state, and an elevation prompt on
 ; top of the unsigned-binary SmartScreen warning is two scares instead of one.
 ;
-; NOT signed. Signing happens on tagged releases through SignPath (see
-; CODE_SIGNING.md); a locally built installer is unsigned and SmartScreen
-; will flag it.
+; NOT signed -- the SignPath application was declined (see
+; CODE_SIGNING.md). SmartScreen will flag the installer; README and the
+; release notes carry the "More info -> Run anyway" flow.
 
 #ifndef AppVersion
   #define AppVersion "0.8.0-dev"

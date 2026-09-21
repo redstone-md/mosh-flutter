@@ -4,6 +4,27 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **macOS release channel: a universal (Apple Silicon + Intel) DMG.** One
+  `build-macos.yml` workflow builds it — reusable, same artifact for the
+  main-push proof and the tagged release, plus `workflow_dispatch` for the
+  v0.9.0 retro-attach. The Go library now builds universal on darwin (one
+  slice per `GOARCH`, stapled with `lipo`); the Xcode project gains a
+  "Moss Runtime" copy phase so `libmoss.dylib` lands inside `mosh.app`
+  (`Contents/MacOS/`, where the loader probes); the release entitlements
+  finally allow network (client + server) and user-selected files, which
+  the sandboxed release build needs to work at all. CI gains a macOS
+  clippy+test lane and a DMG packaging proof. The supported floor is macOS
+  12 Monterey (the Go 1.25 runtime's minimum). The DMG is unsigned:
+  Apple's documented first-launch flow — try to open, then System
+  Settings → Privacy & Security → **Open Anyway** — is in README.
+- **Code signing policy updated: Mosh ships unsigned everywhere.** The
+  SignPath Foundation application was declined, so the Windows artifacts
+  stay unsigned too; `CODE_SIGNING.md` now documents what a user sees on
+  both platforms and what would change if a certificate ever exists.
+
 ## [0.9.0] - 2026-09-21
 
 The messenger release on the census core: presence you can see (typing
