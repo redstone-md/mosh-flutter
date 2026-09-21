@@ -401,13 +401,19 @@ class MediaAudioTimeLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      '${_fmt(position)} / ${_fmt(duration)}',
-      style: Theme.of(context)
-          .textTheme
-          .bodySmall
-          ?.copyWith(fontFeatures: kLiveNumberFontFeatures),
-      textAlign: TextAlign.center,
+    // Scale down instead of wrapping: the fixed 80px slot keeps the controls
+    // row's height stable even for recordings of 100+ minutes, where
+    // "133:00 / 135:00" exceeds the slot (CodeAnt PR #12).
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        '${_fmt(position)} / ${_fmt(duration)}',
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(fontFeatures: kLiveNumberFontFeatures),
+        textAlign: TextAlign.center,
+      ),
     );
   }
 }

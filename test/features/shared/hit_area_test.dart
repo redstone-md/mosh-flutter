@@ -2,9 +2,10 @@
 // stay unchanged (audit 2026-09-21, hit-areas finding).
 //
 // Per control:
-//  - composer send button: the painted 32px square keeps its size; the tap
-//    target extends past the paint (MaterialTapTargetSize.padded), proven by
-//    a hit test 4px outside the visual corner;
+//  - composer send button: the painted 32px square keeps its size; the
+//    theme's M3 padded tap target makes the button's own layout box the
+//    >= 40px target (pinned here so no wrapper ever re-introduces a layout
+//    cost beside the input);
 //  - paperclip picker: the compact density shrank its hit box to 32px; the
 //    LAYOUT box must be >= 40 (IconButton's hit area IS its layout box);
 //  - fingerprint lock: a 15px glyph with a left-only inset was a ~19x15 tap
@@ -56,8 +57,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final rect = tester.getRect(find.byKey(kComposerSendButtonKey));
-    // React parity: the PAINTED square stays 32x32 -- the button's Material
-    // is the painted layer; the 48x48 wrapper only carries the tap target.
+    // Composer layout parity: the Row child is the button's own M3 padded
+    // layout box (>= 40px on every platform; the exact height tracks the
+    // row). React parity: the painted square inside stays 32x32. No wrapper
+    // consumes composer Row space (CodeAnt #12 comment on
+    // conversation_composer.dart).
+    expect(rect.width, greaterThanOrEqualTo(40));
+    expect(rect.height, greaterThanOrEqualTo(40));
     final paintedRect = tester.getRect(
       find
           .descendant(
@@ -67,11 +73,10 @@ void main() {
           .first,
     );
     expect(paintedRect.size, const Size(32, 32));
-    expect(rect.size, const Size(48, 48));
 
-    // 4px past the paint's corner: inside the 48px wrapper, outside the
-    // painted square.
-    await tester.tapAt(paintedRect.topLeft - const Offset(4, 4));
+    // 20px left of center: outside the painted square, inside the button's
+    // own padded tap target.
+    await tester.tapAt(rect.center - const Offset(20, 0));
     await tester.pump();
 
     expect(sends, 1);

@@ -42,4 +42,30 @@ void main() {
 
     expect(find.text('0:00 / 1:05'), findsOneWidget);
   });
+
+  testWidgets('long durations stay on one line inside the 80px slot',
+      (tester) async {
+    // 2h13 / 2h15: "133:00 / 135:00" is wider than the fixed 80px slot; the
+    // label must scale down instead of wrapping and changing the controls
+    // row height (CodeAnt #12 comment on media_viewer.dart).
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 80,
+              child: MediaAudioTimeLabel(
+                position: const Duration(hours: 2, minutes: 13),
+                duration: const Duration(hours: 2, minutes: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('133:00 / 135:00'), findsOneWidget);
+    final rect = tester.getRect(find.text('133:00 / 135:00'));
+    expect(rect.height, lessThan(24));
+  });
 }

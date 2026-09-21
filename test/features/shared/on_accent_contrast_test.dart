@@ -69,4 +69,36 @@ void main() {
       moshThemeData.colorScheme.onError,
     );
   });
+
+  testWidgets('a dark custom dangerColor flips to the light foreground',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: moshThemeData,
+        home: Scaffold(
+          body: Center(
+            child: ConfirmDialog(
+              title: 'Leave chat?',
+              body: 'This will erase the keys. Are you sure?',
+              confirmLabel: 'Leave',
+              cancelLabel: 'Cancel',
+              // A themable dark fill: the dark on-danger ink would vanish.
+              dangerColor: const Color(0xFF7A1E12),
+              onCancel: () {},
+              onConfirm: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text('Leave'),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    expect(button.style?.foregroundColor?.resolve({}), MoshColors.fg1);
+  });
 }
