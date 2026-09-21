@@ -4,8 +4,8 @@ name: Build Windows installer
 # (proof it still packages) and for a release tag (what gets published).
 # Reusable so the two callers cannot drift.
 #
-# The installer is UNSIGNED -- SmartScreen will warn. Signing is a SignPath
-# step on tagged releases (see CODE_SIGNING.md) and is not wired yet.
+# The installer is UNSIGNED -- SmartScreen will warn. The SignPath
+# application was declined; see CODE_SIGNING.md for the policy.
 
 on:
   workflow_call:

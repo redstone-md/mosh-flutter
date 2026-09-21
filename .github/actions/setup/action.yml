@@ -36,6 +36,13 @@ runs:
       shell: bash
       run: rustup show
 
+    # audiopus_sys builds its vendored libopus through autotools; the
+    # macOS runner image ships neither autoreconf nor libtool. The same
+    # vendored build on Windows goes through CMake, which is present there.
+    - if: runner.os == 'macOS'
+      shell: bash
+      run: brew install autoconf automake libtool
+
     - if: inputs.rust == 'true'
       uses: Swatinem/rust-cache@v2
       with:

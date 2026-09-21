@@ -1,0 +1,86 @@
+name: Build macOS DMG
+
+# The one shippable macOS artifact, built the same way for a main push
+# (proof it still packages) and for a release tag (what gets published).
+# Reusable so the two callers cannot drift. workflow_dispatch lets a
+# maintainer build a DMG for the already-published release without
+# re-tagging (the v0.9.0 retro-attach ran this way).
+#
+# The DMG is UNSIGNED -- Gatekeeper warns on first launch. README
+# documents the official "Open Anyway" flow (see CODE_SIGNING.md).
+
+on:
+  workflow_call:
+    outputs:
+      artifact:
+        description: Name of the uploaded artifact holding the universal .dmg and its .sha256.
+        value: ${{ jobs.dmg.outputs.artifact }}
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dmg:
+    name: macOS DMG (release, universal, unsigned)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    outputs:
+      artifact: mosh-macos-dmg
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup
+        with:
+          rust-cache-key: macos
+
+      # cargokit compiles mosh-core into its own target dir under build/,
+      # which the cargo cache above does not see. Keyed on the lockfile and
+      # toolchain; a stale hit is safe, cargo re-fingerprints.
+      - uses: actions/cache@v4
+        with:
+          path: build/macos/**/cargokit_build
+          key: cargokit-macos-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: cargokit-macos-release-
+
+      # Universal release build: cargokit builds one slice per ARCHS
+      # entry (arm64 + x86_64) and lipos them, so the x86_64 target must
+      # be installed first.
+      - name: Add Rust macos target
+        run: rustup target add x86_64-apple-darwin
+
+      # audiopus_sys links a prebuilt universal libopus.a from
+      # third_party/opus-macos-universal (gitignored: a build artifact),
+      # because its vendored configure cannot cross-compile opus for the
+      # x86_64 slice. Built once and cached on the script + crate version.
+      - id: opus
+        uses: actions/cache@v4
+        with:
+          path: third_party/opus-macos-universal
+          key: opus-macos-universal-audiopus_sys-0.1.8-${{ hashFiles('scripts/opus-prepare-macos.sh') }}
+
+      - if: steps.opus.outputs.cache-hit != 'true'
+        name: Build libopus.a (macOS universal)
+        run: bash scripts/opus-prepare-macos.sh
+
+      - name: Build macOS app (release)
+        run: flutter build macos --release
+
+      # create-dmg lays out the installer window (icon positions,
+      # Applications symlink, background) via AppleScript; the formula is
+      # small and installs in seconds.
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Package DMG + checksum
+        run: bash scripts/macos-package.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mosh-macos-dmg
+          path: |
+            build/macos-dist/*.dmg
+            build/macos-dist/*.sha256
+          if-no-files-found: error

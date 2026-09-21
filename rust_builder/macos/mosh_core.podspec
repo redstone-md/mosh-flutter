@@ -1,9 +1,9 @@
 #
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
-# Run `pod lib lint mosh-core.podspec` to validate before publishing.
+# Run `pod lib lint mosh_core.podspec` to validate before publishing.
 #
 Pod::Spec.new do |s|
-  s.name             = 'mosh-core'
+  s.name             = 'mosh_core'
   s.version          = '0.0.1'
   s.summary          = 'A new Flutter FFI plugin project.'
   s.description      = <<-DESC
@@ -21,14 +21,34 @@ A new Flutter FFI plugin project.
   s.source_files     = 'Classes/**/*'
   s.dependency 'FlutterMacOS'
 
-  s.platform = :osx, '10.11'
+  s.platform = :osx, '12.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
+
+  # cpal's CoreAudio host bakes AudioUnit/CoreAudio calls into the static
+  # archive, and an archive cannot carry framework link flags -- without
+  # this declaration both arch links of the final binary resolve the
+  # symbols themselves and the x86_64 link fails on undefined
+  # _AudioUnitInitialize and friends.
+  s.frameworks = 'CoreAudio', 'AudioToolbox'
+
+  # audiopus_sys links a prebuilt universal libopus.a (built by
+  # scripts/opus-prepare-macos.sh; its own vendored build cannot cross-
+  # compile opus for the x86_64 slice), and OPUS_NO_PKG keeps a stray
+  # brew opus from winning over it. The path must be resolved at pod
+  # install time through File.realpath (__dir__ alone is lexical and
+  # the podspec is evaluated through CocoaPods' .symlinks layout), and
+  # the script itself guards loudly so a missing prebuilt is one-glance
+  # diagnosable in the build log.
+  opus_lib_dir = File.expand_path('../../third_party/opus-macos-universal', File.realpath(__dir__))
+
+  build_rust = %(test -d "#{opus_lib_dir}" || { echo "opus prebuilt missing at #{opus_lib_dir} -- run scripts/opus-prepare-macos.sh first" >&2; exit 1; }
+LIBOPUS_LIB_DIR="#{opus_lib_dir}" OPUS_NO_PKG=1 sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../mosh-core mosh-core)
 
   s.script_phase = {
     :name => 'Build Rust library',
     # First argument is relative path to the `rust` folder, second is name of rust library
-    :script => 'sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../mosh-core mosh-core',
+    :script => build_rust,
     :execution_position => :before_compile,
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     # Let XCode know that the static library referenced in -force_load below is

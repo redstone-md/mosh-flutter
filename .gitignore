@@ -36,6 +36,10 @@ build/
 # Regenerate with: pwsh -File third_party/build-opus-android.ps1
 # (reproduces `make -f Makefile.unix lib` from audiopus_sys-0.1.8's vendored opus)
 third_party/opus-android-arm64/
+# Provisioned universal libopus.a + headers -- a build artifact, NOT source.
+# Regenerate with: bash scripts/opus-prepare-macos.sh
+# (configure/make per GOARCH-style arch from audiopus_sys-0.1.8's vendored opus, then lipo)
+third_party/opus-macos-universal/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies

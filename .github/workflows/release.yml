@@ -56,11 +56,15 @@ jobs:
     needs: verify
     uses: ./.github/workflows/build-windows.yml
 
+  dmg:
+    needs: verify
+    uses: ./.github/workflows/build-macos.yml
+
   publish:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [verify, installer]
+    needs: [verify, installer, dmg]
     permissions:
       contents: write
     steps:
@@ -73,6 +77,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.installer.outputs.artifact }}
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.dmg.outputs.artifact }}
           path: dist
 
       - name: Release notes
