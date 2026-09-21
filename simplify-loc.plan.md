@@ -27,6 +27,13 @@ changes allowed).
 
 ## PR series (each branch stacked on the previous)
 
+- PR 1 `chore(simplify): strip dead-app port archaeology from comments` — `simplify/comments` ✅ committed b229187
+- PR 2 `refactor(core): unify typing + session lookup across conversation kinds` — `simplify/core-unify` ✅ committed 5dde5fe
+- PR 3 `refactor(core): split runtime god files into policy-sized modules` — `simplify/core-split` (in flight)
+- PR 4 `refactor(ui): consolidate Flutter features and kill if-chains` — `simplify/ui-simplify`
+- PR 5 `test: consolidate scaffolding` — `simplify/test-consolidate`
+- PR 6 `docs: architecture truth pass + module map` — `simplify/docs`
+
 ### PR 1 `chore(simplify): strip port-archaeology comments` — `simplify/comments`
 Steps:
 1. Strip React/Tauri/1-в-1/CSS/aria archaeology from `lib/src` doc comments;
@@ -100,7 +107,9 @@ Full-suite baseline taken before any edit. Any test that fails after a step
 gets one checklist item here with symptom + root cause + fix status, and is
 fixed before the next step (no skipping, no weakening).
 
-- [ ] cargo test baseline recorded (in flight, will paste result here)
+- [x] cargo test baseline: 366 passed, 0 failed, 6 ignored (258s)
+- [x] flutter test baseline: 838 passed, 0 failed (~58s)
+- [x] flutter analyze baseline: clean
 
 ## Final validation order (with reason)
 
