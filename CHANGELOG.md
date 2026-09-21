@@ -7,6 +7,37 @@ All notable changes to Mosh are documented here. Format follows
 ## [Unreleased]
 
 ### Added
+- **Rust panics mirror into the field log.** A panic hook installed from the
+  first Rust entry point writes an `error panic <location>: <payload>` line
+  (new `panic` kind) before the default hook runs, so a release build that
+  dies on a foreign thread (a Go callback, an audio worker) leaves evidence
+  in `mosh.log` instead of going silent.
+
+### Fixed
+- **macOS no longer prompts for the login password to reach the history
+  DEK.** Sandboxed macOS builds (dev runs and the DMG both enable the app
+  sandbox) now use the data-protection keychain instead of the legacy
+  login-keychain store, whose ACL flow can show the "app wants to access
+  your keychain" prompt at every launch for an ad-hoc-signed build — and the
+  legacy-slot migration fallback could fire a second prompt in one launch.
+  The protected store is probed with a real set/get/delete roundtrip before
+  it is trusted, and the two legacy login-keychain slots are handed over
+  once (one possible last prompt), after which the prompt is gone.
+- **Chats no longer vanish after a restart with `missing MLS snapshot`.**
+  A DM record whose MLS snapshot write failed silently, or a joiner
+  placeholder written before its Welcome, used to stay on disk forever while
+  rehydrate skipped it with the same warning. Now: `accept_invite` writes no
+  record until the Welcome lands (record + snapshot go down together);
+  rehydrate deletes joiner placeholder rows (empty group id) instead of
+  warning at every startup; a final record missing its snapshot is kept —
+  its history rows stay recoverable — and reported distinctly; and a failed
+  snapshot write is logged (`persist` kind) instead of swallowed.
+- **DM/group rehydrate distinguishes a missing snapshot row from an
+  unreadable one.** `Ok(None)` vs `Err` from the snapshot read now produce
+  different log lines, so a DEK mismatch no longer masquerades as a
+  `missing MLS snapshot`.
+
+### Added
 - **Telegram-style fingerprint lock in the DM and group headers.** A small
   lock next to the peer name (DM) or group label (group) opens one shared
   dialog: the 4-emoji fingerprint derived from Telegram Desktop's own
