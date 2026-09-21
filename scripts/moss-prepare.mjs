@@ -94,6 +94,17 @@ async function buildUniversalLibrary() {
     // dir holds them all and disappears with it -- also on failure.
     await rm(sliceDir, { recursive: true, force: true });
   }
+
+  // lipo leaves the fat dylib unsigned: the Apple Silicon loader requires
+  // at least an ad-hoc signature, and Xcode's CodeSign refuses to seal an
+  // app containing a nested unsigned dylib ("code object is not signed
+  // at all"). Sign it here, at the source, so local builds, CI and the
+  // DMG all get a signed library and nothing has to re-sign inside a
+  // sealed bundle.
+  const signing = spawnSync("codesign", ["--force", "--sign", "-", OUTPUT_PATH], { stdio: "inherit" });
+  if (signing.status !== 0) {
+    throw new Error(`codesign failed with status ${signing.status ?? 1}`);
+  }
 }
 
 async function removeGeneratedHeader() {
