@@ -56,6 +56,24 @@ Future<void> cancelAttachment(
 Future<void> leave({required BridgeConversationRef reference}) =>
     RustLib.instance.api.crateApiConversationLeave(reference: reference);
 
+/// Tell the conversation's counterpart the user is typing. DMs and groups
+/// carry the hint over their MLS-encrypted control wire; a channel has no
+/// counterpart to tell, so its arm is a silent no-op (the UI never calls
+/// it for a channel anyway — the arm exists so the kind dispatch stays
+/// total). Fire-and-forget semantics: the runtime throttles repeats on its
+/// own cadence and the hint reaches the other side with the next poll of
+/// ITS snapshot, so success is `()`.
+Future<void> typingSignal({required BridgeConversationRef reference}) =>
+    RustLib.instance.api.crateApiConversationTypingSignal(reference: reference);
+
+/// Auto-trigger the read receipts when the conversation is open: receipts
+/// every counterpart message the local user has not yet receipted. The
+/// receipts themselves ride the DM control wire; a group and a channel
+/// have no read receipts in this slice, so those arms are silent no-ops.
+/// The sender's own ticks re-color on the OTHER side with its next poll.
+Future<void> markViewed({required BridgeConversationRef reference}) =>
+    RustLib.instance.api.crateApiConversationMarkViewed(reference: reference);
+
 /// One attachment send's payload: the encoded bytes plus the metadata the
 /// receiver's snapshot needs. A struct rather than a parameter list because
 /// the five travel together through every arm of the send.

@@ -22,6 +22,7 @@ use super::attachments::AttachmentDirection;
 use super::message_log::{delivery_meta, ConversationMessage, MessageLog};
 use super::now_ms;
 use super::transfer::Transfer;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{HistoryTables, Persistence};
 
@@ -73,7 +74,12 @@ impl History {
             .filter_map(|row| match serde_json::from_slice(row) {
                 Ok(record) => Some(record),
                 Err(error) => {
-                    eprintln!("rehydrate: bad {} row: {error}", self.tables.label);
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::REHYDRATE,
+                        self.tables.label,
+                        &format!("rehydrate: bad row: {error}"),
+                    );
                     None
                 }
             })

@@ -101,6 +101,7 @@ GroupSnapshot _group({
       events: const [],
       needsRejoin: false,
       memberPeerIds: const [],
+      typingMembers: const [],
     );
 
 void main() {

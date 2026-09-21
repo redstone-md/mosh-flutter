@@ -349,6 +349,22 @@
   "@diagNoEventsBody": {
     "description": "Description of the empty state shown when the event log has no events in the diagnostics drawer"
   },
+  "diagRowLibraryVersion": "Версия библиотеки",
+  "@diagRowLibraryVersion": {
+    "description": "Row key for the loaded moss library's own version in the Moss network group"
+  },
+  "diagRowPeerRtt": "RTT пира",
+  "@diagRowPeerRtt": {
+    "description": "Row key for the last measured round-trip time to the active DM counterpart in the Moss network group"
+  },
+  "diagRowLogPath": "Журнал",
+  "@diagRowLogPath": {
+    "description": "Row key for the field log's current file in the Moss network group"
+  },
+  "diagRttUnknown": "неизвестно",
+  "@diagRttUnknown": {
+    "description": "Value of the Peer RTT row when no round-trip time is known for the counterpart"
+  },
   "peerStatusTitle": "Статус пиров",
   "@peerStatusTitle": {
     "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen"
@@ -779,5 +795,9 @@
   "lockScreenRetry": "Повторить",
   "lockScreenFailedMessage": "Не удалось пройти аутентификацию. Нажмите «Повторить» или перезапустите приложение.",
   "lockScreenInsecureDeviceTitle": "Устройство не защищено",
-  "lockScreenInsecureDeviceMessage": "Mosh требует блокировку экрана (PIN, графический ключ или биометрию) для защиты переписок. Установите её в Настройки - Безопасность, затем откройте Mosh снова."
+  "lockScreenInsecureDeviceMessage": "Mosh требует блокировку экрана (PIN, графический ключ или биометрию) для защиты переписок. Установите её в Настройки - Безопасность, затем откройте Mosh снова.",
+  "typingHint": "{name} печатает…",
+  "typingHintAnd": "и другие печатают…",
+  "settingsReadReceiptsTitle": "Отчёты о прочтении",
+  "settingsReadReceiptsSubtitle": "Когда включено, вы сообщаете собеседникам в личных чатах, что открыли переписку — и видите их отчёты. По умолчанию выключено; кто не отправляет отчёты, не видит чужие."
 }

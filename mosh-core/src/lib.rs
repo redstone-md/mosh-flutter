@@ -4,6 +4,7 @@ pub mod attachment_store;
 pub mod channel_runtime;
 pub mod commit_sequencer;
 pub mod conversation;
+pub mod diagnostics_log;
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 pub mod inbox;
 pub mod message_id;
@@ -21,8 +22,10 @@ pub mod outbound_delivery;
 pub mod persistence;
 pub mod private_dm_runtime;
 pub mod private_group_runtime;
+pub mod read_receipts;
 pub mod secure_storage;
 pub mod shared_node;
+pub mod stream_transport;
 pub mod voice_call_drain;
 pub mod voice_call_frame_crypto;
 pub mod voice_call_jitter;

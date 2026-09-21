@@ -117,7 +117,8 @@ class ConversationMessageRow extends StatelessWidget {
           ),
         if (callEvent != null) CallLogEntry(event: callEvent, l: l),
         if (message.own && kind == ConversationKind.dm)
-          DeliveryTicks(status: message.deliveryStatus),
+          DeliveryTicks(
+              status: message.deliveryStatus, read: message.read == true),
         if (message.canRetry)
           FailedMessageRetry(
             deliveryError: message.deliveryError,

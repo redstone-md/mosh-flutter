@@ -54,6 +54,7 @@ class ConversationComposer extends StatelessWidget {
     required this.voiceSendLabel,
     required this.onSendVoice,
     required this.onVoiceError,
+    this.onTyping,
   });
 
   final TextEditingController controller;
@@ -82,6 +83,15 @@ class ConversationComposer extends StatelessWidget {
   final String voiceSendLabel;
   final void Function(VoiceSend voice) onSendVoice;
   final void Function(String message) onVoiceError;
+
+  /// Fires on every input change that grows the draft — the emit-on-input
+  /// hook behind the [[Typing indicator]]. The runtime throttles repeats
+  /// on its own ~3 s cadence, so a keystroke-per-call is fine here; a
+  /// send or a draft clear stops the hint on the runtime side (the send
+  /// clears the composer, the counterpart's hint dies when their message
+  /// lands or the 5 s expiry passes). Null keeps the composer inert for
+  /// kinds that never carry typing (channels).
+  final VoidCallback? onTyping;
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +166,15 @@ class ConversationComposer extends StatelessWidget {
                     child: TextField(
                       controller: controller,
                       enabled: !sending && !disabled,
+                      // Emit-on-input: every change that leaves a non-empty
+                      // draft asks the runtime to signal typing (it throttles
+                      // repeats on its own cadence). A cleared draft sends
+                      // nothing — the counterpart's hint dies by expiry.
+                      onChanged: (_) {
+                        if (controller.text.trim().isNotEmpty) {
+                          onTyping?.call();
+                        }
+                      },
                       onSubmitted: (_) {
                         if (canSend) onSend();
                       },

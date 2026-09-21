@@ -16,16 +16,19 @@ use crate::conversation::outbound::{OnSent, Outbox};
 use crate::conversation::runtime::{ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::Transfer;
 use crate::conversation::{decode, encode, now_ms};
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::mls_crypto::MlsSessionCrypto;
 use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::{Persistence, DM_HISTORY};
+use crate::read_receipts::ReadReceiptsSetting;
 use crate::voice_call_runtime::{CallPhase, CallState};
 pub use contracts::{
     AcceptInviteRequest, ActiveCall, AttachmentDescriptor, AttachmentSendResult, AttachmentState,
     AttachmentView, CallEvent, CallOfferBody, CallStarted, ChatMessage, CloseSessionResult,
     ConnectOutcome, DmOffer, DmSessionState, InviteCreated, MeshInfo, MessageDeliveryStatus,
-    OutgoingCall, PeerDetail, PendingCall, PrivateDmRuntimeError, SendMessageResult,
-    SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest,
+    OutgoingCall, PeerDetail, PendingCall, PrivateDmRuntimeError, ReadReceiptBody,
+    SendMessageResult, SessionListSnapshot, SessionSnapshot, SnapshotEvent, StartSessionRequest,
+    TypingBody,
 };
 use invite::{build_invite_uri, listen_address, ParsedInvite};
 use transport::PublishError;
@@ -80,6 +83,48 @@ const AUTO_RESEND_MAX: u32 = 10;
 const CALL_RESEND_MS: u64 = 2_000;
 const CALL_RING_TIMEOUT_MS: u64 = 45_000;
 
+// Minimum gap between TypingIndicator publishes from one side. The composer
+// re-asks on every keystroke; the runtime folds that down to this cadence so
+// continued input reads as one steady signal instead of a frame per key.
+const TYPING_REFRESH_MS: u64 = 3_000;
+
+// How long a received typing hint stays believable without a refresh. The
+// receiver owns the expiry (the sender claims nothing): a refresh inside the
+// window renews it, silence lets it lapse, and a real message clears it at
+// once — a delivered message contradicts "typing".
+const TYPING_EXPIRY_MS: u64 = 5_000;
+
+/// Event code the diagnostics panel renders as "typing" (pinned in
+/// `conversation::mesh`). Synthesized into the ring whenever a decrypted
+/// hint lands or lapses, so the panel shows typing activity like the node's
+/// own reports.
+const TYPING_EVENT_CODE: i32 = 10;
+
+/// Event code the diagnostics panel renders as "message_read" (pinned in
+/// `conversation::mesh`). Filed on BOTH sides of a receipt: when one lands
+/// (the sender learns its message was read) and when `mark_viewed` sends
+/// one (the receiver's own honest event log).
+const READ_EVENT_CODE: i32 = 9;
+
+// How many read ids a persisted session record keeps. A DM only ever needs
+// "already read?" for recent messages; a cap keeps a long-lived DM's record
+// from growing without bound. Receipts older than the cap re-ask once if a
+// restored session ever re-renders that far back. Lives in `contracts`
+// beside the field it bounds (`contracts::READ_HISTORY_KEEP`).
+use contracts::{prune_read_ids, READ_HISTORY_KEEP};
+
+/// Files one read event (pinned code 9) into the diagnostics event ring,
+/// the same insert `on_moss_event` does for the node's own reports.
+fn push_read_event(session_id: &str, message_id: &str, phase: &str) {
+    let detail = serde_json::json!({
+        "conversation": KIND,
+        "session_id": session_id,
+        "message_id": message_id,
+        "phase": phase,
+    });
+    crate::moss_ffi::push_app_event(READ_EVENT_CODE, &detail.to_string());
+}
+
 /// What moved a session's state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SessionEvent {
@@ -121,6 +166,17 @@ fn random_b64(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::thread_rng().fill_bytes(&mut buf);
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &buf)
+}
+
+/// Files one typing event (pinned code 10) into the diagnostics event ring,
+/// the same insert `on_moss_event` does for the node's own reports.
+fn push_typing_event(session_id: &str, phase: &str) {
+    let detail = serde_json::json!({
+        "conversation": KIND,
+        "session_id": session_id,
+        "phase": phase,
+    });
+    crate::moss_ffi::push_app_event(TYPING_EVENT_CODE, &detail.to_string());
 }
 
 use crate::moss_ffi::{MossFfiRuntime, MossReceivedMessage};
@@ -191,6 +247,19 @@ struct PrivateDmSession {
     // DeliveryAck); the runtime drains this to persist those rows, since the
     // session itself cannot reach persistence.
     dirty_outbound: Vec<String>,
+    // Wall-clock deadline of the peer's typing hint, if one stands. The peer
+    // refreshes it inside the window while it keeps typing; silence lets it
+    // lapse and its own message clears it at once.
+    peer_typing_until_ms: Option<u64>,
+    // When we last published a TypingIndicator, so continued input re-emits
+    // no faster than the refresh cadence.
+    last_typing_send_ms: u64,
+    // Message ids of OUR OWN messages the counterpart has authenticated a
+    // read of (survives a restart via the session record), plus the ids of
+    // the counterpart's messages we have already receipted, so
+    // `mark_viewed` sends nothing twice.
+    peer_read_ids: Vec<String>,
+    sent_read_ids: Vec<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -270,7 +339,12 @@ impl PrivateDmRuntime {
             let snapshot = match p.get_mls_snapshot(&rec.session_id) {
                 Ok(Some(s)) => s,
                 _ => {
-                    eprintln!("rehydrate: missing MLS snapshot for {}", rec.session_id);
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::REHYDRATE,
+                        &rec.session_id,
+                        "missing MLS snapshot",
+                    );
                     continue;
                 }
             };
@@ -282,9 +356,11 @@ impl PrivateDmRuntime {
             ) {
                 Ok(c) => c,
                 Err(e) => {
-                    eprintln!(
-                        "rehydrate: crypto restore failed for {}: {e}",
-                        rec.session_id
+                    dlog::write(
+                        LogLevel::Error,
+                        kinds::REHYDRATE,
+                        &rec.session_id,
+                        &format!("crypto restore failed: {e}"),
                     );
                     continue;
                 }
@@ -295,7 +371,12 @@ impl PrivateDmRuntime {
                 rec.listen_port,
                 rec.static_peer.clone(),
             ) {
-                eprintln!("rehydrate: node start failed for {}: {e}", rec.session_id);
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::REHYDRATE,
+                    &rec.session_id,
+                    &format!("node start failed: {e}"),
+                );
                 continue;
             }
             let session = self.restore_session(&rec, crypto);
@@ -334,6 +415,10 @@ impl PrivateDmRuntime {
         // Without this the restored session cannot tell whether its
         // counterpart is reachable, and cannot ask the transport to reach it.
         session.peer_moss_id = rec.peer_moss_id.clone();
+        // Read state rides the session record: ids the counterpart had
+        // authenticated a read of before the restart. Without this a restart
+        // would re-ask the counterpart for every receipt it already sent.
+        session.peer_read_ids = rec.read_message_ids.clone();
         self.sessions.replay(
             &rec.session_id,
             Restore {
@@ -495,6 +580,7 @@ impl PrivateDmRuntime {
                 delivery_error: None,
                 retryable: None,
                 retry_count: None,
+                read: None,
             });
             let owned_session_id = session.session_id.clone();
             session
@@ -507,6 +593,55 @@ impl PrivateDmRuntime {
         let result = self.send_result(session_id, &message_id)?;
         self.sessions.persist_tail();
         Ok(result)
+    }
+
+    /// Signals "I am typing" for one session, driven by the composer's input.
+    /// The per-keystroke call is folded down to the refresh cadence inside the
+    /// session; a publish the transport refuses is retried on the next call
+    /// (no error to the composer — a dropped hint only delays a hint).
+    pub fn typing_signal(&mut self, session_id: &str) -> Result<(), PrivateDmRuntimeError> {
+        self.drain_inbound();
+        let session = self.session_mut(session_id)?;
+        session.publish_typing(now_ms());
+        Ok(())
+    }
+
+    /// The app-level read-receipts answer, as persisted in the data dir.
+    /// Absent file means the default: off.
+    pub fn read_receipts_enabled(&self) -> bool {
+        crate::read_receipts::load(&crate::api::shared_runtime::resolved_data_dir())
+            .is_some_and(|setting| setting.enabled)
+    }
+
+    /// Records the app-level read-receipts answer. BOTH values persist: an
+    /// off is a decision too, not an absence (the default is off, so only an
+    /// explicit on — and an explicit off — must survive a restart).
+    pub fn set_read_receipts_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        crate::read_receipts::save(
+            &crate::api::shared_runtime::resolved_data_dir(),
+            &ReadReceiptsSetting { enabled },
+        )
+        .map_err(|error| PrivateDmRuntimeError::Moss(error.to_string()))
+    }
+
+    /// Reports "the user is looking at this DM": every counterpart message
+    /// not yet read gets its ReadReceipt (best-effort, one frame per
+    /// message), and each send files the honest `message_read` event. The
+    /// api/Dart poll calls this while the conversation screen is open. A
+    /// toggle that is off makes this a no-op — no frames, no events — and
+    /// by the symmetry rule a user who does not send receipts also ignores
+    /// the ones addressed to it.
+    pub fn mark_viewed(&mut self, session_id: &str) -> Result<(), PrivateDmRuntimeError> {
+        self.drain_inbound();
+        if !self.read_receipts_enabled() {
+            return Ok(());
+        }
+        let session = self.session_mut(session_id)?;
+        session.mark_viewed();
+        Ok(())
     }
 
     /// Puts a failed message back in the queue. A message that is already
@@ -628,14 +763,14 @@ impl PrivateDmRuntime {
         session_id: &str,
     ) -> Result<SessionSnapshot, PrivateDmRuntimeError> {
         self.drain_inbound();
-        Ok(self.session_ref(session_id)?.snapshot())
+        Ok(self.session_mut(session_id)?.snapshot())
     }
 
     pub fn list_sessions(&mut self) -> Result<SessionListSnapshot, PrivateDmRuntimeError> {
         self.drain_inbound();
         let mut snapshots: Vec<SessionSnapshot> = self
             .sessions
-            .values()
+            .values_mut()
             .map(PrivateDmSession::snapshot)
             .collect();
         snapshots.sort_by(|a, b| a.session_id.cmp(&b.session_id));
@@ -660,7 +795,12 @@ impl PrivateDmRuntime {
                 self.sessions.forget(session_id);
                 if let Some(p) = self.sessions.persistence() {
                     if let Err(error) = p.delete_session(session_id) {
-                        eprintln!("failed to delete persisted session {session_id}: {error}");
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::PERSIST,
+                            session_id,
+                            &format!("failed to delete persisted session: {error}"),
+                        );
                     }
                 }
                 Ok(CloseSessionResult {
@@ -697,7 +837,12 @@ impl PrivateDmRuntime {
                 return;
             };
             if let Err(error) = session.handle_moss_message(message) {
-                eprintln!("dropping inbound frame for {session_id}: {error}");
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::FRAME,
+                    &session_id,
+                    &format!("dropping inbound frame: {error}"),
+                );
             }
             return;
         }
@@ -706,7 +851,12 @@ impl PrivateDmRuntime {
         }
         for session in self.sessions.values_mut() {
             if let Err(error) = session.handle_moss_message(message.clone()) {
-                eprintln!("dropping inbound call frame: {error}");
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::FRAME,
+                    "",
+                    &format!("dropping inbound call frame: {error}"),
+                );
             }
         }
     }
@@ -858,6 +1008,10 @@ impl PrivateDmSession {
             last_handshake_send_ms: 0,
             last_peer_announce_ms: 0,
             last_hello_send_ms: 0,
+            peer_typing_until_ms: None,
+            last_typing_send_ms: 0,
+            peer_read_ids: Vec::new(),
+            sent_read_ids: Vec::new(),
             dirty_outbound: Vec::new(),
             record_dirty: false,
         }
@@ -901,6 +1055,12 @@ impl PrivateDmSession {
             listen_port: self.listen_port,
             static_peer: self.static_peer.clone(),
             peer_moss_id: self.peer_moss_id.clone(),
+            // Only ids of our own messages the peer read survive a restart:
+            // the ids of the messages WE receipted are re-derivable from the
+            // rehydrated history (the counterpart re-asks only when its
+            // screen re-renders), and keeping just these keeps the record
+            // small.
+            read_message_ids: prune_read_ids(&self.peer_read_ids),
         }
     }
 
@@ -1015,6 +1175,14 @@ impl PrivateDmSession {
             self.peer_joined = true;
             self.state = next_state(self.state, SessionEvent::AuthenticatedFrame);
             self.unreachable_since_ms = None;
+            // Session transition the field log carries: the handshake landed
+            // and the counterpart is authenticated.
+            dlog::write(
+                LogLevel::Info,
+                kinds::HANDSHAKE,
+                &self.session_id,
+                "handshake landed; session connected",
+            );
         }
     }
 
@@ -1063,7 +1231,12 @@ impl PrivateDmSession {
             // Leave connect_requested_for unset so the next tick retries the
             // registration itself (e.g. node not started yet during rehydrate).
             Err(error) => {
-                eprintln!("connect_peer({id}) failed: {error}");
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::CONNECT,
+                    &id,
+                    &format!("connect_peer failed: {error}"),
+                );
                 self.last_connect_outcome = Some(ConnectOutcome::Failed);
             }
         }
@@ -1167,7 +1340,12 @@ impl PrivateDmSession {
         }
         self.last_peer_announce_ms = now_ms;
         if let Err(error) = self.publish_peer_announce() {
-            eprintln!("peer announce failed for {}: {error}", self.session_id);
+            dlog::write(
+                LogLevel::Error,
+                kinds::ANNOUNCE,
+                &self.session_id,
+                &format!("peer announce failed: {error}"),
+            );
         }
     }
 
@@ -1204,7 +1382,12 @@ impl PrivateDmSession {
         let mut changed = Vec::new();
         for message_id in queued_in_order(&self.outbound_attempts) {
             if let Err(error) = self.publish_queued(&message_id) {
-                eprintln!("queued message {message_id} stays queued: {error}");
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::OUTBOX,
+                    &self.session_id,
+                    &format!("queued message {message_id} stays queued: {error}"),
+                );
                 break;
             }
             changed.push(message_id);
@@ -1298,6 +1481,14 @@ impl PrivateDmSession {
             if let Some(attempt) = self.outbound_attempts.get_mut(&message_id) {
                 attempt.auto_resends += 1;
                 attempt.last_send_ms = now_ms;
+                // Session transition the field log carries: how many times a
+                // message had to be re-sent before the ack arrived.
+                dlog::write(
+                    LogLevel::Info,
+                    kinds::RESEND,
+                    &self.session_id,
+                    &format!("resend #{} of message {message_id}", attempt.auto_resends),
+                );
                 // At the cap the attempt STAYS: the filter above stops the
                 // automatic loop, the message honestly keeps Sent (not
                 // Delivered), and a manual retry still has its payload.
@@ -1357,7 +1548,12 @@ impl PrivateDmSession {
                 // Decrypting authenticates: only the MLS peer can produce a
                 // ciphertext this group accepts.
                 let Ok(plaintext) = self.crypto.decrypt(&decode(&hello_ciphertext_b64)?) else {
-                    eprintln!("dropping unverifiable hello for {session_id}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::HANDSHAKE,
+                        &session_id,
+                        "dropping unverifiable hello",
+                    );
                     return Ok(());
                 };
                 if let Ok(moss_peer_id) = String::from_utf8(plaintext) {
@@ -1385,7 +1581,12 @@ impl PrivateDmSession {
                     return Ok(());
                 };
                 let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
-                    eprintln!("dropping unverifiable delivery ack for {session_id}");
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::DELIVERY,
+                        &session_id,
+                        "dropping unverifiable delivery ack",
+                    );
                     return Ok(());
                 };
                 let Ok(message_id) = String::from_utf8(plaintext) else {
@@ -1402,8 +1603,50 @@ impl PrivateDmSession {
                         None,
                         attempt.retry_count,
                     )?;
-                    self.dirty_outbound.push(message_id);
+                    self.dirty_outbound.push(message_id.clone());
+                    // Session transition the field log carries: the
+                    // counterpart's ack settled the message as delivered.
+                    dlog::write(
+                        LogLevel::Info,
+                        kinds::DELIVERY,
+                        &self.session_id,
+                        &format!("message {message_id} settled delivered"),
+                    );
                 }
+                Ok(())
+            }
+            ControlEnvelope::TypingIndicator {
+                session_id,
+                participant_id,
+                from_device,
+                typing_ciphertext_b64,
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                // Decrypting authenticates: only the MLS peer can produce a
+                // ciphertext this group accepts, so a forged hint stops here
+                // and the session keeps quiet.
+                let Ok(ciphertext) = decode(&typing_ciphertext_b64) else {
+                    return Ok(());
+                };
+                let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::VERIFY,
+                        &session_id,
+                        "dropping unverifiable typing hint",
+                    );
+                    return Ok(());
+                };
+                // The body names the device, but the authenticated identity is
+                // the envelope's `from_device` + the fact it decrypted; accept
+                // the body only when it agrees.
+                if let Ok(body) = decode_json::<TypingBody>(&plaintext) {
+                    self.note_peer_name(&from_device);
+                    if body.device != from_device {
+                        return Ok(());
+                    }
+                }
+                self.note_authenticated_frame(&from_device);
+                self.note_peer_typing(now_ms());
                 Ok(())
             }
             ControlEnvelope::AttachmentManifest {
@@ -1416,6 +1659,41 @@ impl PrivateDmSession {
                 let manifest: AttachmentManifest = decode_json(&manifest_json)?;
                 self.note_authenticated_frame(&from_device);
                 self.accept_incoming_manifest(from_device, manifest)
+            }
+            ControlEnvelope::ReadReceipt {
+                session_id,
+                participant_id,
+                receipt_ciphertext_b64,
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                // Decrypting authenticates: only the MLS peer can produce a
+                // ciphertext this group accepts, so a forged receipt stops
+                // here and the ticks keep their color. The symmetry rule
+                // lives in the runtime: when this user does not send
+                // receipts, the inbound ones are dropped unread.
+                let Some(true) =
+                    crate::read_receipts::load(&crate::api::shared_runtime::resolved_data_dir())
+                        .map(|setting| setting.enabled)
+                else {
+                    return Ok(());
+                };
+                let Ok(ciphertext) = decode(&receipt_ciphertext_b64) else {
+                    return Ok(());
+                };
+                let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::VERIFY,
+                        &session_id,
+                        "dropping unverifiable read receipt",
+                    );
+                    return Ok(());
+                };
+                let Ok(body) = decode_json::<ReadReceiptBody>(&plaintext) else {
+                    return Ok(());
+                };
+                self.note_authenticated_frame("");
+                self.note_peer_read(&body.message_id);
+                Ok(())
             }
             ControlEnvelope::PeerAnnounce {
                 session_id,
@@ -1596,6 +1874,7 @@ impl PrivateDmSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            read: None,
         });
         self.messages.push(message);
     }
@@ -1622,6 +1901,9 @@ impl PrivateDmSession {
 
         let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
         self.note_authenticated_frame(&envelope.from_device);
+        // A delivered message contradicts "typing": the hint dies at once,
+        // whatever its deadline said.
+        self.clear_peer_typing();
         let ack_id = envelope.message_id.clone();
         let message = self.messages.stamp(ChatMessage {
             from_device: envelope.from_device,
@@ -1634,6 +1916,7 @@ impl PrivateDmSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            read: None,
         });
         if self.messages.holds_copy_of(&message) {
             return Ok(());
@@ -1674,6 +1957,176 @@ impl PrivateDmSession {
         let _ = self.route_send(ChannelKind::Control, &payload);
     }
 
+    /// Publishes a typing hint if the refresh cadence allows one. The
+    /// composer calls this on every keystroke; continued input keeps
+    /// refreshing the peer's window at this cadence, and stopping input
+    /// simply stops the calls — the peer's own expiry does the rest. No
+    /// sender-side expiry state: the receiver owns the deadline.
+    fn publish_typing(&mut self, now: u64) {
+        if !self.can_encrypt_for_peer() {
+            return;
+        }
+        if now.saturating_sub(self.last_typing_send_ms) < TYPING_REFRESH_MS {
+            return;
+        }
+        let body = TypingBody {
+            device: self.device_id.clone(),
+            until_ms: now.saturating_add(TYPING_EXPIRY_MS),
+        };
+        let Ok(body_json) = serde_json::to_vec(&body) else {
+            return;
+        };
+        let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
+            return;
+        };
+        let envelope = ControlEnvelope::TypingIndicator {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            from_device: self.device_id.clone(),
+            typing_ciphertext_b64: encode(&ciphertext),
+        };
+        let Ok(payload) = serde_json::to_vec(&envelope) else {
+            return;
+        };
+        if self.route_send(ChannelKind::Control, &payload).is_err() {
+            return;
+        }
+        self.last_typing_send_ms = now;
+    }
+
+    /// A decrypted hint from the counterpart: stamp the deadline from OUR
+    /// clock (the sender's `until_ms` stays advisory) and file the event.
+    fn note_peer_typing(&mut self, now: u64) {
+        let lapsed = self.peer_typing_until_ms.is_none_or(|until| until <= now);
+        self.peer_typing_until_ms = Some(now.saturating_add(TYPING_EXPIRY_MS));
+        if lapsed {
+            push_typing_event(&self.session_id, "started");
+        }
+    }
+
+    /// Drops the hint once its deadline passes. Driven by the poll/tick
+    /// heartbeat, so no timer of its own; files the lapse event once.
+    fn expire_peer_typing(&mut self, now: u64) {
+        let Some(until) = self.peer_typing_until_ms else {
+            return;
+        };
+        if until > now {
+            return;
+        }
+        self.peer_typing_until_ms = None;
+        push_typing_event(&self.session_id, "stopped");
+    }
+
+    /// An inbound message contradicts "typing": the hint is cleared at once,
+    /// whatever its deadline said.
+    fn clear_peer_typing(&mut self) {
+        if self.peer_typing_until_ms.take().is_some() {
+            push_typing_event(&self.session_id, "stopped");
+        }
+    }
+
+    /// The read flag ONE snapshot row carries: `Some(true)` only for the
+    /// user's own message the counterpart's authenticated receipt named —
+    /// keyed off the persisted id set so a rehydrated row (whose on-disk
+    /// `read` may predate the field) reads the same after a restart.
+    /// Counterpart messages carry `None`: they have nothing to learn about
+    /// their own reads.
+    fn own_message_read(&self, message: &ChatMessage) -> Option<bool> {
+        if message.from_device != self.device_id {
+            return None;
+        }
+        let message_id = message.message_id.as_deref()?;
+        self.peer_read_ids
+            .iter()
+            .any(|id| id == message_id)
+            .then_some(true)
+    }
+
+    /// One read receipt: the counterpart has seen this message of ours.
+    /// Marks the log row (`read: Some(true)`) so the snapshot carries it,
+    /// files the pinned `message_read` event, and notes the id so a restart
+    /// does not re-ask. Unknown ids (a receipt for a message a restart
+    /// already dropped) are ignored, exactly like the DeliveryAck.
+    fn note_peer_read(&mut self, message_id: &str) {
+        if self.peer_read_ids.iter().any(|id| id == message_id) {
+            return;
+        }
+        let Some(message) = self.messages.find_mut(message_id) else {
+            return;
+        };
+        if message.from_device != self.device_id {
+            return;
+        }
+        self.peer_read_ids.push(message_id.to_string());
+        if self.peer_read_ids.len() > READ_HISTORY_KEEP {
+            self.peer_read_ids = prune_read_ids(&self.peer_read_ids);
+        }
+        message.read = Some(true);
+        self.record_dirty = true;
+        push_read_event(&self.session_id, message_id, "peer-read");
+    }
+
+    /// The user is looking at this DM: receipt every counterpart message
+    /// not yet read, one MLS-encrypted frame per message (the ack shape — a
+    /// lost receipt re-sends as the same single-frame problem). Already
+    /// receipted ids are skipped so nothing re-sends. Runs only under an
+    /// enabled toggle; the runtime checks that before calling.
+    fn mark_viewed(&mut self) {
+        if !self.can_encrypt_for_peer() {
+            return;
+        }
+        let unread: Vec<String> = self
+            .messages
+            .iter()
+            .filter(|message| self.message_needs_receipt(message))
+            .filter_map(|message| message.message_id.clone())
+            .filter(|message_id| !self.sent_read_ids.contains(message_id))
+            .collect();
+        for message_id in unread {
+            self.send_read_receipt(&message_id);
+            // The receiver's own honest event log: one `message_read` per
+            // receipt this side sent, matching the frame on the wire.
+            push_read_event(&self.session_id, &message_id, "self-read");
+            self.sent_read_ids.push(message_id);
+        }
+        // The ids we receipted are re-derivable from the rehydrated history
+        // (see `to_persisted_record`), so they stay memory-only; nothing to
+        // persist here beyond what the message rows carry.
+    }
+
+    /// True for a counterpart message that is not a call-event stub and
+    /// carries an id — the only messages a receipt means anything for.
+    fn message_needs_receipt(&self, message: &ChatMessage) -> bool {
+        message.from_device != self.device_id
+            && message.call_event.is_none()
+            && message.message_id.is_some()
+    }
+
+    /// One MLS-encrypted receipt frame for one message id. Best-effort, like
+    /// the DeliveryAck: a lost receipt is answered by the peer's next
+    /// `mark_viewed` (its `sent_read_ids` only stops re-sends while this
+    /// process lives, so a restart re-asks for anything not settled).
+    fn send_read_receipt(&mut self, message_id: &str) {
+        let body = ReadReceiptBody {
+            message_id: message_id.to_string(),
+        };
+        let Ok(body_json) = serde_json::to_vec(&body) else {
+            return;
+        };
+        let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
+            return;
+        };
+        let envelope = ControlEnvelope::ReadReceipt {
+            session_id: self.session_id.clone(),
+            participant_id: self.participant_id.clone(),
+            receipt_ciphertext_b64: encode(&ciphertext),
+        };
+        let Ok(payload) = serde_json::to_vec(&envelope) else {
+            return;
+        };
+        let _ = self.route_send(ChannelKind::Control, &payload);
+    }
+
     fn handle_blob(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
         let envelope: BlobEnvelope = decode_json(&payload)?;
         match envelope {
@@ -1688,7 +2141,7 @@ impl PrivateDmSession {
                     };
                     let bytes = serde_json::to_vec(&chunk)
                         .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-                    self.route_send(ChannelKind::Blob, &bytes)?;
+                    self.route_blob_frame(&bytes)?;
                 }
                 Ok(())
             }
@@ -1698,6 +2151,34 @@ impl PrivateDmSession {
             } if participant_id != self.participant_id => Ok(self.transfer.ingest(&frame)?),
             _ => Ok(()),
         }
+    }
+
+    /// The blob carrier (spec #8): a chunk rides the moss stream when the
+    /// counterpart's direct peer id is known, and falls back to the room
+    /// wire otherwise — including the "no peers yet" refusals the room path
+    /// already tolerates. Requests stay room-bound either way: they are
+    /// small, they repeat on their own cadence, and a stream request would
+    /// race the room fallback for ordering. Error surfacing matches
+    /// `route_send` on the Blob kind: "no peers" is not news.
+    fn route_blob_frame(&self, bytes: &[u8]) -> Result<(), PrivateDmRuntimeError> {
+        let blob_channel = self.blob_channel.clone();
+        let stream_peer = self.peer_moss_id.clone();
+        let mesh_id = self.mesh_id.clone();
+        let transport = Arc::clone(&self.transport);
+        let stream = stream_peer
+            .as_deref()
+            .map(|peer| (&*transport as &dyn DmTransport, peer));
+        let outcome = crate::stream_transport::send_chunk(
+            stream,
+            |payload| match transport.publish(&mesh_id, &blob_channel, payload) {
+                Ok(()) => Ok(()),
+                Err(PublishError::NoPeers(_)) => Ok(()),
+                Err(error) => Err(error.to_string()),
+            },
+            &blob_channel,
+            bytes,
+        );
+        outcome.map_err(PrivateDmRuntimeError::Moss)
     }
 
     fn accept_incoming_manifest(
@@ -1719,6 +2200,7 @@ impl PrivateDmSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            read: None,
         });
         self.messages.push(message);
         Ok(())
@@ -1771,6 +2253,7 @@ impl PrivateDmSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            read: None,
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {
@@ -1787,6 +2270,10 @@ impl PrivateDmSession {
                 request,
             };
             if let Ok(bytes) = serde_json::to_vec(&envelope) {
+                // Requests ride the room wire, not the stream (spec #8):
+                // they are small, repeat on their own cadence, and the retry
+                // bookkeeping keys on them; only the CHUNK frames the
+                // request provokes take the stream fast path in handle_blob.
                 let _ = self.route_send(ChannelKind::Blob, &bytes);
             }
         }
@@ -1810,7 +2297,19 @@ impl PrivateDmSession {
             && self.participant_id != participant_id
     }
 
-    fn snapshot(&self) -> SessionSnapshot {
+    fn snapshot(&mut self) -> SessionSnapshot {
+        // The poll is the heartbeat: a hint past its deadline stops being
+        // carried (and files its lapse into the event ring) from here.
+        self.expire_peer_typing(now_ms());
+        let messages: Vec<ChatMessage> = self
+            .messages
+            .iter()
+            .map(|message| {
+                let mut stamped = message.clone();
+                stamped.read = self.own_message_read(message);
+                stamped
+            })
+            .collect();
         SessionSnapshot {
             session_id: self.session_id.clone(),
             mesh_id: self.mesh_id.clone(),
@@ -1823,7 +2322,7 @@ impl PrivateDmSession {
             last_connect_outcome: self.last_connect_outcome,
             invite_uri: self.invite_uri.clone(),
             fingerprint: self.fingerprint.clone(),
-            messages: self.messages.to_vec(),
+            messages,
             attachments: self.transfer.views(),
             mesh: self.mesh_info(),
             events: crate::conversation::mesh::snapshot_events(),
@@ -1859,6 +2358,7 @@ impl PrivateDmSession {
                     None
                 }
             }),
+            peer_typing_until_ms: self.peer_typing_until_ms,
         }
     }
 
@@ -1989,7 +2489,12 @@ impl PrivateDmSession {
         let nonce_prefix_b64 = call.nonce_prefix_b64.clone();
         match self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64) {
             // A failed send must not burn the slot: retry on the next tick.
-            Err(error) => eprintln!("call offer resend failed for {call_id}: {error}"),
+            Err(error) => dlog::write(
+                LogLevel::Error,
+                kinds::CALL,
+                call_id.as_str(),
+                &format!("call offer resend failed: {error}"),
+            ),
             Ok(()) => {
                 if let Some(call) = self.call.as_mut() {
                     call.mark_offer_sent(now_ms);
@@ -2312,6 +2817,7 @@ mod tests {
                 delivery_error: None,
                 retryable: None,
                 retry_count: None,
+                read: None,
             };
             let record = crate::conversation::history::StoredMessage {
                 conversation_id: invite.session_id.clone(),
@@ -2707,6 +3213,147 @@ mod tests {
             "an identical re-request must reach handle_blob — re-asking \
              unchanged is how a lost chunk is recovered"
         );
+    }
+
+    // The stream carrier (spec #8) at the real-library seam: Alice has the
+    // counterpart's moss id but the node has nobody connected, so every
+    // stream send answers NoPeers and the carrier must fall back to the room
+    // wire — the chunk still reaches handle_blob as a room frame, byte for
+    // byte the pre-carrier payload. This is the mixed-version behavior too:
+    // a streamless counterpart never sees the framing.
+    #[test]
+    fn chunk_serving_falls_back_to_the_room_wire_when_the_stream_refuses() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
+        let invite = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42188,
+                static_peer: None,
+            })
+            .expect("Alice invite should be created");
+        let session = alice
+            .sessions
+            .get_mut(&invite.session_id)
+            .expect("Alice session should exist");
+
+        // The stream fast path requires a known peer id; give the session
+        // one, but leave the node unmeshed so both the stream and the room
+        // refuse. The transfer must still record the serve attempt.
+        session.peer_moss_id = Some("ab".repeat(32));
+
+        session
+            .transfer
+            .prepare_outgoing(OutgoingAttachment {
+                attachment_id: "att-stream-1".to_string(),
+                file_name: "photo.bin".to_string(),
+                mime: "application/octet-stream".to_string(),
+                from_fingerprint: session.fingerprint.clone(),
+                bytes: vec![7u8; 512],
+                thumbnail_b64: None,
+                voice: None,
+            })
+            .expect("outgoing attachment should register");
+
+        let payload = serde_json::to_vec(&BlobEnvelope::Request {
+            participant_id: "peer-participant".to_string(),
+            request: crate::attachment_runtime::ChunkRequest {
+                attachment_id: "att-stream-1".to_string(),
+                chunk_indices: vec![0],
+            },
+        })
+        .expect("blob request should serialize");
+        let request = MossReceivedMessage {
+            channel: session.blob_channel.clone(),
+            payload,
+        };
+
+        session
+            .handle_moss_message(request)
+            .expect("serving through the failing carrier should not fail the request");
+
+        assert_eq!(
+            session.transfer.served_count("att-stream-1", 0),
+            1,
+            "the chunk was served (the room wire accepted the frame as always)"
+        );
+
+        // The room wire is the fallback, not a duplicate: with no stream
+        // peer the fallback carries the frame, and nothing stream-shaped
+        // leaked into the process inbox.
+        let drained = drain_received_messages();
+        assert!(
+            drained
+                .iter()
+                .all(|message| !crate::stream_transport::is_stream_inbound(&message.channel)),
+            "no stream-carried frame should leak when the stream is not in play"
+        );
+    }
+
+    // The receive seam: a frame arriving on the reserved stream channel
+    // drains into the runtime as the ordinary blob frame it wraps, and
+    // handle_blob ingests it. The stream callback itself is exercised by the
+    // library; this proves the carrier's deframe → inbox → handle_blob hop.
+    // The chunk payload here is deliberately undecryptable — the routing is
+    // the assertion; attachment_runtime tests cover the crypto underneath.
+    #[test]
+    fn a_stream_delivered_chunk_reaches_handle_blob_through_the_carrier() {
+        let _guard = MOSS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        drain_received_messages();
+
+        let runtime = Arc::new(MossFfiRuntime::load_default().expect("Moss runtime should load"));
+        let mut alice = PrivateDmRuntime::from_shared(Arc::clone(&runtime), temp_store(), None);
+        let invite = alice
+            .create_invite(StartSessionRequest {
+                display_name: "Alice".to_string(),
+                listen_port: 42189,
+                static_peer: None,
+            })
+            .expect("Alice invite should be created");
+        let session = alice
+            .sessions
+            .get_mut(&invite.session_id)
+            .expect("Alice session should exist");
+
+        let chunk = BlobEnvelope::Chunk {
+            participant_id: "peer-participant".to_string(),
+            frame: crate::attachment_runtime::ChunkFrame {
+                attachment_id: "att-stream-in".to_string(),
+                chunk_index: 0,
+                ciphertext_b64: crate::conversation::encode(b"not-a-real-chunk"),
+            },
+        };
+        let envelope_bytes = serde_json::to_vec(&chunk).expect("chunk envelope should serialize");
+        let framed =
+            crate::stream_transport::frame_for_channel(&session.blob_channel, &envelope_bytes)
+                .expect("the carrier should frame the envelope");
+
+        // The stream callback files the framed payload under the reserved
+        // channel; the runtime's drain must unwrap it before routing.
+        let peer_id = "ab".repeat(32);
+        let stream_message = MossReceivedMessage {
+            channel: crate::stream_transport::stream_inbox_channel(&peer_id),
+            payload: framed,
+        };
+        let routed = crate::stream_transport::passthrough_or_deframe(stream_message);
+        assert_eq!(routed.channel, session.blob_channel);
+        assert_eq!(
+            routed.payload, envelope_bytes,
+            "the envelope rides verbatim"
+        );
+
+        // handle_blob ingests (the transfer is unknown → swallowed) without
+        // erroring: an undecryptable chunk fails the slot, not the drain.
+        session
+            .handle_moss_message(routed)
+            .expect("a stream-delivered chunk must not error the drain");
     }
 
     // Task 3: the moss peer-id rides along in the KeyPackage so Alice can

@@ -86,6 +86,26 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     });
   }
 
+  /// The conversation is on screen: every snapshot that lands marks it
+  /// viewed, which auto-triggers the DM read receipts for not-yet-read
+  /// counterpart messages while the toggle is on. `ref.listen` in build
+  /// is the one subscription Riverpod allows from a widget; the fire on
+  /// the first build covers the snapshot that is already there.
+  void _listenViewed() {
+    ref.listen<AsyncValue<ConversationSnapshot>>(
+      conversationSnapshotProvider(_target),
+      (_, next) {
+        if (next.hasValue) _controller.markViewed();
+      },
+      // fireImmediately would call the listener during build, which
+      // cannot run the controller; the trailing read below covers the
+      // already-present snapshot instead.
+    );
+    if (ref.read(conversationSnapshotProvider(_target)).hasValue) {
+      _controller.markViewed();
+    }
+  }
+
   @override
   void dispose() {
     _composer.dispose();
@@ -213,11 +233,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   @override
   Widget build(BuildContext context) {
     // Every time the conversation is re-read, check whether an attachment
-    // the user opened early has finished downloading.
+    // the user opened early has finished downloading, and mark the
+    // conversation viewed so the DM read receipts fire while it is open.
     ref.listen<AsyncValue<ConversationSnapshot>>(
       conversationSnapshotProvider(_target),
       (_, next) => _resolvePendingOpen(next.value),
     );
+    _listenViewed();
     final chrome = _chrome;
     return Scaffold(
       appBar: widget.header(context, chrome),

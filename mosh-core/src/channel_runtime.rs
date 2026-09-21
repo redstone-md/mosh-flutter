@@ -19,6 +19,7 @@ use crate::conversation::message_log::{ConversationMessage, LogError, MessageLog
 use crate::conversation::outbound::{OnSent, Outbox, Prepared};
 use crate::conversation::runtime::{self, ConversationRuntime, ConversationSession};
 use crate::conversation::transfer::{Transfer, TransferError};
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::inbox;
 use crate::moss_ffi::{MossFfiRuntime, MossNode, MossReceivedMessage};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
@@ -320,9 +321,11 @@ impl ChannelRuntime {
             ) {
                 Ok(node) => node,
                 Err(error) => {
-                    eprintln!(
-                        "channel rehydrate: node start failed for {}: {error}",
-                        rec.name
+                    dlog::write(
+                        LogLevel::Error,
+                        kinds::REHYDRATE,
+                        &rec.name,
+                        &format!("channel rehydrate: node start failed: {error}"),
                     );
                     continue;
                 }
@@ -459,7 +462,12 @@ impl ChannelRuntime {
                 self.channels.forget(&normalized);
                 if let Some(p) = self.channels.persistence() {
                     if let Err(error) = p.delete_channel(&normalized) {
-                        eprintln!("failed to delete persisted channel {normalized}: {error}");
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::PERSIST,
+                            &normalized,
+                            &format!("failed to delete persisted channel: {error}"),
+                        );
                     }
                 }
                 Ok(ChannelLeaveResult {
@@ -761,6 +769,9 @@ impl ChannelSession {
         }
     }
 
+    // Blob traffic stays on the room wire (spec #8, this slice): a channel
+    // has no single direct peer to stream to, and the stream carrier is the
+    // DM fast path only. The chunk protocol below is unchanged.
     fn handle_blob(&mut self, payload: Vec<u8>) -> Result<(), ChannelRuntimeError> {
         let envelope: ChannelBlobEnvelope = serde_json::from_slice(&payload)
             .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;

@@ -24,6 +24,7 @@ import 'package:mosh/src/features/conversation/conversation_search_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_state.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/typing_hint.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
 import 'package:mosh/src/features/shared/chat_error_banner.dart';
@@ -34,6 +35,11 @@ import 'package:mosh/src/state/conversation_providers.dart';
 
 /// The gap around the DM's "messages are end-to-end encrypted" line.
 const EdgeInsets _cryptoFooterPadding = EdgeInsets.fromLTRB(16, 4, 16, 8);
+
+/// Who is typing, from the async snapshot: nobody while a poll is in
+/// flight or failed — the hint is a decoration, never a load signal.
+List<String> typingNamesOf(ConversationSnapshot? snapshot) =>
+    snapshot == null ? const [] : typingNames(snapshot);
 
 class ConversationScreenBody extends ConsumerWidget {
   const ConversationScreenBody({
@@ -99,6 +105,7 @@ class ConversationScreenBody extends ConsumerWidget {
               ConversationBanners(target: target, snapshot: async.value),
               ConversationSearchRow(chrome: chrome),
               Expanded(child: _messages(async, state, controller, l)),
+              TypingHint(names: typingNamesOf(async.value)),
               _composer(l, state, controller),
               if (_isDm) _cryptoFooter(context, l),
             ],
@@ -202,6 +209,7 @@ class ConversationScreenBody extends ConsumerWidget {
         placeholder: l.chatComposerPlaceholder,
         sendLabel: l.chatSendLabel,
         onSend: onSend,
+        onTyping: controller.signalTyping,
         attachLabel: l.chatAttachLabel,
         onAttach: controller.sendAttachment,
         onAttachmentPickError: onAttachmentPickError,

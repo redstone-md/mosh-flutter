@@ -6,25 +6,122 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+- **The diagnostics panel shows which moss library is actually running**
+  (spec #5). The "Moss network" group of the peer-status drawer gains the
+  Library version row (the loaded library's own answer through the same
+  dynamic-symbol table as every other moss call; a copy older than
+  v0.8.17 answers "unknown" instead of failing the node), the Peer RTT
+  row (the last measured round-trip time to the active DM counterpart,
+  "unknown" when moss has no measurement — never a fabricated "0 ms";
+  DM drawers only, since a channel and a group have no single
+  counterpart), and the Field log row (the file ticket #4's sink
+  currently writes, so a bug report can be pointed at it). The first
+  read in a process also files the version into the field log, so the
+  attached report carries what was running. The api function is
+  `moss_library_info(peer_moss_id)` — additive; `MossLibraryInfo` is
+  constructible from Dart; the frb-generated mirrors for it are regenerated
+  and committed (9df8ace).
+- **Attachment chunks ride moss streams on direct DM sessions** (spec #8).
+  The blob channel keeps its chunk protocol — requests, retry, dedup are
+  byte-for-byte unchanged — and only the carrier changes: when the
+  counterpart's moss id is known, a served chunk goes down attachment stream
+  id 2 (`Moss_OpenStream`/`Moss_SendStream`; moss wraps relayed peers with
+  its 8-byte `MSs1` header itself). Any stream refusal (missing symbol,
+  `RELAY_FAILED`, node gone) falls back to the room wire, so a counterpart
+  library without streams receives exactly as before; the receiver keeps its
+  room subscription, and the carrier's framing (a JSON header naming the
+  destination blob channel around the original envelope, carried on the
+  reserved `moss-stream/<peer>` inbox channel) is only ever read by peers
+  running this code. Groups and channels keep the room wire — a direct
+  single-peer stream does not exist for them. The receive-side stream
+  handler registers once per shared node at start (best-effort). `Moss_Version`,
+  `Moss_PeerRTT`, `Moss_OpenStream`, `Moss_SendStream` and `Moss_OnStream`
+  are loaded as optional symbols that degrade instead of failing the load.
+
 ### Changed
-- **Moss bumped to v0.8.30** (from v0.8.19; the pin is the `moss/` submodule
-  pointer — ADR 0002). The v0.8.30 tag is a squash that already carries the
-  0.8.31 entry and its fix, so the pinned build includes the conditional
-  UDP-handshake reap. Upstream highlights between the two pins: directed
-  delivery no longer lets one slow peer drop another peer's DMs (the exact
-  shape of Mosh's synchronous FFI callback), relay rate-limiting made
-  visible instead of silent, ping probes dispersed so one stalled write can
-  no longer serial-kill healthy sessions, and bounded fan-out for stat
-  gossip. The FFI surface Mosh uses is unchanged — all 28 symbols from
-  v0.8.19 keep their signatures; the 8 new symbols (directed sends,
-  streams, packet callback, `Moss_Version`) are additive and remain unused
-  for now.
+- **The channel probe sends the message itself as the rendezvous probe**
+  (`channel-dial`). It used to wait for "any substrate peer" before sending —
+  but substrate peers are strangers, not channel members, so a channel whose
+  real rendezvous needed more time reported a false failure. The probe now
+  sends straight away and, when moss answers "no peers yet" (the frame never
+  left the device), re-drives the same message on every tick until the send
+  is accepted or the timeout is spent. Every retry lands in the timeline with
+  its attempt number and elapsed time, making channel rendezvous latency
+  measurable for the first time. The verdict stays with the listening end;
+  the runtime's refusal of a peerless publish is unchanged (ADR 0021) — the
+  probe retries around it. `--send-without-peers` keeps its meaning: one
+  attempt, watch the refusal.
+- **Moss bumped to v0.9.0** (from v0.8.19; the pin is the `moss/`
+  submodule pointer — ADR 0002). Upstream highlights across the delta:
+  directed delivery no longer lets one slow peer drop another peer's DMs
+  (the exact shape of Mosh's synchronous FFI callback), relay
+  rate-limiting made visible instead of silent, ping probes dispersed so
+  one stalled write can no longer serial-kill healthy sessions, bounded
+  fan-out for stat gossip, and the conditional UDP-handshake reap. v0.9.0
+  itself is the fleet-census batch: bidirectional UDP confirmation
+  before a datagram session registers, NAT profiles riding signed punch
+  coordination envelopes, instantly refused dials charged to the dial
+  budget, static peers given a bounded dual-transport dial, the
+  overlay-lookup and restart-listener data races closed under the race
+  detector, advertise led by the default route's egress address (a
+  public box no longer hands its docker bridge to the fleet) with
+  docker/CNI bridges excluded and own-endpoint observations no longer
+  minting `port_restricted_cone` verdicts, and moss-lan breaking
+  self-address collisions by peer-ID rank. The FFI surface Mosh uses is
+  unchanged — all 28 symbols from v0.8.19 keep their signatures; the 8
+  newer symbols (directed sends, streams, packet callback,
+  `Moss_Version`) are additive and remain unused for now.
 - **A Mosh client no longer ships Axiom telemetry.** The node config
   hardcoded moss's own ingest token, silently opting every user into
   error reporting; moss's sink is opt-in, and the default config now
   carries no `axiom_*` keys. A test pins this.
 
 ### Added
+- **Typing indicators for DMs and private groups.** While you type, the
+  composer signals the counterpart (or the group) over the MLS-encrypted
+  control wire: a `TypingIndicator` frame whose body never crosses the mesh
+  in the clear, so a bystander cannot forge "someone is typing". Continued
+  input refreshes at most every 3 s; the receiving side owns a 5 s expiry and
+  clears the hint the moment a real message arrives — a delivered message
+  contradicts "typing". A group hint identifies WHICH member types
+  (fingerprint + display name in the snapshot); channels never carry typing.
+  Mixed-version tolerance rides the established unknown-envelope decode-drop:
+  an old client never shows typing and nothing breaks. The runtime files a
+  `typing` event (pinned code 10) into the diagnostics event ring, and the
+  snapshots (`SessionSnapshot.peer_typing_until_ms`,
+  `GroupSnapshot.typing_members`) carry the state to the UI through the
+  existing poll cycle — no new push channel.
+- **Read receipts for DMs: the two delivery ticks change color.** When a DM
+  is open on screen, the runtime receipts every not-yet-read counterpart
+  message with a `ReadReceipt` frame on the MLS-encrypted control wire —
+  one message id per frame (the ack shape), so only the real MLS peer can
+  mint one and a mesh bystander cannot fake the color change. Off by
+  default and symmetric: one app-level toggle covers every DM, persisted
+  both ways (`read-receipts.json` beside the history store) — and a user
+  who does not send receipts does not see others'. Read state survives a
+  restart (ids ride the session record, capped at 512), so the counterpart
+  is never re-asked. The runtime files a `message_read` event (pinned code
+  9) into the diagnostics event ring on BOTH sides — when a receipt lands
+  and when one is sent — and the snapshot's `ChatMessage.read` (own
+  messages only, skip-when-none) carries the color to the UI through the
+  existing poll. DM only: groups ("read by N") and channels are out of
+  scope. Old counterpart clients decode-drop the unknown frame and
+  silently never color.
+- **A field log the app can hand to support.** The Rust core's error lines
+  (dropped frames, failed handshakes, stalled resends, rehydrate failures)
+  used to go to process stderr, which a release Windows build has no console
+  for — every line was silently lost. They now land in one rotated plain
+  file under the app-private data directory (`<data dir>/mosh/logs/mosh.log`),
+  written by a single sink that owns the path and the rotation policy
+  (~2 MB per file, `mosh.log` → `mosh.log.1` → `mosh.log.2`, oldest dropped).
+  Lines are structured and greppable — `timestamp level kind context message`
+  — and the log never breaks the app: a filesystem failure drops the line
+  and the next write retries. Debug builds still mirror every line to stderr.
+  Key session transitions join the errors: handshake landed, resend attempts,
+  delivery settlement. The location is surfaced through
+  `current_log_path()` so a support conversation can end with "attach this
+  file".
 - The diagnostics event log names the messenger events moss added in
   v0.8.20 (`message_delivered`, `message_read`, `typing`, `presence`)
   instead of rendering them as `unknown`. Mosh does not act on them yet.

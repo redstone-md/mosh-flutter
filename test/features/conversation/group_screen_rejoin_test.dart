@@ -59,6 +59,7 @@ GroupSnapshot _snapshot({
       needsRejoin: needsRejoin,
       orgPubkey: null,
       memberPeerIds: const [],
+      typingMembers: const [],
     );
 
 Future<void> _pump(WidgetTester tester, GroupSnapshot snapshot) =>

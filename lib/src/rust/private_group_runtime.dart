@@ -184,6 +184,10 @@ class GroupSnapshot {
   /// letting the UI diff the roster against group membership.
   final List<String> memberPeerIds;
 
+  /// Members currently typing, one entry each with the deadline the
+  /// receiver stamped. Empty when nobody is.
+  final List<TypingMember> typingMembers;
+
   const GroupSnapshot({
     required this.groupId,
     required this.meshId,
@@ -203,6 +207,7 @@ class GroupSnapshot {
     required this.needsRejoin,
     this.orgPubkey,
     required this.memberPeerIds,
+    required this.typingMembers,
   });
 
   @override
@@ -224,7 +229,8 @@ class GroupSnapshot {
       events.hashCode ^
       needsRejoin.hashCode ^
       orgPubkey.hashCode ^
-      memberPeerIds.hashCode;
+      memberPeerIds.hashCode ^
+      typingMembers.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -248,7 +254,8 @@ class GroupSnapshot {
           events == other.events &&
           needsRejoin == other.needsRejoin &&
           orgPubkey == other.orgPubkey &&
-          memberPeerIds == other.memberPeerIds;
+          memberPeerIds == other.memberPeerIds &&
+          typingMembers == other.typingMembers;
 }
 
 class JoinGroupRequest {
@@ -286,4 +293,38 @@ class JoinGroupRequest {
           orgPubkey == other.orgPubkey &&
           listenPort == other.listenPort &&
           staticPeer == other.staticPeer;
+}
+
+/// One member currently typing, as the group snapshot names it.
+class TypingMember {
+  /// The member's device fingerprint — the same id the message log keys
+  /// authors by, so the UI can match avatar/roster data.
+  final String fingerprint;
+
+  /// The typing member's display name, learned from the frame's
+  /// `from_device` (and re-learned through message traffic).
+  final String displayName;
+
+  /// Wall-clock deadline of the hint; the receiver's clock, not the
+  /// sender's claim.
+  final BigInt untilMs;
+
+  const TypingMember({
+    required this.fingerprint,
+    required this.displayName,
+    required this.untilMs,
+  });
+
+  @override
+  int get hashCode =>
+      fingerprint.hashCode ^ displayName.hashCode ^ untilMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TypingMember &&
+          runtimeType == other.runtimeType &&
+          fingerprint == other.fingerprint &&
+          displayName == other.displayName &&
+          untilMs == other.untilMs;
 }

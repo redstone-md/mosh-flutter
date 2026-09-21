@@ -33,6 +33,7 @@ GroupSnapshot _group({required List<String> memberPeerIds}) => GroupSnapshot(
       needsRejoin: false,
       orgPubkey: _orgPubkey,
       memberPeerIds: memberPeerIds,
+      typingMembers: const [],
     );
 
 OrgSnapshot _org({required String selfRole}) => OrgSnapshot(

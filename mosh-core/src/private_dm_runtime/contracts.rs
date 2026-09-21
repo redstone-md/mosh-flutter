@@ -72,6 +72,28 @@ pub struct AcceptInviteRequest {
     pub static_peer: Option<String>,
 }
 
+/// The MLS-encrypted body of a `TypingIndicator` (DM and group share it).
+/// The device name lets the receiver label the hint with an authenticated
+/// name; `until_ms` is the sender's own claim and stays advisory — the
+/// receiver stamps the hint with its own clock so a skewed sender cannot
+/// stretch it.
+#[frb(non_opaque)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypingBody {
+    pub device: String,
+    pub until_ms: u64,
+}
+
+/// The MLS-encrypted body of a `ReadReceipt`: the id of ONE message the
+/// sender has seen. One id per frame (the ack shape) keeps a lost receipt
+/// re-sendable as the same single-frame problem a lost ack already is — a
+/// batch would lose or re-deliver every id together. Anything else in the
+/// frame is the transport's business; the receipt is only this id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReadReceiptBody {
+    pub message_id: String,
+}
+
 #[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionSnapshot {
@@ -100,6 +122,11 @@ pub struct SessionSnapshot {
     pub events: Vec<SnapshotEvent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pending_call: Option<PendingCall>,
+    /// Wall-clock deadline of the peer's typing hint, if one stands. Absent
+    /// when the peer is not typing; a poll past the deadline simply stops
+    /// carrying the field.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub peer_typing_until_ms: Option<u64>,
     /// Present while the local user is placing a call and waiting for the peer
     /// to answer (caller-side "ringing" state).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -141,6 +168,13 @@ pub struct ChatMessage {
     pub retryable: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<u32>,
+    /// The [[Read receipt]] on the user's OWN message: `Some(true)` once the
+    /// counterpart's authenticated receipt landed, absent until then (and
+    /// always absent for the counterpart's messages — they have nothing to
+    /// learn about their own reads). Additive and skip-when-none, so old
+    /// snapshots and old history rows stay valid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read: Option<bool>,
 }
 
 impl ConversationMessage for ChatMessage {
@@ -361,6 +395,26 @@ pub struct PersistedSession {
     /// before this field existed still load.
     #[serde(default)]
     pub peer_moss_id: Option<String>,
+    /// Message ids the counterpart has authenticated a read of, persisted so
+    /// a restart does not re-ask (a re-asked receipt is a frame the peer has
+    /// to answer again for something it already told us). Defaulted so
+    /// records written before this field existed still load. Pruned to the
+    /// last `READ_HISTORY_KEEP` ids on write, so the record cannot grow
+    /// without bound.
+    #[serde(default)]
+    pub read_message_ids: Vec<String>,
+}
+
+/// How many read ids a session record keeps (the same bound the runtime
+/// applies in memory; re-declared here so the serialized shape's contract
+/// lives beside the field).
+pub const READ_HISTORY_KEEP: usize = 512;
+
+/// Keeps the LAST ids (the newest reads) and drops the rest, once the list
+/// outgrows the cap. Order is preserved for the ids that stay.
+pub fn prune_read_ids(ids: &[String]) -> Vec<String> {
+    let overflow = ids.len().saturating_sub(READ_HISTORY_KEEP);
+    ids.iter().skip(overflow).cloned().collect()
 }
 
 #[cfg(test)]
@@ -393,6 +447,7 @@ mod tests {
             delivery_error: Some("publish failed".into()),
             retryable: Some(true),
             retry_count: Some(2),
+            read: None,
         };
         let pm = StoredMessage {
             conversation_id: "conv".into(),
@@ -407,5 +462,50 @@ mod tests {
         assert_eq!(ce.kind, "completed");
         assert_eq!(ce.duration_ms, 9000);
         assert_eq!(back.message.retry_count, Some(2));
+        assert_eq!(back.message.read, None);
+    }
+
+    // The cap keeps a long-lived DM's record bounded: past the cap, the
+    // NEWEST ids are the ones that stay.
+    #[test]
+    fn pruned_read_ids_keep_the_newest() {
+        let ids: Vec<String> = (0..READ_HISTORY_KEEP + 3)
+            .map(|i| format!("m{i:06}"))
+            .collect();
+        let kept = prune_read_ids(&ids);
+        assert_eq!(kept.len(), READ_HISTORY_KEEP, "the cap holds");
+        assert_eq!(kept[0], "m000003", "the oldest ids are dropped");
+        assert_eq!(
+            kept.last().map(String::as_str),
+            Some(format!("m{:06}", READ_HISTORY_KEEP + 2).as_str()),
+            "the newest id survives"
+        );
+    }
+
+    // The read-receipt persistence story: `read` and `read_message_ids` are
+    // additive `#[serde(default)]` fields, so a session record a build
+    // before the feature wrote still loads — with no read state.
+    #[test]
+    fn a_legacy_record_without_read_state_still_loads() {
+        let legacy = serde_json::json!({
+            "role_is_alice": true,
+            "display_name": "Alice",
+            "participant_id": "p",
+            "session_id": "s",
+            "mesh_id": "m",
+            "fingerprint": "f",
+            "invite_uri": null,
+            "signer_public": [1, 2, 3],
+            "group_id": [],
+            "listen_port": 0,
+            "static_peer": null
+        });
+        let record: PersistedSession =
+            serde_json::from_value(legacy).expect("a pre-receipts record still loads");
+        assert_eq!(record.peer_moss_id, None);
+        assert!(
+            record.read_message_ids.is_empty(),
+            "no read state is persisted yet"
+        );
     }
 }

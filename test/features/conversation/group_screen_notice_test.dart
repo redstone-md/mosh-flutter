@@ -57,6 +57,7 @@ GroupSnapshot _snapshot({
       needsRejoin: false,
       orgPubkey: null,
       memberPeerIds: const [],
+      typingMembers: const [],
     );
 
 void main() {
