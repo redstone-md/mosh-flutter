@@ -12,11 +12,12 @@
 //! ignored and the next write retries. Debug builds also mirror each line to
 //! stderr, so a developer run still sees the old console output.
 
+use std::any::Any;
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::api::shared_runtime::resolved_data_dir;
@@ -56,6 +57,8 @@ pub mod kinds {
     /// The attachment chunk carrier: stream sends, fallbacks, and frames
     /// that arrive on the reserved inbox channel (spec #8).
     pub const STREAM: &str = "stream";
+    /// A Rust panic anywhere in the process, mirrored by the panic hook.
+    pub const PANIC: &str = "panic";
     pub const TEST: &str = "test";
 }
 
@@ -207,6 +210,45 @@ pub fn write(level: LogLevel, kind: &str, context_id: &str, message: &str) {
 pub fn current_log_path() -> Option<PathBuf> {
     let guard = SINK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     guard.as_ref()?.ready_path()
+}
+
+/// Mirrors every Rust panic into the field log (new `panic` kind). A
+/// release build has no console, so a panic on a foreign thread — a Go
+/// callback, an audio worker, an FFI entry — would otherwise abort the
+/// process without a trace in `mosh.log`. Idempotent; the default hook
+/// still runs afterwards, so debug builds keep their stderr output.
+pub fn install_panic_hook() {
+    static INSTALLED: OnceLock<()> = OnceLock::new();
+    let _ = INSTALLED.get_or_init(|| {
+        let default_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            let line = format!(
+                "panic at {}: {}",
+                info.location().map_or_else(
+                    || "unknown location".to_string(),
+                    |location| location.to_string()
+                ),
+                panic_payload_message(info.payload())
+            );
+            // try_lock: if the panic interrupted a write, this thread still
+            // holds the sink mutex — skipping the line beats deadlocking the
+            // abort path.
+            if let Ok(mut guard) = SINK.try_lock() {
+                let sink = guard.get_or_insert_with(|| LogSink::new(logs_dir(), MAX_FILE_BYTES));
+                sink.write_line(LogLevel::Error, kinds::PANIC, "", &line);
+            }
+            default_hook(info);
+        }));
+    });
+}
+
+/// Unwraps a panic payload's message without assuming a `String`.
+fn panic_payload_message(payload: &(dyn Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|message| (*message).to_string())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "non-string panic payload".to_string())
 }
 
 /// Test-only: drop the process sink so the next write re-opens it under
@@ -416,5 +458,32 @@ mod tests {
         assert_eq!(path, resolved_data_dir().join(LOGS_DIR).join(FILE_NAME));
         assert!(path.is_file());
         let _ = fs::remove_dir_all(temp_dir("global-sink"));
+    }
+
+    #[test]
+    fn a_panic_lands_in_the_field_log() {
+        let _ = crate::api::shared_runtime::set_app_data_dir(
+            temp_dir("panic-hook").to_string_lossy().into_owned(),
+        );
+        reset_sink_for_tests();
+        install_panic_hook();
+        // The hook mirrors the panic into the log and then runs the default
+        // hook, so the panic still unwinds exactly as the caller expects.
+        let outcome = std::panic::catch_unwind(|| panic!("hook smoke test"));
+        assert!(outcome.is_err(), "the panic must still unwind");
+
+        let dir = resolved_data_dir().join(LOGS_DIR);
+        let lines: Vec<String> = read_lines(&dir, FILE_NAME)
+            .into_iter()
+            .filter(|line| line.contains("hook smoke test"))
+            .collect();
+        assert_eq!(lines.len(), 1, "one line per panic");
+        assert!(lines[0].contains("error panic"), "logged as an error");
+        assert!(
+            lines[0].contains("panic at "),
+            "the line carries the panic location"
+        );
+        reset_sink_for_tests();
+        let _ = fs::remove_dir_all(temp_dir("panic-hook"));
     }
 }

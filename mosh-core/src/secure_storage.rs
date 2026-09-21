@@ -1,3 +1,5 @@
+#[cfg(target_os = "macos")]
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use flutter_rust_bridge::frb;
 use keyring_core::Entry;
 #[cfg(not(target_os = "android"))]
@@ -115,6 +117,14 @@ impl SecureSecretStore for OsSecureSecretStore {
         // not-found, keeps this independent of the backend's error taxonomy;
         // if the legacy slot is empty too, the original error is returned
         // unchanged.
+        #[cfg(target_os = "macos")]
+        if let Some(secret) = load_from_legacy_keychain(key) {
+            // Best-effort migration: a write failure still lets this run
+            // proceed with the recovered secret, and the next start retries
+            // the copy.
+            let _ = self.save_secret(key, &secret);
+            return Ok(secret);
+        }
         let Some(secret) = Self::load_legacy(key) else {
             return Err(error);
         };
@@ -173,10 +183,160 @@ fn ensure_native_store() -> Result<(), SecureStorageError> {
 fn ensure_native_store() -> Result<(), SecureStorageError> {
     static NATIVE_STORE: OnceLock<()> = OnceLock::new();
 
-    cache_on_success(&NATIVE_STORE, || {
-        keyring::use_native_store(false)
-            .map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
-    })
+    cache_on_success(&NATIVE_STORE, select_native_store)
+        .map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
+}
+
+/// Picks the process-default credential store. On macOS a sandboxed build
+/// (both DebugProfile and Release entitlements enable the sandbox) prefers
+/// the data-protection keychain, the store Apple designed for sandboxed
+/// apps: it never shows the legacy login-keychain access prompt an
+/// ad-hoc-signed build can hit at every launch. A set/get/delete probe
+/// proves the store accepts items before committing; a failure falls back
+/// to the legacy store so behavior never regresses.
+#[cfg(not(target_os = "android"))]
+fn select_native_store() -> Result<(), SecureStorageError> {
+    #[cfg(target_os = "macos")]
+    {
+        if std::env::var_os("APP_SANDBOX_CONTAINER_ID").is_some() {
+            return select_sandboxed_mac_store();
+        }
+    }
+    keyring::use_native_store(false)
+        .map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
+}
+
+/// Whether the sandboxed macOS build runs on the protected store and so
+/// needs the one-time legacy hand-over in `load_secret`. False until
+/// `select_sandboxed_mac_store` succeeds.
+#[cfg(target_os = "macos")]
+static PROTECTED_STORE_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(target_os = "macos")]
+fn protected_store_active() -> bool {
+    std::sync::atomic::AtomicBool::load(
+        &PROTECTED_STORE_ACTIVE,
+        std::sync::atomic::Ordering::Acquire,
+    )
+}
+
+/// Selects the data-protection keychain for a sandboxed macOS build,
+/// proving it works with a real roundtrip first. The probe key is unique
+/// per launch so the created item is always fresh — a stale probe item
+/// created by a different build could ACL-prompt instead.
+#[cfg(target_os = "macos")]
+fn select_sandboxed_mac_store() -> Result<(), SecureStorageError> {
+    use std::sync::atomic::Ordering;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let probe_key = format!(
+        "store-probe-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or_default()
+    );
+    // Select the data-protection store FIRST, then prove it: the probe
+    // creates entries through the process-default store, so the default
+    // must already be the protected store here.
+    let selected = keyring::use_named_store("protected")
+        .map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
+        .and_then(|()| probe_protected_store(&probe_key));
+    if let Err(error) = selected {
+        dlog::write(
+            LogLevel::Warn,
+            kinds::IDENTITY,
+            SERVICE_NAME,
+            &format!("protected keychain store unavailable ({error}); using legacy keychain store"),
+        );
+        PROTECTED_STORE_ACTIVE.store(false, Ordering::Release);
+        return keyring::use_native_store(false).map_err(|error| {
+            SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}"))
+        });
+    }
+    PROTECTED_STORE_ACTIVE.store(true, Ordering::Release);
+    dlog::write(
+        LogLevel::Info,
+        kinds::IDENTITY,
+        SERVICE_NAME,
+        "macOS sandboxed: protected keychain store selected",
+    );
+    Ok(())
+}
+
+/// A set/get/delete roundtrip in the data-protection keychain. Ad-hoc
+/// signing can be rejected by entitlement checks that only surface on a
+/// real write, so the store is proven before the DEK is trusted to it.
+#[cfg(target_os = "macos")]
+fn probe_protected_store(probe_key: &str) -> Result<(), SecureStorageError> {
+    let probe_service = format!("{SERVICE_NAME}.probe");
+    const PROBE_VALUE: &[u8] = b"mosh";
+    let entry = Entry::new(&probe_service, probe_key)
+        .map_err(|error| SecureStorageError::Entry(error.to_string()))?;
+    let outcome = (|| -> Result<(), SecureStorageError> {
+        entry
+            .set_secret(PROBE_VALUE)
+            .map_err(|error| SecureStorageError::Backend(error.to_string()))?;
+        let read = entry
+            .get_secret()
+            .map_err(|error| SecureStorageError::Backend(error.to_string()))?;
+        if read != PROBE_VALUE {
+            return Err(SecureStorageError::Backend(
+                "protected store probe roundtrip mismatch".to_string(),
+            ));
+        }
+        entry
+            .delete_credential()
+            .map_err(|error| SecureStorageError::Backend(error.to_string()))
+    })();
+    // Leave nothing behind even when the roundtrip failed midway.
+    if outcome.is_err() {
+        let _ = entry.delete_credential();
+    }
+    outcome
+}
+
+/// One-time hand-over for a sandboxed macOS build whose DEK still lives in
+/// the legacy login-keychain slots: reads them while the legacy store is
+/// the process default, then restores the data-protection store. The
+/// keychain is only touched from `Persistence::open` (once per process,
+/// behind the resources OnceLock), so the brief default-store swap is
+/// single-threaded by construction.
+#[cfg(target_os = "macos")]
+fn load_from_legacy_keychain(key: &str) -> Option<Vec<u8>> {
+    if !protected_store_active() {
+        return None; // already on the legacy store; the normal fallback covers it
+    }
+    keyring::use_named_store("keychain").ok()?;
+    let current = OsSecureSecretStore::entry_in(SERVICE_NAME, key)
+        .ok()
+        .and_then(|entry| entry.get_secret().ok());
+    let tauri = if current.is_none() {
+        OsSecureSecretStore::entry_in(LEGACY_SERVICE_NAME, key)
+            .ok()
+            .and_then(|entry| entry.get_secret().ok())
+    } else {
+        None
+    };
+    let secret = current.or(tauri);
+    if keyring::use_named_store("protected").is_err() {
+        dlog::write(
+            LogLevel::Warn,
+            kinds::IDENTITY,
+            SERVICE_NAME,
+            "could not restore the protected keychain store after the legacy read",
+        );
+    }
+    if secret.is_some() {
+        dlog::write(
+            LogLevel::Info,
+            kinds::IDENTITY,
+            SERVICE_NAME,
+            "migrating secret from the legacy macOS keychain into the protected store",
+        );
+    }
+    secret
 }
 
 #[cfg(test)]

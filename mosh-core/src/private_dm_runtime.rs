@@ -338,12 +338,36 @@ impl PrivateDmRuntime {
         {
             let snapshot = match p.get_mls_snapshot(&rec.session_id) {
                 Ok(Some(s)) => s,
-                _ => {
+                Ok(None) => {
+                    // A joiner record written before its Welcome carries an
+                    // empty group_id and can never rebuild — delete the dead
+                    // row instead of warning about it at every startup. A
+                    // final record without its snapshot is corruption: its
+                    // history rows stay recoverable, so the row is kept.
+                    if rec.group_id.is_empty() {
+                        let message = match p.delete_session(&rec.session_id) {
+                            Ok(()) => "dropping joiner record without MLS snapshot".to_string(),
+                            Err(e) => {
+                                format!("joiner record without MLS snapshot; delete failed: {e}")
+                            }
+                        };
+                        dlog::write(LogLevel::Info, kinds::REHYDRATE, &rec.session_id, &message);
+                    } else {
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::REHYDRATE,
+                            &rec.session_id,
+                            "record without MLS snapshot; row kept",
+                        );
+                    }
+                    continue;
+                }
+                Err(e) => {
                     dlog::write(
                         LogLevel::Warn,
                         kinds::REHYDRATE,
                         &rec.session_id,
-                        "missing MLS snapshot",
+                        &format!("MLS snapshot unreadable: {e}"),
                     );
                     continue;
                 }
@@ -549,11 +573,11 @@ impl PrivateDmRuntime {
         let session_id = session.session_id.clone();
         self.sessions.insert(session_id.clone(), session);
 
-        // Bob has no MLS group until he processes Alice's Welcome, so this
-        // record carries an empty group_id placeholder. It is intentionally NOT
-        // final here; persist_session_tail refreshes it once the group exists
-        // so rehydrate can load it after a restart.
-        self.sessions.persist_record(&session_id, false);
+        // Deliberately NOT persisted here. Bob has no MLS group until the
+        // Welcome, so a record written now would carry an empty group_id and
+        // no snapshot — a row rehydrate can never rebuild, warning at every
+        // startup. The first tick after the Welcome persists the record and
+        // the snapshot together (persist_tail sees the now-final session).
 
         self.poll_session(&session_id)
     }
@@ -2592,7 +2616,18 @@ impl ConversationSession for PrivateDmSession {
     }
 
     fn write_extra(&self, persistence: &Persistence) {
-        let _ = persistence.put_mls_snapshot(&self.session_id, &self.crypto.snapshot());
+        // A snapshot write that fails while the record write after it
+        // succeeds leaves a row rehydrate can never rebuild. Surface the
+        // failure instead of swallowing it.
+        if let Err(error) = persistence.put_mls_snapshot(&self.session_id, &self.crypto.snapshot())
+        {
+            dlog::write(
+                LogLevel::Error,
+                kinds::PERSIST,
+                &self.session_id,
+                &format!("MLS snapshot persist failed: {error}"),
+            );
+        }
     }
 
     /// Until the joiner processes the Welcome its record's group id is an
