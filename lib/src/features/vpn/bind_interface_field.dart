@@ -283,13 +283,13 @@ class _HeadIcon extends StatelessWidget {
       height: 30,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: const Color(0xFFB7D84A).withValues(alpha: 0.12),
+        color: MoshColors.moss.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(
         enabled ? Icons.shield : Icons.power,
         size: 15,
-        color: const Color(0xFFB7D84A),
+        color: MoshColors.moss,
       ),
     );
   }

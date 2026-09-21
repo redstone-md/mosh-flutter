@@ -248,7 +248,7 @@ class RuntimeError extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    const danger = Color(0xFFE86A5A);
+    const danger = MoshColors.danger;
     // `Semantics(liveRegion: true)` mirrors React `role="alert"` -- screen
     // readers announce the error when it appears in the drawer.
     return Semantics(
@@ -304,12 +304,12 @@ class RuntimeError extends StatelessWidget {
 Color _toneColor(DiagnosticSummaryTone tone) {
   switch (tone) {
     case DiagnosticSummaryTone.ready:
-      return const Color(0xFFB7D84A); // --moss
+      return MoshColors.moss;
     case DiagnosticSummaryTone.waiting:
-      return const Color(0xFFE8B65A); // --warn
+      return MoshColors.warn;
     case DiagnosticSummaryTone.error:
-      return const Color(0xFFE86A5A); // --danger
+      return MoshColors.danger;
     case DiagnosticSummaryTone.idle:
-      return const Color(0xFF6B7075); // --fg-3
+      return MoshColors.fg3;
   }
 }

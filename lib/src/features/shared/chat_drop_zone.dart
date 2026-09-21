@@ -32,6 +32,7 @@ import 'package:desktop_drop/desktop_drop.dart'
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart' show AppLocalizations;
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show
         AttachmentPickError,
@@ -43,8 +44,8 @@ import 'package:mosh/src/features/shared/attachment_picker.dart'
 /// paperclip picker's default `maxBytes`.
 const int kAttachmentMaxBytes = 50 * 1024 * 1024;
 
-/// `--moss` accent (#B7D84A) -- sourced from summary_card.dart / mosh_title_bar.
-const Color _kMoss = Color(0xFFB7D84A);
+/// `--moss` accent, from the shared theme tokens.
+const Color _kMoss = MoshColors.moss;
 
 /// Wraps [child] (the message list) so a desktop file drop ingests through
 /// the same `onAttach`/`onError` pair the paperclip uses.

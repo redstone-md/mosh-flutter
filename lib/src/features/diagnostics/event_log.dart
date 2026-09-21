@@ -23,6 +23,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/rust/conversation/mesh.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// The React `EventLog`: the "Moss events" `.diagnostic-group`. Mirrors
 /// React's `EventLog({ events })`:
@@ -177,13 +178,13 @@ Color eventNameColor(String eventName, {required Color fallback}) {
   switch (eventName) {
     case 'peer_joined':
     case 'supernode_promoted':
-      return const Color(0xFFB7D84A); // --moss
+      return MoshColors.moss;
     case 'peer_left':
-      return const Color(0xFFE8B65A); // --warn
+      return MoshColors.warn;
     case 'tracker_announce':
-      return const Color(0xFF6CB7E8); // --info
+      return MoshColors.info;
     case 'tracker_failure':
-      return const Color(0xFFE86A5A); // --danger
+      return MoshColors.danger;
     default:
       return fallback;
   }

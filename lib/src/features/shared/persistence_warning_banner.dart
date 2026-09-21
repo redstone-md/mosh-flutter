@@ -6,10 +6,11 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 // CSS literal colors (theme.css): --warn #e8b65a, --fg-2 #a8aeb0, --fg-3 #6b7075.
-const Color _kWarnColor = Color(0xFFE8B65A);
-const Color _kFg3Color = Color(0xFF6B7075);
+const Color _kWarnColor = MoshColors.warn;
+const Color _kFg3Color = MoshColors.fg3;
 // CSS rgba(232, 182, 90, 0.08/0.12/0.28) -> alpha 0.08=21, 0.12=31, 0.28=71.
 const Color _kBgColor = Color(0x15E8B65A);
 const Color _kIconBgColor = Color(0x1FE8B65A);

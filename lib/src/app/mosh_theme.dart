@@ -68,6 +68,14 @@ class MoshColors {
   static const Color info = Color(0xFF6CB7E8); // --info
 }
 
+/// Font features for LIVE numbers (voice timers, audio position, unread
+/// counts): tabular figures keep every digit the same width, so a row whose
+/// value ticks does not shift its neighbours horizontally (audit
+/// 2026-09-21). The call overlay's timer was already rendered this way.
+const List<FontFeature> kLiveNumberFontFeatures = <FontFeature>[
+  FontFeature.tabularFigures(),
+];
+
 /// Material 3 `ColorScheme` mapping the React dark palette onto the standard
 /// semantic slots. Slot assignment rationale (grounded in React CSS usage):
 ///
@@ -100,8 +108,11 @@ class MoshColors {
 ///  - `outlineVariant` / `dividerColor` -> line. Default hairlines
 ///    (`.composer { border-top: 1px solid --line }`).
 ///  - `error` -> danger. React `--danger` (#e86a5a) for errors/delete UI.
-///  - `onError` -> fg1. React does not define an explicit on-danger token;
-///    fg1 is the high-contrast text used on colored fills elsewhere.
+///  - `onError` / `onErrorContainer` -> mossInk. React defines no explicit
+///    on-danger token, but danger is a LIGHT fill: fg1 (near-white) on it
+///    reads at ~3.1:1 (audit 2026-09-21). mossInk is the palette's darkest
+///    ink and reads cleanly on danger -- the same mapping the light warn and
+///    info fills already use (`onSecondary`/`onTertiary`).
 ///  - `secondary` -> warn (state-pill-waiting / --warn), `onSecondary` ->
 ///    mossInk for contrast (warn is light; mossInk is the darkest ink in
 ///    the palette and reads cleanly on warn).
@@ -123,9 +134,9 @@ const ColorScheme _moshColorScheme = ColorScheme.dark(
   tertiaryContainer: MoshColors.bg3,
   onTertiaryContainer: MoshColors.fg1,
   error: MoshColors.danger,
-  onError: MoshColors.fg1,
+  onError: MoshColors.mossInk,
   errorContainer: MoshColors.danger,
-  onErrorContainer: MoshColors.fg1,
+  onErrorContainer: MoshColors.mossInk,
   surface: MoshColors.bg0,
   onSurface: MoshColors.fg1,
   onSurfaceVariant: MoshColors.fg2,

@@ -200,6 +200,11 @@ class ConversationComposer extends StatelessWidget {
                 // React `.send-button { width: 32px; height: 32px;
                 // border-radius: 8px; background: var(--moss); color:
                 // var(--moss-ink) }`, dropping to --bg-3/--fg-4 when disabled.
+                // The painted square is 32x32; the theme's M3 padded tap
+                // target makes the button's LAYOUT box 40-48px (density
+                // adjusted), so the >=40px tap floor and the composer row
+                // geometry are the framework's, not a wrapper's (audit
+                // 2026-09-21 hit-areas; CodeAnt PR #12).
                 Tooltip(
                   message: sendLabel,
                   child: FilledButton(
