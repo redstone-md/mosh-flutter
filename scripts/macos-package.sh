@@ -48,12 +48,16 @@ while IFS= read -r -d '' binary; do
   echo "universal ok: ${binary#"$APP"/} ($archs)"
 done < <(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" -maxdepth 1 \( -name '*.dylib' -o -path "$APP/Contents/MacOS/mosh" \) -print0)
 
-# lipo can damage per-slice ad-hoc signatures; re-sign the dylib ad-hoc
-# when verification fails, then the whole bundle must verify. Xcode's
-# "Sign to Run Locally" covers everything else at build time.
+# lipo can damage per-slice ad-hoc signatures. If the dylib needs a re-sign,
+# the app must be re-signed after it (inside out): the bundle seal Xcode
+# recorded covers the nested dylib, so a bare dylib re-sign would fail the
+# deep verify below. Entitlements come from the repo file so the sandbox
+# grant survives the re-sign. Xcode's "Sign to Run Locally" covers the
+# normal path; this is only the repair path.
 if ! codesign --verify "$BUNDLED_LIB" >/dev/null 2>&1; then
   echo "re-signing libmoss.dylib ad-hoc (lipo stripped its signature)"
   codesign --force --sign - "$BUNDLED_LIB"
+  codesign --force --sign - --entitlements "$ROOT/macos/Runner/Release.entitlements" "$APP"
 fi
 
 codesign --verify --deep "$APP" || fail "app bundle fails codesign --verify"
