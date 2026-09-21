@@ -25,14 +25,19 @@ A new Flutter FFI plugin project.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
 
+  # audiopus_sys links a prebuilt universal libopus.a (built by
+  # scripts/opus-prepare-macos.sh; its own vendored build cannot cross-
+  # compile opus for the x86_64 slice), and OPUS_NO_PKG keeps a stray
+  # brew opus from winning over it. __dir__ is the canonicalized podspec
+  # directory (Kernel#__dir__ resolves symlinks), so the path survives
+  # the .symlinks/plugins/mosh_core/macos layout CocoaPods builds from;
+  # a $PODS_TARGET_SRCROOT-relative chain does not.
+  opus_lib_dir = File.expand_path('../../third_party/opus-macos-universal', __dir__)
+
   s.script_phase = {
     :name => 'Build Rust library',
     # First argument is relative path to the `rust` folder, second is name of rust library
-    # LIBOPUS_LIB_DIR points audiopus_sys at the universal prebuilt built by
-    # scripts/opus-prepare-macos.sh (its own vendored build cannot cross-
-    # compile opus for the x86_64 slice); OPUS_NO_PKG keeps a stray brew
-    # opus from winning over it.
-    :script => 'LIBOPUS_LIB_DIR="$PODS_TARGET_SRCROOT/../../../third_party/opus-macos-universal" OPUS_NO_PKG=1 sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../mosh-core mosh-core',
+    :script => "LIBOPUS_LIB_DIR=\"#{opus_lib_dir}\" OPUS_NO_PKG=1 sh \"$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh\" ../../mosh-core mosh-core",
     :execution_position => :before_compile,
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     # Let XCode know that the static library referenced in -force_load below is
