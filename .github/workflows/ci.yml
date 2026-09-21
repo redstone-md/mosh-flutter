@@ -26,9 +26,14 @@ permissions:
 # are cached; a job pays for them only when the submodule or lockfile moves.
 #
 # Job order: the three cheap gates (rust-core, codegen-drift, flutter-test)
-# run in parallel; the expensive builds (integration-test, android-build,
-# windows-installer, macos builds) run only if all three pass, so a cheap
-# failure never pays for a platform build.
+# run in parallel; the windows-side expensive builds (integration-test,
+# android-build, windows-installer) run only if all three pass, so a cheap
+# failure never pays for a platform build. The macOS lanes are deliberately
+# UNGATED: mac plumbing can only be proven on a mac runner, and the gates
+# tell us nothing about it -- during bring-up they added ~11 dead minutes
+# to every red mac iteration. macos-preflight gives the fast signal
+# (~10 min: podspec syntax + the x86_64 cross-link), macos-dmg the full
+# artifact. The tagged release still gates through release.yml's verify.
 jobs:
   rust-core:
     name: Rust core (fmt + clippy + test)
@@ -235,7 +240,56 @@ jobs:
     needs: [rust-core, codegen-drift, flutter-test]
     uses: ./.github/workflows/build-windows.yml
 
-  # Same proof for the macOS DMG.
+  # Fast mac-plumbing signal, ungated: podspec/podfile syntax + the
+  # x86_64 cross-link (the exact seams that broke during mac bring-up).
+  # ~10 min from push instead of the full dmg lane's 20+.
+  macos-preflight:
+    name: macOS preflight (podspec + x86_64 link)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # No flutter, no moss dylib: nothing here runs the app or the adapter
+      # tests, only the Rust core cross-link and the podspec files.
+      - uses: ./.github/actions/setup
+        with:
+          flutter: 'false'
+          moss: 'none'
+          rust-cache-key: macos
+
+      - name: Podspec syntax (both pods)
+        run: |
+          ruby -c rust_builder/macos/mosh_core.podspec
+          ruby -c rust_builder/ios/mosh_core.podspec
+
+      # The universal prebuilt opus, same as build-macos.yml provisions.
+      - id: opus
+        uses: actions/cache@v4
+        with:
+          path: third_party/opus-macos-universal
+          key: opus-macos-universal-audiopus_sys-0.1.8-${{ hashFiles('scripts/opus-prepare-macos.sh') }}
+
+      - if: steps.opus.outputs.cache-hit != 'true'
+        name: Build libopus.a (macOS universal)
+        run: bash scripts/opus-prepare-macos.sh
+
+      # The x86_64 half of the universal app: the seam where a static
+      # archive loses framework/link flags. arm64 compiles in the other
+      # lanes; x86_64 only ever compiles here and in macos-dmg.
+      - name: Add Rust macos target
+        run: rustup target add x86_64-apple-darwin
+
+      - name: x86_64 cross-link (release)
+        run: |
+          LIBOPUS_LIB_DIR="$PWD/third_party/opus-macos-universal" \
+          OPUS_NO_PKG=1 \
+          cargo build --manifest-path mosh-core/Cargo.toml -p mosh-core --release --target x86_64-apple-darwin
+
+  # Same proof for the macOS DMG, sequenced behind the preflight so a red
+  # seam fails in ~10 min instead of paying for the full packaging lane.
   macos-dmg:
-    needs: [rust-core-macos, codegen-drift, flutter-test]
+    needs: [macos-preflight]
     uses: ./.github/workflows/build-macos.yml
