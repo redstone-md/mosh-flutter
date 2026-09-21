@@ -118,7 +118,7 @@ impl SecureSecretStore for OsSecureSecretStore {
         // if the legacy slot is empty too, the original error is returned
         // unchanged.
         #[cfg(target_os = "macos")]
-        if let Some(secret) = Self::load_from_legacy_keychain(key) {
+        if let Some(secret) = load_from_legacy_keychain(key) {
             // Best-effort migration: a write failure still lets this run
             // proceed with the recovered secret, and the next start retries
             // the copy.
