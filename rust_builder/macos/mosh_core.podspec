@@ -21,9 +21,16 @@ A new Flutter FFI plugin project.
   s.source_files     = 'Classes/**/*'
   s.dependency 'FlutterMacOS'
 
-  s.platform = :osx, '10.11'
+  s.platform = :osx, '12.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
+
+  # cpal's CoreAudio host bakes AudioUnit/CoreAudio calls into the static
+  # archive, and an archive cannot carry framework link flags -- without
+  # this declaration both arch links of the final binary resolve the
+  # symbols themselves and the x86_64 link fails on undefined
+  # _AudioUnitInitialize and friends.
+  s.frameworks = 'CoreAudio', 'AudioToolbox'
 
   # audiopus_sys links a prebuilt universal libopus.a (built by
   # scripts/opus-prepare-macos.sh; its own vendored build cannot cross-

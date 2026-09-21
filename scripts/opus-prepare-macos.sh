@@ -19,6 +19,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/third_party/opus-macos-universal"
 JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc)"
 
+# Objects built without a floor claim the SDK default (26.x), and every
+# link against them warns about newer-minimum objects; 12.0 is the
+# channel's documented floor (the Go 1.25 runtime's).
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-12.0}"
+
 # The crate vendors the opus source; fetching the crate is how we get it.
 cargo fetch --manifest-path "$ROOT/mosh-core/Cargo.toml"
 SRC="$(ls -d "${CARGO_HOME:-$HOME/.cargo}"/registry/src/*/audiopus_sys-0.1.8/opus | head -n1)"
