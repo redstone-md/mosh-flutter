@@ -3,10 +3,8 @@
 /// It owns what the screen is doing right now -- a send in flight, a failed
 /// send waiting to be retried, transfers running, an error to show, a peer
 /// already invited, an attachment waiting on its download -- and it talks to
-/// the Gateway.
-///
-/// It never navigates and never touches the composer. Those are the screen's
-/// job, so the methods that could trigger either return a result instead.
+/// the Gateway. It never navigates and never touches the composer (the
+/// screen's job), so the methods that could trigger either return a result.
 library;
 
 import 'dart:async';
@@ -144,8 +142,8 @@ class ConversationController extends Notifier<ConversationControllerState> {
   /// The conversation is on screen: hands the runtime the view mark, which
   /// auto-triggers the DM read receipts for every not-yet-read counterpart
   /// message when the toggle is on. The runtime owns the toggle check, the
-  /// per-message frames and the idempotence; a failure is silent — the
-  /// next poll retries, and a banner over a receipt is noise.
+  /// per-message frames and the idempotence; a failure is silent — the next
+  /// poll retries, and a banner over a receipt is noise.
   ///
   /// The sync guard matters: flutter_rust_bridge throws synchronously
   /// (before any Future) when the library was never initialized — which is
@@ -207,6 +205,14 @@ class ConversationController extends Notifier<ConversationControllerState> {
     }
   }
 
+  /// The gateway calls behind the card's download / cancel affordances,
+  /// deduped so each site names the attachment id once.
+  Future<void> _downloadAttachment(Gateway g, String id) =>
+      g.downloadAttachment(target, attachmentId: id);
+
+  Future<void> _cancelAttachment(Gateway g, String id) =>
+      g.cancelAttachment(target, attachmentId: id);
+
   /// Builds the attachment card's actions for one row. [onOpen] goes back to
   /// the screen, which owns the viewer.
   ConversationAttachmentCallbacks Function(AttachmentView? view)
@@ -215,18 +221,10 @@ class ConversationController extends Notifier<ConversationControllerState> {
   ) =>
           (view) => ConversationAttachmentCallbacks(
                 busy: state.transferBusy,
-                onDownload: (id) => _transferAttachment(
-                  (gateway) => gateway.downloadAttachment(
-                    target,
-                    attachmentId: id,
-                  ),
-                ),
-                onCancel: (id) => _transferAttachment(
-                  (gateway) => gateway.cancelAttachment(
-                    target,
-                    attachmentId: id,
-                  ),
-                ),
+                onDownload: (id) =>
+                    _transferAttachment((g) => _downloadAttachment(g, id)),
+                onCancel: (id) =>
+                    _transferAttachment((g) => _cancelAttachment(g, id)),
                 onOpen: (descriptor) => onOpen(descriptor, view),
               );
 
@@ -235,8 +233,8 @@ class ConversationController extends Notifier<ConversationControllerState> {
   /// failure lands in the banner.
   void _transferAttachment(Future<void> Function(Gateway gateway) call) {
     unawaited(_runTransfer(
-      () => call(ref.read(gatewayProvider)).then((_) => refresh()),
-    ).catchError(_report));
+            () => call(ref.read(gatewayProvider)).then((_) => refresh()))
+        .catchError(_report));
   }
 
   /// Sends a failed message again. The new delivery state shows up in the
@@ -271,15 +269,12 @@ class ConversationController extends Notifier<ConversationControllerState> {
     if (decision.wait) state = state.copyWith(pendingOpen: descriptor);
     if (decision.download) {
       _transferAttachment(
-        (gateway) => gateway.downloadAttachment(
-          target,
-          attachmentId: descriptor.attachmentId,
-        ),
-      );
+          (g) => _downloadAttachment(g, descriptor.attachmentId));
     }
-    final src = decision.src;
-    if (src == null) return const AttachmentNoopOpenIntent();
-    return AttachmentMediaOpenIntent(descriptor: descriptor, src: src);
+    return switch (decision.src) {
+      null => const AttachmentNoopOpenIntent(),
+      final src => AttachmentMediaOpenIntent(descriptor: descriptor, src: src),
+    };
   }
 
   /// Checks a waiting attachment against a fresh transfer list. Called by the
@@ -300,6 +295,7 @@ class ConversationController extends Notifier<ConversationControllerState> {
       state = state.copyWith(pendingOpen: null);
       return ConversationPendingShow(pending, localFileSrc(localPath));
     }
+    // A failed/cancelled transfer clears the wait: nothing will arrive.
     if (view.state == AttachmentState.failed ||
         view.state == AttachmentState.cancelled) {
       state = state.copyWith(pendingOpen: null);
@@ -320,26 +316,27 @@ class ConversationController extends Notifier<ConversationControllerState> {
     }
     state = state.copyWith(offerBusy: true);
     try {
-      final bridge = ref.read(bridgeFacadeProvider);
       final flow = ref.read(inviteFlowProvider);
-      final invite = await bridge.createInvite(
-        request: StartSessionRequest(
-          displayName: flow.displayName,
-          listenPort: flow.listenPort,
-          staticPeer: flow.staticPeer,
-        ),
-      );
+      final invite = await ref.read(bridgeFacadeProvider).createInvite(
+            request: StartSessionRequest(
+              displayName: flow.displayName,
+              listenPort: flow.listenPort,
+              staticPeer: flow.staticPeer,
+            ),
+          );
+      // The channel and group offers are distinct bridge calls: the one
+      // kind branch, exhaustive over the sealed DmOfferHost kinds.
       await switch (host) {
-        ChannelTarget() => bridge.sendChannelDmOffer(
-            channelName: host.id,
-            peerFingerprint: peerFingerprint,
-            inviteUri: invite.inviteUri,
-          ),
-        GroupTarget() => bridge.sendGroupDmOffer(
-            groupId: host.id,
-            peerFingerprint: peerFingerprint,
-            inviteUri: invite.inviteUri,
-          ),
+        ChannelTarget() => ref.read(bridgeFacadeProvider).sendChannelDmOffer(
+              channelName: host.id,
+              peerFingerprint: peerFingerprint,
+              inviteUri: invite.inviteUri,
+            ),
+        GroupTarget() => ref.read(bridgeFacadeProvider).sendGroupDmOffer(
+              groupId: host.id,
+              peerFingerprint: peerFingerprint,
+              inviteUri: invite.inviteUri,
+            ),
       };
       state = state.copyWith(
         offeredFingerprints: {...state.offeredFingerprints, peerFingerprint},

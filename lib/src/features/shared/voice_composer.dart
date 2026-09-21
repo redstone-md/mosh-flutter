@@ -47,10 +47,12 @@ const int waveformBuckets = 64;
 /// Maximum recording length; auto-stops here.
 const Duration maxRecording = Duration(minutes: 5);
 
-/// `m:ss`.
-String _formatElapsed(Duration d) {
-  final m = d.inMinutes;
-  final s = d.inSeconds.remainder(60);
+/// `m:ss`, shared by the composer's live timers and the voice-message
+/// card's time label. Negative input clamps to zero.
+String formatVoiceClock(int ms) {
+  final total = ms < 0 ? 0 : ms ~/ 1000;
+  final m = total ~/ 60;
+  final s = total % 60;
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
@@ -137,10 +139,15 @@ class _VoiceComposerState extends State<VoiceComposer> {
     _checkSupported();
   }
 
+  /// setState only while the state is still alive.
+  void _ifMounted(VoidCallback fn) {
+    if (mounted) fn();
+  }
+
   Future<void> _checkSupported() async {
     try {
       final ok = await _recorder.hasPermission();
-      if (mounted) setState(() => _supported = ok);
+      _ifMounted(() => setState(() => _supported = ok));
     } catch (_) {
       // Permission check itself failed -- treat as unsupported (render null).
     }
@@ -148,11 +155,18 @@ class _VoiceComposerState extends State<VoiceComposer> {
 
   @override
   void dispose() {
-    _stopTimers();
-    _amplitudeSub?.cancel();
+    _stopTimersAndAmplitude();
     _disposePreview();
     _recorder.dispose();
     super.dispose();
+  }
+
+  /// Cancels the elapsed + auto-stop timers and the amplitude stream --
+  /// everything the capture owns that must not fire after it ends.
+  void _stopTimersAndAmplitude() {
+    _stopTimers();
+    _amplitudeSub?.cancel();
+    _amplitudeSub = null;
   }
 
   void _stopTimers() {
@@ -162,23 +176,18 @@ class _VoiceComposerState extends State<VoiceComposer> {
     _autoStopTimer = null;
   }
 
-  /// Toggle the review-phase preview. Lazily creates
-  /// a media_kit Player on first tap, opens the recorded file, and
-  /// playOrPauses. The playing stream drives the play/pause icon. Defensive:
-  /// if Player() throws (test env), the button is a no-op so the review row
-  /// still renders minus live preview.
+  /// Toggle the review-phase preview. The first tap creates the player and
+  /// opens the recorded file; later taps toggle play/pause. The playing
+  /// stream drives the play/pause icon. Defensive: if Player() throws
+  /// (test env), the button is a no-op so the review row still renders minus
+  /// live preview.
   Future<void> _togglePreview() async {
     final path = _path;
     if (path == null) return;
-    var player = _previewPlayer;
+    final player = _previewPlayer;
     try {
       if (player == null) {
-        player = Player();
-        _previewPlayer = player;
-        player.stream.playing.listen((playing) {
-          if (mounted) setState(() => _previewPlaying = playing);
-        });
-        await player.open(Media(path));
+        await _openPreview(path);
       } else {
         await player.playOrPause();
       }
@@ -186,6 +195,18 @@ class _VoiceComposerState extends State<VoiceComposer> {
       _previewPlayer = null;
       _previewPlaying = false;
     }
+  }
+
+  /// Creates the preview player, wires its playing stream, and opens the
+  /// recorded file. Throwing here (test env without the native lib) resets
+  /// the preview in the caller's catch.
+  Future<void> _openPreview(String path) async {
+    final player = Player();
+    _previewPlayer = player;
+    player.stream.playing.listen((playing) {
+      _ifMounted(() => setState(() => _previewPlaying = playing));
+    });
+    await player.open(Media(path));
   }
 
   void _disposePreview() {
@@ -197,34 +218,45 @@ class _VoiceComposerState extends State<VoiceComposer> {
   Future<void> _startRecording() async {
     if (widget.disabled || !_supported) return;
     try {
-      final dir = await getTemporaryDirectory();
-      _path =
-          '${dir.path}/mosh-voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
-      _mime = 'audio/mp4';
-      _elapsed = Duration.zero;
-      _durationMs = 0;
-      for (var i = 0; i < _peaks.length; i++) {
-        _peaks[i] = 0;
-      }
-      await _recorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
-        path: _path!,
-      );
-      _amplitudeSub = _recorder
-          .onAmplitudeChanged(const Duration(milliseconds: 100))
-          .listen(_onAmplitude);
-      _elapsedTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
-        if (mounted) {
-          setState(() => _elapsed += const Duration(milliseconds: 200));
-        }
-      });
-      _autoStopTimer = Timer(maxRecording, _finishRecording);
-      if (mounted) setState(() => _phase = _Phase.recording);
+      await _capture();
+      _ifMounted(() => setState(() => _phase = _Phase.recording));
     } catch (error) {
-      widget.onError(error.toString());
-      await _cleanupRecorder();
-      if (mounted) setState(() => _phase = _Phase.idle);
+      await _abortRecording(error);
     }
+  }
+
+  /// Starts the capture: allocates the temp file, resets the meter, and
+  /// wires the amplitude + elapsed timers + the auto-stop deadline.
+  Future<void> _capture() async {
+    final dir = await getTemporaryDirectory();
+    _path =
+        '${dir.path}/mosh-voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
+    _mime = 'audio/mp4';
+    _elapsed = Duration.zero;
+    _durationMs = 0;
+    _peaks.fillRange(0, _peaks.length, 0);
+    await _recorder.start(
+      const RecordConfig(encoder: AudioEncoder.aacLc),
+      path: _path!,
+    );
+    _amplitudeSub = _recorder
+        .onAmplitudeChanged(const Duration(milliseconds: 100))
+        .listen(_onAmplitude);
+    _elapsedTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      _ifMounted(
+          () => setState(() => _elapsed += const Duration(milliseconds: 200)));
+    });
+    _autoStopTimer = Timer(maxRecording, _finishRecording);
+  }
+
+  /// The shared failure path of start/finish: surface the error, tear the
+  /// capture down, and drop back to idle.
+  Future<void> _abortRecording(Object error) async {
+    widget.onError(error.toString());
+    _stopTimersAndAmplitude();
+    await _cleanupRecorder();
+    _disposePreview();
+    _ifMounted(() => setState(() => _phase = _Phase.idle));
   }
 
   void _onAmplitude(Amplitude amplitude) {
@@ -243,28 +275,22 @@ class _VoiceComposerState extends State<VoiceComposer> {
   }
 
   Future<void> _finishRecording() async {
-    _stopTimers();
-    _amplitudeSub?.cancel();
-    _amplitudeSub = null;
+    _stopTimersAndAmplitude();
     try {
       final path = await _recorder.stop();
       _durationMs = _elapsed.inMilliseconds;
       _path = path;
-      if (mounted) setState(() => _phase = _Phase.review);
+      _ifMounted(() => setState(() => _phase = _Phase.review));
     } catch (error) {
-      widget.onError(error.toString());
-      await _cleanupRecorder();
-      if (mounted) setState(() => _phase = _Phase.idle);
+      await _abortRecording(error);
     }
   }
 
   Future<void> _discard() async {
-    _stopTimers();
-    _amplitudeSub?.cancel();
-    _amplitudeSub = null;
+    _stopTimersAndAmplitude();
     await _cleanupRecorder();
     _disposePreview();
-    if (mounted) setState(() => _phase = _Phase.idle);
+    _ifMounted(() => setState(() => _phase = _Phase.idle));
   }
 
   Future<void> _cleanupRecorder() async {
@@ -285,77 +311,84 @@ class _VoiceComposerState extends State<VoiceComposer> {
   }
 
   void _send() {
-    if (_path == null) return;
+    final path = _path;
+    if (path == null) return;
     _disposePreview();
-    final peaks = Uint8List.fromList(_peaks);
     widget.onSend(VoiceSend(
-      path: _path!,
+      path: path,
       mime: _mime,
       durationMs: _durationMs,
-      peaksBase64: base64Encode(peaks),
+      peaksBase64: base64Encode(Uint8List.fromList(_peaks)),
     ));
     _path = null;
-    if (mounted) setState(() => _phase = _Phase.idle);
+    _ifMounted(() => setState(() => _phase = _Phase.idle));
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_supported) return const SizedBox.shrink();
-    switch (_phase) {
-      case _Phase.idle:
-        return IconButton(
-          icon: const Icon(Icons.mic_none_outlined),
-          tooltip: widget.recordLabel,
-          onPressed: widget.disabled ? null : _startRecording,
-        );
-      case _Phase.recording:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const VoiceRecordingDot(),
-            const SizedBox(width: 8),
-            Text(_formatElapsed(_elapsed), style: kVoiceTimerStyle),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: widget.discardLabel,
-              onPressed: _discard,
-            ),
-            IconButton(
-              icon: const Icon(Icons.stop),
-              tooltip: widget.stopLabel,
-              onPressed: _finishRecording,
-            ),
-          ],
-        );
-      case _Phase.review:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              // Toggles the preview play state. The icon
-              // swaps play_arrow <-> pause on the playing stream (set in
-              // _togglePreview).
-              icon: Icon(_previewPlaying ? Icons.pause : Icons.play_arrow),
-              tooltip: widget.playLabel,
-              onPressed: _togglePreview,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              _formatElapsed(Duration(milliseconds: _durationMs)),
-              style: kVoiceTimerStyle,
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: widget.discardLabel,
-              onPressed: _discard,
-            ),
-            IconButton(
-              icon: const Icon(Icons.send),
-              tooltip: widget.sendLabel,
-              onPressed: _send,
-            ),
-          ],
-        );
-    }
+    return switch (_phase) {
+      _Phase.idle => _buildIdle(),
+      _Phase.recording => _buildRecording(),
+      _Phase.review => _buildReview(),
+    };
   }
+
+  /// The mic button. Disabled while the composer's `disabled` flag is set.
+  Widget _buildIdle() => IconButton(
+        icon: const Icon(Icons.mic_none_outlined),
+        tooltip: widget.recordLabel,
+        onPressed: widget.disabled ? null : _startRecording,
+      );
+
+  /// Dot + elapsed timer + discard + stop.
+  Widget _buildRecording() => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const VoiceRecordingDot(),
+          const SizedBox(width: 8),
+          Text(formatVoiceClock(_elapsed.inMilliseconds),
+              style: kVoiceTimerStyle),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: widget.discardLabel,
+            onPressed: _discard,
+          ),
+          IconButton(
+            icon: const Icon(Icons.stop),
+            tooltip: widget.stopLabel,
+            onPressed: _finishRecording,
+          ),
+        ],
+      );
+
+  /// Play + duration + discard + send.
+  Widget _buildReview() => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            // Toggles the preview play state. The icon
+            // swaps play_arrow <-> pause on the playing stream (set in
+            // _togglePreview).
+            icon: Icon(_previewPlaying ? Icons.pause : Icons.play_arrow),
+            tooltip: widget.playLabel,
+            onPressed: _togglePreview,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            formatVoiceClock(_durationMs),
+            style: kVoiceTimerStyle,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: widget.discardLabel,
+            onPressed: _discard,
+          ),
+          IconButton(
+            icon: const Icon(Icons.send),
+            tooltip: widget.sendLabel,
+            onPressed: _send,
+          ),
+        ],
+      );
 }

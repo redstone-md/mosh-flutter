@@ -66,7 +66,7 @@ class OrgSection extends StatelessWidget {
               ),
             ),
           for (final offer in org.dmOffers)
-            _DmOfferRow(
+            _OfferRow.dm(
               offer: offer,
               orgPubkey: org.orgPubkey,
               busy: busy,
@@ -75,7 +75,7 @@ class OrgSection extends StatelessWidget {
               l: l,
             ),
           for (final offer in org.groupOffers)
-            _GroupOfferRow(
+            _OfferRow.group(
               offer: offer,
               orgPubkey: org.orgPubkey,
               busy: busy,
@@ -139,34 +139,63 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _DmOfferRow extends StatelessWidget {
-  const _DmOfferRow({
-    required this.offer,
+/// One row shape for both org offer kinds: the leading identity surface,
+/// a two-line title/subtitle column, and a trailing dismiss button. Only
+/// the leading + column content differ per kind.
+class _OfferRow extends StatelessWidget {
+  _OfferRow.dm({
     required this.orgPubkey,
     required this.busy,
     required this.onAccept,
     required this.onDismiss,
     required this.l,
-  });
-  final OrgDmOfferView offer;
+    required OrgDmOfferView offer,
+  })  : offerId = offer.offerId,
+        fromName = offer.fromName,
+        _kind = _OfferRowKind.dm,
+        _groupOffer = null;
+
+  _OfferRow.group({
+    required this.orgPubkey,
+    required this.busy,
+    required this.onAccept,
+    required this.onDismiss,
+    required this.l,
+    required OrgGroupOfferView offer,
+  })  : offerId = offer.offerId,
+        fromName = offer.fromName,
+        _kind = _OfferRowKind.group,
+        _groupOffer = offer;
+
   final String orgPubkey;
+  final String offerId;
+  final String fromName;
   final bool busy;
   final void Function(String, String) onAccept;
   final void Function(String, String) onDismiss;
   final AppLocalizations l;
+  final _OfferRowKind _kind;
+
+  /// The group offer (null for dm rows): the icon + label come from it.
+  final OrgGroupOfferView? _groupOffer;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final groupOffer = _groupOffer;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Row(
         children: [
           Expanded(
             child: InkWell(
-              onTap: busy ? null : () => onAccept(orgPubkey, offer.offerId),
+              onTap: busy ? null : () => onAccept(orgPubkey, offerId),
               child: Row(
                 children: [
-                  Avatar(name: offer.fromName, radius: 12),
+                  switch (_kind) {
+                    _OfferRowKind.dm => Avatar(name: fromName, radius: 12),
+                    _OfferRowKind.group => const Icon(Icons.group, size: 18),
+                  },
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -174,26 +203,43 @@ class _DmOfferRow extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          offer.fromName,
+                          switch (_kind) {
+                            _OfferRowKind.dm => fromName,
+                            _OfferRowKind.group =>
+                              (groupOffer!.groupLabel ?? '').isEmpty
+                                  ? l.orgGroupOffer
+                                  : groupOffer.groupLabel!,
+                          },
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        Text(l.orgDmOffer, style: theme.textTheme.bodySmall),
+                        Text(
+                          switch (_kind) {
+                            _OfferRowKind.dm => l.orgDmOffer,
+                            _OfferRowKind.group =>
+                              '${l.orgGroupOfferFrom} $fromName',
+                          },
+                          style: theme.textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chat_bubble_outline, size: 14),
+                  if (_kind == _OfferRowKind.dm)
+                    const Icon(Icons.chat_bubble_outline, size: 14),
                 ],
               ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.close, size: 14),
-            tooltip: l.orgDismissDmAria(offer.fromName),
+            tooltip: switch (_kind) {
+              _OfferRowKind.dm => l.orgDismissDmAria(fromName),
+              _OfferRowKind.group => l.orgDismissGroupAria(fromName),
+            },
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            onPressed: busy ? null : () => onDismiss(orgPubkey, offer.offerId),
+            onPressed: busy ? null : () => onDismiss(orgPubkey, offerId),
           ),
         ],
       ),
@@ -201,72 +247,7 @@ class _DmOfferRow extends StatelessWidget {
   }
 }
 
-class _GroupOfferRow extends StatelessWidget {
-  const _GroupOfferRow({
-    required this.offer,
-    required this.orgPubkey,
-    required this.busy,
-    required this.onAccept,
-    required this.onDismiss,
-    required this.l,
-  });
-  final OrgGroupOfferView offer;
-  final String orgPubkey;
-  final bool busy;
-  final void Function(String, String) onAccept;
-  final void Function(String, String) onDismiss;
-  final AppLocalizations l;
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final label = (offer.groupLabel == null || offer.groupLabel!.isEmpty)
-        ? l.orgGroupOffer
-        : offer.groupLabel!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: busy ? null : () => onAccept(orgPubkey, offer.offerId),
-              child: Row(
-                children: [
-                  const Icon(Icons.group, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          label,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '${l.orgGroupOfferFrom} ${offer.fromName}',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 14),
-            tooltip: l.orgDismissGroupAria(offer.fromName),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            onPressed: busy ? null : () => onDismiss(orgPubkey, offer.offerId),
-          ),
-        ],
-      ),
-    );
-  }
-}
+enum _OfferRowKind { dm, group }
 
 class _NewGroupForm extends StatefulWidget {
   const _NewGroupForm({
