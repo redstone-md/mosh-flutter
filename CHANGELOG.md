@@ -4,7 +4,15 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.0] - 2026-09-21
+
+The messenger release on the census core: presence you can see (typing
+indicators), a network you can diagnose (the honest channel probe, the
+field diagnostics panel), attachments that ride the mesh's own streams
+with a byte-identical fallback for older counterparts — all validated
+against and shipping with moss v0.9.0, the fleet-census batch that
+closed the ghost-punch, NAT-blind coordination and interface-selection
+defects.
 
 ### Added
 - **The diagnostics panel shows which moss library is actually running**
