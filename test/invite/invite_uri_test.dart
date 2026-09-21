@@ -1,6 +1,6 @@
-// S4.2: Dart mirror of src/features/private-dm/invite/invite-uri.test.ts.
+// Dart unit tests for the invite-uri parsing/formatting helpers.
 // Uses the `test` package (available transitively for pure-Dart unit tests under
-// `flutter test`). One assertion per TS `it`/`it.each` case.
+// `flutter test`).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/invite/invite_uri.dart';
 

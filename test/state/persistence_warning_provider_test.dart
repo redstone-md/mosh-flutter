@@ -1,6 +1,5 @@
-// Verifies `persistenceWarningProvider` (1-в-1 with React's
-// `useRuntimePersistenceStatus` in
-// src/features/private-dm/use-runtime-persistence-status.ts) over the five
+// Verifies `persistenceWarningProvider`
+// over the five
 // branches: browser-demo, available+encrypted, available+!encrypted, !available,
 // and bridge-throws. Overrides `bridgeFacadeProvider` with a scripted
 // bridge (ADR 0025).
@@ -53,9 +52,7 @@ Future<PersistenceWarning?> _read(ProviderContainer c) =>
     c.read(persistenceWarningProvider.future);
 
 void main() {
-  test(
-      'browser-demo link-mode -> null (React: status.moss.link_mode === "browser-demo")',
-      () async {
+  test('browser-demo link-mode -> null', () async {
     final container = ProviderContainer(overrides: [
       bridgeFacadeProvider.overrideWithValue(_bridgeReporting(
         _status(
@@ -66,9 +63,7 @@ void main() {
     expect(await _read(container), isNull);
   });
 
-  test(
-      'available && encryptedAtRest -> null (React: persistence available && encrypted_at_rest)',
-      () async {
+  test('available && encryptedAtRest -> null', () async {
     final container = ProviderContainer(overrides: [
       bridgeFacadeProvider.overrideWithValue(_bridgeReporting(
         _status(linkMode: 'dynamic', available: true, encryptedAtRest: true),
@@ -116,9 +111,7 @@ void main() {
     expect(result.reason, 'no instance');
   });
 
-  test(
-      'nativeRuntimeStatus throws -> error kind, reason set (React: catch branch)',
-      () async {
+  test('nativeRuntimeStatus throws -> error kind, reason set', () async {
     final container = ProviderContainer(overrides: [
       bridgeFacadeProvider.overrideWithValue(ScriptableBridge()
         ..failAlways(BridgeMethod.nativeRuntimeStatus,

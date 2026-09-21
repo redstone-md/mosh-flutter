@@ -1,29 +1,12 @@
-// CallOverlay -- 1-в-1 port of React `src/features/private-dm/voice-call/
-// CallOverlay.tsx`. The active-call overlay shown while a call is
-// connected (`SessionSnapshot.activeCall` non-null): a centered card with
-// the peer label, a running duration timer (m:ss, updated every 500 ms from
+// CallOverlay -- the active-call overlay shown while a call is connected
+// (`SessionSnapshot.activeCall` non-null): a centered card with the peer
+// label, a running duration timer (m:ss, updated every 500 ms from
 // `ActiveCall.startedAtMs`), and two 48px round buttons -- mute (blue
 // #4f8cff when muted, neutral when not) + hang up (red #e5484d).
 //
-// React structure (CallOverlay.tsx):
-//   .call-overlay (role=dialog aria-modal aria-label="Active call"
-//      tabIndex=-1) + useModalFocus(onHangUp)
-//     -> .call-overlay-card (column, gap 18, padding 32/36, radius 14,
-//        bg #1d1f24, min-width 280)
-//        -> strong.call-overlay-peer (peerLabel, 18px)
-//        -> span.call-overlay-timer (formatClock(elapsed), 14px,
-//           opacity .75, tabular-nums)
-//        -> .call-overlay-actions (row, gap 16)
-//           -> button.call-btn[.call-btn-muted] (IconMicrophone/Off 18,
-//              aria-label Mute/Unmute, onClick onToggleMute)
-//           -> button.call-btn.call-btn-decline (IconPhoneOff 18,
-//              aria-label "Hang up", onClick onHangUp)
-//
-// Flutter port: `showDialog` overlay + the same dark card. The timer
-// uses `Ticker`-style 500 ms `Timer.periodic` to recompute `elapsed`
-// from `active.startedAtMs` (React's `setInterval(() => setNow(Date.now()),
-// 500)`). `formatClock` mirrors React's `formatClock`. The mute button
-// swaps icon + tint based on `muted`.
+// The timer uses a 500 ms `Timer.periodic` to recompute `elapsed` from
+// `active.startedAtMs`. The mute button swaps icon + tint based on
+// `muted`.
 //
 // The mute state lives in the orchestrator (the one home for call
 // decisions), so this widget is a `Consumer` that reads `muted` from
@@ -45,12 +28,11 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show voiceCallOrchestratorProvider;
 
-/// The active-call overlay tick interval -- mirrors React's
-/// `setInterval(..., 500)`.
+/// The active-call overlay tick interval.
 const Duration kCallOverlayTickInterval = Duration(milliseconds: 500);
 
 /// Formats an elapsed duration in milliseconds as `m:ss` with zero-padded
-/// seconds -- 1-в-1 with React's `formatClock` in CallOverlay.tsx.
+/// seconds.
 String formatCallClock(BigInt elapsedMs) {
   final total =
       (elapsedMs <= BigInt.zero) ? 0 : (elapsedMs ~/ BigInt.from(1000)).toInt();
@@ -60,7 +42,7 @@ String formatCallClock(BigInt elapsedMs) {
   return '$minutes:${seconds.toString().padLeft(2, '0')}';
 }
 
-/// The active-call overlay -- 1-в-1 with React's `CallOverlay`.
+/// The active-call overlay.
 ///
 /// The mute state lives in the orchestrator (the one home for call
 /// decisions), so this widget is a `Consumer` that reads `muted` from
@@ -78,18 +60,17 @@ class CallOverlay extends ConsumerStatefulWidget {
     this.now = _defaultNow,
   });
 
-  /// The active call (React `active: ActiveCall`). `startedAtMs` anchors
-  /// the running timer.
+  /// The active call. `startedAtMs` anchors the running timer.
   final ActiveCall active;
 
-  /// The peer's display label (React `peerLabel`).
+  /// The peer's display label.
   final String peerLabel;
 
   /// The session the call belongs to -- the key the orchestrator is family'd
   /// by, so the overlay can read its mute flag.
   final String sessionId;
 
-  /// Hangs up (React `onHangUp`).
+  /// Hangs up.
   final VoidCallback onHangUp;
 
   /// Localizations (callActiveAriaLabel / callActiveMute /
@@ -120,7 +101,6 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
   void initState() {
     super.initState();
     _now = widget.now();
-    // React: `setInterval(() => setNow(Date.now()), 500)`.
     _ticker = Timer.periodic(widget.tickInterval, (_) {
       if (!mounted) return;
       setState(() => _now = widget.now());
@@ -156,7 +136,6 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
     return KeyboardListener(
       focusNode: _focusNode,
       autofocus: true,
-      // React useModalFocus(onHangUp) Esc-trap.
       onKeyEvent: (event) {
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.escape) {
@@ -192,7 +171,6 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      // React `.call-overlay-timer` (tabular-nums, 14px).
                       formatCallClock(clampedElapsed),
                       style: const TextStyle(
                         fontSize: 14,
@@ -209,8 +187,6 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                           tooltip: muted
                               ? widget.l.callActiveUnmute
                               : widget.l.callActiveMute,
-                          // React `.call-btn-muted` -> #4f8cff when muted;
-                          // default neutral #2a2d33 when not.
                           color: muted
                               ? const Color(0xFF4F8CFF)
                               : const Color(0xFF2A2D33),

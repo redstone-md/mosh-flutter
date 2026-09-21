@@ -1,23 +1,18 @@
-// CallLogEntry -- 1-в-1 port of React `src/features/private-dm/voice-call/
-// CallLogEntry.tsx`. An inline pill rendered inside a DM message row when
-// `ChatMessage.callEvent` is non-null (React MessageList L342:
-// `{message.call_event ? <CallLogEntry event={message.call_event} : null}`).
+// CallLogEntry -- an inline pill rendered inside a DM message row when
+// `ChatMessage.callEvent` is non-null.
 //
-// React renders a `span.call-log-entry` with a 14px phone icon + a label:
-//   - kind === "missed" -> "Missed call" + IconPhoneOff, `call-log-missed`
-//     class tints the text red (#e5484d).
-//   - otherwise ("completed") -> "Call ended" + IconPhone, neutral tint.
+// The pill wraps a 14px phone icon + a label:
+//   - kind === "missed" -> "Missed call" + a phone-off icon, tinted red
+//     (#e5484d).
+//   - otherwise ("completed") -> "Call ended" + a phone icon, neutral tint.
 // A non-zero `duration_ms` appends ` · m:ss` (e.g. "Call ended · 1:05");
 // zero duration omits the suffix.
 //
-// Flutter port: an inline `Container` pill (React `.call-log-entry`:
-// `padding: 4px 8px; border-radius: 8px; background:
-// rgba(127,127,127,0.15); font-size: 12px`) wrapping a `Row` of the icon +
-// label. Material `Icons.phone` / `Icons.phone_disabled` are the closest
-// filled glyphs to tabler's `IconPhone` / `IconPhoneOff`. The missed tint
-// uses React's `#e5484d` -> `Color(0xFFE5484D)`; completed stays the
-// on-surface color. `formatCallDuration` mirrors React's `formatDuration`
-// (returns "" for 0; otherwise `m:ss` with zero-padded seconds).
+// Rendering: an inline `Container` pill (4px/8px padding, 8px radius, 15%
+// gray background, 12px text) wrapping a `Row` of the icon + label. Material
+// `Icons.phone` / `Icons.phone_disabled` stand in for the tabler glyphs.
+// `formatCallDuration` returns "" for 0; otherwise `m:ss` with zero-padded
+// seconds.
 
 library;
 
@@ -25,12 +20,11 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
-/// The React `.call-log-entry` kind literal for a missed call.
+/// The event kind literal for a missed call.
 const String callEventKindMissed = 'missed';
 
 /// Formats a duration in milliseconds as `m:ss` (zero-padded seconds),
-/// or an empty string when the duration is zero -- mirroring React's
-/// `formatDuration` in CallLogEntry.tsx.
+/// or an empty string when the duration is zero.
 String formatCallDuration(BigInt durationMs) {
   final total = (durationMs <= BigInt.zero)
       ? 0
@@ -41,11 +35,11 @@ String formatCallDuration(BigInt durationMs) {
   return '$minutes:${seconds.toString().padLeft(2, '0')}';
 }
 
-/// An inline call-event pill -- 1-в-1 with React's `CallLogEntry`.
+/// An inline call-event pill.
 ///
 /// Renders inside a DM message row when [event] is non-null. The pill's
-/// background is React's `rgba(127, 127, 127, 0.15)` (a neutral 15% tint);
-/// the missed variant tints the icon + text with React's `#e5484d`.
+/// background is a neutral 15% gray tint; the missed variant tints the
+/// icon + text with #e5484d.
 class CallLogEntry extends StatelessWidget {
   const CallLogEntry({
     super.key,
@@ -53,7 +47,7 @@ class CallLogEntry extends StatelessWidget {
     required this.l,
   });
 
-  /// The call event to render (React `event: CallEvent`).
+  /// The call event to render.
   final CallEvent event;
 
   /// Localizations (callLogMissedLabel / callLogEndedLabel).
@@ -64,15 +58,13 @@ class CallLogEntry extends StatelessWidget {
     final theme = Theme.of(context);
     final missed = event.kind == callEventKindMissed;
     final duration = formatCallDuration(event.durationMs);
-    // React `.call-log-missed` -> `color: #e5484d`. Completed stays the
-    // default on-surface text color.
+    // Missed calls tint red; completed stays the on-surface text color.
     final accent =
         missed ? const Color(0xFFE5484D) : theme.colorScheme.onSurface;
-    // React `.call-log-entry` background `rgba(127, 127, 127, 0.15)`.
+    // 15% gray pill background.
     final pillBg = const Color(0xFF7F7F7F).withValues(alpha: 0.15);
     final label = missed ? l.callLogMissedLabel : l.callLogEndedLabel;
-    // React CallLogEntry.tsx:22 uses ` · ` (U+00B7 MIDDLE DOT + space on
-    // each side) as the duration separator; mirror it exactly.
+    // U+00B7 MIDDLE DOT with a space on each side separates the duration.
     final text = duration.isEmpty ? label : '$label \u00B7 $duration';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -84,8 +76,7 @@ class CallLogEntry extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            // React tabler IconPhoneOff (missed) / IconPhone (completed).
-            // Material's filled phone glyphs are the closest equivalents.
+            // Phone-off glyph for a missed call, phone for completed.
             missed ? Icons.phone_disabled : Icons.phone,
             size: 14,
             color: accent,

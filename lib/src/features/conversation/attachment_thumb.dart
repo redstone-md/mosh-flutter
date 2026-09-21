@@ -4,16 +4,12 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
-/// The file-card leading surface: React `.attachment-thumb { width: 40px;
-/// height: 40px; border-radius: 8px; background: var(--bg-3); color:
-/// var(--fg-3) }`.
+/// The file-card leading surface: a 40px rounded square in bg3/fg3.
 ///
 /// Viewable MIME types keep an open affordance even when no thumbnail exists;
-/// other files remain a decorative file/error icon. The play glyph is the
-/// shared React `IconPlayerPlayFilled` affordance for all viewable types.
-/// The outer semantics node owns the full accessible label and excludes the
-/// IconButton's child semantics, while its tooltip remains a visual hint.
-/// React `.attachment-thumb { width: 40px; height: 40px }`.
+/// other files remain a decorative file/error icon. The outer semantics node
+/// owns the full accessible label and excludes the IconButton's child
+/// semantics, while its tooltip remains a visual hint.
 const double kAttachmentThumbSize = 40;
 
 class AttachmentThumb extends StatelessWidget {

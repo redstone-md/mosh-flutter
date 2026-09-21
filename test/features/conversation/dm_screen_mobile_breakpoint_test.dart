@@ -1,8 +1,7 @@
 // Widget tests for the DmScreen responsive desktop<->mobile breakpoint
-// switch -- the 1-1 port of React's `@media (max-width: 580px)` rule that
-// hides the desktop `ConversationTools` row and shows the
-// `MobileSearchToggle` header button + `MobileConversationSearch` panel +
-// `MobileConversationFilterNotice` strip on narrow widths.
+// switch: on narrow widths the desktop `ConversationTools` row is hidden
+// and the `MobileSearchToggle` header button + `MobileConversationSearch`
+// panel + `MobileConversationFilterNotice` strip are shown.
 //
 // Cases:
 //   1. Desktop width (600): the desktop `ConversationTools` row renders and
@@ -10,8 +9,8 @@
 //   2. Mobile width (400): the `MobileSearchToggle` header button renders
 //      and the desktop `ConversationTools` row is absent; tapping the toggle
 //      opens `MobileConversationSearch`.
-//   3. Changing `sessionId` (the React `resetKey`) closes an open mobile
-//      search panel -- `didUpdateWidget` resets `_mobileSearchOpen` to false.
+//   3. Changing `sessionId` closes an open mobile search panel --
+//      `didUpdateWidget` resets `_mobileSearchOpen` to false.
 //
 // Uses the same fake-gateway-free snapshot-override idiom as
 // `conversation_tools_test.dart` (override `activeSessionProvider` so the
@@ -108,7 +107,7 @@ void main() {
 
   testWidgets(
       'changing sessionId resets _mobileSearchOpen to false '
-      '(didUpdateWidget reset, React resetKey effect)', (tester) async {
+      '(didUpdateWidget reset)', (tester) async {
     await _pumpDm(tester, sessionId: 'sess-a', width: 400);
     // Open the mobile search panel.
     await tester.tap(find.byType(MobileSearchToggle));
@@ -116,8 +115,8 @@ void main() {
     expect(find.byType(MobileConversationSearch), findsOneWidget);
 
     // Re-pump with a NEW sessionId (same DmScreen type so the element is
-    // reused and `didUpdateWidget` fires -- the React `resetKey` effect
-    // path). The open mobile search panel must close.
+    // reused and `didUpdateWidget` fires). The open mobile search panel
+    // must close.
     await _pumpDm(tester, sessionId: 'sess-b', width: 400);
     expect(find.byType(MobileConversationSearch), findsNothing);
     // The toggle is still rendered (still mobile width) and back to the

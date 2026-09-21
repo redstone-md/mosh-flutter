@@ -1,14 +1,10 @@
-/// The React `EventLog` section (the "Moss events" `.diagnostic-group`),
-/// 1-в-1 with React's `src/features/private-dm/DiagnosticsDrawerSections.tsx`.
-/// This is the THIRD `SessionDiagnostics` group (after Conversation
-/// details and Moss network), and the last group needed for full
-/// `SessionDiagnostics` parity with React.
+/// The "Moss events" diagnostics section.
 ///
-/// In scope (this atomic): `EventLog` -- a `DiagnosticsGroup` whose body
-/// is either a `DiagnosticsEmptyState` ("No events yet" + description)
-/// or a scrollable list of the last 40 events (newest first). Each event
-/// row is a time span + a strong column (the event name + an optional
-/// detail span). Reuses the shared primitives `DiagnosticsGroup` /
+/// `EventLog` -- a `DiagnosticsGroup` whose body is either a
+/// `DiagnosticsEmptyState` ("No events yet" + description) or a
+/// scrollable list of the last 40 events (newest first). Each event row
+/// is a time span + a strong column (the event name + an optional detail
+/// span). Reuses the shared primitives `DiagnosticsGroup` /
 /// `DiagnosticsEmptyState` (from `diagnostics_sections.dart`) and the
 /// pure helpers `formatTime` / `compactDetail` (from
 /// `diagnostics_helpers.dart`).
@@ -25,25 +21,18 @@ import 'package:mosh/src/features/diagnostics/diagnostics_sections.dart';
 import 'package:mosh/src/rust/conversation/mesh.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// The React `EventLog`: the "Moss events" `.diagnostic-group`. Mirrors
-/// React's `EventLog({ events })`:
-///   - `slice = events.slice(-40).reverse()` -- the last 40 events,
-///     newest first (an empty slice renders the empty-state).
-///   - empty -> the "Moss events" label + a `DiagnosticsEmptyState`
-///     ("No events yet" title + description).
-///   - else -> the "Moss events" label + a scrollable list of rows, one
-///     per event in the slice. Each row is a time span (left) + a strong
-///     column (event name + optional detail span). The row's time is
-///     `formatTime(event.epoch_millis)` (local HH:mm:ss, plain digits).
-///     The detail span is `compactDetail(event.detail_json)` when it is
-///     non-empty (omitted when empty, matching React's
-///     `detail ? <span>{detail}</span> : null`).
+/// The "Moss events" diagnostics group: the last 40 events, newest first
+/// (an empty slice renders the empty-state). Each row is a time span
+/// (left) + a strong column (event name + optional detail span). The
+/// row's time is `formatTime(event.epoch_millis)` (local HH:mm:ss,
+/// plain digits). The detail span is `compactDetail(event.detail_json)`
+/// when non-empty, omitted when empty.
 ///
 /// The group label ("Moss events"), the empty-state title ("No events
 /// yet"), and the description are localized (ARB). The event NAME, the
 /// formatted TIME, and the detail string are DATA (not localized). The
-/// per-event-name color tint (React's `event-${event_name}` CSS) is applied
-/// to the event name only; time and detail remain neutral.
+/// per-event-name color tint is applied to the event name only; time and
+/// detail remain neutral.
 class EventLog extends StatelessWidget {
   const EventLog({super.key, required this.events});
 
@@ -73,10 +62,9 @@ class EventLog extends StatelessWidget {
   }
 }
 
-/// The scrollable list of event rows inside `EventLog`. React wraps the
-/// rows in a `.diagnostic-scroll` container; the Flutter idiom is a
-/// `ListView` (the drawer already constrains the group's max height, so
-/// a bounded `ListView` is safe here). Private to this file.
+/// The scrollable list of event rows inside `EventLog`. A bounded
+/// `ListView` is safe here because the drawer already constrains the
+/// group's max height. Private to this file.
 class _EventScroll extends StatelessWidget {
   const _EventScroll({required this.slice});
 
@@ -96,17 +84,8 @@ class _EventScroll extends StatelessWidget {
   }
 }
 
-/// A single `event-row`: a time span (left) + a strong column (event name
-/// + optional detail span). Mirrors React's
-/// `.diagnostic-row.event-row.event-${event_name}`:
-///   <div class="diagnostic-row event-row event-<name>">
-///     <span>{time}</span>
-///     <strong>
-///       <span class="event-name">{event_name}</span>
-///       {detail ? <span class="event-detail">{detail}</span> : null}
-///     </strong>
-///   </div>
-///
+/// A single event row: a time span (left) + a strong column (event name
+/// + optional detail span).
 class _EventRow extends StatelessWidget {
   const _EventRow({required this.event});
 
@@ -126,7 +105,7 @@ class _EventRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // React's <span>{time}</span> -- left-aligned, mono, fg-3.
+          // The time span: left-aligned, mono, muted.
           Text(
             time,
             style: TextStyle(
@@ -136,8 +115,7 @@ class _EventRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // React's <strong> -- the event name (bold) + the optional
-          // detail span.
+          // The event name (bold) + the optional detail span.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +150,7 @@ class _EventRow extends StatelessWidget {
   }
 }
 
-/// Maps React's event-name semantic colors, preserving the supplied neutral
+/// Maps event names to semantic colors, preserving the supplied neutral
 /// fallback for event types without an explicit mapping.
 Color eventNameColor(String eventName, {required Color fallback}) {
   switch (eventName) {

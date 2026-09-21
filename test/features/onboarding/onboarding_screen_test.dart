@@ -57,12 +57,10 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
-  // Channel tile (React OnboardMenu parity): the "Join" section now renders
-  // the channel tile alongside the join tile, matching upstream's
-  // NewSessionPanelMenu.tsx OnboardTile for onPick("channel"). The ChannelJoin
-  // step + Gateway joinChannel seam is a later slice, so the tile reuses
-  // _showLaterSlice (the same SnackBar the Group tile uses) -- this block
-  // only asserts the tile renders.
+  // Channel tile: the "Join" section renders the channel tile alongside the
+  // join tile. The ChannelJoin step + Gateway joinChannel seam is a later
+  // slice, so the tile reuses _showLaterSlice (the same SnackBar the Group
+  // tile uses) -- this block only asserts the tile renders.
   testWidgets('onboarding renders the channel tile in the Join section',
       (tester) async {
     await pumpOnboarding(tester);

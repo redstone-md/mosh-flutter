@@ -1,7 +1,6 @@
 // Tests for the voice-call wiring seam: `startVoiceCall` routes through the
 // `Gateway.callStart` seam, and `VoiceCallLayer` shows the OutgoingCallModal
-// when the snapshot reflects an `outgoingCall` (the parity port of React
-// private-dm-screen.tsx L479-491).
+// when the snapshot reflects an `outgoingCall`.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

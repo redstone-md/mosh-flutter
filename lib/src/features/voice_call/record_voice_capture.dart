@@ -1,11 +1,11 @@
 // RecordVoiceCaptureFactory -- the real mic capture pipeline behind the
-// VoiceCaptureFactory seam. 1-1 with React's `audio-capture.ts`: captures
-// 48 kHz mono PCM16 via the `record` package (`AudioEncoder.pcm16bits` is
-// universal -- record's native Opus encoder is Android/iOS/Linux only, so
-// the Opus encode happens in Rust via mosh-core's `voice_call_opus_encode`),
-// buffers each 20 ms frame (1920 bytes = 960 i16 samples), encodes it to an
-// Opus packet, and emits the packet via `onFrame`. `echoCancel` /
-// `noiseSuppress` / `autoGain` mirror React's `getUserMedia` constraints.
+// VoiceCaptureFactory seam. Captures 48 kHz mono PCM16 via the `record`
+// package (`AudioEncoder.pcm16bits` is universal -- record's native Opus
+// encoder is Android/iOS/Linux only, so the Opus encode happens in Rust
+// via mosh-core's `voice_call_opus_encode`), buffers each 20 ms frame
+// (1920 bytes = 960 i16 samples), encodes it to an Opus packet, and emits
+// the packet via `onFrame`. `echoCancel` / `noiseSuppress` / `autoGain`
+// request the platform's voice-processing DSP.
 //
 // The pure helper (`PcmFrameBuffer`) is exposed
 // public so the framing logic is unit-testable
@@ -89,8 +89,8 @@ class RecordVoiceCaptureFactory implements VoiceCaptureFactory {
           pcm16: buffer.takeFrame(),
         );
         // Emit every encoder packet, including DTX comfort-noise (1-3 byte
-        // silence packets) -- 1-в-1 with React audio-capture.ts's output
-        // callback, which forwards all chunks unfiltered.
+        // silence packets) -- forwarding all chunks unfiltered keeps the
+        // encoder's DTX signaling intact.
         onFrame(opus);
       }
     });

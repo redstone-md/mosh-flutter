@@ -1,6 +1,5 @@
-// Parity tests for `frame_crypto` (lib/src/features/voice_call/frame_crypto.dart) --
-// the 1-to-1 port of the AES-GCM seal/open surface from React
-// `src/features/private-dm/voice-call/frame-crypto.ts`. The pure helpers
+// Tests for `frame_crypto` (lib/src/features/voice_call/frame_crypto.dart) --
+// the AES-GCM seal/open surface. The pure helpers
 // (buildFrame / parseFrame / direction bits) are covered separately by
 // `frame_codec_test.dart`.
 // ignore_for_file: constant_identifier_names

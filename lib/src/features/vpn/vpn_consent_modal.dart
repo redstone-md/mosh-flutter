@@ -1,41 +1,32 @@
-// VpnConsentModal -- 1-в-1 port of React `src/features/private-dm/vpn/
-// VpnConsentModal.tsx`. The one question Mosh asks about the VPN, shown
-// when the user has not answered AND a VPN owns the default route. It
-// blocks because the answer cannot be applied later: a node's bind
-// interface is fixed when the node is built, so a setting flipped
-// mid-session changes nothing until the next launch. Saying yes
-// (accept) records the consent + relaunches; saying no (decline) records
-// nothing (a refusal is asked again next launch -- a wrong yes is
-// visible + reversible from advanced settings, a remembered no silently
-// strands someone whose network changed).
+// VpnConsentModal: the one question Mosh asks about the VPN, shown when
+// the user has not answered AND a VPN owns the default route. It blocks
+// because the answer cannot be applied later: a node's bind interface is
+// fixed when the node is built, so a setting flipped mid-session changes
+// nothing until the next launch. Saying yes (accept) records the consent
+// + relaunches; saying no (decline) records nothing (a refusal is asked
+// again next launch -- a wrong yes is visible + reversible from advanced
+// settings, a remembered no silently strands someone whose network
+// changed).
 //
-// React structure (VpnConsentModal.tsx):
-//   .vpn-consent-scrim (fixed inset-0, rgba(0,0,0,0.55) + blur(3))
-//     -> .vpn-consent (role=alertdialog, aria-modal, aria-labelledby,
-//        aria-describedby, 440px max, danger border tint, 14 radius)
-//        -> span.vpn-consent-icon (IconAlertTriangle 22, danger tint)
-//        -> h2#vpn-consent-title
-//        -> p#vpn-consent-body (with <code>{adapter}</code>)
-//        -> p.vpn-consent-caveat
-//        -> p.vpn-consent-error (if error)
-//        -> .vpn-consent-actions (flex, gap 8, end)
-//           -> btn-ghost decline ("Keep using the VPN")
-//           -> btn-primary accept ("Route around the VPN" / "Restarting...")
+// Structure: a dark scrim over the app, then a danger-tinted 440px-max
+// dialog -- warning icon, title, body (with the adapter name), caveat,
+// optional error, and a right-aligned decline ("Keep using the VPN") +
+// accept ("Route around the VPN" / "Restarting...") action row.
 //
-// On mount React `Promise.all([getVpnBypassConsent, detectVpn,
-// listNetworkInterfaces])` -- only ask when `!consent && detection
-// .vpn_owns_default_route`; pick `defaultBypassAdapter(interfaces)`.
-// Accept: `setVpnBypassConsent(adapter)` + `restartApp()`. Decline:
-// `setVpnBypassConsent(null)` (clears any prior answer) then hide.
+// On mount fetch consent + detectVpn + listNetworkInterfaces -- only ask
+// when `!consent && detection.vpn_owns_default_route`; pick
+// `defaultBypassAdapter(interfaces)`. Accept: `setVpnBypassConsent
+// (adapter)` + relaunch. Decline: `setVpnBypassConsent(null)` (clears any
+// prior answer) then hide.
 //
 // Flutter port: a `StatefulWidget` that fetches the network state in
 // `initState`, renders a scrim `Stack` overlay + a danger-tinted `Dialog`
 // when it should ask, and `SizedBox.shrink()` otherwise (the host places
-// it in a `Stack`; React renders the scrim inline as `position: fixed`).
-// `restartApp` is an injectable callback (`onAccept`) so the modal remains
-// parity-first and testable. Production supplies the Windows-only desktop
-// relauncher; unsupported platforms use its safe no-op behavior. The dialog mirrors React's
-// danger tint (`--danger` #e5484d border + icon) + the 440px max width.
+// it in a `Stack`). `restartApp` is an injectable callback (`onAccept`)
+// so the modal remains testable. Production supplies the Windows-only
+// desktop relauncher; unsupported platforms use its safe no-op behavior.
+// The dialog uses a danger tint (#e5484d border + icon) + the 440px max
+// width.
 
 library;
 
@@ -48,10 +39,10 @@ import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
-/// The two phases the modal cycles through (React `Answer`).
+/// The two phases the modal cycles through.
 enum VpnConsentPhase { asking, saving }
 
-/// The VPN-bypass consent modal -- 1-в-1 with React's `VpnConsentModal`.
+/// The VPN-bypass consent modal.
 ///
 /// Renders a scrim + dialog when it should ask, `SizedBox.shrink()`
 /// otherwise. The host places it in a `Stack` overlay.
@@ -73,9 +64,9 @@ class VpnConsentModal extends StatefulWidget {
   final AppLocalizations l;
 
   /// Invoked after `setVpnBypassConsent(adapter)` succeeds, to relaunch
-  /// the app (React `gateway.restartApp()`). Production wires the
-  /// Windows-only desktop relauncher; unsupported platforms use a safe
-  /// no-op. Failures are caught and shown by the modal.
+  /// the app. Production wires the Windows-only desktop relauncher;
+  /// unsupported platforms use a safe no-op. Failures are caught and
+  /// shown by the modal.
   final Future<void> Function() onAccept;
 
   @override
@@ -96,10 +87,9 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
     _loadNetworkState();
   }
 
-  // React: `Promise.all([getVpnBypassConsent, detectVpn, listInterfaces])`
-  // then `if (consent || !detection.vpn_owns_default_route) return;` +
-  // `defaultBypassAdapter(interfaces)`. A network inventory we cannot
-  // read is not grounds for a blocking modal (React warns + returns).
+  // Fetch consent + detectVpn + listInterfaces, then only ask when the
+  // tunnel owns the default route and consent is unset. A network
+  // inventory we cannot read is not grounds for a blocking modal.
   Future<void> _loadNetworkState() async {
     String? adapter = '';
     try {
@@ -156,7 +146,7 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
     try {
       await widget.bridge.setVpnBypassConsent(interfaceName: null);
     } catch (_) {
-      // React warns on a failed decline clear; the modal still hides.
+      // A failed decline clear is not fatal; the modal still hides.
     }
     if (!mounted) return;
     setState(() => _adapter = '');
@@ -177,9 +167,8 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
       type: MaterialType.transparency,
       child: Stack(
         children: [
-          // .vpn-consent-scrim: rgba(0,0,0,0.55). (blur(3px) is omitted --
-          // Flutter BackdropFilter is expensive + not parity-critical
-          // for the dialog's affordance.)
+          // Dark scrim. (A blur is omitted -- Flutter BackdropFilter is
+          // expensive + not critical for the dialog's affordance.)
           const ModalBarrier(
             color: Color(0x8C000000),
             dismissible: false,
@@ -197,16 +186,15 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // .vpn-consent-icon (IconAlertTriangle 22, danger).
+                      // Warning icon (22, danger tint).
                       Icon(Icons.warning, size: 22, color: danger),
                       const SizedBox(height: 10),
-                      // h2#vpn-consent-title.
                       Text(
                         widget.l.vpnConsentTitle,
                         style: theme.textTheme.titleSmall,
                       ),
                       const SizedBox(height: 10),
-                      // p#vpn-consent-body (with <code>{adapter}</code>).
+                      // Body text (with the adapter name).
                       Text.rich(
                         TextSpan(
                           children: [
@@ -219,7 +207,7 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
                             theme.textTheme.bodySmall?.copyWith(height: 1.45),
                       ),
                       const SizedBox(height: 10),
-                      // p.vpn-consent-caveat.
+                      // Caveat text.
                       Text(
                         widget.l.vpnConsentCaveat,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -237,18 +225,18 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      // .vpn-consent-actions (end, gap 8, wrap).
+                      // Right-aligned action row (decline + accept).
                       Align(
                         alignment: Alignment.centerRight,
                         child: Wrap(
                           spacing: 8,
                           children: [
-                            // btn-ghost decline.
+                            // Decline (ghost).
                             TextButton(
                               onPressed: saving ? null : _decline,
                               child: Text(widget.l.vpnConsentDecline),
                             ),
-                            // btn-primary accept.
+                            // Accept (primary).
                             FilledButton(
                               onPressed: saving ? null : _accept,
                               child: Text(

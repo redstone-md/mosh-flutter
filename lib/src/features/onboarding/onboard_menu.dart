@@ -1,16 +1,14 @@
-// Embeddable OnboardMenu body -- 1:1 with React `OnboardMenu`
-// (src/features/private-dm/NewSessionPanelMenu.tsx:19-94): identity chip,
-// Start tiles, Join tiles, Advanced + About disclosures. No Scaffold so a
-// caller embeds it (OnboardingScreen wraps in Center >
-// SingleChildScrollView > ConstrainedBox; atomic #3 embeds the same widget
-// inline in the desktop chat-pane).
+// Embeddable OnboardMenu body: identity chip, Start tiles, Join tiles,
+// Advanced + About disclosures. No Scaffold so a caller embeds it
+// (OnboardingScreen wraps in Center > SingleChildScrollView >
+// ConstrainedBox; atomic #3 embeds the same widget inline in the desktop
+// chat-pane).
 //
 // Owns the 3 TextEditingControllers + inviteFlow handlers verbatim from the
 // former inline OnboardingScreen body. Tile taps call injected VoidCallbacks
 // (onPickChat/Group/Channel/Join) -- the menu does NOT context.go itself;
 // the caller decides routing. Diagnostics lives in the caller's AppBar /
-// peer-status button, not here (React has no diagnostics surface in
-// OnboardMenu).
+// peer-status button, not here.
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -26,9 +24,9 @@ import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
-/// OnboardMenu body -- embeddable Column mirroring React's `OnboardMenu`
-/// (NewSessionPanelMenu.tsx:19). Caller wraps it in its own scroll/constraints
-/// (OnboardingScreen: Center>SingleChildScrollView>ConstrainedBox(maxWidth:460)).
+/// OnboardMenu body -- embeddable Column. Caller wraps it in its own
+/// scroll/constraints (OnboardingScreen:
+/// Center>SingleChildScrollView>ConstrainedBox(maxWidth:460)).
 class OnboardMenu extends ConsumerStatefulWidget {
   const OnboardMenu({
     super.key,
@@ -38,16 +36,16 @@ class OnboardMenu extends ConsumerStatefulWidget {
     required this.onPickJoin,
   });
 
-  /// Start-section chat tile (React onPick("chat"), NewSessionPanelMenu.tsx:44).
+  /// Start-section chat tile.
   final VoidCallback onPickChat;
 
-  /// Start-section group tile (React onPick("group"), NewSessionPanelMenu.tsx:50).
+  /// Start-section group tile.
   final VoidCallback onPickGroup;
 
-  /// Join-section join tile (React onPick("join"), NewSessionPanelMenu.tsx:60).
+  /// Join-section join tile.
   final VoidCallback onPickJoin;
 
-  /// Join-section channel tile (React onPick("channel"), NewSessionPanelMenu.tsx:66).
+  /// Join-section channel tile.
   final VoidCallback onPickChannel;
 
   @override
@@ -87,32 +85,25 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   void _onNameChanged(String value) =>
       ref.read(inviteFlowProvider.notifier).setDisplayName(value);
 
-  // Advanced disclosure handlers (1:1 with React's NewSessionPanelMenu.tsx):
-  // staticPeer mirrors `props.onStaticPeer(e.target.value)` (null when empty to
-  // match the String? state); listenPort mirrors `Number(e.target.value) || 0`
-  // via tryParse with a 0 fallback on non-numeric input.
+  // Advanced disclosure handlers: staticPeer maps an empty string to null
+  // (matching the String? state); listenPort parses with a 0 fallback on
+  // non-numeric input.
   void _onStaticPeerChanged(String value) => ref
       .read(inviteFlowProvider.notifier)
       .setStaticPeer(value.isEmpty ? null : value);
   void _onListenPortChanged(String value) {
-    // React parity: NewSessionPanelMenu.tsx renders `<input type="number"
-    // min={0} max={65535} ...>` so the browser rejects/flags out-of-range
-    // values and `Number(e.target.value) || 0` coerces non-numeric to 0.
-    // Flutter has no native ranged numeric input, so the range constraint
-    // is enforced here by clamping the STORED value to 0..65535 before it
-    // reaches inviteFlow (and onward to Rust as listen_port). The field
-    // text is intentionally NOT rewritten: a mid-typing rewrite (e.g.
-    // "999" -> "65535") is jarring and fights the user. The displayed text
-    // may therefore transiently show an out-of-range value, but only the
-    // clamped stored value crosses the seam -- mirroring the conservative
-    // reading of the React `<input min/max>` behavior.
+    // The port must stay in 0..65535 before it reaches inviteFlow (and
+    // onward to Rust as listen_port). The range is enforced by clamping
+    // the STORED value. The field text is intentionally NOT rewritten: a
+    // mid-typing rewrite (e.g. "999" -> "65535") is jarring and fights the
+    // user. The displayed text may therefore transiently show an
+    // out-of-range value, but only the clamped stored value crosses the
+    // seam.
     final parsed = int.tryParse(value) ?? 0;
     final n = parsed.clamp(0, 65535);
     ref.read(inviteFlowProvider.notifier).setListenPort(n);
   }
 
-  // `.onboard-section-label { font-size: 10.5px; font-weight: 700;
-  // letter-spacing: 0.13em; color: var(--fg-4) }`.
   TextStyle? _sectionStyle(ThemeData t) => t.textTheme.labelSmall?.copyWith(
         color: MoshColors.fg4,
         fontWeight: FontWeight.w700,
@@ -134,9 +125,6 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
           onChanged: _onNameChanged,
         ),
         const SizedBox(height: 18),
-        // `.onboard-head h1 { font-size: 23px; letter-spacing: -0.01em }`
-        // over `p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.55;
-        // color: var(--fg-3) }`.
         Text(
           l.onboardTitle,
           style: const TextStyle(
@@ -232,11 +220,9 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Bind-interface override -- 1:1 with React's
-              // NewSessionPanelMenu.tsx Advanced disclosure child
-              // (L93 <BindInterfaceField gateway={props.gateway} />).
-              // Writes the same stored VPN-bypass answer the
-              // startup question does + relaunches via onAccept
+              // Bind-interface override. Writes the same stored
+              // VPN-bypass answer the startup question does + relaunches
+              // via onAccept.
               BindInterfaceField(
                 bridge: ref.read(bridgeFacadeProvider),
                 l: l,
@@ -290,14 +276,13 @@ class _IdentityChip extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: MoshColors.line),
-        // `.onboard-identity { background: var(--bg-2) }`.
         color: MoshColors.bg2,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // The identity glyph is a --moss-glow tile like every other
-          // icon surface, not a solid --moss disc.
+          // The identity glyph uses a translucent moss tile like every
+          // other icon surface, not a solid moss disc.
           const CircleAvatar(
             radius: 18,
             backgroundColor: MoshColors.mossGlow,
@@ -337,10 +322,6 @@ class _OnboardTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // React `.onboard-tile { padding: 13px 14px; gap: 13px; border: 1px
-    // solid var(--line); border-radius: 12px; background: var(--bg-2) }`,
-    // with a `.tile-icon` on --moss-glow (NOT a solid moss fill) and a
-    // --fg-4 chevron.
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,

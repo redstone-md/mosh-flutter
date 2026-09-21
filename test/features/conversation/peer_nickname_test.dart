@@ -34,14 +34,14 @@ void main() {
             ),
           )));
 
-      // The name is wrapped in an InkWell tap target (React nick-button).
+      // The name is wrapped in an InkWell tap target.
       expect(find.byType(InkWell), findsOneWidget);
       // The visible name renders.
       expect(find.text('bob'), findsOneWidget);
       // No popover yet.
       expect(find.byType(AlertDialog), findsNothing);
 
-      // Tap the name to open the popover (React nick-popover, role=dialog).
+      // Tap the name to open the popover.
       await tester.tap(find.text('bob'));
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsOneWidget);
@@ -82,7 +82,7 @@ void main() {
       // Already offered -> label "Invite sent" (en).
       final inviteSent = find.text('Invite sent');
       expect(inviteSent, findsOneWidget);
-      // Disabled when alreadyOffered (React disabled={alreadyOffered || busy}).
+      // Disabled when alreadyOffered or busy.
       expect(
           tester
               .widget<TextButton>(find.ancestor(
@@ -172,8 +172,8 @@ void main() {
 
       // The name renders as plain bold Text.
       expect(find.text('bob'), findsOneWidget);
-      // No InkWell / GestureDetector tap target (React PeerNickname is only
-      // for non-own channel/group names; DM rows render plain bold).
+      // No InkWell / GestureDetector tap target (the tap target is only for
+      // non-own channel/group names; DM rows render plain bold).
       expect(find.byType(InkWell), findsNothing);
       expect(find.byType(GestureDetector), findsNothing);
     });
@@ -196,7 +196,7 @@ void main() {
             ),
           )));
 
-      // Own name renders as plain bold (React <strong>{name}</strong>).
+      // Own name renders as plain bold.
       expect(find.text('me'), findsOneWidget);
       // No tap target + no popover for the own name.
       expect(find.byType(InkWell), findsNothing);

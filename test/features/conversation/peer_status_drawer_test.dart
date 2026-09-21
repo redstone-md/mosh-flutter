@@ -1,10 +1,8 @@
-// Parity tests for `PeerStatusDrawer` (lib/src/features/conversation/
-// peer_status_drawer.dart) -- the 1-в-1 Flutter port of React's
-// `DiagnosticsDrawer.tsx`. The drawer is a `Positioned.fill` overlay (NOT a
+// Widget tests for `PeerStatusDrawer` (lib/src/features/conversation/
+// peer_status_drawer.dart). The drawer is a `Positioned.fill` overlay (NOT a
 // `showDialog` route), so unlike the call modals it owns its own focus + Esc
-// handling via a `KeyboardListener` (ports React `useModalFocus(onClose)`).
-// These tests assert:
-//   - Esc calls `onClose` (the `useModalFocus` Escape branch).
+// handling via a `KeyboardListener`. These tests assert:
+//   - Esc calls `onClose`.
 //   - The header title + the NoActiveSession fallback render when no
 //     conversation is active (idle branch).
 //   - The session branch renders the SessionDiagnostics section content.
@@ -73,7 +71,7 @@ Future<void> _pump(WidgetTester tester, Widget child) => pumpScreen(
     ));
 
 void main() {
-  testWidgets('Esc calls onClose (useModalFocus Escape branch)',
+  testWidgets('Esc calls onClose',
       (tester) async {
     var closeCount = 0;
     await _pump(

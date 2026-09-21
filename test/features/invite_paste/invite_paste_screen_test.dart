@@ -96,7 +96,7 @@ void main() {
         'mosh://group?mesh=7x9v&group=drift-team#fp=91A4D2C877B091A4D2C877B091A4D2C8');
     await tester.pump();
     // ok badge: the "group invite detected" label + a check icon (group is a
-    // detected kind, so the badge is green/ok 1-в-1 with React).
+    // detected kind, so the badge is green/ok).
     expect(find.text('Group invite detected'), findsOneWidget);
     expect(find.byIcon(Icons.check), findsOneWidget);
     // group join is wired (slice-3 seam): Connect is ENABLED.
@@ -104,7 +104,7 @@ void main() {
         isNotNull);
     // Tapping Connect calls the bridge's joinGroup (canned GroupSnapshot with
     // groupId parsed from the invite URI's `group=` param) and navigates to
-    // the group screen (1-в-1 with React setActive({type:"group", id})).
+    // the group screen.
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
     expect(find.byType(GroupScreen), findsOneWidget);
@@ -130,10 +130,10 @@ void main() {
     // org join is wired (slice-3 seam): Connect is ENABLED.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
-    // Tapping Connect calls the bridge's joinOrg (canned OrgSnapshot). React's
-    // joinOrg does NOT navigate to a dedicated org screen -- it leaves setup
-    // + refreshes the orgs list, landing the user back on the rail. Flutter
-    // has no org screen, so the faithful action is AppRoutes.sessions.
+    // Tapping Connect calls the bridge's joinOrg (canned OrgSnapshot). There
+    // is no dedicated org screen (orgs are a container, not a chat), so the
+    // join refreshes the orgs list and lands the user back on the sessions
+    // rail (AppRoutes.sessions).
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
     expect(find.byType(SessionsScreen), findsOneWidget);

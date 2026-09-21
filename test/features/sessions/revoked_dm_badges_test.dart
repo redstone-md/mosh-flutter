@@ -1,8 +1,5 @@
-// Parity tests for `computeRevokedDmBadges`
-// (lib/src/features/sessions/revoked_dm_badges.dart) -- the 1-в-1 Dart port of
-// React's `computeRevokedDmBadges`
-// (mosh/src/features/private-dm/org/use-orgs.ts L228-253, test cases in
-// org-ui.test.tsx L178-207). Mirrors the React test shape 1-в-1: no-roster
+// Tests for `computeRevokedDmBadges`
+// (lib/src/features/sessions/revoked_dm_badges.dart). Covers: no-roster
 // (rosterVersion == null -> empty map), still-member link (not badged),
 // revoked-member link (badged with org name), plus a mixed-orgs case and a
 // null-sessionId link (skipped). Fixtures use the real OrgSnapshot /
@@ -14,9 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/sessions/revoked_dm_badges.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 
-/// Minimal org fixture -- mirrors React `orgSnapshot` defaults (own peer in
-/// the roster, a verified roster_version) with overridable roster, members,
-/// and dm links. OrgDmLink/OrgMemberView built from the real constructors.
+/// Minimal org fixture (own peer in the roster, a verified roster_version)
+/// with overridable roster, members, and dm links. OrgDmLink/OrgMemberView
+/// built from the real constructors.
 OrgSnapshot _org({
   required String name,
   BigInt? rosterVersion,
@@ -56,9 +53,9 @@ void main() {
   group('computeRevokedDmBadges', () {
     test('badges linked sessions whose peer left the roster and only those',
         () {
-      // 1-в-1 with React org-ui.test.tsx "badges linked sessions whose peer
-      // left the roster and only those": bob is still a member (not badged),
-      // carol left (badged), dave's link has no session id (skipped).
+      // Badges linked sessions whose peer left the roster and only those:
+      // bob is still a member (not badged), carol left (badged), dave's
+      // link has no session id (skipped).
       final org = _org(
         name: 'acme',
         rosterVersion: _verified,
@@ -76,7 +73,7 @@ void main() {
     });
 
     test('never badges when no roster has been verified yet', () {
-      // 1-в-1 with React "never badges when no roster has been verified yet":
+      // Never badges when no roster has been verified yet:
       // rosterVersion == null -- absence of a member proves nothing.
       final org = _org(
         name: 'acme',

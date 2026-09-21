@@ -1,6 +1,5 @@
-// Widget test for `Field` (1-в-1 with React `Field` in
-// src/features/private-dm/NewSessionPanel.parts.tsx, CSS `.field*`). Asserts
-// the layout contract: label + child render, hint renders only when non-null.
+// Widget test for `Field`. Asserts the layout contract: label + child
+// render, hint renders only when non-null.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -76,8 +75,8 @@ void main() {
     await tester.pump();
 
     // Label + hint Texts + the child TextField = 3 children of the Column.
-    // Now Label + gap(4) + child + gap(4) + hint = 5 (React `.field { gap: 4px }`
-    // materialized as SizedBox spacers so the gap survives without a gap prop).
+    // Now Label + gap(4) + child + gap(4) + hint = 5 (the gaps are
+    // materialized as SizedBox spacers).
     final column = tester.widget<Column>(find.byType(Column));
     expect(column.children.length, 5);
     expect(column.crossAxisAlignment, CrossAxisAlignment.stretch);

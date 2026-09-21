@@ -1,9 +1,9 @@
-// Tests for `unreadLifecycleProvider` -- the Riverpod port of React's
-// `useUnreadNotifications` (clearOnActive + window-focus OS toasts +
-// lastSeen poll-diff). The lifecycle watches the per-kind unread counts
-// (one `unreadCountsProvider` entry per kind) +
-// activeConversationKeyProvider, so re-seeding the bridge's lists drives
-// growth by swapping its list snapshots and refreshing the list entries.
+// Tests for `unreadLifecycleProvider` -- the unread lifecycle (clear on
+// active + window-focus OS toasts + lastSeen poll-diff). The lifecycle
+// watches the per-kind unread counts (one `unreadCountsProvider` entry per
+// kind) + activeConversationKeyProvider, so re-seeding the bridge's lists
+// drives growth by swapping its list snapshots and refreshing the list
+// entries.
 //
 // Seams overridden (mirrors the notifications seam convention):
 //  - `bridgeFacadeProvider` -> `ScriptableBridge` (mutable list snapshots).
@@ -297,8 +297,8 @@ void main() {
       addTearDown(h.container.dispose);
       h.setFocus(false);
       // 'dm:a' is active but does NOT grow this poll, so every diffed
-      // conversation is non-active (mirrors React's toast loop firing for
-      // each newMessages entry; with dm:a stable it is not in newMessages).
+      // conversation is non-active (the toast loop fires one toast per
+      // grown conversation; with dm:a stable it is not in the diff).
       h.container.read(activeConversationKeyProvider.notifier).set('dm:a');
       // First poll: seed lastSeen (dm:a=1, channel:general=1).
       h.gateway.seedSessions([
@@ -471,7 +471,7 @@ void main() {
       await _poll(h.container);
       expect(h.container.read(unreadLifecycleProvider)['channel:general'], 1);
 
-      // clearUnread drops the key, mirroring React's clearUnread mutation.
+      // clearUnread drops the key from the exposed unread map.
       h.container
           .read(unreadLifecycleProvider.notifier)
           .clearUnread('channel:general');

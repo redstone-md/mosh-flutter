@@ -1,18 +1,15 @@
-/// Slice-3 voice composer -- 1-в-1 port of React
-/// `src/features/private-dm/voice/VoiceComposer.tsx`. Microphone capture with
+/// Slice-3 voice composer. Microphone capture with
 /// three phases (idle -> recording -> review) before sending. The recording
 /// itself uses the `record` package (`AudioRecorder`); live amplitude samples
-/// feed a 64-bucket waveform (React post-hoc `analyzeAudio` via WebAudio is
-/// replaced by `onAmplitudeChanged` during recording -- same 64 buckets, peak
+/// feed a 64-bucket waveform (peak
 /// per bucket, base64-encoded for `VoiceMeta.peaksB64`).
 ///
-/// React structure (VoiceComposer.tsx): idle renders a mic IconButton;
+/// Phases: idle renders a mic IconButton;
 /// recording renders a dot + elapsed timer + discard + stop; review renders
 /// play + duration + discard + send. `disabled` gates the mic button (idle).
 /// `onSend(voice)` hands a `VoiceSend` to the screen; `onError(message)`
 /// surfaces mic-permission / start failures. `supported` is checked once on
-/// init (`AudioRecorder.hasPermission`); unsupported renders nothing (React
-/// `if (!supported) return null`).
+/// init (`AudioRecorder.hasPermission`); unsupported renders nothing.
 library;
 
 import 'dart:async' show StreamSubscription, Timer;
@@ -27,7 +24,7 @@ import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:record/record.dart';
 import 'package:media_kit/media_kit.dart';
 
-/// A finished voice clip ready to send (1-в-1 with React `VoiceSend`). `path`
+/// A finished voice clip ready to send. `path`
 /// points at the recorded file; `mime` is the container; `durationMs` + the
 /// 64-bucket `peaksBase64` waveform form `VoiceMeta` on the gateway seam.
 class VoiceSend {
@@ -44,14 +41,13 @@ class VoiceSend {
   final String peaksBase64;
 }
 
-/// 64 amplitude buckets (one byte each, 0-255) -- mirrors React
-/// `WAVEFORM_BUCKETS`.
+/// 64 amplitude buckets (one byte each, 0-255).
 const int waveformBuckets = 64;
 
-/// Maximum recording length; auto-stops here (mirrors React `MAX_RECORDING_MS`).
+/// Maximum recording length; auto-stops here.
 const Duration maxRecording = Duration(minutes: 5);
 
-/// `m:ss` (React `formatElapsed`).
+/// `m:ss`.
 String _formatElapsed(Duration d) {
   final m = d.inMinutes;
   final s = d.inSeconds.remainder(60);
@@ -65,7 +61,7 @@ String _formatElapsed(Duration d) {
 const TextStyle kVoiceTimerStyle =
     TextStyle(fontFeatures: kLiveNumberFontFeatures);
 
-/// The recording indicator's 8px dot (React `.recording-dot`). Palette
+/// The recording indicator's 8px dot. Palette
 /// accent, not a raw Material red: the theme's danger token (audit
 /// 2026-09-21 palette-drift). Public so the accent is testable without the
 /// platform microphone.
@@ -166,11 +162,11 @@ class _VoiceComposerState extends State<VoiceComposer> {
     _autoStopTimer = null;
   }
 
-  /// Toggle the review-phase preview (React `playPreview`). Lazily creates
+  /// Toggle the review-phase preview. Lazily creates
   /// a media_kit Player on first tap, opens the recorded file, and
   /// playOrPauses. The playing stream drives the play/pause icon. Defensive:
   /// if Player() throws (test env), the button is a no-op so the review row
-  /// still renders 1-в-1 with React minus live preview.
+  /// still renders minus live preview.
   Future<void> _togglePreview() async {
     final path = _path;
     if (path == null) return;
@@ -233,8 +229,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
 
   void _onAmplitude(Amplitude amplitude) {
     // Amplitude.current is in dBFS (-60..0). Map to 0..255 and store the peak
-    // per bucket as the recording progresses (live downsample -- React does
-    // this post-hoc via WebAudio; capturing during recording is equivalent).
+    // per bucket as the recording progresses (live downsample).
     final db = amplitude.current;
     final normalized = ((db + 60) / 60).clamp(0.0, 1.0);
     final value = (normalized * 255).round();
@@ -337,7 +332,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              // React playPreview toggles the <audio> play state. The icon
+              // Toggles the preview play state. The icon
               // swaps play_arrow <-> pause on the playing stream (set in
               // _togglePreview).
               icon: Icon(_previewPlaying ? Icons.pause : Icons.play_arrow),

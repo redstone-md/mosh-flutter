@@ -4,13 +4,10 @@
 // .dialog`) and shows exactly that one modal, and it routes every control
 // (accept / decline / hang up / mute) back to the orchestrator notifier.
 //
-// This is the parity-first port of React `private-dm-screen.tsx` L459-513,
-// but where React drives the modals from a `useVoiceCallOrchestration`
-// state machine that ALSO pumps audio frames, this layer is signaling-only:
-// the audio transport is slice-3 work and lives in `voice_call_orchestrator
-// .dart`. The layer is a `ConsumerStatefulWidget` placed in the DM body
-// `Stack`; it routes through `showDialog` so the modals get modal-route
-// focus + scrim for free (mirroring React's `.call-modal` fixed overlay).
+// This layer is signaling-only: the audio transport lives in
+// `voice_call_orchestrator.dart`. The layer is a `ConsumerStatefulWidget`
+// placed in the DM body `Stack`; it routes through `showDialog` so the
+// modals get modal-route focus + scrim for free.
 //
 // Why one route record and not four `_open*For` fields: a session carries at
 // most one call (mosh-core builds all three call fields from one `CallState`
@@ -150,8 +147,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
 
     // The OS toast is a one-shot: it fires only on the transition INTO an
     // incoming dialog (this `_syncDialog` returns early on every later
-    // re-poll for the same call), mirroring React's "fire once per
-    // pendingCallId change" dep-array.
+    // re-poll for the same call).
     if (newKind == _CallKind.incoming) {
       _maybeNotifyIncomingCall(peerLabel);
     }
@@ -282,21 +278,18 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
     return const SizedBox.shrink();
   }
 
-  /// Fires the incoming-call OS toast, 1-в-1 with React's
-  /// use-voice-call-orchestration.ts second `useEffect` (L250-275):
-  /// gate on notificationsReady, check the window is unfocused, then
-  /// `flutterLocalNotificationsPlugin.show`. Fire-and-forget (the effect's
-  /// async IIFE); errors swallowed (the in-app IncomingCallModal is the
-  /// user's signal regardless, mirrors React's `catch {}`).
+  /// Fires the incoming-call OS toast: gate on notificationsReady, check
+  /// the window is unfocused, then `flutterLocalNotificationsPlugin.show`.
+  /// Fire-and-forget; errors swallowed (the in-app IncomingCallModal is
+  /// the user's signal regardless).
   void _maybeNotifyIncomingCall(String displayName) {
     final ready = ref.read(notificationsReadyProvider).value ?? false;
     if (!ready) return;
     final plugin = ref.read(flutterLocalNotificationsPluginProvider);
     // The async IIFE: windowManager.isFocused() is async on Windows/macOS;
-    // Linux is undocumented so the gate always notifies there (matches
-    // React's "always notify on Linux" fallback). Mobile (Android/iOS) has
-    // no window focus analog (AppLifecycleState is the analog and is a
-    // separate Android slice), so always notify on mobile for now.
+    // Linux is undocumented so the gate always notifies there. Mobile
+    // (Android/iOS) has no window focus analog, so always notify on
+    // mobile for now.
     () async {
       try {
         if (Platform.isWindows || Platform.isMacOS) {
@@ -312,7 +305,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         );
       } catch (_) {
         // Notification host unavailable; the in-app IncomingCallModal is
-        // the user's signal (mirrors React's catch {}).
+        // the user's signal.
       }
     }();
   }

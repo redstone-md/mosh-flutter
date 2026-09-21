@@ -1,12 +1,8 @@
-/// Paste-to-attach clipboard image -- the 1-в-1 port of React
-/// ChatComposer.tsx:71-82 `handlePaste`. React intercepts the input's paste
-/// event, finds the first clipboard item with `kind === "file"`, calls
-/// `event.preventDefault()`, and forwards the file to `onAttach(file)`. This
-/// Dart port does the same via `super_clipboard`: when the composer has focus
-/// and the system clipboard holds an image (png/jpeg/gif/webp/tiff), synthesize
+/// Paste-to-attach clipboard image. When the composer has focus and the
+/// system clipboard holds an image (png/jpeg/gif/webp/tiff), synthesize
 /// a [PickedAttachment] and forward it to the composer's existing `onAttach`.
-/// Plain-text pastes fall through to the default text insertion (React parity:
-/// only file items are forwarded; text pastes normally).
+/// Plain-text pastes fall through to the default text insertion (only file
+/// items are forwarded; text pastes normally).
 ///
 /// Interception point: Flutter 3.44 `TextField` has NO `onPaste` callback
 /// (neither `bool Function()?` nor a `TextEditablePasteState` variant exists
@@ -17,8 +13,7 @@
 /// widget mapping `PasteTextIntent` -> a custom [Action] fully intercepts
 /// the intent: `_visitActionsAncestors` stops at the first matching ancestor,
 /// so the default text-inserting action runs ONLY if the override calls
-/// `callingAction?.invoke(...)` -- the Dart equivalent of React's
-/// `event.preventDefault()`.
+/// `callingAction?.invoke(...)`.
 library;
 
 import 'dart:async' show Completer;
@@ -54,7 +49,7 @@ SimpleFileFormat? pickImageFormat(ClipboardDataReader reader) {
   return null;
 }
 
-/// MIME string for a chosen image format (1-в-1 with the React `file.type`).
+/// MIME string for a chosen image format.
 String mimeForFormat(SimpleFileFormat format) {
   if (identical(format, Formats.png)) return 'image/png';
   if (identical(format, Formats.jpeg)) return 'image/jpeg';
@@ -65,8 +60,8 @@ String mimeForFormat(SimpleFileFormat format) {
   return 'application/octet-stream';
 }
 
-/// File extension for a chosen image format. JPEG uses `jpg` (React parity:
-/// the synthesized filename uses the common short form).
+/// File extension for a chosen image format. JPEG uses `jpg` (the common
+/// short form for the synthesized filename).
 String extensionForFormat(SimpleFileFormat format) {
   if (identical(format, Formats.png)) return 'png';
   if (identical(format, Formats.jpeg)) return 'jpg';
@@ -103,13 +98,13 @@ Future<Uint8List?> readImageBytes(
 /// Reads the clipboard, and if it holds an image, synthesizes a
 /// [PickedAttachment] (base64 bytes + 320px JPEG thumbnail) and forwards it to
 /// [onAttach]. Returns true when an image was attached (the paste is
-/// swallowed -- the default text insertion must NOT also run, mirroring
-/// React's `event.preventDefault()`). Returns false when the clipboard holds
-/// no image (the caller lets the default text paste proceed).
+/// swallowed -- the default text insertion must NOT also run). Returns false
+/// when the clipboard holds no image (the caller lets the default text paste
+/// proceed).
 ///
 /// [maxBytes] mirrors the shared `AttachmentPicker.maxBytes` ceiling (50 MB).
 /// On overflow [onAttachmentPickError] fires with
-/// [AttachmentPickError.tooLarge] and the paste is swallowed (parity with the
+/// [AttachmentPickError.tooLarge] and the paste is swallowed (same as the
 /// paperclip path).
 Future<bool> handlePasteImage({
   required AttachmentPickedCallback onAttach,
@@ -144,11 +139,9 @@ Future<bool> handlePasteImage({
 /// An [Action] overriding [PasteTextIntent] for the composer's [TextField].
 /// When the clipboard holds an image it attaches it (swallowing the paste);
 /// when it does not it forwards to the [callingAction] so the default
-/// text-inserting paste runs. This is the Flutter 3.44 analogue of React's
-/// `ChatComposer.tsx:71-82` `handlePaste` + `event.preventDefault()`:
-/// `TextField` here has no `onPaste` callback, so paste is intercepted as an
-/// [Intent] via an ancestor `Actions` widget (the same pattern
-/// `EditableTextState` uses internally via `Action.overridable`,
+/// text-inserting paste runs. `TextField` here has no `onPaste` callback, so
+/// paste is intercepted as an [Intent] via an ancestor `Actions` widget (the
+/// same pattern `EditableTextState` uses internally via `Action.overridable`,
 /// editable_text.dart:5709).
 class PasteImageAction extends Action<PasteTextIntent> {
   PasteImageAction({
@@ -191,8 +184,7 @@ class PasteImageAction extends Action<PasteTextIntent> {
     }
     if (swallowed) return null; // image attached -- do NOT also paste text
     // No image on the clipboard -- defer to the default text-inserting paste
-    // (EditableTextState._PasteSelectionAction), parity with React forwarding
-    // only `kind === "file"` items and letting plain text paste normally.
+    // (EditableTextState._PasteSelectionAction).
     return textPaste?.invoke(intent);
   }
 }

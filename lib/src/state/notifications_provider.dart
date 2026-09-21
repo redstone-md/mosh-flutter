@@ -1,19 +1,15 @@
 // Slice-3 voice-call: incoming-call OS notification when the window is
-// unfocused (1-в-1 port of React private-dm/voice-call/use-voice-call-
-// orchestration.ts L250-275 -- the second `useEffect` that fires a Tauri
-// sendNotification when a NEW pendingCall appears AND the window is
-// unfocused AND notificationsReady() is true). The Flutter side fires an
-// OS toast via flutter_local_notifications; the focus check is
+// unfocused. Fires an OS toast via flutter_local_notifications when a NEW
+// pendingCall appears AND the window is unfocused AND
+// notificationsReady() is true. The focus check is
 // window_manager.isFocused() (Windows/macOS; Linux is undocumented so the
-// gate always notifies there, matching React's "always notify on Linux"
-// fallback). The in-app IncomingCallModal is the user's signal regardless
-// (mirrors React's catch {}).
+// gate always notifies there). The in-app IncomingCallModal is the user's
+// signal regardless.
 //
-// ADR 0010: notificationsReadyProvider is the Riverpod mirror of React's
-// `notificationsReady()` ref-gate -- a FutureProvider<bool> that initializes
-// the plugin once at startup and resolves true/false. The voice-call layer
-// reads it via `ref.read(notificationsReadyProvider).value == true`.
-// The plugin instance is itself a Provider (flutterLocalNotificationsPluginProvider)
+// ADR 0010: notificationsReadyProvider is a FutureProvider<bool> that
+// initializes the plugin once at startup and resolves true/false. The
+// voice-call layer reads it via `ref.read(notificationsReadyProvider).value
+// == true`. The plugin instance is itself a Provider (flutterLocalNotificationsPluginProvider)
 // so tests inject a recording fake -- the same seam convention as
 // gatewayProvider / voiceCaptureFactoryProvider / voicePlaybackFactoryProvider.
 library;
@@ -75,8 +71,8 @@ final flutterLocalNotificationsPluginProvider =
 );
 
 /// notificationsReadyProvider -- the init + permission gate for the
-/// incoming call OS notification, 1-в-1 with React's `notificationsReady()`
-/// ref. Runs the flutter_local_notifications init once at startup; on
+/// incoming call OS notification. Runs the flutter_local_notifications
+/// init once at startup; on
 /// macOS/iOS requests alert/badge/sound permission; on Windows/Linux no
 /// permission prompt. Resolves false on host-unavailable (the in-app
 /// IncomingCallModal is the user's signal regardless). Read via

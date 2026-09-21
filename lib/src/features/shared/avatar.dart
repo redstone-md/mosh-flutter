@@ -1,10 +1,9 @@
-// Initials avatar -- the Flutter port of React's `Avatar.tsx` + the
-// `.avatar` rule in chat-pane.css.
+// Initials avatar.
 //
-// React styles every avatar identically (`.avatar { width: 32px; height:
+// Every avatar is styled identically (`.avatar { width: 32px; height:
 // 32px; border-radius: 50%; background: #2d3f23; color: var(--moss);
 // font-size: 11px; font-weight: 700; letter-spacing: 0.04em }`) -- there is
-// no per-name tint. The Flutter port had grown a `avatarColor(name)` hash
+// no per-name tint. An earlier version had an `avatarColor(name)` hash
 // that painted every sender a different Material hue, which is the most
 // visible palette drift in the message list and the rail.
 //
@@ -17,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 
-/// React `.avatar` background -- a fixed dark moss, not a per-name hash.
+/// Avatar background -- a fixed dark moss, not a per-name hash.
 const Color kAvatarBackground = Color(0xFF2D3F23);
 
 class Avatar extends StatelessWidget {
@@ -25,7 +24,7 @@ class Avatar extends StatelessWidget {
 
   final String name;
 
-  /// Circle radius; 16 is React's CSS-fixed 32px diameter.
+  /// Circle radius; 16 is the CSS-fixed 32px diameter.
   final double radius;
 
   @override

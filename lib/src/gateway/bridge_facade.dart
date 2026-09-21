@@ -149,9 +149,8 @@ class BridgeFacade {
       group_api.joinGroup(request: request);
 
   // Peer-DM-offer SEND seams: the outbound counterpart of the Gateway's
-  // dismissDmOffer. Mirrors React `use-dm-offers.ts:54` `offerDm` -- after
-  // createInvite, the popover sends the offer over the channel or group to
-  // the target peer.
+  // dismissDmOffer. After createInvite, the popover sends the offer over
+  // the channel or group to the target peer.
   Future<void> sendChannelDmOffer(
           {required String channelName,
           required String peerFingerprint,
@@ -170,10 +169,10 @@ class BridgeFacade {
           targetFingerprint: peerFingerprint,
           inviteUri: inviteUri);
 
-  // Org surface (1:1 port of the org_* Tauri commands). The org runtime is
-  // a container (members + DM/group offers), not a chat: joinOrg is the
-  // onboarding invite-paste join; leaveOrg closes the org + its bound
-  // private groups; listOrgs/pollOrg read; sendOrgDmOffer/acceptOrgDmOffer/
+  // Org surface. The org runtime is a container (members + DM/group
+  // offers), not a chat: joinOrg is the onboarding invite-paste join;
+  // leaveOrg closes the org + its bound private groups; listOrgs/pollOrg
+  // read; sendOrgDmOffer/acceptOrgDmOffer/
   // dismissOrgDmOffer drive the DM-offer flow; createOrgGroup/
   // acceptOrgGroupOffer/dismissOrgGroupOffer/orgGroupInviteMembers drive
   // the group-offer flow.
@@ -269,9 +268,8 @@ class BridgeFacade {
         memberPeerIds: memberPeerIds,
       );
 
-  // Network + VPN surface (1:1 port of the list_network_interfaces /
-  // detect_vpn / get_bind_interface / get+set_vpn_bypass_consent Tauri
-  // commands).
+  // Network + VPN surface (list_network_interfaces / detect_vpn /
+  // get_bind_interface / get+set_vpn_bypass_consent).
   Future<List<NetworkInterfaceInfo>> listInterfaces() =>
       network_api.listInterfaces();
 
@@ -285,12 +283,11 @@ class BridgeFacade {
   Future<void> setVpnBypassConsent({String? interfaceName}) =>
       vpn_api.setVpnBypassConsent(interface_: interfaceName);
 
-  // Voice-call surface (1:1 port of the private_dm_call_* Tauri commands).
-  // DM-only -- channels/groups have no call path. callStart mints the call
-  // id + key + nonce prefix and moves the session to outgoing-ringing;
-  // callAccept/callDecline/callEnd drive the control state; callSendFrame/
-  // callDrainFrames are the 20ms audio-frame transport the Dart capture/
-  // playback loops drive.
+  // Voice-call surface. DM-only -- channels/groups have no call path.
+  // callStart mints the call id + key + nonce prefix and moves the
+  // session to outgoing-ringing; callAccept/callDecline/callEnd drive
+  // the control state; callSendFrame/callDrainFrames are the 20ms
+  // audio-frame transport the Dart capture/playback loops drive.
   Future<CallStarted> callStart({required String sessionId}) =>
       api.callStart(sessionId: sessionId);
 

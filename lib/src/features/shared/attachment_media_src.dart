@@ -1,12 +1,10 @@
-// Shared attachment media-source helpers -- the 1-1 Flutter port of React's
-// `src/features/private-dm/attachment-utils.ts`. React uses Tauri's
-// `convertFileSrc` (a custom scheme) for local files; Flutter has no such
-// scheme, so a downloaded attachment is served via `file://` + the absolute
+// Shared attachment media-source helpers. A downloaded attachment is
+// served via `file://` + the absolute
 // path (see [localFileSrc]). Streaming media is served by the local
 // ephemeral HTTP server below.
 //
-// [resolveMediaOpen] is the pure decision function ported from React
-// `use-chat-orchestration.ts` L243-265 `openAttachment`: given a descriptor,
+// [resolveMediaOpen] is the pure decision function for opening an
+// attachment: given a descriptor,
 // the current view, and the (kind, host) it returns the (src, download,
 // wait) decision the screen acts on. Extracted as a pure function so it is
 // unit-testable without pumping a widget (the screen wiring stays thin).
@@ -16,11 +14,11 @@ import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
 
-/// React `isViewableMedia` -- image/video/audio. Drives the open affordance.
+/// image/video/audio. Drives the open affordance.
 bool isViewableMedia(String mime) =>
     mime.startsWith('image/') || isStreamableMedia(mime);
 
-/// React `isStreamableMedia` -- video/audio. These stream while downloading.
+/// video/audio. These stream while downloading.
 bool isStreamableMedia(String mime) =>
     mime.startsWith('video/') || mime.startsWith('audio/');
 
@@ -52,7 +50,7 @@ AttachmentOpenIntent resolveLocalAttachmentOpen({
   return AttachmentExternalOpenIntent(localPath: localPath);
 }
 
-/// React `localFileSrc` (Tauri `convertFileSrc`) -- Flutter equivalent. A
+/// Resolves a downloaded attachment's on-disk path to a `file://` URL. A
 /// downloaded attachment lives on disk, so it is served via `file://` + the
 /// absolute path. `Uri.file` normalizes Windows backslashes to forward
 /// slashes and percent-encodes as needed. A path that already starts with a
@@ -98,8 +96,7 @@ String streamingMediaSrc(
   ).toString();
 }
 
-/// The open decision returned by [resolveMediaOpen]. Mirrors the three
-/// branches of React `openAttachment`:
+/// The open decision returned by [resolveMediaOpen]:
 /// - `src` set + `download` false + `wait` false: already downloaded, show
 ///   the local file immediately.
 /// - `src` set + `download` true + `wait` false: streamable media, stream
@@ -114,8 +111,8 @@ class MediaOpenDecision {
   final bool wait;
 }
 
-/// Pure port of React `openAttachment` (use-chat-orchestration.ts L243-265).
-/// Decides the (src, download, wait) for opening `descriptor` given the
+/// Pure decision function for opening an attachment. Decides the (src,
+/// download, wait) for opening `descriptor` given the
 /// current `view` + the streaming (kind, host). The screen calls this and
 /// acts: show the viewer with `src` when set, kick the download when
 /// `download`, and arm the pendingOpen resolver when `wait`.

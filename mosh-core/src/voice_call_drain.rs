@@ -1,9 +1,8 @@
 //! Drains pending wire frames for a voice call: decrypts each via
 //! `voice_call_frame_crypto`, skips any that fail auth, reorders them through
 //! `voice_call_jitter::JitterBuffer`, and feeds the ready ones to playback.
-//! Direct port of `src/features/private-dm/voice-call/call-drain.ts` per
-//! ADR 0012. Pure of React/Tauri so it is unit-testable and so the poll loop
-//! can guard it.
+//! Per ADR 0012. Plain functions, so the drain is unit-testable and the
+//! poll loop can guard it.
 
 use base64::Engine;
 
@@ -12,16 +11,14 @@ use crate::voice_call_frame_crypto::{
 };
 use crate::voice_call_jitter::{BufferedFrame, JitterBuffer};
 
-/// Pulls pending wire frames for a call (the only gateway method this needs).
-/// Mirrors the TS `CallFrameSource.callDrainFrames`, returning base64-encoded
-/// wire frames — the same encoding the TS source yields over the boundary.
+/// Pulls pending wire frames for a call (the only gateway method this needs),
+/// returning base64-encoded wire frames.
 pub trait CallFrameSource {
     /// Fetch the pending base64 wire frames for the given session + call.
     fn call_drain_frames(&mut self, session_id: &str, call_id: &str) -> Vec<String>;
 }
 
 /// Where decoded, reordered frames go (the playback handle, narrowed).
-/// Mirrors the TS `CallFrameSink.pushFrame(seq, payload)`.
 pub trait CallFrameSink {
     fn push_frame(&mut self, seq: u64, payload: &[u8]);
 }
@@ -42,7 +39,7 @@ where
 /// decrypted frames into `jitter`, then feed `jitter.drain_ready()` to
 /// `playback` in seq order.
 ///
-/// Pure of React/Tauri and infallible at the transport layer: malformed or
+/// Plain functions, infallible at the transport layer: malformed or
 /// tampered frames are skipped, never propagated as errors.
 pub fn drain_call_frames(
     source: &mut dyn CallFrameSource,
@@ -80,7 +77,7 @@ mod tests {
     use crate::voice_call_frame_crypto::{seal_frame, CALLEE_DIRECTION_BIT};
 
     // KEY_B64 = "AAAA...AAAA==" -> 32 zero bytes; PREFIX_B64 = "AAAAAA==" ->
-    // 4 zero bytes. The TS tests use these; the Rust port takes raw bytes.
+    // 4 zero bytes. The tests use all-zero raw bytes directly.
     const KEY: [u8; KEY_LEN] = [0u8; KEY_LEN];
     const PREFIX: [u8; NONCE_PREFIX_LEN] = [0u8; NONCE_PREFIX_LEN];
 
@@ -88,8 +85,7 @@ mod tests {
         base64::engine::general_purpose::STANDARD.encode(bytes)
     }
 
-    /// Collect played frames as the single payload byte, in order — matches
-    /// the TS `played: number[]` assertion shape.
+    /// Collect played frames as the single payload byte, in order.
     struct CaptureSink {
         played: Vec<u8>,
     }

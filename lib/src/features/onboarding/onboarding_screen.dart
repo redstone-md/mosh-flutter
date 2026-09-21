@@ -3,9 +3,8 @@
 // lives in OnboardMenu (onboard_menu.dart) so atomic #3 can embed the same
 // widget inline in the desktop chat-pane. This screen keeps only the
 // Scaffold + a bare AppBar and decides routing for the four tiles via
-// context.go (1:1 with React's NewSessionPanel onPick, mapped to route
-// navigation rather than a step switch). The Join tile goes to /join
-// (InvitePasteScreen); Group/Chat/Channel go to their create/join steps.
+// context.go. The Join tile goes to /join (InvitePasteScreen);
+// Group/Chat/Channel go to their create/join steps.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,12 +32,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Banner above the menu (React parity; OnboardMenu has no banner, so a
-    // single surface shows it once).
+    // Banner above the menu (OnboardMenu has no banner, so a single
+    // surface shows it once).
     final warning = ref.watch(persistenceWarningProvider);
     return Scaffold(
       // No AppBar actions: peer status lives in the shell titlebar
-      // (MoshTitleBar's "Peer status" button), 1:1 with React.
+      // (MoshTitleBar's "Peer status" button).
       appBar: AppBar(),
       body: Center(
         child: SingleChildScrollView(

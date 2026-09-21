@@ -1,41 +1,33 @@
-// Shared FailedMessageRetry row -- the 1-в-1 port of React's
-// `FailedMessageRetry` (src/features/private-dm/MessageLists.tsx L434-468).
-// React renders this row BELOW the message body (and below the
-// AttachmentCard) inside `message-body`, ONLY when the message is an
-// outbound (`outbound === message.from_fingerprint === ownFingerprint`)
-// failed+retryable message with a non-null `message_id`. The channel +
-// group message rows (`ChannelMessageRow` / `GroupMessageRow`) gate it with
-// that same condition in their build methods and pass the localized strings
-// + a `onRetry` callback; the DM row will reuse the same widget later
-// (deferred to a DM-side atomic).
+// Shared FailedMessageRetry row -- rendered BELOW the message body (and
+// below the AttachmentCard) inside `message-body`, ONLY when the message is
+// an outbound failed+retryable message with a non-null `message_id`. The
+// channel + group message rows (`ChannelMessageRow` / `GroupMessageRow`)
+// gate it with that same condition in their build methods and pass the
+// localized strings + a `onRetry` callback; the DM row will reuse the same
+// widget later (deferred to a DM-side atomic).
 //
 // The `onRetry` callback is wired by the row screens to `Gateway.retry`:
-// React `retryChannelMessage` / `retryGroupMessage` (native-messaging-
-// gateway.ts L494/500) -> Rust `channel_retry_message` /
-// `private_group_retry_message` (src-tauri/src/lib.rs L780/922) -> frb
-// `channel_api.retryMessage` / `group_api.retryMessage`. Tapping Retry fires
-// the seam then invalidates the conversation snapshot so the next poll
-// re-renders the row delivery status (mirrors the AttachmentCard
-// download/cancel wiring).
+// frb `channel_api.retryMessage` / `group_api.retryMessage`. Tapping Retry
+// fires the seam then invalidates the conversation snapshot so the next
+// poll re-renders the row delivery status (the same pattern the
+// AttachmentCard download/cancel wiring uses).
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 
-/// The render-side retry row for an outbound failed+retryable message
-/// (1-в-1 with React `FailedMessageRetry`). Renders an error line + a
-/// compact Retry button. The caller gates the render condition
+/// The render-side retry row for an outbound failed+retryable message.
+/// Renders an error line + a compact Retry button. The caller gates the
+/// render condition
 /// (`own && deliveryStatus == failed && retryable && messageId != null`)
 /// and only constructs this widget when it holds -- this widget does NOT
 /// re-check those conditions (it has no `message` reference, only the
-/// `deliveryError` + `onRetry` + localized strings), matching React where
-/// `FailedMessageRetry` is the gate itself but here the row already gated.
+/// `deliveryError` + `onRetry` + localized strings).
 ///
 /// Accessibility: the whole row is a `Semantics` status node labeled by
 /// `messageFailedWithError(deliveryError)` (or `messageFailedToSend` when
-/// `deliveryError` is null/empty), mirroring React's `role=status
-/// aria-label`. The Retry button carries its own `Retry failed message`
-/// semantics label (React's `aria-label`).
+/// `deliveryError` is null/empty). The Retry button carries its own
+/// `Retry failed message` semantics label.
 class FailedMessageRetry extends StatelessWidget {
   const FailedMessageRetry({
     super.key,
@@ -44,7 +36,7 @@ class FailedMessageRetry extends StatelessWidget {
     required this.l,
   });
 
-  /// The server-reported failure detail (React `message.delivery_error`).
+  /// The server-reported failure detail.
   /// Trimmed before display (`deliveryError?.trim()`); null/empty falls
   /// back to the localized "Failed to send".
   final String? deliveryError;
@@ -54,10 +46,9 @@ class FailedMessageRetry extends StatelessWidget {
   /// invalidate the conversation snapshot so the next poll re-renders.
   final VoidCallback onRetry;
 
-  /// Localized strings (the React component inlined the literals "Failed
-  /// to send" / "Retry" / "Retry failed message"; the Flutter port
-  /// localizes them via ARB). Built from `AppLocalizations.of(context)!`
-  /// via the [toFailedMessageRetryL10n] extension at the call site.
+  /// Localized strings, localized via ARB. Built from
+  /// `AppLocalizations.of(context)!` via the [toFailedMessageRetryL10n]
+  /// extension at the call site.
   final FailedMessageRetryL10n l;
 
   @override
@@ -65,9 +56,9 @@ class FailedMessageRetry extends StatelessWidget {
     final theme = Theme.of(context);
     final trimmed = deliveryError?.trim();
     final hasError = trimmed != null && trimmed.isNotEmpty;
-    // React: `deliveryError?.trim() || "Failed to send"`.
+    // "Failed to send" when there is no trimmed error detail.
     final errorText = hasError ? trimmed : l.messageFailedToSend;
-    // React aria-label: `deliveryError ? "Failed: {error}" : "Failed to send"`.
+    // The status label: "Failed: {error}" or "Failed to send".
     final statusLabel =
         hasError ? l.messageFailedWithError(trimmed) : l.messageFailedToSend;
     return Semantics(
@@ -93,8 +84,8 @@ class FailedMessageRetry extends StatelessWidget {
             TextButton(
               onPressed: onRetry,
               style: TextButton.styleFrom(
-                // React's `.chat-error-retry` is a small error-tinted
-                // button; mirror with error foreground + dense padding.
+                // A small error-tinted
+                // button: error foreground + dense padding.
                 foregroundColor: theme.colorScheme.error,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: const Size(0, 32),
@@ -128,17 +119,17 @@ class FailedMessageRetryL10n {
     required this.retry,
   });
 
-  /// "Failed to send" (React inline literal, the `<span>` fallback text).
+  /// "Failed to send" -- the fallback text.
   final String messageFailedToSend;
 
-  /// "Failed: {error}" (React aria-label when `deliveryError` is present).
+  /// "Failed: {error}" -- the status label when `deliveryError` is present.
   /// The `{error}` placeholder is the trimmed delivery error.
   final String Function(String error) messageFailedWithError;
 
-  /// "Retry failed message" (React button `aria-label`).
+  /// "Retry failed message" -- the retry button's semantics label.
   final String retryFailedMessage;
 
-  /// "Retry" (React button text).
+  /// "Retry" -- the retry button text.
   final String retry;
 }
 

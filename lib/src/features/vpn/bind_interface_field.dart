@@ -1,36 +1,21 @@
-// BindInterfaceField -- 1-в-1 port of React `src/features/private-dm/vpn/
-// BindInterfaceField.tsx`. The Advanced-section control that changes the
+// BindInterfaceField: the Advanced-section control that changes the
 // VPN-bypass answer after the fact. Writes the same stored answer the
 // startup question does (so the two cannot disagree) + relaunches: a
 // node's bind is fixed when the node is built, so nothing already running
 // would pick the change up otherwise.
 //
-// React structure (BindInterfaceField.tsx):
-//   .bind-interface-field[.bind-interface-on] (border tinted green when on)
-//     -> .bind-interface-head (row)
-//        -> span.bind-interface-icon (IconShieldLock when on /
-//           IconPlugConnected when off, 15px, moss tint)
-//        -> strong "Network adapter" + p body (bound -> "Moss is bound to
-//           ${current}." / unbound -> "Use a physical NIC when a VPN
-//           blocks peer discovery.")
-//     -> if no candidates: p.bind-interface-hint "No connected physical
-//        NIC detected."
-//     -> else .bind-interface-controls (grid: select + button)
-//        -> select.bind-interface-select (adapterLabel per option,
-//           value=picked, disabled when busy)
-//        -> button (ghost "Release" when on / primary "Bind" when off;
-//           "Restarting..." when busy)
-//     -> if on: p.bind-interface-active (IconCheck + "Every conversation
-//        uses ${current}.")
-//     -> p.bind-interface-hint (the LAN-IP exposure warning)
-//     -> p.bind-interface-error (if error)
+// Structure: a bordered card (border tinted green when a bind is active)
+// with a header row (shield/plug icon + title + body text), then either a
+// "no connected physical NIC" hint or an adapter dropdown + Bind/Release
+// button, an active-bind confirmation line, the LAN-IP exposure hint,
+// and an optional error line.
 //
-// On mount React `Promise.all([listNetworkInterfaces, getBindInterface])`,
-// defaulting `picked` to the current bind or `defaultBypassAdapter(list)`.
+// On mount fetch listNetworkInterfaces + getBindInterface, defaulting
+// `picked` to the current bind or `defaultBypassAdapter(list)`.
 // apply(enabled ? null : picked) -> setVpnBypassConsent(value) +
-// restartApp(). `restartApp` is an injectable callback (`onAccept`) so the
-// field remains parity-first and testable. Production supplies the
-// Windows-only desktop relauncher; unsupported platforms use a safe no-op.
+// restartApp(). `restartApp` is an injectable callback (`onAccept`) so
+// the field remains testable. Production supplies the Windows-only
+// desktop relauncher; unsupported platforms use a safe no-op.
 
 library;
 
@@ -42,7 +27,7 @@ import 'package:mosh/src/features/vpn/bypass_adapter.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 
-/// The bind-interface field -- 1-в-1 with React's `BindInterfaceField`.
+/// The bind-interface field.
 class BindInterfaceField extends StatefulWidget {
   const BindInterfaceField({
     super.key,
@@ -57,9 +42,9 @@ class BindInterfaceField extends StatefulWidget {
   /// Localizations (bindAdapter*).
   final AppLocalizations l;
 
-  /// Invoked after `setVpnBypassConsent` succeeds, to relaunch (React
-  /// `gateway.restartApp()`). Production wires the Windows-only desktop
-  /// relauncher; unsupported platforms use a safe no-op.
+  /// Invoked after `setVpnBypassConsent` succeeds, to relaunch. Production
+  /// wires the Windows-only desktop relauncher; unsupported platforms use
+  /// a safe no-op.
   final Future<void> Function() onAccept;
 
   @override
@@ -79,8 +64,8 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
     _refresh();
   }
 
-  // React: `Promise.all([listNetworkInterfaces, getBindInterface])`; default
-  // `picked` to the current bind or `defaultBypassAdapter(list)`.
+  // Fetch the interface list + current bind; default `picked` to the
+  // current bind or `defaultBypassAdapter(list)`.
   Future<void> _refresh() async {
     try {
       final results = await Future.wait([
@@ -136,10 +121,8 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
     final l = widget.l;
     final candidates = bypassCandidates(_interfaces);
     final enabled = _current != null && _current!.isNotEmpty;
-    // React `.bind-interface-field { padding: 12px; border: 1px solid
-    // var(--line); border-radius: 12px; background: var(--bg-1) }`, with
-    // `.bind-interface-on` swapping to a rgba(moss,0.3) border over
-    // --moss-glow.
+    // Card: 12px padding, 1px hairline border, 12px radius, bg-1 fill;
+    // a moss-tinted border + moss-glow fill when a bind is active.
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -154,7 +137,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // .bind-interface-head: icon + strong title + p body.
+          // Header: icon + strong title + p body.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -164,9 +147,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // `.bind-interface-head strong { font-size: 12.5px;
-                    // color: var(--fg-1) }` over `p { margin-top: 2px;
-                    // font-size: 11px; line-height: 1.35; color: --fg-3 }`.
+                    // Title: 12.5px, fg-1; body: 11px/1.35, fg-3.
                     Text(
                       l.bindAdapterTitle,
                       style: const TextStyle(
@@ -199,7 +180,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // .bind-interface-select (DropdownButton in Flutter).
+                // Adapter dropdown.
                 Expanded(
                   child: DropdownButton<String>(
                     value: candidates.any((i) => i.name == _picked)
@@ -240,8 +221,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // `.bind-interface-active { gap: 5px; color: var(--moss);
-                // font-size: 11px }`.
+                // Active-bind line: check icon + text, moss, 11px.
                 const Icon(Icons.check, size: 13, color: MoshColors.moss),
                 const SizedBox(width: 5),
                 Text(
@@ -255,7 +235,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
             ),
           ],
           const SizedBox(height: 10),
-          // .bind-interface-hint (LAN-IP exposure warning).
+          // LAN-IP exposure hint.
           Text(l.bindAdapterHint,
               style: theme.textTheme.bodySmall
                   ?.copyWith(fontSize: 11, height: 1.4)),
@@ -271,8 +251,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
   }
 }
 
-/// .bind-interface-icon: IconShieldLock when on, IconPlugConnected when off
-/// (Material's Icons.shield / Icons.power closest to tabler's glyphs).
+/// Head icon: shield when on, power plug when off (15px, moss tint).
 class _HeadIcon extends StatelessWidget {
   const _HeadIcon({required this.enabled});
   final bool enabled;

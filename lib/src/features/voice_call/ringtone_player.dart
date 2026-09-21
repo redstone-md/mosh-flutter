@@ -4,17 +4,15 @@
 
 library;
 
-/// A handle to a started ringtone -- mirrors React's `RingtoneHandle`
-/// (`{ stop(): void }`). The modal holds this from `start()` until
+/// A handle to a started ringtone. The modal holds this from `start()` until
 /// `dispose()`, then calls `stop()`.
 abstract class RingtoneHandle {
   void stop();
 }
 
 /// The seam the call modals call. `start()` returns a [RingtoneHandle]
-/// that the modal `stop()`s on dispose; `start()` is a no-op-safe call
-/// (React wraps `startRingtone()` in `try/catch` and tolerates a null
-/// ref).
+/// that the modal `stop()`s on dispose; callers tolerate a failed
+/// `start()` (the modals wrap it in `try/catch`).
 abstract class RingtonePlayer {
   RingtoneHandle start();
 }
