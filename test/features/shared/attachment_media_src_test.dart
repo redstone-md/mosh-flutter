@@ -1,8 +1,7 @@
 // Unit tests for `attachment_media_src.dart` -- the pure helpers + the
-// [resolveMediaOpen] decision function that ports React's `openAttachment`
-// state machine (use-chat-orchestration.ts L243-265). Pure-function tests:
-// no widget pump, no Gateway, no native cdylib -- the screen wiring stays
-// thin and is exercised by the per-screen attachment suites instead.
+// [resolveMediaOpen] decision function. Pure-function tests: no widget
+// pump, no Gateway, no native cdylib -- the screen wiring stays thin and
+// is exercised by the per-screen attachment suites instead.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/shared/attachment_media_src.dart';
@@ -135,7 +134,7 @@ void main() {
     });
 
     test('kind is interpolated verbatim (not encoded)', () {
-      // kind is the path segment, not a user value; React keeps it raw too.
+      // kind is the path segment, not a user value, so it stays raw.
       expect(
         streamingMediaSrc('group', 'g', 'a', baseUri: _testMediaBaseUri),
         'http://127.0.0.1:12345/group/g/a',
@@ -228,7 +227,7 @@ void main() {
     });
 
     test('already-downloaded streamable prefers the local file', () {
-      // React's first branch wins: local_path beats streamable.
+      // The local file wins over the streamable src.
       final d = _descriptor(attachmentId: 'a7', mime: 'video/mp4');
       final v = _view(attachmentId: 'a7', localPath: '/tmp/mosh/a7.mp4');
       final dec = resolveMediaOpen(

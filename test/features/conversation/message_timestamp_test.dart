@@ -1,12 +1,10 @@
-// Unit + widget tests for the locale-aware message timestamp port of
-// React `MessageTimestamp` (src/features/private-dm/MessageLists.tsx):
-// `formatClock` (the visible `toLocaleTimeString` HH:mm) and
-// `formatClockFull` (the `title={toLocaleString()}` tooltip), both in the
-// LOCAL timezone and driven by the AppLocalizations locale via `intl`'s
-// `DateFormat`. The widget test pumps `DmScreen` with one non-grouped peer
-// message carrying a fixed epoch and asserts the visible HH:mm renders AND
-// a `Tooltip` with the full locale-aware date-time message is present
-// (1-1 with React's `<time title={...}>`).
+// Unit + widget tests for the locale-aware message timestamp:
+// `formatClock` (the visible HH:mm) and `formatClockFull` (the full
+// date-time tooltip), both in the LOCAL timezone and driven by the
+// AppLocalizations locale via `intl`'s `DateFormat`. The widget test
+// pumps `DmScreen` with one non-grouped peer message carrying a fixed
+// epoch and asserts the visible HH:mm renders AND a `Tooltip` with the
+// full locale-aware date-time message is present.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -106,8 +104,7 @@ void main() {
     test('returns a non-null full date-time containing the year + a time', () {
       final full = formatClockFull(epoch, locale: 'en');
       expect(full, isNotNull);
-      // The full string embeds the year (React's toLocaleString always
-      // shows the full year in the en-US default).
+      // The full string embeds the year.
       expect(full, contains('2023'));
       // And it is strictly longer than the HH:mm clock.
       expect(full!.length, greaterThan(expectedClock().length));
@@ -137,14 +134,12 @@ void main() {
                 .overrideWith((ref) async => snapshot),
           ]);
 
-      // The visible locale-aware HH:mm renders (1-1 with React's
-      // toLocaleTimeString visible text).
+      // The visible locale-aware HH:mm renders.
       expect(find.text(expectedClock()), findsOneWidget);
 
-      // A Tooltip carrying the full locale-aware date-time is present
-      // (1-1 with React's `title={date.toLocaleString()}`). The DM meta
-      // row also has the MlsBadge Tooltip, so we match by message rather
-      // than by type alone.
+      // A Tooltip carrying the full locale-aware date-time is present.
+      // The DM meta row also has the MlsBadge Tooltip, so we match by
+      // message rather than by type alone.
       final tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
       final expected = expectedFull();
       final timestampTooltip = tooltips.firstWhere(

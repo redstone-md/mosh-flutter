@@ -1,11 +1,11 @@
 // Regression test for the lost AUTO_POLL_MS loop.
 //
-// The Flutter port dropped React's `usePrivateDmSnapshots` 1 s interval
-// (use-private-dm-snapshots.ts L142). Because every Rust read entry point
-// starts with `drain_inbound()`, "nothing polls" meant "nothing receives":
-// a fresh session stayed `connecting` until BOTH peers sent, and peer
-// messages only appeared after a local send. These tests pin that the
-// loop re-queries the bridge facade with NO mutation in between.
+// The Flutter port originally dropped the 1 s poll interval. Because every
+// Rust read entry point starts with `drain_inbound()`, "nothing polls"
+// meant "nothing receives": a fresh session stayed `connecting` until BOTH
+// peers sent, and peer messages only appeared after a local send. These
+// tests pin that the loop re-queries the bridge facade with NO mutation in
+// between.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

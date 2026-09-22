@@ -18,30 +18,26 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
 
-/// Join an org from a `mosh://org` bundle URI (1:1 port of `org_join`,
-/// src-tauri/src/lib.rs L958-964). Delegates to `OrgRuntime::join_org`.
+/// Join an org from a `mosh://org` bundle URI. Delegates to `OrgRuntime::join_org`.
 Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) =>
     RustLib.instance.api.crateApiOrgJoinOrg(request: request);
 
-/// Leave an org and close its bound groups (1:1 port of `org_leave`). The
-/// Tauri command also closed the org's bound private groups; this function
+/// Leave an org and close its bound groups. This function
 /// drives both the org and group singletons from one place.
 Future<void> leaveOrg({required String orgPubkey}) =>
     RustLib.instance.api.crateApiOrgLeaveOrg(orgPubkey: orgPubkey);
 
-/// List all joined orgs and their snapshots (1:1 port of `org_list`,
-/// src-tauri/src/lib.rs L985-989). The runtime's `list` returns a
+/// List all joined orgs and their snapshots. The runtime's `list` returns a
 /// `Vec<OrgSnapshot>` directly (no Result), so the facade wraps it in `Ok`
-/// to match the Tauri command's `Result<Vec<OrgSnapshot>, String>` shape.
+/// for the bridge's `Result<Vec<OrgSnapshot>, String>` shape.
 Future<List<OrgSnapshot>> list() => RustLib.instance.api.crateApiOrgList();
 
-/// Poll an org for its current snapshot (1:1 port of `org_poll`,
-/// src-tauri/src/lib.rs L992-995). Delegates to `OrgRuntime::poll`.
+/// Poll an org for its current snapshot. Delegates to `OrgRuntime::poll`.
 Future<OrgSnapshot> poll({required String orgPubkey}) =>
     RustLib.instance.api.crateApiOrgPoll(orgPubkey: orgPubkey);
 
-/// Send a private-DM invitation to one org member (1:1 port of
-/// `org_send_dm_offer`). Mints the invite via the private-DM runtime and
+/// Send a private-DM invitation to one org member. Mints the invite via
+/// the private-DM runtime and
 /// records the offer in the org runtime.
 Future<InviteCreated> sendDmOffer(
         {required String orgPubkey,
@@ -56,7 +52,7 @@ Future<InviteCreated> sendDmOffer(
         listenPort: listenPort,
         staticPeer: staticPeer);
 
-/// Accept an org-carried DM offer (1:1 port of `org_accept_dm_offer`).
+/// Accept an org-carried DM offer.
 /// Accepts the invite via the private-DM runtime and clears the offer in the
 /// org runtime.
 Future<SessionSnapshot> acceptDmOffer(
@@ -72,15 +68,14 @@ Future<SessionSnapshot> acceptDmOffer(
         listenPort: listenPort,
         staticPeer: staticPeer);
 
-/// Dismiss an org DM offer (1:1 port of `org_dismiss_dm_offer`,
-/// src-tauri/src/lib.rs L1070-1076). Delegates to
+/// Dismiss an org DM offer. Delegates to
 /// `OrgRuntime::dismiss_dm_offer`.
 Future<void> dismissDmOffer(
         {required String orgPubkey, required String offerId}) =>
     RustLib.instance.api
         .crateApiOrgDismissDmOffer(orgPubkey: orgPubkey, offerId: offerId);
 
-/// Create an org-bound private group (1:1 port of `org_create_group`).
+/// Create an org-bound private group.
 /// Creates the group via the private-group runtime and records the binding in
 /// the org runtime.
 Future<GroupCreated> createGroup(
@@ -98,7 +93,7 @@ Future<GroupCreated> createGroup(
         listenPort: listenPort,
         staticPeer: staticPeer);
 
-/// Accept an org-carried group offer (1:1 port of `org_accept_group_offer`).
+/// Accept an org-carried group offer.
 /// Joins the group via the private-group runtime and clears the offer in the
 /// org runtime.
 Future<GroupSnapshot> acceptGroupOffer(
@@ -114,16 +109,14 @@ Future<GroupSnapshot> acceptGroupOffer(
         listenPort: listenPort,
         staticPeer: staticPeer);
 
-/// Dismiss an org group offer (1:1 port of `org_dismiss_group_offer`,
-/// src-tauri/src/lib.rs L1154-1162). Delegates to
+/// Dismiss an org group offer. Delegates to
 /// `OrgRuntime::dismiss_group_offer`.
 Future<void> dismissGroupOffer(
         {required String orgPubkey, required String offerId}) =>
     RustLib.instance.api
         .crateApiOrgDismissGroupOffer(orgPubkey: orgPubkey, offerId: offerId);
 
-/// One-click invite the roster members not yet in a group (1:1 port of
-/// `org_group_invite_members`). Re-offers the group's invite URI to each
+/// One-click invite the roster members not yet in a group. Re-offers the group's invite URI to each
 /// listed peer via the org runtime's group-offer path.
 Future<void> groupInviteMembers(
         {required String orgPubkey,

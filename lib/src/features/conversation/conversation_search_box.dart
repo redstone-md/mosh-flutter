@@ -1,6 +1,5 @@
-// The `.conversation-search` field and the `.conversation-filter` segmented
-// toggle from chat-pane.css, shared by the desktop ConversationTools row and
-// the mobile search panel.
+// The conversation search field and the filter segmented toggle, shared by
+// the desktop ConversationTools row and the mobile search panel.
 //
 // Both call sites previously built a `TextEditingController(text: search)`
 // inside `build`, which recreates the controller on every rebuild and drops
@@ -15,19 +14,18 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// React `.conversation-search` / `.conversation-filter { height: 34px }`.
+/// Height of a search/filter tool in the tools row.
 const double kConversationToolHeight = 34;
 
-/// React `.conversation-tools { margin: 12px 22px 0 }`.
+/// Outer margin of the tools row under the chat header.
 const EdgeInsets kConversationToolsMargin = EdgeInsets.fromLTRB(22, 12, 22, 0);
 
-/// React `.conversation-tools { gap: 10px }`.
+/// Gap between the search box and the filter toggle.
 const double kConversationToolsGap = 10;
 
-/// The search field: a 34px pill at radius 8 on --bg-2 behind a --line
-/// border, holding a --fg-3 glyph and a borderless 12.5px input. Focus
-/// swaps the border to rgba(moss, 0.45) over --bg-0
-/// (`.conversation-search:focus-within`).
+/// The search field: a 34px pill at radius 8 on bg-2 behind a line border,
+/// holding an fg-3 glyph and a borderless 12.5px input. Focus swaps the
+/// border to a 45% moss tint over bg-0.
 class ConversationSearchBox extends StatefulWidget {
   const ConversationSearchBox({
     super.key,
@@ -42,8 +40,7 @@ class ConversationSearchBox extends StatefulWidget {
   final ValueChanged<String> onSearch;
   final AppLocalizations l;
 
-  /// The mobile panel autofocuses on mount (React's `inputRef.current
-  /// ?.focus()`); the desktop row does not.
+  /// The mobile panel autofocuses on mount; the desktop row does not.
   final bool autofocus;
 
   /// Supplied by the mobile panel so its test can assert focus.
@@ -114,7 +111,7 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
               size: 16,
               color: _focused ? MoshColors.fg1 : MoshColors.fg3,
             ),
-            const SizedBox(width: 8), // `.conversation-search { gap: 8px }`
+            const SizedBox(width: 8), // glyph-to-input gap
             Expanded(
               child: TextField(
                 controller: _controller,
@@ -143,9 +140,9 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
   }
 }
 
-/// The `.conversation-filter` segment group: a 34px bordered --bg-2 track
-/// with 3px of padding around two 26px radius-6 buttons at 11.5px/600. The
-/// selected one sits on --bg-4 in --fg-1; the other is --fg-3.
+/// The filter segment group: a 34px bordered bg-2 track with 3px of
+/// padding around two 26px radius-6 buttons at 11.5px/600. The selected one
+/// sits on bg-4 in fg-1; the other is fg-3.
 class ConversationFilterToggle extends StatelessWidget {
   const ConversationFilterToggle({
     super.key,
@@ -225,7 +222,7 @@ class _FilterSegment extends StatelessWidget {
             children: <Widget>[
               if (icon != null) ...<Widget>[
                 Icon(icon, size: 13, color: color),
-                const SizedBox(width: 5), // `.conversation-filter { gap: 5px }`
+                const SizedBox(width: 5), // icon-to-label gap
               ],
               Text(
                 label,

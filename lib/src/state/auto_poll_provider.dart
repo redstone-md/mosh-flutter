@@ -1,6 +1,4 @@
-// The app-wide auto-poll loop -- the Flutter port of React's
-// `usePrivateDmSnapshots` interval (use-private-dm-snapshots.ts L139-149:
-// `window.setInterval(() => void refresh(true), AUTO_POLL_MS)`).
+// The app-wide auto-poll loop.
 //
 // Why this exists: `mosh_core` exposes NO StreamSink. Every Rust read entry
 // point (`private_dm::list_sessions` / `poll_session`, `channel::list` /
@@ -12,10 +10,8 @@
 // appeared after a local send.
 //
 // Shape: one process-lifetime `Timer.periodic` refreshing the conversation
-// list of every kind in parallel (React's `Promise.all` of
-// listPrivateSessions / listChannels / listPrivateGroups) plus the open
-// conversation's snapshot family. `_inFlight` mirrors React's `pollInFlight`
-// ref so a slow tick is skipped rather than queued.
+// list of every kind in parallel plus the open conversation's snapshot
+// family. `_inFlight` skips a slow tick rather than queueing it.
 //
 // The list entries use their own `refresh()` (a guard-swap that never
 // publishes `AsyncLoading`), so the rail does not flicker. The snapshot
@@ -34,7 +30,7 @@ import 'package:mosh/src/state/active_conversation_key_provider.dart'
 import 'package:mosh/src/state/conversation_providers.dart'
     show invalidateConversation, refreshConversationLists;
 
-/// Poll cadence -- 1:1 with React's `AUTO_POLL_MS = 1000`.
+/// Poll cadence -- 1 second.
 const Duration kAutoPollInterval = Duration(milliseconds: 1000);
 
 /// The cadence [autoPollProvider] runs at, or null to not poll at all.

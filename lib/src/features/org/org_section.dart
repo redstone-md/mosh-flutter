@@ -1,6 +1,5 @@
-// OrgSection -- 1-в-1 port of React `src/features/private-dm/org/
-// OrgSection.tsx`. All 7 callbacks pass through unchanged so the
-// host wires them to the bridge-facade seam (ADR 0025).
+// OrgSection -- the org-roster rail section. All 7 callbacks pass through
+// unchanged so the host wires them to the bridge-facade seam (ADR 0025).
 
 library;
 
@@ -11,7 +10,7 @@ import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
-/// The org-roster rail section -- 1-в-1 with React's `OrgSection`.
+/// The org-roster rail section.
 class OrgSection extends StatelessWidget {
   const OrgSection({
     super.key,

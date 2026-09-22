@@ -1,6 +1,6 @@
 // Parity tests for `voice_playback` (lib/src/features/voice_call/voice_playback.dart)
 // -- the seam between the call orchestrator and an actual audio playback
-// pipeline, mirroring React's `audio-playback.ts` `VoicePlaybackHandle`
+// pipeline: a `VoicePlaybackHandle`
 // (`{ pushFrame(seq, payload); stop(): void }`) + `startVoicePlayback()`
 // factory. The real `media_kit`-backed playback lands in a later slice; these
 // tests pin the [NoopVoicePlaybackFactory] contract (inert feed, idempotent

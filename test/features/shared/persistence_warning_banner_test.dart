@@ -1,8 +1,6 @@
-// Widget test for `PersistenceWarningBanner` (1-в-1 with React's
-// `PersistenceWarningBanner` in
-// src/features/private-dm/NewSessionPanel.parts.tsx). Asserts the localized
+// Widget test for `PersistenceWarningBanner`. Asserts the localized
 // title + body render and the banner exposes a `Semantics` container so
-// screen readers announce it as a status region (React `role="status"`).
+// screen readers announce it as a status region.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,7 +22,7 @@ void main() {
     final l = AppLocalizations.of(
         tester.element(find.byType(PersistenceWarningBanner)))!;
     expect(find.text(l.persistenceWarningUnavailableTitle), findsOneWidget);
-    // React appends ` Reason: <error>` (leading space) to the unavailable body.
+    // The unavailable body gets ` Reason: <error>` (leading space) appended.
     expect(
       find.text(l.persistenceWarningUnavailableBody(' Reason: no instance')),
       findsOneWidget,
@@ -49,8 +47,7 @@ void main() {
     );
   });
 
-  testWidgets(
-      'exposes a Semantics container labeled with title + body (React role="status")',
+  testWidgets('exposes a Semantics container labeled with title + body',
       (tester) async {
     final warning = PersistenceWarning(
       kind: PersistenceWarningKind.unavailable,
@@ -68,7 +65,7 @@ void main() {
     // Read the merged semantics node for the banner widget directly.
     // The merged semantics node carries the title + body (Flutter joins the
     // child Text labels of the Column); assert both substrings are present so
-    // the status region announces the full warning (React role="status").
+    // the status region announces the full warning.
     final label = tester
         .getSemantics(find.byType(PersistenceWarningBanner))
         .getSemanticsData()
@@ -77,7 +74,7 @@ void main() {
     expect(label, contains(body));
   });
 
-  testWidgets('omits a semantic label on the alert icon (React aria-hidden)',
+  testWidgets('omits a semantic label on the alert icon (decorative)',
       (tester) async {
     final warning = PersistenceWarning(
       kind: PersistenceWarningKind.unavailable,

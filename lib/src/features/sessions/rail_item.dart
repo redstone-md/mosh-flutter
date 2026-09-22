@@ -1,41 +1,34 @@
-// The rail row chrome, ported from `.rail-item` in desktop-shell.css.
+// The rail row chrome.
 //
-// The Flutter rail has no collapse mode (it is a fixed pane), so the target
-// is React's EXPANDED rail throughout: `.session-rail-expanded .rail-item`
-// is a 48px row at radius 12 with 12px side padding and a 10px gap, holding
-// a leading avatar/icon, a two-line `.rail-text` block (12.5px/1.1 --fg-1
-// over 10.5px/1.1 --fg-4) and the unread badge. Active is
-// `box-shadow: inset 0 0 0 2px <accent>`.
+// A rail row is a 48px row at radius 12 with 12px side padding and a 10px
+// gap, holding a leading avatar/icon, a two-line text block (12.5px/1.1
+// fg-1 over 10.5px/1.1 fg-4) and the unread badge. Active is an inset
+// 2px accent ring.
 //
-// The per-kind tints are CSS too: a DM row is plain --bg-2 with --fg-2
-// glyphs, `.rail-channel` is rgba(--info, 0.10) with --info, and
-// `.rail-group` is --moss-glow with --moss. The active ring follows the
-// tint (--info for channels, --moss otherwise).
-//
-// The expanded rail hides `.rail-dot` and `.rail-admin-crown` outright, so
-// those never render here. `.rail-offer-badge` is the exception: it belongs
-// to the offer row alone, which renders it in [RailItem]'s trailing slot
-// next to the dismiss X (see `rail_entry.dart`).
+// The per-kind tints: a DM row is plain bg-2 with fg-2 glyphs, a channel
+// row is info at 10% alpha with info, and a group row is moss-glow with
+// moss. The active ring follows the tint (info for channels, moss
+// otherwise).
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// Which `.rail-item` variant a row is: the tint and the active ring both
+/// Which rail-item variant a row is: the tint and the active ring both
 /// follow from it.
 enum RailItemKind { dm, channel, group }
 
-/// React `.session-rail-expanded .rail-item { height: 48px }`.
+/// Height of one rail row.
 const double kRailItemHeight = 48;
 
-/// React `.rail-list { gap: 8px }`.
+/// Vertical gap between rail rows.
 const double kRailListGap = 8;
 
-/// React `.session-rail-expanded { padding: 12px; gap: 12px }`.
+/// Padding around the rail and gap between its sections.
 const double kRailPadding = 12;
 
-/// React `.desktop-body-rail-expanded { grid-template-columns: 268px ... }`.
+/// Width of the expanded rail pane.
 const double kRailWidth = 268;
 
 extension on RailItemKind {
@@ -81,9 +74,9 @@ class RailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // React keeps `.rail-item { border-radius: 12px }` in every state; the
-    // active ring is an inset border and must not move the outer geometry
-    // (audit 2026-09-21: radius jumped 12 -> 14 when a row was selected).
+    // The radius stays 12 in every state; the active ring is an inset
+    // border and must not move the outer geometry (audit 2026-09-21:
+    // radius jumped 12 -> 14 when a row was selected).
     final radius = BorderRadius.circular(12);
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
@@ -155,8 +148,7 @@ class RailItem extends StatelessWidget {
   }
 }
 
-/// React `.rail-divider` — a full-width hairline at rgba(255,255,255,0.08)
-/// in the expanded rail.
+/// A full-width hairline at rgba(255,255,255,0.08).
 class RailDivider extends StatelessWidget {
   const RailDivider({super.key});
 
@@ -172,9 +164,9 @@ class RailDivider extends StatelessWidget {
   }
 }
 
-/// React `.rail-new` — the dashed moss "New chat" button at the top of the
-/// rail: full width, 40px tall, radius 12, a 1.5px dashed moss border at
-/// 35% alpha, a moss plus glyph and a 12.5px/700 --fg-1 label.
+/// The dashed moss "New chat" button at the top of the rail: full width,
+/// 40px tall, radius 12, a 1.5px dashed moss border at 35% alpha, a moss
+/// plus glyph and a 12.5px/700 fg-1 label.
 ///
 /// Flutter has no dashed border primitive; a 1.5px solid moss border at the
 /// same alpha is the closest single-widget equivalent and keeps the row

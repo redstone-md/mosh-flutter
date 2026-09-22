@@ -2,70 +2,51 @@ library;
 
 import 'package:flutter/material.dart';
 
-// Mosh Flutter theme — 1:1 port of the React dark palette defined in
-// mosh/src/shared/styles/theme.css `:root`. The React `:root` block is the
-// canonical source of truth; every constant below is copied verbatim from
-// it (hex tokens) or converted from its rgba() form (line / line-strong /
-// moss-glow). The previous Flutter shell used `ColorScheme.fromSeed(
-// seedColor: Colors.teal)`, which is a Material seed-color theme that does
-// NOT match the React UI. This module lands the correct dark `ThemeData`
-// so Material defaults (AppBar, Scaffold, Card, Divider, Text,
-// FilledButton, etc.) render in the React palette.
-//
-// Atomic scope: theme module + main.dart wiring only. Per-screen
-// hardcoded colors are NOT touched here (left for later atomics).
-//
-// Fonts: Inter Tight (sans) and JetBrains Mono (mono) are referenced by
-// name in `buildMoshTheme` for parity with React's --font-sans /
-// --font-mono, but the actual font ASSETS are NOT bundled in pubspec.yaml
-// yet. Flutter falls back to the platform default sans/mono until a later
-// atomic adds the `flutter: fonts:` entries. Setting the family names now
-// keeps the wiring correct, so bundling the assets later is a no-op for
-// call sites.
+// Mosh Flutter theme: the canonical dark `ThemeData` for the app. Every
+// color lives in [MoshColors] below. Font family names are wired here but
+// the font ASSETS are NOT bundled in pubspec.yaml yet; Flutter falls back
+// to the platform default sans/mono until a later change adds the
+// `flutter: fonts:` entries. Setting the family names now keeps the wiring
+// correct, so bundling the assets later is a no-op for call sites.
 
-/// All React `:root` color tokens, ported verbatim to Flutter `Color`s.
+/// All Mosh color tokens.
 ///
-/// Hex tokens map directly to `Color(0xFF<rrggbb>)`. The three rgba()
-/// tokens (--line, --line-strong, --moss-glow) are converted to an 8-bit
-/// alpha channel:
+/// The three rgba() tokens (line, lineStrong, mossGlow) are converted to
+/// an 8-bit alpha channel:
 ///   0.06 -> 0x0F   (15/255 ~= 0.0588)
 ///   0.10 -> 0x1A   (26/255 ~= 0.102)
 ///   0.14 -> 0x24   (36/255 ~= 0.141)
-/// The React var name is kept in a trailing comment so a future diff
-/// against `theme.css` is trivial.
 class MoshColors {
   const MoshColors._(); // static const surface only; never instantiated
 
-  // Backgrounds (--bg-0 .. --bg-4)
-  static const Color bg0 = Color(0xFF0B0C0D); // --bg-0  deepest (window/body)
-  static const Color bg1 = Color(0xFF111315); // --bg-1  raised surface 1
-  static const Color bg2 = Color(0xFF16181B); // --bg-2  raised surface 2
-  static const Color bg3 = Color(0xFF1D2024); // --bg-3  raised surface 3
-  static const Color bg4 = Color(0xFF262A2F); // --bg-4  raised surface 4
+  // Backgrounds: bg0 (deepest) .. bg4 (highest raised surface).
+  static const Color bg0 = Color(0xFF0B0C0D); // deepest (window/body)
+  static const Color bg1 = Color(0xFF111315); // raised surface 1
+  static const Color bg2 = Color(0xFF16181B); // raised surface 2
+  static const Color bg3 = Color(0xFF1D2024); // raised surface 3
+  static const Color bg4 = Color(0xFF262A2F); // raised surface 4
 
   // Hairline borders (rgba white)
-  static const Color line =
-      Color(0x0FFFFFFF); // --line        rgba(255,255,255,0.06)
-  static const Color lineStrong =
-      Color(0x1AFFFFFF); // --line-strong rgba(255,255,255,0.10)
+  static const Color line = Color(0x0FFFFFFF); // alpha 0.06
+  static const Color lineStrong = Color(0x1AFFFFFF); // alpha 0.10
 
-  // Foreground text (--fg-1 .. --fg-4)
-  static const Color fg1 = Color(0xFFECEEEA); // --fg-1  primary text
-  static const Color fg2 = Color(0xFFA8AEB0); // --fg-2  secondary text
-  static const Color fg3 = Color(0xFF6B7075); // --fg-3  tertiary/muted text
-  static const Color fg4 = Color(0xFF474B50); // --fg-4  disabled/faintest
+  // Foreground text: fg1 (primary) .. fg4 (disabled/faintest)
+  static const Color fg1 = Color(0xFFECEEEA); // primary text
+  static const Color fg2 = Color(0xFFA8AEB0); // secondary text
+  static const Color fg3 = Color(0xFF6B7075); // tertiary/muted text
+  static const Color fg4 = Color(0xFF474B50); // disabled/faintest
 
   // Brand (moss)
-  static const Color moss = Color(0xFFB7D84A); // --moss       brand primary
-  static const Color moss300 = Color(0xFFD4EB7A); // --moss-300  brand light
+  static const Color moss = Color(0xFFB7D84A); // brand primary
+  static const Color moss300 = Color(0xFFD4EB7A); // brand light
   static const Color mossGlow =
-      Color(0x24B7D84A); // --moss-glow rgba(183,216,74,0.14)
-  static const Color mossInk = Color(0xFF0E1707); // --moss-ink  text on moss
+      Color(0x24B7D84A); // rgba(moss, 0.14) -- used for glow/selection tints
+  static const Color mossInk = Color(0xFF0E1707); // text on moss
 
   // Semantic accents
-  static const Color warn = Color(0xFFE8B65A); // --warn
-  static const Color danger = Color(0xFFE86A5A); // --danger
-  static const Color info = Color(0xFF6CB7E8); // --info
+  static const Color warn = Color(0xFFE8B65A);
+  static const Color danger = Color(0xFFE86A5A);
+  static const Color info = Color(0xFF6CB7E8);
 }
 
 /// Font features for LIVE numbers (voice timers, audio position, unread
@@ -76,47 +57,39 @@ const List<FontFeature> kLiveNumberFontFeatures = <FontFeature>[
   FontFeature.tabularFigures(),
 ];
 
-/// Material 3 `ColorScheme` mapping the React dark palette onto the standard
-/// semantic slots. Slot assignment rationale (grounded in React CSS usage):
+/// Material 3 `ColorScheme` mapping the Mosh dark palette onto the standard
+/// semantic slots.
 ///
-///  - `surface` / `surfaceContainerLowest` -> bg-0. React `body` / `:root`
-///    background is `--bg-0` (the deepest window/body). Material's `surface`
-///    is the base of most widgets, so it matches the React base.
-///  - `surfaceContainerLow` / `surfaceContainer` -> bg-1. Raised surface 1
-///    (e.g. chat-pane header background in desktop-shell.css).
-///  - `surfaceContainerHigh`    -> bg-2. Raised surface 2 (e.g. composer
-///    backdrop in chat-pane.css `.composer { background: --bg-2 }`).
-///  - `surfaceContainerHighest` -> bg-3. Raised surface 3 (e.g. hovered
-///    message bubbles, `.composer-actions` blocks).
-///  - `surfaceVariant`          -> bg-4. Highest raised surface (e.g.
-///    attachment-card hover chrome in chat-pane.css). NOTE: the Material 3
-///    `surfaceVariant` ColorScheme slot is deprecated (use
+///  - `surface` / `surfaceContainerLowest` -> bg0. The deepest window/body.
+///    Material's `surface` is the base of most widgets.
+///  - `surfaceContainerLow` / `surfaceContainer` -> bg1. Raised surface 1
+///    (chat-pane headers).
+///  - `surfaceContainerHigh`    -> bg2. Raised surface 2 (composer
+///    backdrop).
+///  - `surfaceContainerHighest` -> bg3. Raised surface 3 (hovered message
+///    bubbles, composer action blocks).
+///  - `surfaceVariant`          -> bg4. Highest raised surface. NOTE: the
+///    Material 3 `surfaceVariant` ColorScheme slot is deprecated (use
 ///    `surfaceContainerHighest`); bg-4 is exposed via the `surfaceContainerHighest`
 ///    slot below instead. `MoshColors.bg4` stays the canonical token for any
 ///    widget that wants the highest raised surface directly.
 ///  - `primary` / `primaryContainer` -> moss. Brand green, used for primary
-///    actions (send button `.send-button { background: --moss }`), active
-///    rail items, fingerprint icons.
-///  - `onPrimary` -> mossInk. Text rendered on moss (`.send-button {
-///    color: --moss-ink }`).
-///  - `onSurface` -> fg1. Primary text everywhere
-///    (`:root { color: --fg-1 }`).
-///  - `onSurfaceVariant` -> fg2. Secondary text (chat-pane muted labels,
-///    diagnostics muted text).
-///  - `outline` -> lineStrong. Stronger hairlines (`.composer-tool-button
-///    { border: 1px solid --line-strong }`).
-///  - `outlineVariant` / `dividerColor` -> line. Default hairlines
-///    (`.composer { border-top: 1px solid --line }`).
-///  - `error` -> danger. React `--danger` (#e86a5a) for errors/delete UI.
-///  - `onError` / `onErrorContainer` -> mossInk. React defines no explicit
-///    on-danger token, but danger is a LIGHT fill: fg1 (near-white) on it
-///    reads at ~3.1:1 (audit 2026-09-21). mossInk is the palette's darkest
-///    ink and reads cleanly on danger -- the same mapping the light warn and
-///    info fills already use (`onSecondary`/`onTertiary`).
-///  - `secondary` -> warn (state-pill-waiting / --warn), `onSecondary` ->
-///    mossInk for contrast (warn is light; mossInk is the darkest ink in
-///    the palette and reads cleanly on warn).
-///  - `tertiary` -> info (React --info), `onTertiary` -> mossInk likewise.
+///    actions (send button), active rail items, fingerprint icons.
+///  - `onPrimary` -> mossInk. Text rendered on moss.
+///  - `onSurface` -> fg1. Primary text everywhere.
+///  - `onSurfaceVariant` -> fg2. Secondary text (muted labels).
+///  - `outline` -> lineStrong. Stronger hairlines.
+///  - `outlineVariant` / `dividerColor` -> line. Default hairlines.
+///  - `error` -> danger. For errors/delete UI.
+///  - `onError` / `onErrorContainer` -> mossInk. Danger is a LIGHT fill:
+///    fg1 (near-white) on it reads at ~3.1:1 (audit 2026-09-21). mossInk
+///    is the palette's darkest ink and reads cleanly on danger -- the same
+///    mapping the light warn and info fills already use
+///    (`onSecondary`/`onTertiary`).
+///  - `secondary` -> warn, `onSecondary` -> mossInk for contrast (warn is
+///    light; mossInk is the darkest ink in the palette and reads cleanly
+///    on warn).
+///  - `tertiary` -> info, `onTertiary` -> mossInk likewise.
 ///  - `scrim` / `shadow` -> bg0 (deepest) so modals/overlays stay
 ///    in-palette.
 const ColorScheme _moshColorScheme = ColorScheme.dark(
@@ -158,8 +131,8 @@ const ColorScheme _moshColorScheme = ColorScheme.dark(
   surfaceContainerHighest: MoshColors.bg3,
 );
 
-/// React `--font-sans` head. The font files are not bundled (React ships no
-/// @font-face either), so both stacks fall through to the platform UI font.
+/// Primary sans family. The font files are not bundled, so the stack falls
+/// through to the platform UI font.
 const String _kSansFamily = 'Inter Tight';
 
 /// Builds the canonical Mosh dark `ThemeData`.
@@ -168,43 +141,40 @@ const String _kSansFamily = 'Inter Tight';
 /// inject a `Brightness` or a `ThemeExtension` without changing call sites.
 /// `lib/main.dart` calls this once at `MaterialApp.router(theme:)`.
 ThemeData buildMoshTheme() {
-  // Font family names mirror React's --font-sans / --font-mono. The actual
-  // font files are NOT bundled in pubspec.yaml yet — Flutter falls back to
-  // the platform default sans/mono, exactly as React does (its index.html
-  // ships no @font-face either, so both stacks land on the platform UI
-  // font). A later atomic can add the `flutter: fonts:` assets.
+  // The font files are NOT bundled in pubspec.yaml yet — Flutter falls
+  // back to the platform default sans/mono until the `flutter: fonts:`
+  // assets are added.
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: _moshColorScheme,
-    // React `.mosh-window { background: var(--bg-1) }` — the window body is
-    // bg-1 and only the titlebar + rail drop to bg-0, which is what gives
-    // the shell its panel separation. A bg-0 default flattens the two.
+    // The window body is bg1 and only the titlebar + rail drop to bg0,
+    // which gives the shell its panel separation. A bg0 default would
+    // flatten the two.
     scaffoldBackgroundColor: MoshColors.bg1,
     canvasColor: MoshColors.bg1,
-    dividerColor: MoshColors.line, // --line (hairline)
+    dividerColor: MoshColors.line, // hairline
     splashColor: MoshColors.mossGlow,
     highlightColor: MoshColors.mossGlow,
-    // React sizes its chrome in 10.5–15px steps off a 14px/1.4 root; the
-    // Material defaults (16px titles, 14px body) render every surface a
-    // step too large. VisualDensity.compact takes the same step out of the
-    // Material widget metrics.
+    // Chrome is sized in 10.5–15px steps; the Material defaults (16px
+    // titles, 14px body) render every surface a step too large.
+    // VisualDensity.compact takes the same step out of the Material
+    // widget metrics.
     visualDensity: VisualDensity.compact,
     fontFamily: _kSansFamily,
     fontFamilyFallback: const ['Geist', 'IBM Plex Sans', 'system-ui'],
     textTheme: _moshTextTheme(),
-    // React `.chat-header { padding: 14px 22px; border-bottom: 1px solid
-    // var(--line) }` over the --bg-1 chat pane. Material's default is a
-    // 56px bar with 16px title spacing and no rule under it.
+    // Chat-header look: 70px bar, 22px title spacing, hairline rule under
+    // it. Material's default is a 56px bar with 16px title spacing and no
+    // rule.
     appBarTheme: const AppBarTheme(
       backgroundColor: MoshColors.bg1,
-      foregroundColor: MoshColors.fg1, // --fg-1
+      foregroundColor: MoshColors.fg1,
       elevation: 0,
       scrolledUnderElevation: 0,
       toolbarHeight: 70,
       titleSpacing: 22,
       shape: Border(bottom: BorderSide(color: MoshColors.line)),
-      // React `.chat-title-block h1` — 15px/700, letter-spacing 0.02em.
       titleTextStyle: TextStyle(
         fontFamily: _kSansFamily,
         fontSize: 15,
@@ -214,12 +184,12 @@ ThemeData buildMoshTheme() {
       ),
     ),
     dividerTheme: const DividerThemeData(
-      color: MoshColors.line, // --line
+      color: MoshColors.line,
       thickness: 1,
       space: 1,
     ),
-    // React `.field input` — 9/11 padding, radius 8, 1px --line on --bg-1,
-    // 12.5px text; focus swaps the border to rgba(moss,0.45) over --bg-0.
+    // Field look: 9/11 padding, radius 8, 1px hairline on bg1, 12.5px
+    // text; focus swaps the border to a translucent moss over bg0.
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: MoshColors.bg1,
@@ -234,7 +204,7 @@ ThemeData buildMoshTheme() {
       focusedErrorBorder:
           _fieldBorder(MoshColors.danger.withValues(alpha: 0.35)),
     ),
-    // React rail/menu rows sit at 36–48px with 12px text and a 12px radius;
+    // Rail/menu rows sit at 36–48px with 12px text and a 12px radius;
     // Material's untuned ListTile is a 56px row with 16px text.
     listTileTheme: const ListTileThemeData(
       dense: true,
@@ -258,9 +228,8 @@ ThemeData buildMoshTheme() {
         color: MoshColors.fg4,
       ),
     ),
-    // React's modal cards (`.confirm-dialog`, `.call-modal-card`) are
-    // radius-14 plates on --bg-2; Material's default is a radius-28 card
-    // with an elevation tint over the surface.
+    // Modal cards are radius-14 plates on bg2; Material's default is a
+    // radius-28 card with an elevation tint over the surface.
     dialogTheme: DialogThemeData(
       backgroundColor: MoshColors.bg2,
       surfaceTintColor: Colors.transparent,
@@ -270,11 +239,11 @@ ThemeData buildMoshTheme() {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: MoshColors.moss, // --moss
-        foregroundColor: MoshColors.mossInk, // --moss-ink
+        backgroundColor: MoshColors.moss,
+        foregroundColor: MoshColors.mossInk,
       ),
     ),
-    iconTheme: const IconThemeData(color: MoshColors.fg2), // --fg-2 default
+    iconTheme: const IconThemeData(color: MoshColors.fg2),
   );
 }
 
@@ -284,21 +253,20 @@ OutlineInputBorder _fieldBorder(Color color) => OutlineInputBorder(
       borderSide: BorderSide(color: color),
     );
 
-/// The React type scale, mapped onto the Material slots.
+/// The Mosh type scale, mapped onto the Material slots.
 ///
-/// React sets a 14px/1.4 root (`.mosh-window`) and steps each surface off
-/// it; the sizes below are the literal CSS values, so a widget that just
-/// reads `theme.textTheme.X` lands on the React metric instead of the
-/// Material one:
-///   bodyLarge   14/1.4   `.mosh-window` root
-///   bodyMedium  13.5/1.5 `.message-body p`
-///   bodySmall   12.5/1.55 `.chat-empty p`, `.field input`
-///   titleLarge  15/700   `.chat-title-block h1`
-///   titleMedium 14/600   `.chat-empty strong`
-///   titleSmall  12.5/700 `.crypto-banner strong`, `.rail-text strong`
-///   labelLarge  12/650   `.chat-more-item`
-///   labelMedium 11.5/600 `.state-pill`, `.crypto-banner p`
-///   labelSmall  10.5/-   `.rail-text small`, `.field-hint`
+/// The sizes below are the app's literal chrome metrics, so a widget that
+/// just reads `theme.textTheme.X` lands on the right step instead of the
+/// Material default:
+///   bodyLarge   14/1.4
+///   bodyMedium  13.5/1.5
+///   bodySmall   12.5/1.55
+///   titleLarge  15/700
+///   titleMedium 14/600
+///   titleSmall  12.5/700
+///   labelLarge  12/650
+///   labelMedium 11.5/600
+///   labelSmall  10.5/-
 TextTheme _moshTextTheme() => ThemeData.dark()
     .textTheme
     .apply(

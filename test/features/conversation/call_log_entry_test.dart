@@ -1,7 +1,7 @@
-// Parity tests for `CallLogEntry` (lib/src/features/conversation/call_log_entry.dart)
-// -- the 1-в-1 port of React's `CallLogEntry.tsx`. Asserts the missed and
-// completed variants render the right icon + localized label, and that a
-// non-zero duration appends ` · m:ss`; zero duration omits the suffix.
+// Tests for `CallLogEntry` (lib/src/features/conversation/call_log_entry.dart).
+// Asserts the missed and completed variants render the right icon + localized
+// label, and that a non-zero duration appends ` · m:ss`; zero duration omits
+// the suffix.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -74,13 +74,12 @@ void main() {
       );
       // Missed with 0 ms -> no suffix, just "Missed call".
       expect(find.text('Missed call'), findsOneWidget);
-      // React uses ` · ` (U+00B7), so a zero-duration entry must not
-      // contain the middle-dot separator.
+      // A zero-duration entry must not contain the middle-dot separator.
       expect(find.textContaining(' · '), findsNothing);
     },
   );
 
-  test('formatCallDuration mirrors React formatDuration', () {
+  test('formatCallDuration renders duration text', () {
     expect(formatCallDuration(BigInt.zero), '');
     expect(formatCallDuration(BigInt.from(999)), '');
     expect(formatCallDuration(BigInt.from(1000)), '0:01');

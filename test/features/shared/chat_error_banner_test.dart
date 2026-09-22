@@ -1,9 +1,8 @@
 // Widget tests for `ChatErrorBanner` (lib/src/features/shared/
-// chat_error_banner.dart) -- the inline chat error banner port of
-// React's `ChatError` (private-dm-screen.tsx L506-525). Pins the three
-// pieces of React's contract: the banner renders the message; the Retry
-// button shows ONLY when `onRetry` is non-null (React
-// `{onRetry ? <button/> : null}`); tapping Retry fires the callback.
+// chat_error_banner.dart) -- the inline chat error banner. Pins the three
+// pieces of its contract: the banner renders the message; the Retry
+// button shows ONLY when `onRetry` is non-null; tapping Retry fires
+// the callback.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,8 +30,7 @@ void main() {
 
     final l =
         AppLocalizations.of(tester.element(find.byType(ChatErrorBanner)))!;
-    // React: the Retry button text is the literal "Retry"; the Flutter
-    // port localizes it via ARB (`chatErrorRetry`).
+    // The Retry button text is localized via ARB (`chatErrorRetry`).
     expect(find.text(l.chatErrorRetry), findsOneWidget);
     expect(find.byIcon(Icons.refresh), findsOneWidget);
   });

@@ -1,6 +1,4 @@
-// Collapsible disclosure primitive -- 1-в-1 with React `Disclosure` in
-// src/features/private-dm/NewSessionPanel.parts.tsx (CSS `.disclosure*` in
-// src/features/private-dm/styles/desktop-shell.css). Reusable: the About
+// Collapsible disclosure primitive. Reusable: the About
 // disclosure in OnboardingScreen and the Advanced disclosure (next atomic)
 // both render through this widget.
 library;
@@ -8,10 +6,10 @@ library;
 import 'package:flutter/material.dart';
 
 /// Collapsible section with an icon+label head and a body that toggles.
-/// Mirrors React's `Disclosure`: a bordered rounded container holding a
-/// full-width tappable head (icon, label, right-aligned rotating caret)
+/// A bordered rounded container holding a full-width tappable head
+/// (icon, label, right-aligned rotating caret)
 /// and a body that mounts only when open. Caret rotates 180deg (0.5 turns)
-/// over 140ms to match React's `.disclosure-caret` transition.
+/// over 140ms.
 class Disclosure extends StatefulWidget {
   const Disclosure({
     super.key,

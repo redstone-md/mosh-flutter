@@ -1,8 +1,7 @@
-// Parity tests for `OrgSection` (lib/src/features/org/org_section.dart)
-// -- the 1-в-1 port of React's `OrgSection.tsx`. Asserts the header +
-// pending block, DM/group offer rows + accept/dismiss callbacks, the
-// admin new-group form, and the member list (avatar, you badge, admin
-// crown, self disabled).
+// Tests for `OrgSection` (lib/src/features/org/org_section.dart).
+// Asserts the header + pending block, DM/group offer rows + accept/dismiss
+// callbacks, the admin new-group form, and the member list (avatar, you
+// badge, admin crown, self disabled).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

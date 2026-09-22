@@ -1,9 +1,8 @@
 // Unit + widget tests for the OpenMLS-protection badge (`MlsBadge`) and
 // its placement in the DM sender-meta row. `MlsBadge` lives in
-// lib/src/features/conversation/conversation_helpers.dart (1-в-1 with React's `MlsBadge` in
-// src/features/private-dm/MessageLists.tsx) and is composed into the
-// sender meta via `SenderMeta` (extracted from dm_screen.dart to keep
-// that screen under the 500-line file-size discipline).
+// lib/src/features/conversation/conversation_helpers.dart and is composed
+// into the sender meta via `SenderMeta` (extracted from dm_screen.dart to
+// keep that screen under the 500-line file-size discipline).
 //
 // Coverage:
 //   1. `MlsBadge` renders the literal acronym "MLS" (not localized).
@@ -14,7 +13,7 @@
 //   4. Pumped with two peer messages from the same sender 1 minute apart
 //      (the second groups under the first), "MLS" renders EXACTLY ONCE --
 //      pinning the "badge only on non-grouped rows" behavior (the grouped
-//      row omits the whole meta, so its badge is absent, matching React).
+//      row omits the whole meta, so its badge is absent).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -82,11 +81,11 @@ void main() {
 
       final l = AppLocalizations.of(tester.element(find.text('MLS')))!;
 
-      // Tooltip mirrors React's `title` on the `<code className="message-protocol">`.
+      // Tooltip carries the localized tooltip message.
       final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
       expect(tooltip.message, l.mlsBadgeTooltip);
 
-      // Semantics label mirrors React's `aria-label="OpenMLS protected"`.
+      // Semantics label mirrors the localized accessibility label.
       expect(find.bySemanticsLabel(l.mlsBadgeLabel), findsOneWidget);
     });
   });
@@ -113,7 +112,7 @@ void main() {
 
       // The sender name renders in a message row (so the badge sits next
       // to it, not alone). Scoped to ConversationMessageRow because the DM AppBar
-      // title now also shows the peer name (React `peerLabel` parity).
+      // title now also shows the peer name.
       expect(
         find.descendant(
           of: find.byType(ConversationMessageRow),
@@ -152,8 +151,8 @@ void main() {
 
       // The sender name renders exactly once in a message row (the
       // grouped row omits its meta). Scoped to ConversationMessageRow because the DM
-      // AppBar title now also shows the peer name (React `peerLabel`
-      // parity), so an unscoped find.text('bob') would match the header.
+      // AppBar title now also shows the peer name, so an unscoped
+      // find.text('bob') would match the header.
       expect(
         find.descendant(
           of: find.byType(ConversationMessageRow),
@@ -163,7 +162,7 @@ void main() {
       );
 
       // The MLS badge renders EXACTLY ONCE: the grouped row omits the whole
-      // meta (so its badge is absent), matching React's ConversationMessageRow.
+      // meta, so its badge is absent.
       expect(find.text('MLS'), findsOneWidget);
     });
   });

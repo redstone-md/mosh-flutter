@@ -148,7 +148,7 @@ void main() {
       matching: find.byType(InkWell),
     );
     expect(thumbButton, findsOneWidget);
-    // React `.attachment-thumb { width: 40px; height: 40px }`.
+    // The thumb button is a fixed 40x40 square.
     expect(tester.getSize(thumbButton), const Size(40, 40));
     final semanticsHandle = tester.ensureSemantics();
     final thumbSemantics =
@@ -262,7 +262,7 @@ void main() {
       mime: 'application/pdf',
       totalSize: 8192,
       // A PDF that happens to carry a thumbnail still does not qualify:
-      // React `hasPreview` requires isImage || isVideo.
+      // the media preview only covers images and videos.
       thumbnailB64: _pngThumbB64,
     );
     await _pump(

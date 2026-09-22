@@ -1,9 +1,8 @@
 // The window-focus seam: a `Provider<Future<bool> Function()>` the
 // unread-lifecycle provider reads instead of calling `windowManager`
-// directly. Mirrors React's `windowFocused()` helper (use-unread-
-// notifications.ts): it awaits `getCurrentWindow().isFocused()` and
-// degrades to `true` (focused) on any error so a missing Tauri host or a
-// test without a window_manager platform impl keeps the badge clear.
+// directly. Awaits `windowManager.isFocused()` and degrades to `true`
+// (focused) on any error so a test without a window_manager platform impl
+// keeps the badge clear.
 //
 // Why a seam instead of `windowManager.isFocused()` inline: the precedent
 // (voice_call_layer.dart) calls `windowManager.isFocused()` directly and
@@ -20,16 +19,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
 
 /// Default focus check: `windowManager.isFocused()` with a try/catch that
-/// degrades to `true` (focused) on error, 1-1 with React's `windowFocused`.
-/// Exposed as a top-level function so the provider body + tests share one
-/// reference and the override site reads cleanly.
+/// degrades to `true` (focused) on error. Exposed as a top-level function
+/// so the provider body + tests share one reference and the override site
+/// reads cleanly.
 Future<bool> _defaultIsFocused() async {
   try {
     return await windowManager.isFocused();
   } catch (_) {
     // No window_manager host (browser dev / a test without the platform
-    // plugin): treat as focused so the badge clears + no toast fires,
-    // matching React's `catch { return true }`.
+    // plugin): treat as focused so the badge clears + no toast fires.
     return true;
   }
 }

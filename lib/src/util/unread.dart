@@ -1,9 +1,8 @@
 /// Pure UI-helper: unread-message counting and conversation diffing.
 ///
-/// Ported 1:1 from `src/features/private-dm/notifications/unread.ts` per
-/// ADR 0012. Free of any Flutter or I/O dependency so it can be unit-tested
-/// in isolation; the one value type it borrows is [ConversationRef], the
-/// one owner of the key grammar.
+/// Free of any Flutter or I/O dependency so it can be unit-tested in
+/// isolation; the one value type it borrows is [ConversationRef], the one
+/// owner of the key grammar.
 library;
 
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -31,9 +30,8 @@ class ConversationCount {
 
 /// Authorship info for a single stored message.
 ///
-/// Mirrors the TS `MessageAuthor`: `from_device` -> `fromDevice`,
-/// `from_fingerprint` -> `fromFingerprint`. `fromFingerprint` is null for
-/// 1:1 DMs (no fingerprint carried) and non-null for channels/groups.
+/// `fromFingerprint` is null for 1:1 DMs (no fingerprint carried) and
+/// non-null for channels/groups.
 class MessageAuthor {
   final String fromDevice;
   final String? fromFingerprint;
@@ -60,7 +58,7 @@ class MessageAuthor {
 /// (channels/groups), identity is compared by fingerprint: display names
 /// are not unique, so a same-named peer must still count, and a renamed
 /// self must not. DMs carry no fingerprint and fall back to the display
-/// name (2-party, unambiguous). Mirrors the TS filter exactly.
+/// name (2-party, unambiguous).
 int countMessagesFromOthers(
   List<MessageAuthor> messages,
   String ownDeviceName, [
@@ -76,11 +74,10 @@ int countMessagesFromOthers(
 
 /// Notification title/body for a conversation that gained messages.
 ///
-/// Mirrors `notificationBody` in unread.ts: channels render as `#<name>`,
-/// every other kind renders the generic `New message`. [id] is a
-/// conversation key, and [ConversationRef.tryParse] is the one reader of
-/// that grammar -- a key that names no conversation renders the generic
-/// label.
+/// Channels render as `#<name>`, every other kind renders the generic
+/// `New message`. [id] is a conversation key, and
+/// [ConversationRef.tryParse] is the one reader of that grammar -- a key
+/// that names no conversation renders the generic label.
 NotificationBody notificationBody(String id) {
   final conversation = ConversationRef.tryParse(id);
   final label =
@@ -91,7 +88,7 @@ NotificationBody notificationBody(String id) {
 }
 
 /// Title/body pair returned by [notificationBody]. Value-equal so tests
-/// can mirror the TS `toEqual`.
+/// can compare directly.
 class NotificationBody {
   final String title;
   final String body;

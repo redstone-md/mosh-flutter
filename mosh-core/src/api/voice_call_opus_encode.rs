@@ -1,7 +1,6 @@
 //! Opus encoder facade for the voice-call capture pipeline.
 //!
-//! Mirrors the React `mosh/src/features/private-dm/voice-call/audio-capture.ts`
-//! WebCodecs Opus encoder: 48 kHz mono, 24 kbps, 20 ms frames (960 samples).
+//! 48 kHz mono, 24 kbps, 20 ms frames (960 samples).
 //! The `record` Dart package captures PCM16 natively (its Opus encoder is
 //! Android/iOS/Linux only), so the Opus encode happens here in Rust via the
 //! high-level `audiopus` crate (vendored libopus, built with MSVC -- no vcpkg).
@@ -32,8 +31,7 @@ pub struct VoiceCallOpusEncoder {
     encoder: Mutex<Encoder>,
 }
 
-/// Constructs a 48 kHz mono VoIP Opus encoder at 24 kbps, mirroring the React
-/// WebCodecs encoder config. Synchronous (no I/O); `Err(String)` on libopus
+/// Constructs a 48 kHz mono VoIP Opus encoder at 24 kbps. Synchronous (no I/O); `Err(String)` on libopus
 /// init or bitrate-set failure. Errors are stringified via `Debug` to keep the
 /// bridge surface a plain `Result<T, String>` (matches `voice_call_*` style).
 #[frb(sync)]

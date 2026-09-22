@@ -1,11 +1,8 @@
-// OnboardMenu listen-port clamp -- React parity for
-// NewSessionPanelMenu.tsx:85-90 (`<input type="number" min={0} max={65535}
-// ... onChange={e => props.onListenPort(Number(e.target.value) || 0)} />`).
-// The browser enforces the min/max range on the number input; Flutter has no
-// native ranged numeric input, so `_onListenPortChanged` clamps the parsed
-// value to 0..65535 before storing it in inviteFlow (the stored value is what
-// reaches Rust as listen_port). The field text is NOT rewritten on clamp
-// (a mid-typing rewrite is jarring); only the stored value is constrained.
+// OnboardMenu listen-port clamp. The listen-port field clamps the parsed
+// value to 0..65535 before storing it in inviteFlow (the stored value is
+// what reaches Rust as listen_port). The field text is NOT rewritten on
+// clamp (a mid-typing rewrite is jarring); only the stored value is
+// constrained.
 //
 // Pumps the bare OnboardMenu (lighter than the full appRouter screen) with a
 // test gateway override so BindInterfaceField's async initState stays

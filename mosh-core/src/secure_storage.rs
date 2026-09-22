@@ -5,16 +5,16 @@ use keyring_core::Entry;
 #[cfg(not(target_os = "android"))]
 use std::sync::OnceLock;
 
-/// This app's keyring namespace. It is deliberately NOT the Tauri shell's
-/// `app.mosh.desktop`: the two apps keep separate databases
+/// This app's keyring namespace, deliberately distinct from the legacy
+/// `app.mosh.desktop` namespace: the two kept separate databases
 /// (`app.mosh.desktop/mosh-history.redb` vs the Flutter
 /// `app.mosh/mosh/mosh/history.redb`) but used to share one credential slot,
-/// so whichever app rotated or deleted the DEK silently orphaned the other
-/// one's history behind the fail-closed guard in `Persistence::open`.
+/// so rotating or deleting the DEK on either side silently orphaned the
+/// other one's history behind the fail-closed guard in `Persistence::open`.
 const SERVICE_NAME: &str = "app.mosh.flutter";
 
-/// The slot this app used to share with the Tauri shell. Reads fall back to
-/// it once and migrate the secret forward, so an install that already holds a
+/// The slot installs used before the namespace split. Reads fall back to it
+/// once and migrate the secret forward, so an install that already holds a
 /// working DEK there keeps its history instead of hitting the same
 /// fail-closed error the rename was meant to prevent.
 const LEGACY_SERVICE_NAME: &str = "app.mosh.desktop";
@@ -112,11 +112,10 @@ impl SecureSecretStore for OsSecureSecretStore {
 
         // Nothing under this app's own slot. Before surfacing the failure --
         // which fails the whole runtime closed when a database exists -- take
-        // the one-time hand-off from the slot this app used to share with the
-        // Tauri shell. Falling back on ANY error, not just a typed
-        // not-found, keeps this independent of the backend's error taxonomy;
-        // if the legacy slot is empty too, the original error is returned
-        // unchanged.
+        // the one-time hand-off from the legacy slot. Falling back on ANY
+        // error, not just a typed not-found, keeps this independent of the
+        // backend's error taxonomy; if the legacy slot is empty too, the
+        // original error is returned unchanged.
         #[cfg(target_os = "macos")]
         if let Some(secret) = load_from_legacy_keychain(key) {
             // Best-effort migration: a write failure still lets this run
@@ -377,8 +376,8 @@ mod tests {
         .is_ok());
     }
 
-    /// The rename is only safe because a DEK already sitting in the shared
-    /// Tauri slot is handed forward. Without this the fail-closed guard in
+    /// The rename is only safe because a DEK already sitting in the legacy
+    /// slot is handed forward. Without this the fail-closed guard in
     /// `Persistence::open` would brick every install that had one.
     #[test]
     fn load_falls_back_to_the_legacy_slot_and_migrates_it() {

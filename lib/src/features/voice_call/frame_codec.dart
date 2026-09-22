@@ -1,27 +1,25 @@
 /// Pure (non-crypto) byte-manipulation helpers for AES-GCM voice-call frames.
 ///
-/// 1:1 port of the pure helpers from React
-/// `mosh/src/features/private-dm/voice-call/frame-crypto.ts`. The wire frame is
-/// `[seq:u64 BE][ciphertext-with-tag]`; the AES-GCM nonce is
-/// `[nonce_prefix (4)][seq (8)]`. The high bit of `seq` distinguishes caller
-/// vs callee so the two participants never collide nonces while sharing one
-/// key. The AES-GCM seal/open + key import live elsewhere (crypto package TBD);
-/// only the synchronous, dependency-free helpers are ported here.
+/// The wire frame is `[seq:u64 BE][ciphertext-with-tag]`; the AES-GCM nonce
+/// is `[nonce_prefix (4)][seq (8)]`. The high bit of `seq` distinguishes
+/// caller vs callee so the two participants never collide nonces while
+/// sharing one key. The AES-GCM seal/open + key import live elsewhere;
+/// only the synchronous, dependency-free helpers live here.
 library;
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
 import 'dart:convert';
 import 'dart:typed_data';
 
-/// Caller direction bit (React: `0n`). Seq uses BigInt because Dart `int` is
-/// signed 64-bit and the direction bit sets bit 63 (out of positive-int range).
+/// Caller direction bit. Seq uses BigInt because Dart `int` is signed
+/// 64-bit and the direction bit sets bit 63 (out of positive-int range).
 /// Not `const` because [BigInt.zero] is not a const expression in Dart.
 final BigInt CALLER_DIRECTION_BIT = BigInt.zero;
 
-/// Callee direction bit (React: `1n << 63n`).
+/// Callee direction bit.
 final BigInt CALLEE_DIRECTION_BIT = BigInt.one << 63;
 
-/// Mask for the 63-bit seq value space (React: `(1n<<63n)-1n`).
+/// Mask for the 63-bit seq value space.
 final BigInt SEQ_VALUE_MASK = (BigInt.one << 63) - BigInt.one;
 
 Uint8List bytesFromBase64(String value) => base64Decode(value);
@@ -40,7 +38,7 @@ Uint8List seqToBytes(BigInt seq) {
   return out;
 }
 
-/// Reads 8 bytes big-endian starting at [offset] (React: `getBigUint64(0, false)`).
+/// Reads 8 bytes big-endian starting at [offset].
 BigInt bytesToSeq(Uint8List bytes, int offset) {
   var result = BigInt.zero;
   for (var i = 0; i < 8; i += 1) {
@@ -50,7 +48,7 @@ BigInt bytesToSeq(Uint8List bytes, int offset) {
 }
 
 /// 12-byte nonce = `[prefix (4)][seq (8)]`. Throws if `prefixBase64` does not
-/// decode to exactly 4 bytes (React: `Error("nonce prefix must be 4 bytes")`).
+/// decode to exactly 4 bytes.
 Uint8List buildNonce(String prefixBase64, BigInt seq) {
   final prefix = bytesFromBase64(prefixBase64);
   if (prefix.length != 4) {

@@ -1,5 +1,4 @@
-// Step-5 tests for the voice-call orchestrator provider -- the Riverpod
-// mirror of React use-voice-call-orchestration's useEffect dep array. Each
+// Step-5 tests for the voice-call orchestrator provider. Each
 // test wires a ProviderContainer that overrides activeSessionProvider with
 // a mutable controller, bridgeFacadeProvider with a scripted bridge, and the
 // capture/playback factories + error sink with recording fakes. The
@@ -27,7 +26,7 @@ import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 
 /// A mutable controller the activeSessionProvider override reads from. Tests
 /// mutate `snapshot` then invalidate the session so the orchestrator re-runs
-/// build (mirrors the React effect re-running on a dep change).
+/// build.
 class _SessionController {
   _SessionController(this.snapshot);
   SessionSnapshot? snapshot;
@@ -235,8 +234,7 @@ void main() {
       final firstHandle = capture.lastHandle;
 
       // Change the ActiveCall to a new callId, invalidate the session so the
-      // orchestrator re-runs build (mirrors the React effect re-running on a
-      // dep change), then wait for the new attach.
+      // orchestrator re-runs build, then wait for the new attach.
       controller.snapshot = _session('sess-1', activeCall: _activeCall('b'));
       container.invalidate(activeSessionProvider('sess-1'));
       await Future<void>.delayed(const Duration(milliseconds: 10));

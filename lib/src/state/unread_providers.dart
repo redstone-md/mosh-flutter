@@ -1,7 +1,6 @@
 // Unread-message counts, one provider for all three conversation kinds.
 // [unreadCounts] derives a `Map<String,int>` of unread counts from one
-// [ConversationList] -- keyed by [ConversationRef.key], the same key
-// shapes React's `useUnreadNotifications` uses for each conversation kind.
+// [ConversationList] -- keyed by [ConversationRef.key].
 // [ConversationRef] owns that grammar; nothing here spells a key out.
 //
 // The one branch the three kinds need lives in [unreadCounts]: a DM
@@ -13,13 +12,13 @@
 //
 // Lifecycle: the provider derives counts from the current
 // [conversationListProvider] snapshot ONLY. It is NOT the full poll-diff
-// lifecycle from React's `unread.ts` (notifications, window-focus,
-// `clearOnActive`, `diffConversations`, `lastSeen` persistence). That
+// lifecycle (notifications, window-focus, `clearOnActive`, `diffConversations`,
+// `lastSeen` persistence). That
 // layering is `unread_lifecycle_provider.dart`'s job -- here the count is
 // simply the number of not-own messages currently in each conversation.
 //
 // The visible `UnreadBadge` (sessions_screen.dart) hides when count<=0,
-// shows "99+" past 99 -- mirroring React's `UnreadBadge` component.
+// shows "99+" past 99.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

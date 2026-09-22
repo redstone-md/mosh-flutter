@@ -3,7 +3,7 @@
 // + diagnostics_helpers.dart). The summary builder is pure given an
 // `AppLocalizations`, so the tests construct the real `AppLocalizationsEn`
 // (the en delegate) and assert on the returned `DiagnosticSummary` fields
-// -- 1-в-1 with the React `diagnosticsSummary` DM + idle/error branches.
+// for the DM and idle/error branches.
 //
 // In scope (this atomic): the DM branch (ready/waiting/unknown-state +
 // error override) and the idle/error (no-active-session) branch. The

@@ -7,8 +7,7 @@ import '../frb_generated.dart';
 import '../network_inventory.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Enumerate the host's network interfaces (1:1 port of the
-/// `list_network_interfaces` Tauri command). Mirrors the runtime's
+/// Enumerate the host's network interfaces. Mirrors the runtime's
 /// `network_inventory::list_interfaces` name so the api surface matches the
 /// runtime method it delegates to.
 Future<List<NetworkInterfaceInfo>> listInterfaces() =>

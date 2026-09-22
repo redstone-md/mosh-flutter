@@ -1,10 +1,10 @@
 // The rail row keeps one corner radius across states.
 //
 // Audit (2026-09-21) LOW: the active row inflated its radius 12 -> 14, so
-// selecting a row made its corners jump. React parity is `border-radius:
-// 12px` on `.rail-item` in every state -- the active ring is an inset 2px
-// border that does not move the outer geometry. These tests pin radius 12
-// for both the plain row and the ringed (active) row.
+// selecting a row made its corners jump. The radius must stay 12 in every
+// state -- the active ring is an inset 2px border that does not move the
+// outer geometry. These tests pin radius 12 for both the plain row and the
+// ringed (active) row.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

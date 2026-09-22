@@ -2,9 +2,8 @@
 //
 // The four runtimes (`PrivateDmRuntime`, `ChannelRuntime`,
 // `PrivateGroupRuntime`, `OrgRuntime`) all share ONE Moss
-// node + ONE attachment store + ONE persistence store -- the Tauri shell
-// handed the same `Arc<SharedMossNode>` to each `*State::ready`. This module
-// is the api-facade analogue: a single `SharedResources` constructed once
+// node + ONE attachment store + ONE persistence store: a
+// single `SharedResources` constructed once
 // (via `ensure_shared_resources`) and borrowed by every runtime's
 // `construct_runtime`.
 //
@@ -126,7 +125,7 @@ pub fn ensure_shared_resources() -> Result<SharedResources, String> {
 }
 
 /// Resolve the data dir: `<app_data_dir>/mosh` when injected, else the
-/// temp-dir `mosh` dir the Tauri shell used.
+/// temp-dir `mosh` dir.
 /// The at-rest history database. Single definition so the diagnostics facade
 /// reports the same path `construct_resources` opens.
 pub(crate) fn database_path() -> PathBuf {
@@ -142,16 +141,13 @@ pub(crate) fn resolve_data_dir(app_data_dir: Option<&std::path::Path>) -> PathBu
 
 /// The resolved data dir with the injected `APP_DATA_DIR` applied. Use
 /// for non-runtime state that lives next to the encrypted history store
-/// (e.g. VPN-bypass consent). Mirrors the Tauri shell`s
-/// `app.path().app_data_dir().unwrap_or_else(|_| temp_dir().join("mosh"))`
-/// fallback (lib.rs L1338-1340): when no platform channel injected a dir,
+/// (e.g. VPN-bypass consent). When no platform channel injected a dir,
 /// the temp `mosh` dir is used (tests, hosts without path_provider).
 pub(crate) fn resolved_data_dir() -> PathBuf {
     resolve_data_dir(APP_DATA_DIR.get().map(PathBuf::as_path))
 }
 
-/// Build the shared resources once (the api-facade analogue of the Tauri
-/// shell's `*State::ready` shared setup). Loads Moss, opens the encrypted
+/// Build the shared resources once. Loads Moss, opens the encrypted
 /// at-rest store under the resolved data dir, wires the keystore, and
 /// builds the attachment store + shared node. Returns `Err` on any failure
 /// (cached by the `OnceLock` so later calls report the same cause).

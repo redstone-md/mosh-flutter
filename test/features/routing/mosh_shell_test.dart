@@ -1,6 +1,5 @@
-// Shell tests pinning the two-pane StatefulShellRoute -- the React
-// private-dm-screen desktop-body parity gap (private-dm-screen.tsx:243-343
-// + use-conversation-rail-state.ts:1-38). The shell (mosh_shell.dart) lays
+// Shell tests pinning the two-pane StatefulShellRoute. The shell
+// (mosh_shell.dart) lays
 // out the rail branch (A) + chat branch (B) side-by-side on desktop (rail
 // ALWAYS visible beside the chat) and as a single pane on mobile (rail OR
 // chat). These tests pin both layouts so a regression that re-flattens
@@ -111,7 +110,7 @@ void main() {
     await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // Desktop two-pane: the rail (SessionsScreen) AND the welcome pane
-    // (ChatPaneWelcome) BOTH render -- the parity gap (rail stays beside
+    // (ChatPaneWelcome) BOTH render (the rail stays beside
     // the chat even when no chat is open).
     expect(find.byType(SessionsScreen), findsOneWidget);
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
@@ -122,7 +121,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DmScreen), findsOneWidget);
-    // The rail is STILL mounted on desktop (the parity invariant).
+    // The rail is STILL mounted on desktop (the layout invariant).
     expect(find.byType(SessionsScreen), findsOneWidget);
     // The welcome pane was replaced by the DM in the chat branch.
     expect(find.byType(ChatPaneWelcome), findsNothing);
@@ -188,7 +187,7 @@ void main() {
 
     // Leave the DM (the DM screen's leave confirm closes the session +
     // context.go('/sessions')). On MOBILE the standalone close button is
-    // desktop-only (React `chat-desktop-only`); the leave entry point is
+    // desktop-only; the leave entry point is
     // the mobile kebab menu's "Delete chat" item. Open the kebab
     // (Icons.more_vert, ChatHeaderMenu's PopupMenuButton trigger), tap
     // "Delete chat" from the dropdown -> ConfirmDialog -> tap the dialog's
@@ -209,7 +208,7 @@ void main() {
   // Desktop close-flow (atomic #9, NewSessionPanel-inline epic): on desktop
   // the DM screen's `_leave` routes to /chat (branch B initialLocation)
   // instead of /sessions, so the inline NewSessionPanel reappears in the
-  // chat pane while the rail STAYS mounted (the parity invariant). Before
+  // chat pane while the rail STAYS mounted (the layout invariant). Before
   // this fix, close routed to /sessions on both surfaces -- branch A
   // activated and branch B kept the stale DmScreen mounted, so the inline
   // welcome never re-showed after a close. The mobile path is pinned by
@@ -249,7 +248,7 @@ void main() {
   });
 
   // The desktop welcome embeds the full NewSessionPanel. Its steps switch
-  // inline while the rail stays mounted, matching React's showSetup branch.
+  // inline while the rail stays mounted.
   testWidgets(
       'desktop (1200x900): ChatPaneWelcome embeds NewSessionPanel inline; '
       'tapping the Chat tile switches the inline step (no routing); Back '
@@ -262,8 +261,8 @@ void main() {
     // The welcome pane renders beside the rail (chat branch preloaded).
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
 
-    // Desktop embeds NewSessionPanel, whose step=menu child is OnboardMenu
-    // (React NewSessionPanel parity). The menu renders the onboard head
+    // Desktop embeds NewSessionPanel, whose step=menu child is OnboardMenu.
+    // The menu renders the onboard head
     // (onboardTitle "Start a conversation") + the four tiles (Start:
     // chat/group, Join: join/channel).
     expect(find.byType(OnboardMenu), findsOneWidget);

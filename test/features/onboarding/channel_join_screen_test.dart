@@ -1,7 +1,6 @@
-// Widget tests for the ChannelJoinScreen (channel-join step, 1-в-1 with the
-// React ChannelJoinStep). Mirrors the chat_create_screen_test boilerplate:
-// ProviderScope override of `bridgeFacadeProvider` with the scripted bridge +
-// localized
+// Widget tests for the ChannelJoinScreen (channel-join step). Mirrors the
+// chat_create_screen_test boilerplate: ProviderScope override of
+// `bridgeFacadeProvider` with the scripted bridge + localized
 // MaterialApp.router so the step's Back button (context.go) resolves.
 //
 // Test 1: initial state -- title + body + placeholder + `#` + button label.

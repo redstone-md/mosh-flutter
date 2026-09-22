@@ -1,7 +1,6 @@
-// Shared MediaViewer -- the 1-в-1 port of React MediaViewer.tsx. The caller
-// (the slice-3 attachment transfer seam) resolves the URL and invokes
-// [showMediaViewer]. Image uses Image.network; video + audio use media_kit
-// (Player + VideoController).
+// Shared MediaViewer. The caller (the slice-3 attachment transfer seam)
+// resolves the URL and invokes [showMediaViewer]. Image uses Image.network;
+// video + audio use media_kit (Player + VideoController).
 library;
 
 import 'dart:io' show File;
@@ -17,13 +16,12 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
-/// Fullscreen in-app media viewer -- 1-в-1 with React's `MediaViewer`.
+/// Fullscreen in-app media viewer.
 ///
 /// Construct directly and pass to `showDialog`, or use the [showMediaViewer]
-/// helper which wires `onClose` to `Navigator.pop`. Mirrors React's prop
-/// shape exactly:
+/// helper which wires `onClose` to `Navigator.pop`.
 /// - `descriptor` -- the `AttachmentDescriptor` (carries `mime` + `fileName`).
-/// - `src`        -- the media URL (React `<img src>` / `<video src>`).
+/// - `src`        -- the media URL.
 /// - `onClose`    -- invoked by the close button, the backdrop tap, or Esc.
 class MediaViewer extends StatelessWidget {
   const MediaViewer({
@@ -33,12 +31,12 @@ class MediaViewer extends StatelessWidget {
     required this.onClose,
   });
 
-  /// The attachment's metadata (React `descriptor`). Drives the mime
-  /// branch (`descriptor.mime`) and the aria-label + caption
-  /// (`descriptor.fileName`).
+  /// The attachment's metadata. Drives the mime
+  /// branch (`descriptor.mime`) and the
+  /// semantics label + caption (`descriptor.fileName`).
   final AttachmentDescriptor descriptor;
 
-  /// The media source URL (React `src`). For `image/*` this is loaded via
+  /// The media source URL. For `image/*` this is loaded via
   /// `Image.network`; for video/audio/other it is unused by the placeholder
   /// and reserved for the slice-3 player wiring.
   final String src;
@@ -50,13 +48,13 @@ class MediaViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    // React `.media-viewer`: max-width 92vw, max-height 82vh on the stage
-    // and the image/video. `MediaQuery` gives the viewport; 0.92/0.82 map
+    // The stage and the image/video cap at max-width 92vw, max-height 82vh.
+    // `MediaQuery` gives the viewport; 0.92/0.82 map
     // the CSS vw/vh units faithfully.
     final maxStageWidth = media.size.width * 0.92;
     final maxStageHeight = media.size.height * 0.82;
 
-    // React `.media-viewer-in`: opacity 0 -> 1 over 0.16s ease. A
+    // Fade in: opacity 0 -> 1 over 0.16s ease. A
     // `TweenAnimationBuilder` keeps the widget stateless (no
     // `AnimationController` lifecycle to manage).
     return TweenAnimationBuilder<double>(
@@ -67,45 +65,41 @@ class MediaViewer extends StatelessWidget {
         return Opacity(opacity: opacity, child: child);
       },
       child: Semantics(
-        // React `role=dialog aria-modal=true aria-label=file_name`. The
-        // `showDialog` host already scopes the modal route (the `Dialog`
-        // route IS the modal semantics boundary -- Flutter's equivalent
-        // of React's `aria-modal="true"` + `useModalFocus` route scoping),
+        // The `showDialog` host already scopes the modal route (the `Dialog`
+        // route IS the modal semantics boundary),
         // so we do NOT set `scopesRoute: true` here: that requires
         // `explicitChildNodes: true` (framework assertion) AND duplicates
         // the modal-route scoping the `showDialog` host already provides.
         // Keeping `container: true, label: fileName` gives the labeled-group
-        // announcement (React's `aria-label=file_name`). Mirrors the
-        // ConfirmDialog's semantics approach.
+        // announcement. Mirrors the ConfirmDialog's semantics approach.
         container: true,
         label: descriptor.fileName,
         // ModalFocusTrap goes inside Semantics so Tab key events are handled
         // by the trap, while Escape is caught at the ModalRoute level.
         child: ModalFocusTrap(
           child: Dialog(
-            // Fullscreen: no inset padding (React `position: fixed; inset: 0`).
+            // Fullscreen: no inset padding.
             insetPadding: EdgeInsets.zero,
             backgroundColor: Colors.transparent,
             // No default Material elevation/clip on the fullscreen surface.
             elevation: 0,
             child: GestureDetector(
-              // React `onClick=onClose` on `.media-viewer` -- tap the
-              // backdrop (anywhere outside the stage) closes the viewer.
+              // Tap the backdrop (anywhere outside the stage) closes the
+              // viewer.
               behavior: HitTestBehavior.opaque,
               onTap: onClose,
               child: Stack(
                 children: [
-                  // React `background: rgba(8, 9, 10, 0.92)`. A near-opaque
-                  // dark scrim. (React also applies `backdrop-filter:
-                  // blur(6px)`; Flutter `BackdropFilter` needs the ImageFilter
-                  // to blur what is *behind* the route -- a nicety deferred;
-                  // the 0.92 scrim is a faithful-enough port.)
+                  // A near-opaque dark scrim (rgba(8, 9, 10, 0.92)).
+                  // (A `backdrop-filter: blur(6px)` nicety is deferred:
+                  // Flutter `BackdropFilter` needs the ImageFilter to blur
+                  // what is *behind* the route.)
                   Positioned.fill(
                     child: ColoredBox(color: const Color(0xEB08090A)),
                   ),
-                  // React `.media-viewer`: flex column, center, gap 14px,
-                  // padding 48px 32px 32px. The Column is centered + padded;
-                  // the close button is absolutely positioned over it.
+                  // Centered flex column, gap 14px, padding 48px 32px 32px.
+                  // The Column is centered + padded; the close button is
+                  // absolutely positioned over it.
                   Positioned.fill(
                     child: Padding(
                       padding: const EdgeInsets.only(
@@ -116,12 +110,11 @@ class MediaViewer extends StatelessWidget {
                       ),
                       // Wrapped in a vertical `SingleChildScrollView` so a
                       // tall image/video never overflows the viewport: when
-                      // the stage + caption fit (the common case) the content
-                      // stays centered; when they exceed the available height
-                      // the column scrolls instead of throwing a layout
-                      // overflow (React's flex column would clip in a browser;
-                      // Flutter errors on overflow, so scroll is the safe
-                      // mirror).
+                      // the stage + caption fit (the common case) the
+                      // content stays centered; when they exceed the
+                      // available height the column scrolls instead of
+                      // throwing a layout overflow (Flutter errors on
+                      // overflow, so scroll is the safe behavior).
                       child: Center(
                         child: SingleChildScrollView(
                           child: Column(
@@ -147,7 +140,7 @@ class MediaViewer extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // React `.media-viewer-close`: absolute top 16 right 18.
+                  // The close button: absolute top 16 right 18.
                   Positioned(
                     top: 16,
                     right: 18,
@@ -163,12 +156,10 @@ class MediaViewer extends StatelessWidget {
   }
 }
 
-/// The centered media stage -- React `.media-viewer-stage`
-/// (`onClick stopPropagation`). Tapping inside the stage does NOT close the
-/// viewer (the inner `GestureDetector` swallows the tap, mirroring React's
-/// `event.stopPropagation()`). Branches on `descriptor.mime` exactly like
-/// React: `image/*` -> image, `video/*` -> video placeholder, `audio/*` ->
-/// audio placeholder, else -> file placeholder.
+/// The centered media stage. Tapping inside the stage does NOT close the
+/// viewer (the inner `GestureDetector` swallows the tap). Branches on
+/// `descriptor.mime`: `image/*` -> image, `video/*` -> video placeholder,
+/// `audio/*` -> audio placeholder, else -> file placeholder.
 class _MediaStage extends StatelessWidget {
   const _MediaStage({
     required this.descriptor,
@@ -185,14 +176,13 @@ class _MediaStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mime = descriptor.mime;
-    // React: `isImage = mime.startsWith("image/")`, etc.
+    // `isImage = mime.startsWith("image/")`, etc.
     final isImage = mime.startsWith('image/');
     final isVideo = mime.startsWith('video/');
     final isAudio = mime.startsWith('audio/');
 
     return GestureDetector(
-      // React `onClick={(e) => e.stopPropagation()}` -- swallow taps so the
-      // media itself does not close the viewer.
+      // Swallow taps so the media itself does not close the viewer.
       onTap: () {},
       behavior: HitTestBehavior.opaque,
       child: ConstrainedBox(
@@ -223,7 +213,6 @@ class _MediaStage extends StatelessWidget {
                       )
                     : _PlaybackPlaceholderCard(
                         fileName: descriptor.fileName,
-                        // React `IconFile` -> Material
                         // `Icons.insert_drive_file_outlined` (matches the
                         // attachment_card file-card icon choice).
                         icon: Icons.insert_drive_file_outlined,
@@ -234,10 +223,9 @@ class _MediaStage extends StatelessWidget {
   }
 }
 
-/// The image branch -- React `.media-viewer-image`
-/// (`<img src alt=file_name>`; `max-width 92vw; max-height 82vh;
-/// object-fit: contain; border-radius: 8px; background: var(--bg-0)`).
-/// `Image.network` mirrors React's `<img src>` for a URL `src`.
+/// The image branch (`max-width 92vw; max-height 82vh; object-fit:
+/// contain; border-radius: 8px; background: var(--bg-0)`).
+/// `Image.network` loads a URL `src`.
 class _ImageStage extends StatelessWidget {
   const _ImageStage({
     required this.descriptor,
@@ -268,7 +256,7 @@ class _ImageStage extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: ColoredBox(
-        // React `background: var(--bg-0)`.
+        // bg-0 background behind the image.
         color: bg0,
         child: Image(
           image: _image,
@@ -276,7 +264,7 @@ class _ImageStage extends StatelessWidget {
           width: maxStageWidth,
           height: maxStageHeight,
           gaplessPlayback: true,
-          // React `alt=file_name` -- the screen reader label.
+          // The screen reader label.
           semanticLabel: descriptor.fileName,
           errorBuilder: (context, error, stackTrace) => SizedBox(
             width: maxStageWidth,
@@ -295,13 +283,13 @@ class _ImageStage extends StatelessWidget {
   }
 }
 
-/// The video branch -- 1-в-1 with React `media-viewer-video` (a `video`
-/// element with `src controls autoPlay`). Uses media_kit: a [Player]
+/// The video branch (a `video` element with `src controls autoPlay`).
+/// Uses media_kit: a [Player]
 /// drives playback, a [VideoController] surfaces the frames to a [Video]
 /// widget with MaterialVideoControls (the Material counterpart to the
 /// native `controls` attribute). Constrained to the stage box so a
-/// tall/wide clip never overflows the viewport (React `max-width 92vw;
-/// max-height 82vh`).
+/// tall/wide clip never overflows the viewport (max-width 92vw;
+/// max-height 82vh).
 class _VideoStage extends StatefulWidget {
   const _VideoStage({
     required this.descriptor,
@@ -328,8 +316,8 @@ class _VideoStageState extends State<_VideoStage> {
     super.initState();
     // media_kit needs its native lib; in test envs without it (or on an
     // unsupported platform) Player() throws -- fall back to the placeholder
-    // card so the viewer still renders. React video autoPlay -> open +
-    // play immediately on the happy path.
+    // card so the viewer still renders. Opens + plays immediately on the
+    // happy path.
     try {
       final player = Player();
       _player = player;
@@ -368,7 +356,7 @@ class _VideoStageState extends State<_VideoStage> {
         borderRadius: BorderRadius.circular(8),
         child: Video(
           controller: controller,
-          // React controls -> Material controls (play/pause/seek/volume
+          // Material controls (play/pause/seek/volume
           // + fullscreen), the closest native counterpart.
           controls: MaterialVideoControls,
           fill: Colors.transparent,
@@ -418,13 +406,12 @@ class MediaAudioTimeLabel extends StatelessWidget {
   }
 }
 
-/// The audio branch -- 1-в-1 with React `media-viewer-audio` (IconPlayerPlay
-/// + strong file_name + an `audio` element with `src controls autoPlay`).
-/// Uses media_kit [Player] (audio-only -- no VideoController); a minimal
-/// control row (play/pause + seek Slider + position/duration label) mirrors
-/// the native `audio controls` affordance since media_kit ships no ready
-/// audio-controls widget. Listens to the player stream for live position +
-/// duration.
+/// The audio branch (play icon + strong file_name + an `audio` element
+/// with `src controls autoPlay`). Uses media_kit [Player] (audio-only --
+/// no VideoController); a minimal control row (play/pause + seek Slider +
+/// position/duration label) stands in for the native `audio controls`
+/// affordance since media_kit ships no ready audio-controls widget.
+/// Listens to the player stream for live position + duration.
 class _AudioStage extends StatefulWidget {
   const _AudioStage({
     required this.descriptor,
@@ -450,8 +437,8 @@ class _AudioStageState extends State<_AudioStage> {
   void initState() {
     super.initState();
     // media_kit needs its native lib; in test envs without it Player()
-    // throws -- fall back to the placeholder card. React audio autoPlay ->
-    // open + play on the happy path.
+    // throws -- fall back to the placeholder card. Opens + plays on the
+    // happy path.
     try {
       final player = Player();
       _player = player;
@@ -552,7 +539,7 @@ class _AudioStageState extends State<_AudioStage> {
   }
 }
 
-/// The video / audio / other placeholder card -- React `.media-viewer-audio`
+/// The video / audio / other placeholder card
 /// (`display:flex; flex-direction:column; align-items:center; gap:14px;
 /// padding:32px 40px; border:1px var(--line); border-radius:14px;
 /// background:var(--bg-2); color:var(--moss)`; `strong` -> `color:var(--fg-1);
@@ -575,32 +562,30 @@ class _PlaybackPlaceholderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
       decoration: BoxDecoration(
-        // React `background: var(--bg-2)`.
+        // bg-2 background.
         color: bg2,
-        // React `border: 1px solid var(--line)`.
+        // 1px line border.
         border: Border.all(color: theme.dividerColor),
-        // React `border-radius: 14px`.
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
-        // React `gap: 14px`.
+        // 14px gap between icon and file name.
         children: [
           Icon(
-            // React `IconPlayerPlayFilled size=32` (video/audio) /
-            // `IconFile size=32` (other).
+            // Play icon (video/audio) or file icon (other).
             icon,
             size: 32,
-            // React `color: var(--moss)` on the card. Material has no
+            // Moss accent. Material has no
             // per-app moss token; the theme primary is the closest accent.
             color: theme.colorScheme.primary,
           ),
           const SizedBox(height: 14),
           Text(
             fileName,
-            // React `<strong>` -> `color: var(--fg-1); font-size: 13px`.
+            // fg-1, 13px, bold.
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 13,
@@ -616,7 +601,7 @@ class _PlaybackPlaceholderCard extends StatelessWidget {
   }
 }
 
-/// The caption -- React `.media-viewer-caption`
+/// The caption
 /// (`max-width:80vw; color:var(--fg-2); font-size:12.5px; text-align:center`).
 class _MediaCaption extends StatelessWidget {
   const _MediaCaption({
@@ -636,9 +621,8 @@ class _MediaCaption extends StatelessWidget {
       child: Text(
         fileName,
         style: TextStyle(
-          // React `font-size: 12.5px`.
           fontSize: 12.5,
-          // React `color: var(--fg-2)` (muted).
+          // Muted fg-2.
           color: fg2,
         ),
         textAlign: TextAlign.center,
@@ -649,11 +633,11 @@ class _MediaCaption extends StatelessWidget {
   }
 }
 
-/// The close button -- React `.media-viewer-close`
+/// The close button
 /// (`position:absolute; top:16px; right:18px; width:36px; height:36px;
 /// display:grid; place-items:center; border:1px var(--line);
 /// border-radius:9px; background:var(--bg-2); color:var(--fg-2)`;
-/// `IconX size=18`; `aria-label="Close viewer"`). Hover swaps to `bg-3/fg-1`
+/// `IconX size=18`). Hover swaps to `bg-3/fg-1`
 /// -- Material's `IconButton` hover/inherited state covers that.
 class _MediaCloseButton extends StatelessWidget {
   const _MediaCloseButton({required this.onPressed});
@@ -665,17 +649,16 @@ class _MediaCloseButton extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Semantics(
-      // React `aria-label="Close viewer"` -- localized via the `closeViewer`
-      // ARB key (React inlines "Close viewer"; the Flutter port localizes).
+      // "Close viewer", localized via the `closeViewer` ARB key.
       label: l.closeViewer,
       button: true,
       child: Tooltip(
         message: l.closeViewer,
         child: Material(
-          // React `background: var(--bg-2)`; `border: 1px var(--line)`;
-          // `border-radius: 9px`. A custom Container (not IconButton) so the
-          // 36x36 bordered square matches React exactly -- IconButton's
-          // default splash/padding would not.
+          // bg-2 background; 1px line border; 9px border-radius.
+          // A custom Container (not IconButton) so the
+          // 36x36 bordered square is exact -- IconButton's
+          // default splash/padding would not match.
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9),
@@ -688,10 +671,9 @@ class _MediaCloseButton extends StatelessWidget {
               width: 36,
               height: 36,
               child: Icon(
-                // React `IconX` -> Material `Icons.close`.
                 Icons.close,
                 size: 18,
-                // React `color: var(--fg-2)` (muted).
+                // Muted fg-2.
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
@@ -702,13 +684,10 @@ class _MediaCloseButton extends StatelessWidget {
   }
 }
 
-/// Shows a [MediaViewer] as a fullscreen modal. Mirrors React's
-/// `private-dm-screen` usage
-/// `<MediaViewer descriptor={viewer.descriptor} src={viewer.src}
-/// onClose={() => setViewer(null)} />` -- the caller resolves the descriptor
-/// + src and calls this helper; `onClose` pops the route. The barrier is
-/// dismissible (click-outside + Esc), so both the close button and the
-/// backdrop close the viewer.
+/// Shows a [MediaViewer] as a fullscreen modal. The caller resolves the
+/// descriptor + src and calls this helper; `onClose` pops the route. The
+/// barrier is dismissible (click-outside + Esc), so both the close button
+/// and the backdrop close the viewer.
 ///
 /// `barrierLabel` is the localized `closeViewer` string so the modal scrim
 /// announces itself as a close affordance to assistive tech.

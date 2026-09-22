@@ -1,21 +1,16 @@
-/// Thumbnail generator -- the 1-to-1 port of React's `createThumbnail`
-/// (src/features/private-dm/attachment-utils.ts L133-141). React's
-/// `imageThumbnail` uses `createImageBitmap` + a canvas; this port uses the
+/// Thumbnail generator. Uses the
 /// pure-Dart `image` package (decode + copyResize + encodeJpg), so it works
-/// on desktop + mobile + web with no native plugin. React's `videoThumbnail`
-/// (a `<video>` seek + canvas draw) is ported to `media_kit`'s headless
-/// `Player` + `screenshot()` -- see [_createVideoThumbnail].
+/// on desktop + mobile + web with no native plugin. The video branch uses
+/// `media_kit`'s headless `Player` + `screenshot()` -- see
+/// [_createVideoThumbnail].
 //
-// For non-image/non-video picks this returns null (mirrors React's non-image
-// branch). A null thumbnail is never fatal -- React resolves undefined on
-// any decode failure; the gateway treats a null `thumbnailBase64` as "no
+// For non-image/non-video picks this returns null. A null thumbnail is
+// never fatal -- the gateway treats a null `thumbnailBase64` as "no
 // preview".
 //
-// Output: a base64-encoded JPEG (no `data:` prefix), matching React's
-// `canvasToBase64` (`toDataURL("image/jpeg", 0.7)` then strip the prefix).
-// The 320px max-edge + 70% quality mirror React's `THUMBNAIL_MAX_EDGE = 320`
-// + the `0.7` quality arg. Aspect is preserved via `copyResize` (width-only
-// resize auto-computes height, matching React's `scaledSize`).
+// Output: a base64-encoded JPEG (no `data:` prefix). The 320px max-edge +
+// 70% quality. Aspect is preserved via `copyResize` (width-only
+// resize auto-computes height).
 library;
 
 import 'dart:async' show Completer, StreamSubscription;
@@ -27,26 +22,24 @@ import 'package:image/image.dart' as img
 import 'package:media_kit/media_kit.dart';
 import 'package:mime/mime.dart' show lookupMimeType;
 
-/// The max edge (px) for a thumbnail -- 1-в-1 with React `THUMBNAIL_MAX_EDGE`.
+/// The max edge (px) for a thumbnail.
 const int _thumbnailMaxEdge = 320;
 
-/// JPEG quality (0-100) -- React's `0.7` (a 0-1 value) maps to 70 here.
+/// JPEG quality (0-100); 70 of 100.
 const int _jpegQuality = 70;
 
 /// Generates a base64-encoded JPEG thumbnail for an image or video file, or
-/// null for other types / decode failures (mirrors React `createThumbnail`
-/// returning `undefined` for non-media types and on any decode error).
+/// null for other types / decode failures.
 ///
 /// [fileName] is used to infer the image decoder (via `decodeNamedImage`,
 /// which keys off the extension). [bytes] is the raw file content (already
 /// read by AttachmentPicker).
 ///
 /// Image picks use the pure-Dart `image` package (no native plugin). Video
-/// picks use `media_kit`'s headless `Player` + `screenshot()` -- the 1-to-1
-/// port of React's `videoThumbnail` (seek to 10%, capture, re-encode). The
+/// picks use `media_kit`'s headless `Player` + `screenshot()` (seek to 10%,
+/// capture, re-encode). The
 /// video branch is best-effort: if the media_kit native backend (libmpv) is
-/// unavailable, it returns null rather than throwing (mirrors React's
-/// `videoThumbnail` resolving `undefined` on any error). End-to-end video
+/// unavailable, it returns null rather than throwing. End-to-end video
 /// capture is verified via integration_test, not `flutter test`.
 Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
   final mime = lookupMimeType(fileName) ?? '';
@@ -56,17 +49,17 @@ Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
   if (mime.startsWith('video/')) {
     return _createVideoThumbnail(bytes);
   }
-  return null; // React: non-image/non-video => undefined
+  return null; // non-image/non-video => no thumbnail
 }
 
-/// Image branch -- 1-to-1 with React `imageThumbnail`. Returns null for
+/// Image branch. Returns null for
 /// non-images / decode failures (never fatal). Behavior-identical to the
 /// pre-video-branch implementation (byte-identical output).
 Future<String?> _createImageThumbnail(Uint8List bytes, String fileName) async {
   try {
     final decoded = img.decodeNamedImage(fileName, bytes);
     if (decoded == null) return null;
-    // React scaledSize: scale = min(1, MAX / max(w, h, 1)); the longest edge
+    // Scale: the longest edge
     // becomes MAX, the other scales by the same factor. copyResize with only
     // width set auto-computes height to preserve aspect -- so resize by the
     // LONGER dimension: width=MAX for landscape/square, height=MAX for
@@ -79,17 +72,17 @@ Future<String?> _createImageThumbnail(Uint8List bytes, String fileName) async {
     final jpeg = img.encodeJpg(resized, quality: _jpegQuality);
     return base64Encode(jpeg);
   } catch (_) {
-    // Never fatal -- mirrors React's try/catch -> undefined. `catch (_)` on
+    // Never fatal -- resolve null on any decode failure. `catch (_)` on
     // purpose: a corrupt or oversized bitmap throws a RangeError, an Error,
     // not an Exception, and that used to escape as an uncaught async error.
     return null;
   }
 }
 
-/// Video branch -- 1-to-1 with React `videoThumbnail`. Seeks to 10% of the
+/// Video branch. Seeks to 10% of the
 /// duration, captures a frame via `media_kit`'s headless `Player.screenshot()`,
 /// then decodes + resizes to 320px max-edge + re-encodes JPEG q70 (the same
-/// output shape as the image branch, matching React's `scaledSize` + `0.7`).
+/// output shape as the image branch).
 ///
 /// Best-effort: returns null on ANY failure. The media_kit native backend
 /// (libmpv-2.dll) is a `flutter build windows` artifact and is absent from the
@@ -105,7 +98,7 @@ Future<String?> _createVideoThumbnail(Uint8List bytes) async {
     final media = await Media.memory(bytes);
     await player.open(media, play: false);
 
-    // 1) Wait for duration (>0). React's 6s overall budget; 4s here per the
+    // 1) Wait for duration (>0). 4s budget per the
     //    tracer-bullet await sequence. Fall back to 2s on timeout so the
     //    seek still runs against a sane target.
     final durCompleter = Completer<Duration>();
@@ -124,8 +117,8 @@ Future<String?> _createVideoThumbnail(Uint8List bytes) async {
     await durSub.cancel();
     durSub = null;
 
-    // 2) Seek to 10% (clamped to [0,1000]ms, mirroring React's `Math.min(1,
-    //    duration * 0.1)`). seek() resolves on command issue, not frame
+    // 2) Seek to 10% (clamped to [0,1000]ms). seek() resolves on command
+    //    issue, not frame
     //    render, so wait for the position stream to reach the target.
     final target = Duration(
       milliseconds: (duration.inMilliseconds * 0.1).round().clamp(0, 1000),
@@ -153,8 +146,8 @@ Future<String?> _createVideoThumbnail(Uint8List bytes) async {
         .timeout(const Duration(seconds: 2), onTimeout: () => null);
     if (frame == null || frame.isEmpty) return null;
 
-    // 4) Decode + resize to 320px max-edge + re-encode JPEG q70 (React parity
-    //    with the image branch). decodeImage sniffs the format from the JPEG
+    // 4) Decode + resize to 320px max-edge + re-encode JPEG q70 (the same
+    //    output as the image branch). decodeImage sniffs the format from the JPEG
     //    bytes returned by screenshot().
     final decoded = img.decodeImage(frame);
     if (decoded == null) return null;

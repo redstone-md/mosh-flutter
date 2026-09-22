@@ -1,6 +1,5 @@
-// Parity tests for `BindInterfaceField` (lib/src/features/vpn/
-// bind_interface_field.dart) -- the 1-в-1 port of React's
-// `BindInterfaceField.tsx`. Asserts the bound/unbound head copy, the
+// Tests for `BindInterfaceField` (lib/src/features/vpn/
+// bind_interface_field.dart). Asserts the bound/unbound head copy, the
 // no-NIC hint, the Bind/Release button label swap + onAccept, and the
 // error branch.
 import 'package:flutter/material.dart';

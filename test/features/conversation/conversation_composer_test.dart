@@ -1,11 +1,9 @@
-// ConversationComposer `disabled` vs `sending` parity test (React
-// ChatComposer.tsx L58/L113 distinguishes a hard `disabled` gate from an
-// in-flight `sending` flag; Flutter previously conflated both into
-// `sending`). The send button is the cleanest assertion target: its
-// `onPressed` is null iff the gate (`sending || disabled`) is set OR the
-// text is empty. Pumping the composer directly (no screen) keeps the test
-// hermetic; the AttachmentPicker file dialog only opens on tap, so
-// pumping it is safe.
+// ConversationComposer `disabled` vs `sending` test: the composer keeps a
+// hard `disabled` gate distinct from the in-flight `sending` flag. The
+// send button is the cleanest assertion target: its `onPressed` is null
+// iff the gate (`sending || disabled`) is set OR the text is empty.
+// Pumping the composer directly (no screen) keeps the test hermetic; the
+// AttachmentPicker file dialog only opens on tap, so pumping it is safe.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';

@@ -1,6 +1,5 @@
-// Parity tests for `VpnConsentModal` (lib/src/features/vpn/
-// vpn_consent_modal.dart) -- the 1-в-1 port of React's
-// `VpnConsentModal.tsx`. Asserts the show/hide gate, the accept/decline
+// Tests for `VpnConsentModal` (lib/src/features/vpn/
+// vpn_consent_modal.dart). Asserts the show/hide gate, the accept/decline
 // Gateway calls, the saving-phase label swap, and the error branch.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

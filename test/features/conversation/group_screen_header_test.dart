@@ -1,18 +1,15 @@
-// Widget tests for the GroupScreen AppBar header -- the 1-в-1 port of
-// React `ActiveChatHeader` (ActiveChatPanes.tsx ~L302-326):
+// Widget tests for the GroupScreen AppBar header:
 //   - subtitle: is_admin ? `${adminBadge} · ` : ""
 //     + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`
-//   - beforeSearchActions admin-pill (crown + "admin" + title tooltip), only
-//     if is_admin.
+//   - admin-pill (crown + "admin" + title tooltip), only if is_admin.
 // Asserts (a) an admin sees the admin-pill + the "admin · " subtitle prefix,
 // (b) a non-admin sees neither the pill nor the prefix, and (c) the member
 // plural ("1 member" vs "2 members"). Mirrors the seed/override idiom of
 // group_screen_grouping_test.dart (override groupSnapshotProvider so the
-// native cdylib is not involved). Also covers the copy-invite button (the
-// beforeSearchActions slot's second child): invite present renders a copy
-// icon + "Copy invite" tooltip; tap writes the URI to the clipboard and
-// flips the icon to a check + tooltip to "Invite copied"; invite null
-// renders no button.
+// native cdylib is not involved). Also covers the copy-invite button:
+// invite present renders a copy icon + "Copy invite" tooltip; tap writes
+// the URI to the clipboard and flips the icon to a check + tooltip to
+// "Invite copied"; invite null renders no button.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter_test/flutter_test.dart';
@@ -163,7 +160,7 @@ void main() {
       ],
     );
     await _pumpGroup(tester, snapshot);
-    // Singular form ("1 member") -- mirrors React's `member_count === 1`.
+    // Singular form ("1 member").
     expect(find.text('admin · 1 member · MLS Active'), findsOneWidget);
   });
 
@@ -185,14 +182,14 @@ void main() {
       ],
     );
     await _pumpGroup(tester, snapshot);
-    // Plural form ("2 members") -- mirrors React's `member_count !== 1`.
+    // Plural form ("2 members").
     expect(find.text('admin · 2 members · MLS Active'), findsOneWidget);
   });
 
-  // --- Copy-invite button (beforeSearchActions, second child) ---
-  // Mirrors React ActiveChatPanes.tsx ~L327-337. The clipboard channel is
-  // intercepted with the same idiom as chat_create_screen_test.dart so the
-  // tap test can assert exactly what Clipboard.setData received.
+  // --- Copy-invite button ---
+  // The clipboard channel is intercepted with the same idiom as
+  // chat_create_screen_test.dart so the tap test can assert exactly what
+  // Clipboard.setData received.
   //
   // NOTE: assertions target the copy-invite IconButton by its tooltip
   // rather than `find.byIcon` globally, because the ConversationTools
@@ -301,8 +298,8 @@ void main() {
             .icon,
         Icons.check);
 
-    // After the 1600ms revert window (React's setTimeout(..., 1600)), the
-    // button reverts to the copy icon + "Copy invite" tooltip.
+    // After the 1600ms revert window, the button reverts to the copy icon
+    // + "Copy invite" tooltip.
     await tester.pump(const Duration(milliseconds: 1600));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Copy invite'), findsOneWidget);

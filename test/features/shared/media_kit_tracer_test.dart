@@ -1,10 +1,10 @@
 // Tracer-bullet: prove media_kit's headless Player + screenshot() path works
 // inside `flutter test` on Windows before the executor builds the real video
 // thumbnail branch. If this test passes (returns non-null JPEG bytes), the
-// path is viable and the executor can port React videoThumbnail 1-1. If it
+// path is viable for the real video-thumbnail branch. If it
 // cannot run in `flutter test` (the case on this Windows machine), the
 // executor must guard with try/catch and treat video thumbnails as
-// best-effort (null on failure, never fatal -- mirrors React).
+// best-effort (null on failure, never fatal).
 //
 // VERDICT (Windows, 2026-08-02): the Player + screenshot() path CANNOT run
 // headless inside `flutter test` on this machine. media_kit's native
@@ -18,8 +18,8 @@
 // + mosh_core.dll; mpv is not on %PATH%). Therefore the real
 // video-thumbnail branch MUST:
 //   1. Guard every Player/screenshot call in try/catch and treat a null
-//      thumbnail as best-effort (never fatal) -- mirrors React's
-//      videoThumbnail which returns null on failure.
+//      thumbnail as best-effort (never fatal) -- videoThumbnail returns
+//      null on failure.
 //   2. Be exercised end-to-end via integration_test (a real Flutter app
 //      bundle that has the staged libmpv-2.dll), NOT via `flutter test`.
 //   3. Unit-test only the "returns null gracefully when media_kit is
@@ -27,7 +27,7 @@
 //
 // The await sequence inside the test body below is the one the executor
 // should reuse inside the real app / integration_test; it is the exact
-// port of React's videoThumbnail (6s overall budget, 10% seek target).
+// videoThumbnail port (6s overall budget, 10% seek target).
 // On a machine where libmpv-2.dll IS staged (e.g. a CI step that runs
 // `flutter build windows` first, or integration_test), this probe will
 // actually execute and assert the JPEG magic bytes instead of skipping.

@@ -18,13 +18,11 @@ VoicePlayback voiceCallPlaybackStart() =>
     RustLib.instance.api.crateApiVoiceCallPlaybackVoiceCallPlaybackStart();
 
 /// Decodes one Opus packet and pushes its 960 i16 samples onto the ring. `seq`
-/// is the call frame sequence (preserves gaps on the wire, mirroring React's
-/// `(seq & SEQ_VALUE_MASK) * 20000us` timestamp), unused by cpal's pull model
-/// but accepted for seam parity with `VoicePlaybackHandle.pushFrame`. If the
-/// ring backlog exceeds `PLAYBACK_RESYNC_S`, the backlog is dropped first
-/// (React's `start = currentTime` resync). On a full ring the push clears the
-/// backlog and retries, matching React's no-backpressure `source.start(0)`
-/// "play from now" behavior.
+/// is the call frame sequence (preserves gaps on the wire), unused by cpal's
+/// pull model but accepted for seam parity with `VoicePlaybackHandle.pushFrame`.
+/// If the ring backlog exceeds `PLAYBACK_RESYNC_S`, the backlog is dropped
+/// first. On a full ring the push clears the backlog and retries
+/// ("play from now", no backpressure).
 void voiceCallPlaybackPushFrame(
         {required VoicePlayback p,
         required BigInt seq,
@@ -33,7 +31,7 @@ void voiceCallPlaybackPushFrame(
         p: p, seq: seq, opus: opus);
 
 /// Stops the playback pipeline by dropping the `cpal::Stream` (closes the
-/// audio output, mirroring React's `context.close()`). The decoder and ring
+/// audio output). The decoder and ring
 /// are dropped with the `VoicePlayback` opaque when frb releases it. Inert if
 /// already stopped (idempotent -- matches `VoicePlaybackHandle.stop`'s
 /// "inert if already stopped" contract).

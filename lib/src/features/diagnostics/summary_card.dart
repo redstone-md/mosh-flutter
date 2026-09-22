@@ -1,14 +1,8 @@
-/// `SummaryCard` + `RuntimeError` widgets for the Diagnostics drawer, 1-в-1
-/// with React's `SummaryCard` and `RuntimeError` in
-/// `src/features/private-dm/DiagnosticsDrawerSummary.tsx`.
+/// `SummaryCard` + `RuntimeError` widgets for the Diagnostics drawer.
 ///
-/// Colors mirror the React `diagnostic-summary-${tone}` classes from
-/// `middle-column.css`:
-///   - ready  -> `--moss`    #b7d84a (green)
-///   - waiting -> `--warn`   #e8b65a (amber)
-///   - error  -> `--danger`  #e86a5a (red)
-///   - idle   -> `--fg-3`    #6b7075 (grey, the default badge dot color)
-/// The tone also tints the section border (alpha) like the React CSS does.
+/// Tone colors: ready = green (`MoshColors.moss`), waiting = amber
+/// (`warn`), error = red (`danger`), idle = grey (`fg3`, the default
+/// badge dot color). The tone also tints the section border (alpha).
 library;
 
 import 'package:flutter/material.dart';
@@ -19,7 +13,7 @@ import 'package:mosh/src/features/diagnostics/diagnostics_summary.dart';
 
 /// Renders a `DiagnosticSummary` as a bordered section with a heading
 /// (kicker + title + a status badge with a tone dot + state), a
-/// description paragraph, and a facts grid. Mirrors React's `SummaryCard`.
+/// description paragraph, and a facts grid.
 class SummaryCard extends StatelessWidget {
   const SummaryCard({super.key, required this.summary});
 
@@ -57,7 +51,7 @@ class SummaryCard extends StatelessWidget {
 }
 
 /// The heading row: kicker + title on the left, status badge (dot + state)
-/// on the right. Mirrors React's `.diagnostic-summary-heading`.
+/// on the right.
 class _Heading extends StatelessWidget {
   const _Heading({required this.summary, required this.toneColor});
 
@@ -107,8 +101,7 @@ class _Heading extends StatelessWidget {
   }
 }
 
-/// The pill-shaped status badge with a tone dot + the state text. Mirrors
-/// React's `.diagnostic-status-badge` + `.diagnostic-status-dot`.
+/// The pill-shaped status badge with a tone dot + the state text.
 class _StatusBadge extends StatelessWidget {
   const _StatusBadge({
     required this.state,
@@ -165,7 +158,7 @@ class _StatusBadge extends StatelessWidget {
 }
 
 /// The facts grid: each fact is a small bordered cell with an uppercase
-/// label and a mono value. Mirrors React's `.diagnostic-summary-facts`.
+/// label and a mono value.
 class _FactsGrid extends StatelessWidget {
   const _FactsGrid({required this.facts});
 
@@ -184,9 +177,8 @@ class _FactsGrid extends StatelessWidget {
   }
 }
 
-/// A single fact cell. Sized to at least 92px wide (React's
-/// `minmax(92px, 1fr)`) via `ConstrainedBox`, then grows with `IntrinsicWidth`
-/// is unnecessary -- `Wrap` lays them out left-to-right wrapping.
+/// A single fact cell. Sized to at least 92px wide via `ConstrainedBox`;
+/// `Wrap` lays the cells out left-to-right wrapping.
 class _FactCell extends StatelessWidget {
   const _FactCell({required this.label, required this.value});
 
@@ -201,7 +193,6 @@ class _FactCell extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          // `.diagnostic-summary-fact { background: var(--bg-2) }`.
           color: MoshColors.bg2,
           border: Border.all(color: MoshColors.line),
           borderRadius: BorderRadius.circular(7),
@@ -237,8 +228,7 @@ class _FactCell extends StatelessWidget {
 }
 
 /// Renders a runtime-error alert row with an alert-triangle icon + the
-/// localized "Runtime error" label + the message. Mirrors React's
-/// `RuntimeError` (uses `IconAlertTriangle` -> `Icons.warning_amber`).
+/// localized "Runtime error" label + the message.
 class RuntimeError extends StatelessWidget {
   const RuntimeError({super.key, required this.message});
 
@@ -249,8 +239,8 @@ class RuntimeError extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     const danger = MoshColors.danger;
-    // `Semantics(liveRegion: true)` mirrors React `role="alert"` -- screen
-    // readers announce the error when it appears in the drawer.
+    // Live region: screen readers announce the error when it appears in
+    // the drawer.
     return Semantics(
       liveRegion: true,
       container: true,
@@ -300,7 +290,7 @@ class RuntimeError extends StatelessWidget {
   }
 }
 
-/// Maps a `DiagnosticSummaryTone` to its React-CSS color token.
+/// Maps a `DiagnosticSummaryTone` to its color token.
 Color _toneColor(DiagnosticSummaryTone tone) {
   switch (tone) {
     case DiagnosticSummaryTone.ready:

@@ -1,26 +1,13 @@
-// OutgoingCallModal -- 1-в-1 port of React `src/features/private-dm/
-// voice-call/OutgoingCallModal.tsx`. Shown on the caller side while
-// waiting for the peer to answer (`SessionSnapshot.outgoingCall`
-// non-null): a centered modal card with the peer label, a "Calling..."
-// status, and a single round cancel/hang-up button (decline red). On
-// mount it starts a ringtone (dial tone, reusing the ringtone synth);
-// the active-call overlay takes over once the peer accepts.
+// OutgoingCallModal -- shown on the caller side while waiting for the peer
+// to answer (`SessionSnapshot.outgoingCall` non-null): a centered modal
+// card with the peer label, a "Calling..." status, and a single round
+// cancel/hang-up button (decline red). On mount it starts a ringtone
+// (dial tone, reusing the ringtone synth); the active-call overlay takes
+// over once the peer accepts.
 //
-// React structure (OutgoingCallModal.tsx):
-//   .call-modal (role=dialog aria-modal aria-label="Outgoing call"
-//      tabIndex=-1) + useModalFocus(onCancel)
-//     -> .call-modal-card (same shape as IncomingCallModal)
-//        -> strong.call-modal-peer (peerLabel, 18px)
-//        -> span.call-modal-status ("Calling...", 14px, opacity .75)
-//        -> .call-modal-actions (row, gap 16)
-//           -> button.call-btn.call-btn-decline (IconPhoneOff 20,
-//              aria-label "Cancel call", onClick onCancel)
-//
-// Flutter port: mirrors IncomingCallModal's card + button, minus the
-// accept button + the no-answer timer (React's outgoing modal has no
-// NO_ANSWER_TIMEOUT -- the orchestration layer can cancel after a
-// dial-timeout, but the modal itself just rings until onCancel). Esc
-// maps to onCancel via KeyboardListener (React useModalFocus(onCancel)).
+// The modal itself has no dial timeout -- the orchestration layer can
+// cancel after a dial-timeout; the modal just rings until cancelled. Esc
+// maps to cancel via KeyboardListener.
 
 library;
 
@@ -33,8 +20,7 @@ import 'package:mosh/src/features/voice_call/call_button.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
-/// The outgoing-call "ringing" modal -- 1-в-1 with React's
-/// `OutgoingCallModal`. Construct and pass to `showDialog`.
+/// The outgoing-call "ringing" modal. Construct and pass to `showDialog`.
 class OutgoingCallModal extends StatefulWidget {
   const OutgoingCallModal({
     super.key,
@@ -45,15 +31,14 @@ class OutgoingCallModal extends StatefulWidget {
     this.ringtone = const NoopRingtonePlayer(),
   });
 
-  /// The outgoing call (React `callId: string`; the Flutter contract is
-  /// `OutgoingCall { callId }` -- used only as the mount identity so the
-  /// ringtone effect re-runs if the call id changes).
+  /// The outgoing call -- used only as the mount identity so the ringtone
+  /// restarts if the call id changes.
   final OutgoingCall call;
 
-  /// The peer's display label (React `peerLabel`).
+  /// The peer's display label.
   final String peerLabel;
 
-  /// Fired on the cancel button or Esc (React `onCancel`).
+  /// Fired on the cancel button or Esc.
   final VoidCallback onCancel;
 
   /// Localizations (callOutgoingAriaLabel / callOutgoingStatus /
@@ -73,7 +58,7 @@ class _OutgoingCallModalState extends State<OutgoingCallModal> {
   @override
   void initState() {
     super.initState();
-    // React: `ringtoneRef.current = startRingtone()` in a try/catch.
+    // Ringtone start is best-effort: a failure leaves it silent.
     try {
       _ringtone = widget.ringtone.start();
     } catch (_) {
@@ -98,7 +83,6 @@ class _OutgoingCallModalState extends State<OutgoingCallModal> {
     return KeyboardListener(
       focusNode: FocusNode(),
       autofocus: true,
-      // React useModalFocus(onCancel) Esc-trap.
       onKeyEvent: (event) {
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.escape) {
