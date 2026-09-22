@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
+
+import '../../support/message_builders.dart';
 
 SessionSnapshot _snapshot({
   PendingCall? pendingCall,
@@ -13,18 +14,12 @@ SessionSnapshot _snapshot({
   ActiveCall? activeCall,
   String peerDisplayName = 'Alice',
 }) =>
-    SessionSnapshot(
+    TestSnapshots.dm(
       sessionId: 'sess-1',
       meshId: 'm',
       role: 'caller',
-      displayName: 'me',
       peerDisplayName: peerDisplayName,
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
       fingerprint: 'fp',
-      messages: const [],
-      attachments: const [],
-      events: const [],
       pendingCall: pendingCall,
       outgoingCall: outgoingCall,
       activeCall: activeCall,

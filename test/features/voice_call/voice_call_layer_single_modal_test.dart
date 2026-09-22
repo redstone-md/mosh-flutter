@@ -17,11 +17,11 @@ import 'package:mosh/src/features/voice_call/outgoing_call_modal.dart';
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
     show voiceCaptureFactoryProvider;
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
@@ -33,30 +33,18 @@ SessionSnapshot _snapshot({
   PendingCall? pendingCall,
   ActiveCall? activeCall,
 }) =>
-    SessionSnapshot(
+    TestSnapshots.dm(
       sessionId: _sessionId,
       meshId: 'mesh',
       role: 'caller',
-      displayName: 'me',
       peerDisplayName: 'Alice',
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
       fingerprint: 'fp',
-      messages: const [],
-      attachments: const [],
-      events: const [],
       outgoingCall: outgoingCall,
       pendingCall: pendingCall,
       activeCall: activeCall,
     );
 
-final _active = ActiveCall(
-  callId: 'call-1',
-  direction: 'caller',
-  keyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-  noncePrefixB64: 'AAAAAAAAAAA=',
-  startedAtMs: BigInt.zero,
-);
+final _active = TestCalls.active(callId: 'call-1');
 
 class _Session {
   SessionSnapshot snapshot = _snapshot();
