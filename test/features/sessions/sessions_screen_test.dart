@@ -19,6 +19,7 @@ import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/rust/conversation/dm_offers.dart';
@@ -321,5 +322,77 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listSessions), sessionCallsBeforeAccept);
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 0);
     expect(find.text('Write a message\u2026'), findsNothing);
+  });
+
+  // Regression (CodeAnt PR #17): pull-to-refresh only re-read the DM list,
+  // so groups, channels and orgs stayed stale in the combined rail. A pull
+  // must refresh every slice the rail renders.
+  testWidgets(
+      'pull-to-refresh re-reads the dm, channel and group lists and the '
+      'org roster', (tester) async {
+    final (gateway, bridge) = _scriptedPair();
+    bridge.seedSessions([
+      _session(
+          sessionId: 'alice-refresh',
+          displayName: 'me',
+          peerDisplayName: 'Alice',
+          state: DmSessionState.connected),
+    ]);
+    bridge.seedChannels([
+      ChannelSnapshot(
+        name: 'general',
+        topic: '',
+        meshId: 'm',
+        displayName: '',
+        deviceFingerprint: 'SELF',
+        messages: const [],
+        attachments: const [],
+        dmOffers: const [],
+        mesh: null,
+        events: const [],
+      ),
+    ]);
+    bridge.seedGroups([
+      GroupSnapshot(
+        groupId: 'crew-refresh',
+        meshId: 'm',
+        label: 'Crew',
+        displayName: 'me',
+        deviceFingerprint: 'SELF',
+        creatorFingerprint: 'SELF',
+        isAdmin: false,
+        state: 'ready',
+        memberCount: BigInt.from(3),
+        inviteUri: null,
+        messages: const [],
+        attachments: const [],
+        dmOffers: const [],
+        mesh: null,
+        events: const [],
+        needsRejoin: false,
+        orgPubkey: null,
+        memberPeerIds: const [],
+        typingMembers: const [],
+      ),
+    ]);
+
+    await pumpSessions(tester, gateway, bridge);
+
+    // Baseline counts (the initial build already read each list once).
+    final sessionsBefore = bridge.countOf(BridgeMethod.listSessions);
+    final channelsBefore = bridge.countOf(BridgeMethod.listChannels);
+    final groupsBefore = bridge.countOf(BridgeMethod.listGroups);
+    final orgsBefore = bridge.countOf(BridgeMethod.listOrgs);
+
+    // Pull-to-refresh: fling the rail down from the top.
+    await tester.fling(find.byType(ListView), const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+
+    expect(
+        bridge.countOf(BridgeMethod.listSessions), greaterThan(sessionsBefore));
+    expect(
+        bridge.countOf(BridgeMethod.listChannels), greaterThan(channelsBefore));
+    expect(bridge.countOf(BridgeMethod.listGroups), greaterThan(groupsBefore));
+    expect(bridge.countOf(BridgeMethod.listOrgs), greaterThan(orgsBefore));
   });
 }

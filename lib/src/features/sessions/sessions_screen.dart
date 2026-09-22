@@ -43,7 +43,12 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/state/conversation_providers.dart'
-    show channelsOf, conversationListProvider, groupsOf, sessionsOf;
+    show
+        channelsOf,
+        conversationListProvider,
+        groupsOf,
+        refreshConversationLists,
+        sessionsOf;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;
 import 'package:mosh/src/state/dm_offer_providers.dart';
@@ -256,9 +261,16 @@ class _RailList extends ConsumerWidget {
       );
     }
     return RefreshIndicator(
-      onRefresh: () => ref
-          .read(conversationListProvider(ConversationKind.dm).notifier)
-          .refresh(),
+      // The rail is a combined view (offers + DMs + groups + channels +
+      // orgs), so a pull refreshes every slice it renders: the conversation
+      // lists of all kinds plus the org roster. Refreshing only the DM
+      // slice left groups, channels, orgs and their pending offers stale.
+      onRefresh: () async {
+        await Future.wait([
+          refreshConversationLists(ref.read),
+          ref.read(orgsProvider.notifier).refresh(),
+        ]);
+      },
       child: ListView(children: children),
     );
   }
