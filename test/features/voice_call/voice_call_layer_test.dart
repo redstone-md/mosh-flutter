@@ -8,45 +8,34 @@ import 'package:flutter/services.dart' show MethodChannel;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/voice_call_layer.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-SessionSnapshot _outgoingSnapshot(String sessionId) => SessionSnapshot(
+SessionSnapshot _outgoingSnapshot(String sessionId) => TestSnapshots.dm(
       sessionId: sessionId,
       meshId: 'm',
       role: 'caller',
-      displayName: 'me',
       peerDisplayName: 'Alice',
       state: DmSessionState.pending,
-      transport: PeerTransport.direct,
       fingerprint: 'fp',
-      messages: const [],
-      attachments: const [],
-      events: const [],
       outgoingCall: const OutgoingCall(callId: 'call-1'),
     );
 
 SessionSnapshot _pendingSnapshot(String sessionId,
         {String fromDevice = 'Alice'}) =>
-    SessionSnapshot(
+    TestSnapshots.dm(
       sessionId: sessionId,
       meshId: 'm',
       role: 'caller',
-      displayName: 'me',
       peerDisplayName: 'Alice',
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
       fingerprint: 'fp',
-      messages: const [],
-      attachments: const [],
-      events: const [],
       pendingCall: PendingCall(callId: 'call-1', fromDevice: fromDevice),
     );
 
@@ -82,27 +71,15 @@ class _RecordingNotifications implements FlutterLocalNotificationsPlugin {
       throw UnimplementedError(' ${invocation.memberName}');
 }
 
-SessionSnapshot _activeSnapshot(String sessionId) => SessionSnapshot(
+SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
       sessionId: sessionId,
       meshId: 'm',
       role: 'caller',
-      displayName: 'me',
       peerDisplayName: 'Alice',
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
       fingerprint: 'fp',
-      messages: const [],
-      attachments: const [],
-      events: const [],
-      activeCall: ActiveCall(
-        callId: 'call-1',
-        direction: 'caller',
-        // Valid 32-byte base64 key + 8-byte nonce prefix so the
-        // orchestrator's importCallKey succeeds when it auto-attaches.
-        keyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-        noncePrefixB64: 'AAAAAAAAAAA=',
-        startedAtMs: BigInt.zero,
-      ),
+      // Valid 32-byte base64 key + 8-byte nonce prefix so the
+      // orchestrator's importCallKey succeeds when it auto-attaches.
+      activeCall: TestCalls.active(callId: 'call-1'),
     );
 
 void main() {

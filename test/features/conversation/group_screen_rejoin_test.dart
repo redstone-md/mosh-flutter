@@ -11,54 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
+import '../../support/message_builders.dart';
 import '../../support/pump.dart';
-
-GroupMessage _msg({
-  required String fromDevice,
-  required String fromFingerprint,
-  required String body,
-  BigInt? sentAtMs,
-}) =>
-    GroupMessage(
-      fromDevice: fromDevice,
-      fromFingerprint: fromFingerprint,
-      body: body,
-      messageId: null,
-      sentAtMs: sentAtMs,
-      attachment: null,
-      deliveryStatus: null,
-      deliveryError: null,
-      retryable: null,
-      retryCount: null,
-    );
-
-GroupSnapshot _snapshot({
-  required String groupId,
-  required String deviceFingerprint,
-  required List<GroupMessage> messages,
-  required bool needsRejoin,
-}) =>
-    GroupSnapshot(
-      groupId: groupId,
-      meshId: 'testmesh',
-      label: null,
-      displayName: 'me',
-      deviceFingerprint: deviceFingerprint,
-      creatorFingerprint: deviceFingerprint,
-      isAdmin: true,
-      state: 'ready',
-      memberCount: BigInt.from(2),
-      inviteUri: null,
-      messages: messages,
-      attachments: const [],
-      dmOffers: const [],
-      mesh: null,
-      events: const [],
-      needsRejoin: needsRejoin,
-      orgPubkey: null,
-      memberPeerIds: const [],
-      typingMembers: const [],
-    );
 
 Future<void> _pump(WidgetTester tester, GroupSnapshot snapshot) =>
     pumpScreen(tester, GroupScreen(groupId: snapshot.groupId), overrides: [
@@ -80,12 +34,12 @@ void main() {
       'needsRejoin=true renders the rejoin-needed inline-error (title + body)',
       (tester) async {
     const groupId = 'grp-rejoin-true';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       needsRejoin: true,
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
@@ -106,12 +60,12 @@ void main() {
       'needsRejoin=false does NOT render the rejoin-needed inline-error',
       (tester) async {
     const groupId = 'grp-rejoin-false';
-    final snapshot = _snapshot(
+    final snapshot = TestSnapshots.group(
       groupId: groupId,
       deviceFingerprint: 'fp-me',
       needsRejoin: false,
       messages: [
-        _msg(
+        TestMessages.group(
           fromDevice: 'bob',
           fromFingerprint: 'fp-bob',
           body: 'hi',
