@@ -312,7 +312,19 @@ impl ChannelRuntime {
                 continue;
             };
             if let Some(session) = self.channels.get_mut(&name) {
-                session.handle_message(message)?;
+                // A single malformed frame must never abort the drain —
+                // every valid frame queued behind it would be discarded from
+                // that drain, and the caller (send/poll/list drains first)
+                // fails too. Drop it and keep going, the same shape as the
+                // DM and group runtimes.
+                if let Err(error) = session.handle_message(message) {
+                    dlog::write(
+                        LogLevel::Warn,
+                        kinds::FRAME,
+                        &name,
+                        &format!("dropping inbound channel frame: {error}"),
+                    );
+                }
             }
         }
         for session in self.channels.values_mut() {

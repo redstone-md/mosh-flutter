@@ -68,10 +68,18 @@ impl PrivateDmSession {
             nonce_prefix_b64.clone(),
             String::new(),
         ));
-        self.transport
+        // A subscribe or offer that never left must not strand the slot: no
+        // frame ever arrives for a call the peer never heard of, so the
+        // timeout would only clear a dead call while blocking new ones.
+        if let Err(error) = self
+            .transport
             .subscribe(&self.mesh_id, &voice_call_channel(&call_id))
-            .map_err(PrivateDmRuntimeError::Moss)?;
-        self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64)?;
+            .map_err(PrivateDmRuntimeError::Moss)
+            .and_then(|()| self.publish_call_offer(&call_id, &key_b64, &nonce_prefix_b64))
+        {
+            let _ = self.call.take();
+            return Err(error);
+        }
         if let Some(call) = self.call.as_mut() {
             call.mark_offer_sent(now_ms());
         }
@@ -91,7 +99,18 @@ impl PrivateDmSession {
             return Err(PrivateDmRuntimeError::MissingSession);
         }
         call.become_active(now_ms());
-        self.publish_call_accept(call_id)
+        // The caller keeps re-offering until it sees this accept. If the
+        // accept never left, the local state must go back to ringing so the
+        // next offer re-triggers the accept path instead of the state
+        // machine rejecting the retry as "no longer ringing".
+        if let Err(error) = self.publish_call_accept(call_id) {
+            if let Some(call) = self.call.as_mut() {
+                call.phase = CallPhase::Ringing;
+                call.started_at_ms = 0;
+            }
+            return Err(error);
+        }
+        Ok(())
     }
 
     /// Retransmits the ring while the caller waits, and gives up once the ring
@@ -140,14 +159,19 @@ impl PrivateDmSession {
         if call.call_id != call_id {
             return Ok(());
         }
-        self.finish_call("missed", 0);
         let envelope = ControlEnvelope::CallDecline {
             session_id: self.session_id.clone(),
             participant_id: self.participant_id.clone(),
             call_id: call_id.to_string(),
             reason: reason.to_string(),
         };
-        self.send_call_control(&envelope)
+        // Publish BEFORE clearing: a decline that never left leaves the
+        // peer ringing against a call we consider gone, and a cleared slot
+        // has no path to re-send. On failure the call stays held so the
+        // user can decline (or answer) again on the next try.
+        self.send_call_control(&envelope)?;
+        self.finish_call("missed", 0);
+        Ok(())
     }
 
     pub(super) fn call_end(

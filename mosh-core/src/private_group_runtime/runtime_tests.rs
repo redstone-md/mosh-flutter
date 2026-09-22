@@ -1453,3 +1453,199 @@ fn a_real_group_record_without_snapshot_is_kept_and_reported() {
 fn persisted_group_rows(persistence: &Persistence) -> Vec<PersistedGroupSession> {
     crate::conversation::history::History::new(GROUP_HISTORY).stored_conversations(persistence)
 }
+
+// A create whose node cannot produce a public key fails — and must not leave
+// the room open behind it. On the shared node the acquired reference is what
+// keeps moss up, so bailing without closing pins the node (and its
+// subscriptions) on a group that never became a session.
+#[test]
+fn a_create_without_a_public_key_closes_the_room_it_opened() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    drain_received_messages();
+
+    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+    let mut runtime = PrivateGroupRuntime::from_shared(moss, temp_store(), None);
+
+    let _keyless = crate::moss_ffi::public_key_unavailable_next_node();
+    let error = runtime
+        .create_group(CreateGroupRequest {
+            label: Some("Keyless".to_string()),
+            display_name: "Alice".to_string(),
+            listen_port: 42390,
+            static_peer: None,
+            org_pubkey: None,
+        })
+        .expect_err("a keyless node cannot back a group");
+    assert!(
+        matches!(error, PrivateGroupError::Moss(_)),
+        "the failure is the missing public key, got {error:?}"
+    );
+    assert!(
+        runtime.shared_node.current().is_none(),
+        "a create that never became a session must release the shared node"
+    );
+
+    // The retry proves the failed create left no wedged state behind.
+    runtime
+        .create_group(CreateGroupRequest {
+            label: Some("Keyless".to_string()),
+            display_name: "Alice".to_string(),
+            listen_port: 42390,
+            static_peer: None,
+            org_pubkey: None,
+        })
+        .expect("the retry holds the node the failed create released");
+    assert!(runtime.shared_node.current().is_some());
+}
+
+// A roster near u64::MAX is absurd but signed, and the lag-horizon check used
+// to add ROSTER_LAG_HORIZON with plain `+`: a debug build panicked and a
+// release build wrapped the horizon backwards, admitting (instead of
+// rejecting) the u64::MAX claim the comment itself calls unreachable.
+#[test]
+fn a_roster_near_the_version_ceiling_rejects_an_unreachable_claim() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    drain_received_messages();
+
+    let mut db_path: PathBuf = std::env::temp_dir();
+    db_path.push(format!("mosh-org-horizon-{}.redb", std::process::id()));
+    let _ = std::fs::remove_file(&db_path);
+    let persistence =
+        Arc::new(Persistence::open_with_dek(&db_path, [33u8; 32]).expect("store should open"));
+
+    let admin_seed = [101u8; 32];
+    persistence
+        .put_moss_identity(&identity_blob(admin_seed))
+        .unwrap();
+    let admin_peer = org_signing::peer_id_hex(&SigningKey::from_bytes(&admin_seed));
+    let member_b_key = SigningKey::from_bytes(&[102u8; 32]);
+    let member_b = org_signing::peer_id_hex(&member_b_key);
+
+    // A roster pinned near the ceiling: `own + HORIZON` overflows, which used
+    // to panic in debug builds and wrap the horizon backwards in release
+    // (admitting the very claim the check exists to reject).
+    let mut doc = serde_json::json!({
+        "org_pubkey": org_key_hex(),
+        "org_name": "acme",
+        "version": u64::MAX - (ROSTER_LAG_HORIZON / 2),
+        "members": [
+            {"moss_peer_id": admin_peer, "name": "a", "role": "admin"},
+            {"moss_peer_id": member_b, "name": "b", "role": "member"},
+        ],
+    });
+    let bytes = org_roster::sign_roster(&mut doc, &org_key()).unwrap();
+    persistence.put_org_roster(&org_key_hex(), &bytes).unwrap();
+
+    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+    let mut runtime =
+        PrivateGroupRuntime::from_shared(moss, temp_store(), Some(persistence.clone()));
+    let created = runtime
+        .create_group(CreateGroupRequest {
+            label: None,
+            display_name: "Alice".to_string(),
+            listen_port: 42391,
+            static_peer: None,
+            org_pubkey: Some(org_key_hex()),
+        })
+        .unwrap();
+
+    // B (non-admin) claims the ceiling itself — beyond any horizon, so the
+    // buffer must not take it even though `own + HORIZON` would wrap.
+    let commit_b64 = encode(b"whatever-commit-bytes");
+    let env = ControlEnvelope::Commit {
+        group_id: created.group_id.clone(),
+        from_fingerprint: "b-fingerprint".to_string(),
+        commit_b64,
+        roster_version: Some(u64::MAX),
+    };
+    let (control_channel, mesh_id) = {
+        let session = runtime.groups.get(&created.group_id).unwrap();
+        (session.control_channel.clone(), session.mesh_id.clone())
+    };
+    let session = runtime.groups.get_mut(&created.group_id).unwrap();
+    let _ = session.handle_moss_message(MossReceivedMessage {
+        channel: control_channel.clone(),
+        payload: org_signed_control(&member_b_key, &control_channel, &mesh_id, &env),
+    });
+    {
+        let session = runtime.groups.get(&created.group_id).unwrap();
+        assert!(
+            session.roster_lag.is_empty(),
+            "a claim at the ceiling is beyond any horizon and must be dropped, not buffered"
+        );
+    }
+
+    let _ = std::fs::remove_file(&db_path);
+}
+
+// Control frames used to be recorded in the replay set BEFORE verification
+// and MLS processing, so a frame that failed (bad signature, undecryptable
+// commit) could never be repaired by its own retransmission — the re-delivered
+// bytes hashed to an already-seen key. The retransmission must now reach
+// `handle_control`: the exemption is what repairs the session.
+#[test]
+fn a_failed_control_frame_is_retried_its_retransmission() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    drain_received_messages();
+
+    let mut view = MemberView::open(42397);
+
+    // A commit whose MLS processing fails (garbage bytes are not a commit):
+    // `handle_control` accepts the envelope and `apply_commit_sequenced`
+    // fails, the transient shape a restart ("secret deleted for forward
+    // secrecy") produces for real commits.
+    let garbage_commit = serde_json::to_vec(&ControlEnvelope::Commit {
+        group_id: view.group_id.clone(),
+        from_fingerprint: view.cleo.fingerprint(),
+        commit_b64: encode(b"not-a-real-commit"),
+        roster_version: None,
+    })
+    .unwrap();
+    let frame = MossReceivedMessage {
+        channel: view.session().control_channel.clone(),
+        payload: garbage_commit,
+    };
+
+    // First delivery: the frame fails MLS processing. Under the old
+    // pre-recording it also filed itself as seen.
+    {
+        let session = view.runtime.groups.get_mut(&view.group_id).unwrap();
+        assert!(
+            session.handle_moss_message(frame.clone()).is_err(),
+            "the garbage commit must fail MLS processing"
+        );
+    }
+
+    // The retransmission of the SAME bytes — previously swallowed by the
+    // replay set as a duplicate. It fails the same way (the bytes are still
+    // garbage), which is the point: reaching handle_control again is the
+    // repair path for the case where the first failure was transient (a
+    // missing MLS secret after restart; the re-delivery carries the bytes
+    // that DO process once the resync has landed).
+    {
+        let session = view.runtime.groups.get_mut(&view.group_id).unwrap();
+        assert!(
+            session.handle_moss_message(frame).is_err(),
+            "the retransmission must reach handle_control and fail the same way — \
+             being swallowed as a replay would mean a transient failure could \
+             never be repaired"
+        );
+    }
+
+    // The proof that the retransmission reached the MLS layer rather than
+    // the dedup set: a member count unchanged by the garbage, and the
+    // sequencer now holding a resync request (the gapped commit path), not
+    // a swallowed frame.
+    let session = view.runtime.groups.get(&view.group_id).unwrap();
+    assert_eq!(
+        session.crypto.member_count(),
+        3,
+        "garbage never admits anything"
+    );
+}

@@ -76,9 +76,23 @@ impl ChannelRuntime {
             listen_port,
             static_peer.clone(),
         )?;
-        let device_fingerprint = node
-            .public_key_hex()
-            .ok_or_else(|| ChannelRuntimeError::Moss("public key unavailable".to_string()))?;
+        // The room is open on the shared node, so bailing without closing it
+        // would pin the node up with subscriptions nothing ever clears.
+        let device_fingerprint = match node.public_key_hex() {
+            Some(value) => value,
+            None => {
+                runtime::close_room(
+                    &self.shared_node,
+                    &node,
+                    &mesh_id,
+                    &[topic, blob_topic],
+                    &format!("{KIND} {normalized}"),
+                );
+                return Err(ChannelRuntimeError::Moss(
+                    "public key unavailable".to_string(),
+                ));
+            }
+        };
 
         let session = ChannelSession {
             name: normalized.clone(),

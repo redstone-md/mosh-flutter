@@ -193,9 +193,23 @@ impl PrivateGroupRuntime {
         let participant_id = crypto.random_token("participant")?;
         let creator_fingerprint = crypto.fingerprint();
         let node = self.open_group_room(&mesh_id, &group_id, listen_port, static_peer.clone())?;
-        let device_fingerprint = node
-            .public_key_hex()
-            .ok_or_else(|| PrivateGroupError::Moss("public key unavailable".to_string()))?;
+        // The room is open on the shared node: bailing without closing it
+        // would pin the node up with subscriptions nothing ever clears.
+        let device_fingerprint = match node.public_key_hex() {
+            Some(value) => value,
+            None => {
+                runtime::close_room(
+                    &self.shared_node,
+                    &node,
+                    &mesh_id,
+                    &group_channels(&group_id),
+                    &format!("{KIND} {group_id}"),
+                );
+                return Err(PrivateGroupError::Moss(
+                    "public key unavailable".to_string(),
+                ));
+            }
+        };
         let invite_uri = build_invite_uri(&mesh_id, &group_id, &creator_fingerprint, &label);
 
         let session = GroupSession {
@@ -273,24 +287,45 @@ impl PrivateGroupRuntime {
             listen_port,
             static_peer.clone(),
         )?;
-        let device_fingerprint = node
-            .public_key_hex()
-            .ok_or_else(|| PrivateGroupError::Moss("public key unavailable".to_string()))?;
-        let envelope = ControlEnvelope::KeyPackage {
-            group_id: invite.group_id.clone(),
-            participant_id: participant_id.clone(),
-            from_device: request.display_name.clone(),
-            from_fingerprint: device_fingerprint.clone(),
-            key_package_b64: encode(&key_package),
+        // The room is open on the shared node: bailing without closing it
+        // would pin the node up with subscriptions nothing ever clears.
+        // Covers both the missing public key and a KeyPackage publish that
+        // never left the device — in either case no session will exist to
+        // close the room later.
+        let joined_or_closed = (|| {
+            let device_fingerprint = node
+                .public_key_hex()
+                .ok_or_else(|| PrivateGroupError::Moss("public key unavailable".to_string()))?;
+            let envelope = ControlEnvelope::KeyPackage {
+                group_id: invite.group_id.clone(),
+                participant_id: participant_id.clone(),
+                from_device: request.display_name.clone(),
+                from_fingerprint: device_fingerprint.clone(),
+                key_package_b64: encode(&key_package),
+            };
+            publish_control_message(
+                &node,
+                &format!("{CONTROL_CHANNEL_PREFIX}{}", invite.group_id),
+                &invite.mesh_id,
+                org_context(request.org_pubkey.as_deref(), org_signer.as_ref()),
+                &envelope,
+            )
+            .map(|_| device_fingerprint)
+        })();
+        let device_fingerprint = match joined_or_closed {
+            Ok(value) => value,
+            Err(error) => {
+                runtime::close_room(
+                    &self.shared_node,
+                    &node,
+                    &invite.mesh_id,
+                    &group_channels(&invite.group_id),
+                    &format!("{KIND} {}", invite.group_id),
+                );
+                return Err(error);
+            }
         };
         let control_channel = format!("{CONTROL_CHANNEL_PREFIX}{}", invite.group_id);
-        publish_control_message(
-            &node,
-            &control_channel,
-            &invite.mesh_id,
-            org_context(request.org_pubkey.as_deref(), org_signer.as_ref()),
-            &envelope,
-        )?;
         let session = GroupSession {
             group_id: invite.group_id.clone(),
             mesh_id: invite.mesh_id,
