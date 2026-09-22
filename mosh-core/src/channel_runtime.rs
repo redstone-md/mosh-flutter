@@ -290,6 +290,24 @@ impl ChannelRuntime {
         }
     }
 
+    /// Reaching for one open channel, the way every facade method starts.
+    /// Takes the already-normalized name.
+    fn channel_mut(
+        &mut self,
+        normalized: &str,
+    ) -> Result<&mut ChannelSession, ChannelRuntimeError> {
+        self.channels
+            .get_mut(normalized)
+            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.to_string()))
+    }
+
+    /// The read-only reach, for snapshot builds that must not touch state.
+    fn channel_ref(&self, normalized: &str) -> Result<&ChannelSession, ChannelRuntimeError> {
+        self.channels
+            .get(normalized)
+            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.to_string()))
+    }
+
     /// Take a reference to the shared node and put this channel's room on it.
     fn open_channel_room(
         &mut self,
@@ -416,10 +434,7 @@ impl ChannelRuntime {
         invite_uri: String,
     ) -> Result<(), ChannelRuntimeError> {
         let normalized = normalize_name(name)?;
-        let session = self
-            .channels
-            .get_mut(&normalized)
-            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+        let session = self.channel_mut(&normalized)?;
         let offer = DmOffers::mint(
             session.display_name.clone(),
             session.device_fingerprint.clone(),
@@ -440,10 +455,7 @@ impl ChannelRuntime {
         offer_id: &str,
     ) -> Result<(), ChannelRuntimeError> {
         let normalized = normalize_name(name)?;
-        let session = self
-            .channels
-            .get_mut(&normalized)
-            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+        let session = self.channel_mut(&normalized)?;
         session.dm_offers.dismiss(offer_id);
         Ok(())
     }
@@ -490,10 +502,7 @@ impl ChannelRuntime {
         self.drain_inbound()?;
         let normalized = normalize_name(name)?;
         let (channel_name, topic, prepared) = {
-            let session = self
-                .channels
-                .get_mut(&normalized)
-                .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+            let session = self.channel_mut(&normalized)?;
             let message = session.messages.stamp(ChannelMessage {
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
@@ -531,10 +540,7 @@ impl ChannelRuntime {
         self.drain_inbound()?;
         let normalized = normalize_name(name)?;
         let (channel_name, topic, prepared) = {
-            let session = self
-                .channels
-                .get_mut(&normalized)
-                .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+            let session = self.channel_mut(&normalized)?;
             let prepared = session.outbox().reopen(message_id)?;
             (session.name.clone(), session.topic.clone(), prepared)
         };
@@ -556,20 +562,14 @@ impl ChannelRuntime {
         self.channels
             .persist_send(normalized, &prepared.message_id, false);
         let publish = {
-            let session = self
-                .channels
-                .get(normalized)
-                .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.to_string()))?;
+            let session = self.channel_ref(normalized)?;
             session
                 .node
                 .publish_room(&session.mesh_id, topic, &prepared.payload)
                 .map_err(|error| ChannelRuntimeError::Moss(error.to_string()))
         };
         let settled = {
-            let session = self
-                .channels
-                .get_mut(normalized)
-                .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.to_string()))?;
+            let session = self.channel_mut(normalized)?;
             session.outbox().settle(
                 &prepared.message_id,
                 publish.map_err(|error| error.to_string()),
@@ -601,10 +601,7 @@ impl ChannelRuntime {
     ) -> Result<AttachmentSendResult, ChannelRuntimeError> {
         self.drain_inbound()?;
         let normalized = normalize_name(name)?;
-        let session = self
-            .channels
-            .get_mut(&normalized)
-            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+        let session = self.channel_mut(&normalized)?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
         self.channels.persist_tail();
         Ok(result)
@@ -617,10 +614,7 @@ impl ChannelRuntime {
     ) -> Result<(), ChannelRuntimeError> {
         self.drain_inbound()?;
         let normalized = normalize_name(name)?;
-        let session = self
-            .channels
-            .get_mut(&normalized)
-            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+        let session = self.channel_mut(&normalized)?;
         session.transfer.start_download(attachment_id)?;
         session.pump_attachment_requests();
         Ok(())
@@ -632,10 +626,7 @@ impl ChannelRuntime {
         attachment_id: &str,
     ) -> Result<(), ChannelRuntimeError> {
         let normalized = normalize_name(name)?;
-        let session = self
-            .channels
-            .get_mut(&normalized)
-            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+        let session = self.channel_mut(&normalized)?;
         Ok(session.transfer.cancel(attachment_id)?)
     }
 
@@ -649,10 +640,7 @@ impl ChannelRuntime {
     ) -> Result<StreamRange, ChannelRuntimeError> {
         self.drain_inbound()?;
         let normalized = normalize_name(name)?;
-        let session = self
-            .channels
-            .get_mut(&normalized)
-            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
+        let session = self.channel_mut(&normalized)?;
         let outcome = session.transfer.stream_range(attachment_id, start, end);
         session.pump_attachment_requests();
         Ok(outcome)
@@ -662,11 +650,7 @@ impl ChannelRuntime {
         self.drain_inbound()?;
         self.channels.persist_tail();
         let normalized = normalize_name(name)?;
-        let session = self
-            .channels
-            .get(&normalized)
-            .ok_or_else(|| ChannelRuntimeError::MissingChannel(normalized.clone()))?;
-        Ok(session.snapshot())
+        Ok(self.channel_ref(&normalized)?.snapshot())
     }
 
     pub fn list(&mut self) -> Result<ChannelListSnapshot, ChannelRuntimeError> {

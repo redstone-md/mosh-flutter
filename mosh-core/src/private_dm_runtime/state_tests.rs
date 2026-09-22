@@ -6,6 +6,8 @@
 
 use super::tests::temp_store;
 use super::*;
+use crate::conversation::read_events::READ_EVENT_CODE;
+use crate::conversation::typing::{TYPING_EVENT_CODE, TYPING_EXPIRY_MS, TYPING_REFRESH_MS};
 use crate::private_dm_runtime::transport::memory::MemoryNet;
 
 pub(super) const ALICE_ID: &str =
@@ -426,9 +428,7 @@ fn typing_refresh_folds_keystrokes_to_one_frame_per_cadence() {
             .sessions
             .get_mut(&invite.session_id)
             .expect("Alice session should exist");
-        session.last_typing_send_ms = session
-            .last_typing_send_ms
-            .saturating_sub(TYPING_REFRESH_MS);
+        session.typing_gate.age_by(TYPING_REFRESH_MS);
     }
     alice
         .typing_signal(&invite.session_id)
