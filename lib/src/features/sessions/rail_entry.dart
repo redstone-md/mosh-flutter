@@ -29,7 +29,8 @@ import 'package:mosh/src/features/shared/avatar.dart' show Avatar;
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
-import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
+import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
