@@ -4,6 +4,49 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+The simplification drive: ~11,000 net lines removed with zero behavior
+change (all 838 Dart tests and 366 Rust tests green throughout).
+
+### Changed
+- **Port archaeology comments stripped.** The Flutter fork kept narrating
+  its dead React/Tauri predecessor in comments ("React did X -> Flutter
+  does Y" mapping tables, CSS variable tokens, aria mapping notes). All
+  of it is gone from `lib/`, `test/` and `mosh-core/src`; load-bearing
+  notes (paired timeouts, wire-format reasoning, ADR references) stay in
+  plain language.
+- **Typing and read events unified.** The DM and group runtimes each
+  carried their own copy of the typing cadence, expiry window and
+  event-ring pushes. One shared module (`conversation::typing`,
+  `conversation::read_events`) now owns them for both kinds.
+- **Runtime god files split.** `private_dm_runtime.rs` (4,374 lines),
+  `private_group_runtime.rs` (4,019) and `channel_runtime.rs` (1,407)
+  are each now a thin facade root plus focused modules split by channel
+  and concern, every module under the repo's 400-line file budget.
+  Pure moves; no wire, logic, or error-text change; zero bridge drift.
+- **One conversation app bar.** The three conversation kinds repeated the
+  same AppBar skeleton (rail-back leading, mobile search toggle, kebab
+  menu, peer-status, leave); one shared `ConversationAppBar` carries it,
+  and each kind passes its specifics. Action order, tooltips and
+  semantics trees are byte-identical.
+- **Oversized widgets split.** `media_viewer` (709→393 + stages part
+  file), `attachment_card` (468→321 + branches part file),
+  `onboard_menu` (362→241 + part file).
+- **Test scaffolding consolidated.** Thirteen test files carried private
+  copies of the same message/snapshot builders; one shared
+  `test/support/message_builders.dart` owns them now.
+
+### Removed
+- Dead `PrivateGroupRuntime::new` constructor (nothing called it).
+- Dead Rust voice-call modules: `voice_call_drain` (196 lines, never
+  wired), `voice_call_frame_crypto` + `voice_call_jitter` (463 lines —
+  the Dart twins in `lib/src/features/voice_call/` are the live path
+  and carry their own tests).
+- `docs/superpowers/` — the port-era process archive (10,495 lines):
+  task plans for the deleted React/Tauri app. Superseded by the ADRs;
+  nothing references the directory.
+
 ## [0.9.1] - 2026-09-21
 
 The macOS-first maintenance release. Mac users get the universal DMG
