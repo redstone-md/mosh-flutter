@@ -10,7 +10,8 @@ import 'package:mosh/src/rust/api/diagnostics.dart'
         OpenMlsRoundTripRuntimeStatus,
         OpenMlsSmokeRuntimeStatus;
 import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
-import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
+import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/moss_runtime.dart' show MossRuntimeStatus;
 import 'package:mosh/src/rust/openmls_crypto.dart'
     show OpenMlsRoundTripStatus, OpenMlsSmokeStatus;

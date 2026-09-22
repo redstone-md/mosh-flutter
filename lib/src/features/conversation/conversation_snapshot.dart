@@ -12,7 +12,8 @@ library;
 import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:mosh/src/gateway/conversation_target.dart';
-import 'package:mosh/src/rust/channel_runtime.dart'
+import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart'
     show ChannelMessage, ChannelSnapshot;
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
@@ -21,7 +22,9 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/private_group_runtime.dart'
-    show GroupMessage, GroupSnapshot, TypingMember;
+    show GroupMessage, GroupSnapshot;
+import 'package:mosh/src/rust/private_group_runtime/wire_types.dart'
+    show TypingMember;
 
 /// One message, whatever kind of conversation it came from.
 ///

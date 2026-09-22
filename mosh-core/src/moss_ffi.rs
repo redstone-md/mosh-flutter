@@ -252,6 +252,44 @@ impl Drop for TestPublishFailureGuard {
     }
 }
 
+/// Armed by a test that needs the next `public_key_hex` call to answer the
+/// way a node without a key answers: `None`. One-shot like the publish hook
+/// above — consumed on the first call and reset when the guard drops, so a
+/// leaked armed state cannot poison later tests.
+#[cfg(test)]
+static TEST_PUBLIC_KEY_UNAVAILABLE: Mutex<bool> = Mutex::new(false);
+
+#[cfg(test)]
+pub struct TestPublicKeyUnavailableGuard;
+
+/// Make the NEXT `public_key_hex` call return `None`.
+#[cfg(test)]
+pub fn public_key_unavailable_next_node() -> TestPublicKeyUnavailableGuard {
+    *TEST_PUBLIC_KEY_UNAVAILABLE
+        .lock()
+        .expect("test public key lock poisoned") = true;
+    TestPublicKeyUnavailableGuard
+}
+
+#[cfg(test)]
+fn take_test_public_key_unavailable() -> bool {
+    let mut armed = TEST_PUBLIC_KEY_UNAVAILABLE
+        .lock()
+        .expect("test public key lock poisoned");
+    let was_armed = *armed;
+    *armed = false;
+    was_armed
+}
+
+#[cfg(test)]
+impl Drop for TestPublicKeyUnavailableGuard {
+    fn drop(&mut self) {
+        *TEST_PUBLIC_KEY_UNAVAILABLE
+            .lock()
+            .expect("test public key lock poisoned") = false;
+    }
+}
+
 pub struct MossFfiRuntime {
     _library: ManuallyDrop<Library>,
     init: MossInit,
@@ -603,6 +641,10 @@ impl MossNode {
     }
 
     pub fn public_key_hex(&self) -> Option<String> {
+        #[cfg(test)]
+        if take_test_public_key_unavailable() {
+            return None;
+        }
         let ptr = unsafe { (self.runtime.get_public_key)(self.handle) };
         if ptr.is_null() {
             return None;

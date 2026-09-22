@@ -10,6 +10,7 @@ import 'conversation/mesh.dart';
 import 'frb_generated.dart';
 import 'outbound_delivery.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'private_group_runtime/wire_types.dart';
 
 class CreateGroupRequest {
   final String? label;
@@ -293,38 +294,4 @@ class JoinGroupRequest {
           orgPubkey == other.orgPubkey &&
           listenPort == other.listenPort &&
           staticPeer == other.staticPeer;
-}
-
-/// One member currently typing, as the group snapshot names it.
-class TypingMember {
-  /// The member's device fingerprint — the same id the message log keys
-  /// authors by, so the UI can match avatar/roster data.
-  final String fingerprint;
-
-  /// The typing member's display name, learned from the frame's
-  /// `from_device` (and re-learned through message traffic).
-  final String displayName;
-
-  /// Wall-clock deadline of the hint; the receiver's clock, not the
-  /// sender's claim.
-  final BigInt untilMs;
-
-  const TypingMember({
-    required this.fingerprint,
-    required this.displayName,
-    required this.untilMs,
-  });
-
-  @override
-  int get hashCode =>
-      fingerprint.hashCode ^ displayName.hashCode ^ untilMs.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TypingMember &&
-          runtimeType == other.runtimeType &&
-          fingerprint == other.fingerprint &&
-          displayName == other.displayName &&
-          untilMs == other.untilMs;
 }

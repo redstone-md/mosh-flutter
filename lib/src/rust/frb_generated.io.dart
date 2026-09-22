@@ -19,6 +19,7 @@ import 'api/voice_call_ringtone.dart';
 import 'api/vpn.dart';
 import 'attachment_runtime.dart';
 import 'channel_runtime.dart';
+import 'channel_runtime/types.dart';
 import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
@@ -36,6 +37,7 @@ import 'persistence.dart';
 import 'private_dm_runtime/contracts.dart';
 import 'private_dm_runtime/transport.dart';
 import 'private_group_runtime.dart';
+import 'private_group_runtime/wire_types.dart';
 import 'secure_storage.dart';
 import 'vpn_consent.dart';
 

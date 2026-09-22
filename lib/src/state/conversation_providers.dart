@@ -25,7 +25,8 @@ import 'package:flutter_riverpod/misc.dart'
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/gateway/conversation_target.dart';
-import 'package:mosh/src/rust/channel_runtime.dart'
+import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart'
     show ChannelListSnapshot, ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionListSnapshot, SessionSnapshot;

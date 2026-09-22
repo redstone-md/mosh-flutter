@@ -22,8 +22,9 @@ import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart'
     show AppDiagnostics, MossLibraryInfo, NativeRuntimeStatus;
 import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
-import 'package:mosh/src/rust/channel_runtime.dart'
-    show ChannelListSnapshot, ChannelSnapshot, JoinChannelRequest;
+import 'package:mosh/src/rust/channel_runtime.dart' show JoinChannelRequest;
+import 'package:mosh/src/rust/channel_runtime/types.dart'
+    show ChannelListSnapshot, ChannelSnapshot;
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 import 'package:mosh/src/rust/org_runtime.dart'
     show JoinOrgRequest, OrgSnapshot;

@@ -21,8 +21,9 @@
 
 import 'dart:typed_data' show Uint8List;
 
-import 'package:mosh/src/rust/channel_runtime.dart'
-    show ChannelListSnapshot, ChannelSnapshot, JoinChannelRequest;
+import 'package:mosh/src/rust/channel_runtime.dart' show JoinChannelRequest;
+import 'package:mosh/src/rust/channel_runtime/types.dart'
+    show ChannelListSnapshot, ChannelSnapshot;
 import 'package:mosh/src/rust/private_group_runtime.dart'
     show
         CreateGroupRequest,

@@ -6,7 +6,8 @@
 // wires both doubles hands the same instance to `ScriptableBridge`, so a
 // seeded session is what `listSessions` serves AND what a DM poll reads, and
 // an accepted invite inserts the session the pushed screen then polls.
-import 'package:mosh/src/rust/channel_runtime.dart' show ChannelSnapshot;
+import 'package:mosh/src/rust/channel_runtime/types.dart';
+import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
