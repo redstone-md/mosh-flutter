@@ -126,98 +126,103 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
     }
   }
 
-  bool get _detected =>
-      _detection.kind == InviteDetectionKind.dm ||
-      _detection.kind == InviteDetectionKind.group ||
-      _detection.kind == InviteDetectionKind.org;
+  // Detected = any of the three wired kinds (empty + unknown are not).
+  static const _detectedKinds = {
+    InviteDetectionKind.dm,
+    InviteDetectionKind.group,
+    InviteDetectionKind.org,
+  };
+  bool get _detected => _detectedKinds.contains(_detection.kind);
 
-  String _detectLabel(AppLocalizations l) {
-    switch (_detection.kind) {
-      case InviteDetectionKind.dm:
-        return l.onboardJoinDetectChat;
-      case InviteDetectionKind.group:
-        return l.onboardJoinDetectGroup;
-      case InviteDetectionKind.org:
-        return l.onboardJoinDetectOrg;
-      case InviteDetectionKind.unknown:
-        // Spec S4.5: invalid input surfaces the canonical "bad" message
-        // rather than the parser's per-code error string.
-        return l.onboardJoinDetectBad;
-      case InviteDetectionKind.empty:
-        return l.onboardJoinDetectNone;
-    }
-  }
+  // Spec S4.5: invalid input surfaces the canonical "bad" message rather
+  // than the parser's per-code error string.
+  String _detectLabel(AppLocalizations l) => switch (_detection.kind) {
+        InviteDetectionKind.dm => l.onboardJoinDetectChat,
+        InviteDetectionKind.group => l.onboardJoinDetectGroup,
+        InviteDetectionKind.org => l.onboardJoinDetectOrg,
+        InviteDetectionKind.unknown => l.onboardJoinDetectBad,
+        InviteDetectionKind.empty => l.onboardJoinDetectNone,
+      };
 
   Future<void> _connect() async {
     // Dispatch by kind: dm -> acceptInvite, group -> joinGroup, org ->
-    // joinOrg (all three slice-3 seams wired).
+    // joinOrg (all three slice-3 seams wired). Each helper joins via its
+    // seam, refreshes the list it lands on, and returns the destination.
     if (_busy) return;
     final kind = _detection.kind;
-    if (kind == InviteDetectionKind.empty ||
-        kind == InviteDetectionKind.unknown) {
-      return;
-    }
+    if (!_detectedKinds.contains(kind)) return;
     final uri = _controller.text.trim();
     final flow = ref.read(inviteFlowProvider);
-    final displayName = flow.senderDisplayName;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      if (kind == InviteDetectionKind.dm) {
-        final snapshot = await ref.read(bridgeFacadeProvider).acceptInvite(
-              request: AcceptInviteRequest(
-                inviteUri: uri,
-                displayName: displayName,
-                listenPort: flow.listenPort,
-                staticPeer: flow.staticPeer,
-              ),
-            );
-        await ref
-            .read(conversationListProvider(ConversationKind.dm).notifier)
-            .refresh();
-        if (!mounted) return;
-        context.go(AppRoutes.dmFor(snapshot.sessionId));
-      } else if (kind == InviteDetectionKind.group) {
-        // Group: join via the Gateway, then navigate to the group screen.
-        // orgPubkey is null -- a paste/deep-link join is a direct group
-        // invite, not an org group-offer.
-        final snapshot = await ref.read(bridgeFacadeProvider).joinGroup(
-              request: JoinGroupRequest(
-                inviteUri: uri,
-                displayName: displayName,
-                orgPubkey: null,
-                listenPort: flow.listenPort,
-                staticPeer: flow.staticPeer,
-              ),
-            );
-        await ref
-            .read(conversationListProvider(ConversationKind.group).notifier)
-            .refresh();
-        if (!mounted) return;
-        context.go(AppRoutes.groupFor(snapshot.groupId));
-      } else {
-        // Org: join via the Gateway. Orgs are a container, not a chat;
-        // there is no dedicated org screen yet, so navigate to the
-        // sessions list (where leaving a channel or group also returns).
-        await ref.read(bridgeFacadeProvider).joinOrg(
-              request: JoinOrgRequest(
-                bundleUri: uri,
-                displayName: displayName,
-                listenPort: flow.listenPort,
-                staticPeer: flow.staticPeer,
-              ),
-            );
-        await ref.read(orgsProvider.notifier).refresh();
-        if (!mounted) return;
-        context.go(AppRoutes.sessions);
-      }
+      final destination = await switch (kind) {
+        InviteDetectionKind.dm => _acceptDm(uri, flow),
+        InviteDetectionKind.group => _joinGroup(uri, flow),
+        InviteDetectionKind.org => _joinOrg(uri, flow),
+        // Unreachable: _detectedKinds filtered these above.
+        InviteDetectionKind.empty ||
+        InviteDetectionKind.unknown =>
+          Future.value(''),
+      };
+      if (!mounted) return;
+      context.go(destination);
     } catch (e) {
       if (mounted) setState(() => _error = ConversationActionError.of(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<String> _acceptDm(String uri, InviteFlowState flow) async {
+    final snapshot = await ref.read(bridgeFacadeProvider).acceptInvite(
+          request: AcceptInviteRequest(
+            inviteUri: uri,
+            displayName: flow.senderDisplayName,
+            listenPort: flow.listenPort,
+            staticPeer: flow.staticPeer,
+          ),
+        );
+    await ref
+        .read(conversationListProvider(ConversationKind.dm).notifier)
+        .refresh();
+    return AppRoutes.dmFor(snapshot.sessionId);
+  }
+
+  Future<String> _joinGroup(String uri, InviteFlowState flow) async {
+    // orgPubkey is null -- a paste/deep-link join is a direct group
+    // invite, not an org group-offer.
+    final snapshot = await ref.read(bridgeFacadeProvider).joinGroup(
+          request: JoinGroupRequest(
+            inviteUri: uri,
+            displayName: flow.senderDisplayName,
+            orgPubkey: null,
+            listenPort: flow.listenPort,
+            staticPeer: flow.staticPeer,
+          ),
+        );
+    await ref
+        .read(conversationListProvider(ConversationKind.group).notifier)
+        .refresh();
+    return AppRoutes.groupFor(snapshot.groupId);
+  }
+
+  // Orgs are a container, not a chat; there is no dedicated org screen
+  // yet, so land on the sessions list (where leaving a channel or group
+  // also returns).
+  Future<String> _joinOrg(String uri, InviteFlowState flow) async {
+    await ref.read(bridgeFacadeProvider).joinOrg(
+          request: JoinOrgRequest(
+            bundleUri: uri,
+            displayName: flow.senderDisplayName,
+            listenPort: flow.listenPort,
+            staticPeer: flow.staticPeer,
+          ),
+        );
+    await ref.read(orgsProvider.notifier).refresh();
+    return AppRoutes.sessions;
   }
 
   @override

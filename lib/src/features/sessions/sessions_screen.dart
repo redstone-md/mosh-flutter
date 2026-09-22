@@ -43,7 +43,14 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/state/conversation_providers.dart'
-    show channelsOf, conversationListProvider, groupsOf, sessionsOf;
+    show
+        channelsOf,
+        conversationListProvider,
+        groupsOf,
+        refreshConversationLists,
+        sessionsOf;
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show SessionSnapshot;
 import 'package:mosh/src/state/dm_offer_providers.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
@@ -59,62 +66,9 @@ class SessionsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    // The three conversation kinds, one family: the DM entry drives the
-    // rail's loading/error states, the other two degrade to no rows.
-    // Watched so an update to either re-renders the combined rail.
+    // The DM entry drives the rail's loading/error states; the other
+    // kinds degrade to no rows inside [_RailList].
     final async = ref.watch(conversationListProvider(ConversationKind.dm));
-    final channelsAsync =
-        ref.watch(conversationListProvider(ConversationKind.channel));
-    final groupsAsync =
-        ref.watch(conversationListProvider(ConversationKind.group));
-    // Orgs provider, watched so an org-roster update re-renders the
-    // rail (ADR 0010 server state).
-    final orgsAsync = ref.watch(orgsProvider);
-    // Pending DM offers (channel/group dmOffers flattened). Derived from
-    // channelsAsync + groupsAsync, so it auto-refreshes when either
-    // invalidates (a dismiss/join/leave re-polls and the offer row
-    // disappears). Rendered at the TOP of the rail.
-    final pendingOffers = ref.watch(pendingDmOffersProvider);
-    // Unread lifecycle map: merges the per-kind counts into ONE diffed map
-    // keyed by `ConversationRef.key`, so clearOnActive takes effect. Reads
-    // the notifier so `clearUnread(key)` is callable on select.
-    final unread = ref.watch(unreadLifecycleProvider);
-    final unreadNotifier = ref.read(unreadLifecycleProvider.notifier);
-    // The active-conversation key (active_conversation_key_provider.dart),
-    // set on select + open + cleared on leave. Reads the notifier for the
-    // set call below.
-    final activeKeyNotifier = ref.read(activeConversationKeyProvider.notifier);
-    // The active-conversation key VALUE. Watched so the rail re-renders +
-    // marks the open row as selected. The key is the one the rail sets
-    // below, so the highlight stays when the chat screen's initState
-    // re-sets it.
-    final String? activeKey = ref.watch(activeConversationKeyProvider);
-    // Revoked-org DM badges:
-    // session-id -> org-name for org-bound DMs whose
-    // peer left the roster. Degrades to an empty map while orgs load or on
-    // error so the badge stays absent during a refresh.
-    final revokedBadges = ref.watch(revokedDmBadgesProvider);
-    // What the rail hands each row: its unread count, whether it is the open
-    // conversation, and the hook that clears the badge + marks it open. All
-    // three come from the row's own [RailEntry.ref], so the `kind:id` key is
-    // written here and nowhere else in the screen.
-    RailRowChrome chromeFor(RailEntry entry) {
-      final conversation = entry.ref;
-      // A row with no conversation behind it (a pending offer) has no badge
-      // to clear and no conversation to mark open.
-      if (conversation == null) {
-        return (unreadCount: 0, active: false, onSelect: null);
-      }
-      final key = conversation.key;
-      return (
-        unreadCount: unread[key] ?? 0,
-        active: key == activeKey,
-        onSelect: () {
-          unreadNotifier.clearUnread(key);
-          activeKeyNotifier.set(key);
-        },
-      );
-    }
 
     // The rail carries NO header of
     // its own; the shell titlebar sits above it.
@@ -145,113 +99,179 @@ class SessionsScreen extends ConsumerWidget {
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (e, _) => _ErrorState(error: e, ref: ref),
-                  data: (list) {
-                    // Channels/groups augment the DM list. They are their own entries in the
-                    // conversation-list family; loading or error degrades to
-                    // no rows, so the DM rows still render.
-                    final channels = channelsOf(channelsAsync.value);
-                    final groups = groupsOf(groupsAsync.value);
-                    final orgs = orgsAsync.value ?? const <OrgSnapshot>[];
-                    final sessions = sessionsOf(list);
-                    // One entry per conversation, in rail order:
-                    // offers -> sessions -> groups -> channels. A section is
-                    // one kind's slice; the loop below flattens them.
-                    final sections = <List<RailEntry>>[
-                      [
-                        for (final offer in pendingOffers)
-                          OfferRailEntry(
-                            pending: offer,
-                            onAccept: () =>
-                                acceptOfferAction(context, ref, offer),
-                            onDismiss: () => dismissOfferAction(ref, offer),
-                          ),
-                      ],
-                      [
-                        for (final session in sessions)
-                          DmRailEntry(
-                            session,
-                            revokedOrgName: revokedBadges[session.sessionId],
-                          ),
-                      ],
-                      [for (final group in groups) GroupRailEntry(group)],
-                      [
-                        for (final channel in channels)
-                          ChannelRailEntry(channel)
-                      ],
-                    ];
-                    // Empty only when no section has a row and there is no
-                    // org either.
-                    if (!sections.any((section) => section.isNotEmpty) &&
-                        orgs.isEmpty) {
-                      return _EmptyState(
-                        onStart: () => openNewSessionAction(context, ref),
-                      );
-                    }
-                    // One pass builds the rail: a [RailDivider] between two
-                    // non-empty adjacent sections (the header contract above;
-                    // the pre-08 loop had pair-specific divider conditions,
-                    // so offers+groups or offers+channels with no sessions
-                    // between them now also get one), then one row per
-                    // conversation.
-                    final children = <Widget>[];
-                    for (final section in sections) {
-                      if (section.isEmpty) continue;
-                      if (children.isNotEmpty) {
-                        children.add(const RailDivider());
-                      }
-                      for (final entry in section) {
-                        children.add(entry.buildRow(context, chromeFor(entry)));
-                      }
-                    }
-                    // Each org renders wrapped in a
-                    // `rail-divider` + `OrgSection` (the divider is INSIDE the
-                    // per-org map, unconditional, so N orgs render N dividers
-                    // -- one above each org header). The 7 callbacks pass
-                    // through to the org action helpers (gateway + refresh +
-                    // navigation); `busy` comes from the per-org
-                    // operation-bus (only this org disables while its
-                    // leave/offer/member/new-group action is in flight).
-                    for (final org in orgs) {
-                      children.add(const RailDivider());
-                      children.add(
-                        OrgSection(
-                          org: org,
-                          busy: ref
-                              .watch(orgOperationBusProvider)
-                              .contains(org.orgPubkey),
-                          onMember: (o, m) =>
-                              openMemberDmAction(context, ref, o, m),
-                          onAcceptDmOffer: (pubkey, id) =>
-                              acceptOrgDmOfferAction(context, ref, pubkey, id),
-                          onDismissDmOffer: (pubkey, id) =>
-                              dismissOrgDmOfferAction(context, ref, pubkey, id),
-                          onAcceptGroupOffer: (pubkey, id) =>
-                              acceptOrgGroupOfferAction(
-                                  context, ref, pubkey, id),
-                          onDismissGroupOffer: (pubkey, id) =>
-                              dismissOrgGroupOfferAction(
-                                  context, ref, pubkey, id),
-                          onCreateGroup: (o, label) =>
-                              createOrgGroupAction(context, ref, o, label),
-                          onLeave: (o) => leaveOrgAction(context, ref, o),
-                          l: l,
-                        ),
-                      );
-                    }
-                    return RefreshIndicator(
-                      onRefresh: () => ref
-                          .read(conversationListProvider(ConversationKind.dm)
-                              .notifier)
-                          .refresh(),
-                      child: ListView(children: children),
-                    );
-                  },
+                  data: (list) => _RailList(dmSessions: sessionsOf(list)),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The data-state rail: offers -> sessions -> groups -> channels -> orgs,
+/// flattened from per-kind [RailEntry] slices with a [RailDivider] between
+/// two non-empty adjacent sections. Owns the per-row chrome (unread count,
+/// active highlight, clear-on-select) built from the entry's own
+/// [RailEntry.ref].
+class _RailList extends ConsumerWidget {
+  const _RailList({required this.dmSessions});
+
+  /// The DM slice; channels/groups/orgs are read from their own providers
+  /// (loading or error degrades to no rows, so the DM rows still render).
+  final List<SessionSnapshot> dmSessions;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    // Channels/groups augment the DM list. They are their own entries in the
+    // conversation-list family; loading or error degrades to
+    // no rows, so the DM rows still render.
+    final channels = channelsOf(ref
+        .watch(
+          conversationListProvider(ConversationKind.channel),
+        )
+        .value);
+    final groups = groupsOf(ref
+        .watch(
+          conversationListProvider(ConversationKind.group),
+        )
+        .value);
+    // Orgs provider, watched so an org-roster update re-renders the
+    // rail (ADR 0010 server state).
+    final orgs = ref.watch(orgsProvider).value ?? const <OrgSnapshot>[];
+    // Pending DM offers (channel/group dmOffers flattened). Derived from
+    // the channel/group lists, so it auto-refreshes when either
+    // invalidates (a dismiss/join/leave re-polls and the offer row
+    // disappears). Rendered at the TOP of the rail.
+    final pendingOffers = ref.watch(pendingDmOffersProvider);
+    // Unread lifecycle map: merges the per-kind counts into ONE diffed map
+    // keyed by `ConversationRef.key`, so clearOnActive takes effect. Reads
+    // the notifier so `clearUnread(key)` is callable on select.
+    final unread = ref.watch(unreadLifecycleProvider);
+    final unreadNotifier = ref.read(unreadLifecycleProvider.notifier);
+    // The active-conversation key (active_conversation_key_provider.dart),
+    // set on select + open + cleared on leave. Reads the notifier for the
+    // set call below.
+    final activeKeyNotifier = ref.read(activeConversationKeyProvider.notifier);
+    // The active-conversation key VALUE. Watched so the rail re-renders +
+    // marks the open row as selected. The key is the one the rail sets
+    // below, so the highlight stays when the chat screen's initState
+    // re-sets it.
+    final String? activeKey = ref.watch(activeConversationKeyProvider);
+    // Revoked-org DM badges:
+    // session-id -> org-name for org-bound DMs whose
+    // peer left the roster. Degrades to an empty map while orgs load or on
+    // error so the badge stays absent during a refresh.
+    final revokedBadges = ref.watch(revokedDmBadgesProvider);
+
+    // What the rail hands each row: its unread count, whether it is the open
+    // conversation, and the hook that clears the badge + marks it open. All
+    // three come from the row's own [RailEntry.ref], so the `kind:id` key is
+    // written here and nowhere else in the screen.
+    RailRowChrome chromeFor(RailEntry entry) {
+      final conversation = entry.ref;
+      // A row with no conversation behind it (a pending offer) has no badge
+      // to clear and no conversation to mark open.
+      if (conversation == null) {
+        return (unreadCount: 0, active: false, onSelect: null);
+      }
+      final key = conversation.key;
+      return (
+        unreadCount: unread[key] ?? 0,
+        active: key == activeKey,
+        onSelect: () {
+          unreadNotifier.clearUnread(key);
+          activeKeyNotifier.set(key);
+        },
+      );
+    }
+
+    // One entry per conversation, in rail order:
+    // offers -> sessions -> groups -> channels. A section is
+    // one kind's slice; the loop below flattens them.
+    final sections = <List<RailEntry>>[
+      [
+        for (final offer in pendingOffers)
+          OfferRailEntry(
+            pending: offer,
+            onAccept: () => acceptOfferAction(context, ref, offer),
+            onDismiss: () => dismissOfferAction(ref, offer),
+          ),
+      ],
+      [
+        for (final session in dmSessions)
+          DmRailEntry(
+            session,
+            revokedOrgName: revokedBadges[session.sessionId],
+          ),
+      ],
+      [for (final group in groups) GroupRailEntry(group)],
+      [for (final channel in channels) ChannelRailEntry(channel)],
+    ];
+    // Empty only when no section has a row and there is no org either.
+    if (!sections.any((section) => section.isNotEmpty) && orgs.isEmpty) {
+      return _EmptyState(
+        onStart: () => openNewSessionAction(context, ref),
+      );
+    }
+    // One pass builds the rail: a [RailDivider] between two non-empty
+    // adjacent sections (the header contract above; the pre-08 loop had
+    // pair-specific divider conditions, so offers+groups or
+    // offers+channels with no sessions between them now also get one),
+    // then one row per conversation.
+    final children = <Widget>[];
+    for (final section in sections) {
+      if (section.isEmpty) continue;
+      if (children.isNotEmpty) {
+        children.add(const RailDivider());
+      }
+      for (final entry in section) {
+        children.add(entry.buildRow(context, chromeFor(entry)));
+      }
+    }
+    // Each org renders wrapped in a `rail-divider` + [OrgSection] (the
+    // divider is INSIDE the per-org loop, unconditional, so N orgs render
+    // N dividers -- one above each org header). The 7 callbacks pass
+    // through to the org action helpers (gateway + refresh + navigation);
+    // `busy` comes from the per-org operation-bus (only this org disables
+    // while its leave/offer/member/new-group action is in flight).
+    final orgBusy = ref.watch(orgOperationBusProvider);
+    for (final org in orgs) {
+      children.add(const RailDivider());
+      children.add(
+        OrgSection(
+          org: org,
+          busy: orgBusy.contains(org.orgPubkey),
+          onMember: (o, m) => openMemberDmAction(context, ref, o, m),
+          onAcceptDmOffer: (pubkey, id) =>
+              acceptOrgDmOfferAction(context, ref, pubkey, id),
+          onDismissDmOffer: (pubkey, id) =>
+              dismissOrgDmOfferAction(context, ref, pubkey, id),
+          onAcceptGroupOffer: (pubkey, id) =>
+              acceptOrgGroupOfferAction(context, ref, pubkey, id),
+          onDismissGroupOffer: (pubkey, id) =>
+              dismissOrgGroupOfferAction(context, ref, pubkey, id),
+          onCreateGroup: (o, label) =>
+              createOrgGroupAction(context, ref, o, label),
+          onLeave: (o) => leaveOrgAction(context, ref, o),
+          l: l,
+        ),
+      );
+    }
+    return RefreshIndicator(
+      // The rail is a combined view (offers + DMs + groups + channels +
+      // orgs), so a pull refreshes every slice it renders: the conversation
+      // lists of all kinds plus the org roster. Refreshing only the DM
+      // slice left groups, channels, orgs and their pending offers stale.
+      onRefresh: () async {
+        await Future.wait([
+          refreshConversationLists(ref.read),
+          ref.read(orgsProvider.notifier).refresh(),
+        ]);
+      },
+      child: ListView(children: children),
     );
   }
 }

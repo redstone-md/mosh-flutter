@@ -7,6 +7,7 @@
 // (offered/offered incoming), the play button triggers onDownload.
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:convert' show base64Decode;
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
@@ -17,25 +18,18 @@ import 'package:mosh/src/app/mosh_theme.dart'
 
 import 'package:media_kit/media_kit.dart';
 
+import 'package:mosh/src/features/shared/voice_composer.dart'
+    show formatVoiceClock, waveformBuckets;
+
 import 'package:mosh/src/rust/conversation/attachments.dart';
-
-/// 64 amplitude buckets (same count as voice_composer).
-const int _waveformBuckets = 64;
-
-String _formatClock(int ms) {
-  final total = math.max(0, ms ~/ 1000);
-  final m = total ~/ 60;
-  final s = total % 60;
-  return '$m:${s.toString().padLeft(2, '0')}';
-}
 
 /// Decode the base64 peaks. Malformed -> flat zeros, never fatal.
 Uint8List _peaksFromBase64(String? b64) {
-  final peaks = Uint8List(_waveformBuckets);
+  final peaks = Uint8List(waveformBuckets);
   if (b64 == null || b64.isEmpty) return peaks;
   try {
     final bytes = base64Decode(b64);
-    for (var i = 0; i < _waveformBuckets && i < bytes.length; i++) {
+    for (var i = 0; i < waveformBuckets && i < bytes.length; i++) {
       peaks[i] = bytes[i];
     }
   } catch (_) {
@@ -75,6 +69,14 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   bool _playing = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  // True when the user tapped play before the file was local: the download
+  // was started and playback must begin the moment the local path arrives.
+  bool _playWhenReady = false;
+
+  /// setState only while the state is still alive.
+  void _ifMounted(VoidCallback fn) {
+    if (mounted) fn();
+  }
 
   @override
   void initState() {
@@ -85,13 +87,13 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
       final player = Player();
       _player = player;
       player.stream.playing.listen((playing) {
-        if (mounted) setState(() => _playing = playing);
+        _ifMounted(() => setState(() => _playing = playing));
       });
       player.stream.position.listen((pos) {
-        if (mounted) setState(() => _position = pos);
+        _ifMounted(() => setState(() => _position = pos));
       });
       player.stream.duration.listen((dur) {
-        if (mounted) setState(() => _duration = dur);
+        _ifMounted(() => setState(() => _duration = dur));
       });
     } catch (_) {
       _player = null;
@@ -101,12 +103,16 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   @override
   void didUpdateWidget(covariant VoiceMessageCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If the local path arrived (download finished), open it on the player so
-    // the queued play can proceed.
+    // If the local path arrived (download finished), open it on the player.
+    // A play tapped before the download finished is queued: it must actually
+    // start now, not just load the file.
     final newPath = widget.view?.localPath;
-    final oldPath = oldWidget.view?.localPath;
-    if (newPath != null && newPath != oldPath) {
+    if (newPath != null && newPath != oldWidget.view?.localPath) {
       _open(newPath);
+      if (_playWhenReady) {
+        _playWhenReady = false;
+        unawaited(_player?.play());
+      }
     }
   }
 
@@ -114,7 +120,10 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     final player = _player;
     if (player == null) return;
     try {
-      await player.open(Media(path));
+      // play: false -- opening only loads the file; the queued play (or the
+      // user's next tap) decides whether it starts. Without this a queued
+      // play-after-download would autoplay the file on load.
+      await player.open(Media(path), play: false);
     } catch (_) {
       // best-effort
     }
@@ -128,14 +137,21 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
 
   bool get _downloading => widget.view?.state == AttachmentState.downloading;
 
+  /// Tapping play before the file is local starts its download (once).
+  void _requestDownload() {
+    if (!_downloading) {
+      widget.onDownload(widget.descriptor.attachmentId);
+    }
+  }
+
   Future<void> _toggle() async {
     final player = _player;
     final localPath = widget.view?.localPath;
     if (localPath == null) {
-      // Not local yet -> trigger download.
-      if (!_downloading) {
-        widget.onDownload(widget.descriptor.attachmentId);
-      }
+      // Play-before-download: queue it so the arrival of the local path
+      // starts playback (didUpdateWidget), not just the file load.
+      _playWhenReady = true;
+      _requestDownload();
       return;
     }
     if (player == null) return;
@@ -243,7 +259,7 @@ class VoiceCardTimeLabel extends StatelessWidget {
     return Opacity(
       opacity: 0.75,
       child: Text(
-        _formatClock(ms),
+        formatVoiceClock(ms),
         style: const TextStyle(
           fontSize: 12,
           color: MoshColors.fg1,
@@ -327,11 +343,11 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final barWidth = size.width / _waveformBuckets;
-    final playedBars = (progress * _waveformBuckets).round();
+    final barWidth = size.width / waveformBuckets;
+    final playedBars = (progress * waveformBuckets).round();
     final playedPaint = Paint()..color = played;
     final unplayedPaint = Paint()..color = unplayed;
-    for (var i = 0; i < _waveformBuckets; i++) {
+    for (var i = 0; i < waveformBuckets; i++) {
       final amplitude = (i < peaks.length ? peaks[i] : 0) / 255;
       final barHeight = math.max(2.0, amplitude * size.height);
       final paint = i < playedBars ? playedPaint : unplayedPaint;

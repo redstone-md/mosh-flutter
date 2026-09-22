@@ -24,6 +24,8 @@ import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
+part 'onboard_menu_x.dart';
+
 /// OnboardMenu body -- embeddable Column. Caller wraps it in its own
 /// scroll/constraints (OnboardingScreen:
 /// Center>SingleChildScrollView>ConstrainedBox(maxWidth:460)).
@@ -143,36 +145,41 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
           ),
         ),
         const SizedBox(height: 18),
-        Text(l.onboardStartLabel, style: _sectionStyle(theme)),
-        const SizedBox(height: 8),
-        _OnboardTile(
-          icon: Icons.chat_bubble_outline,
-          title: l.onboardTileChatTitle,
-          desc: l.onboardTileChatDesc,
-          onTap: widget.onPickChat,
+        _TileSection(
+          label: l.onboardStartLabel,
+          labelStyle: _sectionStyle(theme),
+          tiles: [
+            _OnboardTile(
+              icon: Icons.chat_bubble_outline,
+              title: l.onboardTileChatTitle,
+              desc: l.onboardTileChatDesc,
+              onTap: widget.onPickChat,
+            ),
+            _OnboardTile(
+              icon: Icons.group_outlined,
+              title: l.onboardTileGroupTitle,
+              desc: l.onboardTileGroupDesc,
+              onTap: widget.onPickGroup,
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        _OnboardTile(
-          icon: Icons.group_outlined,
-          title: l.onboardTileGroupTitle,
-          desc: l.onboardTileGroupDesc,
-          onTap: widget.onPickGroup,
-        ),
-        const SizedBox(height: 18),
-        Text(l.onboardJoinLabel, style: _sectionStyle(theme)),
-        const SizedBox(height: 8),
-        _OnboardTile(
-          icon: Icons.link,
-          title: l.onboardTileJoinTitle,
-          desc: l.onboardTileJoinDesc,
-          onTap: widget.onPickJoin,
-        ),
-        const SizedBox(height: 8),
-        _OnboardTile(
-          icon: Icons.tag,
-          title: l.onboardTileChannelTitle,
-          desc: l.onboardTileChannelDesc,
-          onTap: widget.onPickChannel,
+        _TileSection(
+          label: l.onboardJoinLabel,
+          labelStyle: _sectionStyle(theme),
+          tiles: [
+            _OnboardTile(
+              icon: Icons.link,
+              title: l.onboardTileJoinTitle,
+              desc: l.onboardTileJoinDesc,
+              onTap: widget.onPickJoin,
+            ),
+            _OnboardTile(
+              icon: Icons.tag,
+              title: l.onboardTileChannelTitle,
+              desc: l.onboardTileChannelDesc,
+              onTap: widget.onPickChannel,
+            ),
+          ],
         ),
         const SizedBox(height: 18),
         Disclosure(
@@ -182,42 +189,20 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Field(
+              _AdvancedTextField(
                 label: l.setupStaticPeerLabel,
                 hint: l.setupStaticPeerHint,
-                child: TextField(
-                  controller: _staticPeerController,
-                  decoration: InputDecoration(
-                    hintText: l.setupStaticPeerPlaceholder,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 9,
-                    ),
-                  ),
-                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12.5),
-                  onChanged: _onStaticPeerChanged,
-                ),
+                fieldHint: l.setupStaticPeerPlaceholder,
+                controller: _staticPeerController,
+                onChanged: _onStaticPeerChanged,
               ),
               const SizedBox(height: 12),
-              Field(
+              _AdvancedTextField(
                 label: l.setupListenPortLabel,
                 hint: l.setupListenPortHint,
-                child: TextField(
-                  controller: _listenPortController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 9,
-                    ),
-                  ),
-                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12.5),
-                  onChanged: _onListenPortChanged,
-                ),
+                controller: _listenPortController,
+                keyboardType: TextInputType.number,
+                onChanged: _onListenPortChanged,
               ),
               const SizedBox(height: 12),
               // Bind-interface override. Writes the same stored
@@ -251,112 +236,6 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _IdentityChip extends StatelessWidget {
-  const _IdentityChip({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    required this.identityHint,
-    required this.onChanged,
-  });
-  final TextEditingController controller;
-  final String label;
-  final String hint;
-  final String identityHint;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: MoshColors.line),
-        color: MoshColors.bg2,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // The identity glyph uses a translucent moss tile like every
-          // other icon surface, not a solid moss disc.
-          const CircleAvatar(
-            radius: 18,
-            backgroundColor: MoshColors.mossGlow,
-            child: Icon(Icons.person, size: 20, color: MoshColors.moss),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                labelText: label,
-                hintText: hint,
-                helperText: identityHint,
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OnboardTile extends StatelessWidget {
-  const _OnboardTile({
-    required this.icon,
-    required this.title,
-    required this.desc,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String title;
-  final String desc;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: MoshColors.bg2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: MoshColors.line),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 13,
-        ),
-        horizontalTitleGap: 13,
-        leading: Container(
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: MoshColors.mossGlow,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 20, color: MoshColors.moss),
-        ),
-        title: Text(title,
-            style: const TextStyle(fontSize: 13.5, color: MoshColors.fg1)),
-        subtitle: Text(
-          desc,
-          style: const TextStyle(fontSize: 11.5, color: MoshColors.fg3),
-          maxLines: 2,
-        ),
-        trailing:
-            const Icon(Icons.chevron_right, size: 18, color: MoshColors.fg4),
-        onTap: onTap,
-      ),
     );
   }
 }

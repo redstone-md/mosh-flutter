@@ -329,4 +329,40 @@ void main() {
     await tester.tap(errorIcon);
     expect(_openCount, 0);
   });
+
+  // Regression (CodeAnt PR #17): a malformed server thumbnail used to
+  // throw base64Decode's FormatException during build -- the
+  // Image.memory errorBuilder can never catch it, and the whole
+  // conversation failed to render. The decode is now defensive: the
+  // broken-image fallback renders instead.
+  testWidgets(
+      'malformed base64 thumbnail renders the broken-image fallback, '
+      'not an exception', (tester) async {
+    final descriptor = _descriptor(
+      attachmentId: 'att-bad-thumb',
+      fileName: 'photo3.png',
+      mime: 'image/png',
+      totalSize: 2048,
+      // Not valid base64: base64Decode throws FormatException.
+      thumbnailB64: '!!!not-base64!!!',
+    );
+    await _pump(
+      tester,
+      AttachmentCard(
+        descriptor: descriptor,
+        view: _view(attachmentId: 'att-bad-thumb'),
+        own: false,
+        busy: false,
+        onDownload: _onDownload,
+        onCancel: _onCancel,
+        onOpen: _onOpen,
+      ),
+    );
+
+    // The fallback icon renders (Image.memory's errorBuilder) and the card
+    // survives: the name + open semantics are still there.
+    expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
+    expect(find.bySemanticsLabel('Open photo3.png'), findsOneWidget);
+    expect(find.text('photo3.png'), findsOneWidget);
+  });
 }
