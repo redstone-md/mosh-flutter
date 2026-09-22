@@ -228,7 +228,7 @@ class VoiceCallOrchestratorNotifier
     if (!ended && _endedCallId == callId) _endedCallId = null;
   }
 
-  /// Toggles mute (React toggleMute). Mirrors the orchestrator's own flag;
+  /// Toggles mute. Mirrors the orchestrator's own flag;
   /// bumps state so the CallOverlay re-renders the mic icon.
   void toggleMute() {
     _orchestrator?.toggleMute();

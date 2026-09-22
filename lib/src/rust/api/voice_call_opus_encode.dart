@@ -6,8 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Constructs a 48 kHz mono VoIP Opus encoder at 24 kbps, mirroring the React
-/// WebCodecs encoder config. Synchronous (no I/O); `Err(String)` on libopus
+/// Constructs a 48 kHz mono VoIP Opus encoder at 24 kbps. Synchronous (no I/O); `Err(String)` on libopus
 /// init or bitrate-set failure. Errors are stringified via `Debug` to keep the
 /// bridge surface a plain `Result<T, String>` (matches `voice_call_*` style).
 VoiceCallOpusEncoder voiceCallOpusEncoderNew() =>

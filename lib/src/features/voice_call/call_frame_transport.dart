@@ -1,8 +1,7 @@
-/// CallFrameTransport -- the base64<->raw-bytes seam between the Rust
-/// FFI [Gateway] and [CallFrameSource] (1:1 with React's base64 wire
-/// boundary). The Dart mosh_core frb surface is raw Uint8List; the
-/// already-landed call_drain.dart is base64 (mirroring React). This
-/// adapter isolates the conversion so call_drain.dart stays untouched.
+// CallFrameTransport -- the base64<->raw-bytes seam between the Rust
+// FFI [Gateway] and [CallFrameSource]. The Dart mosh_core frb surface is
+// raw Uint8List, while call_drain.dart works in base64. This adapter
+// isolates the conversion so call_drain.dart stays untouched.
 library;
 
 import 'dart:typed_data';
@@ -24,9 +23,7 @@ class CallFrameTransport implements CallFrameSource {
     return [for (final frame in raw) bytesToBase64(frame)];
   }
 
-  /// Sends a sealed wire frame (raw bytes) to the bridge. Mirrors
-  /// React's `gateway.callSendFrame(sessionId, callId, base64)` but
-  /// passes raw bytes since the Dart frb surface is raw.
+  /// Sends a sealed wire frame (raw bytes) to the bridge.
   Future<void> sendFrameBytes(String sessionId, String callId, Uint8List wire) {
     return _bridge.callSendFrame(
         sessionId: sessionId, callId: callId, frame: wire);

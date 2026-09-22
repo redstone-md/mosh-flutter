@@ -1,8 +1,7 @@
-// Unit tests for [peerLabel] -- the Flutter port of React's `peerLabel`
-// (mosh/src/features/private-dm/private-dm-screen.tsx:535-543). Pure
-// function; no widget pump. Uses the generated `lookupAppLocalizations`
-// singleton (en) for the localized "Peer"/"invite sent"/"joining" strings
-// so the test stays hermetic without a MaterialApp harness.
+// Unit tests for [peerLabel]. Pure function; no widget pump. Uses the
+// generated `lookupAppLocalizations` singleton (en) for the localized
+// "Peer"/"invite sent"/"joining" strings so the test stays hermetic
+// without a MaterialApp harness.
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -48,9 +47,7 @@ void main() {
       expect(peerLabel(l, s), 'remote-pal');
     });
 
-    test(
-        'empty peerDisplayName + a peer message -> that fromDevice (React primary branch)',
-        () {
+    test('empty peerDisplayName + a peer message -> that fromDevice', () {
       final s = _session(
         role: 'alice',
         state: DmSessionState.pending,
@@ -81,7 +78,8 @@ void main() {
     });
 
     test('messages from own display_name are skipped, not treated as peer', () {
-      // React: messages.find(m => m.from_device !== session.display_name).
+      // The peer message is the first one whose from_device differs from
+      // session.display_name.
       final s = _session(
         role: 'alice',
         state: DmSessionState.pending,

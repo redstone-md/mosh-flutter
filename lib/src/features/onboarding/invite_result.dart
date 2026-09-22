@@ -1,17 +1,15 @@
-// Invite-result card, 1-в-1 with the React `InviteResult`
-// (src/features/private-dm/NewSessionPanel.parts.tsx): a "ready" note row
-// (check icon + note), the invite URI in a monospace `code` block (so the
-// user can select + copy manually too -- matching React's `<code>`), and a
-// Copy button whose label + icon flip with the [copied] flag. On top of
-// React: an Open button that lands in the conversation just created, so
-// sharing the link and entering the chat do not need a detour via the rail.
+// Invite-result card: a "ready" note row (check icon + note), the invite
+// URI in a monospace selectable block (so the user can select + copy
+// manually too), and a Copy button whose label + icon flip with the
+// [copied] flag. An Open button lands in the conversation just created,
+// so sharing the link and entering the chat do not need a detour via the
+// rail.
 //
 // Extracted as its own widget so the chat-create step AND the future
-// group-create step render the invite the same way (DRY: one result card).
-// Stateless by design -- the parent owns the `copied` flag and the
-// clipboard call (so the parent can reset `copied` when a new invite is
-// created), exactly like React where `createState.copied` lives on the
-// step component, not on `InviteResult`.
+// group-create step render the invite the same way (DRY: one result
+// card). Stateless by design -- the parent owns the `copied` flag and the
+// clipboard call, so the parent can reset `copied` when a new invite is
+// created.
 library;
 
 import 'package:flutter/material.dart';
@@ -19,8 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// Renders an invite URI plus a Copy affordance, mirroring React
-/// `InviteResult`.
+/// Renders an invite URI plus a Copy affordance.
 ///
 /// The [note] is the localized "ready" line (e.g. `onboardInviteReady`).
 /// The [uri] is shown in a monospace `SelectableText` so the user can
@@ -38,16 +35,16 @@ class InviteResult extends StatelessWidget {
     required this.onOpen,
   });
 
-  /// Localized "ready" note (1-в-1 with React's `note` prop).
+  /// Localized "ready" note.
   final String note;
 
-  /// The invite URI to display + copy (1-в-1 with React's `uri` prop).
+  /// The invite URI to display + copy.
   final String uri;
 
   /// Whether the URI was just copied -- flips the Copy button label/icon.
   final bool copied;
 
-  /// Copy callback (1-в-1 with React's `onCopy`).
+  /// Copy callback.
   final VoidCallback onCopy;
 
   /// Localized label of the Open button ("Open chat" / "Open group").
@@ -59,9 +56,7 @@ class InviteResult extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    // React `.invite-ready { gap: 8px; padding: 12px; border-radius: 12px;
-    // border: 1px solid rgba(183,216,74,0.3); background: var(--moss-glow) }`
-    // -- the whole result reads as a moss-tinted success block.
+    // Moss-tinted success block for the whole result card.
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -74,8 +69,6 @@ class InviteResult extends StatelessWidget {
         children: [
           Row(
             children: [
-              // `.invite-ready-note { gap: 6px; color: var(--moss);
-              // font-size: 11.5px; font-weight: 600 }`.
               const Icon(Icons.check, size: 16, color: MoshColors.moss),
               const SizedBox(width: 6),
               Expanded(
@@ -91,9 +84,6 @@ class InviteResult extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // `.invite-code { padding: 10px 12px; border-radius: 8px;
-          // background: var(--bg-0); color: var(--fg-2); font-family: mono;
-          // font-size: 11px; line-height: 1.5; border: 1px solid --line }`.
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

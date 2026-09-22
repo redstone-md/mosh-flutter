@@ -1,6 +1,5 @@
-// Parity tests for `JitterBuffer` (lib/src/features/voice_call/jitter_buffer.dart)
-// -- the 1-to-1 port of React's `jitter-buffer.ts`. Mirrors the React
-// suite: in-order drain, cursor drop, gap pause, force-skip past the cap,
+// Tests for `JitterBuffer` (lib/src/features/voice_call/jitter_buffer.dart).
+// Covers: in-order drain, cursor drop, gap pause, force-skip past the cap,
 // and the #14 strictly-increasing-seqs regression guard.
 import 'dart:typed_data';
 

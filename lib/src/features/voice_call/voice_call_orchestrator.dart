@@ -1,19 +1,15 @@
 // VoiceCallOrchestrator -- the audio-transport lifecycle for an active
-// 1:1 voice call, 1:1 port of React use-voice-call-orchestration's
-// useEffect pump (mosh/src/features/private-dm/voice-call/
-// use-voice-call-orchestration.ts L90-200). Riverpod-free + Flutter-free so
-// it is unit-testable with Noop capture/playback factories and a recording
-// transport.
+// two-party voice call. Riverpod-free + Flutter-free so it is unit-testable
+// with Noop capture/playback factories and a recording transport.
 //
-// attach() runs the React effect body: importCallKey -> reset seq/jitter/
-// mute -> startVoicePlayback -> startVoiceCapture(onFrame: snapshot+inc
-// seq synchronously then sealFrame + transport.sendFrameBytes) -> a 20ms
-// Timer.periodic guarded by `draining` that runs drainCallFrames with the
-// transport as source + playback as sink + a fresh JitterBuffer.
-// detach() is the React cleanup: cancelled=true, cancel timer, stop both
-// handles, null the refs, reset seq/mute. A `cancelled` flag gates the two
-// await windows (playback/capture resolving after detach) so a teardown
-// during setup does not leak or clobber.
+// attach() runs the setup: importCallKey -> reset seq/jitter/mute ->
+// start playback -> start capture (onFrame: snapshot+inc seq synchronously
+// then sealFrame + transport.sendFrameBytes) -> a 20ms Timer.periodic
+// guarded by `draining` that runs drainCallFrames with the transport as
+// source + playback as sink + a fresh JitterBuffer. detach() tears it all
+// down. A `cancelled` flag gates the two await windows (playback/capture
+// resolving after detach) so a teardown during setup does not leak or
+// clobber.
 library;
 
 import 'dart:async';
@@ -29,11 +25,10 @@ import 'jitter_buffer.dart' show JitterBuffer;
 import 'voice_capture.dart' show VoiceCaptureFactory, VoiceCaptureHandle;
 import 'voice_playback.dart' show VoicePlaybackFactory, VoicePlaybackHandle;
 
-// The setup-failure reason passed to endCall when attach throws -- 1:1
-// with React's `endCall(sessionId, callId, "setup_failed")`.
+// The setup-failure reason passed to endCall when attach throws.
 const String kSetupFailedReason = 'setup_failed';
 
-// The 20ms frame-poll interval -- 1:1 with React's `CALL_FRAME_POLL_MS`.
+// The 20ms frame-poll interval.
 const Duration kCallFramePollInterval = Duration(milliseconds: 20);
 
 class VoiceCallOrchestrator {
@@ -49,17 +44,17 @@ class VoiceCallOrchestrator {
   bool _draining = false;
   bool _muted = false;
 
-  // Whether the local mic is muted -- 1:1 with React's `callMuted`.
+  // Whether the local mic is muted.
   bool get isMuted => _muted;
 
-  // Toggles mute -- 1:1 with React's `toggleMute`. While muted the
-  // capture onFrame early-returns and no frame is sealed/sent.
+  // Toggles mute. While muted the capture onFrame early-returns and no
+  // frame is sealed/sent.
   void toggleMute() {
     _muted = !_muted;
   }
 
   // Attaches to an active call and starts the audio-transport loops.
-  // Mirrors the React useEffect body. Call detach() to tear down.
+  // Call detach() to tear down.
   Future<void> attach({
     required String sessionId,
     required String callId,
@@ -122,8 +117,8 @@ class VoiceCallOrchestrator {
           return;
         }
         _draining = true;
-        // 1:1 with React's `.catch(...).finally(...)`: swallow poll errors
-        // and always reset the draining guard so the next tick can fire.
+        // Swallow poll errors and always reset the draining guard so the
+        // next tick can fire.
         drainCallFrames(
           source: transport,
           sessionId: sessionId,
@@ -145,9 +140,8 @@ class VoiceCallOrchestrator {
     }
   }
 
-  // Detaches from the active call and tears down all resources -- 1:1
-  // with the React useEffect cleanup. Idempotent: safe to call when not
-  // attached or after a partial attach.
+  // Detaches from the active call and tears down all resources.
+  // Idempotent: safe to call when not attached or after a partial attach.
   Future<void> detach() async {
     _cancelled = true;
     _poll?.cancel();
@@ -188,7 +182,7 @@ class VoiceCallOrchestrator {
       final seal = await sealFrame(key, noncePrefix, seq, directionBit, frame);
       await transport.sendFrameBytes(sessionId, callId, seal);
     } catch (_) {
-      // React: console.warn("[voice-call] send failed", err) -- swallow here.
+      // Send failure is non-fatal -- swallow here.
     }
   }
 }

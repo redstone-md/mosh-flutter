@@ -1,10 +1,8 @@
 //! Opus decoder + cpal output facade for the voice-call playback pipeline.
 //!
-//! Mirrors the React `mosh/src/features/private-dm/voice-call/audio-playback.ts`
-//! flow: WebCodecs `AudioDecoder` -> Web Audio `createBufferSource.start(time)`
-//! per-20ms-frame scheduling with `nextStart` chaining and drift-resync (if
-//! `start - currentTime > 0.2s`, reset `start = currentTime`). Here the Opus
-//! decode happens via `audiopus::coder::Decoder` (vendored libopus, MSVC) and
+//! Opus decode via `audiopus::coder::Decoder` (vendored libopus, MSVC) with
+//! drift-resync (if the ring backlog exceeds 0.2s of audio, drop it and
+//! resume from "now"), and
 //! playback is a `cpal::Stream` (Windows WASAPI) fed from a `ringbuf` ring;
 //! the cpal `data_callback` pulls decoded PCM off the ring's consumer and
 //! zero-fills underruns, while `push_frame` decodes one Opus packet and
@@ -46,14 +44,12 @@ use ringbuf::{
 
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 
-/// Drift-resync threshold in seconds. Mirrors React's
-/// `PLAYBACK_RESYNC_S = 0.2` -- when the ring backlog exceeds 0.2s of audio,
-/// drop it and resume from "now" (the equivalent of React resetting
-/// `nextStart = currentTime`).
+/// Drift-resync threshold in seconds: when the ring backlog exceeds 0.2s of
+/// audio, drop it and resume from "now".
 const PLAYBACK_RESYNC_S: f64 = 0.2;
 
 /// One 20 ms Opus frame at 48 kHz mono = 960 samples. Matches the capture
-/// side's frame size and React's per-frame scheduling cadence.
+/// side's frame size and the per-frame scheduling cadence.
 const FRAME_SAMPLES: usize = 960;
 
 /// Playback sample rate (48 kHz mono), 1-1 with the Opus decoder config.
@@ -83,16 +79,14 @@ pub struct VoicePlayback {
 /// (the rest of the pipeline needs a live audio device + the frb cdylib, so it
 /// is validated on a device, not in `cargo test`). Returns `true` when the
 /// current ring backlog in seconds exceeds the threshold -- the caller then
-/// clears the ring and resumes from "now", mirroring React's
-/// `start - currentTime > 0.2 ? currentTime : start`.
+/// clears the ring and resumes from "now".
 fn should_resync(occupied_s: f64, threshold_s: f64) -> bool {
     occupied_s > threshold_s
 }
 
 /// Turns the 48 kHz mono ring into whatever the output device consumes:
 /// linear resampling to the device rate and the same sample on every
-/// channel. Underrun (ring empty) reads as silence, mirroring React's
-/// `source.start(time)` producing nothing when no buffer is scheduled.
+/// channel. Underrun (ring empty) reads as silence.
 struct Renderer {
     consumer: Arc<Mutex<HeapCons<i16>>>,
     channels: usize,
@@ -153,7 +147,7 @@ fn build_stream<T: SizedSample + FromSample<i16>>(
             *config,
             move |buf: &mut [T], _info: &OutputCallbackInfo| renderer.fill(buf),
             |err| {
-                // Mirrors React's `AudioContext` error path: log-only. The
+                // Error path is log-only. The
                 // stream stays alive for the call's lifetime; a hard fault
                 // surfaces on the next `push_frame` as a poisoned mutex or is
                 // cleaned up by `stop`.
@@ -224,13 +218,11 @@ pub fn voice_call_playback_start() -> Result<VoicePlayback, String> {
 }
 
 /// Decodes one Opus packet and pushes its 960 i16 samples onto the ring. `seq`
-/// is the call frame sequence (preserves gaps on the wire, mirroring React's
-/// `(seq & SEQ_VALUE_MASK) * 20000us` timestamp), unused by cpal's pull model
-/// but accepted for seam parity with `VoicePlaybackHandle.pushFrame`. If the
-/// ring backlog exceeds `PLAYBACK_RESYNC_S`, the backlog is dropped first
-/// (React's `start = currentTime` resync). On a full ring the push clears the
-/// backlog and retries, matching React's no-backpressure `source.start(0)`
-/// "play from now" behavior.
+/// is the call frame sequence (preserves gaps on the wire), unused by cpal's
+/// pull model but accepted for seam parity with `VoicePlaybackHandle.pushFrame`.
+/// If the ring backlog exceeds `PLAYBACK_RESYNC_S`, the backlog is dropped
+/// first. On a full ring the push clears the backlog and retries
+/// ("play from now", no backpressure).
 #[frb(sync)]
 pub fn voice_call_playback_push_frame(
     p: &VoicePlayback,
@@ -264,13 +256,12 @@ pub fn voice_call_playback_push_frame(
         .map_err(|e| format!("playback push: producer mutex poisoned: {e}"))?;
 
     // Drift-resync: if the backlog exceeds the threshold, drop it and resume
-    // from "now" (React: `start = currentTime`). `occupied_len` is an
+    // from "now". `occupied_len` is an
     // `Observer` method on the producer, so the snapshot needs no consumer
     // lock; only the (rare) `clear` locks the consumer. The snapshot is
     // slightly stale relative to the cpal callback's reads but correct enough
-    // for a threshold check (the same kind of `currentTime` snapshot React
-    // uses). A poisoned consumer mutex means `stop` raced -- treat as
-    // already-stopped and skip the push.
+    // for a threshold check. A poisoned consumer mutex means `stop` raced --
+    // treat as already-stopped and skip the push.
     let occupied_s = prod.occupied_len() as f64 / SAMPLE_RATE as f64;
     if should_resync(occupied_s, PLAYBACK_RESYNC_S) {
         if let Ok(mut cons) = p.consumer.lock() {
@@ -280,8 +271,8 @@ pub fn voice_call_playback_push_frame(
 
     // Push the decoded frame. If the ring is full (callback stalled longer
     // than the ring's slack without crossing the resync threshold), clear the
-    // backlog and retry -- matches React's "play from now" (no backpressure,
-    // resume at the live edge). A still-full retry means the callback is
+    // backlog and retry (no backpressure, resume at the live edge).
+    // A still-full retry means the callback is
     // wedged; discard the frame rather than block the FFI thread (better to
     // lose one frame than stall decode).
     let pushed = prod.push_slice(&pcm);
@@ -295,7 +286,7 @@ pub fn voice_call_playback_push_frame(
 }
 
 /// Stops the playback pipeline by dropping the `cpal::Stream` (closes the
-/// audio output, mirroring React's `context.close()`). The decoder and ring
+/// audio output). The decoder and ring
 /// are dropped with the `VoicePlayback` opaque when frb releases it. Inert if
 /// already stopped (idempotent -- matches `VoicePlaybackHandle.stop`'s
 /// "inert if already stopped" contract).
@@ -369,8 +360,7 @@ mod tests {
     fn resync_when_over_threshold() {
         // Backlog of 0.25 s exceeds the 0.2 s threshold -> resync.
         assert!(should_resync(0.25, PLAYBACK_RESYNC_S));
-        // Boundary: exactly the threshold does NOT resync (`>`, not `>=`),
-        // matching React's `start - currentTime > 0.2` strict comparison.
+        // Boundary: exactly the threshold does NOT resync (`>`, not `>=`).
         assert!(!should_resync(PLAYBACK_RESYNC_S, PLAYBACK_RESYNC_S));
         // A healthy 0.15 s backlog stays put -- steady state never trips.
         assert!(!should_resync(0.15, PLAYBACK_RESYNC_S));

@@ -1,11 +1,11 @@
 //! Diagnostics facade.
 //!
-//! Surfaces the former Tauri command group that reported app-level health:
+//! Surfaces the commands that report app-level health:
 //! `app_diagnostics` (aggregate identity snapshot) and `native_runtime_status`
 //! (per-runtime readiness), plus `moss_library_info` (spec #5: what the loaded
 //! library reports about itself). Plain bridge-friendly structs; no streams.
 //! The api facade owns the structs and constants so the bridge (ADR 0010)
-//! serializes them without touching a Tauri-typed type.
+//! serializes them without touching a runtime-typed type.
 
 use crate::api::shared_runtime::{database_path, ensure_shared_resources};
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
@@ -21,8 +21,8 @@ use std::any::Any;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-// App-level identity strings. Mirror the previous Tauri shell constants; kept
-// as named consts (not inline literals) per AGENTS.md no-hardcoding rule.
+// App-level identity strings. Kept as named consts (not inline literals) per
+// AGENTS.md no-hardcoding rule.
 const APP_NAME: &str = "Mosh";
 const PRIVACY_MODEL: &str = "OpenMLS private messages over Moss transport";
 const DISCOVERY_MODEL: &str = "default public Moss trackers";

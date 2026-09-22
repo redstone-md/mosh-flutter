@@ -1,29 +1,22 @@
-// S2-1: named-route shell. Replaces the static `MoshHome` smoke screen so the
-// slice-one screens (onboarding, invite-paste, dm, diagnostics) become
-// reachable from the running app. Uses `go_router` (declarative, URL-based)
-// so the S2-3 deep-link intake (`mosh://...` -> route) can map straight onto
-// these path strings instead of hand-rolling `Navigator.pushNamed`.
+// Named-route shell. Uses `go_router` (declarative, URL-based) so the
+// deep-link intake (`mosh://...` -> route) can map straight onto these
+// path strings instead of hand-rolling `Navigator.pushNamed`.
 //
 // Route table (path -> screen):
-//   /                 OnboardingScreen (home; matches the React entry flow)
+//   /                 OnboardingScreen
 //   /join             InvitePasteScreen
-//   /sessions         SessionsScreen (DM sessions list; React SessionRail)
+//   /sessions         SessionsScreen (DM sessions list)
 //   /dm/:sessionId    DmScreen(sessionId = state.pathParameters['sessionId'])
 //
-// Two-pane shell (React private-dm-screen desktop-body parity): the
-// /sessions, /dm/:id, /channel/:name, /group/:groupId, and /chat (welcome)
-// routes live inside a StatefulShellRoute with TWO branches:
+// Two-pane shell: the /sessions, /dm/:id, /channel/:name, /group/:groupId,
+// and /chat (welcome) routes live inside a StatefulShellRoute with TWO
+// branches:
 //   - branch A (rail):  /sessions (SessionsScreen)
 //   - branch B (chat):  /chat (ChatPaneWelcome) + /dm/:id + /channel/:name
 //                       + /group/:groupId
 // The shell (mosh_shell.dart) lays them out side-by-side on desktop (rail
-// always visible beside the chat -- the parity gap) and as a single pane
-// on mobile (rail OR chat, mirroring React's useConversationRailState).
-//
-// `DmScreen` already takes `sessionId` as a required constructor arg, so the
-// route feeds it from the path parameter (typed String). No screen internals
-// are touched. `MoshApp` keeps ProviderScope at root + MaterialApp theming
-// + localization; only `home:` -> `MaterialApp.router(routerConfig:)` swaps in.
+// always visible beside the chat) and as a single pane on mobile (rail OR
+// chat).
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -58,16 +51,13 @@ class AppRoutes {
 
   static const String group = '/group';
 
-  /// Chat-create step route (1-в-1 with React's ChatCreateStep). Reached
-  /// from the onboarding Chat tile.
+  /// Chat-create step route. Reached from the onboarding Chat tile.
   static const String chatCreate = '/chat-create';
 
-  /// Channel-join step route (1-в-1 with React's ChannelJoinStep). Reached
-  /// from the onboarding Channel tile.
+  /// Channel-join step route. Reached from the onboarding Channel tile.
   static const String channelJoin = '/channel-join';
 
-  /// Group-create step route (1-в-1 with React's GroupCreateStep). Reached
-  /// from the onboarding Group tile.
+  /// Group-create step route. Reached from the onboarding Group tile.
   static const String groupCreate = '/group-create';
 
   /// Builds a `/dm/<sessionId>` location string. Centralized so callers do
@@ -92,11 +82,10 @@ final GoRouter appRouter = GoRouter(
   // App opens directly inside the StatefulShellRoute (mosh_shell.dart):
   // branch A (/sessions, the SessionRail) on the left and branch B
   // (/chat, ChatPaneWelcome with the inline NewSessionPanel) on the right
-  // on desktop, branch A alone on mobile. This mirrors the React app,
-  // where App.tsx renders <PrivateDmScreen/> immediately with no
-  // onboarding gate. The `/` onboarding route (OnboardingScreen with its
-  // tiles + the AppBar diagnostics action) remains reachable by
-  // navigation -- it is just no longer the initial location.
+  // on desktop, branch A alone on mobile -- no onboarding gate. The `/`
+  // onboarding route (OnboardingScreen with its tiles + the AppBar
+  // diagnostics action) remains reachable by navigation -- it is just no
+  // longer the initial location.
   initialLocation: AppRoutes.sessions,
   routes: <RouteBase>[
     GoRoute(
@@ -117,38 +106,36 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
-      // Chat-create step (1-в-1 with React's ChatCreateStep). Reached from
-      // the onboarding Chat tile via context.go(AppRoutes.chatCreate); the
-      // step's Back button returns to AppRoutes.onboarding. The group /
-      // join / channel step routes are deferred to later atomics.
+      // Chat-create step. Reached from the onboarding Chat tile via
+      // context.go(AppRoutes.chatCreate); the step's Back button returns
+      // to AppRoutes.onboarding.
       path: AppRoutes.chatCreate,
       builder: (BuildContext context, GoRouterState state) =>
           const ChatCreateScreen(),
     ),
     GoRoute(
-      // Channel-join step (1-в-1 with React's ChannelJoinStep). Reached from
-      // the onboarding Channel tile via context.go(AppRoutes.channelJoin);
-      // the step's Back button returns to AppRoutes.onboarding. The Join
-      // button is a NO-OP STUB (the bridge joinChannel seam is a later slice).
+      // Channel-join step. Reached from the onboarding Channel tile via
+      // context.go(AppRoutes.channelJoin); the step's Back button returns
+      // to AppRoutes.onboarding. The Join button is a NO-OP STUB (the
+      // bridge joinChannel seam is a later slice).
       path: AppRoutes.channelJoin,
       builder: (BuildContext context, GoRouterState state) =>
           const ChannelJoinScreen(),
     ),
     GoRoute(
-      // Group-create step (1-в-1 with React's GroupCreateStep). Reached from
-      // the onboarding Group tile via context.go(AppRoutes.groupCreate);
-      // the step's Back button returns to AppRoutes.onboarding. The Create
-      // button is a NO-OP STUB (the bridge createGroup seam is a later slice).
+      // Group-create step. Reached from the onboarding Group tile via
+      // context.go(AppRoutes.groupCreate); the step's Back button returns
+      // to AppRoutes.onboarding. The Create button is a NO-OP STUB (the
+      // bridge createGroup seam is a later slice).
       path: AppRoutes.groupCreate,
       builder: (BuildContext context, GoRouterState state) =>
           const GroupCreateScreen(),
     ),
-    // Two-pane shell -- the React private-dm-screen desktop-body port. The
-    // rail (branch A, /sessions) + the chat (branch B, /chat welcome +
-    // /dm/:id + /channel/:name + /group/:groupId) share one
-    // StatefulShellRoute. The navigatorContainerBuilder (MoshShell) lays
-    // them out side-by-side on desktop (rail always visible beside the
-    // chat) and as a single pane on mobile (rail OR chat). go_router
+    // Two-pane shell. The rail (branch A, /sessions) + the chat (branch B,
+    // /chat welcome + /dm/:id + /channel/:name + /group/:groupId) share
+    // one StatefulShellRoute. The navigatorContainerBuilder (MoshShell)
+    // lays them out side-by-side on desktop (rail always visible beside
+    // the chat) and as a single pane on mobile (rail OR chat). go_router
     // auto-activates the branch matching the destination, so the rail's
     // context.go(AppRoutes.dmFor(...)) + the chat's context.go(AppRoutes
     // .sessions) Just Work without any screen edits -- the rail rows stay
@@ -177,7 +164,7 @@ final GoRouter appRouter = GoRouter(
         StatefulShellBranch(
           routes: <RouteBase>[
             GoRoute(
-              // DM sessions list (React SessionRail sessions section).
+              // DM sessions list.
               path: AppRoutes.sessions,
               builder: (BuildContext context, GoRouterState state) =>
                   const SessionsScreen(),
@@ -203,8 +190,8 @@ final GoRouter appRouter = GoRouter(
           preload: true,
           routes: <RouteBase>[
             GoRoute(
-              // Chat-pane welcome: the existing NewSessionPanel is rendered
-              // inline at every viewport size, matching React's showSetup path.
+              // Chat-pane welcome: the NewSessionPanel is rendered inline
+              // at every viewport size.
               path: AppRoutes.chat,
               builder: (BuildContext context, GoRouterState state) =>
                   const ChatPaneWelcome(),

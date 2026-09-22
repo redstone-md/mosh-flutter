@@ -1,6 +1,5 @@
-// Parity tests for `OutgoingCallModal` (lib/src/features/voice_call/
-// outgoing_call_modal.dart) -- the 1-в-1 port of React's
-// `OutgoingCallModal.tsx`. Asserts the cancel button + Esc fire onCancel,
+// Widget tests for `OutgoingCallModal` (lib/src/features/voice_call/
+// outgoing_call_modal.dart). Asserts the cancel button + Esc fire onCancel,
 // the ringtone starts on mount + stops on dispose, and the peer label +
 // "Calling..." status render.
 import 'package:flutter/material.dart';

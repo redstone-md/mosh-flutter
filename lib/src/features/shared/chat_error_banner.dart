@@ -1,30 +1,19 @@
-// ChatErrorBanner -- the 1-1 Flutter port of React's `ChatError`
-// (mosh/src/features/private-dm/private-dm-screen.tsx L506-525), the inline
-// error banner React renders at the top of the chat-pane when there is a
-// send error AND the conversation is not on the welcome/empty state
-// (private-dm-screen.tsx L337-341). React renders:
-//   <div className="inline-error chat-error" role="alert">
-//     <span>{message}</span>
-//     {onRetry ? <button className="chat-error-retry" onClick={onRetry}>
-//       <IconRefresh size={13} />Retry</button> : null}
-//   </div>
-// The Flutter port mirrors that single-row banner: an error-tinted
+// ChatErrorBanner: the inline error banner shown at the top of the
+// chat pane when there is a send error AND the conversation is not on the
+// welcome/empty state. A single-row banner: an error-tinted
 // Container, the message text, and an OPTIONAL Retry button (only when
 // `onRetry` is non-null). The Retry label is localized via ARB
-// (`chatErrorRetry`) -- not the React inline literal -- so the banner
-// matches the rest of the localized UI.
+// (`chatErrorRetry`) so the banner matches the rest of the localized UI.
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 
-/// Inline chat error banner -- 1-1 with React `ChatError`. Renders an
-/// `inline-error chat-error`-style row (error-container background + the
-/// error message) plus an optional Retry button. The caller gates the
-/// render: pass a non-null [onRetry] to show the retry button, matching
-/// React's `{onRetry ? <button/> : null}`. This widget does NOT decide
-/// when to appear -- the conversation screens construct it only when
-/// `_chatError != null` (mirrors React's `{error ? <ChatError/> : null}`).
+/// Inline chat error banner. Renders an error-container background row
+/// with the error message plus an optional Retry button. The caller gates
+/// the render: pass a non-null [onRetry] to show the retry button.
+/// This widget does NOT decide when to appear -- the conversation screens
+/// construct it only when `_chatError != null`.
 class ChatErrorBanner extends StatelessWidget {
   const ChatErrorBanner({
     super.key,
@@ -32,12 +21,11 @@ class ChatErrorBanner extends StatelessWidget {
     this.onRetry,
   });
 
-  /// The error text to show (React `ChatError` `message` prop).
+  /// The error text to show.
   final String message;
 
-  /// Optional retry callback. When non-null, a Retry button is shown
-  /// (React: `onRetry ? <button/> : null`). Null hides the button, mirroring
-  /// `canRetrySend ? retryFailedSend : undefined` from the screen.
+  /// Optional retry callback. When non-null, a Retry button is shown;
+  /// null hides the button.
   final VoidCallback? onRetry;
 
   @override
@@ -45,9 +33,9 @@ class ChatErrorBanner extends StatelessWidget {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
     return Semantics(
-      // React `role="alert"` on the banner root -- `liveRegion` is the
-      // Flutter equivalent of the ARIA alert role: it announces the
-      // message to assistive tech and re-announces when it changes.
+      // `liveRegion` announces the
+      // message to assistive tech and re-announces when it changes (the
+      // ARIA alert role equivalent).
       container: true,
       liveRegion: true,
       child: Container(
@@ -75,7 +63,7 @@ class ChatErrorBanner extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                // React's IconRefresh size 13 + the "Retry" label.
+                // Refresh icon size 13 + the "Retry" label.
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

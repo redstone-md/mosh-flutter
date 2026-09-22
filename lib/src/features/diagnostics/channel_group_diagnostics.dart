@@ -1,23 +1,18 @@
-/// The React `ChannelDiagnostics` and `GroupDiagnostics` sections, 1-in-1
-/// with `src/features/private-dm/DiagnosticsDrawerSections.tsx` (the
-/// second and third `DiagnosticsDrawer` branches, alongside
-/// `SessionDiagnostics`).
+/// The `ChannelDiagnostics` and `GroupDiagnostics` sections (the second
+/// and third `DiagnosticsDrawer` branches, alongside `SessionDiagnostics`).
 ///
-/// These were previously DEFERRED because the `ChannelSnapshot` /
-/// `GroupSnapshot` contracts did not exist in the Flutter fork. They now
-/// do -- the channels/groups read seam landed in b750a87 -- so this
-/// atomic adds ONLY the two section widgets (plus their ARB keys). Wiring
-/// them into the `PeerStatusDrawer` is a LATER atomic: the drawer stays
-/// DM-only for now (there is no channel/group screen yet to host the
-/// drawer with a channel/group).
+/// The `ChannelSnapshot` / `GroupSnapshot` contracts landed in b750a87;
+/// this file adds ONLY the two section widgets (plus their ARB keys).
+/// Wiring them into the `PeerStatusDrawer` is a LATER atomic: the drawer
+/// stays DM-only for now (there is no channel/group screen yet to host
+/// the drawer with a channel/group).
 ///
-/// In scope (this atomic): `ChannelDiagnostics` (the "Channel details"
-/// `.diagnostic-group` + `MeshDiagnostics` + `EventLog`) and
-/// `GroupDiagnostics` (the "Group details" `.diagnostic-group` +
-/// `MeshDiagnostics` + `EventLog`). Each mirrors the exact React row
-/// order + values. Reuses the shared primitives `DiagnosticsGroup` /
-/// `DiagnosticsRow` (from `diagnostics_sections.dart`), `MeshDiagnostics`
-/// (from `mesh_diagnostics.dart`), `EventLog` (from `event_log.dart`),
+/// In scope: `ChannelDiagnostics` (the "Channel details" group +
+/// `MeshDiagnostics` + `EventLog`) and `GroupDiagnostics` (the "Group
+/// details" group + `MeshDiagnostics` + `EventLog`). Reuses the shared
+/// primitives `DiagnosticsGroup` / `DiagnosticsRow` (from
+/// `diagnostics_sections.dart`), `MeshDiagnostics` (from
+/// `mesh_diagnostics.dart`), `EventLog` (from `event_log.dart`),
 /// `stateLabel` (from `state_label.dart`, for the group MLS state), and
 /// `shorten` (from `lib/src/util/format.dart`). The
 /// `diagRowDisplay` / `diagRowMlsState` ARB keys already exist and are
@@ -36,13 +31,10 @@ import 'package:mosh/src/rust/channel_runtime.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/util/format.dart';
 
-/// The React `ChannelDiagnostics`: the "Channel details"
-/// `.diagnostic-group` (4 rows: Name / Display / Topic / Device), then
-/// `MeshDiagnostics`, then `EventLog`. Mirrors React's
-/// `ChannelDiagnostics({ channel })` exactly:
+/// The "Channel details" group (4 rows: Name / Display / Topic / Device),
+/// then `MeshDiagnostics`, then `EventLog`.
 ///   - Name    -> `#${channel.name}` (string concatenation, NOT localized;
-///     the leading `#` is part of the value, matching React's template
-///     literal `` `#${channel.name}` ``).
+///     the leading `#` is part of the value).
 ///   - Display -> `channel.display_name` (reuses the existing
 ///     `diagRowDisplay` row key).
 ///   - Topic   -> `channel.topic`.
@@ -91,19 +83,17 @@ class ChannelDiagnostics extends StatelessWidget {
   }
 }
 
-/// The React `GroupDiagnostics`: the "Group details" `.diagnostic-group`
-/// (8 rows: Label / Members / Role / MLS state / Display / Group id /
-/// Creator / Device), then `MeshDiagnostics`, then `EventLog`. Mirrors
-/// React's `GroupDiagnostics({ group })` exactly:
+/// The "Group details" group (8 rows: Label / Members / Role / MLS state /
+/// Display / Group id / Creator / Device), then `MeshDiagnostics`, then
+/// `EventLog`:
 ///   - Label     -> `group.label ?? "-"` (the `-` is the localized
-///     `diagDash` fallback for a null label; React uses the literal `-`).
-///   - Members   -> `String(group.member_count)` (Dart:
-///     `group.memberCount.toString()` -- `memberCount` is a `BigInt`).
+///     `diagDash` fallback for a null label).
+///   - Members   -> `group.memberCount.toString()` (`memberCount` is a
+///     `BigInt`).
 ///   - Role      -> `group.is_admin ? "admin" : "member"` (the two
 ///     values are localized via `diagRoleAdmin` / `diagRoleMember`).
-///   - MLS state -> `stateLabels[group.state] ?? group.state` (reuses
-///     the shared `stateLabel` mapper and the existing `diagRowMlsState`
-///     row key, just like `SessionDiagnostics` does).
+///   - MLS state -> the shared `stateLabel` mapper (reuses the existing
+///     `diagRowMlsState` row key, just like `SessionDiagnostics` does).
 ///   - Display   -> `group.display_name` (reuses `diagRowDisplay`).
 ///   - Group id  -> `shorten(group.group_id, 12)`.
 ///   - Creator   -> `shorten(group.creator_fingerprint, 8)`.

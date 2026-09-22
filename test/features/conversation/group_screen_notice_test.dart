@@ -1,12 +1,10 @@
-// Widget test for the group encryption notice banner -- the 1-в-1 port of
-// React `GroupNotice` (ActiveChatPanes.tsx ~L420-432), wired into GroupScreen
-// at the top of the body Column (matching React's `afterHeader` slot, ABOVE
-// ConversationTools). Asserts the banner renders with the localized title +
-// body so a regression that drops the banner (or wires it in the wrong
-// slot) fails. Mirrors the seed/override idiom of
-// `group_screen_grouping_test.dart` (override `groupSnapshotProvider` so
-// the native cdylib is not involved). Does NOT test the deferred
-// `needs_rejoin` / `orgAddPrompt` fragments -- those are separate atomics.
+// Widget test for the group encryption notice banner wired into GroupScreen
+// at the top of the body Column, above ConversationTools. Asserts the
+// banner renders with the localized title + body so a regression that
+// drops the banner (or wires it in the wrong slot) fails. Overrides
+// `groupSnapshotProvider` so the native cdylib is not involved. Does NOT
+// test the deferred `needs_rejoin` / `orgAddPrompt` fragments -- those are
+// separate atomics.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/group_screen.dart';
@@ -61,10 +59,9 @@ GroupSnapshot _snapshot({
     );
 
 void main() {
-  // The banner is ALWAYS shown for a group (no conditional -- every group
-  // renders `GroupNotice`), so a group with messages is enough to assert it
-  // appears alongside the list. Resolves the localized en ARB values via
-  // AppLocalizations so the test pins the exact strings.
+  // The banner is always shown for a group, so a group with messages is
+  // enough to assert it appears alongside the list. Resolves the localized
+  // en ARB values via AppLocalizations so the test pins the exact strings.
   testWidgets('group screen renders the group encryption notice banner',
       (tester) async {
     const groupId = 'grp-notice';

@@ -250,29 +250,27 @@ class MoshApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Start the app-wide auto-poll loop (React AUTO_POLL_MS). Mounted at the
-    // root, not in the shell, so a session created during onboarding starts
-    // draining its inbound queue immediately -- the MLS handshake only
-    // advances while something polls.
+    // Start the app-wide auto-poll loop. Mounted at the root, not in the
+    // shell, so a session created during onboarding starts draining its
+    // inbound queue immediately -- the MLS handshake only advances while
+    // something polls.
     ref.watch(autoPollProvider);
     final app = MaterialApp.router(
       title: 'Mosh',
       locale: ref.watch(localeProvider),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      // 1:1 React dark palette (mosh/src/shared/styles/theme.css `:root`),
-      // centralized in lib/src/app/mosh_theme.dart so this stays a thin
-      // `MaterialApp.router` call.
+      // App dark palette, centralized in lib/src/app/mosh_theme.dart so
+      // this stays a thin `MaterialApp.router` call.
       theme: moshThemeData,
       // Route shell: home is OnboardingScreen; tiles reach invite-paste,
       // diagnostics, and dm (via path param). MaterialApp.router hands
       // navigation to appRouter.
       routerConfig: appRouter,
       // Top-level VPN-bypass consent overlay: wraps every route so the one
-      // question Mosh asks about the VPN can show above any screen (React
-      // mounts <VpnConsentModal gateway={gateway} /> near the root of
-      // private-dm-screen.tsx). The modal self-gates to SizedBox.shrink()
-      // when there is nothing to ask.
+      // question Mosh asks about the VPN can show above any screen. The
+      // modal self-gates to SizedBox.shrink() when there is nothing to
+      // ask.
       builder: (context, child) =>
           VpnConsentOverlay(child: child ?? const SizedBox()),
     );

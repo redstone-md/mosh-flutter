@@ -1,5 +1,4 @@
-//! Small in-memory reorder buffer for received voice-call frames. Direct
-//! port of `src/features/private-dm/voice-call/jitter-buffer.ts` per ADR
+//! Small in-memory reorder buffer for received voice-call frames, per ADR
 //! 0012. Drains in seq order; pauses on a gap; once the buffered backlog
 //! exceeds `gap_cap` frames it force-skips the missing seq and resumes
 //! (cheap PLC).
@@ -24,7 +23,7 @@ pub struct JitterBuffer {
 }
 
 impl JitterBuffer {
-    /// New buffer with the given gap cap. The TS default is 8.
+    /// New buffer with the given gap cap.
     pub fn new(gap_cap: usize) -> Self {
         Self {
             pending: BTreeMap::new(),
@@ -33,7 +32,7 @@ impl JitterBuffer {
         }
     }
 
-    /// Default gap cap (matches the TS `constructor(gapCap = 8)` default).
+    /// Default gap cap of 8.
     pub fn with_default_gap_cap() -> Self {
         Self::new(8)
     }
@@ -49,8 +48,7 @@ impl JitterBuffer {
     }
 
     /// Push a frame. Frames at or below the cursor (already emitted) are
-    /// dropped, matching the TS `if (this.cursor !== null && frame.seq <=
-    /// this.cursor) return;` guard.
+    /// dropped.
     pub fn push(&mut self, frame: BufferedFrame) {
         if let Some(cursor) = self.cursor {
             if frame.seq <= cursor {
@@ -60,9 +58,7 @@ impl JitterBuffer {
         self.pending.insert(frame.seq, frame.payload);
     }
 
-    /// Drain all frames ready to play in strictly increasing seq order.
-    ///
-    /// Mirrors the TS `drainReady()` exactly:
+    /// Drain all frames ready to play in strictly increasing seq order:
     /// - If `pending` is empty, return `[]`.
     /// - Start `next` at the cursor+1, or at the lowest buffered seq if the
     ///   cursor is unset.
@@ -75,7 +71,7 @@ impl JitterBuffer {
             return out;
         }
         // BTreeMap keys are already sorted ascending; `.next()` on the map
-        // gives the lowest remaining seq, matching the TS `[...keys()].sort()`.
+        // gives the lowest remaining seq.
         let first = *self.pending.keys().next().unwrap();
         let mut next: u64 = self.cursor.map(|c| c + 1).unwrap_or(first);
         loop {
@@ -183,8 +179,8 @@ mod tests {
 
     #[test]
     fn push_replaces_an_already_pending_seqs_payload() {
-        // The TS uses a Map keyed by seq; a re-push replaces the payload. The
-        // Rust BTreeMap does the same, but the cursor guard drops late dupes.
+        // A re-push of an already pending seq replaces the payload, but the
+        // cursor guard drops late dupes.
         let mut buf = JitterBuffer::with_default_gap_cap();
         buf.push(frame(1, 1));
         buf.push(frame(1, 99)); // same seq, before any drain — replaces payload.
@@ -202,7 +198,7 @@ mod tests {
         buf.push(frame(3, 3));
         assert_eq!(seqs(&buf.drain_ready()), Vec::<u64>::new());
         // Backlog still equal to the cap (2) -> pause again (force-skip is
-        // strictly `pending.len() > gap_cap`, matching the TS).
+        // strictly `pending.len() > gap_cap`).
         buf.push(frame(4, 4));
         assert_eq!(seqs(&buf.drain_ready()), Vec::<u64>::new());
         // Now backlog (3) exceeds the cap (2) -> force-skip the gap and emit.

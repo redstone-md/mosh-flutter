@@ -1,17 +1,16 @@
-/// Slice-3 orgAddPrompt banner -- 1-в-1 port of React's `org-add-banner`
-/// (ActiveChatPanes.tsx L361-378). Renders "{count} {missingOne|missingMany}"
-/// plus an "Add to group" button the admin taps to invite the missing roster
-/// members in one click (spec §5). The button disables while the invite is
-/// in flight (busy). Renders nothing when count == 0 (the provider already
-/// returns null in that case; this widget is a pure render of the prompt).
+/// The orgAddPrompt banner: "{count} {missingOne|missingMany}" plus an
+/// "Add to group" button the admin taps to invite the missing roster members
+/// in one click (spec §5). The button disables while the invite is in flight
+/// (busy). Renders nothing when count == 0 (the provider already returns
+/// null in that case; this widget is a pure render of the prompt).
 library;
 
 import 'package:flutter/material.dart';
 
 /// The banner. [count] is the number of missing roster members; [busy] gates
 /// the Add button; [onAdd] fires the invite. [missingOne]/[missingMany] are
-/// the localized "roster member(s) not in this group" phrases (React picks
-/// singular vs plural on count == 1); [addLabel] is "Add to group".
+/// the localized "roster member(s) not in this group" phrases, singular
+/// vs plural picked on count == 1; [addLabel] is "Add to group".
 class OrgAddMissingBanner extends StatelessWidget {
   const OrgAddMissingBanner({
     super.key,
@@ -35,7 +34,6 @@ class OrgAddMissingBanner extends StatelessWidget {
     final theme = Theme.of(context);
     final phrase = count == 1 ? missingOne : missingMany;
     return Container(
-      // React `.org-add-banner`: a flex row with a span + a primary button.
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),

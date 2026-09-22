@@ -1,11 +1,9 @@
 // Widget tests for the shared MediaViewer
-// (lib/src/features/shared/media_viewer.dart) -- the 1-в-1 port of React's
-// `src/features/private-dm/MediaViewer.tsx`. Pins: the caption + close
+// (lib/src/features/shared/media_viewer.dart). Pins: the caption + close
 // button render, the mime branching (image -> Image, file:// from disk; video/audio ->
 // play_circle_filled placeholder, other -> insert_drive_file_outlined
 // placeholder), the close button + backdrop tap close the viewer, the stage
-// tap does NOT close, and the Semantics label == file_name (React
-// `role=dialog aria-label=file_name`).
+// tap does NOT close, and the Semantics label == file_name.
 //
 // The viewer is pumped via `showDialog` (the same path the real
 // [showMediaViewer] helper uses) so it renders as a true fullscreen route
@@ -88,7 +86,7 @@ class _ViewerHostState extends State<_ViewerHost> {
       if (!mounted) return;
       showDialog<void>(
         context: context,
-        // Dismissible so the barrier tap mirrors React's click-anywhere.
+        // Dismissible so a barrier tap closes the viewer.
         barrierDismissible: true,
         barrierLabel: AppLocalizations.of(context)!.closeViewer,
         builder: (dialogContext) => MediaViewer(
@@ -126,22 +124,22 @@ void main() {
       descriptor: _descriptor(fileName: 'photo.png', mime: 'image/png'),
     );
 
-    // React `.media-viewer-caption` renders the file_name. It also appears
+    // The caption renders the file_name. It also appears
     // inside the image's `semanticLabel`, so `findsNWidgets(2)` is expected
     // -- the caption Text + the Image.network semanticLabel node.
-    // (The image branch's `Image.network` `semanticLabel` -- React
-    // `alt=file_name` -- is semantics metadata, not a visible `Text`
+    // (The image branch's `Image.network` `semanticLabel`
+    // is semantics metadata, not a visible `Text`
     // widget, so the caption is the only `Text` rendering the filename on
     // the image branch.)
     expect(find.text('photo.png'), findsOneWidget);
-    // The close button (Icons.close, React IconX) renders.
+    // The close button (Icons.close) renders.
     expect(find.byIcon(Icons.close), findsOneWidget);
-    // React `aria-label="Close viewer"` -> localized tooltip.
+    // The close button carries the localized tooltip.
     expect(find.byTooltip('Close viewer'), findsOneWidget);
   });
 
-  // Pins the image mime branch: an `Image` widget is mounted (React
-  // `<img src alt=file_name>`). A global `HttpOverrides` short-circuits the
+  // Pins the image mime branch: an `Image` widget is mounted. A global
+  // `HttpOverrides` short-circuits the
   // fetch so the errorBuilder renders `broken_image_outlined` -- the test
   // asserts the Image branch was taken, NOT a real network payload.
   testWidgets('image mime mounts Image.network (no real fetch)',
@@ -189,7 +187,7 @@ void main() {
   });
 
   // Pins the video mime branch: a placeholder card with
-  // `Icons.play_circle_filled` (React `IconPlayerPlayFilled`). No real
+  // `Icons.play_circle_filled`. No real
   // player is wired (TODO slice-3) -- the test pins the placeholder icon.
   testWidgets('video mime renders the play-circle placeholder', (tester) async {
     await _pumpViewer(
@@ -199,15 +197,14 @@ void main() {
 
     expect(find.byIcon(Icons.play_circle_filled), findsOneWidget);
     // The filename renders TWICE -- the placeholder card's bold
-    // `<strong>{file_name}</strong>` AND the `.media-viewer-caption` --
-    // exactly mirroring React's double-render.
+    // filename label AND the caption.
     expect(find.text('clip.mp4'), findsNWidgets(2));
     // No image on the video branch.
     expect(find.byType(Image), findsNothing);
   });
 
   // Pins the audio mime branch: a placeholder card with
-  // `Icons.play_circle_filled` (React `IconPlayerPlayFilled`).
+  // `Icons.play_circle_filled`.
   testWidgets('audio mime renders the play-circle placeholder', (tester) async {
     await _pumpViewer(
       tester,
@@ -221,7 +218,7 @@ void main() {
   });
 
   // Pins the "other" mime branch: a placeholder card with
-  // `Icons.insert_drive_file_outlined` (React `IconFile`).
+  // `Icons.insert_drive_file_outlined`.
   testWidgets('other mime renders the file placeholder', (tester) async {
     await _pumpViewer(
       tester,
@@ -236,9 +233,8 @@ void main() {
     expect(find.byType(Image), findsNothing);
   });
 
-  // Pins that tapping the close button closes the viewer (React
-  // `onClick=onClose` on `.media-viewer-close`). The viewer's `onClose`
-  // pops the route, so the `MediaViewer` is gone after the tap.
+  // Pins that tapping the close button closes the viewer. The viewer's
+  // `onClose` pops the route, so the `MediaViewer` is gone after the tap.
   testWidgets('tapping the close button closes the viewer', (tester) async {
     await _pumpViewer(
       tester,
@@ -253,7 +249,7 @@ void main() {
   });
 
   // Pins that tapping the backdrop (outside the stage) closes the viewer
-  // (React `onClick=onClose` on `.media-viewer` -- click anywhere closes).
+  // (a tap anywhere on the backdrop closes).
   testWidgets('tapping the backdrop closes the viewer', (tester) async {
     await _pumpViewer(
       tester,
@@ -263,7 +259,7 @@ void main() {
 
     // Tap the top-left corner -- outside the centered stage, on the
     // backdrop. `barrierDismissible: true` also pops on barrier tap, but
-    // the viewer's own backdrop GestureDetector (React `onClick=onClose`)
+    // the viewer's own backdrop GestureDetector
     // is the faithful close path being pinned here.
     await tester.tapAt(const Offset(1, 1));
     await tester.pumpAndSettle();
@@ -272,8 +268,7 @@ void main() {
   });
 
   // Pins that tapping the stage (the media itself) does NOT close the
-  // viewer (React `.media-viewer-stage` `onClick stopPropagation` --
-  // clicking the media does not close the viewer).
+  // viewer (a click on the media does not close the viewer).
   testWidgets('tapping the stage does NOT close the viewer', (tester) async {
     await _pumpViewer(
       tester,
@@ -282,7 +277,7 @@ void main() {
     expect(find.byType(MediaViewer), findsOneWidget);
 
     // Tap the centered placeholder card (the stage) -- the inner
-    // GestureDetector swallows the tap (React `stopPropagation`).
+    // GestureDetector swallows the tap.
     await tester.tap(find.byIcon(Icons.play_circle_filled));
     await tester.pumpAndSettle();
 
@@ -295,13 +290,12 @@ void main() {
       descriptor: _descriptor(fileName: 'report.pdf', mime: 'application/pdf'),
     );
 
-    // React `role=dialog aria-label={descriptor.file_name}`. The viewer
-    // sets `Semantics(container: true, label: fileName)` on its root; the
-    // configured `label` is read straight off the `Semantics` widget's
-    // `properties.label` (the React `aria-label` mirror). The
+    // The viewer sets `Semantics(container: true, label: fileName)` on its
+    // root; the configured `label` is read straight off the `Semantics`
+    // widget's `properties.label`. The
     // `container`/`scopesRoute` flags live on the framework's
     // `SemanticsConfiguration`, not the public `SemanticsProperties`/`SemanticsNode`,
-    // and the modal-route scoping (React `aria-modal`) is provided by the
+    // and the modal-route scoping is provided by the
     // `showDialog` host -- so only the `label` is asserted here.
     final finder = find.byWidgetPredicate(
       (widget) =>

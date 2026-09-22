@@ -1,5 +1,4 @@
-// GroupScreen AppBar header -- the 1-в-1 port of React `ActiveChatHeader`
-// (ActiveChatPanes.tsx ~L302-337), extracted from `group_screen.dart` to
+// GroupScreen AppBar header, extracted from `group_screen.dart` to
 // restore the 500-line headroom on the screen file. PURE REFACTOR: zero
 // behavioral change vs the prior inline AppBar block.
 //
@@ -58,9 +57,8 @@ class GroupScreenHeader extends ConsumerStatefulWidget
   final VoidCallback onOpenPeerStatus;
   final VoidCallback onLeave;
   // Mobile search panel open state + toggle -- the open state is owned by
-  // the screen (mirrors React `useMobileSearchPanel` in ActiveChatHeader),
-  // but the toggle button renders in this header's `actions:` row, so the
-  // screen passes the current value + a toggle callback down.
+  // the screen, but the toggle button renders in this header's `actions:`
+  // row, so the screen passes the current value + a toggle callback down.
   final bool mobileSearchOpen;
   final VoidCallback onToggleMobileSearch;
   // Conversation filter + onFilter -- the filter is owned by the screen
@@ -78,10 +76,9 @@ class GroupScreenHeader extends ConsumerStatefulWidget
 }
 
 class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
-  // Copy-invite ephemeral state (React inviteCopied/inviteCopyTimer
-  // ~L255-256); reverts after 1600ms; React's useEffect([inviteUri]) reset
-  // is omitted (GroupScreen -- and therefore this header -- remounts per
-  // groupId, so state resets on cross-group nav).
+  // Copy-invite ephemeral state; reverts after 1600ms. No inviteUri-change
+  // reset is needed (GroupScreen -- and therefore this header -- remounts
+  // per groupId, so state resets on cross-group nav).
   bool _inviteCopied = false;
   Timer? _inviteCopyTimer;
 
@@ -107,10 +104,9 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(groupSnapshotProvider(widget.groupId));
-    // React ActiveChatHeader `title` + `subtitle` (ActiveChatPanes.tsx
-    // ~L305-313): title = the group label (or "Private group" fallback);
-    // subtitle = is_admin ? `${adminBadge} · ` : ""
-    //   + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`.
+    // Title = the group label (or "Private group" fallback); subtitle =
+    // admin prefix (with the " · " separator) only when admin + member
+    // count + " · MLS {state}" suffix.
 // Flutter `AppBar` (3.44) has no `subtitle:` slot, so the subtitle
 // renders as the second line of a two-line `title:` Column (the
 // idiomatic Flutter AppBar-with-subtitle pattern). Admin prefix (with
@@ -162,24 +158,17 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
         ],
       ),
       actions: [
-        // React `beforeSearchActions` slot (ActiveChatPanes.tsx ~L315-324):
-        // the admin-pill badge (<span className="admin-pill
-        // chat-desktop-only" title={adminBadge}><IconCrown size=14/>
-        // <span>{adminBadge}</span></span>) shown only if is_admin. Placed
-        // FIRST in `actions:` so it sits left of the peer-status + leave
-        // IconButtons, mirroring React's beforeSearchActions position
-        // (left of the search). `Icons.workspace_premium` is the closest
-        // Material equivalent to lucide `IconCrown` (a crown medal) -- the
-        // rail already uses the same icon for its admin crown
-        // (rail_entry.dart).
+        // The admin-pill badge, shown only if is_admin. Placed FIRST in
+        // `actions:` so it sits left of the peer-status + leave
+        // IconButtons. `Icons.workspace_premium` matches the admin crown
+        // the rail already uses (rail_entry.dart).
         if (async.maybeWhen(
           data: (group) => group.isAdmin,
           orElse: () => false,
         ))
           _AdminPill(label: l.groupAdminBadge),
-        // React `beforeSearchActions` copy-invite button (~L327-337):
-        // ghost icon button copying `invite_uri`, check ~1.6s then
-        // revert; only when inviteUri != null; icon 14; tooltip done/invite.
+        // Copy-invite ghost icon button: copies `invite_uri`, shows a check
+        // ~1.6s then reverts; only when inviteUri != null.
         if (async.maybeWhen(
           data: (group) => group.inviteUri != null,
           orElse: () => false,
@@ -189,33 +178,25 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
             tooltip: _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
             onPressed: () => _copyInvite(async.value?.inviteUri),
           ),
-        // Mobile search toggle -- 1-1 with React `MobileSearchToggle`
-        // (ActiveChatHeader.tsx L113-131), gated on the mobile breakpoint
-        // (React `chat-mobile-only` class). Placed after the copy-invite
-        // button (React `beforeSearchActions`) and before the peer-status +
-        // leave buttons (React `afterSearchActions`), mirroring the React
-        // header order `beforeSearchActions | MobileSearchToggle |
-        // afterSearchActions`. The open state + toggle live in the screen;
-        // this header only renders the button + forwards taps.
+        // Mobile search toggle, gated on the mobile breakpoint. Placed
+        // after the copy-invite button and before the peer-status + leave
+        // buttons. The open state + toggle live in the screen; this
+        // header only renders the button + forwards taps.
         if (isMobileBreakpoint(context))
           MobileSearchToggle(
             open: widget.mobileSearchOpen,
             onToggle: widget.onToggleMobileSearch,
             l: l,
           ),
-        // Mobile kebab menu -- 1-1 with React `ChatHeaderMenu`
-        // (ChatHeaderMenu.tsx) prepended with the filter toggle via
-        // `conversationMenuActions` (ActiveChatHeader.tsx ~L155-170).
-        // Self-gates to mobile; React places it last in
-        // `chat-header-actions`. The group `menuActions` (ActiveChatPanes
-        // ActiveGroupChat ~L252-271): Copy invite (only when inviteUri !=
-        // null; label flips to "Invite copied" for 1600ms via the SAME
-        // `_copyInvite` + `_inviteCopied` state the desktop copy-invite
-        // IconButton uses -- the action list rebuilds on setState so the
-        // label/icon flip), then Leave group (danger; onSelect ->
-        // onClose -> widget.onLeave). Filter toggle FIRST
-        // (attachments -> "All"/Icons.chat_bubble_outline -> onFilter(all);
-        // else "Files"/Icons.attach_file -> onFilter(attachments)).
+        // Mobile kebab menu. Self-gates to mobile. The group action list:
+        // Copy invite (only when inviteUri != null; label flips to "Invite
+        // copied" for 1600ms via the SAME `_copyInvite` + `_inviteCopied`
+        // state the desktop copy-invite IconButton uses -- the action list
+        // rebuilds on setState so the label/icon flip), then Leave group
+        // (danger; onSelect -> onClose -> widget.onLeave). Filter toggle
+        // FIRST (attachments -> "All"/Icons.chat_bubble_outline ->
+        // onFilter(all); else "Files"/Icons.attach_file ->
+        // onFilter(attachments)).
         ChatHeaderMenu(
           l: l,
           actions: [
@@ -254,9 +235,8 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
           tooltip: l.openPeerStatus,
           onPressed: widget.onOpenPeerStatus,
         ),
-        // React marks the leave button `chat-desktop-only` (ActiveChatPanes
-        // ~L267-271); on mobile the kebab's "Leave group" item is the
-        // entry point instead.
+        // Desktop-only leave button; on mobile the kebab's "Leave group"
+        // item is the entry point instead.
         if (!isMobileBreakpoint(context))
           IconButton(
             icon: const Icon(Icons.logout),
@@ -268,10 +248,10 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
   }
 }
 
-/// Builds the GroupScreen AppBar subtitle, 1-в-1 with React
-/// `ActiveChatHeader.subtitle` (ActiveChatPanes.tsx ~L308-313):
-///   is_admin ? `${adminBadge} · ` : ""
-///   + `${member_count} member${member_count === 1 ? "" : "s"} · MLS ${state}`
+/// Builds the GroupScreen AppBar subtitle:
+///   admin prefix (with the " · " separator) only when admin, then the
+/// member count, then the " · MLS {state}" suffix from
+/// [AppLocalizations.groupScreenMlsStateSuffix].
 /// Admin prefix (with the " · " separator) only when admin; the member
 /// count rendered via an ICU MessageFormat plural
 /// ([AppLocalizations.membersCount], typed int `count`) so the locale
@@ -279,11 +259,9 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
 /// Russian one "1 участник" / few "2 участника" / many "5 участников").
 /// This CORRECTS the prior naive binary plural (which selected a
 /// separate singular key when `memberCount == BigInt.one`) that
-/// mirrored React's inline ternary but was grammatically broken for
-/// Russian (rendered "2 участников" instead of "2 участника"); the
-/// former singular key was removed (the ICU `one` form now handles
-/// the singular). Then the " · MLS {state}" suffix from
-/// [AppLocalizations.groupScreenMlsStateSuffix].
+/// was grammatically broken for Russian (rendered "2 участников"
+/// instead of "2 участника"); the former singular key was removed (the
+/// ICU `one` form now handles the singular).
 String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
   final n = group.memberCount.toInt();
   final memberPart = l.membersCount(n);
@@ -291,14 +269,10 @@ String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
   return '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
 }
 
-/// Admin-pill badge for the GroupScreen AppBar `actions:` slot, 1-в-1 with
-/// React's `beforeSearchActions` admin-pill (ActiveChatPanes.tsx ~L315-324):
-/// `<span className="admin-pill chat-desktop-only" title={adminBadge}>
-/// `<IconCrown size=14/><span>{adminBadge}</span></span>`. A small pill with
-/// a crown icon + the "admin" label, wrapped in a [Tooltip] that mirrors
-/// React's `title` attribute. `Icons.workspace_premium` is the closest
-/// Material equivalent to lucide `IconCrown` (a crown medal) -- the rail
-/// already uses the same icon for its admin crown (rail_entry.dart).
+/// Admin-pill badge for the GroupScreen AppBar `actions:` slot: a small
+/// pill with a crown icon + the "admin" label, wrapped in a [Tooltip].
+/// `Icons.workspace_premium` matches the admin crown the rail already
+/// uses (rail_entry.dart).
 class _AdminPill extends StatelessWidget {
   const _AdminPill({required this.label});
 

@@ -1,9 +1,7 @@
 /// Shared session-state label mapper for the Diagnostics drawer and the
-/// sessions rail, 1-в-1 with the React `stateLabels[session.state] ??
-/// session.state` lookup. Maps a raw session state string to a localized
-/// label via the existing `stateReady` / `stateWaiting` / `stateIdle` ARB
-/// keys, falling back to the raw state string for unknown states (the same
-/// `?? session.state` fallback React uses).
+/// sessions rail. Maps a raw session state string to a localized label via
+/// the `stateReady` / `stateWaiting` / `stateIdle` ARB keys, falling back
+/// to the raw state string for unknown states.
 ///
 /// This is the single authoritative copy of the mapper: previously
 /// `_stateLabel` was duplicated between `diagnostics_summary.dart` and
@@ -13,10 +11,9 @@ library;
 
 import 'package:mosh/l10n/app_localizations.dart';
 
-/// Maps a raw session state string to a localized label, mirroring React's
-/// `stateLabels[session.state] ?? session.state`. The `connecting` state is
-/// mapped to the waiting label (parity with the React `stateLabels` map,
-/// which aliases connecting -> waiting).
+/// Maps a raw session state string to a localized label, with the raw
+/// state as the fallback for unknown states. The `connecting` state is
+/// mapped to the waiting label.
 String stateLabel(AppLocalizations l, String state) {
   switch (state) {
     case 'idle':

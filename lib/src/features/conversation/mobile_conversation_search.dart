@@ -1,27 +1,20 @@
-// Mobile conversation search/filter UI, ported 1-1 from the React mobile
-// variants in `src/features/private-dm/ConversationTools.tsx` L54-112
-// (`MobileConversationSearch`, `MobileConversationFilterNotice`) and
-// `src/features/private-dm/ActiveChatHeader.tsx` L103-131
-// (`MobileSearchToggle` + `useMobileSearchPanel`).
+// Mobile conversation search/filter UI.
 //
-// React renders three surfaces on narrow widths (the CSS `@media (max-width:
-// 580px)` rule, mirrored by [isMobileBreakpoint]):
+// Three surfaces on narrow widths (below [isMobileBreakpoint]):
 //   - `MobileSearchToggle` -- an icon button in the chat header `actions:`
-//     that opens/closes the mobile search panel (tinted while open, mirroring
-//     the `chat-mobile-only is-active` class).
+//     that opens/closes the mobile search panel (tinted while open).
 //   - `MobileConversationSearch` -- a search `TextField` that AUTOFOCUSES on
-//     mount + a close icon button that clears the query THEN closes (1-1 with
-//     React L80-89: `tools.onSearch(""); onClose();`).
+//     mount + a close icon button that clears the query THEN closes.
 //   - `MobileConversationFilterNotice` -- a "Files + All reset" strip shown
-//     only while the attachments filter is active (null when filter == all).
+//     only while the attachments filter is active (nothing when filter ==
+//     all).
 //
-// This file ports ONLY the mobile surface; the desktop `ConversationTools`
+// This file holds ONLY the mobile surface; the desktop `ConversationTools`
 // row + the `ConversationFilter` enum + `filterMessages` + the
 // [isMobileBreakpoint] helper all live in `conversation_tools.dart`, which
 // re-exports this file so the three screens keep a single import. The trio is
 // pure presentation -- all search/filter state stays widget-local in the
-// host screen (`_search` / `_filter` / `_mobileSearchOpen`), exactly as
-// React keeps it in the `ConversationToolsState` + `useMobileSearchPanel`.
+// host screen (`_search` / `_filter` / `_mobileSearchOpen`).
 library;
 
 import 'package:flutter/material.dart';
@@ -29,18 +22,14 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 
-/// Header icon button that opens/closes the mobile search panel, 1-1 with
-/// React `MobileSearchToggle` (ActiveChatHeader.tsx L113-131): a ghost icon
-/// button carrying the `chat-mobile-only` class (rendered only on mobile by
-/// the host gating it behind [isMobileBreakpoint]) with the `is-active` class
-/// appended while open.
+/// Header icon button that opens/closes the mobile search panel: a ghost
+/// icon button (rendered only on mobile by the host gating it behind
+/// [isMobileBreakpoint]).
 ///
-/// The icon is `Icons.search` at size 16 (React `IconSearch size=16`). The
-/// tooltip/semantics flip between [AppLocalizations.chatSearchPlaceholder]
-/// (closed) and [AppLocalizations.closeMessageSearch] (open), mirroring
-/// React's `aria-label={open ? "Close message search" :
-/// chatText.searchPlaceholder}`. The open state tints the icon with
-/// `colorScheme.primary` to mirror the `is-active` class highlight.
+/// The icon is `Icons.search` at size 16. The tooltip/semantics flip
+/// between [AppLocalizations.chatSearchPlaceholder] (closed) and
+/// [AppLocalizations.closeMessageSearch] (open). The open state tints the
+/// icon with `colorScheme.primary` as the active highlight.
 class MobileSearchToggle extends StatelessWidget {
   const MobileSearchToggle({
     super.key,
@@ -60,12 +49,11 @@ class MobileSearchToggle extends StatelessWidget {
       icon: Icon(
         Icons.search,
         size: 16,
-        // Mirror React's `is-active` tint while the panel is open.
+        // Tint while the panel is open.
         color: open ? theme.colorScheme.primary : null,
       ),
-      // React: `aria-label={open ? "Close message search" :
-      // chatText.searchPlaceholder}`. Closed uses the search placeholder
-      // (existing key); open uses the dedicated close label.
+      // Closed uses the search placeholder (existing key); open uses the
+      // dedicated close label.
       tooltip: open ? l.closeMessageSearch : l.chatSearchPlaceholder,
       onPressed: onToggle,
     );
@@ -73,19 +61,16 @@ class MobileSearchToggle extends StatelessWidget {
 }
 
 /// Mobile search panel: an autofocusing search `TextField` + a close icon
-/// button that clears the query THEN closes, 1-1 with React
-/// `MobileConversationSearch` (ConversationTools.tsx L54-92).
+/// button that clears the query THEN closes.
 ///
-/// Autofocus: React calls `inputRef.current?.focus()` in a mount `useEffect`.
-/// The Flutter port uses an explicit [FocusNode] created in `initState` and
+/// Autofocus uses an explicit [FocusNode] created in `initState` and
 /// `requestFocus()`ed there, PLUS `autofocus: true` on the `TextField`. The
 /// explicit node lets the widget tests assert focus after `pump`; the
 /// `autofocus` flag is the belt-and-suspenders guarantee the framework
 /// requests focus on the first frame regardless of the node's lifecycle.
 ///
-/// The close button calls `onSearch("")` THEN `onClose()` -- order matters
-/// (React L84-87), so the query clears before the panel unmounts, matching
-/// the React `tools.onSearch(""); onClose();` sequence.
+/// The close button calls `onSearch("")` THEN `onClose()` -- order matters,
+/// so the query clears before the panel unmounts.
 class MobileConversationSearch extends StatefulWidget {
   const MobileConversationSearch({
     super.key,
@@ -111,9 +96,8 @@ class _MobileConversationSearchState extends State<MobileConversationSearch> {
   @override
   void initState() {
     super.initState();
-    // Autofocus on mount -- 1-1 with React's `useEffect(() =>
-    // inputRef.current?.focus(), [])`. Requested in initState so the focus
-    // lands on the first frame the widget is visible.
+    // Autofocus on mount. Requested in initState so the focus lands on
+    // the first frame the widget is visible.
     _focusNode.requestFocus();
   }
 
@@ -140,8 +124,8 @@ class _MobileConversationSearchState extends State<MobileConversationSearch> {
             ),
           ),
           const SizedBox(width: kConversationToolsGap),
-          // Close button -- 1-1 with React L79-90: clears the query THEN
-          // closes (order matters; the panel unmounts after the clear).
+          // Close button: clears the query THEN closes (order matters; the
+          // panel unmounts after the clear).
           IconButton(
             icon: const Icon(Icons.close, size: 15),
             tooltip: widget.l.closeMessageSearch,
@@ -156,16 +140,14 @@ class _MobileConversationSearchState extends State<MobileConversationSearch> {
   }
 }
 
-/// Mobile "active filter" notice strip, 1-1 with React
-/// `MobileConversationFilterNotice` (ConversationTools.tsx L95-114): renders
-/// NOTHING while the filter is `all` (React returns `null`), and a small
-/// row with a paperclip + the "Files" label + an "All" reset button while
-/// the filter is `attachments`. Tapping "All" calls `onFilter(all)`.
+/// Mobile "active filter" notice strip: renders NOTHING while the filter
+/// is `all`, and a small row with a paperclip + the "Files" label + an
+/// "All" reset button while the filter is `attachments`. Tapping "All"
+/// calls `onFilter(all)`.
 ///
 /// The host renders this unconditionally (always in the layout) -- it
-/// collapses to a zero-size [SizedBox.shrink] when the filter is `all`,
-/// matching React's `null` return (a `SizedBox.shrink()` takes no space, the
-/// same effective layout as React's `null` in a column).
+/// collapses to a zero-size [SizedBox.shrink] when the filter is `all`
+/// (takes no space, so the effective layout is "not rendered").
 class MobileConversationFilterNotice extends StatelessWidget {
   const MobileConversationFilterNotice({
     super.key,
@@ -180,8 +162,7 @@ class MobileConversationFilterNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1-1 with React L100-102: `if (tools.filter !== "attachments") return
-    // null;`. A zero-size box mirrors the layout effect of React's `null`.
+    // Nothing to notice when the files filter is off.
     if (filter != ConversationFilter.attachments) {
       return const SizedBox.shrink();
     }

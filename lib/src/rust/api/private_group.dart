@@ -15,26 +15,23 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
 
-/// Create a private MLS group (1:1 port of `private_group_create`).
+/// Create a private MLS group.
 Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>
     RustLib.instance.api.crateApiPrivateGroupCreateGroup(request: request);
 
-/// Join a private group from an invite URI (1:1 port of `private_group_join`).
+/// Join a private group from an invite URI.
 Future<GroupSnapshot> joinGroup({required JoinGroupRequest request}) =>
     RustLib.instance.api.crateApiPrivateGroupJoinGroup(request: request);
 
-/// Poll a private group for its current snapshot (1:1 port of
-/// `private_group_poll`).
+/// Poll a private group for its current snapshot.
 Future<GroupSnapshot> poll({required String groupId}) =>
     RustLib.instance.api.crateApiPrivateGroupPoll(groupId: groupId);
 
-/// List all private groups and their snapshots (1:1 port of
-/// `private_group_list`).
+/// List all private groups and their snapshots.
 Future<GroupListSnapshot> list() =>
     RustLib.instance.api.crateApiPrivateGroupList();
 
-/// Publish a private-DM invitation to one group member (1:1 port of
-/// `private_group_send_dm_offer`).
+/// Publish a private-DM invitation to one group member.
 Future<void> sendDmOffer(
         {required String groupId,
         required String targetFingerprint,
@@ -44,8 +41,7 @@ Future<void> sendDmOffer(
         targetFingerprint: targetFingerprint,
         inviteUri: inviteUri);
 
-/// Dismiss a private-group DM offer (1:1 port of
-/// `private_group_dismiss_dm_offer`).
+/// Dismiss a private-group DM offer.
 Future<void> dismissDmOffer(
         {required String groupId, required String offerId}) =>
     RustLib.instance.api

@@ -1,6 +1,5 @@
-// Rail action orchestration for the Flutter port of React's SessionRail.
-// These callbacks stay outside SessionsScreen so the screen remains focused
-// on composing and rendering the combined rail.
+// Rail action orchestration. These callbacks stay outside SessionsScreen so
+// the screen remains focused on composing and rendering the combined rail.
 library;
 
 import 'package:flutter/material.dart';
@@ -23,19 +22,19 @@ import 'package:mosh/src/state/active_conversation_key_provider.dart'
     show activeConversationKeyProvider;
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 
-// Mirrors React SessionRail.onNew: reset setup state, clear the active
-// conversation, and show the existing NewSessionPanel in the chat branch.
+// Start a new session: reset setup state, clear the active conversation,
+// and show the existing NewSessionPanel in the chat branch.
 void openNewSessionAction(BuildContext context, WidgetRef ref) {
   ref.read(activeConversationKeyProvider.notifier).clear();
   ref.read(inviteFlowProvider.notifier).resetInviteState();
   context.go(AppRoutes.chat);
 }
 
-// Accept a pending DM offer, 1-в-1 with React `useDmOffers.acceptDmOffer`:
+// Accept a pending DM offer:
 // bridge.acceptInvite with the offer's inviteUri (the existing DM accept
 // path -- top-level offers reuse acceptInvite, NOT org's acceptDmOffer),
-// then auto-dismiss the offer (React dismisses after accept so it leaves
-// the channel/group's offer list), then navigate to the new DM session.
+// then auto-dismiss the offer so it leaves the channel/group's offer
+// list, then navigate to the new DM session.
 // The displayName/listenPort/staticPeer come from inviteFlowProvider (the
 // same settings source onboarding uses, ADR 0010 DRY).
 Future<void> acceptOfferAction(
@@ -55,12 +54,10 @@ Future<void> acceptOfferAction(
         staticPeer: flow.staticPeer,
       ),
     );
-    // Auto-dismiss the offer after accept (React's acceptDmOffer calls
-    // dismissChannelDmOffer/dismissGroupDmOffer after acceptPrivateInvite).
+    // Auto-dismiss the offer after accept.
     await dismissOfferAction(ref, pending, gateway: gateway);
-    // The accepted invite creates a new DM session. Refresh the rail's session
-    // list after the offer and its source list have been refreshed, matching
-    // React use-dm-offers.ts acceptDmOffer -> refresh(true).
+    // The accepted invite creates a new DM session. Refresh the rail's
+    // session list after the offer and its source list have been refreshed.
     await ref
         .read(conversationListProvider(ConversationKind.dm).notifier)
         .refresh();
@@ -72,7 +69,7 @@ Future<void> acceptOfferAction(
   }
 }
 
-// Dismiss a pending DM offer, 1-в-1 with React `useDmOffers.dismissDmOffer`:
+// Dismiss a pending DM offer:
 // dismiss it on the channel or the group that carries it, then refresh the
 // channel/group list so the offer row disappears. The accept path passes
 // its already-acquired gateway to avoid a second read.

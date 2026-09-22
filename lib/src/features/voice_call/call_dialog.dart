@@ -52,7 +52,7 @@ final class NoCallDialog extends CallDialog {
 final class IncomingCallDialog extends CallDialog {
   const IncomingCallDialog({required this.pending, required this.peerName});
 
-  /// The pending call the modal renders (React `pendingCall`).
+  /// The pending call the modal renders.
   final PendingCall pending;
 
   @override
@@ -78,7 +78,7 @@ final class IncomingCallDialog extends CallDialog {
 final class OutgoingCallDialog extends CallDialog {
   const OutgoingCallDialog({required this.call, required this.peerName});
 
-  /// The outgoing call the modal renders (React `outgoingCall`).
+  /// The outgoing call the modal renders.
   final OutgoingCall call;
 
   @override
@@ -104,7 +104,7 @@ final class OutgoingCallDialog extends CallDialog {
 final class ActiveCallDialog extends CallDialog {
   const ActiveCallDialog({required this.active, required this.peerName});
 
-  /// The active call the overlay renders (React `activeCall`).
+  /// The active call the overlay renders.
   final ActiveCall active;
 
   @override

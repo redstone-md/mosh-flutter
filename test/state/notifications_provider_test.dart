@@ -1,8 +1,8 @@
 // Slice-3 voice-call: tests for the notificationsReadyProvider seam -- the
-// Riverpod mirror of React's `notificationsReady()` ref-gate. The real
-// init needs a platform plugin (flutter_local_notifications hosts), which
-// is absent under `flutter test`, so these tests inject a recording fake
-// via flutterLocalNotificationsPluginProvider (the seam convention -- same
+// ref-gate that decides whether OS toasts may fire. The real init needs a
+// platform plugin (flutter_local_notifications hosts), which is absent
+// under `flutter test`, so these tests inject a recording fake via
+// flutterLocalNotificationsPluginProvider (the seam convention -- same
 // shape as gatewayProvider / voiceCaptureFactoryProvider overrides).
 library;
 

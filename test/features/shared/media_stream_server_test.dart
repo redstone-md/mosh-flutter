@@ -334,7 +334,7 @@ void main() {
       await commaSeparatedResponse.drain<void>();
     });
 
-    test('serves an empty attachment with React-compatible headers', () async {
+    test('serves an empty attachment with viewer-compatible headers', () async {
       server = MediaStreamServer(
         fetchRange: ({
           required String kind,

@@ -1,5 +1,4 @@
-// Tests for the desktop drag-and-drop attach slice (React ChatComposer.tsx
-// 8-43 parity). Two layers:
+// Tests for the desktop drag-and-drop attach slice. Two layers:
 //   1. `ingestAttachment` unit tests -- the DRY helper shared with the
 //      paperclip picker. Synthesize a tiny PNG in-memory via the `image`
 //      package (same as thumbnail_test.dart, no fixture file), assert it
@@ -73,7 +72,7 @@ void main() {
       // dataBase64 round-trips to the original bytes.
       expect(base64Decode(picked.dataBase64), bytes);
       // thumbnail is a JPEG preview (FF D8 FF magic) -- null only for
-      // non-images / decode failures (React createThumbnail parity).
+      // non-images / decode failures.
       expect(picked.thumbnailBase64, isNotNull);
       final thumb = base64Decode(picked.thumbnailBase64!);
       expect(thumb[0], 0xFF);
@@ -230,8 +229,7 @@ void main() {
       expect(attached!.thumbnailBase64, isNotNull);
     });
 
-    testWidgets('disabled: no overlay while dragging (React no-op parity)',
-        (tester) async {
+    testWidgets('disabled: no overlay while dragging (no-op)', (tester) async {
       await pumpZone(
         tester,
         disabled: true,

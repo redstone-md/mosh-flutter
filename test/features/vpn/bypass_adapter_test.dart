@@ -1,5 +1,5 @@
 // Unit tests for `bypass_adapter` (lib/src/features/vpn/
-// bypass_adapter.dart) -- the 1-в-1 port of React's `bypass-adapter.ts`.
+// bypass_adapter.dart).
 // Asserts the APIPA exclusion, the up/loopback/virtual filters, the
 // first-candidate default, and the adapter-label formatting.
 import 'package:flutter_test/flutter_test.dart';

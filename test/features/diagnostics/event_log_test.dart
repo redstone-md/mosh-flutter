@@ -9,8 +9,8 @@ import '../../support/pump.dart';
 //     -> the local HH:mm:ss computed the same way (deterministic).
 //   - `compactDetail` pure: empty -> "", empty object -> "", single-key
 //     object -> "foo=bar", multi-key object -> "a=1 b=2", nested-object
-//     value -> 'k={"n":1}', top-level array -> "0=1 1=2" (React array-as-
-//     object), top-level number -> "42", top-level string -> "hi",
+//     value -> 'k={"n":1}', top-level array -> "0=1 1=2" (array indexed
+//     as-object), top-level number -> "42", top-level string -> "hi",
 //     invalid JSON -> raw fallback.
 //   - `EventLog` with empty events -> the "Moss events" group label +
 //     the "No events yet" empty-state title + description.
@@ -96,8 +96,7 @@ void main() {
     });
 
     test('nested-object value -> k=JSON.stringify(value)', () {
-      // Dart jsonEncode emits 'k={"n":1}' (no spaces), matching React's
-      // JSON.stringify output.
+      // Dart jsonEncode emits 'k={"n":1}' with no spaces.
       expect(compactDetail('{"k":{"n":1}}'), 'k={"n":1}');
     });
 
@@ -105,7 +104,7 @@ void main() {
       expect(compactDetail('{"k":[1,2]}'), 'k=[1,2]');
     });
 
-    test('top-level array -> "0=1 1=2" (React array-as-object)', () {
+    test('top-level array -> "0=1 1=2" (array-as-object indices)', () {
       expect(compactDetail('[1,2]'), '0=1 1=2');
     });
 
@@ -151,7 +150,7 @@ void main() {
   group('eventNameColor', () {
     const fallback = Color(0xFF6B7075);
 
-    test('maps all React semantic event-name groups', () {
+    test('maps all semantic event-name groups', () {
       expect(eventNameColor('peer_joined', fallback: fallback),
           const Color(0xFFB7D84A));
       expect(eventNameColor('supernode_promoted', fallback: fallback),

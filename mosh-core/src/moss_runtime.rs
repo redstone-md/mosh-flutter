@@ -68,9 +68,8 @@ impl MossDynamicRuntime {
         }
     }
 
-    /// Default candidates with `path` tried first. Used by hosts (the Tauri
-    /// shell) that know a bundled resource location the core crate cannot
-    /// resolve on its own.
+    /// Default candidates with `path` tried first. Used by hosts that know a
+    /// bundled resource location the core crate cannot resolve on its own.
     pub fn with_preferred_candidate(path: PathBuf) -> Self {
         let mut candidate_paths = default_candidate_paths();
         candidate_paths.insert(0, path);

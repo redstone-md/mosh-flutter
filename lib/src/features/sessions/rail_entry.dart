@@ -64,20 +64,13 @@ sealed class RailEntry {
   Widget buildRow(BuildContext context, RailRowChrome chrome);
 }
 
-/// One DM session row -- the Flutter port of React's `SessionRailItem`
-/// (SessionRail.tsx):
-///   - leading: Avatar (CircleAvatar with the label's initials via
-///     [avatarInitials] -- React's split-on-whitespace/underscore/dash +
-///     first-char-of-each + take-2 + uppercase algorithm; the background
-///     color is a stable hash of the LABEL (React `<Avatar name={label} />`
-///     hashes the name), so two sessions with the same peer match).
-///   - title: the label, falling back peer -> own display -> raw session id
-///     (the same chain `dm_screen` uses for its title).
-///   - subtitle: the localized state label, or -- when this DM's linked peer
-///     is no longer in the org roster -- the revoked badge (SessionRail.tsx
-///     L36-38).
-///   - trailing: an `UnreadBadge` (count > 0).
-///   - onTap: navigate to the DM screen for this session id.
+/// One DM session row: an avatar with the label's initials via
+/// [avatarInitials] (background colour a stable hash of the label, so two
+/// sessions with the same peer match), the label as title (falling back
+/// peer -> own display -> raw session id, the same chain `dm_screen` uses),
+/// the localized state label as subtitle -- or, when this DM's linked peer
+/// is no longer in the org roster, the revoked badge -- an `UnreadBadge`
+/// when count > 0, and an onTap that navigates to the DM screen.
 final class DmRailEntry extends RailEntry {
   const DmRailEntry(this.session, {this.revokedOrgName});
 
@@ -97,7 +90,6 @@ final class DmRailEntry extends RailEntry {
     final l = AppLocalizations.of(context)!;
     final label = peerLabel(l, session);
     return Semantics(
-      // React `aria-label="Open session with ${label}"`.
       label: l.openSessionAria(label),
       button: true,
       selected: chrome.active,
@@ -113,8 +105,7 @@ final class DmRailEntry extends RailEntry {
         active: chrome.active,
         onTap: () {
           // Clear the badge + mark the conversation open first, then
-          // navigate -- React's rail `onSelect` calls clearUnread before
-          // the screen swaps.
+          // navigate.
           chrome.onSelect?.call();
           context.go(AppRoutes.dmFor(session.sessionId));
         },
@@ -123,10 +114,8 @@ final class DmRailEntry extends RailEntry {
   }
 }
 
-/// One channel row -- the Flutter port of React's `ChannelRailItem`:
-/// leading `Icons.tag` (React `IconHash` size 18), title `#<name>`,
-/// subtitle the topic, trailing `UnreadBadge`. `onTap` opens
-/// `/channel/<name>` (React `onSelect({ type: "channel", name })`).
+/// One channel row: leading `Icons.tag`, title `#<name>`, subtitle the
+/// topic, trailing `UnreadBadge`. `onTap` opens the channel screen.
 final class ChannelRailEntry extends RailEntry {
   const ChannelRailEntry(this.channel);
 
@@ -147,8 +136,7 @@ final class ChannelRailEntry extends RailEntry {
         kind: RailItemKind.channel,
         leading: const Icon(Icons.tag),
         title: '#${channel.name}',
-        // React renders the empty `<small>` when the topic is empty, so an
-        // empty topic yields no subtitle line ([RailItem] hides it).
+        // An empty topic yields no subtitle line ([RailItem] hides it).
         subtitle: channel.topic,
         trailing: UnreadBadge(count: chrome.unreadCount),
         active: chrome.active,
@@ -161,11 +149,9 @@ final class ChannelRailEntry extends RailEntry {
   }
 }
 
-/// One group row -- the Flutter port of React's `GroupRailItem`: leading
-/// `Icons.group` (React `IconUsers` size 18), title the group label
-/// (falling back to a shortened group id), subtitle the member count,
-/// trailing `UnreadBadge`. `onTap` opens `/group/<groupId>` (React
-/// `onSelect({ type: "group", id })`).
+/// One group row: leading `Icons.group`, title the group label (falling
+/// back to a shortened group id), subtitle the member count, trailing
+/// `UnreadBadge`. `onTap` opens the group screen.
 final class GroupRailEntry extends RailEntry {
   const GroupRailEntry(this.group);
 
@@ -203,8 +189,7 @@ final class GroupRailEntry extends RailEntry {
   }
 }
 
-/// One pending DM-offer row -- the port of React's `OfferRailItem`
-/// (SessionRail.tsx L157-198): the whole row accepts, the trailing X
+/// One pending DM-offer row: the whole row accepts, the trailing X
 /// dismisses.
 ///
 /// It is the one row that opens no conversation: [ref] is null, because an
@@ -235,17 +220,16 @@ final class OfferRailEntry extends RailEntry {
         kind: RailItemKind.dm,
         leading: Avatar(name: fromDevice),
         title: fromDevice,
-        // React `kind === "channel" ? `#${host}` : "group invite"`.
         subtitle: pending.kind == ConversationKind.channel
             ? '#${pending.host}'
             : l.onboardGroupInvite,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            // React's `rail-offer-badge`.
+            // Offer badge icon.
             Icon(Icons.chat_bubble_outline,
                 size: 14, color: Theme.of(context).colorScheme.primary),
-            // React's `rail-offer-dismiss`. A button inside the row's own
+            // A button inside the row's own
             // tap target: the inner button wins the gesture arena, so the
             // X dismisses and never accepts.
             IconButton(

@@ -1,5 +1,4 @@
-// Widget tests pinning the rail active-highlight parity gap (React
-// SessionRail rail-item-active, SessionRail.tsx:254-296): the open DM's rail
+// Widget tests pinning the rail active-highlight rule: the open DM's rail
 // row is the single selected row; with no active conversation (null key) NO
 // row is selected. Mirrors the established sessions-screen test setup: a
 // seeded fake gateway returning 2 DM sessions, a localized MaterialApp, and

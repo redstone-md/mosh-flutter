@@ -1,12 +1,12 @@
-// Widget tests for the GroupCreateScreen (group-create step, mirrors the
-// React GroupCreateStep). Mirrors the channel_join_screen_test boilerplate:
-// ProviderScope override of `gatewayProvider` with the test gateway + localized
-// MaterialApp.router so the step's Back button (context.go) resolves.
+// Widget tests for the GroupCreateScreen (group-create step). Mirrors the
+// channel_join_screen_test boilerplate: ProviderScope override of
+// `gatewayProvider` with the test gateway + localized MaterialApp.router so
+// the step's Back button (context.go) resolves.
 //
 // Test 1: initial state -- title + body + placeholder + button label
 //   (Create, not Recreate -- no invite exists).
-// Test 2: Create button is enabled even when the label is empty (React
-//   `disabled={busy}` only -- the group label is OPTIONAL).
+// Test 2: Create button is enabled even when the label is empty (only the
+//   busy flag gates the button -- the group label is OPTIONAL).
 // Test 3: tapping Create calls the gateway's createGroup (canned
 //   GroupCreated) and renders the InviteResult card with the invite URI +
 //   flips the button label to Recreate (slice-3 seam).
@@ -32,9 +32,8 @@ const _groupStepBody =
     'Spin up an MLS-encrypted group. You admit members and stay the admin.';
 
 /// Stubs the flutter/services clipboard channel so the auto-copy on create
-/// (React `copyText(created.invite_uri)`) does not hang the test waiting on
-/// a real platform channel. Clipboard.setData is the only platform call
-/// this screen makes.
+/// does not hang the test waiting on a real platform channel.
+/// Clipboard.setData is the only platform call this screen makes.
 void _stubClipboard() {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(SystemChannels.platform, (call) async => null);
@@ -71,13 +70,12 @@ void main() {
     expect(find.text('Replace group invite'), findsNothing);
   });
 
-  testWidgets(
-      'Create button is enabled even when the label is empty (React disabled={busy} only)',
+  testWidgets('Create button is enabled even when the label is empty',
       (tester) async {
     await pumpGroupStep(tester);
 
-    // No text entered -> the button is still enabled (React disables on
-    // `busy` only, NOT on an empty label -- the group label is optional).
+    // No text entered -> the button is still enabled (the gate is `busy`
+    // only, NOT an empty label -- the group label is optional).
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
     expect(button.onPressed, isNotNull);
   });

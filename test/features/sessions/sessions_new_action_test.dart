@@ -1,4 +1,4 @@
-// Focused coverage for the React-parity SessionRail New action. Both entry
+// Focused coverage for the SessionRail New action. Both entry
 // points must open the existing NewSessionPanel without creating an invite or
 // showing a transient SnackBar, on desktop and mobile.
 import 'package:flutter/material.dart';

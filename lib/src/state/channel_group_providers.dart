@@ -31,8 +31,7 @@ final channelSnapshotProvider = FutureProvider.family<ChannelSnapshot, String>(
 /// watch, mirroring `channelSnapshotProvider` 1:1 but against
 /// `Gateway.poll` with a GroupTarget. The GroupScreen re-polls by invalidating the family
 /// entry after a send/leave (ADR 0010 family idiom). Keyed by `groupId`
-/// (the group identity), NOT a display name -- mirroring the Rust/React
-/// `group_id` shape.
+/// (the group identity), NOT a display name -- the Rust `group_id` shape.
 final groupSnapshotProvider = FutureProvider.family<GroupSnapshot, String>(
   (ref, groupId) => ref.watch(gatewayProvider).poll(GroupTarget(groupId)),
 );

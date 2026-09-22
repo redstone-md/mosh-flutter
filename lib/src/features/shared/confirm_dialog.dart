@@ -1,13 +1,10 @@
-// Shared ConfirmDialog -- the 1-1 port of React's
-// `src/features/private-dm/ConfirmDialog.tsx`. A centered modal
-// confirmation dialog used by destructive-action flows. Rendered via
-// Flutter's `showDialog`, which provides the modal barrier + focus trap
-// natively. Cancel only happens via the Cancel button, the close-X, or
-// Esc -- a stray scrim tap is a NO-OP: `showDialog` is
-// `barrierDismissible: false`, matching React's `role="presentation"`
-// backdrop with no `onClick`. Esc is wired through a `KeyboardListener`
-// (the same pattern the call modals + `PeerStatusDrawer` use for the
-// `useModalFocus` Esc-trap), and Android system-back cancels via
+// Shared ConfirmDialog: a centered modal confirmation dialog used by
+// destructive-action flows. Rendered via Flutter's `showDialog`, which
+// provides the modal barrier + focus trap natively. Cancel only happens
+// via the Cancel button, the close-X, or Esc -- a stray scrim tap is a
+// NO-OP: `showDialog` is `barrierDismissible: false`. Esc is wired
+// through a `KeyboardListener` (the same pattern the call modals +
+// `PeerStatusDrawer` use), and Android system-back cancels via
 // `PopScope(canPop: false, onPopInvokedWithResult:)` (back=cancel).
 //
 // This atomic is JUST the widget + the `showConfirmDialog` helper -- NOT
@@ -15,24 +12,17 @@
 // `body` / `confirmLabel` from its own ARB keys and calls `onCancel` /
 // `onConfirm`).
 //
-// Flutter element mapping (React -> Flutter):
-//   `confirm-dialog-backdrop` -> `showDialog` modal barrier (scrim no-op
-//     via `barrierDismissible: false`).
-//   `confirm-dialog` card -> `Dialog`-shaped card, close-X in the top-
-//     right corner, alert icon in a tinted rounded square
-//     (`.confirm-dialog-icon`), h2 title + p body (muted), actions row of
-//     ghost TextButton (cancel) + danger FilledButton (confirm). The
-//     danger color is React's `--danger` `#e86a5a` -
-//     `Color(0xFFE86A5A)`, overridable via the `dangerColor` prop.
-//   `role=dialog aria-modal aria-labelledby` -> `Semantics(container:
-//     true, label: title)` (the `showDialog` host already provides modal
-//     route scoping).
-//   close-X `aria-label=cancelLabel` -> `tooltip` + semantics label.
-//   alert icon `aria-hidden` -> `excludeSemantics: true`.
-//   Initial focus on the close-X -> Flutter's `Dialog` autofocuses the
-//     first focusable child, mirroring `useModalFocus` focusing element
-//     [0] -- the SAFE default for a destructive dialog (an accidental
-//     Enter dismisses, it does not confirm).
+// The card is a `Dialog`-shaped card: close-X in the top-right corner,
+// alert icon in a tinted rounded square, h2-title + muted body, and an
+// actions row of ghost TextButton (cancel) + danger FilledButton
+// (confirm). The danger color defaults to `MoshColors.danger`
+// (`Color(0xFFE86A5A)`), overridable via the `dangerColor` prop.
+// The card is wrapped in `Semantics(container: true, label: title)`; the
+// close-X carries a tooltip + semantics label of the cancel label, and
+// the decorative alert icon is excluded from semantics. The dialog
+// autofocuses the first focusable child (the close-X) -- the SAFE
+// default for a destructive dialog (an accidental Enter dismisses, it
+// does not confirm).
 library;
 
 import 'package:flutter/material.dart';
@@ -40,26 +30,23 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:flutter/services.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 
-/// A centered modal confirmation dialog -- 1-в-1 with React's
-/// `ConfirmDialog`. Construct directly and pass to `showDialog`, or use
-/// the [showConfirmDialog] helper which returns `true` if the user
-/// confirmed, `false` (or null) if they cancelled.
+/// A centered modal confirmation dialog. Construct directly and pass to
+/// `showDialog`, or use the [showConfirmDialog] helper which returns `true`
+/// if the user confirmed, `false` (or null) if they cancelled.
 ///
-/// Mirrors React's prop shape exactly:
-/// - `title`        -> h2 (`confirm-dialog-title`)
-/// - `body`         -> p  (`confirm-dialog-body`)
+/// - `title`        -> the dialog title
+/// - `body`         -> the dialog body
 /// - `confirmLabel` -> the danger button text
-/// - `cancelLabel`  -> the ghost button text + the close-X aria-label
-///   (React default `"Cancel"`; here defaults to [defaultCancelLabel] when
-///   null so callers without a localized "Cancel" still get a sane label)
+/// - `cancelLabel`  -> the ghost button text + the close-X label
+///   (defaults to [defaultCancelLabel] when null so callers without a
+///   localized "Cancel" still get a sane label)
 /// - `onCancel`     -> invoked on close-X, ghost button, or Esc /
 ///   Android system-back (the host wires scrim-no-op through
 ///   [showConfirmDialog])
 /// - `onConfirm`    -> invoked on the danger button
 ///
 /// The widget is a [StatefulWidget] only because it owns the `FocusNode`
-/// the `KeyboardListener` (Esc -> `onCancel`) attaches to -- mirroring the
-/// call modals' + `PeerStatusDrawer`'s `useModalFocus` Esc-trap pattern.
+/// the `KeyboardListener` (Esc -> `onCancel`) attaches to.
 /// The card itself is pure; [build] delegates to [_ConfirmDialogCard].
 class ConfirmDialog extends StatefulWidget {
   const ConfirmDialog({
@@ -73,17 +60,16 @@ class ConfirmDialog extends StatefulWidget {
     this.dangerColor = MoshColors.danger,
   });
 
-  /// The dialog title (React `title` -> `<h2 id="confirm-dialog-title">`).
+  /// The dialog title.
   final String title;
 
-  /// The dialog body (React `body` -> `<p id="confirm-dialog-body">`).
+  /// The dialog body.
   final String body;
 
-  /// The danger (confirm) button label (React `confirmLabel`).
+  /// The danger (confirm) button label.
   final String confirmLabel;
 
-  /// The ghost (cancel) button label AND the close-X aria-label (React
-  /// `cancelLabel`, default `"Cancel"`). Falls back to
+  /// The ghost (cancel) button label AND the close-X label. Falls back to
   /// [defaultCancelLabel] when null so the dialog always has a cancel
   /// affordance; callers pass a localized label from their ARB key.
   final String? cancelLabel;
@@ -95,14 +81,13 @@ class ConfirmDialog extends StatefulWidget {
   /// Invoked when the user confirms (danger button).
   final VoidCallback onConfirm;
 
-  /// Danger accent color -- React's `--danger` `#e86a5a` by default
-  /// (`Color(0xFFE86A5A)`). Drives the alert-icon tint + the confirm
-  /// button background. Overridable for tests + theming.
+  /// Danger accent color (`Color(0xFFE86A5A)` by default). Drives the
+  /// alert-icon tint + the confirm button background. Overridable for
+  /// tests + theming.
   final Color dangerColor;
 
-  /// Default cancel label used when [cancelLabel] is null. Matches React's
-  /// inline default `"Cancel"`; the close-flow atomic will pass a
-  /// localized label instead.
+  /// Default cancel label used when [cancelLabel] is null; the close-flow
+  /// atomic will pass a localized label instead.
   static const String defaultCancelLabel = 'Cancel';
 
   @override
@@ -110,14 +95,11 @@ class ConfirmDialog extends StatefulWidget {
 }
 
 class _ConfirmDialogState extends State<ConfirmDialog> {
-  // React `useModalFocus` keeps a single focus target for the modal; the
-  // Flutter equivalent is a [FocusNode] owned here and attached to a
-  // [KeyboardListener] wrapping the card. `autofocus: true` pulls focus
-  // into the dialog on mount (React `first.focus()`), and the key handler
-  // forwards Esc to `onCancel` (React `onKeyDown` Escape branch). The call
-  // modals (`IncomingCallModal` / `OutgoingCallModal`) +
-  // `PeerStatusDrawer` use the same `KeyboardListener`-Esc pattern; this
-  // dialog matches them.
+  // A single [FocusNode] owned here and attached to a [KeyboardListener]
+  // wrapping the card. `autofocus: true` pulls focus into the dialog on
+  // mount, and the key handler forwards Esc to `onCancel`. The call modals
+  // (`IncomingCallModal` / `OutgoingCallModal`) + `PeerStatusDrawer` use
+  // the same `KeyboardListener`-Esc pattern; this dialog matches them.
   late final FocusNode _focusNode = FocusNode(debugLabel: 'ConfirmDialog');
 
   @override
@@ -129,14 +111,14 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
   @override
   Widget build(BuildContext context) {
     // The `KeyboardListener` is the outermost node so Esc is caught before
-    // any child focusables; `autofocus: true` pulls focus into the dialog on
-    // open (React `first.focus()`). The `PopScope` gates Android
+    // any child focusables; `autofocus: true` pulls focus into the dialog
+    // on open. The `PopScope` gates Android
     // system-back: `canPop: false` blocks the default pop (the scrim is
     // already a no-op via `barrierDismissible: false`), and
     // `onPopInvokedWithResult` fires `onCancel` when a back press is
     // attempted -- Esc/back parity so the user is never trapped in a
-    // destructive confirm with no escape. React web has no back button, but
-    // on Android the expectation for a modal is back=cancel.
+    // destructive confirm with no escape (on Android the expectation for
+    // a modal is back=cancel).
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -147,10 +129,9 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
         focusNode: _focusNode,
         autofocus: true,
         onKeyEvent: (event) {
-          // React: `if (event.key === 'Escape') { stopPropagation();
-          // onEscape(); }` -> `useModalFocus(onCancel)`. `KeyDownEvent`
-          // only -- not `KeyRepeatEvent`/`KeyUpEvent` -- so a held Esc does
-          // not fire `onCancel` repeatedly (matches the call modals).
+          // `KeyDownEvent` only -- not `KeyRepeatEvent`/`KeyUpEvent` --
+          // so a held Esc does not fire `onCancel` repeatedly (matches
+          // the call modals).
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.escape) {
             widget.onCancel();
@@ -176,7 +157,6 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
 
 /// The pure card body of [ConfirmDialog], factored out so the
 /// `StatefulWidget`'s `build` stays focused on the Esc/back wiring.
-/// Mirrors React's `confirm-dialog` element.
 class _ConfirmDialogCard extends StatelessWidget {
   const _ConfirmDialogCard({
     required this.title,
@@ -203,22 +183,18 @@ class _ConfirmDialogCard extends StatelessWidget {
       label: title,
       container: true,
       // `showDialog` already creates a `ModalRoute` the assistive layer
-      // treats as a modal route boundary (the Flutter equivalent of React's
-      // `aria-modal="true"` + `useModalFocus` route scoping). We do NOT set
+      // treats as a modal route boundary. We do NOT set
       // `scopesRoute: true` here: that requires `explicitChildNodes: true`
       // (framework assertion) AND duplicates the modal-route scoping the
       // `showDialog` host already provides. Keeping `container: true,
-      // label: title` gives the labeled-group announcement (React's
-      // `aria-labelledby="confirm-dialog-title"`).
+      // label: title` gives the labeled-group announcement.
       child: Dialog(
-        // React `width: min(100%, 380px)`. Material `Dialog` clamps by
+        // Material `Dialog` clamps by
         // `Dialog` constraints; cap at 380 so wide screens do not stretch
-        // the card. `insetPadding` mirrors React's `padding: 24px` on the
-        // backdrop.
+        // the card. `insetPadding` gives the backdrop a 24px padding.
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        // `.confirm-dialog { border: 1px solid var(--line-strong) }` -- the
-        // call cards carry no border, so this sits on the dialog rather
-        // than in the shared dialogTheme.
+        // The 1px line border -- the call cards carry no border, so this
+        // sits on the dialog rather than in the shared dialogTheme.
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
           side: const BorderSide(color: MoshColors.lineStrong),
@@ -226,32 +202,29 @@ class _ConfirmDialogCard extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 380),
           child: Padding(
-            // React `padding: 22px; gap: 16px`.
+            // 22px padding; 16px gap between rows.
             padding: const EdgeInsets.all(22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // React `.confirm-dialog-close` sits in the top-right
-                // corner (absolute). Flutter port: render it as a real
-                // header Row right-aligned at the top of the card so it is
-                // robustly hit-testable (a `Stack + Positioned` with a
-                // negative offset places the IconButton outside the
-                // dialog's clip/hit-test bounds and is flaky under tests +
-                // mouse). The visual result matches React -- a small X in
-                // the top-right corner -- and the title's leading margin
-                // stays clear of it.
+                // The close-X sits in the top-right corner. Render it as
+                // a real header Row right-aligned at the top of the card
+                // so it is robustly hit-testable (a `Stack + Positioned`
+                // with a negative offset places the IconButton outside
+                // the dialog's clip/hit-test bounds and is flaky under
+                // tests + mouse). The visual result matches -- a small X
+                // in the top-right corner -- and the title's leading
+                // margin stays clear of it.
                 Align(
                   alignment: Alignment.topRight,
                   child: _CloseButton(tooltip: cancel, onPressed: onCancel),
                 ),
-                // React `.confirm-dialog-icon` (IconAlertTriangle,
-                // aria-hidden) in a 38x38 tinted rounded square.
+                // The alert icon (decorative) in a 38x38 tinted rounded
+                // square.
                 _AlertIcon(dangerColor: dangerColor),
                 const SizedBox(height: 16),
-                // React `.confirm-dialog-copy`: h2 title + p body.
-                // `.confirm-dialog-copy h2 { font-size: 16px; line-height:
-                // 1.25; color: var(--fg-1) }`.
+                // Title: 16px/1.25 bold, fg-1.
                 Text(
                   title,
                   style: const TextStyle(
@@ -263,8 +236,7 @@ class _ConfirmDialogCard extends StatelessWidget {
                   textAlign: TextAlign.left,
                 ),
                 const SizedBox(height: 8),
-                // `.confirm-dialog-copy p { color: var(--fg-2); font-size:
-                // 12.5px; line-height: 1.55 }`.
+                // Body: fg-2, 12.5px/1.55.
                 Text(
                   body,
                   style: const TextStyle(
@@ -275,29 +247,22 @@ class _ConfirmDialogCard extends StatelessWidget {
                   textAlign: TextAlign.left,
                 ),
                 const SizedBox(height: 16),
-                // React `.confirm-dialog-actions`: ghost Cancel +
-                // danger Confirm, right-aligned.
-                // React `.confirm-dialog-actions` is `display:flex;
-                // justify-content:flex-end; gap:8px` with no explicit
-                // flex-wrap on desktop (it relies on the 380px cap being
-                // wide enough). The Flutter port renders under the wider
-                // Ahem test font, where the close-flow's longer labels
-                // ("Cancel" + "Leave channel") overflow a fixed `Row`.
+                // Actions: ghost Cancel + danger Confirm, right-aligned.
                 // `Wrap` with `alignment: end` + `spacing: 8` reproduces
                 // the right-aligned single-line layout when the buttons
-                // fit (visually identical to React's flex row) and degrades
-                // to a wrapped stack when they don't -- mirroring React's
-                // `@media (max-width:480px) { flex-direction:column-reverse;
-                // width:100% }` fallback for narrow surfaces.
+                // fit. The Ahem test font makes the close-flow's longer
+                // labels ("Cancel" + "Leave channel") overflow a fixed
+                // `Row`, so `Wrap` degrades to a wrapped stack instead --
+                // matching the narrow-surface fallback.
                 Wrap(
                   alignment: WrapAlignment.end,
                   spacing: 8,
                   children: [
-                    // React `btn btn-ghost` -> Material TextButton (no
-                    // background, primary-foreground text).
+                    // Ghost cancel button: no background, primary-foreground
+                    // text.
                     TextButton(onPressed: onCancel, child: Text(cancel)),
-                    // React `btn btn-danger` -> Material FilledButton with
-                    // the danger background. No `autofocus` -- the close-X gets
+                    // Danger confirm button: danger background. No
+                    // `autofocus` -- the close-X gets
                     // initial focus (see file header); confirm requires an
                     // explicit Tab/click so an accidental Enter can't trigger the
                     // destructive action.
@@ -328,8 +293,7 @@ class _ConfirmDialogCard extends StatelessWidget {
   }
 }
 
-/// The close-X button -- React `.confirm-dialog-close` (IconX size=16,
-/// aria-label=cancelLabel). A 28x28 transparent square button with a
+/// The close-X button. A 28x28 transparent square button with a
 /// `Icons.close` icon + a tooltip/semantics label of the cancel label.
 class _CloseButton extends StatelessWidget {
   const _CloseButton({required this.tooltip, required this.onPressed});
@@ -344,7 +308,7 @@ class _CloseButton extends StatelessWidget {
       icon: const Icon(Icons.close, size: 16),
       onPressed: onPressed,
       visualDensity: VisualDensity.compact,
-      // React 28x28; compact splash to match the tight 28px hit area.
+      // Compact splash to match the tight 28px hit area.
       splashRadius: 16,
       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
       padding: EdgeInsets.zero,
@@ -352,10 +316,9 @@ class _CloseButton extends StatelessWidget {
   }
 }
 
-/// The alert icon -- React `.confirm-dialog-icon` (IconAlertTriangle size=18,
-/// aria-hidden) in a 38x38 rounded tinted square. `excludeSemantics` mirrors
-/// React's `aria-hidden="true"` (the icon is decorative; the title/body
-/// carry the meaning).
+/// The alert icon (IconAlertTriangle size=18) in a 38x38 rounded tinted
+/// square. `excludeSemantics` keeps the icon out of the semantics tree
+/// (it is decorative; the title/body carry the meaning).
 class _AlertIcon extends StatelessWidget {
   const _AlertIcon({required this.dangerColor});
 
@@ -370,15 +333,13 @@ class _AlertIcon extends StatelessWidget {
         height: 38,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          // React `background: rgba(232, 106, 90, 0.12)` -- a 12% tint of
-          // the danger color.
+          // A 12% tint of the danger color.
           color: dangerColor.withValues(alpha: 0.12),
-          // React `border-radius: 10px`.
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
-          // React `IconAlertTriangle` (tabler). Material's `Icons.warning`
-          // is the standard filled alert-triangle glyph; closest to lucide.
+          // Material's `Icons.warning` is the standard filled
+          // alert-triangle glyph.
           Icons.warning,
           size: 18,
           color: dangerColor,
@@ -390,18 +351,15 @@ class _AlertIcon extends StatelessWidget {
 
 /// Shows a [ConfirmDialog] modally and returns `true` if the user
 /// confirmed, `false` if they cancelled (close-X, ghost button, or Esc /
-/// Android system-back). Mirrors the React close-flow's
-/// `closeFlow.confirmCloseActive` / `closeFlow.cancelClose` seam so the
-/// later close-flow atomic can wire its callbacks with a single
-/// `await showConfirmDialog(...)` call.
+/// Android system-back). A single `await showConfirmDialog(...)` call
+/// wires the close-flow callbacks.
 ///
-/// The dialog is `barrierDismissible: false` -- a scrim tap is a NO-OP
-/// (React's `role="presentation"` backdrop has no `onClick`), so a stray
-/// tap on Android cannot silently cancel a destructive confirm. The dim
-/// `barrierColor` still shows (the scrim is visible, just not dismissible).
-/// Esc (via the `KeyboardListener`) and Android system-back (via the
-/// `PopScope`) both cancel, matching React's `useModalFocus(onCancel)` Esc
-/// branch + the Android back=cancel modal expectation. `barrierLabel` is
+/// The dialog is `barrierDismissible: false` -- a scrim tap is a NO-OP,
+/// so a stray tap on Android cannot silently cancel a destructive
+/// confirm. The dim `barrierColor` still shows (the scrim is visible,
+/// just not dismissible). Esc (via the `KeyboardListener`) and Android
+/// system-back (via the `PopScope`) both cancel, matching the Android
+/// back=cancel modal expectation. `barrierLabel` is
 /// the [cancelLabel] (or [ConfirmDialog.defaultCancelLabel]) so the modal
 /// scrim announces itself as a cancel affordance to assistive tech.
 ///
@@ -417,8 +375,8 @@ Future<bool> showConfirmDialog({
   final cancel = cancelLabel ?? ConfirmDialog.defaultCancelLabel;
   final result = await showDialog<bool>(
     context: context,
-    // React: the backdrop is `role="presentation"` with NO `onClick`, so a
-    // scrim tap is a no-op (the dim scrim still shows via `barrierColor`).
+    // The backdrop is NOT dismissible: a scrim tap is a no-op (the dim
+    // scrim still shows via `barrierColor`).
     barrierDismissible: false,
     barrierLabel: cancel,
     builder: (dialogContext) => ConfirmDialog(

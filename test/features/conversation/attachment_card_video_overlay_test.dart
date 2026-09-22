@@ -1,16 +1,13 @@
 // Widget tests for the VIDEO play-overlay on the DM attachment card
-// media-preview branch (lib/src/features/conversation/attachment_card.dart).
-// Pins React's `<span className="attachment-play" aria-hidden="true">
-// <IconPlayerPlayFilled size={20}/>` overlay: a centered
-// `Icons.play_circle_filled` renders over the thumbnail image WHEN the
-// mime is a video, and nothing renders for an image. The overlay is
-// decorative; the preview's open behavior is asserted in the focused card
-// tests. The no-thumbnail video case covers the file-card thumb affordance.
+// media-preview branch (lib/src/features/conversation/attachment_card.dart):
+// a centered play glyph renders over the thumbnail image when the mime is a
+// video, and nothing renders for an image. The overlay is decorative; the
+// preview's open behavior is asserted in the focused card tests. The
+// no-thumbnail video case covers the file-card thumb affordance.
 //
-// The harness mirrors the established DM widget-test pattern (pump
-// `AttachmentCard` directly inside a localized `MaterialApp`, find by
-// icon / by type), reusing the same 1x1 PNG thumbnail as the preview
-// test file.
+// The harness pumps `AttachmentCard` directly inside a localized
+// `MaterialApp` (find by icon / by type), reusing the same 1x1 PNG
+// thumbnail as the preview test file.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -90,8 +87,7 @@ void main() {
 
     // The media-preview branch mounts the decoded thumbnail Image.memory.
     expect(find.byType(Image), findsOneWidget);
-    // The centered play overlay is present for a video mime: React's
-    // `.attachment-play` circle holding the play glyph.
+    // The centered play overlay is present for a video mime.
     expect(find.byIcon(Icons.play_arrow), findsOneWidget);
   });
 
@@ -119,8 +115,7 @@ void main() {
 
     // Image still mounts on the media-preview branch.
     expect(find.byType(Image), findsOneWidget);
-    // No play overlay for an image mime (React renders the overlay only
-    // when `isVideo`).
+    // No play overlay for an image mime.
     expect(find.byIcon(Icons.play_arrow), findsNothing);
   });
 

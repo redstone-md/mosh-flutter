@@ -15,9 +15,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 
-/// React has no equivalent rail line; this hint rides above the composer
-/// in the message pane, sized to the `.message-time` row tokens (11px
-/// fg-3) so it reads as meta, not a message.
+/// This hint rides above the composer in the message pane, sized like the
+/// message-time row (11px fg-3) so it reads as meta, not a message.
 class TypingHint extends StatelessWidget {
   const TypingHint({
     super.key,

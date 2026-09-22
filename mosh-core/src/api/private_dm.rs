@@ -6,16 +6,15 @@
 //! attachment send/download/cancel, leave — live once in
 //! `api::conversation` (ADR 0024) and borrow this facade's runtime lock
 //! through `ensure_runtime()`. Everything is call/response over the
-//! bridge — poll-based, no StreamSink (the React frontend polled snapshots
-//! every AUTO_POLL_MS, and the Dart side polls the same way).
+//! bridge — poll-based, no StreamSink; the Dart side polls snapshots
+//! on a cadence.
 //!
 //! OWNERSHIP (ADR 0016 — api runtime ownership, OnceLock singleton): the
 //! runtime is held in a process-global
-//! `OnceLock<Mutex<Option<PrivateDmRuntime>>>`. This replaces the Tauri
-//! shell's `PrivateDmState` (a managed struct whose
-//! `runtime: Mutex<Option<...>>` + `load_error` pair). `ensure_runtime()` is
-//! the analogue of `PrivateDmState::ready` (construction) + `with_runtime`
-//! (lock + borrow). Every function that drives the runtime calls
+//! `OnceLock<Mutex<Option<PrivateDmRuntime>>>` plus a cached
+//! `load_error`. `ensure_runtime()` constructs the singleton on first
+//! call, then locks and borrows it. Every function that drives the
+//! runtime calls
 //! `ensure_runtime()` and delegates. The actions (invites, call controls)
 //! return the typed `ConversationBridgeError` (ADR 0024) so Dart can branch
 //! on the kind; the reads and the voice-frame pump keep the plain `String`
@@ -27,8 +26,7 @@
 //! They are NOT redefined.
 //!
 //! PERSISTENCE: `construct_runtime` opens the encrypted at-rest store and
-//! wires the Moss transport-identity keystore the same way the Tauri shell
-//! did in `setup()` -- `Persistence::open(...)` -> `set_moss_keystore` ->
+//! wires the Moss transport-identity keystore -- `Persistence::open(...)` -> `set_moss_keystore` ->
 //! `install_keystore` (before any node starts) -> `from_shared_node(...,
 //! Some(persistence))` -> `rehydrate()`. Conversations AND the device
 //! identity now survive restart (ADR 0011 SecureSecretStore: this is the
@@ -65,24 +63,20 @@ use crate::private_dm_runtime::{
     SessionListSnapshot, SessionSnapshot, StartSessionRequest,
 };
 
-// Mirrors the Tauri shell's `PRIVATE_DM_UNAVAILABLE` constant so the error
-// string is byte-identical across the old and new shells.
 const PRIVATE_DM_UNAVAILABLE: &str = "private DM runtime unavailable";
 const LOCK_POISONED: &str = "private DM runtime lock poisoned";
 
 /// Process-global singleton for the private-DM runtime (ADR 0016).
 ///
-/// `Option` carries the same "ready vs missing" duality the Tauri shell's
-/// `PrivateDmState` did: `Some` once Moss loaded, `None` if construction
-/// failed (so later calls report the original error instead of retrying
-/// into the same failure). The `OnceLock` guarantees a single
+/// `Option` carries the "ready vs missing" duality: `Some` once Moss
+/// loaded, `None` if construction failed (so later calls report the
+/// original error instead of retrying into the same failure). The `OnceLock` guarantees a single
 /// construction; the `Mutex` serializes the `&mut self` runtime calls.
 static RUNTIME: OnceLock<Mutex<Option<PrivateDmRuntime>>> = OnceLock::new();
 
 /// The cached construction error, if the singleton's first init failed.
 /// Lives in its own `OnceLock` so a failed init reports a stable message on
-/// every later call (the Tauri shell kept this in
-/// `PrivateDmState::load_error`).
+/// every later call.
 static LOAD_ERROR: OnceLock<String> = OnceLock::new();
 // The two mobile-inject knobs (`set_history_dek`, `set_app_data_dir`) +
 // the shared Moss node / attachment store / persistence are owned by
@@ -113,8 +107,7 @@ pub fn set_app_data_dir(path: String) -> Result<(), String> {
 /// store + persistence via `api::shared_runtime`), build the DM runtime
 /// off them, rehydrate saved conversations, and store it. On every later
 /// call: just lock. Returns a guard the public functions can drive the
-/// `&mut self` runtime through, or an `Unavailable` bridge error carrying
-/// the Tauri shell's `unavailable_message` text.
+/// `&mut self` runtime through, or an `Unavailable` bridge error.
 pub(crate) fn ensure_runtime(
 ) -> Result<MutexGuard<'static, Option<PrivateDmRuntime>>, ConversationBridgeError> {
     let mutex = RUNTIME.get_or_init(|| Mutex::new(build_runtime()));
@@ -167,8 +160,7 @@ fn construct_runtime() -> Result<PrivateDmRuntime, PrivateDmRuntimeError> {
     Ok(runtime)
 }
 
-/// Create a private-DM invite (1:1 port of the `private_dm_create_invite`
-/// Tauri command). The inviter publishes a KeyPackage and an invite URI.
+/// Create a private-DM invite. The inviter publishes a KeyPackage and an invite URI.
 pub fn create_invite(
     request: StartSessionRequest,
 ) -> Result<InviteCreated, ConversationBridgeError> {
@@ -179,7 +171,7 @@ pub fn create_invite(
         .map_err(ConversationBridgeError::from)
 }
 
-/// Accept a private-DM invite (1:1 port of `private_dm_accept_invite`). The
+/// Accept a private-DM invite. The
 /// joiner parses the invite URI and processes the inviter's Welcome.
 pub fn accept_invite(
     request: AcceptInviteRequest,
@@ -191,9 +183,8 @@ pub fn accept_invite(
         .map_err(ConversationBridgeError::from)
 }
 
-/// Poll a session for its current snapshot (1:1 port of
-/// `private_dm_poll_session`). The React frontend called this every
-/// AUTO_POLL_MS; no push, no StreamSink.
+/// Poll a session for its current snapshot. The Dart side calls this
+/// on a poll cadence; no push, no StreamSink.
 pub fn poll_session(session_id: String) -> Result<SessionSnapshot, String> {
     let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
@@ -202,16 +193,14 @@ pub fn poll_session(session_id: String) -> Result<SessionSnapshot, String> {
         .map_err(|error| error.to_string())
 }
 
-/// List all sessions and their snapshots (1:1 port of
-/// `private_dm_list_sessions`).
+/// List all sessions and their snapshots.
 pub fn list_sessions() -> Result<SessionListSnapshot, String> {
     let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
     runtime.list_sessions().map_err(|error| error.to_string())
 }
 
-/// Start a voice call in a DM session (1:1 port of the Tauri shell's
-/// `private_dm_call_start`, lib.rs L455). Mints the call id + the
+/// Start a voice call in a DM session. Mints the call id + the
 /// symmetric call key + nonce prefix, publishes a CallOffer to the peer
 /// over the session MLS channel, and moves the session into the
 /// outgoing-ringing state (SessionSnapshot.outgoing_call). The bridge
@@ -224,7 +213,7 @@ pub fn call_start(session_id: String) -> Result<CallStarted, ConversationBridgeE
         .map_err(ConversationBridgeError::from)
 }
 
-/// Accept an incoming voice call (1:1 port of `private_dm_call_accept`).
+/// Accept an incoming voice call.
 /// Moves the session from pending-call into the active state. The peer
 /// learns the acceptance through the MLS CallAccept control message.
 pub fn call_accept(session_id: String, call_id: String) -> Result<(), ConversationBridgeError> {
@@ -235,7 +224,7 @@ pub fn call_accept(session_id: String, call_id: String) -> Result<(), Conversati
         .map_err(ConversationBridgeError::from)
 }
 
-/// Decline an incoming voice call (1:1 port of `private_dm_call_decline`).
+/// Decline an incoming voice call.
 /// Publishes a CallDecline control message with the reason; the session
 /// returns to its idle state.
 pub fn call_decline(
@@ -250,7 +239,7 @@ pub fn call_decline(
         .map_err(ConversationBridgeError::from)
 }
 
-/// End an active or ringing voice call (1:1 port of `private_dm_call_end`).
+/// End an active or ringing voice call.
 /// Publishes a CallEnd control message with the reason; the session
 /// returns to idle and the CallEvent is recorded for the call log.
 pub fn call_end(
@@ -265,11 +254,9 @@ pub fn call_end(
         .map_err(ConversationBridgeError::from)
 }
 
-/// Push an encrypted voice-call frame into the session outbound queue
-/// (1:1 port of the runtime `call_send_frame`; the Tauri shell did not
-/// expose a separate command -- frames went through the session poll, but
-/// the Flutter bridge surfaces this explicitly so the Dart capture loop
-/// can drive it). The caller seals the frame before sending.
+/// Push an encrypted voice-call frame into the session outbound queue.
+/// The Flutter bridge surfaces this explicitly so the Dart capture loop
+/// can drive it. The caller seals the frame before sending.
 pub fn call_send_frame(session_id: String, call_id: String, frame: Vec<u8>) -> Result<(), String> {
     let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
@@ -278,11 +265,10 @@ pub fn call_send_frame(session_id: String, call_id: String, frame: Vec<u8>) -> R
         .map_err(|error| error.to_string())
 }
 
-/// Drain the inbound voice-call frames for an active call (1:1 port of the
-/// runtime `call_drain_frames`). Returns the sealed frames the peer sent; the
-/// caller opens + queues them into the playback jitter buffer. The Tauri
-/// shell folded this into the session poll; the Flutter bridge surfaces it
-/// explicitly so the Dart playback loop can drive it at 20ms cadence.
+/// Drain the inbound voice-call frames for an active call. Returns the
+/// sealed frames the peer sent; the caller opens + queues them into the
+/// playback jitter buffer. The Flutter bridge surfaces this explicitly so
+/// the Dart playback loop can drive it at 20ms cadence.
 pub fn call_drain_frames(session_id: String, call_id: String) -> Result<Vec<Vec<u8>>, String> {
     let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
     let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
