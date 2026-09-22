@@ -29,8 +29,8 @@ class _VideoStage extends StatefulWidget {
 }
 
 class _VideoStageState extends State<_VideoStage> {
-  Player? _player;
   VideoController? _controller;
+  Player? _player;
 
   @override
   void initState() {
@@ -38,15 +38,36 @@ class _VideoStageState extends State<_VideoStage> {
     // media_kit needs its native lib; in test envs without it (or on an
     // unsupported platform) Player() throws -- fall back to the placeholder
     // card so the viewer still renders. Opens + plays immediately on the
-    // happy path.
+    // happy path. The open is awaited INSIDE the stage: a Player() that
+    // constructs but fails asynchronously (missing codec, unreadable src)
+    // must land in the same catch, so the viewer renders the fallback card
+    // instead of surfacing an unhandled error.
     try {
       final player = Player();
       _player = player;
-      _controller = VideoController(player);
-      player.open(Media(widget.src));
+      final controller = VideoController(player);
+      _controller = controller;
+      unawaited(_open(player));
     } catch (_) {
       _player = null;
       _controller = null;
+    }
+  }
+
+  /// Opens + plays the stage's media. An asynchronous open failure is not
+  /// a constructor throw: it surfaces here, after the stage is live, so
+  /// the catch drops back to the placeholder card.
+  Future<void> _open(Player player) async {
+    try {
+      await player.open(Media(widget.src));
+    } catch (_) {
+      await player.dispose();
+      if (mounted) {
+        setState(() {
+          _player = null;
+          _controller = null;
+        });
+      }
     }
   }
 
@@ -157,9 +178,12 @@ class _AudioStageState extends State<_AudioStage> {
   @override
   void initState() {
     super.initState();
-    // media_kit needs its native lib; in test envs without it Player()
-    // throws -- fall back to the placeholder card. Opens + plays on the
-    // happy path.
+    // media_kit needs its native lib; in test envs without it (or on an
+    // unsupported platform) Player() throws -- fall back to the placeholder
+    // card. Opens + plays on the happy path. The open is awaited INSIDE the
+    // stage: a Player() that constructs but fails asynchronously (missing
+    // codec, unreadable src) must land in the same catch, so the viewer
+    // renders the fallback card instead of surfacing an unhandled error.
     try {
       final player = Player();
       _player = player;
@@ -172,9 +196,21 @@ class _AudioStageState extends State<_AudioStage> {
       player.stream.duration.listen((dur) {
         if (mounted) setState(() => _duration = dur);
       });
-      player.open(Media(widget.src));
+      unawaited(_open(player));
     } catch (_) {
       _player = null;
+    }
+  }
+
+  /// Opens + plays the stage's media. An asynchronous open failure is not
+  /// a constructor throw: it surfaces here, after the stage is live, so
+  /// the catch drops back to the placeholder card.
+  Future<void> _open(Player player) async {
+    try {
+      await player.open(Media(widget.src));
+    } catch (_) {
+      await player.dispose();
+      if (mounted) setState(() => _player = null);
     }
   }
 

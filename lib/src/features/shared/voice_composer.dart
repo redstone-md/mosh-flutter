@@ -132,6 +132,12 @@ class _VoiceComposerState extends State<VoiceComposer> {
   // matching the previous inert placeholder so existing tests stay green.
   Player? _previewPlayer;
   bool _previewPlaying = false;
+  // One recorder teardown at a time. Manual stop, the auto-stop timer, and
+  // discard all tear the capture down asynchronously; without the guard a
+  // discard racing a stop cancelled the recorder under the stop() call and
+  // deleted the file stop() was still writing -- leaving a review row whose
+  // play/send pointed at nothing.
+  bool _finalizing = false;
 
   @override
   void initState() {
@@ -250,7 +256,8 @@ class _VoiceComposerState extends State<VoiceComposer> {
   }
 
   /// The shared failure path of start/finish: surface the error, tear the
-  /// capture down, and drop back to idle.
+  /// capture down, and drop back to idle. Called from inside a finalizing
+  /// flow (the guard is already held) or straight from _startRecording.
   Future<void> _abortRecording(Object error) async {
     widget.onError(error.toString());
     _stopTimersAndAmplitude();
@@ -275,6 +282,10 @@ class _VoiceComposerState extends State<VoiceComposer> {
   }
 
   Future<void> _finishRecording() async {
+    // The auto-stop timer, the stop button, and a racing discard can all
+    // land here (or in _discard); one of them wins, the rest are no-ops.
+    if (_finalizing || _phase != _Phase.recording) return;
+    _finalizing = true;
     _stopTimersAndAmplitude();
     try {
       final path = await _recorder.stop();
@@ -283,14 +294,22 @@ class _VoiceComposerState extends State<VoiceComposer> {
       _ifMounted(() => setState(() => _phase = _Phase.review));
     } catch (error) {
       await _abortRecording(error);
+    } finally {
+      _finalizing = false;
     }
   }
 
   Future<void> _discard() async {
-    _stopTimersAndAmplitude();
-    await _cleanupRecorder();
-    _disposePreview();
-    _ifMounted(() => setState(() => _phase = _Phase.idle));
+    if (_finalizing) return;
+    _finalizing = true;
+    try {
+      _stopTimersAndAmplitude();
+      await _cleanupRecorder();
+      _disposePreview();
+      _ifMounted(() => setState(() => _phase = _Phase.idle));
+    } finally {
+      _finalizing = false;
+    }
   }
 
   Future<void> _cleanupRecorder() async {

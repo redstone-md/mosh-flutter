@@ -17,6 +17,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show chatHeaderHeight;
 import 'package:mosh/src/features/conversation/conversation_leave_prompt.dart';
 import 'package:mosh/src/features/conversation/conversation_screen_body.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -242,7 +244,16 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     _listenViewed();
     final chrome = _chrome;
     return Scaffold(
-      appBar: widget.header(context, chrome),
+      // The wrapper aligns the header's preferredSize with the toolbar the
+      // ConversationAppBar actually renders (54px under the 640px
+      // breakpoint, 70px above it). The kind headers report kToolbarHeight
+      // (56) while their AppBar draws 54 or 70: Scaffold clamps its slot to
+      // the reported height, so a 70px toolbar was clipped to 56 and a 54px
+      // one left a 2px band of app-bar background above the body.
+      appBar: _HeaderPreferredSize(
+        height: chatHeaderHeight(context),
+        header: widget.header(context, chrome),
+      ),
       body: ConversationScreenBody(
         target: _target,
         chrome: chrome,
@@ -268,4 +279,33 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         break;
     }
   }
+}
+
+/// Re-reports a kind header's [PreferredSizeWidget.preferredSize] as the
+/// height its AppBar actually draws.
+///
+/// The kind headers ([ConversationAppBar] via DmScreenHeader /
+/// GroupScreenHeader / ChannelScreen) size their toolbar with
+/// `chatHeaderHeight` (54px under the 640px breakpoint, 70px above it) but
+/// implement `preferredSize` as the constant `kToolbarHeight` (56). The
+/// Scaffold sizes its appBar slot from `preferredSize` -- it clamps the
+/// slot to the reported height, so the 70px desktop toolbar was clipped to
+/// 56px and the 54px compact one left a band of app-bar background above
+/// the body. This wrapper is rebuilt by [ConversationScreen] on every
+/// breakpoint change, so the reported height always matches the drawn one.
+class _HeaderPreferredSize extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _HeaderPreferredSize({required this.height, required this.header});
+
+  /// The toolbar height the wrapped header's AppBar draws.
+  final double height;
+
+  /// The kind header (the real app bar).
+  final PreferredSizeWidget header;
+
+  @override
+  Size get preferredSize => Size.fromHeight(height);
+
+  @override
+  Widget build(BuildContext context) => header;
 }

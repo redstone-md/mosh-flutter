@@ -3,6 +3,7 @@
 // video + audio use media_kit (Player + VideoController).
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:io' show File;
 
 import 'package:flutter/material.dart';

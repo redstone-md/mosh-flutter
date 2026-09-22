@@ -7,6 +7,7 @@
 // (offered/offered incoming), the play button triggers onDownload.
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:convert' show base64Decode;
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
@@ -68,6 +69,9 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   bool _playing = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  // True when the user tapped play before the file was local: the download
+  // was started and playback must begin the moment the local path arrives.
+  bool _playWhenReady = false;
 
   /// setState only while the state is still alive.
   void _ifMounted(VoidCallback fn) {
@@ -99,11 +103,16 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   @override
   void didUpdateWidget(covariant VoiceMessageCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If the local path arrived (download finished), open it on the player so
-    // the queued play can proceed.
+    // If the local path arrived (download finished), open it on the player.
+    // A play tapped before the download finished is queued: it must actually
+    // start now, not just load the file.
     final newPath = widget.view?.localPath;
     if (newPath != null && newPath != oldWidget.view?.localPath) {
       _open(newPath);
+      if (_playWhenReady) {
+        _playWhenReady = false;
+        unawaited(_player?.play());
+      }
     }
   }
 
@@ -111,7 +120,10 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     final player = _player;
     if (player == null) return;
     try {
-      await player.open(Media(path));
+      // play: false -- opening only loads the file; the queued play (or the
+      // user's next tap) decides whether it starts. Without this a queued
+      // play-after-download would autoplay the file on load.
+      await player.open(Media(path), play: false);
     } catch (_) {
       // best-effort
     }
@@ -136,6 +148,9 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     final player = _player;
     final localPath = widget.view?.localPath;
     if (localPath == null) {
+      // Play-before-download: queue it so the arrival of the local path
+      // starts playback (didUpdateWidget), not just the file load.
+      _playWhenReady = true;
       _requestDownload();
       return;
     }
