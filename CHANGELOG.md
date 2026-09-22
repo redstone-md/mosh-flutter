@@ -6,6 +6,8 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-09-22
+
 The simplification drive: ~11,000 net lines removed with zero behavior
 change (all 838 Dart tests and 366 Rust tests green throughout).
 
@@ -46,6 +48,58 @@ change (all 838 Dart tests and 366 Rust tests green throughout).
 - `docs/superpowers/` — the port-era process archive (10,495 lines):
   task plans for the deleted React/Tauri app. Superseded by the ADRs;
   nothing references the directory.
+
+### Fixed
+Review findings (16, each with a regression test):
+- **Shared-node leaks on join/create failure.** A `public_key_hex`
+  failure after the room opened returned without closing it, pinning
+  the shared node forever; the room now closes on the error path
+  (channel join, group create, group join key + KeyPackage paths).
+- **One malformed channel frame poisoned a whole drain.** A bad frame
+  aborted `drain_inbound` and discarded every valid frame behind it;
+  bad frames now drop with a warn log, like the DM and group runtimes.
+- **A failed control frame could never repair itself.** The group
+  replay set recorded control frames before verification, so a
+  retransmission of anything that failed was swallowed as a replay;
+  the control channel is now exempt (every handler branch is
+  idempotent), mirroring the DM runtime's rule.
+- **Read receipts lost on publish failure.** The DM runtime filed a
+  receipt as sent even when the transport rejected it, so the peer
+  never learned the message was read; the id and self-read event now
+  record only when the transport took the frame.
+- **Roster-lag horizon overflow.** `own + ROSTER_LAG_HORIZON`
+  overflowed near `u64::MAX` (debug panic, release wrap admitting
+  out-of-horizon roster claims); checked arithmetic now drops
+  everything when the horizon itself overflows.
+- **Call state dead-ends.** `call_start` stranded its slot on
+  subscribe/offer failure (dead call until the 45s timeout, no new
+  calls); `call_accept` left the phase Active when the accept publish
+  failed (retry rejected as "no longer ringing"); `call_decline`
+  cleared before publishing (failed decline left the peer ringing with
+  no local retry); a `handle_call_offer` subscribe failure left a
+  stored ring nobody could deliver into. All four paths now roll back
+  so the next attempt lands cleanly.
+- **Malformed attachment thumbnails crashed the conversation.**
+  `base64Decode` threw during build, escaping `Image.memory`'s
+  errorBuilder; the decode now falls through to the broken-image
+  fallback.
+- **Conversation header slot mismatched the drawn toolbar.** The kind
+  headers reported `kToolbarHeight` (56) while drawing 54/70px; the
+  Scaffold clamped its slot to the reported height, clipping the
+  desktop toolbar and leaving a gap on mobile. A wrapper re-reports
+  the height the AppBar actually draws.
+- **Play-during-download never played.** A play tapped while a voice
+  message was still downloading only queued the file load; the card
+  now queues the play itself.
+- **Pull-to-refresh left the rail stale.** It only re-read the DM list
+  while the rail renders all kinds plus orgs; it now refreshes every
+  slice.
+- **Media viewer async failures surfaced as unhandled errors.** The
+  unawaited `player.open` rejection escaped the constructor's try
+  block; opens are now awaited inside the stage with a fallback card.
+- **Recorder teardown races.** Manual stop, the auto-stop timer and
+  discard could overlap the recorder teardown; a single-flight guard
+  makes them mutually exclusive.
 
 ## [0.9.1] - 2026-09-21
 
