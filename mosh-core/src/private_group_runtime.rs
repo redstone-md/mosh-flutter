@@ -38,29 +38,9 @@ const CONTROL_CHANNEL_PREFIX: &str = "group-control/";
 const DATA_CHANNEL_PREFIX: &str = "group-data/";
 const BLOB_CHANNEL_PREFIX: &str = "group-blob/";
 
-// Minimum gap between TypingIndicator publishes from one member. Same
-// reasoning as the DM side: the composer's every keystroke folds down to
-// one steady signal at this cadence.
-const TYPING_REFRESH_MS: u64 = 3_000;
-
-// How long a member's typing hint stays believable without a refresh. The
-// receiver owns the expiry; a member's own message clears its hint at once.
-const TYPING_EXPIRY_MS: u64 = 5_000;
-
-/// Event code the diagnostics panel renders as "typing" (pinned in
-/// `conversation::mesh`).
-const TYPING_EVENT_CODE: i32 = 10;
-
-/// Files one typing event (pinned code 10) into the diagnostics event ring,
-/// the same insert `on_moss_event` does for the node's own reports.
-fn push_typing_event(group_id: &str, phase: &str) {
-    let detail = serde_json::json!({
-        "conversation": KIND,
-        "group_id": group_id,
-        "phase": phase,
-    });
-    crate::moss_ffi::push_app_event(TYPING_EVENT_CODE, &detail.to_string());
-}
+// The typing cadence, expiry window, and pinned event code live in
+// `conversation::typing`, shared with the DM side.
+use crate::conversation::typing::{self as typing_shared, TypingGate};
 
 /// The group's own inbound queue, claimed once for the process.
 fn group_inbox() -> &'static inbox::Inbox {
@@ -510,9 +490,9 @@ struct GroupSession {
     /// authenticated frames that carry it (typing hints, messages). The
     /// roster view reads names from here instead of re-deriving them.
     member_names: HashMap<String, String>,
-    /// When this member last published a TypingIndicator, so continued
-    /// input re-emits no faster than the refresh cadence.
-    last_typing_send_ms: u64,
+    /// The send-cadence gate for this member's own TypingIndicator
+    /// publishes.
+    typing_gate: TypingGate,
 }
 
 struct RosterLaggedCommit {
@@ -555,6 +535,13 @@ impl PrivateGroupRuntime {
             shared_node,
             groups: ConversationRuntime::new(attachment_store, persistence, GROUP_HISTORY),
         }
+    }
+
+    /// Reaching for one open group, the way every facade method starts.
+    fn group_mut(&mut self, group_id: &str) -> Result<&mut GroupSession, PrivateGroupError> {
+        self.groups
+            .get_mut(group_id)
+            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))
     }
 
     /// Take a reference to the shared node and put this group's room on it.
@@ -704,7 +691,7 @@ impl PrivateGroupRuntime {
                 last_roster_version_seen: None,
                 typing_members: HashMap::new(),
                 member_names: HashMap::new(),
-                last_typing_send_ms: 0,
+                typing_gate: TypingGate::default(),
             };
             // The persisted MLS tree outranks the persisted admin pointer: if
             // the admin left while we were down, the restored tree already
@@ -804,7 +791,7 @@ impl PrivateGroupRuntime {
             last_roster_version_seen: None,
             typing_members: HashMap::new(),
             member_names: HashMap::new(),
-            last_typing_send_ms: 0,
+            typing_gate: TypingGate::default(),
         };
 
         self.groups.insert(group_id.clone(), session);
@@ -897,7 +884,7 @@ impl PrivateGroupRuntime {
             last_roster_version_seen: None,
             typing_members: HashMap::new(),
             member_names: HashMap::new(),
-            last_typing_send_ms: 0,
+            typing_gate: TypingGate::default(),
         };
         self.groups.insert(invite.group_id.clone(), session);
         self.poll(&invite.group_id)
@@ -915,10 +902,7 @@ impl PrivateGroupRuntime {
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, PrivateGroupError> {
         self.drain_inbound()?;
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
         self.groups.persist_tail();
         Ok(result)
@@ -930,10 +914,7 @@ impl PrivateGroupRuntime {
         attachment_id: &str,
     ) -> Result<(), PrivateGroupError> {
         self.drain_inbound()?;
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
         session.transfer.start_download(attachment_id)?;
         session.pump_attachment_requests();
         Ok(())
@@ -944,10 +925,7 @@ impl PrivateGroupRuntime {
         group_id: &str,
         attachment_id: &str,
     ) -> Result<(), PrivateGroupError> {
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
         Ok(session.transfer.cancel(attachment_id)?)
     }
 
@@ -958,10 +936,7 @@ impl PrivateGroupRuntime {
         target_fingerprint: String,
         invite_uri: String,
     ) -> Result<(), PrivateGroupError> {
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
         let offer = DmOffers::mint(
             session.display_name.clone(),
             session.device_fingerprint.clone(),
@@ -1001,10 +976,7 @@ impl PrivateGroupRuntime {
         group_id: &str,
         offer_id: &str,
     ) -> Result<(), PrivateGroupError> {
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
         session.dm_offers.dismiss(offer_id);
         Ok(())
     }
@@ -1018,10 +990,7 @@ impl PrivateGroupRuntime {
         end: u64,
     ) -> Result<StreamRange, PrivateGroupError> {
         self.drain_inbound()?;
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
         let outcome = session.transfer.stream_range(attachment_id, start, end);
         session.pump_attachment_requests();
         Ok(outcome)
@@ -1037,10 +1006,7 @@ impl PrivateGroupRuntime {
         }
         self.drain_inbound()?;
         let prepared = {
-            let session = self
-                .groups
-                .get_mut(group_id)
-                .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+            let session = self.group_mut(group_id)?;
             if !session.joined {
                 return Err(PrivateGroupError::NotReady);
             }
@@ -1085,10 +1051,7 @@ impl PrivateGroupRuntime {
     ) -> Result<GroupSendResult, PrivateGroupError> {
         self.drain_inbound()?;
         let prepared = {
-            let session = self
-                .groups
-                .get_mut(group_id)
-                .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+            let session = self.group_mut(group_id)?;
             session.outbox().reopen(message_id)?
         };
         self.publish_prepared(group_id, prepared, false)
@@ -1100,10 +1063,7 @@ impl PrivateGroupRuntime {
     /// call (no error to the composer — a dropped hint only delays a hint).
     pub fn typing_signal(&mut self, group_id: &str) -> Result<(), PrivateGroupError> {
         self.drain_inbound()?;
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
         session.publish_typing(now_ms());
         Ok(())
     }
@@ -1130,10 +1090,7 @@ impl PrivateGroupRuntime {
                 .map_err(|error| PrivateGroupError::Moss(error.to_string()))
         };
         let (group_id_owned, settled) = {
-            let session = self
-                .groups
-                .get_mut(group_id)
-                .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+            let session = self.group_mut(group_id)?;
             let group_id_owned = session.group_id.clone();
             let settled = session.outbox().settle(
                 &prepared.message_id,
@@ -1157,10 +1114,7 @@ impl PrivateGroupRuntime {
     pub fn poll(&mut self, group_id: &str) -> Result<GroupSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
         self.groups.persist_tail();
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
         Ok(session.snapshot())
     }
 
@@ -1177,10 +1131,7 @@ impl PrivateGroupRuntime {
     }
 
     pub fn close(&mut self, group_id: &str) -> Result<GroupLeaveResult, PrivateGroupError> {
-        let session = self
-            .groups
-            .get_mut(group_id)
-            .ok_or_else(|| PrivateGroupError::MissingGroup(group_id.to_string()))?;
+        let session = self.group_mut(group_id)?;
 
         if session.joined {
             let own_fp = session.crypto.fingerprint();
@@ -1471,12 +1422,12 @@ impl GroupSession {
         if !self.joined || !self.crypto.is_ready() {
             return;
         }
-        if now.saturating_sub(self.last_typing_send_ms) < TYPING_REFRESH_MS {
+        if !self.typing_gate.send_due(now) {
             return;
         }
         let body = GroupTypingBody {
             device: self.display_name.clone(),
-            until_ms: now.saturating_add(TYPING_EXPIRY_MS),
+            until_ms: TypingGate::deadline(now),
         };
         let Ok(body_json) = serde_json::to_vec(&body) else {
             return;
@@ -1490,10 +1441,7 @@ impl GroupSession {
             from_fingerprint: self.device_fingerprint.clone(),
             typing_ciphertext_b64: encode(&ciphertext),
         };
-        if self.publish_control(&envelope).is_err() {
-            return;
-        }
-        self.last_typing_send_ms = now;
+        let _ = self.publish_control(&envelope);
     }
 
     /// A decrypted hint from a member: stamp that member's deadline from OUR
@@ -1506,9 +1454,9 @@ impl GroupSession {
             .or_insert_with(|| from_device.to_string());
         let fresh = !matches!(self.typing_members.get(&fingerprint), Some(until) if *until > now);
         self.typing_members
-            .insert(fingerprint, now.saturating_add(TYPING_EXPIRY_MS));
+            .insert(fingerprint, TypingGate::deadline(now));
         if fresh {
-            push_typing_event(&self.group_id, "started");
+            typing_shared::push_typing_event(&self.group_id, "started");
         }
     }
 
@@ -1516,7 +1464,7 @@ impl GroupSession {
     /// dies at once, whatever its deadline said.
     fn clear_member_typing(&mut self, fingerprint: &str) {
         if self.typing_members.remove(fingerprint).is_some() {
-            push_typing_event(&self.group_id, "stopped");
+            typing_shared::push_typing_event(&self.group_id, "stopped");
         }
     }
 
@@ -3694,7 +3642,7 @@ mod tests {
         fn deliver_cleo_typing(&mut self) {
             let body = GroupTypingBody {
                 device: "cleo".to_string(),
-                until_ms: now_ms() + TYPING_EXPIRY_MS,
+                until_ms: TypingGate::deadline(now_ms()),
             };
             let ciphertext = self
                 .cleo
