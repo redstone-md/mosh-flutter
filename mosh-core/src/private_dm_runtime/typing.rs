@@ -114,6 +114,13 @@ impl PrivateDmSession {
     /// lost receipt re-sends as the same single-frame problem). Already
     /// receipted ids are skipped so nothing re-sends. Runs only under an
     /// enabled toggle; the runtime checks that before calling.
+    ///
+    /// An id is recorded as sent only when the transport took the frame: a
+    /// failed publish must leave it unrecorded, or the next `mark_viewed`
+    /// would skip it and the counterpart never learns the message was read.
+    /// The NoPeers soft refusal counts as taken — the session is not yet
+    /// connected enough to reach anyone, but the frame is gone either way
+    /// and re-sending it changes nothing until reachability does.
     pub(super) fn mark_viewed(&mut self) {
         if !self.can_encrypt_for_peer() {
             return;
@@ -126,7 +133,9 @@ impl PrivateDmSession {
             .filter(|message_id| !self.sent_read_ids.contains(message_id))
             .collect();
         for message_id in unread {
-            self.send_read_receipt(&message_id);
+            if self.send_read_receipt(&message_id).is_err() {
+                continue;
+            }
             // The receiver's own honest event log: one `message_read` per
             // receipt this side sent, matching the frame on the wire.
             push_read_event(&self.session_id, &message_id, "self-read");
@@ -148,16 +157,21 @@ impl PrivateDmSession {
     /// One MLS-encrypted receipt frame for one message id. Best-effort, like
     /// the DeliveryAck: a lost receipt is answered by the peer's next
     /// `mark_viewed` (its `sent_read_ids` only stops re-sends while this
-    /// process lives, so a restart re-asks for anything not settled).
-    pub(super) fn send_read_receipt(&mut self, message_id: &str) {
+    /// process lives, so a restart re-asks for anything not settled). The
+    /// result says whether the transport took the frame; the caller decides
+    /// what that means for its own bookkeeping.
+    pub(super) fn send_read_receipt(
+        &mut self,
+        message_id: &str,
+    ) -> Result<(), PrivateDmRuntimeError> {
         let body = ReadReceiptBody {
             message_id: message_id.to_string(),
         };
         let Ok(body_json) = serde_json::to_vec(&body) else {
-            return;
+            return Ok(());
         };
         let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
-            return;
+            return Ok(());
         };
         let envelope = ControlEnvelope::ReadReceipt {
             session_id: self.session_id.clone(),
@@ -165,8 +179,8 @@ impl PrivateDmSession {
             receipt_ciphertext_b64: encode(&ciphertext),
         };
         let Ok(payload) = serde_json::to_vec(&envelope) else {
-            return;
+            return Ok(());
         };
-        let _ = self.route_send(ChannelKind::Control, &payload);
+        self.route_send(ChannelKind::Control, &payload)
     }
 }

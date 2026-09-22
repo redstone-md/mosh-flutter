@@ -338,9 +338,20 @@ impl PrivateDmSession {
             body.nonce_prefix_b64,
             from_device,
         ));
-        self.transport
-            .subscribe(&self.mesh_id, &channel)
-            .map_err(PrivateDmRuntimeError::Moss)
+        // The media channel is the whole point of the ring: without the
+        // subscription every later frame for this call is lost, and the
+        // stored ring would ignore repeated offers (any other offer while a
+        // call is held is a no-op). Roll the ring back so the next offer
+        // starts over from a clean slot.
+        match self.transport.subscribe(&self.mesh_id, &channel) {
+            Ok(()) => Ok(()),
+            Err(_) => {
+                let _ = self.call.take();
+                Err(PrivateDmRuntimeError::Moss(
+                    "voice call channel subscribe failed".to_string(),
+                ))
+            }
+        }
     }
 
     /// Drop the call we hold, leave its channel, and log it in the history.

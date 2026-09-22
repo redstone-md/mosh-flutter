@@ -18,6 +18,12 @@ struct Endpoint {
     /// The transport turns every publish away, the way moss answers a
     /// node with nobody to hand the frame to.
     refuse_publishes: bool,
+    /// The transport turns the next publish into a hard failure (the way
+    /// moss answers a real transport fault, not a soft no-peers refusal).
+    fail_publishes: bool,
+    /// `subscribe` answers an error, the way moss would when the room or
+    /// the node behind it is gone.
+    refuse_subscribes: bool,
 }
 
 #[derive(Clone)]
@@ -99,6 +105,21 @@ impl MemoryNet {
         }
     }
 
+    /// Make every publish from `from` fail as a transport fault (never the
+    /// soft no-peers refusal), or stop doing so.
+    pub fn fail_publishes(&self, from: &str, fail: bool) {
+        if let Some(endpoint) = self.lock().endpoints.get_mut(from) {
+            endpoint.fail_publishes = fail;
+        }
+    }
+
+    /// Make `from`'s subscribes fail, or stop doing so.
+    pub fn refuse_subscribes(&self, from: &str, refuse: bool) {
+        if let Some(endpoint) = self.lock().endpoints.get_mut(from) {
+            endpoint.refuse_subscribes = refuse;
+        }
+    }
+
     /// The peers `from` asked the transport to reach, in order.
     pub fn connect_requests(&self, from: &str) -> Vec<String> {
         self.lock()
@@ -147,7 +168,17 @@ impl DmTransport for MemoryTransport {
     fn close_room(&self, _room: &str, _channels: &[String], _label: &str) {}
 
     fn subscribe(&self, _room: &str, _channel: &str) -> Result<(), String> {
-        Ok(())
+        let refused = self
+            .net
+            .lock()
+            .endpoints
+            .get(&self.peer_id)
+            .is_some_and(|endpoint| endpoint.refuse_subscribes);
+        if refused {
+            Err("subscribe refused".to_string())
+        } else {
+            Ok(())
+        }
     }
 
     fn unsubscribe(&self, _room: &str, _channel: &str) -> Result<(), String> {
@@ -168,6 +199,13 @@ impl DmTransport for MemoryTransport {
             .collect();
         if refused || targets.is_empty() {
             return Err(PublishError::NoPeers("no peers reachable".to_string()));
+        }
+        let fail = state
+            .endpoints
+            .get(&self.peer_id)
+            .is_some_and(|endpoint| endpoint.fail_publishes);
+        if fail {
+            return Err(PublishError::Other("publish failed".to_string()));
         }
         for (to, drop_if) in targets {
             if drop_if.is_some_and(|rule| rule(channel, payload)) {

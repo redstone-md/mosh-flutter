@@ -151,10 +151,18 @@ impl GroupSession {
         if author_roster_version > self.own_roster_version() {
             // Reject absurd claims outright: an entry pinned at an
             // unreachable version (e.g. u64::MAX) would otherwise squat in
-            // the buffer forever. Genuine lag is 1-2 versions deep.
-            let horizon = self.own_roster_version().unwrap_or(0) + ROSTER_LAG_HORIZON;
+            // the buffer forever. Genuine lag is 1-2 versions deep. Checked:
+            // when even `own + HORIZON` overflows, no claim can be within the
+            // horizon, so everything from a non-admin drops — a plain `+`
+            // would panic in debug and wrap the horizon backwards in
+            // release, admitting the very claims this exists to reject.
             let claimed = author_roster_version.unwrap_or(0);
-            if claimed > horizon {
+            let within_horizon = self
+                .own_roster_version()
+                .unwrap_or(0)
+                .checked_add(ROSTER_LAG_HORIZON)
+                .is_some_and(|horizon| claimed <= horizon);
+            if !within_horizon {
                 dlog::write(
                     LogLevel::Warn,
                     kinds::COMMIT,

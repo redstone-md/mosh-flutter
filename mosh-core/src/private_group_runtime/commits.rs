@@ -7,7 +7,18 @@ impl GroupSession {
         &mut self,
         message: MossReceivedMessage,
     ) -> Result<(), PrivateGroupError> {
-        if self.seen.seen_before(&message.channel, &message.payload) {
+        // Control frames are exempt from the replay set, the same rule the
+        // DM runtime pins for its own control channel: every branch of
+        // `handle_control` is idempotent (the sequencer dedups applied
+        // commits, a KeyPackage dedups by signer-is-member, a Welcome is
+        // `!joined`-guarded, manifests and offers dedup by id), and
+        // re-delivery is the recovery mechanism. Recording a control frame
+        // BEFORE processing it would blackhole the bytes of anything that
+        // failed — a retransmission could never repair the session because
+        // the hash of the failed frame was already filed as seen.
+        if message.channel != self.control_channel
+            && self.seen.seen_before(&message.channel, &message.payload)
+        {
             return Ok(());
         }
         if message.channel == self.control_channel {
