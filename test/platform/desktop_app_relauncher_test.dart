@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mosh/src/features/onboarding/onboard_menu.dart';
+import 'package:mosh/src/features/settings/connection_settings_section.dart';
 import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
 import '../support/pump.dart';
 import '../support/scriptable_bridge.dart';
@@ -119,8 +119,8 @@ void main() {
     });
 
     testWidgets(
-        'OnboardMenu passes the scoped relauncher to BindInterfaceField',
-        (tester) async {
+        'ConnectionSettingsSection passes the scoped relauncher to '
+        'BindInterfaceField', (tester) async {
       final bridge = ScriptableBridge()
         ..seedInterfaces([_iface(name: 'eth0', ipv4: '192.168.1.5')]);
       final relauncher = _RecordingRelauncher();
@@ -131,20 +131,14 @@ void main() {
               relauncher: relauncher.value,
               child: Scaffold(
                 body: SingleChildScrollView(
-                  child: OnboardMenu(
-                    onPickChat: () {},
-                    onPickGroup: () {},
-                    onPickChannel: () {},
-                    onPickJoin: () {},
-                  ),
+                  // The connection section is where the advanced controls
+                  // live since the onboarding disclosure moved to the
+                  // settings screen.
+                  child: ConnectionSettingsSection(),
                 ),
               )),
           overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
 
-      final advanced = find.text('Advanced connection settings');
-      await tester.ensureVisible(advanced);
-      await tester.tap(advanced);
-      await tester.pumpAndSettle();
       final bind = find.text('Bind');
       await tester.ensureVisible(bind);
       await tester.tap(bind);

@@ -1,14 +1,15 @@
-// Embeddable OnboardMenu body: identity chip, Start tiles, Join tiles,
-// Advanced + About disclosures. No Scaffold so a caller embeds it
-// (OnboardingScreen wraps in Center > SingleChildScrollView >
-// ConstrainedBox; atomic #3 embeds the same widget inline in the desktop
-// chat-pane).
+// Embeddable OnboardMenu body: identity chip, Start tiles, Join tiles.
+// No Scaffold so a caller embeds it (OnboardingScreen wraps in Center >
+// SingleChildScrollView > ConstrainedBox; atomic #3 embeds the same widget
+// inline in the desktop chat-pane).
 //
-// Owns the 3 TextEditingControllers + inviteFlow handlers verbatim from the
-// former inline OnboardingScreen body. Tile taps call injected VoidCallbacks
-// (onPickChat/Group/Channel/Join) -- the menu does NOT context.go itself;
-// the caller decides routing. Diagnostics lives in the caller's AppBar /
-// peer-status button, not here.
+// The Advanced + About disclosures moved to the settings screen (the gear
+// at the rail bottom): connection controls, device picks and the crypto
+// notice live there now, so the first-run surface is only identity + the
+// four tiles. This menu keeps the display-name chip (`inviteFlowProvider`
+// seeds it) and the tile taps, which call injected VoidCallbacks
+// (onPickChat/Group/Channel/Join) — the menu does NOT context.go itself;
+// the caller decides routing.
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -16,12 +17,6 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/shared/disclosure.dart';
-import 'package:mosh/src/features/shared/field.dart';
-import 'package:mosh/src/features/shared/read_receipts_toggle.dart';
-import 'package:mosh/src/features/vpn/bind_interface_field.dart';
-import 'package:mosh/src/platform/desktop_app_relauncher.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 part 'onboard_menu_x.dart';
@@ -56,8 +51,6 @@ class OnboardMenu extends ConsumerStatefulWidget {
 
 class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   late final TextEditingController _nameController;
-  late final TextEditingController _staticPeerController;
-  late final TextEditingController _listenPortController;
 
   @override
   void initState() {
@@ -66,45 +59,16 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
     _nameController = TextEditingController(
       text: ref.read(inviteFlowProvider).displayName,
     );
-    // Advanced disclosure fields -- seeded from inviteFlow (staticPeer is
-    // nullable String, listenPort defaults to 8765) so they survive rebuilds.
-    _staticPeerController = TextEditingController(
-      text: ref.read(inviteFlowProvider).staticPeer ?? '',
-    );
-    _listenPortController = TextEditingController(
-      text: ref.read(inviteFlowProvider).listenPort.toString(),
-    );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _staticPeerController.dispose();
-    _listenPortController.dispose();
     super.dispose();
   }
 
   void _onNameChanged(String value) =>
       ref.read(inviteFlowProvider.notifier).setDisplayName(value);
-
-  // Advanced disclosure handlers: staticPeer maps an empty string to null
-  // (matching the String? state); listenPort parses with a 0 fallback on
-  // non-numeric input.
-  void _onStaticPeerChanged(String value) => ref
-      .read(inviteFlowProvider.notifier)
-      .setStaticPeer(value.isEmpty ? null : value);
-  void _onListenPortChanged(String value) {
-    // The port must stay in 0..65535 before it reaches inviteFlow (and
-    // onward to Rust as listen_port). The range is enforced by clamping
-    // the STORED value. The field text is intentionally NOT rewritten: a
-    // mid-typing rewrite (e.g. "999" -> "65535") is jarring and fights the
-    // user. The displayed text may therefore transiently show an
-    // out-of-range value, but only the clamped stored value crosses the
-    // seam.
-    final parsed = int.tryParse(value) ?? 0;
-    final n = parsed.clamp(0, 65535);
-    ref.read(inviteFlowProvider.notifier).setListenPort(n);
-  }
 
   TextStyle? _sectionStyle(ThemeData t) => t.textTheme.labelSmall?.copyWith(
         color: MoshColors.fg4,
@@ -180,60 +144,6 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
               onTap: widget.onPickChannel,
             ),
           ],
-        ),
-        const SizedBox(height: 18),
-        Disclosure(
-          icon: Icons.settings,
-          label: l.onboardAdvancedToggle,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _AdvancedTextField(
-                label: l.setupStaticPeerLabel,
-                hint: l.setupStaticPeerHint,
-                fieldHint: l.setupStaticPeerPlaceholder,
-                controller: _staticPeerController,
-                onChanged: _onStaticPeerChanged,
-              ),
-              const SizedBox(height: 12),
-              _AdvancedTextField(
-                label: l.setupListenPortLabel,
-                hint: l.setupListenPortHint,
-                controller: _listenPortController,
-                keyboardType: TextInputType.number,
-                onChanged: _onListenPortChanged,
-              ),
-              const SizedBox(height: 12),
-              // Bind-interface override. Writes the same stored
-              // VPN-bypass answer the startup question does + relaunches
-              // via onAccept.
-              BindInterfaceField(
-                bridge: ref.read(bridgeFacadeProvider),
-                l: l,
-                onAccept: DesktopAppRelauncherScope.of(context).relaunch,
-              ),
-              const SizedBox(height: 12),
-              // The app-level read-receipts answer (one toggle for every
-              // DM; issue #2). Lives beside the bind-interface override
-              // because both are Advanced-level settings with a persisted
-              // answer read at call time.
-              ReadReceiptsToggle(),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Disclosure(
-          icon: Icons.verified_user,
-          label: l.onboardAboutToggle,
-          child: Text(
-            l.cryptoNoticeBody,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 11.5,
-              height: 1.6,
-            ),
-          ),
         ),
       ],
     );

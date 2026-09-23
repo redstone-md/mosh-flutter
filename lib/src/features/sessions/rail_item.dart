@@ -164,6 +164,57 @@ class RailDivider extends StatelessWidget {
   }
 }
 
+/// The gear button pinned at the bottom of the rail: full width, 40px
+/// tall, radius 12, a settings glyph and a 12.5px/600 fg-2 label. Opens
+/// the Discord-like settings screen (AppRoutes.settings).
+class RailSettingsButton extends StatelessWidget {
+  const RailSettingsButton({super.key, required this.label, this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(12);
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        borderRadius: radius,
+        onTap: onTap,
+        hoverColor: MoshColors.bg2,
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            color: MoshColors.bg2,
+          ),
+          child: Row(
+            children: <Widget>[
+              const Icon(Icons.settings_outlined,
+                  size: 18, color: MoshColors.fg2),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: MoshColors.fg2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The dashed moss "New chat" button at the top of the rail: full width,
 /// 40px tall, radius 12, a 1.5px dashed moss border at 35% alpha, a moss
 /// plus glyph and a 12.5px/700 fg-1 label.

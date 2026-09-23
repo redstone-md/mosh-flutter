@@ -26,6 +26,8 @@ import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/onboarding_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
+import 'package:mosh/src/features/settings/settings_screen.dart'
+    show SettingsScreen;
 
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/channel_join_screen.dart';
@@ -50,6 +52,10 @@ class AppRoutes {
   static const String channel = '/channel';
 
   static const String group = '/group';
+
+  /// The Discord-like settings screen (Voice & Video / Connection /
+  /// About), opened by the gear at the rail bottom.
+  static const String settings = '/settings';
 
   /// Chat-create step route. Reached from the onboarding Chat tile.
   static const String chatCreate = '/chat-create';
@@ -216,6 +222,14 @@ final GoRouter appRouter = GoRouter(
                 final groupId = state.pathParameters['groupId']!;
                 return GroupScreen(groupId: groupId);
               },
+            ),
+            GoRoute(
+              // Settings. Same branch as the chat so the rail stays
+              // visible beside it on desktop; the gear at the rail bottom
+              // context.go's here. Full-screen on mobile.
+              path: AppRoutes.settings,
+              builder: (BuildContext context, GoRouterState state) =>
+                  const SettingsScreen(),
             ),
           ],
         ),
