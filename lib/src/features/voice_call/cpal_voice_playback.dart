@@ -18,6 +18,7 @@ import 'package:mosh/src/rust/api/voice_call_playback.dart'
     show VoicePlayback, voiceCallPlaybackStart, voiceCallPlaybackStop;
 import 'package:mosh/src/rust/api/voice_call_playback.dart'
     show voiceCallPlaybackPushFrame;
+import 'package:mosh/src/rust/api/audio_devices.dart' show audioOutputDeviceId;
 
 import 'voice_playback.dart';
 
@@ -35,7 +36,10 @@ class CpalVoicePlaybackFactory implements VoicePlaybackFactory {
     // directly and throws a Dart exception on failure (no default device,
     // stream build/play error). `start()` stays `Future`-typed for the seam;
     // no async I/O is actually needed, so the future completes immediately.
-    final VoicePlayback inner = voiceCallPlaybackStart();
+    // The stored output pick (audio-devices.json) resolves inside Rust —
+    // an unknown/unplugged id degrades to the default device there.
+    final VoicePlayback inner =
+        voiceCallPlaybackStart(outputDeviceId: audioOutputDeviceId());
     return _CpalVoicePlaybackHandle(inner);
   }
 }

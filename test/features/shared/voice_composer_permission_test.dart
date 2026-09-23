@@ -104,16 +104,22 @@ Future<void> _pumpComposer(
   required List<String> errors,
   List<VoiceSend>? sent,
 }) async {
-  // The capture asks the platform for a temp dir. Real async IO never
-  // resolves inside a widget test's fake async zone, so the directory is
-  // created (and torn down) synchronously.
+  // The capture asks the platform for the app cache dir (the clip dir
+  // fix). Real async IO never resolves inside a widget test's fake async
+  // zone, so the directory is created (and torn down) synchronously; the
+  // stub answers the cache method, with a synchronous create of the
+  // mosh-voice subdir skipped — the composer's own recursive create
+  // handles it in the app.
   final dir = Directory.systemTemp.createTempSync('mosh-voice-test');
   addTearDown(() => dir.deleteSync(recursive: true));
 
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async => dir.path);
+          (call) async => switch (call.method) {
+                'getApplicationCacheDirectory' => dir.path,
+                _ => null,
+              });
   addTearDown(() => TestDefaultBinaryMessengerBinding
       .instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
@@ -132,6 +138,7 @@ Future<void> _pumpComposer(
           playLabel: 'Play',
           sendLabel: 'Send voice',
           permissionDeniedLabel: 'mic denied',
+          inputDeviceId: () => null,
         ),
       ),
     ),

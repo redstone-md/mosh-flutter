@@ -2,6 +2,7 @@
 
 library;
 
+import 'package:mosh/src/rust/api/audio_devices.dart' show audioOutputDeviceId;
 import 'package:mosh/src/rust/api/voice_call_ringtone.dart'
     show VoiceCallRingtone, voiceCallRingtoneStart, voiceCallRingtoneStop;
 
@@ -11,7 +12,10 @@ class CpalRingtonePlayer implements RingtonePlayer {
   const CpalRingtonePlayer();
 
   @override
-  RingtoneHandle start() => _CpalRingtoneHandle(voiceCallRingtoneStart());
+  // The stored output pick (audio-devices.json) resolves inside Rust; an
+  // unknown id degrades to the default device there.
+  RingtoneHandle start() => _CpalRingtoneHandle(
+      voiceCallRingtoneStart(outputDeviceId: audioOutputDeviceId()));
 }
 
 class _CpalRingtoneHandle implements RingtoneHandle {

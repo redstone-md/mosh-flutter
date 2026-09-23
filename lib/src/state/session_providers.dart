@@ -77,17 +77,28 @@ class InviteFlowState {
   String get senderDisplayName =>
       displayName.isEmpty ? 'anonymous' : displayName;
 
+  /// A nullable field needs a sentinel to tell "not passed" from "passed
+  /// as null": with a plain `String? staticPeer` parameter, a reset
+  /// (`staticPeer: null`) was indistinguishable from "keep the old
+  /// value" (`?? this.staticPeer`), so a static peer could never be
+  /// cleared — only overwritten. The sentinels make the reset explicit;
+  /// the fields themselves stay plain and optional.
+  static const Object _unset = Object();
+
   InviteFlowState copyWith({
     String? displayName,
     int? listenPort,
-    String? staticPeer,
-    InviteCreated? lastInvite,
+    Object? staticPeer = _unset,
+    Object? lastInvite = _unset,
   }) =>
       InviteFlowState(
         displayName: displayName ?? this.displayName,
         listenPort: listenPort ?? this.listenPort,
-        staticPeer: staticPeer ?? this.staticPeer,
-        lastInvite: lastInvite ?? this.lastInvite,
+        staticPeer:
+            staticPeer == _unset ? this.staticPeer : staticPeer as String?,
+        lastInvite: lastInvite == _unset
+            ? this.lastInvite
+            : lastInvite as InviteCreated?,
       );
 }
 
