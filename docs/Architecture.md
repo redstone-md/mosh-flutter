@@ -654,6 +654,41 @@ badge. The offer row is the one row with no conversation behind it, so it gets
 zero, false and null — it renders the accept affordance and the dismiss X
 through the same `RailItem` every other row uses.
 
+## Settings
+
+The settings surface is a route, not a modal: `/settings`
+(`AppRoutes.settings`), opened by the gear pinned under the rail's list
+(`RailSettingsButton`). It lives in `lib/src/features/settings/`, one file
+per section; the screen file owns only the frame (section enum, nav,
+content switch, the mobile single-column degradation).
+
+```mermaid
+flowchart TD
+    Gear["RailSettingsButton (rail bottom)"] -->|context.go /settings| Route["/settings route"]
+    Route --> Screen["SettingsScreen"]
+    Screen --> Voice["Voice & Video"]
+    Screen --> Conn["Connection"]
+    Screen --> About["About"]
+    Voice --> Input["mic picker: record listInputDevices"]
+    Voice --> Output["speaker picker: mosh-core list_output_devices"]
+    Voice --> Test["Play test sound: voiceCallRingtoneStart"]
+    Conn --> InviteFlow["inviteFlowProvider: staticPeer / listenPort"]
+    Conn --> Bind["BindInterfaceField + ReadReceiptsToggle"]
+    Output --> Store["audio-devices.json (data dir)"]
+    Input --> Store
+    Store -->|resolve at start| Playback["call playback / ringtone (cpal)"]
+    Store -->|RecordConfig.device| Capture["call capture / voice composer"]
+```
+
+The device picks persist in `audio-devices.json` in the data dir (the
+read-receipts pattern: a non-secret answer readable pre-runtime). The input
+pick is consumed by Dart — `RecordConfig.device` into `record`'s capture
+paths (call capture and the voice composer); the output pick resolves
+inside mosh-core at stream start (`resolve_output_device`), where an
+unknown or unplugged id degrades to the system default with a log line,
+never a failed call. The advanced connection controls moved here from the
+onboarding menu's Advanced disclosure, which no longer exists.
+
 ## Voice Call Module
 
 One module holds the whole call pipeline. It lives in

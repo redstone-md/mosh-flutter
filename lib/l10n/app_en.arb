@@ -1265,6 +1265,50 @@
   "@voicePermissionDenied": {
     "description": "Snackbar shown when the microphone permission request is refused, surfaced via the composer's onVoiceError"
   },
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "AppBar title of the settings screen reached from the rail gear"
+  },
+  "settingsSectionVoice": "Voice & Video",
+  "@settingsSectionVoice": {
+    "description": "Left-nav label of the Voice & Video settings section"
+  },
+  "settingsSectionConnection": "Connection",
+  "@settingsSectionConnection": {
+    "description": "Left-nav label of the Connection settings section (the advanced connection controls)"
+  },
+  "settingsSectionAbout": "About",
+  "@settingsSectionAbout": {
+    "description": "Left-nav label of the About settings section"
+  },
+  "settingsGearLabel": "Settings",
+  "@settingsGearLabel": {
+    "description": "Label for the gear button pinned at the bottom of the sessions rail"
+  },
+  "settingsInputDeviceLabel": "Microphone",
+  "@settingsInputDeviceLabel": {
+    "description": "Field label of the input-device dropdown in the Voice & Video settings section"
+  },
+  "settingsInputDeviceHint": "The microphone used for voice messages and calls. Applies from the next recording.",
+  "@settingsInputDeviceHint": {
+    "description": "Hint under the input-device dropdown"
+  },
+  "settingsOutputDeviceLabel": "Speaker",
+  "@settingsOutputDeviceLabel": {
+    "description": "Field label of the output-device dropdown in the Voice & Video settings section"
+  },
+  "settingsOutputDeviceHint": "Where call audio and ringtones play. Applies from the next call.",
+  "@settingsOutputDeviceHint": {
+    "description": "Hint under the output-device dropdown"
+  },
+  "settingsDeviceDefault": "System default",
+  "@settingsDeviceDefault": {
+    "description": "Dropdown entry meaning no explicit device pick: use whatever the OS default is"
+  },
+  "settingsTestRingtone": "Play test sound",
+  "@settingsTestRingtone": {
+    "description": "Button label in the Voice & Video section; plays the call ringtone on the picked speaker"
+  },
   "voiceMessagePlayLabel": "Play voice message",
   "@voiceMessagePlayLabel": {
     "description": "Tooltip/aria-label for the voice-message card play button (React VoiceMessage.tsx, idle)"

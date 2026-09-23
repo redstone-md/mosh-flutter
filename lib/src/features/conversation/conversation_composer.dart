@@ -20,6 +20,7 @@ import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
     show PasteImageAction;
 import 'package:mosh/src/features/shared/voice_composer.dart';
+import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
 
 /// Horizontal gap between composer-box children.
 const double kComposerGap = 8;
@@ -30,6 +31,10 @@ const double kComposerButtonSize = 32;
 /// The send square's key. It holds an icon, not a label, so widget tests
 /// address it by key rather than by text.
 const Key kComposerSendButtonKey = Key('composer-send-button');
+
+/// The production input pick: mosh-core's audio-devices store. A top-level
+/// default (not inline) so the composer stays const-constructible.
+String? _storedComposerInputDeviceId() => audioInputDeviceId();
 
 /// The shared DM + channel + group composer. Stateless because all state is
 /// transient or owned by the screen (`controller` + `sending` are passed in;
@@ -54,6 +59,7 @@ class ConversationComposer extends StatelessWidget {
     required this.voicePermissionDeniedLabel,
     required this.onSendVoice,
     required this.onVoiceError,
+    this.inputDeviceId = _storedComposerInputDeviceId,
     this.onTyping,
   });
 
@@ -93,6 +99,11 @@ class ConversationComposer extends StatelessWidget {
   /// lands or the 5 s expiry passes). Null keeps the composer inert for
   /// kinds that never carry typing (channels).
   final VoidCallback? onTyping;
+
+  /// Reads the stored input-device pick for the voice composer's capture.
+  /// Injectable so widget tests (no cdylib) pass a plain getter; the
+  /// default reads mosh-core's audio-devices store.
+  final String? Function() inputDeviceId;
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +151,7 @@ class ConversationComposer extends StatelessWidget {
                   playLabel: voicePlayLabel,
                   sendLabel: voiceSendLabel,
                   permissionDeniedLabel: voicePermissionDeniedLabel,
+                  inputDeviceId: inputDeviceId,
                 ),
                 const SizedBox(width: kComposerGap),
                 Expanded(

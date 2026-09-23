@@ -4,6 +4,46 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+The voice round: a macOS voice message that failed to send, a macOS
+callee nobody could hear, and every setting behind one gear.
+
+### Fixed
+- **macOS voice messages send again.** Recording "succeeded" but the send
+  died with `PathNotFoundException` (errno 2, "No such file or
+  directory"): the clip path pointed into the platform cache dir that
+  path_provider maps to `NSCachesDirectory` + the bundle id on macOS — a
+  directory nothing created — and `record_macos`' `AVCaptureFileOutput`
+  neither creates parent dirs nor surfaces the write failure, so `stop()`
+  returned a path to a file that was never written. The clip now lands in
+  an explicit `mosh-voice/` subdirectory of the app cache, created
+  recursively at capture start — a broken directory fails visibly at the
+  mic tap, never again at send time. (Windows/iOS/Android were unaffected.)
+- **A macOS callee is audible in calls.** The macOS user heard the caller,
+  but the caller heard silence from the Mac. The call capture asked
+  `record` for `echoCancel/autoGain/noiseSuppress`, which on macOS enables
+  Apple's VoiceProcessingIO on an input-only `AVAudioEngine` graph — a
+  duplex unit that, wired one-sided, is a documented silent-tap failure
+  mode (the tap delivers zero-filled buffers on some devices/routes). Call capture now
+  runs raw on macOS (the three DSP knobs off; Opus DTX already covers
+  silence on the wire) and keeps the voice-processing DSP on the other
+  platforms.
+
+### Added
+- **A Discord-like settings screen behind a gear at the bottom of the
+  sessions rail.** Three sections: **Voice & Video** — a microphone picker
+  (enumerated through `record`'s `listInputDevices`) and a speaker picker
+  (a new mosh-core `list_output_devices` over cpal), plus a "Play test
+  sound" button that rings the call tone on the picked speaker; **Connection**
+  — the advanced connection controls (static peer, listen port,
+  bind-interface, read receipts) moved out of the onboarding menu; **About**
+  — version + crypto notice. Device picks persist in `audio-devices.json`
+  in the data dir and apply at the next recording/call: capture and the
+  voice composer read the input pick, call playback and the ringtone
+  resolve the output pick inside mosh-core (an unknown or unplugged device
+  degrades to the system default with a log line, never a failed call).
+
 ## [0.9.3] - 2026-09-23
 
 The crash-fix release: opening a chat no longer kills the macOS app, and

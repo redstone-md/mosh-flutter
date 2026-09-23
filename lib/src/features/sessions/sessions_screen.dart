@@ -30,8 +30,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
 import 'package:mosh/src/features/sessions/rail_entry.dart';
@@ -41,6 +43,7 @@ import 'package:mosh/src/features/sessions/revoked_dm_badges.dart'
     show revokedDmBadgesProvider;
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
+import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/state/conversation_providers.dart'
     show
@@ -55,7 +58,6 @@ import 'package:mosh/src/state/dm_offer_providers.dart';
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/unread_lifecycle_provider.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// The DM sessions-list screen: one row per conversation, a FAB to start a
 /// new session, and an empty state. See the file header for how the rail is
@@ -101,6 +103,14 @@ class SessionsScreen extends ConsumerWidget {
                   error: (e, _) => _ErrorState(error: e, ref: ref),
                   data: (list) => _RailList(dmSessions: sessionsOf(list)),
                 ),
+              ),
+              // The gear, pinned BELOW the scroller (the same fixed slot
+              // the NewSession button holds above it) so it never scrolls
+              // away — the Discord placement.
+              const SizedBox(height: kRailPadding),
+              RailSettingsButton(
+                label: l.settingsGearLabel,
+                onTap: () => context.go(AppRoutes.settings),
               ),
             ],
           ),
@@ -320,6 +330,9 @@ class _EmptyState extends StatelessWidget {
 }
 
 /// Error state with a Retry button that re-runs the DM entry's refresh.
+/// Scrollable: in a short window the fixed rows (gear included) can leave
+/// the Expanded slot under the error column's natural height, and a
+/// clipped Retry button is worse than a scroll.
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.error, required this.ref});
 
@@ -330,31 +343,34 @@ class _ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l.sessionsError,
-              style: theme.textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error.toString(),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 18),
-            FilledButton(
-              onPressed: () => ref
-                  .read(conversationListProvider(ConversationKind.dm).notifier)
-                  .refresh(),
-              child: Text(l.sessionsRetry),
-            ),
-          ],
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l.sessionsError,
+                style: theme.textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                error.toString(),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: () => ref
+                    .read(
+                        conversationListProvider(ConversationKind.dm).notifier)
+                    .refresh(),
+                child: Text(l.sessionsRetry),
+              ),
+            ],
+          ),
         ),
       ),
     );
