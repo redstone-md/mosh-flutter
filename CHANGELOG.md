@@ -6,6 +6,21 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+- **macOS chat-open crash (TCC).** Opening any conversation crashed the app
+  on macOS with SIGABRT in the TCC namespace: the voice composer probed
+  the microphone at mount, and with no `NSMicrophoneUsageDescription` in
+  the macOS plist the system killed the process before a dialog could
+  appear. The usage key is added for macOS and iOS, the sandboxed app
+  carries the `com.apple.security.device.audio-input` entitlement, and
+  Android declares `RECORD_AUDIO`.
+- **Microphone permission now asks at the moment of intent.** The system
+  dialog fires on the mic tap, not on chat open, and a refusal surfaces a
+  localized snackbar through the composer's existing error path. The mic
+  button always renders, so a user who declined can still reach the
+  request later (and the same flow covers voice calls, whose capture
+  probes the permission itself on start).
+
 ## [0.9.2] - 2026-09-22
 
 The simplification drive: ~11,000 net lines removed with zero behavior

@@ -1261,6 +1261,10 @@
   "@voiceSendLabel": {
     "description": "Tooltip for the send button in the review voice phase (React VoiceComposer.tsx review phase)"
   },
+  "voicePermissionDenied": "Microphone access is denied. Enable it in your system settings to record voice messages.",
+  "@voicePermissionDenied": {
+    "description": "Snackbar shown when the microphone permission request is refused, surfaced via the composer's onVoiceError"
+  },
   "voiceMessagePlayLabel": "Play voice message",
   "@voiceMessagePlayLabel": {
     "description": "Tooltip/aria-label for the voice-message card play button (React VoiceMessage.tsx, idle)"

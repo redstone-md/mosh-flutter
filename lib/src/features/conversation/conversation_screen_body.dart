@@ -218,6 +218,7 @@ class ConversationScreenBody extends ConsumerWidget {
         voiceStopLabel: l.voiceStopLabel,
         voicePlayLabel: l.voicePlayLabel,
         voiceSendLabel: l.voiceSendLabel,
+        voicePermissionDeniedLabel: l.voicePermissionDenied,
         onSendVoice: controller.sendVoice,
         onVoiceError: onVoiceError,
       );

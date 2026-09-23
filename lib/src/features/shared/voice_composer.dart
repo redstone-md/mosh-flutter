@@ -1,15 +1,16 @@
-/// Slice-3 voice composer. Microphone capture with
-/// three phases (idle -> recording -> review) before sending. The recording
-/// itself uses the `record` package (`AudioRecorder`); live amplitude samples
-/// feed a 64-bucket waveform (peak
-/// per bucket, base64-encoded for `VoiceMeta.peaksB64`).
+/// Slice-3 voice composer. Microphone capture with three phases
+/// (idle -> recording -> review) before sending, via the `record` package
+/// (`AudioRecorder`); live amplitude samples feed a 64-bucket waveform
+/// (peak per bucket, base64-encoded for `VoiceMeta.peaksB64`).
 ///
-/// Phases: idle renders a mic IconButton;
-/// recording renders a dot + elapsed timer + discard + stop; review renders
-/// play + duration + discard + send. `disabled` gates the mic button (idle).
-/// `onSend(voice)` hands a `VoiceSend` to the screen; `onError(message)`
-/// surfaces mic-permission / start failures. `supported` is checked once on
-/// init (`AudioRecorder.hasPermission`); unsupported renders nothing.
+/// idle renders a mic IconButton; recording renders dot + elapsed timer +
+/// discard + stop; review renders play + duration + discard + send.
+/// `disabled` gates the mic button (idle). `onSend(voice)` hands a
+/// [VoiceSend] to the screen; `onError(message)` surfaces mic-permission /
+/// start failures. The mic button always renders; the permission request
+/// happens on tap (`AudioRecorder.hasPermission`), never at mount — asking
+/// at chat open is what triggered the macOS TCC crash, and a dialog
+/// before intent is bad form anyway.
 library;
 
 import 'dart:async' show StreamSubscription, Timer;
@@ -24,9 +25,9 @@ import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:record/record.dart';
 import 'package:media_kit/media_kit.dart';
 
-/// A finished voice clip ready to send. `path`
-/// points at the recorded file; `mime` is the container; `durationMs` + the
-/// 64-bucket `peaksBase64` waveform form `VoiceMeta` on the gateway seam.
+/// A finished voice clip ready to send: `path` points at the recorded
+/// file, `mime` is the container; `durationMs` + the 64-bucket
+/// `peaksBase64` waveform form `VoiceMeta` on the gateway seam.
 class VoiceSend {
   const VoiceSend({
     required this.path,
@@ -56,17 +57,15 @@ String formatVoiceClock(int ms) {
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
-/// The live m:ss timers (record elapsed, preview duration). Tabular figures:
-/// the digits change every tick, and proportional numerals let the row
-/// (discard/stop after the timer) shift horizontally -- the call overlay's
-/// timer already renders this way (audit 2026-09-21).
+/// The live m:ss timers (record elapsed, preview duration). Tabular
+/// figures: the digits change every tick, and proportional numerals would
+/// let the row shift horizontally (audit 2026-09-21).
 const TextStyle kVoiceTimerStyle =
     TextStyle(fontFeatures: kLiveNumberFontFeatures);
 
-/// The recording indicator's 8px dot. Palette
-/// accent, not a raw Material red: the theme's danger token (audit
-/// 2026-09-21 palette-drift). Public so the accent is testable without the
-/// platform microphone.
+/// The recording indicator's 8px dot — the theme's danger token, not a raw
+/// Material red (audit 2026-09-21 palette-drift). Public so the accent is
+/// testable without the platform microphone.
 class VoiceRecordingDot extends StatelessWidget {
   const VoiceRecordingDot({super.key});
 
@@ -99,6 +98,7 @@ class VoiceComposer extends StatefulWidget {
     required this.stopLabel,
     required this.playLabel,
     required this.sendLabel,
+    required this.permissionDeniedLabel,
   });
 
   final bool disabled;
@@ -110,6 +110,9 @@ class VoiceComposer extends StatefulWidget {
   final String playLabel;
   final String sendLabel;
 
+  /// Shown via [onError] when the tap-time permission request is refused.
+  final String permissionDeniedLabel;
+
   @override
   State<VoiceComposer> createState() => _VoiceComposerState();
 }
@@ -117,7 +120,6 @@ class VoiceComposer extends StatefulWidget {
 class _VoiceComposerState extends State<VoiceComposer> {
   final AudioRecorder _recorder = AudioRecorder();
   _Phase _phase = _Phase.idle;
-  bool _supported = false;
   Timer? _elapsedTimer;
   Timer? _autoStopTimer;
   StreamSubscription<Amplitude>? _amplitudeSub;
@@ -126,37 +128,20 @@ class _VoiceComposerState extends State<VoiceComposer> {
   String? _path;
   String _mime = '';
   int _durationMs = 0;
-  // Review-phase preview player (media_kit). Lazy + nullable: created on the
-  // first _togglePreview and disposed on discard / send / widget dispose.
-  // Null (test env without the native lib) -> the play button is a no-op,
-  // matching the previous inert placeholder so existing tests stay green.
+  // Review-phase preview player (media_kit). Lazy + nullable: created on
+  // the first _togglePreview, disposed on discard / send / dispose. Null
+  // (test env without the native lib) -> the play button is a no-op.
   Player? _previewPlayer;
   bool _previewPlaying = false;
-  // One recorder teardown at a time. Manual stop, the auto-stop timer, and
+  // One recorder teardown at a time: manual stop, the auto-stop timer and
   // discard all tear the capture down asynchronously; without the guard a
-  // discard racing a stop cancelled the recorder under the stop() call and
-  // deleted the file stop() was still writing -- leaving a review row whose
-  // play/send pointed at nothing.
+  // discard racing a stop cancelled the recorder under the stop() call
+  // and deleted the file stop() was still writing.
   bool _finalizing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkSupported();
-  }
 
   /// setState only while the state is still alive.
   void _ifMounted(VoidCallback fn) {
     if (mounted) fn();
-  }
-
-  Future<void> _checkSupported() async {
-    try {
-      final ok = await _recorder.hasPermission();
-      _ifMounted(() => setState(() => _supported = ok));
-    } catch (_) {
-      // Permission check itself failed -- treat as unsupported (render null).
-    }
   }
 
   @override
@@ -167,8 +152,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
     super.dispose();
   }
 
-  /// Cancels the elapsed + auto-stop timers and the amplitude stream --
-  /// everything the capture owns that must not fire after it ends.
+  /// Cancels the elapsed / auto-stop timers and the amplitude stream.
   void _stopTimersAndAmplitude() {
     _stopTimers();
     _amplitudeSub?.cancel();
@@ -182,11 +166,10 @@ class _VoiceComposerState extends State<VoiceComposer> {
     _autoStopTimer = null;
   }
 
-  /// Toggle the review-phase preview. The first tap creates the player and
-  /// opens the recorded file; later taps toggle play/pause. The playing
-  /// stream drives the play/pause icon. Defensive: if Player() throws
-  /// (test env), the button is a no-op so the review row still renders minus
-  /// live preview.
+  /// Toggle the review-phase preview: the first tap creates the player and
+  /// opens the recorded file; later taps toggle play/pause (the playing
+  /// stream drives the icon). If Player() throws (test env without the
+  /// native lib) the button is a no-op so the review row still renders.
   Future<void> _togglePreview() async {
     final path = _path;
     if (path == null) return;
@@ -203,9 +186,8 @@ class _VoiceComposerState extends State<VoiceComposer> {
     }
   }
 
-  /// Creates the preview player, wires its playing stream, and opens the
-  /// recorded file. Throwing here (test env without the native lib) resets
-  /// the preview in the caller's catch.
+  /// Creates the preview player, wires its playing stream, opens the file.
+  /// Throwing here resets the preview in the caller's catch.
   Future<void> _openPreview(String path) async {
     final player = Player();
     _previewPlayer = player;
@@ -222,8 +204,16 @@ class _VoiceComposerState extends State<VoiceComposer> {
   }
 
   Future<void> _startRecording() async {
-    if (widget.disabled || !_supported) return;
+    if (widget.disabled || _phase != _Phase.idle) return;
     try {
+      // Ask at the moment of intent: hasPermission() requests when the
+      // status is .notDetermined and just reports otherwise. `record`'s
+      // start() never requests on its own, so this call is the only gate.
+      final allowed = await _recorder.hasPermission();
+      if (!allowed) {
+        widget.onError(widget.permissionDeniedLabel);
+        return;
+      }
       await _capture();
       _ifMounted(() => setState(() => _phase = _Phase.recording));
     } catch (error) {
@@ -231,8 +221,8 @@ class _VoiceComposerState extends State<VoiceComposer> {
     }
   }
 
-  /// Starts the capture: allocates the temp file, resets the meter, and
-  /// wires the amplitude + elapsed timers + the auto-stop deadline.
+  /// Starts the capture: allocates the temp file, resets the meter, wires
+  /// the amplitude / elapsed timers and the auto-stop deadline.
   Future<void> _capture() async {
     final dir = await getTemporaryDirectory();
     _path =
@@ -255,9 +245,9 @@ class _VoiceComposerState extends State<VoiceComposer> {
     _autoStopTimer = Timer(maxRecording, _finishRecording);
   }
 
-  /// The shared failure path of start/finish: surface the error, tear the
-  /// capture down, and drop back to idle. Called from inside a finalizing
-  /// flow (the guard is already held) or straight from _startRecording.
+  /// Shared failure path of start/finish: surface the error, tear the
+  /// capture down, drop back to idle. Called with the guard already held
+  /// or straight from _startRecording.
   Future<void> _abortRecording(Object error) async {
     widget.onError(error.toString());
     _stopTimersAndAmplitude();
@@ -267,7 +257,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
   }
 
   void _onAmplitude(Amplitude amplitude) {
-    // Amplitude.current is in dBFS (-60..0). Map to 0..255 and store the peak
+    // Amplitude.current is dBFS (-60..0); map to 0..255 and keep the peak
     // per bucket as the recording progresses (live downsample).
     final db = amplitude.current;
     final normalized = ((db + 60) / 60).clamp(0.0, 1.0);
@@ -315,16 +305,12 @@ class _VoiceComposerState extends State<VoiceComposer> {
   Future<void> _cleanupRecorder() async {
     try {
       await _recorder.cancel();
-    } catch (_) {
-      // best-effort
-    }
+    } catch (_) {/* best-effort */}
     if (_path != null) {
       try {
         final file = File(_path!);
         if (await file.exists()) await file.delete();
-      } catch (_) {
-        // best-effort
-      }
+      } catch (_) {/* best-effort */}
     }
     _path = null;
   }
@@ -345,7 +331,6 @@ class _VoiceComposerState extends State<VoiceComposer> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_supported) return const SizedBox.shrink();
     return switch (_phase) {
       _Phase.idle => _buildIdle(),
       _Phase.recording => _buildRecording(),
@@ -353,7 +338,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
     };
   }
 
-  /// The mic button. Disabled while the composer's `disabled` flag is set.
+  /// The mic button; gated by the composer's `disabled` flag.
   Widget _buildIdle() => IconButton(
         icon: const Icon(Icons.mic_none_outlined),
         tooltip: widget.recordLabel,
