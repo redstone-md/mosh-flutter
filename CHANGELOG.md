@@ -4,7 +4,7 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.4] - 2026-09-23
 
 The voice round: a macOS voice message that failed to send, a macOS
 callee nobody could hear, and every setting behind one gear.
