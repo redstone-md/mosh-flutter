@@ -51,6 +51,13 @@ pub mod vpn;
 /// `voice_call_opus_encode`.
 pub mod voice_call_opus_encode;
 
+/// Facade for the audio-device picks: `list_output_devices` (cpal
+/// enumeration) and the stored input/output device ids
+/// (`audio-devices.json` in the data dir). The input id is consumed by
+/// Dart (`record`'s `RecordConfig.device`); the output id resolves to a
+/// cpal device inside the playback/ringtone starts.
+pub mod audio_devices;
+
 /// Facade for the voice-call Opus decoder + cpal output (real playback
 /// pipeline: Opus packet -> Rust decode -> ring buffer -> cpal stream with
 /// drift-resync). See `voice_call_playback`.

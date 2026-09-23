@@ -34,8 +34,8 @@ use std::sync::{Arc, Mutex};
 
 use audiopus::{coder::Decoder, Channels, SampleRate};
 use cpal::{
-    default_host, traits::DeviceTrait, traits::HostTrait, traits::StreamTrait, BufferSize, Device,
-    FromSample, OutputCallbackInfo, SampleFormat, SizedSample, Stream, StreamConfig,
+    traits::DeviceTrait, traits::StreamTrait, BufferSize, Device, FromSample, OutputCallbackInfo,
+    SampleFormat, SizedSample, Stream, StreamConfig,
 };
 use flutter_rust_bridge::frb;
 use ringbuf::{
@@ -165,20 +165,21 @@ fn build_stream<T: SizedSample + FromSample<i16>>(
 
 /// Starts the playback pipeline: an Opus decoder (48 kHz mono) + a cpal output
 /// stream in the device's own format, fed from a 7680-sample ring. Synchronous (audio open is blocking on
-/// every cpal backend); `Err(String)` if there is no default output device or
-/// the stream cannot be built/started. Errors are stringified via `Debug`,
-/// matching `voice_call_opus_encode`'s `Result<T, String>` style.
+/// every cpal backend); `Err(String)` if there is no output device or
+/// the stream cannot be built/started. `output_device_id` is the stored
+/// audio-devices pick (cpal `DeviceId` string form); `None` or an unknown
+/// id resolves to the default device (see `api::audio_devices`).
 #[frb(sync)]
-pub fn voice_call_playback_start() -> Result<VoicePlayback, String> {
+pub fn voice_call_playback_start(
+    output_device_id: Option<String>,
+) -> Result<VoicePlayback, String> {
     let decoder = Decoder::new(SampleRate::Hz48000, Channels::Mono)
         .map_err(|e| format!("opus decoder init: {e:?}"))?;
 
     let ring = HeapRb::<i16>::new(RING_FRAMES * FRAME_SAMPLES);
     let (producer, consumer) = ring.split();
 
-    let device = default_host()
-        .default_output_device()
-        .ok_or_else(|| "cpal: no default output device".to_string())?;
+    let device = crate::audio_devices::resolve_output_device(output_device_id.as_deref())?;
 
     // Play in the device's own shape. WASAPI shared mode only accepts the
     // mix format (typically 48 kHz stereo f32, sometimes 44.1 kHz), so forcing

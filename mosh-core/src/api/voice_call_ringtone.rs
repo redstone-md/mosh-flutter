@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{default_host, OutputCallbackInfo, SampleFormat, Stream, StreamConfig};
+use cpal::traits::{DeviceTrait, StreamTrait};
+use cpal::{OutputCallbackInfo, SampleFormat, Stream, StreamConfig};
 use flutter_rust_bridge::frb;
 
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
@@ -166,10 +166,10 @@ pub struct VoiceCallRingtone {
 }
 
 #[frb(sync)]
-pub fn voice_call_ringtone_start() -> Result<VoiceCallRingtone, String> {
-    let device = default_host()
-        .default_output_device()
-        .ok_or_else(|| "cpal ringtone: no default output device".to_string())?;
+pub fn voice_call_ringtone_start(
+    output_device_id: Option<String>,
+) -> Result<VoiceCallRingtone, String> {
+    let device = crate::audio_devices::resolve_output_device(output_device_id.as_deref())?;
     let supported = device
         .default_output_config()
         .map_err(|error| format!("cpal ringtone: default output config: {error:?}"))?;
