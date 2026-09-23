@@ -16,14 +16,20 @@
 library;
 
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
+import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
 import 'package:mosh/src/rust/api/voice_call_opus_encode.dart'
     show VoiceCallOpusEncoder, voiceCallOpusEncode, voiceCallOpusEncoderNew;
 import 'package:record/record.dart'
-    show AudioEncoder, AudioRecorder, RecordConfig;
+    show AudioEncoder, AudioRecorder, InputDevice, RecordConfig;
 
 import 'voice_capture.dart';
+
+/// The production input pick: mosh-core's audio-devices store. A top-level
+/// default (not inline) so the factory stays const-constructible.
+String? _storedInputDeviceId() => audioInputDeviceId();
 
 /// The 20 ms frame size at 48 kHz mono PCM16: 960 samples * 2 bytes (int16 LE).
 const int kPcmFrameBytes = 1920;
@@ -49,10 +55,46 @@ class PcmFrameBuffer {
   }
 }
 
+/// Builds the call-capture [RecordConfig]. The PCM16/48kHz/mono shape is the
+/// Opus framing contract (`PcmFrameBuffer` + `voiceCallOpusEncode`).
+///
+/// [inputDevice] carries the stored audio-devices pick (`record`'s
+/// `InputDevice.id`); `null` lets the platform choose its default mic.
+///
+/// The voice-processing DSP knobs (`echoCancel`/`autoGain`/`noiseSuppress`)
+/// are platform-split: on macOS `record` implements them through
+/// `AVAudioEngine` + `setVoiceProcessingEnabled(true)` on an input-only
+/// graph, and Apple's VoiceProcessingIO is a duplex unit — wired one-sided
+/// it is a documented silent-tap failure mode (zero-filled input buffers on
+/// some devices/routes; Quill RCA-001, SO 59992239), which is exactly the
+/// 0.9.3 field report: the macOS callee's mic produces silence, so the
+/// caller hears nothing. Raw capture (knobs off) never touches VP; Opus DTX
+/// already covers silence on the wire. On other platforms the DSP is safe
+/// and stays on. `isMacOS` is a parameter, not `Platform.isMacOS` inline, so
+/// the builder is unit-testable on any host.
+RecordConfig callCaptureRecordConfig(
+        {required bool isMacOS, InputDevice? inputDevice}) =>
+    RecordConfig(
+      encoder: AudioEncoder.pcm16bits,
+      sampleRate: 48000,
+      numChannels: 1,
+      bitRate:
+          256000, // pcm16 ignores bitRate; record requires a non-zero value
+      echoCancel: !isMacOS,
+      noiseSuppress: !isMacOS,
+      autoGain: !isMacOS,
+      device: inputDevice,
+    );
+
 /// [VoiceCaptureFactory] backed by `record` + mosh-core Opus. Constructed at
 /// runtime where a mic is present; tests use [NoopVoiceCaptureFactory].
 class RecordVoiceCaptureFactory implements VoiceCaptureFactory {
-  const RecordVoiceCaptureFactory();
+  const RecordVoiceCaptureFactory({this.inputDeviceId = _storedInputDeviceId});
+
+  /// Reads the stored input-device pick (audio-devices.json) at start.
+  /// Injectable so a test-bound factory can pass a plain getter; the
+  /// default reads mosh-core's store. Null return = platform default.
+  final String? Function() inputDeviceId;
 
   // `AudioEncoder.pcm16bits` is universally supported per the `record` docs
   // (desktop + mobile). `isSupported` is a sync getter, so the honest default
@@ -69,15 +111,14 @@ class RecordVoiceCaptureFactory implements VoiceCaptureFactory {
       throw StateError('microphone permission denied');
     }
     final VoiceCallOpusEncoder encoder = voiceCallOpusEncoderNew();
-    const config = RecordConfig(
-      encoder: AudioEncoder.pcm16bits,
-      sampleRate: 48000,
-      numChannels: 1,
-      bitRate:
-          256000, // pcm16 ignores bitRate; record requires a non-zero value
-      echoCancel: true,
-      noiseSuppress: true,
-      autoGain: true,
+    // The stored input pick (audio-devices.json); null = platform default.
+    // The label is cosmetic on the platform side (macOS matches by id), so
+    // the id itself doubles as the label here.
+    final picked = inputDeviceId();
+    final config = callCaptureRecordConfig(
+      isMacOS: Platform.isMacOS,
+      inputDevice:
+          picked == null ? null : InputDevice(id: picked, label: picked),
     );
     final stream = await recorder.startStream(config);
     final buffer = PcmFrameBuffer();

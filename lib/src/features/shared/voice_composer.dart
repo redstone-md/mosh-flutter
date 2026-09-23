@@ -15,13 +15,15 @@ library;
 
 import 'dart:async' show StreamSubscription, Timer;
 import 'dart:convert' show base64Encode;
-import 'dart:io' show File;
+import 'dart:io' show Directory, File;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;
-import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
+import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
+import 'package:path_provider/path_provider.dart'
+    show getApplicationCacheDirectory;
 import 'package:record/record.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -84,6 +86,10 @@ class VoiceRecordingDot extends StatelessWidget {
 
 enum _Phase { idle, recording, review }
 
+/// The production input pick: mosh-core's audio-devices store. A top
+///-level default (not inline) so the widget stays const-constructible.
+String? _storedInputDeviceId() => audioInputDeviceId();
+
 /// Microphone control for the composer. Stateless from the screen's view:
 /// owns the recorder + the phase + the elapsed timer + the amplitude stream
 /// internally, and hands a ready-to-send [VoiceSend] to `onSend`.
@@ -99,6 +105,7 @@ class VoiceComposer extends StatefulWidget {
     required this.playLabel,
     required this.sendLabel,
     required this.permissionDeniedLabel,
+    this.inputDeviceId = _storedInputDeviceId,
   });
 
   final bool disabled;
@@ -112,6 +119,11 @@ class VoiceComposer extends StatefulWidget {
 
   /// Shown via [onError] when the tap-time permission request is refused.
   final String permissionDeniedLabel;
+
+  /// Reads the stored input-device pick (audio-devices.json) for the
+  /// capture config. Injectable so tests (no cdylib) pass a plain getter;
+  /// production uses the frb store read. Null return = platform default.
+  final String? Function() inputDeviceId;
 
   @override
   State<VoiceComposer> createState() => _VoiceComposerState();
@@ -223,16 +235,39 @@ class _VoiceComposerState extends State<VoiceComposer> {
 
   /// Starts the capture: allocates the temp file, resets the meter, wires
   /// the amplitude / elapsed timers and the auto-stop deadline.
+  ///
+  /// The clip lands in an explicit `mosh-voice/` subdirectory of the app
+  /// cache, created recursively HERE. Two reasons (macOS 0.9.3 field bug):
+  /// `getTemporaryDirectory()` maps to `NSCachesDirectory` + the bundle id
+  /// and path_provider never creates that base, and `record_macos` writes
+  /// via `AVCaptureFileOutput.startRecording(to:)`, which creates no
+  /// parent directory and reports the failure only to an unsurfaced
+  /// delegate — `stop()` still returns the path, so the file's absence
+  /// surfaced later as errno 2 in `sendVoice`'s `readAsBytes()`. The app
+  /// cache base (`getApplicationCacheDirectory`) IS created by the plugin,
+  /// and the explicit recursive create makes the invariant ours: a broken
+  /// directory fails at capture time, visibly, not at send time.
   Future<void> _capture() async {
-    final dir = await getTemporaryDirectory();
+    final cache = await getApplicationCacheDirectory();
+    final dir = Directory('${cache.path}/mosh-voice');
+    // Sync, not `await dir.create()`: the clip dir must exist before the
+    // recorder gets the path, and a sync create is indistinguishable in
+    // production (one mkdir per recording start).
+    dir.createSync(recursive: true);
     _path =
         '${dir.path}/mosh-voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
     _mime = 'audio/mp4';
     _elapsed = Duration.zero;
     _durationMs = 0;
     _peaks.fillRange(0, _peaks.length, 0);
+    // The stored input pick (audio-devices.json); null = platform default.
+    // The label is cosmetic on the platform side, so the id doubles as it.
+    final picked = widget.inputDeviceId();
     await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc),
+      RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        device: picked == null ? null : InputDevice(id: picked, label: picked),
+      ),
       path: _path!,
     );
     _amplitudeSub = _recorder
