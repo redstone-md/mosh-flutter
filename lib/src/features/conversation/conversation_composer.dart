@@ -51,6 +51,7 @@ class ConversationComposer extends StatelessWidget {
     required this.voiceStopLabel,
     required this.voicePlayLabel,
     required this.voiceSendLabel,
+    required this.voicePermissionDeniedLabel,
     required this.onSendVoice,
     required this.onVoiceError,
     this.onTyping,
@@ -78,6 +79,9 @@ class ConversationComposer extends StatelessWidget {
   final String voiceStopLabel;
   final String voicePlayLabel;
   final String voiceSendLabel;
+
+  /// Shown when the mic tap is refused by the permission system.
+  final String voicePermissionDeniedLabel;
   final void Function(VoiceSend voice) onSendVoice;
   final void Function(String message) onVoiceError;
 
@@ -135,6 +139,7 @@ class ConversationComposer extends StatelessWidget {
                   stopLabel: voiceStopLabel,
                   playLabel: voicePlayLabel,
                   sendLabel: voiceSendLabel,
+                  permissionDeniedLabel: voicePermissionDeniedLabel,
                 ),
                 const SizedBox(width: kComposerGap),
                 Expanded(

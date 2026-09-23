@@ -47,6 +47,7 @@ void main() {
               voiceStopLabel: 'Stop',
               voicePlayLabel: 'Play',
               voiceSendLabel: 'Send voice',
+              voicePermissionDeniedLabel: 'denied',
               onSendVoice: (_) {},
               onVoiceError: (_) {},
             ),
