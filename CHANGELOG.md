@@ -4,7 +4,11 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.3] - 2026-09-23
+
+The crash-fix release: opening a chat no longer kills the macOS app, and
+the microphone permission asks at the moment of intent instead of at
+chat open.
 
 ### Fixed
 - **macOS chat-open crash (TCC).** Opening any conversation crashed the app
