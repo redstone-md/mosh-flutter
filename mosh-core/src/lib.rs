@@ -1,6 +1,7 @@
 pub mod attachment_crypto;
 pub mod attachment_runtime;
 pub mod attachment_store;
+pub mod audio_devices;
 pub mod channel_runtime;
 pub mod commit_sequencer;
 pub mod conversation;

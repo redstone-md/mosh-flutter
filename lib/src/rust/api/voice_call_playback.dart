@@ -11,11 +11,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Starts the playback pipeline: an Opus decoder (48 kHz mono) + a cpal output
 /// stream in the device's own format, fed from a 7680-sample ring. Synchronous (audio open is blocking on
-/// every cpal backend); `Err(String)` if there is no default output device or
-/// the stream cannot be built/started. Errors are stringified via `Debug`,
-/// matching `voice_call_opus_encode`'s `Result<T, String>` style.
-VoicePlayback voiceCallPlaybackStart() =>
-    RustLib.instance.api.crateApiVoiceCallPlaybackVoiceCallPlaybackStart();
+/// every cpal backend); `Err(String)` if there is no output device or
+/// the stream cannot be built/started. `output_device_id` is the stored
+/// audio-devices pick (cpal `DeviceId` string form); `None` or an unknown
+/// id resolves to the default device (see `api::audio_devices`).
+VoicePlayback voiceCallPlaybackStart({String? outputDeviceId}) =>
+    RustLib.instance.api.crateApiVoiceCallPlaybackVoiceCallPlaybackStart(
+        outputDeviceId: outputDeviceId);
 
 /// Decodes one Opus packet and pushes its 960 i16 samples onto the ring. `seq`
 /// is the call frame sequence (preserves gaps on the wire), unused by cpal's

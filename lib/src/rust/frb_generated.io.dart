@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/attachment_stream.dart';
+import 'api/audio_devices.dart';
 import 'api/channel.dart';
 import 'api/conversation.dart';
 import 'api/conversation_bridge.dart';
@@ -149,6 +150,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AttachmentView dco_decode_attachment_view(dynamic raw);
+
+  @protected
+  AudioDeviceInfo dco_decode_audio_device_info(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
@@ -305,6 +309,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AttachmentView> dco_decode_list_attachment_view(dynamic raw);
+
+  @protected
+  List<AudioDeviceInfo> dco_decode_list_audio_device_info(dynamic raw);
 
   @protected
   List<ChannelMessage> dco_decode_list_channel_message(dynamic raw);
@@ -613,6 +620,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AttachmentView sse_decode_attachment_view(SseDeserializer deserializer);
 
   @protected
+  AudioDeviceInfo sse_decode_audio_device_info(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -785,6 +795,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AttachmentView> sse_decode_list_attachment_view(
+      SseDeserializer deserializer);
+
+  @protected
+  List<AudioDeviceInfo> sse_decode_list_audio_device_info(
       SseDeserializer deserializer);
 
   @protected
@@ -1126,6 +1140,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       AttachmentView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_audio_device_info(
+      AudioDeviceInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -1310,6 +1328,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_attachment_view(
       List<AttachmentView> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_audio_device_info(
+      List<AudioDeviceInfo> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_channel_message(
