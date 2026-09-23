@@ -67,25 +67,45 @@ pub fn save(config_dir: &Path, setting: &AudioDevicesSetting) -> std::io::Result
 /// directly.
 pub fn resolve_output_device(stored_id: Option<&str>) -> Result<Device, String> {
     let host = default_host();
-    let Some(raw) = stored_id.filter(|id| !id.is_empty()) else {
-        return default_output(&host);
-    };
-    match DeviceId::from_str(raw) {
-        Ok(id) => {
-            if let Some(device) = host.device_by_id(&id) {
-                return Ok(device);
-            }
-            log_fallback(&format!(
-                "stored output device not found ({raw}); using default"
-            ));
+    match resolve_decision(stored_id) {
+        Decision::Default => default_output(&host),
+        Decision::ByParsedId(id) => {
+            // A parsed-but-missing id is a stale pick, not an error.
+            host.device_by_id(&id).map(Ok).unwrap_or_else(|| {
+                log_fallback(&format!(
+                    "stored output device not found ({}); using default",
+                    id
+                ));
+                default_output(&host)
+            })
         }
-        Err(error) => {
+        Decision::Unreadable(raw) => {
             log_fallback(&format!(
-                "stored output device id unreadable ({raw}: {error}); using default"
+                "stored output device id unreadable ({raw}); using default"
             ));
+            default_output(&host)
         }
     }
-    default_output(&host)
+}
+
+/// What to do with a stored pick, independent of any live host — the pure
+/// half of the resolver, so the decision table is testable on hosts where
+/// touching cpal at all is unsafe (a CI Windows session without an audio
+/// service AVs inside WASAPI host init).
+enum Decision {
+    Default,
+    ByParsedId(DeviceId),
+    Unreadable(String),
+}
+
+fn resolve_decision(stored_id: Option<&str>) -> Decision {
+    let Some(raw) = stored_id.filter(|id| !id.is_empty()) else {
+        return Decision::Default;
+    };
+    match DeviceId::from_str(raw) {
+        Ok(id) => Decision::ByParsedId(id),
+        Err(_) => Decision::Unreadable(raw.to_string()),
+    }
 }
 
 fn default_output(host: &Host) -> Result<Device, String> {
@@ -113,32 +133,53 @@ mod tests {
         dir
     }
 
-    // The resolver's contract on this host: None (and "") must resolve to
-    // SOME device when the host has any output at all — CI runners and dev
-    // boxes both do. A garbage id must resolve too (the fallback path),
-    // never error: a stale pick degrades to the default device.
+    // The decision table is PURE (no host touch): a CI Windows session
+    // without an audio service AVs inside WASAPI host init, so the
+    // resolver's decision half is tested without opening any host, and
+    // the device resolution itself is device-integration-validated.
+    //
+    // `DeviceId::from_str` only accepts host names compiled into THIS
+    // platform (a `coreaudio:` id is unreadable on Windows and vice
+    // versa), so the parse-positive case builds its id from the
+    // platform's own host name.
+    fn this_platform_host_prefix() -> String {
+        let host = cpal::platform::available_hosts()
+            .first()
+            .map(|id| id.name().to_ascii_lowercase())
+            .unwrap_or_else(|| "unknown".to_string());
+        format!("{host}:test-device")
+    }
+
     #[test]
-    fn fallback_paths_resolve_when_the_host_has_an_output() {
-        if default_host().default_output_device().is_none() {
-            // Headless CI box: the contract is untestable here, not broken.
-            return;
+    fn decision_table_none_and_empty_go_to_default() {
+        assert!(matches!(resolve_decision(None), Decision::Default));
+        assert!(matches!(resolve_decision(Some("")), Decision::Default));
+    }
+
+    #[test]
+    fn decision_table_parses_a_wellformed_id() {
+        let wellformed = this_platform_host_prefix();
+        let Decision::ByParsedId(id) = resolve_decision(Some(&wellformed)) else {
+            panic!("a well-formed id ({wellformed}) must parse into the ByParsedId arm");
+        };
+        assert_eq!(id.to_string(), wellformed);
+    }
+
+    #[test]
+    fn decision_table_routes_garbage_to_the_unreadable_arm() {
+        // A host name this platform does not carry, a host no platform
+        // carries, and a string without a colon: all garbage, all
+        // degraded (never errors) by the host-touching half.
+        for garbage in [
+            "host-that-does-not-exist:device",
+            "coreaudio:gone",
+            "no-colon-at-all",
+        ] {
+            let Decision::Unreadable(raw) = resolve_decision(Some(garbage)) else {
+                panic!("garbage input ({garbage}) must land in the Unreadable arm");
+            };
+            assert_eq!(raw, garbage);
         }
-        assert!(
-            resolve_output_device(None).is_ok(),
-            "no pick resolves to the default device"
-        );
-        assert!(
-            resolve_output_device(Some("")).is_ok(),
-            "an empty pick is the default, not a parse error"
-        );
-        assert!(
-            resolve_output_device(Some("host-that-does-not-exist:device")).is_ok(),
-            "a garbage pick degrades to the default device, never errors"
-        );
-        assert!(
-            resolve_output_device(Some("coreaudio:gone")).is_ok(),
-            "an unresolvable pick degrades to the default device"
-        );
     }
 
     #[test]
