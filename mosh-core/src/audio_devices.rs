@@ -167,18 +167,28 @@ mod tests {
 
     #[test]
     fn decision_table_routes_garbage_to_the_unreadable_arm() {
-        // A host name this platform does not carry, a host no platform
-        // carries, and a string without a colon: all garbage, all
-        // degraded (never errors) by the host-touching half.
-        for garbage in [
-            "host-that-does-not-exist:device",
-            "coreaudio:gone",
-            "no-colon-at-all",
-        ] {
+        // Garbage everywhere: a host name no platform carries, and a
+        // string without a colon. Both degrade (never error) in the
+        // host-touching half.
+        for garbage in ["host-that-does-not-exist:device", "no-colon-at-all"] {
             let Decision::Unreadable(raw) = resolve_decision(Some(garbage)) else {
                 panic!("garbage input ({garbage}) must land in the Unreadable arm");
             };
             assert_eq!(raw, garbage);
+        }
+    }
+
+    #[test]
+    fn decision_table_a_foreign_platform_id_is_garbage_here() {
+        // "coreaudio:gone" parses on macOS (the host exists there — only
+        // the device is missing, which the host-touching half degrades to
+        // the default) but is unreadable on every other platform, where
+        // the host itself is not compiled in. Both classifications are
+        // correct: the decision table only routes; it must not error
+        // either way.
+        match resolve_decision(Some("coreaudio:gone")) {
+            Decision::ByParsedId(_) | Decision::Unreadable(_) => {}
+            Decision::Default => panic!("an explicit pick is never Default"),
         }
     }
 
