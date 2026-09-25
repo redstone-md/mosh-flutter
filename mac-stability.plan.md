@@ -58,17 +58,17 @@ Out: see the brainstorm's "Out of scope".
 
 ## Steps
 
-0. [ ] Baseline: `cargo test` (mosh-core), then `flutter test`, then
+0. [x] Baseline: `cargo test` (mosh-core), then `flutter test`, then
    `flutter analyze`. Record failures below.
-1. [ ] **P3 blob route.** Test: with a relayed or unknown peer, chunks go to
+1. [x] **P3 blob route.** Test: with a relayed or unknown peer, chunks go to
    the room wire and `send_to_peer_stream` is never called. After a stream
    failure, the next chunks inside 10 s skip the stream. Implement the
    Direct-only choice once per request, the 10 s backoff field, and the
    comment fix. Done: tests green.
-2. [ ] **P5 logs.** Test: `note_authenticated_frame` on an already Connected
+2. [x] **P5 logs.** Test: `note_authenticated_frame` on an already Connected
    session writes no "session connected" line; the transition writes one.
    Hello decrypt failure includes the error. Done: tests green.
-3. [ ] **P1/P2 reachability.** Tests first:
+3. [x] **P1/P2 reachability.** Tests first:
    (a) a gossip-only link keeps Connected for more than 25 s while keepalives
    cross;
    (b) no authenticated frame for 25 s drops to Handshaking, and one frame
@@ -78,7 +78,7 @@ Out: see the brainstorm's "Out of scope".
    Implement `last_authenticated_rx_ms`, the keepalive in `pump_hello`, the
    freshness-based loss, and drop `unreachable_since_ms` / the reach gate.
    Update the old window test. Done: state and outbox suites green.
-4. [ ] **V1 CallMedia.** Tests first:
+4. [x] **V1 CallMedia.** Tests first:
    (a) frames cross between two memory runtimes through the hub;
    (b) own-direction frames are dropped;
    (c) frames for an ended call are dropped;
@@ -87,13 +87,13 @@ Out: see the brainstorm's "Out of scope".
    claim, the runtime sync, and the API cache. Remove the frame queue from
    `CallState`. Update the inbound filter test. Done: tests green; the ignored
    moss call test still compiles.
-5. [ ] **V2 playout.** Renderer tests first (primed, underrun re-prime,
+5. [x] **V2 playout.** Renderer tests first (primed, underrun re-prime,
    trim). Implement. Done: tests green.
-6. [ ] **P4 service thread + Dart guard.** Rust: `service_loop` started once
+6. [x] **P4 service thread + Dart guard.** Rust: `service_loop` started once
    with the runtime (500 ms). Test: the loop body drives a handshake with no
    poll call. Dart: per-kind in-flight guard, with a test where one kind
    hangs. Done: both suites green.
-7. [ ] **K1 signing.**
+7. [x] **K1 signing.**
    - `scripts/macos-signing-cert.sh` makes a self-signed code-signing
      certificate and p12 once, prints the secret values, and keeps the key
      out of the repo.
@@ -105,13 +105,36 @@ Out: see the brainstorm's "Out of scope".
      Gatekeeper still warns.
    Done: `bash -n` passes; a CI run on the branch shows the signature once
    the secrets exist.
-8. [ ] Docs: `docs/Architecture.md` (call media path, reachability), the
+8. [x] Docs: `docs/Architecture.md` (call media path, reachability), the
    CHANGELOG `Unreleased` entry.
-9. [ ] Final validation (below). Then commit, push, and open the PR.
+9. [ ] Final validation (below). Then commit, push, and open the PR
+   (the push and the PR wait for the maintainer's go-ahead).
 
 ## Baseline failures
 
-(filled after step 0)
+Baseline on `d01d0b7`: `cargo test` 362 passed, 0 failed. `flutter test`
+first failed in two ways, and both came from stale local build output, not
+the code:
+
+- [x] 76 files failed to load with `settingsGearLabel isn't defined`. Cause:
+  the gitignored `lib/l10n/app_localizations*.dart` were stale. Fix:
+  `flutter gen-l10n`. After that the suite was green.
+- [x] `test/gateway/real_bridge_dispatch_test.dart` failed in setUpAll with a
+  content-hash mismatch. Cause: a stale
+  `mosh-core/target/release/mosh_core.dll`. Fix:
+  `cargo build --release --manifest-path mosh-core/Cargo.toml`.
+
+## Outcome notes
+
+- Step 7 (signing) is verified only as far as this Windows host allows.
+  `bash -n` passes on all three scripts. A dry run of the certificate
+  script gives a code-signing certificate and a SHA1/3DES p12. The CI
+  import, the codesign run and the keychain behaviour still need the repo
+  secrets plus one CI run and one real Mac (install, then update).
+- V1b (SendStream for voice) was skipped on purpose; see the brainstorm.
+- Found during step 5: the Dart jitter buffer waited for a lost frame
+  until 9 frames queued (180 ms), longer than playback holds. Lowered to
+  3 frames, the same as the playout delay.
 
 ## Final validation (in order)
 
