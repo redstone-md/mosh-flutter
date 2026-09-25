@@ -36,6 +36,28 @@ struct Endpoint {
 struct Link {
     reach: PeerTransport,
     drop_if: Option<DropRule>,
+    /// Moss lists the far end in its peer table. A room frame can cross a
+    /// link moss does not list: gossip reaches the peer through others.
+    listed: bool,
+}
+
+impl Link {
+    fn new() -> Self {
+        Self {
+            reach: PeerTransport::None,
+            drop_if: None,
+            listed: true,
+        }
+    }
+
+    /// How `reach` and the mesh report see this link.
+    fn visible_reach(&self) -> PeerTransport {
+        if self.listed {
+            self.reach
+        } else {
+            PeerTransport::None
+        }
+    }
 }
 
 #[derive(Default)]
@@ -72,10 +94,7 @@ impl MemoryNet {
         let link = state
             .links
             .entry((from.to_string(), to.to_string()))
-            .or_insert(Link {
-                reach: PeerTransport::None,
-                drop_if: None,
-            });
+            .or_insert_with(Link::new);
         link.reach = reach;
     }
 
@@ -97,11 +116,21 @@ impl MemoryNet {
         let link = state
             .links
             .entry((from.to_string(), to.to_string()))
-            .or_insert(Link {
-                reach: PeerTransport::None,
-                drop_if: None,
-            });
+            .or_insert_with(Link::new);
         link.drop_if = Some(Arc::new(rule));
+    }
+
+    /// Frames from `from` still reach `to`, but `from`'s moss has no peer
+    /// table row for `to` — the field case where gossip carries a chat that
+    /// moss reports no path for.
+    pub fn unlist(&self, from: &str, to: &str) {
+        if let Some(link) = self
+            .lock()
+            .links
+            .get_mut(&(from.to_string(), to.to_string()))
+        {
+            link.listed = false;
+        }
     }
 
     /// Make every publish from `from` come back refused, or stop doing so.
@@ -165,7 +194,9 @@ impl MemoryTransport {
         state
             .links
             .iter()
-            .filter(|((from, _), link)| *from == self.peer_id && link.reach != PeerTransport::None)
+            .filter(|((from, _), link)| {
+                *from == self.peer_id && link.visible_reach() != PeerTransport::None
+            })
             .map(|((_, to), link)| PeerDetail {
                 id: to.clone(),
                 addr: String::new(),
@@ -255,7 +286,7 @@ impl DmTransport for MemoryTransport {
             .lock()
             .links
             .get(&(self.peer_id.clone(), peer_moss_id.to_string()))
-            .map_or(PeerTransport::None, |link| link.reach)
+            .map_or(PeerTransport::None, Link::visible_reach)
     }
 
     fn local_peer_id(&self) -> Option<String> {
@@ -280,7 +311,7 @@ impl DmTransport for MemoryTransport {
         let reachable = state
             .links
             .get(&(self.peer_id.clone(), peer_id.to_string()))
-            .is_some_and(|link| link.reach != PeerTransport::None);
+            .is_some_and(|link| link.visible_reach() != PeerTransport::None);
         let Some(endpoint) = state.endpoints.get_mut(&self.peer_id) else {
             return Err("no such endpoint".to_string());
         };

@@ -228,6 +228,10 @@
   "@transportNone": {
     "description": "How the contact is reached: not reachable right now"
   },
+  "transportMesh": "through the mesh",
+  "@transportMesh": {
+    "description": "How a connected contact is reached when there is no direct or relayed path: messages travel through other peers of the network"
+  },
   "sessionsListTitle": "Conversations",
   "@sessionsListTitle": {
     "description": "AppBar title of the DM sessions list screen"
