@@ -5,7 +5,7 @@ application was declined, and no other certificate — Apple Developer ID
 included — exists today, so neither platform is signed by an identity
 the OS trusts. The SHA-256 checksums published beside every release
 artifact are the integrity check. The macOS app does carry a
-self-signed signature, for the keychain only (below).
+self-signed signature (below).
 
 ## What a user sees
 
@@ -26,19 +26,19 @@ of an unsigned channel.
 
 `flutter build macos --release` applies an ad-hoc signature through
 Xcode's "Sign to Run Locally". An ad-hoc signature names the app by the
-hash of its binary, which changes with every build. The keychain
-remembers "Always Allow" by that name, so each build was a new app to
-it, and macOS asked for the login password again to reach the history
-key.
+hash of its binary, which changes with every build.
 
 So the release DMG is re-signed with a self-signed certificate,
-"Mosh Self-Signed Code Signing". The app's name to macOS is now
-"this identifier, signed by this certificate", the same in every build,
-and "Always Allow" holds across updates. It does **not** make the app
-trusted: Gatekeeper still treats it as unidentified, which is why the
-"Open Anyway" flow applies. The data-protection keychain (no prompt at
-all) still needs an Apple team, so the app keeps using the login
-keychain.
+"Mosh Self-Signed Code Signing". The app's designated requirement is now
+"this identifier, signed by this certificate", the same in every build.
+It does **not** make the app trusted: Gatekeeper still treats it as
+unidentified, which is why the "Open Anyway" flow applies.
+
+It also does **not** stop keychain prompts. The keychain's partition
+list only accepts an Apple-issued Team ID (`teamid:`); a self-signed app
+is still matched by its build hash (`cdhash:`), so every update asked
+for the login password again. That is why macOS keeps the history key
+in a file in the app container instead (ADR 0011, amendment 0.9.6).
 
 How it is wired:
 

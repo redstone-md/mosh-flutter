@@ -42,7 +42,11 @@ const NANOS_PER_MS: u64 = 1_000_000;
 // before the shared store existed; `api::shared_runtime::SHARED_RESOURCES`
 // now opens it once per process, so this reports the store the app runs on
 // and `persistenceWarningProvider` stops showing a permanent false alarm.
+#[cfg(not(target_os = "macos"))]
 const PERSISTENCE_BACKEND: &str = "redb+aes-256-gcm+os-keychain";
+/// macOS keeps the DEK in a file in the app container (`file_secret_store`).
+#[cfg(target_os = "macos")]
+const PERSISTENCE_BACKEND: &str = "redb+aes-256-gcm+container-file";
 const PERSISTENCE_UNAVAILABLE: &str = "no persistence instance running in this api call";
 
 /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
