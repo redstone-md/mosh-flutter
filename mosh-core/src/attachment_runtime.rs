@@ -8,10 +8,14 @@ use crate::attachment_crypto::{
     AttachmentCryptoError, ATTACHMENT_KEY_LEN, ATTACHMENT_NONCE_PREFIX_LEN,
 };
 
-// Moss caps a gossipsub payload at 64KB. A plaintext chunk grows by the
-// 16-byte GCM tag, then ~33% for base64, then the JSON envelope, so the
-// plaintext chunk must stay well under the cap to survive the round trip.
-pub const CHUNK_SIZE: u32 = 32 * 1024;
+// Moss sends every frame as ONE UDP datagram, and macOS refuses to send a
+// datagram over 9216 bytes by default (`net.inet.udp.maxdgram`). A plaintext
+// chunk grows by the 16-byte GCM tag, ~33% for base64 and the JSON envelope,
+// and the stream carrier base64s it once more: 4 KB ends near 7.5 KB on the
+// wire. At 32 KB (0.9.5 and older) every Mac-sent chunk failed and a 5 s voice
+// note took a minute of re-requests to arrive. Receivers read the chunk size
+// from the manifest, so older peers still decode these transfers.
+pub const CHUNK_SIZE: u32 = 4 * 1024;
 pub const MAX_ATTACHMENT_SIZE: u64 = 50 * 1024 * 1024;
 // The manifest rides a single control-channel publish, so it faces the same
 // 64KB gossipsub cap as a chunk. Everything but the thumbnail is small and
@@ -21,10 +25,21 @@ pub const MAX_ATTACHMENT_SIZE: u64 = 50 * 1024 * 1024;
 // ponytail: hard cap. If big-image previews matter, ship the thumbnail as its
 // own chunked transfer rather than inline in the manifest.
 const MAX_THUMBNAIL_B64: usize = 32 * 1024;
-const MAX_REQUEST_BATCH: usize = 64;
+// A request asks for about this many bytes at once: the same 2 MB the old
+// 64 x 32 KB batch moved, so a big file is not slower with small chunks.
+const REQUEST_WINDOW_BYTES: u64 = 2 * 1024 * 1024;
+// Moss queues hold 256 frames per peer; a larger burst would be dropped.
+const MAX_REQUEST_BATCH: usize = 256;
+
+/// How many chunks of `chunk_size` one request may ask for. A 32 KB
+/// manifest from an older sender gets the 64 that sender serves at most.
+fn request_batch(chunk_size: u32) -> usize {
+    let per_window = REQUEST_WINDOW_BYTES / u64::from(chunk_size.max(1));
+    (per_window as usize).clamp(1, MAX_REQUEST_BATCH)
+}
 // How long a requested chunk counts as in flight. The receiver pumps roughly
 // once a second, and without this every pump re-asks for chunks that are still
-// on the wire — one batch of 64 becomes 64 batches. Long enough for a slow link
+// on the wire — one batch is sent again on every pump. Long enough for a slow link
 // to deliver a full batch, short enough that a genuinely lost chunk is asked
 // for again while the user is still watching the progress bar.
 const CHUNK_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -293,8 +308,9 @@ impl AttachmentRuntime {
             return Ok(Vec::new());
         }
         let mut frames = Vec::new();
-        for &index in request.chunk_indices.iter().take(MAX_REQUEST_BATCH) {
-            let Some(slice) = chunk_slice(&transfer.plaintext, index) else {
+        let chunk_size = transfer.manifest.chunk_size;
+        for &index in request.chunk_indices.iter().take(request_batch(chunk_size)) {
+            let Some(slice) = chunk_slice(&transfer.plaintext, index, chunk_size) else {
                 continue;
             };
             let ciphertext = encrypt_chunk(&transfer.key, &transfer.nonce_prefix, index, slice)?;
@@ -439,14 +455,15 @@ impl AttachmentRuntime {
             return None;
         }
         // A chunk that is missing but was asked for moments ago is still on the
-        // wire, not lost. Asking again every pump turns one batch of 64 into 64
-        // batches and buries the link that was already struggling.
+        // wire, not lost. Asking again every pump sends one batch many times
+        // and buries the link that was already struggling.
         let wanted = |transfer: &IncomingTransfer, index: u64| {
             !transfer.chunks.contains_key(&index)
                 && transfer.requested_at.get(&index).is_none_or(|sent| {
                     now.saturating_duration_since(*sent) >= CHUNK_REQUEST_TIMEOUT
                 })
         };
+        let batch = request_batch(transfer.manifest.chunk_size);
         let mut indices = Vec::new();
         // A streaming player's requested region jumps the queue so playback
         // is not blocked behind the sequential cursor.
@@ -454,7 +471,7 @@ impl AttachmentRuntime {
             for index in priority..transfer.manifest.chunk_count {
                 if wanted(transfer, index) {
                     indices.push(index);
-                    if indices.len() >= MAX_REQUEST_BATCH {
+                    if indices.len() >= batch {
                         break;
                     }
                 }
@@ -480,15 +497,13 @@ impl AttachmentRuntime {
         for index in 0..transfer.request_cursor {
             if wanted(transfer, index) {
                 indices.push(index);
-                if indices.len() >= MAX_REQUEST_BATCH {
+                if indices.len() >= batch {
                     break;
                 }
             }
         }
         if indices.is_empty() {
-            while transfer.request_cursor < transfer.manifest.chunk_count
-                && indices.len() < MAX_REQUEST_BATCH
-            {
+            while transfer.request_cursor < transfer.manifest.chunk_count && indices.len() < batch {
                 indices.push(transfer.request_cursor);
                 transfer.request_cursor += 1;
             }
@@ -527,11 +542,12 @@ impl AttachmentRuntime {
         if transfer.state != TransferState::Active {
             return Ok(Vec::new());
         }
+        let batch = request_batch(transfer.manifest.chunk_size);
         let mut pending = Vec::new();
         for index in 0..transfer.manifest.chunk_count {
             if !transfer.chunks.contains_key(&index) {
                 pending.push(index);
-                if pending.len() >= MAX_REQUEST_BATCH {
+                if pending.len() >= batch {
                     break;
                 }
             }
@@ -655,12 +671,12 @@ fn progress_of(
     }
 }
 
-fn chunk_slice(plaintext: &[u8], index: u64) -> Option<&[u8]> {
-    let start = index.checked_mul(u64::from(CHUNK_SIZE))? as usize;
+fn chunk_slice(plaintext: &[u8], index: u64, chunk_size: u32) -> Option<&[u8]> {
+    let start = index.checked_mul(u64::from(chunk_size))? as usize;
     if start >= plaintext.len() {
         return None;
     }
-    let end = (start + CHUNK_SIZE as usize).min(plaintext.len());
+    let end = (start + chunk_size as usize).min(plaintext.len());
     Some(&plaintext[start..end])
 }
 
@@ -722,6 +738,45 @@ mod tests {
             }
         }
         panic!("transfer never completed");
+    }
+
+    /// A full chunk frame, base64'd once more by the stream carrier and
+    /// wrapped by moss, must still fit one macOS UDP datagram (9216 bytes by
+    /// default). 32 KB chunks did not, and Mac-to-Mac voice notes crawled.
+    #[test]
+    fn a_full_chunk_frame_fits_a_macos_datagram() {
+        const MACOS_MAX_DATAGRAM: usize = 9216;
+        const MOSS_OVERHEAD_BUDGET: usize = 1024;
+        let mut sender = AttachmentRuntime::new();
+        let manifest = sender
+            .prepare_outgoing(OutgoingAttachment {
+                attachment_id: "att-size".to_string(),
+                file_name: "clip.m4a".to_string(),
+                mime: "audio/mp4".to_string(),
+                from_fingerprint: "AABB".to_string(),
+                bytes: payload(CHUNK_SIZE as usize),
+                thumbnail_b64: None,
+                voice: None,
+            })
+            .unwrap();
+        let frames = sender
+            .serve_chunks(&ChunkRequest {
+                attachment_id: manifest.attachment_id,
+                chunk_indices: vec![0],
+            })
+            .unwrap();
+
+        let json = serde_json::to_vec(&frames[0]).unwrap().len();
+        let on_the_wire = json.div_ceil(3) * 4 + MOSS_OVERHEAD_BUDGET;
+        assert!(on_the_wire <= MACOS_MAX_DATAGRAM, "{on_the_wire} bytes");
+    }
+
+    /// An older sender serves at most 64 chunks per request. Asking it for
+    /// more would leave the rest waiting out the 10 s request timeout.
+    #[test]
+    fn a_32k_manifest_is_requested_in_batches_an_old_sender_serves() {
+        assert_eq!(request_batch(32 * 1024), 64);
+        assert_eq!(request_batch(CHUNK_SIZE), MAX_REQUEST_BATCH);
     }
 
     #[test]

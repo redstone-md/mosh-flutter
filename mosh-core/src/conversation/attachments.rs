@@ -116,11 +116,6 @@ struct AttachmentSlot {
 
 impl AttachmentSlot {
     fn view(&self, attachments: &AttachmentRuntime) -> AttachmentView {
-        let chunk_count = self
-            .descriptor
-            .total_size
-            .div_ceil(u64::from(CHUNK_SIZE))
-            .max(1);
         let (direction, progress) = match self.direction {
             AttachmentDirection::Outgoing => (
                 OUTGOING_LABEL,
@@ -135,6 +130,13 @@ impl AttachmentSlot {
             .as_ref()
             .map(|value| value.completed_chunks)
             .unwrap_or(0);
+        // The manifest's own chunk size decides the count: a transfer from an
+        // older sender still uses 32 KB chunks.
+        let chunk_count = progress
+            .as_ref()
+            .map(|value| value.chunk_count)
+            .unwrap_or_else(|| self.descriptor.total_size.div_ceil(u64::from(CHUNK_SIZE)))
+            .max(1);
         let state = if self.cancelled {
             AttachmentState::Cancelled
         } else if self.failed {
