@@ -56,8 +56,10 @@
 //! out of the keychain in teardown so the host keychain is not polluted.
 
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::time::Duration;
 
 use crate::api::conversation_bridge::ConversationBridgeError;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::private_dm_runtime::{
     AcceptInviteRequest, CallMedia, CallStarted, InviteCreated, PrivateDmRuntime,
     PrivateDmRuntimeError, SessionListSnapshot, SessionSnapshot, StartSessionRequest,
@@ -130,7 +132,10 @@ pub(crate) fn ensure_runtime(
 /// `ensure_runtime` to keep that function's nesting shallow.
 fn build_runtime() -> Option<PrivateDmRuntime> {
     match construct_runtime() {
-        Ok(runtime) => Some(runtime),
+        Ok(runtime) => {
+            start_service_thread();
+            Some(runtime)
+        }
         Err(error) => {
             let _ = LOAD_ERROR.set(error.to_string());
             None
@@ -252,6 +257,40 @@ pub fn call_end(
     runtime
         .call_end(&session_id, &call_id, &reason)
         .map_err(ConversationBridgeError::from)
+}
+
+/// How often the service thread runs the DM protocol. Twice the old UI poll
+/// rate, so a keepalive or a handshake step never waits long for a tick.
+const SERVICE_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Runs the DM protocol on its own thread for the life of the process, so it
+/// no longer stops when the UI stops polling. The runtime is not built yet
+/// when this starts (it is called from inside the `RUNTIME` init), so each
+/// pass looks it up; a poisoned lock ends the thread, since every later
+/// call reports the runtime unavailable anyway.
+fn start_service_thread() {
+    let spawned = std::thread::Builder::new()
+        .name("mosh-dm-service".to_string())
+        .spawn(|| loop {
+            std::thread::sleep(SERVICE_INTERVAL);
+            let Some(mutex) = RUNTIME.get() else {
+                continue;
+            };
+            let Ok(mut guard) = mutex.lock() else {
+                return;
+            };
+            if let Some(runtime) = guard.as_mut() {
+                runtime.service();
+            }
+        });
+    if let Err(error) = spawned {
+        dlog::write(
+            LogLevel::Error,
+            kinds::SERVICE,
+            "",
+            &format!("could not start the DM service thread: {error}"),
+        );
+    }
 }
 
 /// The call media hub, cached after the first call so the 20 ms audio loop

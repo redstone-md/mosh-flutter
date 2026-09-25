@@ -49,6 +49,33 @@ void main() {
     }
   });
 
+  test('a stuck kind does not hold the other kinds back', () async {
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      autoPollIntervalProvider
+          .overrideWithValue(const Duration(milliseconds: 10)),
+    ]);
+    addTearDown(container.dispose);
+    for (final kind in ConversationKind.values) {
+      await container.read(conversationListProvider(kind).future);
+    }
+    final dmBefore = bridge.countOf(BridgeMethod.listSessions);
+    final channelsBefore = bridge.countOf(BridgeMethod.listChannels);
+
+    // The DM runtime is busy: its list read never comes back.
+    bridge.hold(BridgeMethod.listSessions);
+    container.read(autoPollProvider);
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+
+    expect(bridge.countOf(BridgeMethod.listSessions), dmBefore + 1,
+        reason: 'one read in flight, no pile-up behind it');
+    expect(bridge.countOf(BridgeMethod.listChannels),
+        greaterThan(channelsBefore + 1),
+        reason: 'channels keep refreshing on every tick');
+    bridge.release(BridgeMethod.listSessions);
+  });
+
   test('no interval bound -> no polling (the flutter test default)', () async {
     final bridge = ScriptableBridge();
     final container = ProviderContainer(overrides: [

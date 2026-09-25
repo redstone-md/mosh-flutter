@@ -818,9 +818,16 @@ impl PrivateDmRuntime {
         }
     }
 
+    /// One protocol step with no caller behind it: take in what arrived and
+    /// tick every session. The bridge runs it on its own thread, so
+    /// handshakes, keepalives, the outbox and re-sends keep going while the
+    /// UI is not polling (a hidden window, a throttled timer).
+    pub fn service(&mut self) {
+        self.drain_inbound();
+    }
+
     /// Take in every frame that arrived, then give each session its tick.
-    /// Called on every runtime entry point, so the UI's ~1 s poll is the
-    /// heartbeat that drives handshakes, hellos, the outbox and re-sends.
+    /// Called on every runtime entry point and by [`Self::service`].
     fn drain_inbound(&mut self) {
         self.drain_inbound_at(now_ms());
     }

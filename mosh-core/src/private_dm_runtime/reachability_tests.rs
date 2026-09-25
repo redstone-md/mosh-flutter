@@ -115,3 +115,24 @@ fn a_text_goes_out_over_gossip_without_a_peer_table_row() {
         .iter()
         .any(|message| message.body == "over gossip"));
 }
+
+// The service thread drives the protocol with no UI poll: a handshake
+// completes on `service` alone, read back without a poll (a poll drains).
+#[test]
+fn the_service_tick_alone_completes_a_handshake() {
+    let (_net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    let state = |runtime: &PrivateDmRuntime| {
+        runtime
+            .sessions
+            .get(&invite.session_id)
+            .map(|session| session.state)
+    };
+    for _ in 0..10 {
+        alice.service();
+        bob.service();
+    }
+    assert_eq!(state(&alice), Some(DmSessionState::Connected));
+    assert_eq!(state(&bob), Some(DmSessionState::Connected));
+}
