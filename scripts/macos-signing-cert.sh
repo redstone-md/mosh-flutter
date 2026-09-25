@@ -16,6 +16,10 @@
 set -euo pipefail
 
 OUT="${1:-$HOME/.mosh-signing}"
+# Git Bash on Windows: a native openssl cannot open /c/... paths.
+if command -v cygpath >/dev/null 2>&1; then
+  OUT="$(cygpath -m "$OUT")"
+fi
 NAME="Mosh Self-Signed Code Signing"
 DAYS=7300
 
