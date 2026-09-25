@@ -816,7 +816,7 @@ caller's auto-end.
 - Ephemeral UI state (open drawer, selected session, composer draft, modal visibility, animation controllers) lives in `StatefulWidget` state or `flutter_hooks`, never in providers. Local state stays local; nothing else moves it.
 - Reads use `ref.watch(provider.select(...))` so widgets rebuild only on the slice they care about.
 - Fetching has one entry point: `AsyncNotifier.build`.
-- Secrets (MLS keys, org root keys, the redb at-rest history key) live in `mosh-core` secure storage, never in Dart. Desktop uses the `keyring`-backed `OsSecureSecretStore`; mobile uses a Flutter platform channel into Android Keystore / iOS Keychain. The at-rest history key never touches disk in plaintext (ADR 0011).
+- Secrets (MLS keys, org root keys, the redb at-rest history key) live in `mosh-core` secure storage, never in Dart. Windows and Linux use the `keyring`-backed `OsSecureSecretStore`; mobile uses a Flutter platform channel into Android Keystore / iOS Keychain. macOS keeps the at-rest history key in a 0600 file in the app container (`FileSecretStore`), because without an Apple Team ID the keychain asked for the password after every update (ADR 0011, amendment 0.9.6).
 - Private message history stores ciphertext plus minimal metadata in redb; the store is encrypted at rest.
 
 ## Port Boundary
