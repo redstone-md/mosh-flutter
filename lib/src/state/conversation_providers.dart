@@ -90,9 +90,13 @@ class ConversationListNotifier extends AsyncNotifier<ConversationList> {
   Future<ConversationList> build() => _read(ref.watch(bridgeFacadeProvider));
 
   /// Re-runs the server query after a mutation. A guard-swap, so the rail
-  /// never flashes a spinner on a refresh.
-  Future<void> refresh() async => state =
-      await AsyncValue.guard(() => _read(ref.read(bridgeFacadeProvider)));
+  /// never flashes a spinner on a refresh. A list nobody watches can be
+  /// disposed while the read is out; its answer then has nowhere to go.
+  Future<void> refresh() async {
+    final next =
+        await AsyncValue.guard(() => _read(ref.read(bridgeFacadeProvider)));
+    if (ref.mounted) state = next;
+  }
 
   /// [bridge] is passed in rather than read inside, so `build` can watch
   /// the seam (a wired-backend swap re-reads every list) while `refresh`
