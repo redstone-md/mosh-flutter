@@ -4,7 +4,7 @@
 
 use std::sync::Mutex;
 
-use super::state_tests::{accept, connect, invite, memory_pair, BOB_ID};
+use super::state_tests::{accept, connect, invite, memory_pair, ALICE_ID, BOB_ID};
 use super::*;
 
 const CALLER_BIT: u64 = 0;
@@ -98,4 +98,33 @@ fn media_flows_while_the_runtime_is_locked() {
     .join()
     .expect("the media thread never waits on the runtime");
     assert_eq!(received, vec![voice]);
+}
+
+// Nobody may drain a live call (its audio loop never started), yet the
+// transport's media queue must not grow: the runtime tick files arrivals into
+// the hub, which keeps at most one second per call and drops the rest.
+#[test]
+fn the_tick_empties_the_media_queue_even_with_no_audio_loop() {
+    let (net, mut alice, mut bob) = memory_pair();
+    let (_session_id, call_id) = active_call(&mut alice, &mut bob);
+    let bob_media = bob.call_media();
+    for seq in 0..60 {
+        bob_media
+            .send(&call_id, &frame(CALLEE_BIT, seq, &[1]))
+            .expect("send");
+    }
+    net.endpoint(BOB_ID)
+        .publish(
+            "room",
+            &voice_call_channel("ended-call"),
+            &frame(CALLEE_BIT, 0, &[2]),
+        )
+        .expect("publish");
+
+    alice.service();
+    assert!(
+        net.endpoint(ALICE_ID).drain_media().is_empty(),
+        "the tick took everything off the transport queue"
+    );
+    assert_eq!(alice.call_media().drain(&call_id).len(), 50);
 }
