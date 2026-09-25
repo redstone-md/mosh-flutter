@@ -225,10 +225,12 @@ impl DmTransport for MossDmTransport {
 
     fn send_to_peer_stream(&self, peer_id: &str, payload: &[u8]) -> Result<(), String> {
         let node = self.node()?;
-        // OpenStream on a relayed peer is an immediate OK in moss — the wrap
-        // happens inside Moss_SendStream — so this never stalls waiting on a
-        // dial for the relayed case. A missing symbol surfaces as
-        // Err(Symbol), which the carrier treats like any other refusal.
+        // Both calls block. OpenStream on a peer moss has no session with
+        // runs a route lookup (up to 20 s), and SendStream to a relayed peer
+        // waits on the relay (up to 5 s). The session only streams to a
+        // direct peer for that reason (`blob_stream_peer`). A missing symbol
+        // surfaces as Err(Symbol), which the carrier treats like any other
+        // refusal.
         node.open_stream(peer_id, crate::stream_transport::ATTACHMENT_STREAM_ID)
             .map_err(|error| error.to_string())?;
         node.send_stream(

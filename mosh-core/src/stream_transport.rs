@@ -113,25 +113,33 @@ fn deframe(payload: &[u8]) -> Option<(String, Vec<u8>)> {
     Some((frame.channel, bytes))
 }
 
+/// Which wire carried a blob frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Carrier {
+    Stream,
+    Room,
+}
+
 /// Carry one blob frame to a direct peer over a moss stream, with the room
 /// wire as the declared fallback. `stream` carries the known direct peer;
-/// its absence — a group or channel frame, or a DM whose counterpart id is
-/// not known yet — goes straight to the room, which is the normal path for
-/// every conversation kind but a connected DM. A stream failure falls back
-/// to the room publish; only when the room refuses too does the caller see
-/// an error.
+/// its absence — a group or channel frame, or a DM whose counterpart is not
+/// directly connected — goes straight to the room, which is the normal path
+/// for every conversation kind but a connected DM. A stream failure falls
+/// back to the room publish; only when the room refuses too does the caller
+/// see an error. The answer names the wire that took the frame, so a caller
+/// that offered a stream can tell the stream just failed.
 pub fn send_chunk(
     stream: Option<(&dyn DmTransport, &str)>,
     room: impl FnOnce(&[u8]) -> Result<(), String>,
     blob_channel: &str,
     payload: &[u8],
-) -> Result<(), String> {
+) -> Result<Carrier, String> {
     if let Some((transport, peer_id)) = stream {
         let framed = frame(blob_channel, payload)
             .ok_or_else(|| FRAMING_FAILED.to_string())
             .and_then(|framed| transport.send_to_peer_stream(peer_id, &framed));
         if framed.is_ok() {
-            return Ok(());
+            return Ok(Carrier::Stream);
         }
         // Any stream refusal — symbol missing, relay failed, node gone —
         // degrades to the room wire. The chunk protocol retries on top.
@@ -142,7 +150,9 @@ pub fn send_chunk(
             STREAM_FALLBACK_NOTE,
         );
     }
-    room(payload).map_err(|error| format!("{ROOM_REFUSED_NOTE}: {error}"))
+    room(payload)
+        .map(|()| Carrier::Room)
+        .map_err(|error| format!("{ROOM_REFUSED_NOTE}: {error}"))
 }
 
 const FRAMING_FAILED: &str = "stream carrier could not frame the envelope";
@@ -352,9 +362,14 @@ mod tests {
             Ok(())
         };
 
-        send_chunk(Some((&transport, "peer")), room, BLOB, &payload)
+        let carrier = send_chunk(Some((&transport, "peer")), room, BLOB, &payload)
             .expect("the room fallback should carry the chunk");
 
+        assert_eq!(
+            carrier,
+            Carrier::Room,
+            "the caller learns the stream failed"
+        );
         assert_eq!(
             transport
                 .attempts
