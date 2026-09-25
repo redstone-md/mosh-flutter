@@ -19,12 +19,18 @@
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::secure_storage::{OsSecureSecretStore, SecureSecretStore, SecureStorageError};
 
 const KEY_FILE_EXTENSION: &str = "key";
-const TEMP_FILE_EXTENSION: &str = "key.tmp";
+const TEMP_FILE_EXTENSION: &str = "tmp";
+const HANDOVER_MISMATCH: &str = "key file does not hold the keychain's key";
+
+/// Makes every temp file name unique within the process; the pid makes it
+/// unique across processes.
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 const LOG_CONTEXT: &str = "file-secret-store";
 
 pub struct FileSecretStore {
@@ -44,20 +50,24 @@ impl FileSecretStore {
 
     /// Moves `key` out of the keychain into its file. The keychain item is
     /// deleted only after the file holds the same bytes, so a failed write
-    /// never loses the key.
+    /// never loses the key. Another process that handed the same key over
+    /// first counts as success; a file holding a different key fails closed.
     fn hand_over_from_keychain(&self, key: &str) -> Result<Vec<u8>, SecureStorageError> {
         let keychain = OsSecureSecretStore;
         let secret = keychain.load_secret(key)?;
-        self.save_secret(key, &secret)?;
-        if self.read(key).ok().as_deref() == Some(secret.as_slice()) {
-            let _ = keychain.delete_secret(key);
-            dlog::write(
-                LogLevel::Info,
-                kinds::IDENTITY,
-                LOG_CONTEXT,
-                "history key moved from the keychain to the app container",
-            );
+        let saved = self.save_secret(key, &secret);
+        if self.read(key).ok().as_deref() != Some(secret.as_slice()) {
+            return Err(saved
+                .err()
+                .unwrap_or_else(|| SecureStorageError::Backend(HANDOVER_MISMATCH.to_string())));
         }
+        let _ = keychain.delete_secret(key);
+        dlog::write(
+            LogLevel::Info,
+            kinds::IDENTITY,
+            LOG_CONTEXT,
+            "history key moved from the keychain to the app container",
+        );
         Ok(secret)
     }
 
@@ -77,22 +87,34 @@ impl SecureSecretStore for FileSecretStore {
         }
     }
 
-    /// Writes through a temp file and a rename, so a crash mid-write leaves
-    /// the old key or the new one, never half of one.
+    /// Writes a private temp file, then links it into place. The link fails
+    /// when a key already exists, so a key that encrypts a database is never
+    /// replaced — not by a crash mid-write, and not by a second process that
+    /// minted its own key at the same first start.
     fn save_secret(&self, key: &str, value: &[u8]) -> Result<(), SecureStorageError> {
         let backend = |error: std::io::Error| SecureStorageError::Backend(error.to_string());
         fs::create_dir_all(&self.dir).map_err(backend)?;
-        let temp = self.dir.join(key).with_extension(TEMP_FILE_EXTENSION);
-        let mut file = owner_only_file(&temp).map_err(backend)?;
-        file.write_all(value).map_err(backend)?;
-        file.sync_all().map_err(backend)?;
-        fs::rename(&temp, self.path(key)).map_err(backend)
+        let temp = self.dir.join(format!(
+            "{key}.{}.{}.{TEMP_FILE_EXTENSION}",
+            std::process::id(),
+            TEMP_COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        let linked =
+            write_private(&temp, value).and_then(|()| fs::hard_link(&temp, self.path(key)));
+        let _ = fs::remove_file(&temp);
+        linked.map_err(backend)
     }
 
     fn delete_secret(&self, key: &str) -> Result<(), SecureStorageError> {
         fs::remove_file(self.path(key))
             .map_err(|error| SecureStorageError::Backend(error.to_string()))
     }
+}
+
+fn write_private(path: &Path, value: &[u8]) -> std::io::Result<()> {
+    let mut file = owner_only_file(path)?;
+    file.write_all(value)?;
+    file.sync_all()
 }
 
 #[cfg(unix)]
@@ -132,6 +154,19 @@ mod tests {
         assert_eq!(store.load_secret("k").expect("load"), secret);
 
         store.delete_secret("k").expect("delete");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Two first starts racing must not swap the key under a database that
+    /// the winner already encrypted with it.
+    #[test]
+    fn an_existing_key_is_never_replaced() {
+        let dir = temp_dir("no-clobber");
+        let store = FileSecretStore::new(&dir);
+
+        store.save_secret("k", b"first").expect("first save");
+        assert!(store.save_secret("k", b"second").is_err());
+        assert_eq!(store.load_secret("k").expect("load"), b"first");
         let _ = fs::remove_dir_all(&dir);
     }
 
