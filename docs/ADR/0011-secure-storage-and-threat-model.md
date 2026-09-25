@@ -95,6 +95,33 @@ flowchart LR
   desktop, and on mobile stops everything below the secure-enclave /
   user-presence boundary. Anything stronger (e.g. passphrase-derived key) is
   a future option, not a v1 requirement.
+
+## Amendment (0.9.6): the macOS DEK moves to a file
+
+Without an Apple Team ID, the macOS keychain ties an item to the exact
+build that wrote it (a `cdhash:` partition). Each update is a new build,
+so macOS asked for the login password again at every update, twice, and
+"Always Allow" never carried over. A self-signed certificate does not
+help: only an Apple-issued Team ID gives a stable `teamid:` partition.
+
+So on macOS the history DEK now lives in a 0600 file next to the
+database, inside the sandbox container (`file_secret_store.rs`). An
+existing install moves its key over once: one last keychain prompt, then
+the keychain item is deleted. At rest the key is protected by FileVault,
+and on macOS 14+ other apps must ask before they read the container. It
+is no longer wrapped by the login password. That is the accepted trade
+until Mosh has a Developer ID; with one, the keychain comes back.
+
+```mermaid
+flowchart LR
+    Open[Persistence::open] --> File{key file in container?}
+    File -->|yes| Use[use it]
+    File -->|no| Keychain[read keychain once]
+    Keychain -->|found| Write[write file, delete keychain item] --> Use
+    Keychain -->|missing, no db| Mint[mint new DEK into file] --> Use
+    Keychain -->|missing, db exists| Fail[fail closed]
+```
+
 ## Alternatives considered
 
 - Find a pure-Rust keyring backend for Android/iOS: rejected for v1 —
