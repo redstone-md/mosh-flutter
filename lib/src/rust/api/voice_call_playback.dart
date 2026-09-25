@@ -6,11 +6,11 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_stream`, `fill`, `lerp`, `new`, `next_sample`, `should_resync`
+// These functions are ignored because they are not marked as `pub`: `build_stream`, `fill`, `lerp`, `new`, `next_sample`, `should_resync`, `trim_to_target`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Renderer`
 
 /// Starts the playback pipeline: an Opus decoder (48 kHz mono) + a cpal output
-/// stream in the device's own format, fed from a 7680-sample ring. Synchronous (audio open is blocking on
+/// stream in the device's own format, fed from a 320 ms ring. Synchronous (audio open is blocking on
 /// every cpal backend); `Err(String)` if there is no output device or
 /// the stream cannot be built/started. `output_device_id` is the stored
 /// audio-devices pick (cpal `DeviceId` string form); `None` or an unknown
@@ -22,9 +22,9 @@ VoicePlayback voiceCallPlaybackStart({String? outputDeviceId}) =>
 /// Decodes one Opus packet and pushes its 960 i16 samples onto the ring. `seq`
 /// is the call frame sequence (preserves gaps on the wire), unused by cpal's
 /// pull model but accepted for seam parity with `VoicePlaybackHandle.pushFrame`.
-/// If the ring backlog exceeds `PLAYBACK_RESYNC_S`, the backlog is dropped
-/// first. On a full ring the push clears the backlog and retries
-/// ("play from now", no backpressure).
+/// If the ring backlog exceeds `PLAYBACK_RESYNC_S`, the oldest audio is
+/// dropped down to the playout delay first. On a full ring the push trims the
+/// same way and retries (no backpressure).
 void voiceCallPlaybackPushFrame(
         {required VoicePlayback p,
         required BigInt seq,

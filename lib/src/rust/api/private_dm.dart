@@ -13,7 +13,7 @@ import '../private_dm_runtime/transport.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
+// These functions are ignored because they are not marked as `pub`: `build_runtime`, `call_media`, `construct_runtime`, `ensure_runtime`, `start_service_thread`
 
 /// Inject the at-rest history DEK from the mobile platform channel (ADR
 /// 0011). See `api::shared_runtime::set_history_dek` for the full
@@ -82,9 +82,10 @@ Future<void> callEnd(
     RustLib.instance.api.crateApiPrivateDmCallEnd(
         sessionId: sessionId, callId: callId, reason: reason);
 
-/// Push an encrypted voice-call frame into the session outbound queue.
-/// The Flutter bridge surfaces this explicitly so the Dart capture loop
-/// can drive it. The caller seals the frame before sending.
+/// Publish one sealed voice-call frame for an active call. The Dart capture
+/// loop drives it every 20 ms; the caller seals the frame before sending.
+/// A call id is unique on its own; `session_id` stays for the bridge
+/// contract.
 Future<void> callSendFrame(
         {required String sessionId,
         required String callId,
@@ -92,10 +93,9 @@ Future<void> callSendFrame(
     RustLib.instance.api.crateApiPrivateDmCallSendFrame(
         sessionId: sessionId, callId: callId, frame: frame);
 
-/// Drain the inbound voice-call frames for an active call. Returns the
-/// sealed frames the peer sent; the caller opens + queues them into the
-/// playback jitter buffer. The Flutter bridge surfaces this explicitly so
-/// the Dart playback loop can drive it at 20ms cadence.
+/// The sealed frames the peer sent for an active call since the last drain.
+/// The Dart playback loop drives it every 20 ms, then opens the frames and
+/// queues them into the jitter buffer.
 Future<List<Uint8List>> callDrainFrames(
         {required String sessionId, required String callId}) =>
     RustLib.instance.api
