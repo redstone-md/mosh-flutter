@@ -1,3 +1,4 @@
+mod call_media;
 pub(crate) mod contracts;
 mod invite;
 pub(crate) mod transport;
@@ -22,6 +23,8 @@ use crate::outbound_delivery::OutboundAttemptRecord;
 use crate::persistence::{Persistence, DM_HISTORY};
 use crate::read_receipts::ReadReceiptsSetting;
 use crate::voice_call_runtime::{CallPhase, CallState};
+pub use call_media::CallMedia;
+use call_media::LiveCall;
 pub use contracts::{
     AcceptInviteRequest, ActiveCall, AttachmentDescriptor, AttachmentSendResult, AttachmentState,
     AttachmentView, CallEvent, CallOfferBody, CallStarted, ChatMessage, CloseSessionResult,
@@ -156,6 +159,9 @@ pub struct PrivateDmRuntime {
     sessions: ConversationRuntime<PrivateDmSession>,
     /// The one door every DM frame goes through, in and out.
     transport: Arc<dyn DmTransport>,
+    /// Voice frames for the live calls; shared with the audio loop, which
+    /// never takes this runtime's lock.
+    media: Arc<CallMedia>,
     lost_window_ms: u64,
 }
 
@@ -277,6 +283,7 @@ impl PrivateDmRuntime {
     ) -> Self {
         Self {
             sessions: ConversationRuntime::new(attachment_store, persistence, DM_HISTORY),
+            media: CallMedia::new(Arc::clone(&transport)),
             transport,
             lost_window_ms: LOST_WINDOW_MS,
         }
@@ -827,8 +834,8 @@ impl PrivateDmRuntime {
         self.tick(now);
     }
 
-    /// Hand one frame to the session it names, or to every session for a
-    /// voice-call channel, which names a call rather than a session.
+    /// Hand one frame to the session it names. Voice-call media never comes
+    /// here: it has its own queue (`CallMedia`).
     ///
     /// A single bad inbound frame must never abort the drain — otherwise it
     /// would also fail the caller (e.g. send_message drains first). After a
@@ -847,20 +854,6 @@ impl PrivateDmRuntime {
                     kinds::FRAME,
                     &session_id,
                     &format!("dropping inbound frame: {error}"),
-                );
-            }
-            return;
-        }
-        if wire::channel_call_id(&message.channel).is_none() {
-            return;
-        }
-        for session in self.sessions.values_mut() {
-            if let Err(error) = session.handle_moss_message(message.clone()) {
-                dlog::write(
-                    LogLevel::Warn,
-                    kinds::FRAME,
-                    "",
-                    &format!("dropping inbound call frame: {error}"),
                 );
             }
         }
@@ -891,6 +884,31 @@ impl PrivateDmRuntime {
             self.sessions.persist_send(&session_id, &message_id, false);
         }
         self.sessions.persist_tail();
+        self.sync_call_media();
+    }
+
+    /// The call media hub the audio loop sends and drains through.
+    pub fn call_media(&self) -> Arc<CallMedia> {
+        Arc::clone(&self.media)
+    }
+
+    /// Tell the media hub which calls are live. Run after every tick and
+    /// every call action: the call state machine lives here, the hub only
+    /// mirrors its active calls.
+    fn sync_call_media(&self) {
+        let live = self
+            .sessions
+            .values()
+            .filter_map(|session| {
+                let call = session.call.as_ref()?;
+                (call.phase == CallPhase::Active).then(|| LiveCall {
+                    call_id: call.call_id.clone(),
+                    room: session.mesh_id.clone(),
+                    own_direction_bit: call.direction.seq_direction_bit(),
+                })
+            })
+            .collect();
+        self.media.sync(live);
     }
 
     fn session_mut(
@@ -919,7 +937,9 @@ impl PrivateDmRuntime {
         call_id: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound();
-        self.session_mut(session_id)?.call_accept(call_id)
+        let outcome = self.session_mut(session_id)?.call_accept(call_id);
+        self.sync_call_media();
+        outcome
     }
 
     pub fn call_decline(
@@ -929,7 +949,9 @@ impl PrivateDmRuntime {
         reason: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound();
-        self.session_mut(session_id)?.call_decline(call_id, reason)
+        let outcome = self.session_mut(session_id)?.call_decline(call_id, reason);
+        self.sync_call_media();
+        outcome
     }
 
     pub fn call_end(
@@ -939,26 +961,9 @@ impl PrivateDmRuntime {
         reason: &str,
     ) -> Result<(), PrivateDmRuntimeError> {
         self.drain_inbound();
-        self.session_mut(session_id)?.call_end(call_id, reason)
-    }
-
-    pub fn call_send_frame(
-        &mut self,
-        session_id: &str,
-        call_id: &str,
-        frame: Vec<u8>,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        self.session_mut(session_id)?
-            .call_send_frame(call_id, frame)
-    }
-
-    pub fn call_drain_frames(
-        &mut self,
-        session_id: &str,
-        call_id: &str,
-    ) -> Result<Vec<Vec<u8>>, PrivateDmRuntimeError> {
-        self.drain_inbound();
-        Ok(self.session_mut(session_id)?.call_drain_frames(call_id))
+        let outcome = self.session_mut(session_id)?.call_end(call_id, reason);
+        self.sync_call_media();
+        outcome
     }
 }
 
@@ -1060,6 +1065,10 @@ mod field_log_tests;
 #[cfg(test)]
 #[path = "private_dm_runtime/reachability_tests.rs"]
 mod reachability_tests;
+
+#[cfg(test)]
+#[path = "private_dm_runtime/call_media_tests.rs"]
+mod call_media_tests;
 
 #[cfg(test)]
 #[path = "private_dm_runtime/runtime_tests.rs"]

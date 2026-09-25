@@ -1360,12 +1360,16 @@ fn joiner_history_and_session_survive_restart() {
     let _ = std::fs::remove_file(&db_path);
 }
 
+// Voice media has its own queue, so the DM drain never carries it and the
+// audio loop never waits on the DM runtime.
 #[test]
-fn private_dm_inbound_filter_includes_voice_call_channels() {
+fn voice_call_channels_are_claimed_by_the_media_queue_not_the_dm() {
     assert!(transport::is_private_dm_inbound("mls-control/session-one"));
     assert!(transport::is_private_dm_inbound("mls-data/session-one"));
     assert!(transport::is_private_dm_inbound("mls-blob/session-one"));
-    assert!(transport::is_private_dm_inbound("voice-call/call-one"));
+    assert!(!transport::is_private_dm_inbound("voice-call/call-one"));
+    assert!(transport::is_call_media_inbound("voice-call/call-one"));
+    assert!(!transport::is_call_media_inbound("mls-data/session-one"));
     assert!(!transport::is_private_dm_inbound("public-channel/general"));
 }
 
@@ -1408,25 +1412,19 @@ fn private_dm_runtime_routes_voice_call_frames_over_moss() {
     wait_for_active_call(&mut alice, &mut bob, &invite.session_id, &call.call_id);
 
     alice
-        .call_send_frame(
-            &invite.session_id,
-            &call.call_id,
-            test_call_frame(0, &[1, 2, 3]),
-        )
+        .call_media()
+        .send(&call.call_id, &test_call_frame(0, &[1, 2, 3]))
         .expect("Alice should send a voice frame");
     assert_eq!(
-        wait_for_call_frame(&mut bob, &invite.session_id, &call.call_id),
+        wait_for_call_frame(&bob, &call.call_id),
         test_call_frame(0, &[1, 2, 3])
     );
 
-    bob.call_send_frame(
-        &invite.session_id,
-        &call.call_id,
-        test_call_frame(1 << 63, &[4, 5, 6]),
-    )
-    .expect("Bob should send a voice frame");
+    bob.call_media()
+        .send(&call.call_id, &test_call_frame(1 << 63, &[4, 5, 6]))
+        .expect("Bob should send a voice frame");
     assert_eq!(
-        wait_for_call_frame(&mut alice, &invite.session_id, &call.call_id),
+        wait_for_call_frame(&alice, &call.call_id),
         test_call_frame(1 << 63, &[4, 5, 6])
     );
 }
@@ -1591,11 +1589,9 @@ fn wait_for_active_call(
     panic!("call did not become active");
 }
 
-fn wait_for_call_frame(runtime: &mut PrivateDmRuntime, session_id: &str, call_id: &str) -> Vec<u8> {
+fn wait_for_call_frame(runtime: &PrivateDmRuntime, call_id: &str) -> Vec<u8> {
     for _ in 0..60 {
-        let frames = runtime
-            .call_drain_frames(session_id, call_id)
-            .expect("frame drain should pass");
+        let frames = runtime.call_media().drain(call_id);
         if let Some(frame) = frames.into_iter().next() {
             return frame;
         }
