@@ -916,6 +916,7 @@ impl PrivateDmRuntime {
             })
             .collect();
         self.media.sync(live);
+        self.media.collect();
     }
 
     fn session_mut(
