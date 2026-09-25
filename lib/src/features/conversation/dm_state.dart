@@ -21,7 +21,9 @@ String dmStateLabel(AppLocalizations l, DmSessionState state) =>
     };
 
 /// The full sentence the chat header shows. Connected names the transport
-/// next to it, so the reader knows why a chat may be slower.
+/// next to it, so the reader knows why a chat may be slower. A connected
+/// contact with no direct or relayed path still talks: gossip carries the
+/// chat through other peers, so the sentence says that instead of "no path".
 String dmStateSentence(
   AppLocalizations l,
   DmSessionState state,
@@ -31,8 +33,13 @@ String dmStateSentence(
       DmSessionState.pending => l.dmStateWaiting,
       DmSessionState.handshaking => l.stateOfflineSentence,
       DmSessionState.connected =>
-        '${l.stateReady} · ${transportLabel(l, transport)}',
+        '${l.stateReady} · ${_connectedVia(l, transport)}',
     };
+
+String _connectedVia(AppLocalizations l, PeerTransport transport) =>
+    transport == PeerTransport.none
+        ? l.transportMesh
+        : transportLabel(l, transport);
 
 String transportLabel(AppLocalizations l, PeerTransport transport) =>
     switch (transport) {

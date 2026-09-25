@@ -57,10 +57,16 @@ const HANDSHAKE_RESEND_MS: u64 = 2000;
 // the handshake cadence: this is a repair path, not a startup path.
 const PEER_ANNOUNCE_RESEND_MS: u64 = 5_000;
 
-// How long the counterpart must stay out of the transport's reachable set
-// before a Connected session admits it is offline. Bridges momentary
-// re-punch gaps without claiming a dead path is live.
-const LOST_WINDOW_MS: u64 = 5_000;
+// How long a Connected session may go without an authenticated frame from the
+// counterpart before it admits the counterpart is gone. Two keepalives fit in
+// it, so one lost keepalive is not a verdict.
+const LOST_WINDOW_MS: u64 = 25_000;
+
+// How long a Connected session stays quiet before it sends a Hello keepalive.
+// Any authenticated frame from the counterpart restarts the count, so a busy
+// chat sends none; the counterpart answers every Hello outside its own
+// HANDSHAKE_RESEND_MS cadence, so one keepalive refreshes both sides.
+const KEEPALIVE_MS: u64 = 10_000;
 
 // How long a session keeps its chunks on the room wire after the moss stream
 // refused one. Without it every chunk of a batch paid for its own failed
@@ -156,9 +162,13 @@ pub struct PrivateDmRuntime {
 struct PrivateDmSession {
     role: SessionRole,
     state: DmSessionState,
-    // When the counterpart dropped out of the transport's reachable set, if
-    // it is out now. The lost window is measured from here.
-    unreachable_since_ms: Option<u64>,
+    // When the last authenticated frame from the counterpart was drained, on
+    // the tick's clock. The lost window and the keepalive count from here.
+    last_authenticated_rx_ms: u64,
+    // An authenticated frame arrived since the last tick; the tick stamps it.
+    authenticated_since_tick: bool,
+    // The counterpart's Hello is waiting for our answer.
+    hello_answer_due: bool,
     // Until when served chunks skip the moss stream after it refused one.
     stream_backoff_until_ms: u64,
     device_id: String,
@@ -805,10 +815,16 @@ impl PrivateDmRuntime {
     /// Called on every runtime entry point, so the UI's ~1 s poll is the
     /// heartbeat that drives handshakes, hellos, the outbox and re-sends.
     fn drain_inbound(&mut self) {
+        self.drain_inbound_at(now_ms());
+    }
+
+    /// [`Self::drain_inbound`] on a given clock: the frames drained here are
+    /// stamped with `now` when the tick records the counterpart's proof.
+    fn drain_inbound_at(&mut self, now: u64) {
         for message in self.transport.drain() {
             self.route_frame(message);
         }
-        self.tick(now_ms());
+        self.tick(now);
     }
 
     /// Hand one frame to the session it names, or to every session for a
@@ -859,7 +875,7 @@ impl PrivateDmRuntime {
         for (session_id, session) in self.sessions.iter_mut() {
             session.pump_attachment_requests();
             session.pump_peer_connect();
-            session.pump_reachability(now, lost_window);
+            session.pump_liveness(now, lost_window);
             session.pump_handshake(now);
             session.pump_hello(now);
             session.pump_peer_announce(now);
@@ -1040,6 +1056,10 @@ mod blob_route_tests;
 #[cfg(test)]
 #[path = "private_dm_runtime/field_log_tests.rs"]
 mod field_log_tests;
+
+#[cfg(test)]
+#[path = "private_dm_runtime/reachability_tests.rs"]
+mod reachability_tests;
 
 #[cfg(test)]
 #[path = "private_dm_runtime/runtime_tests.rs"]

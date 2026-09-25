@@ -24,7 +24,9 @@ impl PrivateDmSession {
         Self {
             role,
             state: DmSessionState::Pending,
-            unreachable_since_ms: None,
+            last_authenticated_rx_ms: 0,
+            authenticated_since_tick: false,
+            hello_answer_due: false,
             stream_backoff_until_ms: 0,
             device_id,
             participant_id,
@@ -221,7 +223,7 @@ impl PrivateDmSession {
             self.peer_joined = true;
             let before = self.state;
             self.state = next_state(before, SessionEvent::AuthenticatedFrame);
-            self.unreachable_since_ms = None;
+            self.authenticated_since_tick = true;
             // Only the change into Connected is news. Written on every frame,
             // the line read like a reconnect every few seconds.
             if before != DmSessionState::Connected {
@@ -303,20 +305,18 @@ impl PrivateDmSession {
             .map_or(PeerTransport::None, |id| self.transport.reach(id))
     }
 
-    /// Admit the counterpart is gone once it has been out of reach for the
-    /// whole lost window. Without a known id there is nothing to observe, so
-    /// nothing is claimed either way.
-    pub(super) fn pump_reachability(&mut self, now_ms: u64, lost_window_ms: u64) {
-        if self.peer_moss_id.is_none() {
-            return;
+    /// Stamp the proof drained since the last tick, and admit the
+    /// counterpart is gone once nothing authenticated arrived for the whole
+    /// lost window. Moss's peer table plays no part: gossip carries a chat
+    /// through other peers while moss lists no row for the counterpart, and a
+    /// failed mesh report says nothing about the counterpart at all.
+    pub(super) fn pump_liveness(&mut self, now_ms: u64, lost_window_ms: u64) {
+        if std::mem::take(&mut self.authenticated_since_tick) {
+            self.last_authenticated_rx_ms = self.last_authenticated_rx_ms.max(now_ms);
         }
-        if self.reach() == PeerTransport::None {
-            let since = *self.unreachable_since_ms.get_or_insert(now_ms);
-            if now_ms.saturating_sub(since) >= lost_window_ms {
-                self.state = next_state(self.state, SessionEvent::CounterpartLost);
-            }
-        } else {
-            self.unreachable_since_ms = None;
+        let silent_for = now_ms.saturating_sub(self.last_authenticated_rx_ms);
+        if self.state == DmSessionState::Connected && silent_for >= lost_window_ms {
+            self.state = next_state(self.state, SessionEvent::CounterpartLost);
         }
     }
 
@@ -339,15 +339,26 @@ impl PrivateDmSession {
         let _ = self.route_send(ChannelKind::Control, &payload);
     }
 
-    /// Say hello until the counterpart answers with anything authenticated.
-    /// Our side of the handshake is done and MLS is ready, so the counterpart
-    /// can decrypt this the moment it holds the group; receiving it is its
-    /// proof that we are here, and its reply is ours.
+    /// Say hello until the counterpart answers with anything authenticated,
+    /// then keep a quiet Connected session alive with one every
+    /// KEEPALIVE_MS. Our side of the handshake is done and MLS is ready, so
+    /// the counterpart can decrypt this the moment it holds the group;
+    /// receiving it is its proof that we are here, and its reply is ours.
+    /// A Hello from the counterpart is answered here too, but never inside
+    /// our own cadence: two sides would otherwise ping-pong forever.
     pub(super) fn pump_hello(&mut self, now_ms: u64) {
-        if self.state == DmSessionState::Connected || !self.can_encrypt_for_peer() {
+        let answer = std::mem::take(&mut self.hello_answer_due);
+        if !self.can_encrypt_for_peer() {
             return;
         }
-        if now_ms.saturating_sub(self.last_hello_send_ms) >= HANDSHAKE_RESEND_MS {
+        let since_send = now_ms.saturating_sub(self.last_hello_send_ms);
+        let due = if self.state == DmSessionState::Connected {
+            let quiet = now_ms.saturating_sub(self.last_authenticated_rx_ms) >= KEEPALIVE_MS;
+            quiet && since_send >= KEEPALIVE_MS
+        } else {
+            since_send >= HANDSHAKE_RESEND_MS
+        };
+        if due || (answer && since_send >= HANDSHAKE_RESEND_MS) {
             self.send_hello(now_ms);
         }
     }
@@ -417,19 +428,16 @@ impl PrivateDmSession {
         self.route_send(ChannelKind::Control, &payload)
     }
 
-    /// Whether a queued message can go out now: our side of the handshake is
-    /// done, so the ciphertext is at an epoch the counterpart holds, and the
-    /// transport reports it reachable.
-    pub(super) fn can_deliver(&self) -> bool {
-        self.can_encrypt_for_peer() && self.reach() != PeerTransport::None
-    }
-
-    /// Send queued messages oldest first while the counterpart is reachable.
-    /// A refusal leaves the message queued and stops the pass, so a newer
-    /// message never overtakes an older one. Returns the ids whose attempt
-    /// changed so the runtime can persist them.
+    /// Send queued messages oldest first once our side of the handshake is
+    /// done, so the ciphertext is at an epoch the counterpart holds. Moss's
+    /// peer table is not asked: a room publish does not need a row for the
+    /// counterpart, a publish with nobody to take it comes back `NoPeers`
+    /// and leaves the text queued, and the resend + DeliveryAck loop covers
+    /// a frame the transport took but lost. A refusal stops the pass, so a
+    /// newer message never overtakes an older one. Returns the ids whose
+    /// attempt changed so the runtime can persist them.
     pub(super) fn pump_outbox(&mut self) -> Vec<String> {
-        if !self.can_deliver() {
+        if !self.can_encrypt_for_peer() {
             return Vec::new();
         }
         let mut changed = Vec::new();

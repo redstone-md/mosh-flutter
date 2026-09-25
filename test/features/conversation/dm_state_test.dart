@@ -82,6 +82,19 @@ void main() {
         'Подключено · через ретранслятор сети',
       );
     });
+
+    test('connected with no moss path says the chat rides the mesh', () {
+      // Authenticated frames prove the contact while moss lists no row for
+      // it: gossip carries the chat through other peers.
+      expect(
+        dmStateSentence(en, DmSessionState.connected, PeerTransport.none),
+        'Connected · through the mesh',
+      );
+      expect(
+        dmStateSentence(ru, DmSessionState.connected, PeerTransport.none),
+        'Подключено · через сеть',
+      );
+    });
   });
 
   group('dmStateLabel', () {
