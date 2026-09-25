@@ -137,9 +137,25 @@ pub struct Persistence {
     dek: [u8; 32],
 }
 
+/// Where the DEK for the database at `path` lives. macOS keeps it in a file
+/// beside the database (see `file_secret_store` for why); every other desktop
+/// keeps it in the OS keychain.
+#[cfg(target_os = "macos")]
+fn dek_store(path: &Path) -> Box<dyn SecureSecretStore> {
+    match path.parent() {
+        Some(dir) => Box::new(crate::file_secret_store::FileSecretStore::new(dir)),
+        None => Box::new(OsSecureSecretStore),
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn dek_store(_path: &Path) -> Box<dyn SecureSecretStore> {
+    Box::new(OsSecureSecretStore)
+}
+
 impl Persistence {
-    /// Open (or create) the encrypted DB at `path`, loading the DEK from the OS
-    /// keychain (creating + storing a new random DEK on first run).
+    /// Open (or create) the encrypted DB at `path`, loading the DEK from
+    /// `dek_store` (creating + storing a new random DEK on first run).
     pub fn open(path: &Path) -> Result<Self, PersistenceError> {
         Self::open_with_key(path, DEK_KEY)
     }
@@ -154,7 +170,7 @@ impl Persistence {
     /// that no longer exists: the app then fails closed on every later start
     /// and the history is gone for good.
     pub(crate) fn open_with_key(path: &Path, dek_key: &str) -> Result<Self, PersistenceError> {
-        let store = OsSecureSecretStore;
+        let store = dek_store(path);
         let db_exists = path.exists();
         let dek = match store.load_secret(dek_key) {
             Ok(bytes) if bytes.len() == 32 => {
