@@ -55,12 +55,12 @@
 //! identity + a history blob survive a drop-and-reopen -- cleaning its DEK
 //! out of the keychain in teardown so the host keychain is not polluted.
 
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use crate::api::conversation_bridge::ConversationBridgeError;
 use crate::private_dm_runtime::{
-    AcceptInviteRequest, CallStarted, InviteCreated, PrivateDmRuntime, PrivateDmRuntimeError,
-    SessionListSnapshot, SessionSnapshot, StartSessionRequest,
+    AcceptInviteRequest, CallMedia, CallStarted, InviteCreated, PrivateDmRuntime,
+    PrivateDmRuntimeError, SessionListSnapshot, SessionSnapshot, StartSessionRequest,
 };
 
 const PRIVATE_DM_UNAVAILABLE: &str = "private DM runtime unavailable";
@@ -254,27 +254,36 @@ pub fn call_end(
         .map_err(ConversationBridgeError::from)
 }
 
-/// Push an encrypted voice-call frame into the session outbound queue.
-/// The Flutter bridge surfaces this explicitly so the Dart capture loop
-/// can drive it. The caller seals the frame before sending.
-pub fn call_send_frame(session_id: String, call_id: String, frame: Vec<u8>) -> Result<(), String> {
-    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .call_send_frame(&session_id, &call_id, frame)
-        .map_err(|error| error.to_string())
+/// The call media hub, cached after the first call so the 20 ms audio loop
+/// never takes the runtime lock again.
+fn call_media() -> Result<Arc<CallMedia>, String> {
+    static CALL_MEDIA: OnceLock<Arc<CallMedia>> = OnceLock::new();
+    if let Some(media) = CALL_MEDIA.get() {
+        return Ok(Arc::clone(media));
+    }
+    let guard = ensure_runtime().map_err(|error| error.to_string())?;
+    let media = guard
+        .as_ref()
+        .expect("ensure_runtime guarantees Some")
+        .call_media();
+    Ok(Arc::clone(CALL_MEDIA.get_or_init(|| media)))
 }
 
-/// Drain the inbound voice-call frames for an active call. Returns the
-/// sealed frames the peer sent; the caller opens + queues them into the
-/// playback jitter buffer. The Flutter bridge surfaces this explicitly so
-/// the Dart playback loop can drive it at 20ms cadence.
+/// Publish one sealed voice-call frame for an active call. The Dart capture
+/// loop drives it every 20 ms; the caller seals the frame before sending.
+/// A call id is unique on its own; `session_id` stays for the bridge
+/// contract.
+pub fn call_send_frame(session_id: String, call_id: String, frame: Vec<u8>) -> Result<(), String> {
+    let _ = session_id;
+    call_media()?.send(&call_id, &frame)
+}
+
+/// The sealed frames the peer sent for an active call since the last drain.
+/// The Dart playback loop drives it every 20 ms, then opens the frames and
+/// queues them into the jitter buffer.
 pub fn call_drain_frames(session_id: String, call_id: String) -> Result<Vec<Vec<u8>>, String> {
-    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
-    runtime
-        .call_drain_frames(&session_id, &call_id)
-        .map_err(|error| error.to_string())
+    let _ = session_id;
+    Ok(call_media()?.drain(&call_id))
 }
 
 /// Whether this user sends read receipts (and therefore sees others').

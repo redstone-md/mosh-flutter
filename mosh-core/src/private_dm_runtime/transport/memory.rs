@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::{DmTransport, PeerTransport, PublishError};
+use super::{is_call_media_inbound, DmTransport, PeerTransport, PublishError};
 use crate::conversation::mesh::{MeshInfo, PeerDetail};
 use crate::moss_ffi::MossReceivedMessage;
 use crate::stream_transport::{passthrough_or_deframe, stream_inbox_channel};
@@ -15,6 +15,8 @@ type DropRule = Arc<dyn Fn(&str, &[u8]) -> bool + Send + Sync>;
 #[derive(Default)]
 struct Endpoint {
     inbox: Vec<MossReceivedMessage>,
+    /// Voice-call media, queued apart the way the moss inbox claims it.
+    media_inbox: Vec<MossReceivedMessage>,
     connect_requests: Vec<String>,
     /// The transport turns every publish away, the way moss answers a
     /// node with nobody to hand the frame to.
@@ -264,7 +266,12 @@ impl DmTransport for MemoryTransport {
                 continue;
             }
             if let Some(endpoint) = state.endpoints.get_mut(&to) {
-                endpoint.inbox.push(MossReceivedMessage {
+                let queue = if is_call_media_inbound(channel) {
+                    &mut endpoint.media_inbox
+                } else {
+                    &mut endpoint.inbox
+                };
+                queue.push(MossReceivedMessage {
                     channel: channel.to_string(),
                     payload: payload.to_vec(),
                 });
@@ -338,5 +345,14 @@ impl DmTransport for MemoryTransport {
             .into_iter()
             .map(passthrough_or_deframe)
             .collect()
+    }
+
+    fn drain_media(&self) -> Vec<MossReceivedMessage> {
+        let mut state = self.net.lock();
+        state
+            .endpoints
+            .get_mut(&self.peer_id)
+            .map(|endpoint| std::mem::take(&mut endpoint.media_inbox))
+            .unwrap_or_default()
     }
 }

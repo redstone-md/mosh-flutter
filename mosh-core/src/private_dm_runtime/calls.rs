@@ -196,35 +196,4 @@ impl PrivateDmSession {
         };
         self.send_call_control(&envelope)
     }
-
-    pub(super) fn call_send_frame(
-        &mut self,
-        call_id: &str,
-        frame: Vec<u8>,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        let Some(call) = self.call.as_ref() else {
-            return Ok(());
-        };
-        if call.call_id != call_id || call.phase != CallPhase::Active {
-            return Ok(());
-        }
-        // A media frame is never worth a refusal: the next one is 20 ms away.
-        match self
-            .transport
-            .publish(&self.mesh_id, &voice_call_channel(call_id), &frame)
-        {
-            Ok(()) | Err(PublishError::NoPeers(_)) => Ok(()),
-            Err(error) => Err(PrivateDmRuntimeError::Moss(error.to_string())),
-        }
-    }
-
-    pub(super) fn call_drain_frames(&mut self, call_id: &str) -> Vec<Vec<u8>> {
-        let Some(call) = self.call.as_mut() else {
-            return Vec::new();
-        };
-        if call.call_id != call_id {
-            return Vec::new();
-        }
-        call.drain_frames()
-    }
 }

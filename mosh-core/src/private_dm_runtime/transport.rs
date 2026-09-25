@@ -96,8 +96,14 @@ pub trait DmTransport: Send + Sync {
         Err(STREAMS_UNSUPPORTED.to_string())
     }
 
-    /// Every frame that arrived since the last call.
+    /// Every frame that arrived since the last call, voice-call media
+    /// excepted.
     fn drain(&self) -> Vec<MossReceivedMessage>;
+
+    /// Every voice-call media frame that arrived since the last call. Kept
+    /// apart from [`DmTransport::drain`] so the audio loop never waits on the
+    /// DM runtime (`CallMedia`).
+    fn drain_media(&self) -> Vec<MossReceivedMessage>;
 }
 
 const STREAMS_UNSUPPORTED: &str = "transport has no stream fast path";
@@ -119,11 +125,21 @@ pub fn reach_of(peer_moss_id: &str, info: &MeshInfo) -> PeerTransport {
 
 pub(crate) fn is_private_dm_inbound(channel: &str) -> bool {
     channel_session_id(channel).is_some()
-        || channel_call_id(channel).is_some()
         // Stream-delivered frames (spec #8): the carrier deframes them in
         // drain, so the runtime sees the ordinary blob/data/control channel
         // inside — but the queue has to claim the frame when it lands.
         || crate::stream_transport::is_stream_inbound(channel)
+}
+
+/// A voice-call media frame. Claimed by its own queue, not the DM's.
+pub(crate) fn is_call_media_inbound(channel: &str) -> bool {
+    channel_call_id(channel).is_some()
+}
+
+/// The voice-call media queue, claimed once for the process.
+fn media_inbox() -> &'static inbox::Inbox {
+    static INBOX: std::sync::OnceLock<inbox::Inbox> = std::sync::OnceLock::new();
+    INBOX.get_or_init(|| inbox::register(is_call_media_inbound))
 }
 
 /// The DM's own inbound queue, claimed once for the process. Two DM runtimes
@@ -149,6 +165,7 @@ impl MossDmTransport {
         // lands before its owner is registered goes to the unclaimed tail,
         // and no drain will ever see it.
         dm_inbox();
+        media_inbox();
         Arc::new(Self { shared_node })
     }
 
@@ -255,6 +272,10 @@ impl DmTransport for MossDmTransport {
                 crate::stream_transport::passthrough_or_deframe(message)
             })
             .collect()
+    }
+
+    fn drain_media(&self) -> Vec<MossReceivedMessage> {
+        media_inbox().drain()
     }
 }
 
