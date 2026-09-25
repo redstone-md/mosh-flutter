@@ -10,12 +10,11 @@
 // appeared after a local send.
 //
 // Shape: one process-lifetime `Timer.periodic`. Each tick refreshes every
-// conversation kind's list and then the open conversation's snapshot. Each
-// kind has its own in-flight guard: a slow kind skips its own ticks and
-// never holds the other kinds back (a DM runtime busy with a transfer used
-// to freeze the channel and group lists too). The open conversation's
-// snapshot is re-read only when its kind's list is not stuck, so a stuck
-// kind never piles up snapshot reads either.
+// conversation kind's list. Each kind has its own in-flight guard: a slow
+// kind skips its own ticks and never holds the other kinds back (a DM
+// runtime busy with a transfer used to freeze the channel and group lists
+// too). The open conversation's snapshot is re-read when its kind's list
+// read finishes, so it never queues behind that read.
 //
 // The DM protocol itself no longer depends on this loop: a Rust service
 // thread drives it (`api::private_dm`). This loop keeps the screens fresh.
@@ -55,24 +54,28 @@ final autoPollProvider = Provider<void>((ref) {
   if (interval == null) return;
   final inFlight = <ConversationKind>{};
 
+  // The open conversation's snapshot follows its own kind's list read: it
+  // never queues behind that read, and a stuck kind never piles up
+  // snapshot reads.
+  void refreshOpenSnapshot(ConversationKind kind) {
+    if (!ref.mounted) return;
+    final active = ref.read(activeConversationProvider);
+    if (active == null || active.conversation.kind != kind) return;
+    invalidateConversation(ref.invalidate, active.conversation);
+  }
+
   void refresh(ConversationKind kind) {
     if (!inFlight.add(kind)) return;
     unawaited(ref
         .read(conversationListProvider(kind).notifier)
         .refresh()
-        .whenComplete(() => inFlight.remove(kind)));
+        .whenComplete(() {
+      inFlight.remove(kind);
+      refreshOpenSnapshot(kind);
+    }));
   }
 
-  void tick() {
-    // A kind whose read from an earlier tick is still out is busy; its
-    // snapshot would only queue behind that same call.
-    final busy = {...inFlight};
-    ConversationKind.values.forEach(refresh);
-    final active = ref.read(activeConversationProvider);
-    if (active == null || busy.contains(active.conversation.kind)) return;
-    invalidateConversation(ref.invalidate, active.conversation);
-  }
-
-  final timer = Timer.periodic(interval, (_) => tick());
+  final timer =
+      Timer.periodic(interval, (_) => ConversationKind.values.forEach(refresh));
   ref.onDispose(timer.cancel);
 });
