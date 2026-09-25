@@ -22,6 +22,7 @@ use super::attachments::AttachmentDirection;
 use super::message_log::{delivery_meta, ConversationMessage, MessageLog};
 use super::now_ms;
 use super::transfer::Transfer;
+use crate::attachment_runtime::AttachmentManifest;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
 use crate::persistence::{HistoryTables, Persistence};
@@ -37,6 +38,8 @@ pub struct StoredMessage<M> {
     pub sent_at_ms: u64,
     pub message_id: String,
     pub message: M,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachment_manifest: Option<AttachmentManifest>,
 }
 
 /// Where a replayed conversation's rows land.
@@ -87,7 +90,7 @@ impl History {
     }
 
     /// Reads one conversation's messages and unsettled sends back in, restores
-    /// the attachments still cached on disk, and remembers how much of the
+    /// saved attachment offers and cached files, and remembers how much of the
     /// history is already written.
     pub fn replay<M>(&mut self, p: &Persistence, conversation_id: &str, into: Restore<'_, M>)
     where
@@ -107,7 +110,7 @@ impl History {
                 };
                 let mut message = stored.message;
                 fill_in(&mut message, &stored.message_id, stored.sent_at_ms);
-                restore_attachment(&message, local_author, transfer);
+                restore_attachment(&message, local_author, transfer, stored.attachment_manifest);
                 log.upsert(message);
             }
         }
@@ -152,6 +155,7 @@ impl History {
         p: &Persistence,
         conversation_id: &str,
         log: &MessageLog<M>,
+        transfer: Option<&Transfer>,
     ) -> bool {
         let start = self
             .persisted_counts
@@ -169,7 +173,19 @@ impl History {
             };
             let mut stored = message.clone();
             fill_in(&mut stored, &message_id, sent_at_ms);
-            self.append(p, conversation_id, sent_at_ms, &message_id, stored);
+            let manifest = transfer.and_then(|transfer| {
+                message
+                    .attachment()
+                    .and_then(|attachment| transfer.manifest_for(&attachment.attachment_id))
+            });
+            self.append(
+                p,
+                conversation_id,
+                sent_at_ms,
+                &message_id,
+                stored,
+                manifest,
+            );
         }
         self.persisted_counts
             .insert(conversation_id.to_string(), log.len());
@@ -195,7 +211,13 @@ impl History {
             return false;
         };
         let sent_at_ms = message.sent_at_ms().unwrap_or_else(now_ms);
-        let Some(row) = stored_row(conversation_id, sent_at_ms, message_id, message.clone()) else {
+        let Some(row) = stored_row(
+            conversation_id,
+            sent_at_ms,
+            message_id,
+            message.clone(),
+            None,
+        ) else {
             return false;
         };
         let attempt_row = attempts
@@ -233,8 +255,9 @@ impl History {
         sent_at_ms: u64,
         message_id: &str,
         message: M,
+        manifest: Option<AttachmentManifest>,
     ) {
-        if let Some(row) = stored_row(conversation_id, sent_at_ms, message_id, message) {
+        if let Some(row) = stored_row(conversation_id, sent_at_ms, message_id, message, manifest) {
             let _ = p.append_history_message(
                 self.tables,
                 conversation_id,
@@ -253,12 +276,14 @@ fn stored_row<M: ConversationMessage>(
     sent_at_ms: u64,
     message_id: &str,
     message: M,
+    manifest: Option<AttachmentManifest>,
 ) -> Option<Vec<u8>> {
     let record = StoredMessage {
         conversation_id: conversation_id.to_string(),
         sent_at_ms,
         message_id: message_id.to_string(),
         message,
+        attachment_manifest: manifest,
     };
     serde_json::to_vec(&record).ok()
 }
@@ -312,6 +337,7 @@ fn restore_attachment<M: ConversationMessage>(
     message: &M,
     local_author: &str,
     transfer: &mut Transfer,
+    manifest: Option<AttachmentManifest>,
 ) {
     let Some(descriptor) = message.attachment() else {
         return;
@@ -321,7 +347,7 @@ fn restore_attachment<M: ConversationMessage>(
     } else {
         AttachmentDirection::Incoming
     };
-    transfer.restore_cached(descriptor, direction);
+    transfer.restore_stored(descriptor, direction, manifest);
 }
 
 #[cfg(test)]

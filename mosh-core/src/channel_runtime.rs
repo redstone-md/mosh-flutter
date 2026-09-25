@@ -346,6 +346,10 @@ impl ConversationSession for ChannelSession {
         &self.messages
     }
 
+    fn transfer(&self) -> Option<&Transfer> {
+        Some(&self.transfer)
+    }
+
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {
         &self.outbound_attempts
     }

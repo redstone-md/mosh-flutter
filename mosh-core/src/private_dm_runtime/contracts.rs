@@ -454,6 +454,7 @@ mod tests {
             sent_at_ms: 123,
             message_id: "123-000000".into(),
             message: msg,
+            attachment_manifest: None,
         };
         let bytes = serde_json::to_vec(&pm).unwrap();
         let back: StoredMessage<ChatMessage> = serde_json::from_slice(&bytes).unwrap();

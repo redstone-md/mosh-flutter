@@ -327,6 +327,56 @@ impl AttachmentRuntime {
         Ok(frames)
     }
 
+    /// Restores the original chunk key for a sent file after a restart.
+    pub fn restore_outgoing(
+        &mut self,
+        manifest: AttachmentManifest,
+        bytes: Vec<u8>,
+    ) -> Result<(), AttachmentRuntimeError> {
+        if self.outgoing.contains_key(&manifest.attachment_id) {
+            return Err(AttachmentRuntimeError::DuplicateTransfer(
+                manifest.attachment_id,
+            ));
+        }
+        if bytes.len() as u64 != manifest.total_size
+            || sha256_hex(&bytes) != manifest.content_hash
+            || manifest.chunk_size == 0
+            || manifest.total_size.div_ceil(u64::from(manifest.chunk_size)) != manifest.chunk_count
+        {
+            return Err(AttachmentRuntimeError::ManifestMismatch(
+                "restored outgoing file".to_string(),
+            ));
+        }
+        let key = decode_fixed::<ATTACHMENT_KEY_LEN>(&manifest.key_b64)
+            .ok_or_else(|| AttachmentRuntimeError::ManifestMismatch("key".to_string()))?;
+        let nonce_prefix = decode_fixed::<ATTACHMENT_NONCE_PREFIX_LEN>(&manifest.nonce_prefix_b64)
+            .ok_or_else(|| AttachmentRuntimeError::ManifestMismatch("nonce prefix".to_string()))?;
+        self.outgoing.insert(
+            manifest.attachment_id.clone(),
+            OutgoingTransfer {
+                manifest,
+                plaintext: bytes,
+                key,
+                nonce_prefix,
+                served_chunks: BTreeMap::new(),
+                state: TransferState::Active,
+            },
+        );
+        Ok(())
+    }
+
+    pub fn manifest_of(&self, attachment_id: &str) -> Option<AttachmentManifest> {
+        self.outgoing
+            .get(attachment_id)
+            .map(|transfer| &transfer.manifest)
+            .or_else(|| {
+                self.incoming
+                    .get(attachment_id)
+                    .map(|transfer| &transfer.manifest)
+            })
+            .cloned()
+    }
+
     /// Records an inbound manifest so the host can later request its chunks.
     pub fn register_incoming(
         &mut self,
@@ -450,6 +500,35 @@ impl AttachmentRuntime {
         attachment_id: &str,
         now: Instant,
     ) -> Option<ChunkRequest> {
+        self.next_chunk_request_with_budget_at(attachment_id, now, MAX_REQUEST_BATCH)
+    }
+
+    /// Space left in the peer's chunk queue across all active downloads.
+    pub(crate) fn available_request_slots_at(&self, now: Instant) -> usize {
+        let in_flight = self
+            .incoming
+            .values()
+            .filter(|transfer| transfer.download_started && transfer.state == TransferState::Active)
+            .flat_map(|transfer| {
+                transfer.requested_at.iter().filter(|(index, sent)| {
+                    !transfer.chunks.contains_key(index)
+                        && now.saturating_duration_since(**sent) < CHUNK_REQUEST_TIMEOUT
+                })
+            })
+            .count();
+        MAX_REQUEST_BATCH.saturating_sub(in_flight)
+    }
+
+    pub(crate) fn next_chunk_request_with_budget_at(
+        &mut self,
+        attachment_id: &str,
+        now: Instant,
+        budget: usize,
+    ) -> Option<ChunkRequest> {
+        let budget = budget.min(self.available_request_slots_at(now));
+        if budget == 0 {
+            return None;
+        }
         let transfer = self.incoming.get_mut(attachment_id)?;
         if !transfer.download_started || transfer.state != TransferState::Active {
             return None;
@@ -463,7 +542,7 @@ impl AttachmentRuntime {
                     now.saturating_duration_since(*sent) >= CHUNK_REQUEST_TIMEOUT
                 })
         };
-        let batch = request_batch(transfer.manifest.chunk_size);
+        let batch = budget.min(request_batch(transfer.manifest.chunk_size));
         let mut indices = Vec::new();
         // A streaming player's requested region jumps the queue so playback
         // is not blocked behind the sequential cursor.
@@ -1055,6 +1134,42 @@ mod tests {
             2,
             "the sender must re-serve the chunk the receiver never got"
         );
+    }
+
+    #[test]
+    fn a_new_batch_waits_for_room_in_the_inflight_window() {
+        let mut sender = AttachmentRuntime::new();
+        let manifest = sender
+            .prepare_outgoing(OutgoingAttachment {
+                attachment_id: "window".to_string(),
+                file_name: "window.bin".to_string(),
+                mime: "application/octet-stream".to_string(),
+                from_fingerprint: "sender".to_string(),
+                bytes: payload(CHUNK_SIZE as usize * (MAX_REQUEST_BATCH + 1)),
+                thumbnail_b64: None,
+                voice: None,
+            })
+            .expect("prepare");
+        let mut receiver = AttachmentRuntime::new();
+        receiver.register_incoming(manifest).expect("offer");
+        receiver.start_download("window").expect("start");
+        let now = Instant::now();
+        let first = receiver
+            .next_chunk_request_at("window", now)
+            .expect("first batch");
+        assert_eq!(first.chunk_indices.len(), MAX_REQUEST_BATCH);
+        assert!(
+            receiver
+                .next_chunk_request_at("window", now + Duration::from_millis(1))
+                .is_none(),
+            "one receiver must not queue more chunks than the peer's 256-frame buffer"
+        );
+        let first_frame = sender.serve_chunks(&first).unwrap().remove(0);
+        receiver.ingest_chunk(&first_frame).unwrap();
+        let next = receiver
+            .next_chunk_request_at("window", now + Duration::from_millis(2))
+            .expect("a received chunk frees one request slot");
+        assert_eq!(next.chunk_indices, vec![MAX_REQUEST_BATCH as u64]);
     }
 
     #[test]

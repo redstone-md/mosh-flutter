@@ -722,8 +722,11 @@ impl PrivateDmRuntime {
         voice: Option<VoiceMeta>,
     ) -> Result<AttachmentSendResult, PrivateDmRuntimeError> {
         self.drain_inbound();
-        let session = self.session_mut(session_id)?;
-        session.send_attachment(file_name, mime, bytes, thumbnail, voice)
+        let result = self
+            .session_mut(session_id)?
+            .send_attachment(file_name, mime, bytes, thumbnail, voice)?;
+        self.sessions.persist_tail();
+        Ok(result)
     }
 
     /// Begins (or retries) downloading a peer's attachment.
@@ -996,6 +999,10 @@ impl ConversationSession for PrivateDmSession {
 
     fn log(&self) -> &MessageLog<ChatMessage> {
         &self.messages
+    }
+
+    fn transfer(&self) -> Option<&Transfer> {
+        Some(&self.transfer)
     }
 
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord> {

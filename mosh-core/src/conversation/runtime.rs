@@ -7,11 +7,9 @@
 //! the group had two spellings of the same "is this record worth saving yet"
 //! rule.
 //!
-//! It is written once here, and the kind answers the four questions the shell
-//! cannot: what a conversation is called, what its messages and unsettled
-//! sends are, what record rebuilds it, and what else of its own has to go down
-//! beside the history — an MLS snapshot for a DM and a group, nothing for a
-//! public channel.
+//! It is written once here, and the kind supplies its id, messages, unsettled
+//! sends, attachment transfer, rebuild record, and any extra durable state —
+//! an MLS snapshot for a DM and a group, nothing for a public channel.
 //!
 //! What stays with the kind: everything about the wire. Who may speak, what an
 //! envelope looks like, how a frame is published, when a session is ready.
@@ -24,6 +22,7 @@ use serde::Serialize;
 
 use super::history::{History, Restore};
 use super::message_log::{ConversationMessage, MessageLog};
+use super::transfer::Transfer;
 use crate::attachment_store::AttachmentStore;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::moss_ffi::MossNode;
@@ -43,6 +42,10 @@ pub trait ConversationSession {
     fn conversation_id(&self) -> &str;
 
     fn log(&self) -> &MessageLog<Self::Message>;
+
+    fn transfer(&self) -> Option<&Transfer> {
+        None
+    }
 
     fn attempts(&self) -> &HashMap<String, OutboundAttemptRecord>;
 
@@ -172,9 +175,12 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         let mut pending: Vec<String> = Vec::new();
         for session in self.sessions.values() {
             let conversation_id = session.conversation_id();
-            let has_new_messages =
-                self.history
-                    .write_tail(&persistence, conversation_id, session.log());
+            let has_new_messages = self.history.write_tail(
+                &persistence,
+                conversation_id,
+                session.log(),
+                session.transfer(),
+            );
             let record_due = session.record_is_final()
                 && (!self.final_records.contains(conversation_id) || session.record_changed());
             // Only when something moved: the snapshot is re-encrypted whole,
