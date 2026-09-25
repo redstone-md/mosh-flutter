@@ -85,6 +85,14 @@ dependencies:
   # the FileProvider config it requires.
   open_filex: ^4.7.0
 
+# record_macos 2.1.1 with one patch (InputHelper.swift, getInputSampleRates):
+# a virtual audio driver that reports the sample-rate range 0...DBL_MAX made
+# Int(DBL_MAX) trap and crash the app whenever Settings listed the inputs.
+# Drop this override once upstream (llfbandit/record) ships the same guard.
+dependency_overrides:
+  record_macos:
+    path: third_party/record_macos
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
