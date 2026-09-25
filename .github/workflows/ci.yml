@@ -293,3 +293,4 @@ jobs:
   macos-dmg:
     needs: [macos-preflight]
     uses: ./.github/workflows/build-macos.yml
+    secrets: inherit

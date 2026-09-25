@@ -6,8 +6,11 @@ name: Build macOS DMG
 # maintainer build a DMG for the already-published release without
 # re-tagging (the v0.9.0 retro-attach ran this way).
 #
-# The DMG is UNSIGNED -- Gatekeeper warns on first launch. README
-# documents the official "Open Anyway" flow (see CODE_SIGNING.md).
+# The DMG is not notarized -- Gatekeeper warns on first launch. README
+# documents the official "Open Anyway" flow (see CODE_SIGNING.md). With the
+# MACOS_SIGNING_P12_* secrets the app carries the self-signed Mosh
+# signature, so the macOS keychain keeps "Always Allow" across updates;
+# without them (forks) it stays ad-hoc. Callers pass `secrets: inherit`.
 
 on:
   workflow_call:
@@ -22,7 +25,7 @@ permissions:
 
 jobs:
   dmg:
-    name: macOS DMG (release, universal, unsigned)
+    name: macOS DMG (release, universal, self-signed)
     runs-on: macos-latest
     timeout-minutes: 60
     outputs:
@@ -73,6 +76,12 @@ jobs:
       # small and installs in seconds.
       - name: Install create-dmg
         run: brew install create-dmg
+
+      - name: Import the self-signed signing identity
+        env:
+          MACOS_SIGNING_P12_BASE64: ${{ secrets.MACOS_SIGNING_P12_BASE64 }}
+          MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
+        run: bash scripts/macos-import-signing.sh
 
       - name: Package DMG + checksum
         run: bash scripts/macos-package.sh

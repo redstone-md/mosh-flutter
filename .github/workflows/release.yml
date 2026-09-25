@@ -59,6 +59,7 @@ jobs:
   dmg:
     needs: verify
     uses: ./.github/workflows/build-macos.yml
+    secrets: inherit
 
   publish:
     name: Publish GitHub release
