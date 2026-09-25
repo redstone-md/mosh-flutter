@@ -51,8 +51,9 @@ How it is wired:
   identity and prints the designated requirement. Without the secrets
   (forks, local builds) it keeps the ad-hoc signature.
 
-Losing the key costs one more password prompt per install when a new
-certificate replaces it. Rotating it on purpose has the same cost.
+Losing the key gives the next build a new designated requirement, so
+macOS asks again for permissions it had granted, such as the microphone.
+Rotating it on purpose has the same cost.
 
 ## If signing ever returns
 
