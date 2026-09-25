@@ -245,6 +245,66 @@ fn a_cancelled_download_stops_asking_for_chunks() {
 }
 
 #[test]
+fn concurrent_downloads_share_the_peer_queue() {
+    let sender_store = Scratch::open("parallel-sender");
+    let receiver_store = Scratch::open("parallel-receiver");
+    let mut sender = sender_store.transfer();
+    let mut receiver = receiver_store.transfer();
+    for id in ["file", "voice"] {
+        let manifest = send(&mut sender, id, vec![5; 256 * 4096]);
+        receiver.accept_manifest(manifest).expect("offer");
+        receiver.start_download(id).expect("start");
+    }
+    let requests = receiver.next_requests();
+    assert_eq!(requests.len(), 2, "both downloads must make progress");
+    assert!(
+        requests
+            .iter()
+            .map(|request| request.chunk_indices.len())
+            .sum::<usize>()
+            <= 256,
+        "both downloads share one peer stream with a 256-frame buffer"
+    );
+}
+
+#[test]
+fn voice_gets_the_next_free_slot_while_a_file_is_downloading() {
+    let sender_store = Scratch::open("voice-priority-sender");
+    let receiver_store = Scratch::open("voice-priority-receiver");
+    let mut sender = sender_store.transfer();
+    let mut receiver = receiver_store.transfer();
+    let file = send(&mut sender, "file", vec![5; 257 * 4096]);
+    receiver.accept_manifest(file).expect("file offer");
+    receiver.start_download("file").expect("start file");
+    let file_request = receiver.next_requests().remove(0);
+    assert_eq!(file_request.chunk_indices.len(), 256);
+
+    let mut voice = outgoing("voice", vec![7; 4096]);
+    voice.voice = Some(VoiceMeta {
+        duration_ms: 1000,
+        peaks_b64: String::new(),
+    });
+    let prepared = sender.prepare_outgoing(voice).expect("prepare voice");
+    let voice_manifest = prepared.manifest.clone();
+    sender.record_sent(prepared);
+    receiver
+        .accept_manifest(voice_manifest)
+        .expect("voice offer");
+    receiver.start_download("voice").expect("start voice");
+
+    let file_frame = sender.serve(&file_request).remove(0);
+    receiver.ingest(&file_frame).expect("one file chunk");
+    let requests = receiver.next_requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].attachment_id, "voice");
+    for frame in sender.serve(&requests[0]) {
+        receiver.ingest(&frame).expect("voice chunk");
+    }
+    assert_eq!(state_of(&receiver, "voice"), AttachmentState::Available);
+    assert_eq!(state_of(&receiver, "file"), AttachmentState::Downloading);
+}
+
+#[test]
 fn a_file_whose_manifest_never_went_out_opens_no_slot() {
     let scratch = Scratch::open("unpublished");
     let mut sender = scratch.transfer();

@@ -4,6 +4,18 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **An offered attachment remains downloadable after a restart.** Encrypted
+  history now keeps its chunk manifest. The receiver restores an uncached
+  offer, and the sender can serve its saved file with the original chunk key.
+  Existing history rows remain readable; offers created before this change
+  still require a new offer if the file was never cached.
+- **Concurrent downloads no longer flood one peer stream.** Requests share a
+  256-chunk in-flight window across attachments in a conversation. A voice
+  note gets the next free slot while a larger file is downloading.
+
 ## [0.9.6] - 2026-09-25
 
 From the 0.9.5 report on two Macs.

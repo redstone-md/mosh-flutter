@@ -268,9 +268,9 @@ impl AttachmentSlots {
         Ok(())
     }
 
-    /// The attachments that still need chunks pulled in, in a stable order.
+    /// The attachments that still need chunks pulled in, with voice first.
     pub fn awaiting_chunks(&self) -> Vec<String> {
-        let mut ids: Vec<String> = self
+        let mut ids: Vec<(bool, String)> = self
             .slots
             .iter()
             .filter(|(_, slot)| {
@@ -279,10 +279,10 @@ impl AttachmentSlots {
                     && slot.local_path.is_none()
                     && !slot.cancelled
             })
-            .map(|(id, _)| id.clone())
+            .map(|(id, slot)| (slot.descriptor.voice.is_none(), id.clone()))
             .collect();
         ids.sort();
-        ids
+        ids.into_iter().map(|(_, id)| id).collect()
     }
 
     /// What the UI shows, sorted so the list does not jump between polls.

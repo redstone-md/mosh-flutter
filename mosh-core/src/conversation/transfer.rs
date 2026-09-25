@@ -12,7 +12,9 @@
 //! DM wraps them in MLS too and hands them to its transport. So the calls
 //! here hand back the frames to publish instead of publishing them.
 
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 
 use super::attachments::{
     descriptor_of, AttachmentDescriptor, AttachmentDirection, AttachmentSlots, AttachmentView,
@@ -23,6 +25,7 @@ use crate::attachment_runtime::{
     OutgoingAttachment, StreamRange,
 };
 use crate::attachment_store::AttachmentStore;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 
 /// What went wrong moving an attachment's bytes. Each runtime maps this onto
 /// its own error, so the messages the app shows do not change.
@@ -80,6 +83,7 @@ pub struct Transfer {
     runtime: AttachmentRuntime,
     slots: AttachmentSlots,
     store: Arc<AttachmentStore>,
+    restored_outgoing: HashMap<String, AttachmentManifest>,
 }
 
 impl Transfer {
@@ -88,6 +92,7 @@ impl Transfer {
             runtime: AttachmentRuntime::new(),
             slots: AttachmentSlots::default(),
             store,
+            restored_outgoing: HashMap::new(),
         }
     }
 
@@ -144,7 +149,36 @@ impl Transfer {
     /// The chunks to answer a peer's request with. Only the sender holds the
     /// outgoing transfer, so every other member answers with nothing.
     pub fn serve(&mut self, request: &ChunkRequest) -> Vec<ChunkFrame> {
+        if let Some(manifest) = self.restored_outgoing.get(&request.attachment_id).cloned() {
+            let restored = self
+                .store
+                .read_blob(&manifest.content_hash, &manifest.file_name)
+                .map_err(TransferError::from)
+                .and_then(|bytes| {
+                    self.runtime
+                        .restore_outgoing(manifest, bytes)
+                        .map_err(Into::into)
+                });
+            if let Err(error) = restored {
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::FRAME,
+                    &request.attachment_id,
+                    &format!("cannot restore sent attachment: {error}"),
+                );
+                return Vec::new();
+            }
+            self.restored_outgoing.remove(&request.attachment_id);
+        }
         self.runtime.serve_chunks(request).unwrap_or_default()
+    }
+
+    /// The crypto manifest saved with a message's encrypted history row.
+    pub fn manifest_for(&self, attachment_id: &str) -> Option<AttachmentManifest> {
+        self.restored_outgoing
+            .get(attachment_id)
+            .cloned()
+            .or_else(|| self.runtime.manifest_of(attachment_id))
     }
 
     /// Files one arriving chunk, and writes the file out once the last one
@@ -169,13 +203,20 @@ impl Transfer {
         Ok(())
     }
 
-    /// What to ask for next, one request per download still running. The
-    /// in-flight window inside the transfer layer is what stops this from
-    /// becoming a flood.
+    /// Divide the shared peer queue between downloads so a large file cannot
+    /// keep a voice note waiting for its first chunk.
     pub fn next_requests(&mut self) -> Vec<ChunkRequest> {
         let mut requests = Vec::new();
-        for attachment_id in self.slots.awaiting_chunks() {
-            if let Some(request) = self.runtime.next_chunk_request(&attachment_id) {
+        let awaiting = self.slots.awaiting_chunks();
+        let now = Instant::now();
+        for (position, attachment_id) in awaiting.iter().enumerate() {
+            let remaining = awaiting.len() - position;
+            let available = self.runtime.available_request_slots_at(now);
+            let budget = available.div_ceil(remaining);
+            if let Some(request) =
+                self.runtime
+                    .next_chunk_request_with_budget_at(attachment_id, now, budget)
+            {
                 requests.push(request);
             }
         }
@@ -201,11 +242,8 @@ impl Transfer {
         self.runtime.stream_range(attachment_id, start, end)
     }
 
-    /// Puts back an attachment whose bytes are still in the store. One that is
-    /// not cached gets no slot, so a fresh offer from the peer can still
-    /// register it: downloading again from stored data is impossible, since
-    /// the chunk-crypto manifest is not saved and MLS forward secrecy bars
-    /// decrypting the original offer a second time.
+    /// Puts back an attachment whose bytes are still in the store. Used by
+    /// older history rows that do not carry a chunk-crypto manifest.
     pub fn restore_cached(
         &mut self,
         descriptor: &AttachmentDescriptor,
@@ -229,6 +267,39 @@ impl Transfer {
             direction,
             path.to_string_lossy().into_owned(),
         );
+    }
+
+    /// Restores a saved offer or sender after restart. Older history rows have
+    /// no manifest and can only restore files that are already cached.
+    pub fn restore_stored(
+        &mut self,
+        descriptor: &AttachmentDescriptor,
+        direction: AttachmentDirection,
+        manifest: Option<AttachmentManifest>,
+    ) {
+        if self.holds(&descriptor.attachment_id) {
+            return;
+        }
+        let manifest = manifest.filter(|value| {
+            value.attachment_id == descriptor.attachment_id
+                && value.content_hash == descriptor.content_hash
+                && value.file_name == descriptor.file_name
+                && value.mime == descriptor.mime
+                && value.total_size == descriptor.total_size
+        });
+        self.restore_cached(descriptor, direction);
+        if self.holds(&descriptor.attachment_id) {
+            if direction == AttachmentDirection::Outgoing {
+                if let Some(manifest) = manifest {
+                    self.restored_outgoing
+                        .insert(descriptor.attachment_id.clone(), manifest);
+                }
+            }
+        } else if direction == AttachmentDirection::Incoming {
+            if let Some(manifest) = manifest {
+                let _ = self.accept_manifest(manifest);
+            }
+        }
     }
 
     /// What the UI shows for every attachment in this conversation.
