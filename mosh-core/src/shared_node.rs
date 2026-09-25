@@ -148,7 +148,31 @@ fn drop_ref(state: &mut SharedNodeState) {
 /// line is greppable by call site rather than by peer.
 const STREAM_HANDLER_CONTEXT: &str = "stream-handler";
 
+/// Starts the node on `listen_port`, or on any free port when that one is
+/// taken. A busy port used to keep the node down for the whole process: every
+/// saved chat was dropped at startup and every new one failed with "could not
+/// reach the network". Peers find the node through the trackers, so the port
+/// number itself does not matter to them.
 fn start_node(
+    moss: &Arc<MossFfiRuntime>,
+    listen_port: u16,
+    static_peer: Option<String>,
+) -> Result<MossNode, MossFfiError> {
+    match start_node_on(moss, listen_port, static_peer.clone()) {
+        Err(error) if listen_port != 0 && error.is_listen_failed() => {
+            dlog::write(
+                LogLevel::Warn,
+                kinds::CONNECT,
+                &listen_port.to_string(),
+                &format!("listen port busy ({error}); starting on a free port"),
+            );
+            start_node_on(moss, 0, static_peer)
+        }
+        result => result,
+    }
+}
+
+fn start_node_on(
     moss: &Arc<MossFfiRuntime>,
     listen_port: u16,
     static_peer: Option<String>,
@@ -205,5 +229,21 @@ mod tests {
 
         drop_ref(&mut state);
         assert_eq!(state.refs, 0, "releasing past zero saturates");
+    }
+
+    /// Field case (0.9.5, macOS): a dead previous process still held the
+    /// UDP port, moss refused to start (-13) and every chat vanished. A busy
+    /// port must not keep the node down.
+    #[test]
+    fn node_starts_when_the_listen_port_is_taken() {
+        let squatter = std::net::UdpSocket::bind("0.0.0.0:0").expect("free UDP port");
+        let busy_port = squatter.local_addr().expect("bound address").port();
+        let moss = Arc::new(MossFfiRuntime::load_default().expect("moss library"));
+        let shared = SharedMossNode::new(moss);
+
+        shared
+            .acquire(busy_port, None)
+            .expect("node must start on another port");
+        shared.release();
     }
 }
