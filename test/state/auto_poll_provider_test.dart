@@ -9,11 +9,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../support/message_builders.dart';
 import '../support/scriptable_bridge.dart';
+import '../support/scriptable_gateway.dart';
+import '../support/scripted_conversations.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/state/active_conversation_key_provider.dart';
 import 'package:mosh/src/state/auto_poll_provider.dart';
 import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/state/session_providers.dart';
 
 /// The one bridge call that lists each conversation kind.
 const _listMethods = <BridgeMethod>[
@@ -73,6 +78,39 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listChannels),
         greaterThan(channelsBefore + 1),
         reason: 'channels keep refreshing on every tick');
+    bridge.release(BridgeMethod.listSessions);
+  });
+
+  test('the open conversation re-reads after its list, not behind a stuck one',
+      () async {
+    final conversations = ScriptedConversations();
+    final bridge = ScriptableBridge(conversations: conversations);
+    final gateway = ScriptableGateway(conversations: conversations);
+    bridge.seedSessions([TestSnapshots.dm(sessionId: 's1')]);
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      gatewayProvider.overrideWithValue(gateway),
+      activeConversationProvider
+          .overrideWithValue(ActiveConversation.parse('dm:s1')),
+      autoPollIntervalProvider
+          .overrideWithValue(const Duration(milliseconds: 10)),
+    ]);
+    addTearDown(container.dispose);
+    container.listen(activeSessionProvider('s1'), (_, __) {});
+    await container.read(activeSessionProvider('s1').future);
+    final before = gateway.countOf(GatewayMethod.poll);
+
+    container.read(autoPollProvider);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    expect(gateway.countOf(GatewayMethod.poll), greaterThan(before + 1),
+        reason: 'the snapshot follows every finished list read');
+
+    bridge.hold(BridgeMethod.listSessions);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    final stuckAt = gateway.countOf(GatewayMethod.poll);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    expect(gateway.countOf(GatewayMethod.poll), stuckAt,
+        reason: 'no snapshot reads pile up behind a stuck list');
     bridge.release(BridgeMethod.listSessions);
   });
 
