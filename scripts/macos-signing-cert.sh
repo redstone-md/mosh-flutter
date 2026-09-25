@@ -50,7 +50,9 @@ openssl req -x509 -newkey rsa:2048 -nodes -days "$DAYS" \
 
 # macOS `security import` cannot read OpenSSL 3's default PKCS#12
 # encryption, so the bundle uses the older SHA1/3DES scheme it accepts.
-openssl rand -base64 24 | tr -d '\n' > "$OUT/mosh-signing.p12.pass"
+# A Windows openssl ends the line with \r\n; a stray \r would become part of
+# the password, and the Mac import then fails its MAC check.
+openssl rand -base64 24 | tr -d '\r\n' > "$OUT/mosh-signing.p12.pass"
 openssl pkcs12 -export \
   -inkey "$OUT/mosh-signing.key" -in "$OUT/mosh-signing.crt" \
   -name "$NAME" \
