@@ -80,9 +80,9 @@ instead of a line hidden in the code that classifies the return value.
   the raw code through the real `check_publish_code`.
 - `mosh-probe channel-dial --send-without-peers` skips the wait for a peer, so
   the refusal can be watched live instead of designed around.
-- BUGS-TODO #18 (admin handoff frozen by a lost Commit) is not fixed here.
-  Group control frames stay best-effort; that item needs confirmed delivery,
-  which is a different mechanism.
+- Admin handoff frozen by a lost Commit (fixed later in ADR 0023) is not
+  fixed here. Group control frames stay best-effort; that item needs confirmed
+  delivery, which is a different mechanism.
 - **DM texts (ADR 0026, 2026-09-02).** A refusal is still never `Sent`. In the
   DM it is no longer `Failed` either: the text stays `Queued` and the outbox
   publishes it once the counterpart is reachable. The DM has an
