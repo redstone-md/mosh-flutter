@@ -640,7 +640,9 @@ stateDiagram-v2
     handshaking --> connected: authenticated frame
     connected --> handshaking: 25 s without an authenticated frame
     connected --> connected: frame or keepalive answer
-``` The Dart side renders both through
+```
+
+The Dart side renders both through
 `features/conversation/dm_state.dart`, one wording for the header, the rail,
 the title-bar pill and the diagnostics card.
 
