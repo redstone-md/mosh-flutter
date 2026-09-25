@@ -1,8 +1,8 @@
 //! Opus decoder + cpal output facade for the voice-call playback pipeline.
 //!
 //! Opus decode via `audiopus::coder::Decoder` (vendored libopus, MSVC) with
-//! drift-resync (if the ring backlog exceeds 0.2s of audio, drop it and
-//! resume from "now"), and
+//! drift-resync (if the ring backlog exceeds 0.2s of audio, drop the oldest
+//! down to the 60 ms playout delay), and
 //! playback is a `cpal::Stream` (Windows WASAPI) fed from a `ringbuf` ring;
 //! the cpal `data_callback` pulls decoded PCM off the ring's consumer and
 //! zero-fills underruns, while `push_frame` decodes one Opus packet and
@@ -55,10 +55,17 @@ const FRAME_SAMPLES: usize = 960;
 /// Playback sample rate (48 kHz mono), 1-1 with the Opus decoder config.
 const SAMPLE_RATE: u32 = 48_000;
 
-/// Ring capacity in frames. 8 * 960 = 7680 samples (~160 ms of slack), kept
-/// *below* the 200 ms resync threshold so steady-state jitter never trips a
-/// resync -- only a real stall (callback starved > 200 ms) does.
-const RING_FRAMES: usize = 8;
+/// Ring capacity in frames: 16 * 960 samples, 320 ms. Room above the 200 ms
+/// resync threshold, so a burst of late frames lands whole and is trimmed,
+/// instead of overflowing the ring.
+const RING_FRAMES: usize = 16;
+
+/// The playout delay: the device plays silence until this much audio is
+/// buffered, and again after it runs dry. Three 20 ms frames absorb the
+/// normal spread in arrival times; without it every late frame was a gap.
+/// ponytail: fixed 60 ms; adapt it to measured jitter (the NetEq way) if
+/// field logs show steady underruns.
+const PRIME_SAMPLES: usize = 3 * FRAME_SAMPLES;
 
 /// Opaque wrapper over the playback pipeline. The `Decoder` owns a libopus
 /// `OpusDecoder*` (`Send` but not `Sync`); the `cpal::Stream` is `Send` but not
@@ -84,11 +91,23 @@ fn should_resync(occupied_s: f64, threshold_s: f64) -> bool {
     occupied_s > threshold_s
 }
 
+/// Drops the oldest samples until `target` remain. A backlog past the resync
+/// threshold is latency, not safety: keep the newest audio at the playout
+/// delay instead of throwing the whole backlog away.
+fn trim_to_target(consumer: &mut HeapCons<i16>, target: usize) {
+    let excess = consumer.occupied_len().saturating_sub(target);
+    consumer.skip(excess);
+}
+
 /// Turns the 48 kHz mono ring into whatever the output device consumes:
 /// linear resampling to the device rate and the same sample on every
-/// channel. Underrun (ring empty) reads as silence.
+/// channel. Plays silence until the playout delay is buffered, and again
+/// after an underrun until it is buffered again.
 struct Renderer {
     consumer: Arc<Mutex<HeapCons<i16>>>,
+    /// Whether the ring held the playout delay since the last underrun.
+    primed: bool,
+    prime_samples: usize,
     channels: usize,
     /// Source samples per output sample (48000 / device rate).
     step: f64,
@@ -102,6 +121,8 @@ impl Renderer {
     fn new(consumer: Arc<Mutex<HeapCons<i16>>>, config: &StreamConfig) -> Self {
         Self {
             consumer,
+            primed: false,
+            prime_samples: PRIME_SAMPLES,
             channels: config.channels.max(1) as usize,
             step: f64::from(SAMPLE_RATE) / f64::from(config.sample_rate.max(1)),
             pos: 0.0,
@@ -115,8 +136,17 @@ impl Renderer {
         // stream is tearing down; render silence and move on.
         let consumer = Arc::clone(&self.consumer);
         let mut guard = consumer.lock().ok();
+        if !self.primed {
+            self.primed = guard
+                .as_ref()
+                .is_some_and(|cons| cons.occupied_len() >= self.prime_samples);
+        }
         for frame in buf.chunks_mut(self.channels) {
-            let sample = self.next_sample(&mut guard);
+            let sample = if self.primed {
+                self.next_sample(&mut guard)
+            } else {
+                0
+            };
             frame.fill(T::from_sample(sample));
         }
     }
@@ -126,7 +156,13 @@ impl Renderer {
         while self.pos >= 1.0 {
             self.pos -= 1.0;
             self.prev = self.next;
-            self.next = cons.as_mut().and_then(|c| c.try_pop()).unwrap_or(0);
+            self.next = match cons.as_mut().and_then(|c| c.try_pop()) {
+                Some(sample) => sample,
+                None => {
+                    self.primed = false;
+                    0
+                }
+            };
         }
         lerp(self.prev, self.next, self.pos)
     }
@@ -164,7 +200,7 @@ fn build_stream<T: SizedSample + FromSample<i16>>(
 }
 
 /// Starts the playback pipeline: an Opus decoder (48 kHz mono) + a cpal output
-/// stream in the device's own format, fed from a 7680-sample ring. Synchronous (audio open is blocking on
+/// stream in the device's own format, fed from a 320 ms ring. Synchronous (audio open is blocking on
 /// every cpal backend); `Err(String)` if there is no output device or
 /// the stream cannot be built/started. `output_device_id` is the stored
 /// audio-devices pick (cpal `DeviceId` string form); `None` or an unknown
@@ -221,9 +257,9 @@ pub fn voice_call_playback_start(
 /// Decodes one Opus packet and pushes its 960 i16 samples onto the ring. `seq`
 /// is the call frame sequence (preserves gaps on the wire), unused by cpal's
 /// pull model but accepted for seam parity with `VoicePlaybackHandle.pushFrame`.
-/// If the ring backlog exceeds `PLAYBACK_RESYNC_S`, the backlog is dropped
-/// first. On a full ring the push clears the backlog and retries
-/// ("play from now", no backpressure).
+/// If the ring backlog exceeds `PLAYBACK_RESYNC_S`, the oldest audio is
+/// dropped down to the playout delay first. On a full ring the push trims the
+/// same way and retries (no backpressure).
 #[frb(sync)]
 pub fn voice_call_playback_push_frame(
     p: &VoicePlayback,
@@ -266,22 +302,21 @@ pub fn voice_call_playback_push_frame(
     let occupied_s = prod.occupied_len() as f64 / SAMPLE_RATE as f64;
     if should_resync(occupied_s, PLAYBACK_RESYNC_S) {
         if let Ok(mut cons) = p.consumer.lock() {
-            cons.clear();
+            trim_to_target(&mut cons, PRIME_SAMPLES);
         }
     }
 
-    // Push the decoded frame. If the ring is full (callback stalled longer
-    // than the ring's slack without crossing the resync threshold), clear the
-    // backlog and retry (no backpressure, resume at the live edge).
-    // A still-full retry means the callback is
+    // Push the decoded frame. If the ring is still full (the callback is
+    // stalled), trim to the playout delay and retry: no backpressure,
+    // resume near the live edge. A still-full retry means the callback is
     // wedged; discard the frame rather than block the FFI thread (better to
     // lose one frame than stall decode).
     let pushed = prod.push_slice(&pcm);
     if pushed < FRAME_SAMPLES {
         if let Ok(mut cons) = p.consumer.lock() {
-            cons.clear();
+            trim_to_target(&mut cons, PRIME_SAMPLES);
         }
-        let _ = prod.push_slice(&pcm);
+        let _ = prod.push_slice(&pcm[pushed..]);
     }
     Ok(())
 }
@@ -312,12 +347,23 @@ mod tests {
     use cpal::{BufferSize, StreamConfig};
     use ringbuf::{traits::Producer, traits::Split, HeapRb};
 
-    use super::{should_resync, Renderer, PLAYBACK_RESYNC_S, SAMPLE_RATE};
+    use ringbuf::traits::{Consumer, Observer};
+
+    use super::{
+        should_resync, trim_to_target, Renderer, PLAYBACK_RESYNC_S, PRIME_SAMPLES, SAMPLE_RATE,
+    };
 
     /// A renderer over a ring holding `source`, for a device of `channels`
-    /// at `rate` Hz.
+    /// at `rate` Hz, that plays as soon as anything is buffered. The
+    /// resampling tests are about the samples, not the playout delay.
     fn renderer(source: &[i16], channels: u16, rate: u32) -> Renderer {
-        let ring = HeapRb::<i16>::new(source.len().max(1));
+        let mut r = renderer_with_prime(source, channels, rate, source.len().max(1));
+        r.prime_samples = 1;
+        r
+    }
+
+    fn renderer_with_prime(source: &[i16], channels: u16, rate: u32, capacity: usize) -> Renderer {
+        let ring = HeapRb::<i16>::new(capacity);
         let (mut producer, consumer) = ring.split();
         producer.push_slice(source);
         let config = StreamConfig {
@@ -326,6 +372,66 @@ mod tests {
             buffer_size: BufferSize::Default,
         };
         Renderer::new(Arc::new(Mutex::new(consumer)), &config)
+    }
+
+    fn occupied(r: &Renderer) -> usize {
+        r.consumer.lock().expect("lock").occupied_len()
+    }
+
+    #[test]
+    fn plays_silence_until_the_playout_delay_is_buffered() {
+        let short = vec![1000i16; PRIME_SAMPLES - 1];
+        let mut r = renderer_with_prime(&short, 1, SAMPLE_RATE, PRIME_SAMPLES * 2);
+        let mut out = [7i16; 64];
+        r.fill(&mut out);
+        assert!(out.iter().all(|&sample| sample == 0));
+        assert_eq!(occupied(&r), PRIME_SAMPLES - 1, "nothing was consumed");
+    }
+
+    #[test]
+    fn plays_once_the_playout_delay_is_buffered() {
+        let full = vec![1000i16; PRIME_SAMPLES];
+        let mut r = renderer_with_prime(&full, 1, SAMPLE_RATE, PRIME_SAMPLES * 2);
+        let mut out = [0i16; 64];
+        r.fill(&mut out);
+        assert_eq!(out[0], 0, "one sample of interpolation latency");
+        assert!(out[1..].iter().all(|&sample| sample == 1000));
+    }
+
+    #[test]
+    fn an_underrun_waits_for_the_delay_again() {
+        let ring = HeapRb::<i16>::new(16);
+        let (mut producer, consumer) = ring.split();
+        producer.push_slice(&[5, 5, 5, 5]);
+        let config = StreamConfig {
+            channels: 1,
+            sample_rate: SAMPLE_RATE,
+            buffer_size: BufferSize::Default,
+        };
+        let mut r = Renderer::new(Arc::new(Mutex::new(consumer)), &config);
+        r.prime_samples = 4;
+        let mut out = [0i16; 8];
+        r.fill(&mut out);
+        assert_eq!(out, [0, 5, 5, 5, 5, 0, 0, 0], "played, then ran dry");
+
+        // Two late samples are not enough to start again.
+        producer.push_slice(&[9, 9]);
+        let mut out = [1i16; 4];
+        r.fill(&mut out);
+        assert_eq!(out, [0, 0, 0, 0]);
+        assert_eq!(occupied(&r), 2);
+    }
+
+    #[test]
+    fn a_long_backlog_is_trimmed_to_the_target_keeping_the_newest() {
+        let ring = HeapRb::<i16>::new(16);
+        let (mut producer, mut consumer) = ring.split();
+        producer.push_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        trim_to_target(&mut consumer, 4);
+        assert_eq!(consumer.occupied_len(), 4);
+        let mut rest = [0i16; 4];
+        consumer.pop_slice(&mut rest);
+        assert_eq!(rest, [7, 8, 9, 10]);
     }
 
     #[test]
