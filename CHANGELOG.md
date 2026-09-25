@@ -4,6 +4,43 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+The stability round, from the 0.9.4 macOS report: a status that flipped
+every few seconds, texts stuck in a working chat, calls that broke up,
+and a keychain password asked on every launch.
+
+### Fixed
+- **Connected no longer flips to Offline and back.** A DM was judged by
+  whether moss listed the contact in its peer table, but gossip carries a
+  chat through other peers without that row. Connected now means an
+  MLS-authenticated frame arrived in the last 25 s; a quiet chat sends a
+  Hello keepalive every 10 s. The header says "Connected · through the
+  mesh" when moss lists no direct or relayed path.
+- **Texts go out whenever the chat works.** The outbox waited for the same
+  peer-table row. It now only needs the MLS handshake; a publish nobody
+  takes stays queued, and resend + delivery ack cover loss.
+- **A file transfer no longer freezes every chat.** Each served chunk
+  opened a moss stream, which for a relayed or unknown peer blocked for up
+  to 5 s or 20 s while the DM runtime was locked. Chunks now stream only to
+  a directly connected peer, and a failed stream is left alone for 10 s.
+- **Calls break up less.** Voice frames no longer go through the DM
+  runtime's lock or run its full protocol step 50 times a second; they
+  have their own queue. Playback buffers 60 ms before playing and after an
+  underrun, and a lost frame no longer stalls playback for 180 ms.
+- **The DM protocol runs without the UI.** A service thread drives
+  handshakes, keepalives and re-sends every 500 ms, and one busy list no
+  longer freezes the others.
+- **The field log tells the truth.** "session connected" is written once
+  per real change, not on every frame, and a dropped Hello names its MLS
+  error.
+
+### Changed
+- **The macOS DMG carries a self-signed Mosh signature.** macOS now names
+  the app the same way in every build, so the keychain can keep "Always
+  Allow" for the history key instead of asking again. Gatekeeper still
+  warns on first launch; see `CODE_SIGNING.md`.
+
 ## [0.9.4] - 2026-09-23
 
 The voice round: a macOS voice message that failed to send, a macOS
