@@ -25,6 +25,9 @@ platforms warn on first run.
   documented flow. On macOS 14 and older the right-click → **Open**
   shortcut also works. The terminal equivalent is
   `xattr -dr com.apple.quarantine /Applications/mosh.app`.
+  Mosh keeps its history key in your keychain, so the first launch asks
+  for your login password to reach it. Choose **Always Allow** so it does
+  not ask on every launch.
 
 ## Features
 

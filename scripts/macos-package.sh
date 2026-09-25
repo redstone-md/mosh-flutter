@@ -5,8 +5,9 @@
 #   bash scripts/macos-package.sh
 #   -> build/macos-dist/Mosh_<version>_universal.dmg (+ .sha256)
 #
-# The DMG is unsigned (ad-hoc app signature): Gatekeeper warns on first
-# launch. README documents the official "Open Anyway" flow.
+# The DMG is not notarized: the app carries the self-signed Mosh signature
+# in CI (ad-hoc locally), and Gatekeeper warns on first launch either way.
+# README documents the official "Open Anyway" flow.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -48,19 +49,37 @@ while IFS= read -r -d '' binary; do
   echo "universal ok: ${binary#"$APP"/} ($archs)"
 done < <(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" -maxdepth 1 \( -name '*.dylib' -o -path "$APP/Contents/MacOS/mosh" \) -print0)
 
+# --- Signing --------------------------------------------------------------------
+# With MOSH_SIGN_IDENTITY (CI sets it from scripts/macos-import-signing.sh)
+# the bundle is re-signed with the self-signed Mosh identity: macOS then
+# names the app by that certificate in every build, so a keychain "Always
+# Allow" survives updates. Without it the bundle keeps Xcode's ad-hoc
+# signature. Entitlements come from the repo file so the sandbox grant
+# survives the re-sign.
+ENTITLEMENTS="$ROOT/macos/Runner/Release.entitlements"
+if [ -n "${MOSH_SIGN_IDENTITY:-}" ]; then
+  sign() { codesign --force --timestamp=none --sign "$MOSH_SIGN_IDENTITY" "$@"; }
+  # Inside out: nested code first, the bundle seal that covers it last.
+  while IFS= read -r -d '' nested; do
+    sign "$nested"
+  done < <(find "$APP/Contents/Frameworks" "$APP/Contents/MacOS" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) -print0)
+  sign --entitlements "$ENTITLEMENTS" "$APP"
+  codesign -dvv "$APP" 2>&1 | grep -q "Authority=Mosh Self-Signed Code Signing" ||
+    fail "the app is not signed by the Mosh identity"
 # lipo can damage per-slice ad-hoc signatures. If the dylib needs a re-sign,
 # the app must be re-signed after it (inside out): the bundle seal Xcode
 # recorded covers the nested dylib, so a bare dylib re-sign would fail the
-# deep verify below. Entitlements come from the repo file so the sandbox
-# grant survives the re-sign. Xcode's "Sign to Run Locally" covers the
-# normal path; this is only the repair path.
-if ! codesign --verify "$BUNDLED_LIB" >/dev/null 2>&1; then
+# deep verify below. Xcode's "Sign to Run Locally" covers the normal path;
+# this is only the repair path.
+elif ! codesign --verify "$BUNDLED_LIB" >/dev/null 2>&1; then
   echo "re-signing libmoss.dylib ad-hoc (lipo stripped its signature)"
   codesign --force --sign - "$BUNDLED_LIB"
-  codesign --force --sign - --entitlements "$ROOT/macos/Runner/Release.entitlements" "$APP"
+  codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP"
 fi
 
-codesign --verify --deep "$APP" || fail "app bundle fails codesign --verify"
+codesign --verify --deep --strict "$APP" || fail "app bundle fails codesign --verify"
+# The designated requirement is what the keychain remembers the app by.
+codesign -d -r- "$APP" 2>&1 | sed -n 's/^designated => /designated requirement: /p'
 
 # --- DMG ----------------------------------------------------------------------
 rm -rf "$DIST"
