@@ -40,6 +40,8 @@ use crate::moss_runtime::{MossDynamicRuntime, MossRuntimeError};
 
 const MOSS_OK: i32 = 0;
 const MOSS_ERR_NO_PEERS: i32 = -6;
+/// `Moss_Start` could not bind its listen port (moss errors.go).
+const MOSS_ERR_LISTEN_FAILED: i32 = -13;
 const DEFAULT_WAIT_MS: u64 = 3000;
 const POLL_MS: u64 = 50;
 // Moss_GetPublicKey returns a fixed-size Ed25519 public key. Keep this in
@@ -156,6 +158,11 @@ impl MossFfiError {
     /// opposed to a real transport or symbol failure.
     pub fn is_no_peers(&self) -> bool {
         matches!(self, Self::NoPeers)
+    }
+
+    /// True when `Moss_Start` could not bind its listen port.
+    pub fn is_listen_failed(&self) -> bool {
+        matches!(self, Self::Operation { code, .. } if *code == MOSS_ERR_LISTEN_FAILED)
     }
 }
 
