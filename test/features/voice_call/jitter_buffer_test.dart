@@ -38,6 +38,19 @@ void main() {
     expect(_seqs(buf.drainReady()), [2, 3]);
   });
 
+  test('a lost frame holds back no more than the playout delay', () {
+    // Playback buffers 60 ms (three 20 ms frames) before it plays. Waiting
+    // longer than that for a lost frame drains playback dry: every loss
+    // became a gap of silence.
+    final buf = JitterBuffer();
+    buf.push(_frame(1, 1));
+    expect(_seqs(buf.drainReady()), [1]);
+    for (var seq = 3; seq <= 5; seq += 1) {
+      buf.push(_frame(seq, seq));
+    }
+    expect(_seqs(buf.drainReady()), [3, 4, 5]);
+  });
+
   test('force-skips a gap after the cap and resumes', () {
     final buf = JitterBuffer(8);
     for (var i = 2; i <= 12; i += 1) {

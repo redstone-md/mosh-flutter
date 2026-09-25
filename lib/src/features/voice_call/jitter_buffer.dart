@@ -47,10 +47,12 @@ class BufferedFrame {
 /// Drains in seq order, pauses on a gap, and force-skips the missing seq
 /// once the backlog exceeds [gapCap] frames (cheap PLC).
 class JitterBuffer {
-  JitterBuffer([this.gapCap = 8]);
+  JitterBuffer([this.gapCap = 2]);
 
-  /// The backlog threshold (in frames) above which a gap is force-skipped
-  /// (default 8).
+  /// The backlog threshold (in frames) above which a gap is force-skipped.
+  /// The default gives up on a missing frame once three frames wait behind
+  /// it: that is playback's 60 ms playout delay, and waiting any longer
+  /// drains playback dry, so a lost frame would cost a gap of silence.
   final int gapCap;
 
   final Map<BigInt, Uint8List> _pending = {};
