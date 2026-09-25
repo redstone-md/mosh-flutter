@@ -219,16 +219,19 @@ impl PrivateDmSession {
         self.note_peer_name(from_device);
         if self.crypto.is_ready() {
             self.peer_joined = true;
-            self.state = next_state(self.state, SessionEvent::AuthenticatedFrame);
+            let before = self.state;
+            self.state = next_state(before, SessionEvent::AuthenticatedFrame);
             self.unreachable_since_ms = None;
-            // Session transition the field log carries: the handshake landed
-            // and the counterpart is authenticated.
-            dlog::write(
-                LogLevel::Info,
-                kinds::HANDSHAKE,
-                &self.session_id,
-                "handshake landed; session connected",
-            );
+            // Only the change into Connected is news. Written on every frame,
+            // the line read like a reconnect every few seconds.
+            if before != DmSessionState::Connected {
+                dlog::write(
+                    LogLevel::Info,
+                    kinds::HANDSHAKE,
+                    &self.session_id,
+                    &format!("session connected (was {before:?})"),
+                );
+            }
         }
     }
 
