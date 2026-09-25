@@ -5,9 +5,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::*;
+use crate::attachment_runtime::OutgoingAttachment;
 use crate::attachment_store::AttachmentStore;
 use crate::conversation::test_message::TestMessage;
 use crate::persistence::{CHANNEL_HISTORY, DM_HISTORY};
+use crate::private_dm_runtime::ChatMessage;
 
 const CONVERSATION: &str = "conv-1";
 
@@ -89,7 +91,7 @@ fn history_survives_a_restart() {
     log.push(TestMessage::new("alice", "first").at(100).with_id("m1"));
     log.push(TestMessage::new("bob", "second").at(200).with_id("m2"));
 
-    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log));
+    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
 
     let (restored, attempts) = scratch.read_back(&mut History::new(DM_HISTORY));
     assert_eq!(restored.len(), 2);
@@ -99,18 +101,109 @@ fn history_survives_a_restart() {
 }
 
 #[test]
+fn an_offered_file_can_be_downloaded_after_both_peers_restart() {
+    let sender = Scratch::open("offered-sender");
+    let receiver = Scratch::open("offered-receiver");
+    let bytes = vec![7; 8192];
+    let mut sending = sender.transfer();
+    let prepared = sending
+        .prepare_outgoing(OutgoingAttachment {
+            attachment_id: "attachment-1".to_string(),
+            file_name: "clip.bin".to_string(),
+            mime: "application/octet-stream".to_string(),
+            from_fingerprint: "alice".to_string(),
+            bytes: bytes.clone(),
+            thumbnail_b64: None,
+            voice: None,
+        })
+        .expect("prepare file");
+    let manifest = prepared.manifest.clone();
+    let descriptor = sending.record_sent(prepared);
+    let mut receiving = receiver.transfer();
+    receiving.accept_manifest(manifest).expect("accept offer");
+
+    for (scratch, transfer) in [(&sender, &sending), (&receiver, &receiving)] {
+        let mut log = MessageLog::default();
+        log.push(ChatMessage {
+            from_device: "alice".to_string(),
+            body: String::new(),
+            message_id: Some("message-1".to_string()),
+            sent_at_ms: Some(100),
+            attachment: Some(descriptor.clone()),
+            call_event: None,
+            delivery_status: None,
+            delivery_error: None,
+            retryable: None,
+            retry_count: None,
+            read: None,
+        });
+        History::new(DM_HISTORY).write_tail(
+            &scratch.persistence,
+            CONVERSATION,
+            &log,
+            Some(transfer),
+        );
+    }
+
+    let mut revived_sender = sender.transfer();
+    let mut revived_receiver = receiver.transfer();
+    for (scratch, transfer, local_author) in [
+        (&sender, &mut revived_sender, "alice"),
+        (&receiver, &mut revived_receiver, "bob"),
+    ] {
+        let mut log = MessageLog::<ChatMessage>::default();
+        History::new(DM_HISTORY).replay(
+            &scratch.persistence,
+            CONVERSATION,
+            Restore {
+                log: &mut log,
+                attempts: &mut Attempts::new(),
+                transfer,
+                local_author,
+            },
+        );
+        assert_eq!(log.len(), 1, "the offer stays in history");
+    }
+
+    revived_receiver
+        .start_download(&descriptor.attachment_id)
+        .expect("download after restart");
+    for request in revived_receiver.next_requests() {
+        for frame in revived_sender.serve(&request) {
+            revived_receiver.ingest(&frame).expect("ingest chunk");
+        }
+    }
+    assert_eq!(
+        revived_receiver
+            .views()
+            .into_iter()
+            .find(|view| view.attachment_id == descriptor.attachment_id)
+            .expect("restored attachment")
+            .state,
+        crate::conversation::attachments::AttachmentState::Available
+    );
+    assert_eq!(
+        receiver
+            .attachments
+            .read_blob(&descriptor.content_hash, &descriptor.file_name)
+            .expect("downloaded bytes"),
+        bytes
+    );
+}
+
+#[test]
 fn a_message_is_written_once_not_once_per_poll() {
     let scratch = Scratch::open("write-once");
     let mut history = History::new(DM_HISTORY);
     let mut log = MessageLog::default();
     log.push(TestMessage::new("alice", "first").at(100).with_id("m1"));
 
-    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log));
+    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
     // An idle poll: nothing new, so nothing is written.
-    assert!(!history.write_tail(&scratch.persistence, CONVERSATION, &log));
+    assert!(!history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
 
     log.push(TestMessage::new("alice", "second").at(200).with_id("m2"));
-    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log));
+    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
 
     let rows = scratch
         .persistence
@@ -125,12 +218,12 @@ fn replaying_picks_up_where_the_last_write_left_off() {
     let mut first = History::new(DM_HISTORY);
     let mut log = MessageLog::default();
     log.push(TestMessage::new("alice", "first").at(100).with_id("m1"));
-    first.write_tail(&scratch.persistence, CONVERSATION, &log);
+    first.write_tail(&scratch.persistence, CONVERSATION, &log, None);
 
     let mut second = History::new(DM_HISTORY);
     let (restored, _) = scratch.read_back(&mut second);
     // The replayed message is already down, so the next write must skip it.
-    assert!(!second.write_tail(&scratch.persistence, CONVERSATION, &restored));
+    assert!(!second.write_tail(&scratch.persistence, CONVERSATION, &restored, None));
     assert_eq!(
         scratch
             .persistence
@@ -147,11 +240,11 @@ fn forgetting_a_conversation_rewrites_it_from_the_start() {
     let mut history = History::new(DM_HISTORY);
     let mut log = MessageLog::default();
     log.push(TestMessage::new("alice", "first").at(100).with_id("m1"));
-    history.write_tail(&scratch.persistence, CONVERSATION, &log);
+    history.write_tail(&scratch.persistence, CONVERSATION, &log, None);
 
     history.forget(CONVERSATION);
 
-    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log));
+    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
 }
 
 #[test]
@@ -217,6 +310,7 @@ fn a_pending_message_with_no_attempt_row_comes_back_failed() {
         sent_at_ms: 100,
         message_id: "m1".to_string(),
         message,
+        attachment_manifest: None,
     };
     scratch
         .persistence
@@ -289,7 +383,7 @@ fn each_kind_reads_only_its_own_tables() {
     let mut dm = History::new(DM_HISTORY);
     let mut log = MessageLog::default();
     log.push(TestMessage::new("alice", "dm only").at(100).with_id("m1"));
-    dm.write_tail(&scratch.persistence, CONVERSATION, &log);
+    dm.write_tail(&scratch.persistence, CONVERSATION, &log, None);
 
     let mut channel_log: MessageLog<TestMessage> = MessageLog::default();
     let mut attempts = Attempts::new();

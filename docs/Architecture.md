@@ -480,20 +480,23 @@ flowchart TD
 - `ConversationRuntime<S>` — the shell. It holds the sessions, opens and closes
   their rooms on the shared node, replays them at startup, and runs the two
   persist loops: `persist_tail` for what a conversation has gained, and
-  `persist_send` for one message and the state of its send. The kind answers
-  four questions through `ConversationSession`: what the conversation is
-  called, what its messages and unsettled sends are, what record rebuilds it,
-  and what else of its own goes down beside the history — an MLS snapshot for
-  a DM and a group, nothing for a public channel. Two more say when a record is
-  worth writing: `record_is_final` (a joiner's record is a placeholder until
-  the MLS group exists) and `record_changed` (only a DM has a saved field that
-  can move later — the counterpart's moss peer id).
+  `persist_send` for one message and the state of its send. Through
+  `ConversationSession`, each kind supplies its id, messages, unsettled sends,
+  attachment transfer, rebuild record, and extra durable state (an MLS
+  snapshot for a DM or group; none for a public channel). Two methods decide
+  when a record is worth writing: `record_is_final` (a joiner's record is a
+  placeholder until the MLS group exists) and `record_changed` (only a DM has
+  a saved field that can move later — the counterpart's moss peer id).
 - `Transfer` — an attachment's bytes on their way out and in. It owns the
   transfer layer, the slot table and the blob store together, because they have
   to move together. Sending a file seals it, saves this device's copy and opens
   a slot; a manifest coming in opens a slot the other way; chunks are served
   from one side and filed on the other. Publishing stays with the kind, so the
-  calls hand back frames instead of putting them on the wire.
+  calls hand back frames instead of putting them on the wire. A saved sender
+  reloads its file only when a chunk is requested; uncached received offers
+  are restored from their encrypted history manifests (ADR 0028). Downloads
+  in one conversation share a 256-chunk request window, with voice notes first
+  when a slot opens.
 - `AttachmentSlots` — which attachment was offered, which one the user asked
   for, where the finished file landed. Held by `Transfer`, which is what the
   kinds see.
@@ -523,7 +526,7 @@ flowchart TD
   for the counterpart, and a publish nobody takes comes back `NoPeers` and
   leaves the text queued, never failed (ADR 0026).
 - `history::History` — what a conversation keeps on disk. `replay` reads one
-  conversation back (messages, cached attachments, sends that never settled),
+  conversation back (messages, attachment offers, sends that never settled),
   `write_tail` appends only the messages gained since the last write, and
   `write_send` writes one message and the state of its send. Which tables it
   touches is a `persistence::HistoryTables` value — `DM_HISTORY`,
@@ -1025,3 +1028,4 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/Features/typing.md - typing indicator flow: cadence, receiver-owned expiry, group member identity (Mermaid sequence).
 - docs/Features/field-log.md - the field log: sink, rotation policy, kinds vocabulary (Mermaid flowchart).
 - docs/ADR/0027-attachments-ride-moss-streams.md - attachment chunks ride moss streams on direct DMs: carrier swap with the room wire fallback, reserved inbox channel, DM-only scope.
+- docs/ADR/0028-durable-attachment-offers.md - attachment manifests in encrypted history, sender and receiver restoration after restart.

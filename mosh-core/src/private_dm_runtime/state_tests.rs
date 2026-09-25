@@ -1458,6 +1458,43 @@ fn stored_session_rows(persistence: &Persistence) -> Vec<contracts::PersistedSes
 }
 
 #[test]
+fn sending_an_attachment_saves_its_manifest_before_returning() {
+    let db = rehydrate_db("attachment-send");
+    let persistence = Arc::new(Persistence::open_with_dek(&db, [9u8; 32]).expect("store"));
+    let net = MemoryNet::new();
+    net.link_both(ALICE_ID, BOB_ID, PeerTransport::Direct);
+    let mut alice = PrivateDmRuntime::with_transport(
+        net.endpoint(ALICE_ID),
+        temp_store(),
+        Some(Arc::clone(&persistence)),
+    );
+    let mut bob = runtime_on(&net, BOB_ID);
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+
+    let sent = alice
+        .send_attachment(
+            &invite.session_id,
+            "clip.bin".to_string(),
+            "application/octet-stream".to_string(),
+            vec![7; 4096],
+            None,
+            None,
+        )
+        .expect("send");
+    let rows = persistence
+        .list_history_messages(DM_HISTORY, &invite.session_id)
+        .expect("history");
+    assert!(rows.iter().any(|row| {
+        serde_json::from_slice::<crate::conversation::history::StoredMessage<ChatMessage>>(row)
+            .ok()
+            .and_then(|stored| stored.attachment_manifest)
+            .is_some_and(|manifest| manifest.attachment_id == sent.attachment_id)
+    }));
+}
+
+#[test]
 fn accept_writes_no_row_until_the_welcome_lands() {
     let db = rehydrate_db("bob-no-row");
     let persistence =
