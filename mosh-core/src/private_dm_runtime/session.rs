@@ -131,27 +131,9 @@ impl PrivateDmSession {
             self.handle_data(message.payload)
         } else if message.channel == self.blob_channel {
             self.handle_blob(message.payload)
-        } else if wire::channel_call_id(&message.channel).is_some() {
-            self.handle_voice_call_frame(&message.channel, message.payload)
         } else {
             Ok(())
         }
-    }
-
-    pub(super) fn handle_voice_call_frame(
-        &mut self,
-        channel: &str,
-        payload: Vec<u8>,
-    ) -> Result<(), PrivateDmRuntimeError> {
-        let Some(call_id) = wire::channel_call_id(channel) else {
-            return Ok(());
-        };
-        if let Some(call) = self.call.as_mut() {
-            if call.call_id == call_id {
-                call.push_frame(payload);
-            }
-        }
-        Ok(())
     }
 
     pub(super) fn has_seen_message(&mut self, message: &MossReceivedMessage) -> bool {

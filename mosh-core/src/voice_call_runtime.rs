@@ -1,8 +1,7 @@
 //! Per-session voice-call state. Owned by `PrivateDmRuntime`; one instance
-//! per private-DM session. Pure(ish) state machine plus a FIFO queue of
-//! inbound encrypted Opus frames awaiting drain by the frontend.
-
-use std::collections::VecDeque;
+//! per private-DM session. A pure state machine: the media frames of an
+//! active call live in the call media hub (`private_dm_runtime::CallMedia`),
+//! not here, so the audio loop never waits on the runtime.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallDirection {
@@ -18,7 +17,8 @@ impl CallDirection {
         }
     }
 
-    fn seq_direction_bit(self) -> u64 {
+    /// The bit our own frames carry at the top of their sequence number.
+    pub(crate) fn seq_direction_bit(self) -> u64 {
         match self {
             CallDirection::Caller => 0,
             CallDirection::Callee => 1 << 63,
@@ -50,7 +50,6 @@ pub struct CallState {
     /// first send. Both stay 0 on the callee.
     pub offer_first_ms: u64,
     pub offer_last_ms: u64,
-    inbound_frames: VecDeque<Vec<u8>>,
 }
 
 impl CallState {
@@ -70,7 +69,6 @@ impl CallState {
             remote_device,
             offer_first_ms: 0,
             offer_last_ms: 0,
-            inbound_frames: VecDeque::new(),
         }
     }
 
@@ -90,7 +88,6 @@ impl CallState {
             remote_device,
             offer_first_ms: 0,
             offer_last_ms: 0,
-            inbound_frames: VecDeque::new(),
         }
     }
 
@@ -107,19 +104,6 @@ impl CallState {
             self.offer_first_ms = now_ms;
         }
         self.offer_last_ms = now_ms;
-    }
-
-    pub fn push_frame(&mut self, bytes: Vec<u8>) {
-        if frame_direction_bit(&bytes) == Some(self.direction.seq_direction_bit()) {
-            return;
-        }
-        self.inbound_frames.push_back(bytes);
-    }
-
-    pub fn drain_frames(&mut self) -> Vec<Vec<u8>> {
-        std::mem::take(&mut self.inbound_frames)
-            .into_iter()
-            .collect()
     }
 
     /// Call-log classification: a call that never reached `Active` is "missed",
@@ -141,11 +125,6 @@ impl CallState {
     }
 }
 
-fn frame_direction_bit(bytes: &[u8]) -> Option<u64> {
-    let header: [u8; 8] = bytes.get(..8)?.try_into().ok()?;
-    Some(u64::from_be_bytes(header) & (1 << 63))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,35 +136,6 @@ mod tests {
         call.become_active(1_000);
         assert_eq!(call.phase, CallPhase::Active);
         assert_eq!(call.started_at_ms, 1_000);
-    }
-
-    #[test]
-    fn drain_frames_returns_in_order_and_clears() {
-        let mut call = CallState::ringing("c".into(), "k".into(), "n".into(), "peer".into());
-        let first = test_frame(0, &[1]);
-        let second = test_frame(1, &[2]);
-        call.push_frame(first.clone());
-        call.push_frame(second.clone());
-        let drained = call.drain_frames();
-        assert_eq!(drained, vec![first, second]);
-        assert!(call.drain_frames().is_empty());
-    }
-
-    #[test]
-    fn drain_frames_keeps_remote_direction_and_drops_self_echo() {
-        let mut caller = CallState::outgoing("c".into(), "k".into(), "n".into(), "peer".into());
-        let caller_frame = test_frame(0, &[1]);
-        let callee_frame = test_frame(1 << 63, &[2]);
-        caller.push_frame(caller_frame);
-        caller.push_frame(callee_frame.clone());
-        assert_eq!(caller.drain_frames(), vec![callee_frame]);
-
-        let mut callee = CallState::ringing("c".into(), "k".into(), "n".into(), "peer".into());
-        let caller_frame = test_frame(0, &[3]);
-        let callee_frame = test_frame(1 << 63, &[4]);
-        callee.push_frame(callee_frame);
-        callee.push_frame(caller_frame.clone());
-        assert_eq!(callee.drain_frames(), vec![caller_frame]);
     }
 
     #[test]
@@ -209,11 +159,5 @@ mod tests {
         assert_eq!(call.duration_ms(5_000), 0);
         call.become_active(2_000);
         assert_eq!(call.duration_ms(5_000), 3_000);
-    }
-
-    fn test_frame(seq: u64, payload: &[u8]) -> Vec<u8> {
-        let mut frame = seq.to_be_bytes().to_vec();
-        frame.extend_from_slice(payload);
-        frame
     }
 }
