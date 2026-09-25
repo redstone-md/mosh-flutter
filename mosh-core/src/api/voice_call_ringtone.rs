@@ -8,8 +8,6 @@ use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{OutputCallbackInfo, SampleFormat, Stream, StreamConfig};
 use flutter_rust_bridge::frb;
 
-use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
-
 const FIRST_FREQUENCY_HZ: f64 = 440.0;
 const SECOND_FREQUENCY_HZ: f64 = 480.0;
 const ATTACK_SECONDS: f64 = 0.05;
@@ -101,14 +99,7 @@ fn build_stream(
                 move |data: &mut [f32], _info: &OutputCallbackInfo| {
                     write_f32(data, channels, &mut generator);
                 },
-                |error| {
-                    dlog::write(
-                        LogLevel::Error,
-                        kinds::VOICE,
-                        "ringtone",
-                        &format!("cpal stream error: {error:?}"),
-                    )
-                },
+                |error| crate::audio_devices::log_stream_error("ringtone", &error),
                 None,
             )
         }
@@ -119,14 +110,7 @@ fn build_stream(
                 move |data: &mut [i16], _info: &OutputCallbackInfo| {
                     write_i16(data, channels, &mut generator);
                 },
-                |error| {
-                    dlog::write(
-                        LogLevel::Error,
-                        kinds::VOICE,
-                        "ringtone",
-                        &format!("cpal stream error: {error:?}"),
-                    )
-                },
+                |error| crate::audio_devices::log_stream_error("ringtone", &error),
                 None,
             )
         }
@@ -137,14 +121,7 @@ fn build_stream(
                 move |data: &mut [u16], _info: &OutputCallbackInfo| {
                     write_u16(data, channels, &mut generator);
                 },
-                |error| {
-                    dlog::write(
-                        LogLevel::Error,
-                        kinds::VOICE,
-                        "ringtone",
-                        &format!("cpal stream error: {error:?}"),
-                    )
-                },
+                |error| crate::audio_devices::log_stream_error("ringtone", &error),
                 None,
             )
         }

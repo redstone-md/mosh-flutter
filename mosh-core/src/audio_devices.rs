@@ -17,6 +17,8 @@ use cpal::traits::HostTrait;
 use cpal::{default_host, Device, DeviceId, Host};
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+
 const FILE_NAME: &str = "audio-devices.json";
 
 /// The stored answer: device ids as the platform reports them
@@ -65,6 +67,22 @@ pub fn save(config_dir: &Path, setting: &AudioDevicesSetting) -> std::io::Result
 /// public fn in an `api::` module, and a cpal `Device` is not a
 /// bridgeable type. The two stream starts in `api::voice_call_*` call it
 /// directly.
+/// The error callback for every output stream. cpal reports a default-device
+/// switch as `DeviceChanged` after it has already moved the stream to the new
+/// device, so that one is a note, not a failure.
+pub fn log_stream_error(context: &str, error: &cpal::Error) {
+    let level = match error.kind() {
+        cpal::ErrorKind::DeviceChanged => LogLevel::Info,
+        _ => LogLevel::Error,
+    };
+    dlog::write(
+        level,
+        kinds::VOICE,
+        context,
+        &format!("cpal stream error: {error:?}"),
+    );
+}
+
 pub fn resolve_output_device(stored_id: Option<&str>) -> Result<Device, String> {
     let host = default_host();
     match resolve_decision(stored_id) {
