@@ -4,6 +4,31 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+From the 0.9.5 report on two Macs.
+
+### Fixed
+- **macOS stops asking for the password on every update.** The history
+  key now lives in a file in the app's own container, not the login
+  keychain. Without an Apple Team ID the keychain ties an item to one
+  exact build, so every update asked again, twice, and the self-signed
+  signature in 0.9.5 could not change that. Existing installs move the
+  key over once: one last prompt, then none.
+- **Chats no longer vanish when the network port is taken.** A dead
+  earlier Mosh still held UDP 8765, moss could not start, every saved
+  chat was hidden and new chats failed with "could not reach the
+  network". The node now starts on a free port instead.
+- **Voice notes and files arrive in seconds between Macs.** macOS will
+  not send a UDP datagram over 9216 bytes by default, and each 32 KB
+  chunk went out as one ~59 KB datagram, so a 5 s voice note took about
+  a minute of re-requests. Chunks are now 4 KB, and moss raises its send
+  buffer so larger frames leave a Mac too.
+- **Settings no longer crashes on some audio drivers.** A virtual driver
+  (Apowersoft) reports its sample rates as 0 to DBL_MAX; turning that into
+  an integer killed the app whenever Settings listed the microphones.
+  `record_macos` is vendored with the fix.
+
 ## [0.9.5] - 2026-09-25
 
 The stability round, from the 0.9.4 macOS report: a status that flipped
