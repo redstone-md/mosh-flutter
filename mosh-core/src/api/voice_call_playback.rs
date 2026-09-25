@@ -42,8 +42,6 @@ use ringbuf::{
     traits::Consumer, traits::Observer, traits::Producer, traits::Split, HeapCons, HeapProd, HeapRb,
 };
 
-use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
-
 /// Drift-resync threshold in seconds: when the ring backlog exceeds 0.2s of
 /// audio, drop it and resume from "now".
 const PLAYBACK_RESYNC_S: f64 = 0.2;
@@ -182,18 +180,10 @@ fn build_stream<T: SizedSample + FromSample<i16>>(
         .build_output_stream(
             *config,
             move |buf: &mut [T], _info: &OutputCallbackInfo| renderer.fill(buf),
-            |err| {
-                // Error path is log-only. The
-                // stream stays alive for the call's lifetime; a hard fault
-                // surfaces on the next `push_frame` as a poisoned mutex or is
-                // cleaned up by `stop`.
-                dlog::write(
-                    LogLevel::Error,
-                    kinds::VOICE,
-                    "playback",
-                    &format!("cpal stream error: {err:?}"),
-                );
-            },
+            // Log-only: the stream stays alive for the call's lifetime; a
+            // hard fault surfaces on the next `push_frame` as a poisoned
+            // mutex or is cleaned up by `stop`.
+            |err| crate::audio_devices::log_stream_error("playback", &err),
             None,
         )
         .map_err(|e| format!("cpal build_output_stream: {e:?}"))
