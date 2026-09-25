@@ -170,6 +170,14 @@ impl AttachmentSlots {
         self.slots.contains_key(attachment_id)
     }
 
+    /// Metadata for a file already saved on this device.
+    pub fn cached_descriptor(&self, attachment_id: &str) -> Option<&AttachmentDescriptor> {
+        self.slots
+            .get(attachment_id)
+            .filter(|slot| slot.local_path.is_some())
+            .map(|slot| &slot.descriptor)
+    }
+
     /// Records an attachment somebody else offered. The bytes are not here
     /// yet; the user has to ask for them.
     pub fn offer(&mut self, descriptor: AttachmentDescriptor) {
