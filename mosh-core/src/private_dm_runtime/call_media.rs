@@ -80,6 +80,23 @@ impl CallMedia {
     /// The counterpart's frames for `call_id` that arrived since the last
     /// drain, oldest first.
     pub fn drain(&self, call_id: &str) -> Vec<Vec<u8>> {
+        let mut calls = self.file_arrivals();
+        calls
+            .get_mut(call_id)
+            .map(|route| route.inbound.drain(..).collect())
+            .unwrap_or_default()
+    }
+
+    /// Take everything off the transport's media queue and file it under the
+    /// live calls, each capped at INBOUND_CAP; frames for any other call are
+    /// dropped. The runtime tick runs this too, so the queue stays bounded
+    /// when no audio loop drains (a call whose audio never started).
+    pub(crate) fn collect(&self) {
+        drop(self.file_arrivals());
+    }
+
+    /// [`Self::collect`], handing back the still-held call table.
+    fn file_arrivals(&self) -> MutexGuard<'_, HashMap<String, Route>> {
         let arrived = self.transport.drain_media();
         let mut calls = self.calls();
         for message in arrived {
@@ -96,9 +113,6 @@ impl CallMedia {
             route.inbound.push_back(message.payload);
         }
         calls
-            .get_mut(call_id)
-            .map(|route| route.inbound.drain(..).collect())
-            .unwrap_or_default()
     }
 
     fn calls(&self) -> MutexGuard<'_, HashMap<String, Route>> {
