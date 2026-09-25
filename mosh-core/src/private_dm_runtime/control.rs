@@ -65,13 +65,9 @@ impl PrivateDmSession {
                     self.note_peer_moss_id(Some(moss_peer_id));
                 }
                 self.note_authenticated_frame(&from_device);
-                // Answer so the sender gets its proof too, but not inside
-                // our own cadence: two Connected sides would otherwise
-                // ping-pong hellos forever.
-                let now = now_ms();
-                if now.saturating_sub(self.last_hello_send_ms) >= HANDSHAKE_RESEND_MS {
-                    self.send_hello(now);
-                }
+                // The sender needs our proof too; the tick answers
+                // (`pump_hello`).
+                self.hello_answer_due = true;
                 Ok(())
             }
             ControlEnvelope::DeliveryAck {

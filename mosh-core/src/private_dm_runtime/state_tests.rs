@@ -159,10 +159,10 @@ fn a_lost_hello_keeps_the_inviter_handshaking() {
     );
 }
 
-// Connected is a claim about now: once the counterpart has been out of reach
-// for the lost window the session says so, and the next authenticated frame
-// takes it back. The tick takes its clock as an argument, so the window is
-// crossed by arithmetic, not by sleeping.
+// Connected is a claim about now: once nothing authenticated has come from
+// the counterpart for the lost window the session says so, and the next
+// authenticated frame takes it back. The tick takes its clock as an argument,
+// so the window is crossed by arithmetic, not by sleeping.
 #[test]
 fn connected_degrades_after_the_lost_window_and_recovers_on_a_frame() {
     let (net, mut alice, mut bob) = memory_pair();
@@ -176,7 +176,7 @@ fn connected_degrades_after_the_lost_window_and_recovers_on_a_frame() {
     assert_eq!(
         state_of(&mut alice, &invite.session_id),
         DmSessionState::Connected,
-        "a moment out of reach is not a verdict"
+        "a moment of silence is not a verdict"
     );
     alice.tick(gone_at + LOST_WINDOW_MS);
     let view = alice

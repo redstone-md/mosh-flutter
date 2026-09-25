@@ -60,6 +60,7 @@
   "transportDirect": "напрямую",
   "transportRelayed": "через ретранслятор сети",
   "transportNone": "пути пока нет",
+  "transportMesh": "через сеть",
   "sessionsListTitle": "Диалоги",
   "backToConversations": "К диалогам",
   "sessionsError": "Не удалось загрузить сессии.",
