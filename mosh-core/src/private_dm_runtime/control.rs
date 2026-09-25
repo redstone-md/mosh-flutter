@@ -46,14 +46,20 @@ impl PrivateDmSession {
             } if self.is_from_counterpart(&session_id, &participant_id) => {
                 // Decrypting authenticates: only the MLS peer can produce a
                 // ciphertext this group accepts.
-                let Ok(plaintext) = self.crypto.decrypt(&decode(&hello_ciphertext_b64)?) else {
-                    dlog::write(
-                        LogLevel::Warn,
-                        kinds::HANDSHAKE,
-                        &session_id,
-                        "dropping unverifiable hello",
-                    );
-                    return Ok(());
+                // The MLS error names the cause (a replay of an already read
+                // message, a stale epoch, a forgery); it carries no key
+                // material.
+                let plaintext = match self.crypto.decrypt(&decode(&hello_ciphertext_b64)?) {
+                    Ok(plaintext) => plaintext,
+                    Err(error) => {
+                        dlog::write(
+                            LogLevel::Warn,
+                            kinds::HANDSHAKE,
+                            &session_id,
+                            &format!("dropping unverifiable hello: {error}"),
+                        );
+                        return Ok(());
+                    }
                 };
                 if let Ok(moss_peer_id) = String::from_utf8(plaintext) {
                     self.note_peer_moss_id(Some(moss_peer_id));

@@ -1038,5 +1038,9 @@ mod outbox_tests;
 mod blob_route_tests;
 
 #[cfg(test)]
+#[path = "private_dm_runtime/field_log_tests.rs"]
+mod field_log_tests;
+
+#[cfg(test)]
 #[path = "private_dm_runtime/runtime_tests.rs"]
 mod tests;
