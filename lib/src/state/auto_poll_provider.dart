@@ -9,9 +9,16 @@
 // stayed "connecting" until BOTH sides sent, and why peer messages only
 // appeared after a local send.
 //
-// Shape: one process-lifetime `Timer.periodic` refreshing the conversation
-// list of every kind in parallel plus the open conversation's snapshot
-// family. `_inFlight` skips a slow tick rather than queueing it.
+// Shape: one process-lifetime `Timer.periodic`. Each tick refreshes every
+// conversation kind's list and then the open conversation's snapshot. Each
+// kind has its own in-flight guard: a slow kind skips its own ticks and
+// never holds the other kinds back (a DM runtime busy with a transfer used
+// to freeze the channel and group lists too). The open conversation's
+// snapshot is re-read only when its kind's list is not stuck, so a stuck
+// kind never piles up snapshot reads either.
+//
+// The DM protocol itself no longer depends on this loop: a Rust service
+// thread drives it (`api::private_dm`). This loop keeps the screens fresh.
 //
 // The list entries use their own `refresh()` (a guard-swap that never
 // publishes `AsyncLoading`), so the rail does not flicker. The snapshot
@@ -25,10 +32,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/state/active_conversation_key_provider.dart'
     show activeConversationProvider;
 import 'package:mosh/src/state/conversation_providers.dart'
-    show invalidateConversation, refreshConversationLists;
+    show conversationListProvider, invalidateConversation;
 
 /// Poll cadence -- 1 second.
 const Duration kAutoPollInterval = Duration(milliseconds: 1000);
@@ -44,21 +53,26 @@ final autoPollIntervalProvider = Provider<Duration?>((ref) => null);
 final autoPollProvider = Provider<void>((ref) {
   final interval = ref.watch(autoPollIntervalProvider);
   if (interval == null) return;
-  var inFlight = false;
+  final inFlight = <ConversationKind>{};
 
-  Future<void> tick() async {
-    if (inFlight) return;
-    inFlight = true;
-    try {
-      await refreshConversationLists(ref.read);
-      final active = ref.read(activeConversationProvider);
-      if (active == null) return;
-      invalidateConversation(ref.invalidate, active.conversation);
-    } finally {
-      inFlight = false;
-    }
+  void refresh(ConversationKind kind) {
+    if (!inFlight.add(kind)) return;
+    unawaited(ref
+        .read(conversationListProvider(kind).notifier)
+        .refresh()
+        .whenComplete(() => inFlight.remove(kind)));
   }
 
-  final timer = Timer.periodic(interval, (_) => unawaited(tick()));
+  void tick() {
+    // A kind whose read from an earlier tick is still out is busy; its
+    // snapshot would only queue behind that same call.
+    final busy = {...inFlight};
+    ConversationKind.values.forEach(refresh);
+    final active = ref.read(activeConversationProvider);
+    if (active == null || busy.contains(active.conversation.kind)) return;
+    invalidateConversation(ref.invalidate, active.conversation);
+  }
+
+  final timer = Timer.periodic(interval, (_) => tick());
   ref.onDispose(timer.cancel);
 });

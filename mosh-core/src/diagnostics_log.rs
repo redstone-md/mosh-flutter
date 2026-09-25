@@ -57,6 +57,8 @@ pub mod kinds {
     /// The attachment chunk carrier: stream sends, fallbacks, and frames
     /// that arrive on the reserved inbox channel (spec #8).
     pub const STREAM: &str = "stream";
+    /// The DM service thread that runs the protocol without a UI poll.
+    pub const SERVICE: &str = "service";
     /// A Rust panic anywhere in the process, mirrored by the panic hook.
     pub const PANIC: &str = "panic";
     pub const TEST: &str = "test";
