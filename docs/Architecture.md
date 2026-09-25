@@ -187,7 +187,12 @@ gate enforced by the Dart orchestration layer over the `Gateway` interface.
 
 Snapshot delivery is poll-based, not stream-based: `api::private_dm` exposes
 no `StreamSink`, and the DM screen re-polls `activeSessionProvider.family`
-— the poll cadence is a UI choice, and the DM screen owns it. The sequence
+— the poll cadence is a UI choice, and the DM screen owns it. The protocol
+does not wait for that poll: a service thread started with the runtime runs
+one protocol step (`PrivateDmRuntime::service`) every 500 ms, so handshakes,
+keepalives, the outbox and re-sends keep going when the window is hidden or
+its timers are throttled. The Dart auto-poll gives each list kind its own
+in-flight guard, so one busy kind never freezes the others. The sequence
 above is the design intent; the slice-one proof is
 `integration_test/slice_one_test.dart` (see Features/private-dm.md).
 
@@ -513,8 +518,10 @@ flowchart TD
   repeat on their own, swallow that refusal through
   `MossNode::publish_room_best_effort`. A DM text takes the other door:
   `queue` files it as `Queued` with no payload, and the DM's outbox encrypts
-  and publishes it later, oldest first, whenever the counterpart is reachable;
-  a refusal leaves it queued, never failed (ADR 0026).
+  and publishes it later, oldest first, once our side of the MLS handshake is
+  done. It does not ask moss's peer table: a room publish does not need a row
+  for the counterpart, and a publish nobody takes comes back `NoPeers` and
+  leaves the text queued, never failed (ADR 0026).
 - `history::History` — what a conversation keeps on disk. `replay` reads one
   conversation back (messages, cached attachments, sends that never settled),
   `write_tail` appends only the messages gained since the last write, and
@@ -591,7 +598,8 @@ The process runs one moss node (`shared_node`), and a DM reaches it through
 one interface. `private_dm_runtime::transport::DmTransport` is the only door a
 DM frame goes through in either direction: open and close a room, subscribe a
 channel, publish a frame, ask moss to reach a peer, report how that peer is
-reachable, drain what arrived. `MossDmTransport` wraps the shared node and
+reachable, drain what arrived. Voice-call media has its own inbox claim and
+its own `drain_media`, so the DM drain never carries it (Voice Call Module). `MossDmTransport` wraps the shared node and
 never keeps its handle, so the holder's refcount alone decides when moss
 stops. `MemoryNet` (tests only) joins two runtimes in one process and can be
 told which frames get lost and which publishes are refused. The paid mailbox
@@ -600,7 +608,7 @@ is a second implementation behind the same trait (ADR 0026).
 ```mermaid
 flowchart LR
     Session["PrivateDmSession<br/>state machine, outbox, MLS"]
-    Trait["DmTransport<br/>publish · connect_peer · reach · drain"]
+    Trait["DmTransport<br/>publish · connect_peer · reach · drain · drain_media"]
     Moss["MossDmTransport → shared node"]
     Mem["MemoryNet (tests)"]
     Session --> Trait
@@ -610,11 +618,29 @@ flowchart LR
 
 What the snapshot says about a DM is proven by the other side. `state` is
 `pending` (nothing from the counterpart yet), `handshaking` (its handshake
-frame arrived, or it was connected and is out of reach now) or `connected`
-(an MLS-authenticated frame came back). `Hello` — the sender's moss peer id,
-MLS-encrypted — is what makes the proof immediate; it repeats on the handshake
-cadence until answered. `transport` is how moss reports the counterpart right
-now: `direct`, `relayed` or `none`. The Dart side renders both through
+frame arrived, or it was connected and nothing authenticated came back for
+25 s) or `connected` (an MLS-authenticated frame came back). `Hello` — the
+sender's moss peer id, MLS-encrypted — is what makes the proof immediate; it
+repeats on the handshake cadence until answered, and a connected session
+that has heard nothing for 10 s sends one as a keepalive. The counterpart
+answers every Hello outside its own 2 s cadence, so one exchange refreshes
+both sides and a busy chat sends none. `transport` is how moss reports the
+counterpart right now: `direct`, `relayed` or `none`. It is a label, not
+the verdict: gossip carries a chat through other peers while moss lists no
+row for the counterpart, so `connected` with `none` reads "through the mesh".
+The peer table does pick the chunk route: served chunks ride the moss stream
+only to a `direct` peer (a relayed or unknown peer blocks the stream call for
+seconds), and a refused stream keeps the session on the room wire for 10 s.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending
+    pending --> handshaking: handshake frame
+    pending --> connected: authenticated frame
+    handshaking --> connected: authenticated frame
+    connected --> handshaking: 25 s without an authenticated frame
+    connected --> connected: frame or keepalive answer
+``` The Dart side renders both through
 `features/conversation/dm_state.dart`, one wording for the header, the rail,
 the title-bar pill and the diagnostics card.
 
@@ -734,6 +760,28 @@ that answers, and `production_provider_overrides.dart` is the one place the
 two meet. Nothing bound means a conversation starts no call and hangs no
 overlay, which is what an unbound test gets. The ringtone travels the same
 way: the layer reads `ringtonePlayerProvider` unless a test hands it one.
+
+### Media path
+
+Voice frames never touch the DM runtime's lock. The audio loop sends and
+drains every 20 ms through `api::private_dm::call_send_frame` /
+`call_drain_frames`, which go to a cached `CallMedia` hub: it publishes on
+the call's channel and reads the media inbox. The runtime owns the call
+state machine and mirrors its active calls into the hub after every tick and
+every call action; a frame for a call that is not live is dropped, and a
+call's inbound queue holds at most one second. Playback plays silence until
+60 ms are buffered and again after an underrun; the jitter buffer skips a
+lost frame once three frames wait behind it, so a loss never drains
+playback dry.
+
+```mermaid
+flowchart LR
+    Loop["Dart audio loop (20 ms)"] --> Api["api: call_send_frame / call_drain_frames"]
+    Api --> Hub["CallMedia (own lock)"]
+    Hub --> Pub["transport.publish on the call channel"]
+    Inbox["media inbox"] --> Hub
+    Runtime["PrivateDmRuntime (tick, call actions)"] -. live calls .-> Hub
+```
 
 The Dart module name follows the Rust one. `mosh-core` already has
 `voice_call_runtime`, `voice_call_jitter`, `voice_call_frame_crypto` and
