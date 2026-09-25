@@ -1,6 +1,7 @@
 //! The blob channel: chunk requests, chunk serving, and manifests.
 
 use super::*;
+use crate::stream_transport::Carrier;
 
 impl PrivateDmSession {
     pub(super) fn handle_blob(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
@@ -10,6 +11,9 @@ impl PrivateDmSession {
                 participant_id,
                 request,
             } if participant_id != self.participant_id => {
+                // One route decision per request: `reach` asks moss for the
+                // whole mesh report, too dear to repeat for every chunk.
+                let mut stream_peer = self.blob_stream_peer(now_ms());
                 for frame in self.transfer.serve(&request) {
                     let chunk = BlobEnvelope::Chunk {
                         participant_id: self.participant_id.clone(),
@@ -17,7 +21,11 @@ impl PrivateDmSession {
                     };
                     let bytes = serde_json::to_vec(&chunk)
                         .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-                    self.route_blob_frame(&bytes)?;
+                    let carrier = self.route_blob_frame(stream_peer.as_deref(), &bytes)?;
+                    if stream_peer.is_some() && carrier == Carrier::Room {
+                        self.stream_backoff_until_ms = now_ms() + STREAM_BACKOFF_MS;
+                        stream_peer = None;
+                    }
                 }
                 Ok(())
             }
@@ -29,32 +37,43 @@ impl PrivateDmSession {
         }
     }
 
-    /// The blob carrier (spec #8): a chunk rides the moss stream when the
-    /// counterpart's direct peer id is known, and falls back to the room
-    /// wire otherwise — including the "no peers yet" refusals the room path
-    /// already tolerates. Requests stay room-bound either way: they are
-    /// small, they repeat on their own cadence, and a stream request would
-    /// race the room fallback for ordering. Error surfacing matches
-    /// `route_send` on the Blob kind: "no peers" is not news.
-    pub(super) fn route_blob_frame(&self, bytes: &[u8]) -> Result<(), PrivateDmRuntimeError> {
-        let blob_channel = self.blob_channel.clone();
-        let stream_peer = self.peer_moss_id.clone();
-        let mesh_id = self.mesh_id.clone();
+    /// The peer to stream chunks to, or `None` for the room wire. Only a
+    /// direct peer: moss relays a relayed peer's stream send through a relay
+    /// round trip (up to 5 s), and opens an unknown peer's stream with a
+    /// route lookup (up to 20 s), both while this runtime is locked. A
+    /// stream that just failed is left alone for the backoff window.
+    fn blob_stream_peer(&self, now_ms: u64) -> Option<String> {
+        if now_ms < self.stream_backoff_until_ms || self.reach() != PeerTransport::Direct {
+            return None;
+        }
+        self.peer_moss_id.clone()
+    }
+
+    /// The blob carrier (spec #8): a chunk rides the moss stream to
+    /// `stream_peer` when there is one, and the room wire otherwise —
+    /// including the "no peers yet" refusals the room path already tolerates.
+    /// Requests stay room-bound either way: they are small, they repeat on
+    /// their own cadence, and a stream request would race the room fallback
+    /// for ordering. Error surfacing matches `route_send` on the Blob kind:
+    /// "no peers" is not news.
+    pub(super) fn route_blob_frame(
+        &self,
+        stream_peer: Option<&str>,
+        bytes: &[u8],
+    ) -> Result<Carrier, PrivateDmRuntimeError> {
         let transport = Arc::clone(&self.transport);
-        let stream = stream_peer
-            .as_deref()
-            .map(|peer| (&*transport as &dyn DmTransport, peer));
-        let outcome = crate::stream_transport::send_chunk(
+        let stream = stream_peer.map(|peer| (&*transport as &dyn DmTransport, peer));
+        crate::stream_transport::send_chunk(
             stream,
-            |payload| match transport.publish(&mesh_id, &blob_channel, payload) {
+            |payload| match transport.publish(&self.mesh_id, &self.blob_channel, payload) {
                 Ok(()) => Ok(()),
                 Err(PublishError::NoPeers(_)) => Ok(()),
                 Err(error) => Err(error.to_string()),
             },
-            &blob_channel,
+            &self.blob_channel,
             bytes,
-        );
-        outcome.map_err(PrivateDmRuntimeError::Moss)
+        )
+        .map_err(PrivateDmRuntimeError::Moss)
     }
 
     pub(super) fn accept_incoming_manifest(

@@ -62,6 +62,11 @@ const PEER_ANNOUNCE_RESEND_MS: u64 = 5_000;
 // re-punch gaps without claiming a dead path is live.
 const LOST_WINDOW_MS: u64 = 5_000;
 
+// How long a session keeps its chunks on the room wire after the moss stream
+// refused one. Without it every chunk of a batch paid for its own failed
+// stream attempt before falling back.
+const STREAM_BACKOFF_MS: u64 = 10_000;
+
 // Cadence and cap for automatic re-sends of user messages the peer's runtime
 // has not acknowledged yet (DeliveryAck). Moss pubsub has no store-and-forward
 // — a frame published into a dead/half-open link is gone — so unacked Sent
@@ -154,6 +159,8 @@ struct PrivateDmSession {
     // When the counterpart dropped out of the transport's reachable set, if
     // it is out now. The lost window is measured from here.
     unreachable_since_ms: Option<u64>,
+    // Until when served chunks skip the moss stream after it refused one.
+    stream_backoff_until_ms: u64,
     device_id: String,
     participant_id: String,
     session_id: String,
@@ -1025,6 +1032,10 @@ mod state_tests;
 #[cfg(test)]
 #[path = "private_dm_runtime/outbox_tests.rs"]
 mod outbox_tests;
+
+#[cfg(test)]
+#[path = "private_dm_runtime/blob_route_tests.rs"]
+mod blob_route_tests;
 
 #[cfg(test)]
 #[path = "private_dm_runtime/runtime_tests.rs"]

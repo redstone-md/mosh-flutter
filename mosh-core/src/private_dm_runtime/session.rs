@@ -25,6 +25,7 @@ impl PrivateDmSession {
             role,
             state: DmSessionState::Pending,
             unreachable_since_ms: None,
+            stream_backoff_until_ms: 0,
             device_id,
             participant_id,
             session_id,

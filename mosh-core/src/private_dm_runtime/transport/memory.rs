@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use super::{DmTransport, PeerTransport, PublishError};
 use crate::conversation::mesh::{MeshInfo, PeerDetail};
 use crate::moss_ffi::MossReceivedMessage;
+use crate::stream_transport::{passthrough_or_deframe, stream_inbox_channel};
 
 type DropRule = Arc<dyn Fn(&str, &[u8]) -> bool + Send + Sync>;
 
@@ -24,6 +25,11 @@ struct Endpoint {
     /// `subscribe` answers an error, the way moss would when the room or
     /// the node behind it is gone.
     refuse_subscribes: bool,
+    /// Every stream send this endpoint tried, delivered or not.
+    stream_attempts: usize,
+    /// The stream fast path refuses, the way a moss stream refuses a peer it
+    /// cannot open.
+    fail_streams: bool,
 }
 
 #[derive(Clone)]
@@ -118,6 +124,21 @@ impl MemoryNet {
         if let Some(endpoint) = self.lock().endpoints.get_mut(from) {
             endpoint.refuse_subscribes = refuse;
         }
+    }
+
+    /// Make every stream send from `from` fail, or stop doing so.
+    pub fn fail_streams(&self, from: &str, fail: bool) {
+        if let Some(endpoint) = self.lock().endpoints.get_mut(from) {
+            endpoint.fail_streams = fail;
+        }
+    }
+
+    /// How many stream sends `from` tried.
+    pub fn stream_attempts(&self, from: &str) -> usize {
+        self.lock()
+            .endpoints
+            .get(from)
+            .map_or(0, |endpoint| endpoint.stream_attempts)
     }
 
     /// The peers `from` asked the transport to reach, in order.
@@ -252,6 +273,30 @@ impl DmTransport for MemoryTransport {
         })
     }
 
+    /// A stream frame lands on the far end under the reserved stream
+    /// channel, framed, exactly the way the moss stream callback files it.
+    fn send_to_peer_stream(&self, peer_id: &str, payload: &[u8]) -> Result<(), String> {
+        let mut state = self.net.lock();
+        let reachable = state
+            .links
+            .get(&(self.peer_id.clone(), peer_id.to_string()))
+            .is_some_and(|link| link.reach != PeerTransport::None);
+        let Some(endpoint) = state.endpoints.get_mut(&self.peer_id) else {
+            return Err("no such endpoint".to_string());
+        };
+        endpoint.stream_attempts += 1;
+        if endpoint.fail_streams || !reachable {
+            return Err("stream refused".to_string());
+        }
+        if let Some(target) = state.endpoints.get_mut(peer_id) {
+            target.inbox.push(MossReceivedMessage {
+                channel: stream_inbox_channel(&self.peer_id),
+                payload: payload.to_vec(),
+            });
+        }
+        Ok(())
+    }
+
     fn drain(&self) -> Vec<MossReceivedMessage> {
         let mut state = self.net.lock();
         state
@@ -259,5 +304,8 @@ impl DmTransport for MemoryTransport {
             .get_mut(&self.peer_id)
             .map(|endpoint| std::mem::take(&mut endpoint.inbox))
             .unwrap_or_default()
+            .into_iter()
+            .map(passthrough_or_deframe)
+            .collect()
     }
 }
