@@ -230,6 +230,34 @@ fn a_restored_attachment_needs_its_bytes_on_disk() {
 }
 
 #[test]
+fn a_cached_incoming_file_serves_ranges_after_restart() {
+    let sender_store = Scratch::open("cached-range-sender");
+    let receiver_store = Scratch::open("cached-range-receiver");
+    let bytes = vec![1, 2, 3, 4, 5, 6];
+    let manifest = send(&mut sender_store.transfer(), "cached", bytes.clone());
+    receiver_store
+        .store
+        .write_blob(&manifest.content_hash, &manifest.file_name, &bytes)
+        .expect("cached file");
+
+    let descriptor = descriptor_of(&manifest);
+    let mut restarted = receiver_store.transfer();
+    restarted.restore_stored(&descriptor, AttachmentDirection::Incoming, Some(manifest));
+    assert_eq!(state_of(&restarted, "cached"), AttachmentState::Available);
+    let StreamRange::Ready {
+        bytes: range,
+        total_size,
+        mime,
+    } = restarted.stream_range("cached", 2, 5)
+    else {
+        panic!("a cached attachment must serve its range after restart");
+    };
+    assert_eq!(range, vec![3, 4, 5]);
+    assert_eq!(total_size, bytes.len() as u64);
+    assert_eq!(mime, "application/octet-stream");
+}
+
+#[test]
 fn a_cancelled_download_stops_asking_for_chunks() {
     let scratch = Scratch::open("cancel");
     let mut sender = scratch.transfer();

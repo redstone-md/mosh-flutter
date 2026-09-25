@@ -13,6 +13,8 @@
 //! here hand back the frames to publish instead of publishing them.
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -239,7 +241,42 @@ impl Transfer {
     pub fn stream_range(&mut self, attachment_id: &str, start: u64, end: u64) -> StreamRange {
         self.slots
             .resume_for_stream(attachment_id, &mut self.runtime);
-        self.runtime.stream_range(attachment_id, start, end)
+        let range = self.runtime.stream_range(attachment_id, start, end);
+        if !matches!(range, StreamRange::Unknown) {
+            return range;
+        }
+        let Some(descriptor) = self.slots.cached_descriptor(attachment_id) else {
+            return StreamRange::Unknown;
+        };
+        let Ok(path) = self
+            .store
+            .path_for(&descriptor.content_hash, &descriptor.file_name)
+        else {
+            return StreamRange::Unknown;
+        };
+        let Ok(mut file) = File::open(path) else {
+            return StreamRange::Unknown;
+        };
+        let Ok(metadata) = file.metadata() else {
+            return StreamRange::Unknown;
+        };
+        if metadata.len() != descriptor.total_size {
+            return StreamRange::Unknown;
+        }
+        let start = start.min(descriptor.total_size);
+        let end = end.min(descriptor.total_size).max(start);
+        let Ok(length) = usize::try_from(end - start) else {
+            return StreamRange::Unknown;
+        };
+        let mut bytes = vec![0; length];
+        if file.seek(SeekFrom::Start(start)).is_err() || file.read_exact(&mut bytes).is_err() {
+            return StreamRange::Unknown;
+        }
+        StreamRange::Ready {
+            bytes,
+            total_size: descriptor.total_size,
+            mime: descriptor.mime.clone(),
+        }
     }
 
     /// Puts back an attachment whose bytes are still in the store. Used by
