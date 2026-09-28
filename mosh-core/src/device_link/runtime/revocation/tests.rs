@@ -44,9 +44,18 @@ fn early_roster_notice_process() {
     record.roster = removed.clone();
     rt.identity.update(record).unwrap();
     trusted.adopt_roster(removed).unwrap();
+    let removal_notice = RosterNotice::seal(
+        &trusted,
+        &rt.identity.device().moss_peer_id,
+        trusted.roster().clone(),
+        false,
+    )
+    .unwrap();
 
     let qr = rt.create_qr(String::new()).unwrap().qr_uri.unwrap();
     let qr = PairingQr::parse(&qr, now()).unwrap();
+    rt.receive(&removal_notice).unwrap();
+    assert_eq!(rt.snapshot().unwrap().phase, DeviceLinkPhase::ShowingQr);
     let offer = wire::seal(
         &qr,
         &trusted.key(),
@@ -57,6 +66,18 @@ fn early_roster_notice_process() {
     )
     .unwrap();
     rt.receive(&offer).unwrap();
+    rt.receive(&removal_notice).unwrap();
+    rt.service().unwrap();
+    assert_eq!(rt.phase, DeviceLinkPhase::AwaitingConfirmation);
+    assert!(rt.identity.record.pending.is_some());
+    drop(rt);
+    let mut rt = DeviceLinkRuntime::open(shared.clone(), store.clone()).unwrap();
+    rt.receive(&removal_notice).unwrap();
+    assert_eq!(
+        rt.snapshot().unwrap().phase,
+        DeviceLinkPhase::AwaitingConfirmation
+    );
+    assert!(rt.identity.record.pending.is_some());
     let roster = trusted
         .roster()
         .extend(qr.device.clone(), &trusted.key())
