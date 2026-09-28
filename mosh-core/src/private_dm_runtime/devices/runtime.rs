@@ -64,6 +64,9 @@ impl PrivateDmRuntime {
         let Ok(identity) = link.identity(store.clone()) else {
             return;
         };
+        if let Err(error) = self.reconcile_revocations(&identity) {
+            device_error("revocation", error);
+        }
         for session in self.sessions.values_mut() {
             session.device_store = Some(store.clone());
             if let Err(error) = session.refresh_device_identity(&identity) {
@@ -95,6 +98,7 @@ impl PrivateDmRuntime {
                 packets.extend(recovery);
             }
             packets.extend(session.device_packets(&identity));
+            packets.extend(session.removal_packets());
             session.publish_identity_claim(&identity);
         }
         for (peer, message) in packets {
@@ -115,6 +119,14 @@ impl PrivateDmRuntime {
         let packet = DevicePacket::open(bytes, &peer)?;
         let sender = packet.device()?;
         match packet.message {
+            DeviceMessage::Removal(evidence) => {
+                self.receive_removal(&identity, &sender, &packet.roster, evidence)
+            }
+            DeviceMessage::RemovalAck {
+                session_id,
+                epoch,
+                evidence,
+            } => self.acknowledge_removal(&sender, &packet.roster, &session_id, epoch, &evidence),
             DeviceMessage::Offer(offer) => {
                 if packet.roster.digest().map_err(|_| invalid())?
                     != identity.roster().digest().map_err(|_| invalid())?
@@ -148,6 +160,9 @@ impl PrivateDmRuntime {
             DeviceMessage::RecoveryEpoch(epoch) => {
                 self.receive_recovery_epoch(&identity, &sender, &packet.roster, epoch)
             }
+            DeviceMessage::RecoveryRemoval(removal) => {
+                self.receive_recovery_removal(&identity, &sender, &packet.roster, removal)
+            }
             DeviceMessage::Ack {
                 session_id,
                 request_id,
@@ -169,7 +184,18 @@ impl PrivateDmSession {
             .membership
             .as_ref()
             .and_then(|membership| membership.topology.roster(&identity.roster().user_id()));
+        let pending = self.membership.as_ref().is_some_and(|m| {
+            m.pending_removal()
+                || m.topology.clients.iter().any(|c| {
+                    c.roster.user_id() == identity.roster().user_id()
+                        && identity
+                            .roster()
+                            .revoked_since(&c.roster, &c.device_id)
+                            .unwrap_or(false)
+                })
+        });
         let roster = match current {
+            Some(roster) if pending => roster,
             Some(roster) if roster.extends(identity.roster()).map_err(|_| invalid())? => roster,
             _ => identity.roster(),
         };
@@ -183,6 +209,9 @@ impl PrivateDmSession {
     }
 
     fn refresh_device_identity(&mut self, identity: &DeviceIdentity) -> Result<()> {
+        if self.membership.as_ref().is_some_and(|m| m.revoked) {
+            return Ok(());
+        }
         let claim = self.current_device_claim(identity)?;
         if self.membership.is_none() {
             self.membership = Some(DeviceMembership {
@@ -200,6 +229,9 @@ impl PrivateDmSession {
                 recovery: None,
                 recovery_exports: Vec::new(),
                 epoch_records: Vec::new(),
+                removals: Vec::new(),
+                revoked: false,
+                pending_rosters: Vec::new(),
             });
         }
         let membership = self.membership.as_mut().ok_or_else(invalid)?;
@@ -265,6 +297,15 @@ impl PrivateDmSession {
             return Err(invalid());
         }
         let own = claim.roster.user_id() == membership.topology.own_user_id;
+        if membership.observe_roster_removal(&claim.roster)? {
+            self.record_dirty = true;
+            return Ok(());
+        }
+        if membership.current_roster(&claim.roster.user_id()).is_some()
+            && !membership.authorized(&claim.device()?, &claim.roster.user_id())
+        {
+            return Err(invalid());
+        }
         membership.topology.add_client(claim.clone())?;
         self.record_dirty = true;
         if !own {

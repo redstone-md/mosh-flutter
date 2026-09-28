@@ -89,7 +89,23 @@ pub enum DeviceLinkPhase {
 
 #[derive(Debug, Clone, Serialize)]
 #[frb(non_opaque)]
+pub struct DeviceRevocationStatus {
+    pub device: DeviceDescriptor,
+    pub state: DeviceRevocationState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[frb(non_opaque)]
+pub enum DeviceRevocationState {
+    Pending,
+    Applied,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[frb(non_opaque)]
 pub struct DeviceLinkSnapshot {
+    pub revoked: bool,
+    pub revocations: Vec<DeviceRevocationStatus>,
     pub user_id: String,
     pub own_device_id: String,
     pub devices: Vec<DeviceDescriptor>,

@@ -11,6 +11,7 @@ use super::roster::{invalid, public_key, DeviceRoster};
 use super::types::{DeviceDescriptor, Result};
 
 pub(crate) const WIRE_PREFIX: &[u8] = b"mosh-device-link-v1\0";
+pub(crate) const ROSTER_NOTICE_PREFIX: &[u8] = b"mosh-device-roster-notice-v1\0";
 pub(crate) const MAX_PACKET_BYTES: usize = 64 * 1024;
 const SIGN_CONTEXT: &[u8] = b"mosh-device-packet-v1\0";
 const NONCE_BYTES: usize = 12;
@@ -112,6 +113,6 @@ pub(crate) fn open(qr: &PairingQr, packet: &[u8]) -> Result<(String, LinkMessage
 }
 
 /// Route pairing independently of the attachment stream, which has another owner.
-pub fn is_pairing_packet(bytes: &[u8]) -> bool {
-    bytes.starts_with(WIRE_PREFIX)
+pub fn is_device_link_packet(bytes: &[u8]) -> bool {
+    bytes.starts_with(WIRE_PREFIX) || bytes.starts_with(ROSTER_NOTICE_PREFIX)
 }

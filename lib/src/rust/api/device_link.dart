@@ -24,3 +24,6 @@ Future<DeviceLinkSnapshot> approve({required String confirmationCode}) =>
 
 Future<DeviceLinkSnapshot> cancel() =>
     RustLib.instance.api.crateApiDeviceLinkCancel();
+
+Future<DeviceLinkSnapshot> revoke({required String deviceId}) =>
+    RustLib.instance.api.crateApiDeviceLinkRevoke(deviceId: deviceId);

@@ -94,6 +94,7 @@ impl std::error::Error for ConversationBridgeError {}
 impl From<PrivateDmRuntimeError> for ConversationBridgeError {
     fn from(error: PrivateDmRuntimeError) -> Self {
         let kind = match &error {
+            PrivateDmRuntimeError::Revoked => ConversationBridgeErrorKind::Revoked,
             PrivateDmRuntimeError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             PrivateDmRuntimeError::OpenMls(_) => ConversationBridgeErrorKind::Internal,
             PrivateDmRuntimeError::Codec(_) => ConversationBridgeErrorKind::Internal,

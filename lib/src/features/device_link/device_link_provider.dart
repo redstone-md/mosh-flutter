@@ -55,4 +55,6 @@ class DeviceLinkController extends AsyncNotifier<DeviceLinkSnapshot> {
   Future<void> approve(String code) =>
       _act(() => api.approve(confirmationCode: code));
   Future<void> cancel() => _act(api.cancel);
+  Future<void> revoke(String deviceId) =>
+      _act(() => api.revoke(deviceId: deviceId));
 }

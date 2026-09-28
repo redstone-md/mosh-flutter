@@ -1656,5 +1656,25 @@
   "dmHistoryWaitingTitle": "Waiting for message history",
   "dmHistoryWaitingBody": "Waiting for a participant with the missing messages to come online. Recovery will resume automatically.",
   "dmHistoryImportingTitle": "Importing message history",
-  "dmHistoryImportingBody": "You can keep messaging while older messages arrive."
+  "dmHistoryImportingBody": "You can keep messaging while older messages arrive.",
+  "deviceLinkRemove": "Remove device",
+  "deviceLinkRemoveTitle": "Remove {name}?",
+  "@deviceLinkRemoveTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceLinkRemoveBody": "Future DM messages are protected after remaining participants apply the removal. Offline participants apply it when they reconnect. Already received messages stay on that device.",
+  "deviceLinkRemovalPending": "Removal pending",
+  "deviceLinkRemovalPendingBody": "Waiting for remaining participants to accept the removal epoch. Offline participants apply it when they reconnect.",
+  "deviceLinkRemovalApplied": "Removal applied",
+  "deviceLinkRemovalAppliedBody": "Remaining participants have accepted the removal epoch. Already received messages remain on that device.",
+  "deviceLinkRevokedBody": "This desktop was removed. Received messages remain here. Request a fresh link and ask an authorized desktop to approve access.",
+  "deviceLinkFreshJoin": "Request access again",
+  "dmDeviceRevokedTitle": "This desktop was removed",
+  "dmDeviceRevokedBody": "Received messages remain readable. Sending and message recovery are disabled. Request a fresh link in Settings → Devices to regain access.",
+  "dmRemovalPendingTitle": "Device removal pending",
+  "dmRemovalPendingBody": "Future messages are protected after all remaining participants accept the removal epoch. Offline participants apply it when they reconnect."
 }

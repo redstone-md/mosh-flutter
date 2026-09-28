@@ -150,6 +150,13 @@ impl DeviceMembership {
         &mut self,
         record: EpochRecord,
     ) -> Result<()> {
+        if self
+            .removals
+            .iter()
+            .any(|r| r.evidence.epoch == record.epoch)
+        {
+            return Err(invalid());
+        }
         if let Some(existing) = self
             .epoch_records
             .iter()

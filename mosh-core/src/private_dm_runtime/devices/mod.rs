@@ -7,6 +7,8 @@ mod live;
 mod proof;
 mod receipts;
 mod recovery;
+mod rejoin;
+mod revocation;
 mod runtime;
 mod types;
 

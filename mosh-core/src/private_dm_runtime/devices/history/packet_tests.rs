@@ -130,6 +130,9 @@ impl Fixture {
             recovery: None,
             recovery_exports: Vec::new(),
             epoch_records: Vec::new(),
+            removals: Vec::new(),
+            revoked: false,
+            pending_rosters: Vec::new(),
         });
         // Model the newly admitted recipient, whose persisted Welcome proves
         // admission even before its first complete history row is visible.
@@ -165,6 +168,7 @@ impl Fixture {
 }
 
 mod recovery;
+mod revocation;
 
 impl Drop for Fixture {
     fn drop(&mut self) {

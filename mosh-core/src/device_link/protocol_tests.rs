@@ -45,6 +45,37 @@ fn only_a_verified_member_can_extend_the_signed_device_roster() {
 }
 
 #[test]
+fn removal_preserves_other_devices_and_refuses_a_revoked_authority() {
+    let root_key = SigningKey::generate(&mut OsRng);
+    let removed_key = SigningKey::generate(&mut OsRng);
+    let other_key = SigningKey::generate(&mut OsRng);
+    let root = device(&root_key);
+    let removed = device(&removed_key);
+    let other = device(&other_key);
+    let roster = DeviceRoster::genesis(root.clone(), &root_key)
+        .unwrap()
+        .extend(removed.clone(), &root_key)
+        .unwrap()
+        .extend(other.clone(), &removed_key)
+        .unwrap();
+    let revoked = roster.revoke(&removed.device_id, &root_key).unwrap();
+    assert_eq!(revoked.devices().unwrap(), vec![root.clone(), other]);
+    assert_eq!(revoked.user_id(), roster.user_id());
+    assert!(revoked.extends(&roster).unwrap());
+    assert!(!roster.extends(&revoked).unwrap());
+    assert!(revoked
+        .extend(device(&SigningKey::generate(&mut OsRng)), &removed_key)
+        .is_err());
+    assert!(revoked.revoke(&root.device_id, &removed_key).is_err());
+    assert!(revoked.revoke(&root.device_id, &root_key).is_err());
+    assert!(revoked.revoke(&removed.device_id, &root_key).is_err());
+    let mut value = serde_json::to_value(&revoked).unwrap();
+    value["entries"][3]["device"] = json!(root);
+    let forged: DeviceRoster = serde_json::from_value(value).unwrap();
+    assert!(forged.devices().is_err());
+}
+
+#[test]
 fn signed_pairing_packets_are_encrypted_and_bound_to_the_whole_qr() {
     let joining_key = SigningKey::generate(&mut OsRng);
     let trusted_key = SigningKey::generate(&mut OsRng);

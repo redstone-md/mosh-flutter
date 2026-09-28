@@ -22,6 +22,7 @@ impl PrivateDmSession {
                 .sort_by(|a, b| (a.sent_at_ms, &a.message_id).cmp(&(b.sent_at_ms, &b.message_id)));
         }
         SessionSnapshot {
+            device_revocation: self.device_revocation_state(),
             history_sync,
             session_id: self.session_id.clone(),
             mesh_id: self.mesh_id.clone(),

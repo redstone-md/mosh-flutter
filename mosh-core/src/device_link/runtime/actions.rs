@@ -5,11 +5,16 @@ use crate::device_link::wire::{self, LinkMessage};
 
 impl DeviceLinkRuntime {
     pub fn create_qr(&mut self, name: String) -> Result<DeviceLinkSnapshot> {
+        self.service()?;
         self.ensure_idle()?;
         if !self.identity.can_join()? {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::Ineligible));
         }
-        let name = name.trim();
+        let name = if self.identity.revoked()? {
+            self.identity.device().name.as_str()
+        } else {
+            name.trim()
+        };
         if name.is_empty()
             || name.chars().count() > MAX_NAME_CHARS
             || name.chars().any(char::is_control)
@@ -17,8 +22,12 @@ impl DeviceLinkRuntime {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::InvalidQr));
         }
         let mut record = self.identity.record.clone();
-        record.device.name = name.into();
-        record.roster = DeviceRoster::genesis(record.device.clone(), &self.identity.key())?;
+        if !self.identity.revoked()? {
+            record.device.name = name.into();
+            record.roster = DeviceRoster::genesis(record.device.clone(), &self.identity.key())?;
+        }
+        record.pending = None;
+        record.receipt = None;
         self.identity.update(record)?;
         self.exchange = Some(Exchange {
             qr: PairingQr::new(self.identity.device().clone(), now()),
@@ -35,6 +44,10 @@ impl DeviceLinkRuntime {
     }
 
     pub fn import_qr(&mut self, uri: String) -> Result<DeviceLinkSnapshot> {
+        self.service()?;
+        if self.identity.revoked()? {
+            return Err(invalid());
+        }
         self.ensure_idle()?;
         let qr = PairingQr::parse(&uri, now())?;
         if self.identity.record.consumed(&qr, now()) {
