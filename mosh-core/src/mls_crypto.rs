@@ -261,6 +261,14 @@ impl MlsSessionCrypto {
     }
 
     pub fn decrypt(&mut self, ciphertext: &[u8]) -> Result<Vec<u8>, MlsCryptoError> {
+        self.decrypt_with_signer(ciphertext).map(|(body, _)| body)
+    }
+
+    /// Return the verified leaf signer with its application plaintext.
+    pub(crate) fn decrypt_with_signer(
+        &mut self,
+        ciphertext: &[u8],
+    ) -> Result<(Vec<u8>, Vec<u8>), MlsCryptoError> {
         let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
         let message = MlsMessageIn::tls_deserialize(&mut &ciphertext[..])
             .map_err(|error| MlsCryptoError::Codec(error.to_string()))?;
@@ -270,8 +278,18 @@ impl MlsSessionCrypto {
         let processed = group
             .process_message(&self.provider, protocol_message)
             .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
+        let signer = match processed.sender() {
+            Sender::Member(index) => group
+                .members()
+                .find(|member| member.index == *index)
+                .map(|member| member.signature_key)
+                .ok_or(MlsCryptoError::NotReady)?,
+            _ => return Err(MlsCryptoError::NotReady),
+        };
         match processed.into_content() {
-            ProcessedMessageContent::ApplicationMessage(message) => Ok(message.into_bytes()),
+            ProcessedMessageContent::ApplicationMessage(message) => {
+                Ok((message.into_bytes(), signer))
+            }
             _ => Err(MlsCryptoError::OpenMls(
                 "expected application message".to_string(),
             )),
@@ -510,6 +528,23 @@ impl MlsSessionCrypto {
         snapshot: &[u8],
         group_id: &[u8],
     ) -> Result<Self, MlsCryptoError> {
+        Self::restore_state(identity, signer_public, snapshot, Some(group_id))
+    }
+
+    pub(crate) fn restore_unjoined(
+        identity: &str,
+        signer_public: &[u8],
+        snapshot: &[u8],
+    ) -> Result<Self, MlsCryptoError> {
+        Self::restore_state(identity, signer_public, snapshot, None)
+    }
+
+    fn restore_state(
+        identity: &str,
+        signer_public: &[u8],
+        snapshot: &[u8],
+        group_id: Option<&[u8]>,
+    ) -> Result<Self, MlsCryptoError> {
         let provider = PersistentProvider::from_snapshot(snapshot)
             .map_err(|error| MlsCryptoError::Codec(error.to_string()))?;
         let signer =
@@ -519,15 +554,40 @@ impl MlsSessionCrypto {
             credential: BasicCredential::new(identity.as_bytes().to_vec()).into(),
             signature_key: signer.to_public_vec().into(),
         };
-        let group = MlsGroup::load(provider.storage(), &GroupId::from_slice(group_id))
-            .map_err(|e| MlsCryptoError::OpenMls(e.to_string()))?
-            .ok_or(MlsCryptoError::NotReady)?;
+        let group = group_id
+            .map(|id| {
+                MlsGroup::load(provider.storage(), &GroupId::from_slice(id))
+                    .map_err(|e| MlsCryptoError::OpenMls(e.to_string()))?
+                    .ok_or(MlsCryptoError::NotReady)
+            })
+            .transpose()?;
         Ok(Self {
             provider,
             signer,
             credential,
-            group: Some(group),
+            group,
         })
+    }
+
+    pub(crate) fn member_signers(&self) -> Vec<String> {
+        self.group
+            .as_ref()
+            .map(|group| {
+                group
+                    .members()
+                    .map(|member| hex::encode(member.signature_key))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn key_package_signer(&self, bytes: &[u8]) -> Result<String, MlsCryptoError> {
+        Ok(hex::encode(
+            self.decode_key_package(bytes)?
+                .leaf_node()
+                .signature_key()
+                .as_slice(),
+        ))
     }
 }
 

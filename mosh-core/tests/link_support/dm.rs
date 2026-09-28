@@ -25,6 +25,7 @@ pub fn command(dm: &mut PrivateDmRuntime, action: &str, arg: &str, command: &Val
         )
         .unwrap(),
         "dm_poll" => serde_json::to_value(dm.poll_session(arg).unwrap()).unwrap(),
+        "dm_list" => serde_json::to_value(dm.list_sessions().unwrap()).unwrap(),
         "dm_send" => serde_json::to_value(
             dm.send_message(arg, command["body"].as_str().unwrap().into())
                 .unwrap(),
@@ -49,7 +50,7 @@ impl Peer {
             }
             assert!(
                 Instant::now() < until,
-                "DM must deliver text, got {snapshot}"
+                "DM must deliver {text}, got {snapshot}"
             );
             std::thread::sleep(Duration::from_millis(100));
         }

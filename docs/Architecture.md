@@ -219,22 +219,22 @@ sequenceDiagram
     Core->>Moss: publish MLS control message
     Moss-->>Moss: deliver over pubsub
     Core->>Mls: join group on Bob side
-    Bob->>Bob: confirm fingerprint (UI-side gate, no bridge call)
+    Bob->>Bob: Read the shared fingerprint in the header lock
     Bob->>Bridge: send DmTarget(sessionId) text
     Bridge->>Core: api::conversation::send BridgeConversationRef{Dm, id}
     Core->>Mls: protect as MLS application message
     Core->>Moss: publish ciphertext
     Moss-->>Moss: deliver to Alice node
     Core->>Mls: unprotect through group state
-    Core-->>Bridge: snapshot event StreamSink
-    Bridge-->>Alice: decrypted message stream
+    Bridge->>Core: poll_session
+    Core-->>Bridge: SessionSnapshot
+    Bridge-->>Alice: Decrypted messages
 ```
 
-This reuses the invite / fingerprint / send flow proven across the fork's
-history; the seam between UI and runtime is the generated bridge
-(ADR 0009, ADR 0010). The fingerprint confirmation gate blocks
-`sendMessage` until the user confirms the safety number; this is a UI-side
-gate enforced by the Dart orchestration layer over the `Gateway` interface.
+This reuses the invite, fingerprint and send flow. The generated bridge
+connects UI and runtime (ADR 0009, ADR 0010). The fingerprint lock displays
+the creator's value on both sides. It has no local confirmation flag or send
+gate. See [private-DM behavior](Features/private-dm.md).
 
 Snapshot delivery is poll-based, not stream-based: `api::private_dm` exposes
 no `StreamSink`, and the DM screen re-polls `activeSessionProvider.family`
@@ -246,6 +246,49 @@ its timers are throttled. The Dart auto-poll gives each list kind its own
 in-flight guard, so one busy kind never freezes the others. The sequence
 above is the design intent; the slice-one proof is
 `integration_test/slice_one_test.dart` (see Features/private-dm.md).
+
+### Linked desktop clients
+
+Issue 24 extends one DM to separate MLS clients for a linked user's devices.
+The signed device roster authorizes each client; the established MLS contact
+binds the counterpart's user identity. Admission and its delivery journal live
+inside the encrypted session record. Live ciphertext uses directed Moss streams.
+The Flutter conversation and fingerprint retain their existing contracts.
+
+```mermaid
+flowchart LR
+    A[User A original desktop] --> DM[One DM MLS group]
+    A2[User A linked desktop] --> DM
+    B[User B desktop] --> DM
+    R[Private signed device roster] --> A
+    R --> A2
+    DM --> Store[Independent encrypted stores]
+    DM --> Moss[Directed Moss streams]
+```
+
+```mermaid
+classDiagram
+    class DeviceMembership {
+        topology
+        joining
+        delivery
+    }
+    class DmTopology {
+        ownUserId
+        clients
+        rosters
+    }
+    class IdentityClaim {
+        roster
+        deviceId
+        mlsSigner
+        displayName
+    }
+    class PrivateDmSession
+    PrivateDmSession --> DeviceMembership
+    DeviceMembership --> DmTopology
+    DmTopology --> IdentityClaim
+```
 
 ## Interface Contracts
 

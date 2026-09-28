@@ -30,25 +30,34 @@ pub struct Peer {
     replies: mpsc::Receiver<Value>,
     dir: PathBuf,
     api: bool,
+    manual_dm: bool,
     pub port: u16,
 }
 
 impl Peer {
     pub fn new() -> Self {
-        Self::new_installation(false)
+        Self::new_installation(false, false)
     }
 
     pub fn new_api() -> Self {
-        Self::new_installation(true)
+        Self::new_installation(true, false)
     }
 
-    fn new_installation(api: bool) -> Self {
+    #[allow(
+        dead_code,
+        reason = "Shared harness scheduling mode used by the DM admission tests."
+    )]
+    pub fn new_manual_dm() -> Self {
+        Self::new_installation(false, true)
+    }
+
+    fn new_installation(api: bool, manual_dm: bool) -> Self {
         let dir = std::env::temp_dir().join(format!("mosh-link-flow-{}", rand::random::<u64>()));
         std::fs::create_dir_all(&dir).unwrap();
-        Self::start(dir, api)
+        Self::start(dir, api, manual_dm)
     }
 
-    fn start(dir: PathBuf, api: bool) -> Self {
+    fn start(dir: PathBuf, api: bool, manual_dm: bool) -> Self {
         let mut child = Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
@@ -59,6 +68,7 @@ impl Peer {
             .env("MOSH_LINK_TEST_DIR", &dir)
             .env("MOSH_LINK_TEST_PORT", "0")
             .env("MOSH_LINK_TEST_API", if api { "1" } else { "0" })
+            .env("MOSH_DM_MANUAL_SERVICE", if manual_dm { "1" } else { "0" })
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -73,6 +83,7 @@ impl Peer {
             replies,
             dir,
             api,
+            manual_dm,
             port: 0,
         };
         peer.ask(json!({"action":"snapshot"}));
@@ -95,6 +106,10 @@ impl Peer {
     }
 
     pub fn connect(&mut self, other: &Self) {
+        // Public bridge scenarios deliberately use default discovery only.
+        if self.api {
+            return;
+        }
         self.ask(json!({"action":"connect","argument":format!("127.0.0.1:{}", other.port)}));
     }
 
@@ -115,7 +130,7 @@ impl Peer {
 
     pub fn restart(&mut self) {
         self.stop();
-        let mut replacement = Self::start(self.dir.clone(), self.api);
+        let mut replacement = Self::start(self.dir.clone(), self.api, self.manual_dm);
         std::mem::swap(self, &mut replacement);
         // Keep this installation's persistent state; only the killed process is old.
         replacement.dir = PathBuf::new();
@@ -193,10 +208,12 @@ fn dm_runtime(
     dm.rehydrate();
     let dm = Arc::new(Mutex::new(dm));
     let dm_service = dm.clone();
-    std::thread::spawn(move || loop {
-        dm_service.lock().unwrap().service();
-        std::thread::sleep(Duration::from_millis(100));
-    });
+    if std::env::var("MOSH_DM_MANUAL_SERVICE").as_deref() != Ok("1") {
+        std::thread::spawn(move || loop {
+            dm_service.lock().unwrap().service();
+            std::thread::sleep(Duration::from_millis(100));
+        });
+    }
     dm
 }
 

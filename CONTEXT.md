@@ -55,6 +55,12 @@ A one-time QR exchange that adds an independent installation to a Mosh user's
 device roster after approval on a trusted device. Possession of the QR starts
 the exchange; entering the new device's code authorizes that exact device.
 
+## DM MLS client
+
+One device's independently keyed membership in a private DM. Linked devices
+are separate clients of the same Mosh user in one conversation. They share
+the conversation's contact and message ids, not private keys or MLS state.
+
 ## MLS fingerprint
 
 Derived from a per-conversation MLS signature key. Ephemeral relative to a

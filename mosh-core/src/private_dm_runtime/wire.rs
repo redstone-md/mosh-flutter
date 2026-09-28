@@ -38,6 +38,11 @@ pub fn channel_call_id(channel: &str) -> Option<&str> {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ControlEnvelope {
+    DeviceIdentity {
+        session_id: String,
+        participant_id: String,
+        ciphertext_b64: String,
+    },
     KeyPackage {
         session_id: String,
         participant_id: String,
@@ -158,6 +163,8 @@ pub enum ControlEnvelope {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DataEnvelope {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_signature: Option<super::devices::DeviceSignature>,
     pub session_id: String,
     pub participant_id: String,
     pub from_device: String,

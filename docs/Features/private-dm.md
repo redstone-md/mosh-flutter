@@ -138,7 +138,44 @@ local state ever marked anything "verified".
   `conversationListProvider` and `activeSessionProvider.family`; both consume
   `gatewayProvider`, never a concrete `Gateway` (ADR 0013).
 
-## Proof
+## Linked desktops
+
+After QR linking, the existing desktop privately offers its DM to the approved
+desktop. The new desktop creates its own MLS keys. An existing authorized
+client adds it to the same MLS group. The contact accepts that admission,
+then both desktops receive new text in the same conversation. The invite,
+contact name and fingerprint stay the same.
+
+```mermaid
+flowchart LR
+    Pair[Approved QR link] --> Offer[Private DM offer]
+    Offer --> Keys[New desktop creates its own MLS keys]
+    Keys --> Add[Existing client authorizes MLS admission]
+    Add --> Contact[Contact accepts the next epoch]
+    Contact --> Text[New text reaches both desktops]
+    Text --> Reply[Either desktop can reply]
+```
+
+Texts sent on one desktop also appear on its linked desktop, with the same
+message id and author. Each installation stores its own MLS state and keeps
+working after restart. The linked desktop can exchange text with the contact
+while the original is off. A receipt from a sibling stops retries to that
+device. Only a receipt from the contact marks the text delivered.
+
+This covers live text after admission. Old history transfer is issue 25,
+missed messages and epochs are issue 26, and revocation is issue 27. Joining
+requires the existing DM participants to accept the new epoch. Device
+association is visible to the participants. Network traffic anonymity is not
+part of this feature. See [ADR 0030](../ADR/0030-linked-desktop-dm-clients.md)
+for authorization, persistence and test details.
+
+The real-process tests in `mosh-core/tests/multi_device_dm_flow.rs` use three
+independent installations with real Moss, OpenMLS and encrypted stores. They
+prove admission, sender-device sync, simultaneous sends, the original being
+off, restart and default discovery through public bridge calls. Run
+`cargo test --manifest-path mosh-core/Cargo.toml --test multi_device_dm_flow`.
+
+## Single-device proof
 
 The Real path is proven end-to-end by
 `integration_test/slice_one_test.dart` against a real `mosh_core.dll`:

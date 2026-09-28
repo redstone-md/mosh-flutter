@@ -22,6 +22,10 @@ impl PrivateDmSession {
         let data_channel = data_channel(&session_id);
         let blob_channel = blob_channel(&session_id);
         Self {
+            membership: None,
+            device_signer: None,
+            device_store: None,
+            device_connect_requested: std::collections::HashSet::new(),
             role,
             state: DmSessionState::Pending,
             last_authenticated_rx_ms: 0,
@@ -91,6 +95,7 @@ impl PrivateDmSession {
     /// Welcome replaces the empty placeholder written at accept time.
     pub(super) fn to_persisted_record(&self) -> contracts::PersistedSession {
         contracts::PersistedSession {
+            membership: self.membership.clone(),
             role_is_alice: matches!(self.role, SessionRole::Alice),
             display_name: self.device_id.clone(),
             participant_id: self.participant_id.clone(),
@@ -160,7 +165,10 @@ impl PrivateDmSession {
         // ingest_chunk answers Duplicate for a chunk already held. What stops
         // the repeats from becoming a flood is the in-flight window in
         // next_chunk_request, not this set.
-        if message.channel == self.control_channel || message.channel == self.blob_channel {
+        if message.channel == self.control_channel
+            || message.channel == self.blob_channel
+            || self.devices_live()
+        {
             return false;
         }
         self.seen.seen_before(&message.channel, &message.payload)
@@ -238,6 +246,20 @@ impl PrivateDmSession {
         payload: &[u8],
     ) -> Result<(), PrivateDmRuntimeError> {
         let channel = kind.channel_for(&self.session_id);
+        if self.devices_live() {
+            return self.route_device_frame(&channel, payload);
+        }
+        self.persist_device_crypto()?;
+        // Device-enabled sessions can bootstrap over the same directed carrier.
+        if let Some(peer) = self.peer_moss_id.as_deref().filter(|peer| {
+            self.membership.is_some() && self.transport.reach(peer) != PeerTransport::None
+        }) {
+            if let Some(frame) = crate::stream_transport::frame_for_channel(&channel, payload) {
+                if self.transport.send_to_peer_stream(peer, &frame).is_ok() {
+                    return Ok(());
+                }
+            }
+        }
         match self.transport.publish(&self.mesh_id, &channel, payload) {
             Ok(()) => Ok(()),
             Err(PublishError::NoPeers(_)) if kind != ChannelKind::Data => Ok(()),
@@ -254,6 +276,7 @@ impl PrivateDmSession {
     /// re-registers on the id change. Driven by the same ~1s drain tick as
     /// pump_handshake.
     pub(super) fn pump_peer_connect(&mut self) {
+        self.connect_devices();
         let Some(id) = self.peer_moss_id.clone() else {
             return;
         };
@@ -282,6 +305,9 @@ impl PrivateDmSession {
     /// How the counterpart is reachable right now, or `None` before its id is
     /// known.
     pub(super) fn reach(&self) -> PeerTransport {
+        if let Some(reach) = self.peer_device_reach() {
+            return reach;
+        }
         self.peer_moss_id
             .as_deref()
             .map_or(PeerTransport::None, |id| self.transport.reach(id))
@@ -419,7 +445,7 @@ impl PrivateDmSession {
     /// newer message never overtakes an older one. Returns the ids whose
     /// attempt changed so the runtime can persist them.
     pub(super) fn pump_outbox(&mut self) -> Vec<String> {
-        if !self.can_encrypt_for_peer() {
+        if !self.can_encrypt_for_peer() || !self.device_outbox_ready() {
             return Vec::new();
         }
         let mut changed = Vec::new();
@@ -454,7 +480,8 @@ impl PrivateDmSession {
             .map(|attempt| attempt.sent_at_ms)
             .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
         let ciphertext = self.crypto.encrypt(body.as_bytes())?;
-        let envelope = DataEnvelope {
+        let mut envelope = DataEnvelope {
+            device_signature: None,
             session_id: self.session_id.clone(),
             participant_id: self.participant_id.clone(),
             from_device: self.device_id.clone(),
@@ -463,6 +490,8 @@ impl PrivateDmSession {
             ciphertext_b64: encode(&ciphertext),
             resend: None,
         };
+        self.sign_device_text(&mut envelope)?;
+        self.track_device_receipts(message_id);
         let payload = serde_json::to_vec(&envelope)
             .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
         self.route_send(ChannelKind::Data, &payload)?;
@@ -481,7 +510,7 @@ impl PrivateDmSession {
     /// that never acks — the message keeps its Sent status). Returns the ids
     /// whose attempt state changed so the runtime can persist them.
     pub(super) fn pump_unacked_resends(&mut self, now_ms: u64) -> Vec<String> {
-        if !self.peer_joined {
+        if !self.peer_joined || !self.device_outbox_ready() {
             return Vec::new();
         }
         let due: Vec<(String, String, u32)> = self
@@ -500,7 +529,7 @@ impl PrivateDmSession {
                 )
             })
             .collect();
-        let mut changed = Vec::new();
+        let mut changed = self.finish_device_resends();
         for (message_id, payload_b64, auto_resends) in due {
             let Ok(payload) = decode(&payload_b64) else {
                 continue;
@@ -512,6 +541,17 @@ impl PrivateDmSession {
             let Ok(mut envelope) = serde_json::from_slice::<DataEnvelope>(&payload) else {
                 continue;
             };
+            if self.devices_live()
+                && decode(&envelope.ciphertext_b64)
+                    .ok()
+                    .and_then(|ciphertext| MlsSessionCrypto::commit_epoch(&ciphertext).ok())
+                    != self.crypto.epoch()
+            {
+                if self.publish_queued(&message_id).is_ok() {
+                    changed.push(message_id);
+                }
+                continue;
+            }
             envelope.resend = Some(auto_resends + 1);
             let Ok(bytes) = serde_json::to_vec(&envelope) else {
                 continue;
