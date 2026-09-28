@@ -53,7 +53,7 @@ The user approved the contract additions and these test boundaries on
 - [x] Format, strict Clippy, build, full Rust and Flutter suites once at end.
 - [x] Measure changed Rust line coverage, at least 80%; branch coverage at
   least 70% if this toolchain supports it. Run bridge codegen and drift check.
-- [ ] Commit and run independent Standards/Spec code-review agents read-only.
+- [x] Commit and run independent Standards/Spec code-review agents read-only.
   Fix findings, verify affected checks and keep the working tree clean.
 
 ## Risks
@@ -100,6 +100,33 @@ point, 428 of 495 changed executable production lines were covered, or
 excluded. Stable Rust reports that `--branch` requires nightly, unavailable
 on this host. The branch gate does not apply; region coverage is not used as
 branch coverage.
+
+Implementation commit: `f522549`, `feat(dm): import text history on linked
+desktops`. The final documentation commit records the independent reviews
+below. Both reviewers used `git diff 5c11d806...f522549`, read only and did not
+rerun tests or change files.
+
+## Standards
+
+0 findings. No consequential documented-standard violations or actionable
+baseline smells found in `5c11d806...f522549`.
+
+History concerns stay in feature-local modules, reuse existing
+transport/storage/UI components, and preserve serialized runtime and
+transaction ownership. Contract additions match the recorded approval.
+ADR 0031 documents the relevant size exceptions.
+
+## Spec
+
+No Spec findings. Commit `f522549` matches issue 25 and the approved initial
+two-desktop text-history scope.
+
+Authorization, original message metadata, independent storage encryption,
+resumable progress, live-message deduplication, runtime notices and Mermaid
+documentation are implemented. Offline epoch recovery and revocation remain
+correctly deferred to issues 26 and 27.
+
+Final findings: Standards 0; Spec 0. Neither axis has a remaining issue.
 
 ## Changed files
 
