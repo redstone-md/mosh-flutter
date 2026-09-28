@@ -140,6 +140,13 @@ without a migration or new key. Older runtimes cannot provide commit evidence
 they already discarded. No source can reconstruct deleted text or absent
 commits. A receipt on one installation does not change these retention rules.
 
+Current OpenMLS lifetime validation also refuses a retained Add transition
+after its joining KeyPackage expires, normally 84 days after creation. This
+limits long-offline replay even when evidence is available. A
+[scoped historical-validation dependency patch](../Proposals/openmls-historical-validation.md)
+is prepared and awaits approval; it has not been applied. The implementation
+does not bypass validation or copy another installation's MLS state.
+
 The protocol separates retained epoch evidence from semantic text import.
 A future hosted storage adapter can supply those records through this boundary
 without owning device keys or replacing the importer. This slice adds no hosted
