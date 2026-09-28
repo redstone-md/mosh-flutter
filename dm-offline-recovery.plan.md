@@ -84,10 +84,11 @@ add a product feature or broaden the text-only DM scope.
 - [x] Document retention, acknowledgements and MLS ordering with Mermaid.
 - [x] Run regular Rust checks and focused native/widget tests.
 - [x] Format, build, strict Clippy, Flutter analysis and full suites once at end.
-- [ ] Measure changed Rust line coverage, at least 80%; branch coverage at
+- [x] Measure changed Rust line coverage, at least 80%; branch coverage at
   least 70% if available. Verify bindings remain unchanged.
-- [ ] Commit, run Standards and Spec reviews through the code-review skill,
-  fix findings, verify affected checks and finish with a clean working tree.
+- [x] Commit and run Standards and Spec reviews through the code-review skill.
+- [x] Fix findings within approved scope, verify affected checks and keep clean.
+- [ ] Resolve expired historical packages after the dependency decision.
 
 ## Risks and limits
 
@@ -140,10 +141,25 @@ The full instrumented Rust suite passed 428 tests: 404 unit tests, eight
 device-link flows, two identity tests and fourteen real-process DM scenarios.
 Ten entry points remain ignored, including isolated workers invoked by their
 parent tests. No behavioral test was removed. Logs are under `/tmp/mosh-26-*`.
+The separate native Flutter pairing test passed against the rebuilt library.
+Final formatting, strict Clippy and Flutter analysis passed. Code generation
+and the final drift comparison confirmed unchanged bridge files.
+
+The full Rust run used `cargo llvm-cov show-env --sh`, including independent
+installation processes. Focused review-fix tests used the same instrumentation.
+Against the fixed point, 620 of 635 changed executable production lines are
+covered, or 97.64%. Test code is excluded. New recovery modules range from
+93.33% to 100%. JSON and LCOV reports remain under `/tmp/mosh-26-*`.
+Stable Rust reports that branch instrumentation requires nightly, unavailable
+on this host. Branch coverage is unavailable; region coverage is not used as
+branch coverage.
 
 Implementation commit: `ae92a55`, reviewed against `c21b7e1` with independent
-read-only Standards and Spec agents. Review fixes are being verified with
-focused signed/native checks.
+read-only Standards and Spec agents. Review-fix commit: `337b514`, verified
+with focused initial/recovery signed checks, source switching with live text
+and large UTF-8 native transfer. Both agents reviewed that immutable correction
+read-only. Standards confirmed both findings resolved, with no new consequential
+findings. Spec confirmed P1 resolved, with no new related findings.
 
 ## Standards
 
@@ -168,9 +184,10 @@ clock, including inside commit processing. Default lifetimes expire after
 84 days. The current dependency therefore prevents replay after that expiry,
 even if a holder retains valid evidence. Its public existing-group API has no
 historical validation time. A reviewable scoped-clock patch is prepared at
-`/tmp/mosh-26-openmls-historical-validation.patch`; project dependencies are
-unchanged. Approval to vendor that dependency patch, or explicitly accept the
-expiry limit, is pending. Never change the process-global clock or import
+[`docs/Proposals/openmls-historical-validation.patch`](docs/Proposals/openmls-historical-validation.patch);
+project dependencies are unchanged. Approval to vendor that dependency patch,
+or explicitly accept the expiry limit, is pending. The patch is unapplied and
+has not been tested against the OpenMLS crate. Never change the process-global clock or import
 another installation's MLS state to bypass this restriction.
 
 Review findings: Standards 2 (both fixed); Spec 2 (P1 fixed,
@@ -183,6 +200,8 @@ P2 awaits the dependency decision). Keep the axes separate.
 - `docs/ADR/0032-dm-offline-recovery.md`
 - `docs/Architecture.md`
 - `docs/Features/private-dm.md`
+- `docs/Proposals/openmls-historical-validation.md`
+- `docs/Proposals/openmls-historical-validation.patch`
 - `lib/l10n/app_en.arb`
 - `lib/l10n/app_ru.arb`
 - `mosh-core/src/private_dm_runtime.rs`
