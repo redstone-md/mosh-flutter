@@ -1,4 +1,4 @@
-# Desktop device linking
+# Device linking
 
 Open Settings, Devices on both desktops. On the fresh desktop, enter its name
 and choose Link this desktop to an existing user. On the trusted desktop,
@@ -28,10 +28,10 @@ The linked desktop keeps its own signing key, Moss identity and connections.
 The list restores after restart. An installation with existing conversations
 cannot join another user; it can approve a fresh desktop instead.
 
-Pairing is free and needs no wallet. Linked desktops join existing text DMs
+Pairing is free and needs no wallet. Linked installations join existing text DMs
 with independent MLS keys, import available history and recover missed epochs
-and text after reconnecting. See [Private DM](private-dm.md). Android
-foreground delivery remains issue 28.
+and text after reconnecting. See [Private DM](private-dm.md) and the
+[Android foreground flow and physical verification](android-linked-dm.md).
 
 ## Remove a linked desktop
 

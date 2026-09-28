@@ -9,7 +9,8 @@
 // stayed "connecting" until BOTH sides sent, and why peer messages only
 // appeared after a local send.
 //
-// Shape: one process-lifetime `Timer.periodic`. Each tick refreshes every
+// Shape: one owned polling timer. Android suspends it while hidden/paused
+// and refreshes immediately on resume; desktop keeps polling. Each tick refreshes every
 // conversation kind's list. Each kind has its own in-flight guard: a slow
 // kind skips its own ticks and never holds the other kinds back (a DM
 // runtime busy with a transfer used to freeze the channel and group lists
@@ -30,6 +31,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/platform/foreground_poller.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
@@ -53,12 +55,13 @@ final autoPollProvider = Provider<void>((ref) {
   final interval = ref.watch(autoPollIntervalProvider);
   if (interval == null) return;
   final inFlight = <ConversationKind>{};
+  late ForegroundPoller poller;
 
   // The open conversation's snapshot follows its own kind's list read: it
   // never queues behind that read, and a stuck kind never piles up
   // snapshot reads.
   void refreshOpenSnapshot(ConversationKind kind) {
-    if (!ref.mounted) return;
+    if (!ref.mounted || !poller.isForeground) return;
     final active = ref.read(activeConversationProvider);
     if (active == null || active.conversation.kind != kind) return;
     invalidateConversation(ref.invalidate, active.conversation);
@@ -75,7 +78,7 @@ final autoPollProvider = Provider<void>((ref) {
     }));
   }
 
-  final timer =
-      Timer.periodic(interval, (_) => ConversationKind.values.forEach(refresh));
-  ref.onDispose(timer.cancel);
+  poller = ForegroundPoller(
+      interval, () => ConversationKind.values.forEach(refresh));
+  ref.onDispose(poller.dispose);
 });

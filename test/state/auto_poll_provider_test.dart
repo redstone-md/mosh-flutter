@@ -7,6 +7,8 @@
 // tests pin that the loop re-queries the bridge facade with NO mutation in
 // between.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../support/message_builders.dart';
@@ -28,6 +30,125 @@ const _listMethods = <BridgeMethod>[
 ];
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('Android stops UI reads while paused and refreshes on resume',
+      (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      autoPollIntervalProvider
+          .overrideWithValue(const Duration(milliseconds: 100)),
+    ]);
+    addTearDown(container.dispose);
+    for (final kind in ConversationKind.values) {
+      await container.read(conversationListProvider(kind).future);
+    }
+    container.read(autoPollProvider);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    final before = bridge.countOf(BridgeMethod.listSessions);
+    await tester.pump(const Duration(seconds: 1));
+    expect(bridge.countOf(BridgeMethod.listSessions), before,
+        reason: 'a hidden Android UI must not queue bridge reads');
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(bridge.countOf(BridgeMethod.listSessions), before + 1,
+        reason: 'foreground return refreshes without waiting for the timer');
+    container.dispose();
+    await tester.pump();
+  });
+
+  testWidgets('a foreground return keeps one outstanding read per kind',
+      (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      autoPollIntervalProvider
+          .overrideWithValue(const Duration(milliseconds: 100)),
+    ]);
+    addTearDown(container.dispose);
+    for (final kind in ConversationKind.values) {
+      await container.read(conversationListProvider(kind).future);
+    }
+    final before = bridge.countOf(BridgeMethod.listSessions);
+    bridge.hold(BridgeMethod.listSessions);
+    container.read(autoPollProvider);
+    await tester.pump(const Duration(milliseconds: 100));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump(const Duration(seconds: 1));
+    final channels = bridge.countOf(BridgeMethod.listChannels);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(bridge.countOf(BridgeMethod.listSessions), before + 1);
+    expect(bridge.countOf(BridgeMethod.listChannels), channels + 1);
+    bridge.release(BridgeMethod.listSessions);
+    await tester.pump();
+    container.dispose();
+    await tester.pump();
+  });
+
+  testWidgets('desktop UI continues polling when its window is hidden',
+      (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      autoPollIntervalProvider
+          .overrideWithValue(const Duration(milliseconds: 100)),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(conversationListProvider(ConversationKind.dm).future);
+    container.read(autoPollProvider);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    final before = bridge.countOf(BridgeMethod.listSessions);
+    await tester.pump(const Duration(seconds: 1));
+    expect(bridge.countOf(BridgeMethod.listSessions), greaterThan(before));
+    container.dispose();
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('an Android UI mounted while paused waits for foreground',
+      (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    final bridge = ScriptableBridge();
+    final container = ProviderContainer(overrides: [
+      bridgeFacadeProvider.overrideWithValue(bridge),
+      autoPollIntervalProvider
+          .overrideWithValue(const Duration(milliseconds: 100)),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(conversationListProvider(ConversationKind.dm).future);
+    final before = bridge.countOf(BridgeMethod.listSessions);
+    container.read(autoPollProvider);
+    await tester.pump(const Duration(seconds: 1));
+    expect(bridge.countOf(BridgeMethod.listSessions), before);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(bridge.countOf(BridgeMethod.listSessions), before + 1);
+    container.dispose();
+    await tester.pump();
+  });
+
   test('the auto-poll loop re-queries the bridge with no mutation', () async {
     final bridge = ScriptableBridge();
     final container = ProviderContainer(overrides: [
