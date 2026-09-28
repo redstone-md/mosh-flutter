@@ -171,3 +171,64 @@ independent-process worker entry point, matching the existing harness.
 Commit the tested implementation for the required two-axis review. Review
 agents own no files and must not edit. Record final suite, coverage and review
 results in the completion commit before delivery.
+
+## Standards
+
+Initial review of `3f40ed4`, read-only Standards agent:
+
+- P2, contact-control boundary remains two-member-only. `route_device_frame`
+  sends controls to every other MLS client, but `TypingIndicator` treats a
+  sibling as counterpart activity. Decryption discards the authenticated
+  signer. A sibling typing while the contact is offline shows contact typing
+  and can move the session to Connected. ReadReceipt has the same identity
+  omission; PeerAnnounce can replace the contact peer id with a sibling's.
+  This conflicts with root Code and Design requirements for explicit
+  boundaries and ADR 0030's distinction between own-device and counterpart
+  activity. Authenticate these controls against the MLS signer, ignore sibling
+  activity and prove this with a real three-process test.
+- Baseline smell, repeated ownership decisions. The text path, Hello and
+  delivery receipts distinguish own user from counterpart independently,
+  while other controls retain older assumptions. A shared authenticated-contact
+  helper would keep this rule consistent.
+
+No additional consequential documented-standard violations found. Documented
+exceptions cover the existing large owners and end-to-end test functions.
+
+## Spec
+
+Initial review of `3f40ed4`, read-only Spec agent:
+
+- P2, sibling controls still count as contact activity. Spec: "В существующем
+  DM собеседник видит одного пользователя и один контактный адрес."
+  Fanout sends controls to siblings, but control handling treats every
+  different participant as counterpart. Typing on Original makes Linked show
+  counterpart typing and refreshes contact liveness. Read receipts also
+  refresh it; PeerAnnounce can replace the stored contact peer id. Resolve the
+  authenticated signer for typing/read controls, ignore own-client contact
+  effects and prevent sibling announcements from replacing the contact
+  address. Prove this with the counterpart stopped.
+
+No other missing requirements or scope creep found. Separate authorized MLS
+keys, stable conversation identity, fanout, own-device echo, simultaneous
+sends, primary-off operation, restart, real-process proof and privacy docs
+are represented. Excluded history, missed-epoch recovery, revocation and
+non-text features remain excluded. Full-suite verification was pending.
+
+Initial findings: Standards has one boundary defect and one ownership smell.
+Spec has one defect. Both axes identify sibling contact effects as their
+worst issue.
+
+## Review fix and verification
+
+- [x] Reproduce sibling typing changing an offline contact to Connected with
+  three real processes and isolated per-installation receipt settings.
+- [x] Add one authenticated-contact helper for Hello, typing and read receipts.
+  Keep sibling delivery receipts separate and reject legacy address hints
+  after verified multi-client admission.
+- [ ] Verify real contact typing and read receipts reach both desktops, while
+  sibling typing/read activity cannot restore the stopped contact's liveness.
+- [ ] Ask both read-only reviewers to check the correction.
+- [ ] Run the final full Rust suite and coverage after the review fix. The
+  preceding full run passed 402 unit and 15 integration tests, with eight
+  existing or required subprocess ignores. Do not repeat the unchanged full
+  Flutter suite; rebuild and run the native Flutter bridge check sequentially.

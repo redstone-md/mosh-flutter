@@ -29,7 +29,7 @@ impl PrivateDmSession {
         id: &str,
         signer: &[u8],
     ) -> Result<()> {
-        let (_, own) = self.device_author(signer)?;
+        let (author, own) = self.device_author(signer)?;
         let membership = self.membership.as_mut().ok_or_else(invalid)?;
         if !own && !membership.delivered_ids.iter().any(|seen| seen == id) {
             membership.delivered_ids.push(id.into());
@@ -69,7 +69,7 @@ impl PrivateDmSession {
         self.dirty_outbound.push(id.into());
         self.record_dirty = true;
         if !own {
-            self.note_authenticated_frame("");
+            self.note_authenticated_frame(&author);
         }
         Ok(())
     }

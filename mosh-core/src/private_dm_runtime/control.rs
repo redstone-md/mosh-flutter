@@ -64,11 +64,11 @@ impl PrivateDmSession {
                 // The MLS error names the cause (a replay of an already read
                 // message, a stale epoch, a forgery); it carries no key
                 // material.
-                let (plaintext, signer) = match self
-                    .crypto
-                    .decrypt_with_signer(&decode(&hello_ciphertext_b64)?)
+                let (plaintext, from_device) = match self
+                    .decrypt_contact_control(&decode(&hello_ciphertext_b64)?, &from_device)
                 {
-                    Ok(result) => result,
+                    Ok(Some(result)) => result,
+                    Ok(None) => return Ok(()),
                     Err(error) => {
                         dlog::write(
                             LogLevel::Warn,
@@ -78,15 +78,6 @@ impl PrivateDmSession {
                         );
                         return Ok(());
                     }
-                };
-                let from_device = if self.devices_live() {
-                    let (author, own) = self.device_author(&signer)?;
-                    if own {
-                        return Ok(());
-                    }
-                    author
-                } else {
-                    from_device
                 };
                 if let Ok(moss_peer_id) = String::from_utf8(plaintext) {
                     self.note_peer_moss_id(Some(moss_peer_id));
@@ -158,7 +149,7 @@ impl PrivateDmSession {
                 let Ok(ciphertext) = decode(&typing_ciphertext_b64) else {
                     return Ok(());
                 };
-                let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
+                let Ok(frame) = self.decrypt_contact_control(&ciphertext, &from_device) else {
                     dlog::write(
                         LogLevel::Warn,
                         kinds::VERIFY,
@@ -167,16 +158,17 @@ impl PrivateDmSession {
                     );
                     return Ok(());
                 };
-                // The body names the device, but the authenticated identity is
-                // the envelope's `from_device` + the fact it decrypted; accept
-                // the body only when it agrees.
+                let Some((plaintext, author)) = frame else {
+                    return Ok(());
+                };
+                // Keep legacy body/envelope agreement; MLS determines the contact.
                 if let Ok(body) = decode_json::<TypingBody>(&plaintext) {
-                    self.note_peer_name(&from_device);
+                    self.note_peer_name(&author);
                     if body.device != from_device {
                         return Ok(());
                     }
                 }
-                self.note_authenticated_frame(&from_device);
+                self.note_authenticated_frame(&author);
                 self.note_peer_typing(now_ms());
                 Ok(())
             }
@@ -210,7 +202,8 @@ impl PrivateDmSession {
                 let Ok(ciphertext) = decode(&receipt_ciphertext_b64) else {
                     return Ok(());
                 };
-                let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
+                let legacy_author = self.peer_display_name.clone().unwrap_or_default();
+                let Ok(frame) = self.decrypt_contact_control(&ciphertext, &legacy_author) else {
                     dlog::write(
                         LogLevel::Warn,
                         kinds::VERIFY,
@@ -219,10 +212,13 @@ impl PrivateDmSession {
                     );
                     return Ok(());
                 };
+                let Some((plaintext, author)) = frame else {
+                    return Ok(());
+                };
                 let Ok(body) = decode_json::<ReadReceiptBody>(&plaintext) else {
                     return Ok(());
                 };
-                self.note_authenticated_frame("");
+                self.note_authenticated_frame(&author);
                 self.note_peer_read(&body.message_id);
                 Ok(())
             }
@@ -232,6 +228,10 @@ impl PrivateDmSession {
                 from_device,
                 moss_peer_id,
             } if self.is_from_counterpart(&session_id, &participant_id) => {
+                // Verified rosters own linked-client addresses; plaintext hints do not.
+                if self.devices_live() {
+                    return Ok(());
+                }
                 let was_unknown = self.peer_moss_id.is_none();
                 self.note_peer_name(&from_device);
                 self.note_peer_moss_id(Some(moss_peer_id));

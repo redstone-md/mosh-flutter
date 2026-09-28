@@ -54,7 +54,7 @@ stateDiagram-v2
     [*] --> pending: invite created or accepted
     pending --> handshaking: contact's KeyPackage or Welcome arrives
     handshaking --> connected: authenticated frame from the contact (Hello, message, ack)
-    connected --> handshaking: contact out of reach for 5 s
+    connected --> handshaking: no authenticated contact frame for 25 s
 ```
 
 | state | header | rail badge |
@@ -172,7 +172,9 @@ for authorization, persistence and test details.
 The real-process tests in `mosh-core/tests/multi_device_dm_flow.rs` use three
 independent installations with real Moss, OpenMLS and encrypted stores. They
 prove admission, sender-device sync, simultaneous sends, the original being
-off, restart and default discovery through public bridge calls. Run
+off, restart and default discovery through public bridge calls. The companion
+`mosh-core/tests/dm_controls/` flow checks real contact typing and read receipts,
+then proves sibling activity cannot make an offline contact appear online. Run
 `cargo test --manifest-path mosh-core/Cargo.toml --test multi_device_dm_flow`.
 
 ## Single-device proof

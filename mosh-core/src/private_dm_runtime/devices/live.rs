@@ -101,6 +101,25 @@ impl PrivateDmSession {
         ))
     }
 
+    /// Contact controls cannot turn activity on our other device into contact proof.
+    pub(in crate::private_dm_runtime) fn decrypt_contact_control(
+        &mut self,
+        ciphertext: &[u8],
+        legacy_author: &str,
+    ) -> Result<Option<(Vec<u8>, String)>> {
+        let (body, signer) = self.crypto.decrypt_with_signer(ciphertext)?;
+        let author = if self.devices_live() {
+            let (author, own) = self.device_author(&signer)?;
+            if own {
+                return Ok(None);
+            }
+            author
+        } else {
+            legacy_author.into()
+        };
+        Ok(Some((body, author)))
+    }
+
     pub(in crate::private_dm_runtime) fn route_device_frame(
         &self,
         channel: &str,
