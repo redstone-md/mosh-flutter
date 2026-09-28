@@ -85,6 +85,8 @@ enum DeviceLinkPhase {
 }
 
 class DeviceLinkSnapshot {
+  final bool revoked;
+  final List<DeviceRevocationStatus> revocations;
   final String userId;
   final String ownDeviceId;
   final List<DeviceDescriptor> devices;
@@ -97,6 +99,8 @@ class DeviceLinkSnapshot {
   final DeviceLinkErrorKind? error;
 
   const DeviceLinkSnapshot({
+    required this.revoked,
+    required this.revocations,
     required this.userId,
     required this.ownDeviceId,
     required this.devices,
@@ -111,6 +115,8 @@ class DeviceLinkSnapshot {
 
   @override
   int get hashCode =>
+      revoked.hashCode ^
+      revocations.hashCode ^
       userId.hashCode ^
       ownDeviceId.hashCode ^
       devices.hashCode ^
@@ -127,6 +133,8 @@ class DeviceLinkSnapshot {
       identical(this, other) ||
       other is DeviceLinkSnapshot &&
           runtimeType == other.runtimeType &&
+          revoked == other.revoked &&
+          revocations == other.revocations &&
           userId == other.userId &&
           ownDeviceId == other.ownDeviceId &&
           devices == other.devices &&
@@ -137,4 +145,31 @@ class DeviceLinkSnapshot {
           confirmationCode == other.confirmationCode &&
           pendingDevice == other.pendingDevice &&
           error == other.error;
+}
+
+enum DeviceRevocationState {
+  pending,
+  applied,
+  ;
+}
+
+class DeviceRevocationStatus {
+  final DeviceDescriptor device;
+  final DeviceRevocationState state;
+
+  const DeviceRevocationStatus({
+    required this.device,
+    required this.state,
+  });
+
+  @override
+  int get hashCode => device.hashCode ^ state.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeviceRevocationStatus &&
+          runtimeType == other.runtimeType &&
+          device == other.device &&
+          state == other.state;
 }

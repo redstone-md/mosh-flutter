@@ -39,6 +39,7 @@ impl PrivateDmSession {
             .roster(&roster.user_id())
             .ok_or_else(invalid)?;
         if membership.joining.is_some()
+            || !membership.authorized(sender, &roster.user_id())
             || !self.peer_joined
             || client.mls_signer == hex::encode(self.crypto.signer_public())
             || client.device()? != *sender
@@ -57,7 +58,7 @@ impl PrivateDmSession {
         Ok(hex::encode(Sha256::digest(bytes)))
     }
 
-    fn save_recovery_membership(
+    pub(in crate::private_dm_runtime::devices) fn save_recovery_membership(
         &mut self,
         store: &Persistence,
         next: DeviceMembership,
@@ -108,7 +109,8 @@ impl PrivateDmSession {
         now: u64,
     ) -> Result<Vec<(String, DeviceMessage)>> {
         let mut next = self.membership.clone().ok_or_else(invalid)?;
-        if next.topology.clients.len() < 3
+        if !next.live()
+            || next.revoked
             || next.joining.is_some()
             || !self.peer_joined
             || next

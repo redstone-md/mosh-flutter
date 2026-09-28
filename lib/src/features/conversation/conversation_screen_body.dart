@@ -106,7 +106,7 @@ class ConversationScreenBody extends ConsumerWidget {
               ConversationSearchRow(chrome: chrome),
               Expanded(child: _messages(async, state, controller, l)),
               TypingHint(names: typingNamesOf(async.value)),
-              _composer(l, state, controller),
+              _composer(l, state, controller, _revoked(async.value)),
               if (_isDm) _cryptoFooter(context, l),
             ],
           ),
@@ -149,7 +149,7 @@ class ConversationScreenBody extends ConsumerWidget {
     AppLocalizations l,
   ) =>
       ChatDropZone(
-        disabled: state.sending,
+        disabled: state.sending || _revoked(async.value),
         onAttach: controller.sendAttachment,
         onError: onAttachmentPickError,
         child: async.when(
@@ -202,8 +202,10 @@ class ConversationScreenBody extends ConsumerWidget {
     AppLocalizations l,
     ConversationControllerState state,
     ConversationController controller,
+    bool disabled,
   ) =>
       ConversationComposer(
+        disabled: disabled,
         controller: composer,
         sending: state.sending,
         placeholder: l.chatComposerPlaceholder,
@@ -231,6 +233,9 @@ class ConversationScreenBody extends ConsumerWidget {
         ),
       );
 }
+
+bool _revoked(ConversationSnapshot? snapshot) =>
+    snapshot is DmConversation && snapshot.revoked;
 
 /// Shown when a conversation has no messages at all. The wording follows the
 /// kind.

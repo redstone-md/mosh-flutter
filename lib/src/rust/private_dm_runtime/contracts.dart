@@ -214,6 +214,13 @@ enum ConnectOutcome {
   ;
 }
 
+enum DmDeviceRevocationState {
+  pending,
+  applied,
+  revoked,
+  ;
+}
+
 /// Initial text history import on a linked installation. Completion is durable.
 enum DmHistorySyncState {
   waitingForSource,
@@ -331,6 +338,7 @@ class SessionListSnapshot {
 }
 
 class SessionSnapshot {
+  final DmDeviceRevocationState? deviceRevocation;
   final DmHistorySyncState? historySync;
   final String sessionId;
   final String meshId;
@@ -371,6 +379,7 @@ class SessionSnapshot {
   final ActiveCall? activeCall;
 
   const SessionSnapshot({
+    this.deviceRevocation,
     this.historySync,
     required this.sessionId,
     required this.meshId,
@@ -395,6 +404,7 @@ class SessionSnapshot {
 
   @override
   int get hashCode =>
+      deviceRevocation.hashCode ^
       historySync.hashCode ^
       sessionId.hashCode ^
       meshId.hashCode ^
@@ -421,6 +431,7 @@ class SessionSnapshot {
       identical(this, other) ||
       other is SessionSnapshot &&
           runtimeType == other.runtimeType &&
+          deviceRevocation == other.deviceRevocation &&
           historySync == other.historySync &&
           sessionId == other.sessionId &&
           meshId == other.meshId &&

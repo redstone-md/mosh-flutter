@@ -197,6 +197,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       dynamic raw);
 
   @protected
+  DmDeviceRevocationState dco_decode_box_autoadd_dm_device_revocation_state(
+      dynamic raw);
+
+  @protected
   DmHistorySyncState dco_decode_box_autoadd_dm_history_sync_state(dynamic raw);
 
   @protected
@@ -299,6 +303,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviceLinkSnapshot dco_decode_device_link_snapshot(dynamic raw);
 
   @protected
+  DeviceRevocationState dco_decode_device_revocation_state(dynamic raw);
+
+  @protected
+  DeviceRevocationStatus dco_decode_device_revocation_status(dynamic raw);
+
+  @protected
+  DmDeviceRevocationState dco_decode_dm_device_revocation_state(dynamic raw);
+
+  @protected
   DmHistorySyncState dco_decode_dm_history_sync_state(dynamic raw);
 
   @protected
@@ -354,6 +367,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviceDescriptor> dco_decode_list_device_descriptor(dynamic raw);
+
+  @protected
+  List<DeviceRevocationStatus> dco_decode_list_device_revocation_status(
+      dynamic raw);
 
   @protected
   List<DmOffer> dco_decode_list_dm_offer(dynamic raw);
@@ -461,6 +478,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DeviceLinkErrorKind? dco_decode_opt_box_autoadd_device_link_error_kind(
       dynamic raw);
+
+  @protected
+  DmDeviceRevocationState?
+      dco_decode_opt_box_autoadd_dm_device_revocation_state(dynamic raw);
 
   @protected
   DmHistorySyncState? dco_decode_opt_box_autoadd_dm_history_sync_state(
@@ -711,6 +732,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  DmDeviceRevocationState sse_decode_box_autoadd_dm_device_revocation_state(
+      SseDeserializer deserializer);
+
+  @protected
   DmHistorySyncState sse_decode_box_autoadd_dm_history_sync_state(
       SseDeserializer deserializer);
 
@@ -829,6 +854,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  DeviceRevocationState sse_decode_device_revocation_state(
+      SseDeserializer deserializer);
+
+  @protected
+  DeviceRevocationStatus sse_decode_device_revocation_status(
+      SseDeserializer deserializer);
+
+  @protected
+  DmDeviceRevocationState sse_decode_dm_device_revocation_state(
+      SseDeserializer deserializer);
+
+  @protected
   DmHistorySyncState sse_decode_dm_history_sync_state(
       SseDeserializer deserializer);
 
@@ -891,6 +928,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviceDescriptor> sse_decode_list_device_descriptor(
+      SseDeserializer deserializer);
+
+  @protected
+  List<DeviceRevocationStatus> sse_decode_list_device_revocation_status(
       SseDeserializer deserializer);
 
   @protected
@@ -1018,6 +1059,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DeviceLinkErrorKind? sse_decode_opt_box_autoadd_device_link_error_kind(
       SseDeserializer deserializer);
+
+  @protected
+  DmDeviceRevocationState?
+      sse_decode_opt_box_autoadd_dm_device_revocation_state(
+          SseDeserializer deserializer);
 
   @protected
   DmHistorySyncState? sse_decode_opt_box_autoadd_dm_history_sync_state(
@@ -1283,6 +1329,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       DeviceLinkErrorKind self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_dm_device_revocation_state(
+      DmDeviceRevocationState self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_dm_history_sync_state(
       DmHistorySyncState self, SseSerializer serializer);
 
@@ -1410,6 +1460,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       DeviceLinkSnapshot self, SseSerializer serializer);
 
   @protected
+  void sse_encode_device_revocation_state(
+      DeviceRevocationState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_device_revocation_status(
+      DeviceRevocationStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_dm_device_revocation_state(
+      DmDeviceRevocationState self, SseSerializer serializer);
+
+  @protected
   void sse_encode_dm_history_sync_state(
       DmHistorySyncState self, SseSerializer serializer);
 
@@ -1477,6 +1539,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_device_descriptor(
       List<DeviceDescriptor> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_device_revocation_status(
+      List<DeviceRevocationStatus> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_dm_offer(List<DmOffer> self, SseSerializer serializer);
@@ -1608,6 +1674,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_device_link_error_kind(
       DeviceLinkErrorKind? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_dm_device_revocation_state(
+      DmDeviceRevocationState? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_dm_history_sync_state(

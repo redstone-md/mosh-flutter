@@ -5,6 +5,9 @@ use crate::device_link::wire::{self, LinkMessage};
 
 impl DeviceLinkRuntime {
     pub(super) fn receive(&mut self, packet: &[u8]) -> Result<()> {
+        if self.receive_roster(packet)? {
+            return Ok(());
+        }
         if self.receive_delivery(packet)? || self.receive_receipt(packet)? {
             return Ok(());
         }
@@ -72,6 +75,9 @@ impl DeviceLinkRuntime {
     ) -> Result<()> {
         let e = self.exchange.as_ref().ok_or_else(invalid)?;
         e.check_offer(&signer, &roster, &trusted)?;
+        if self.identity.revoked()? && !roster.extends(self.identity.roster())? {
+            return Err(invalid());
+        }
         let message = LinkMessage::Ready {
             offer_hash: roster.digest()?,
         };
@@ -112,7 +118,7 @@ impl DeviceLinkRuntime {
     fn approved(&mut self, signer: String, roster: DeviceRoster) -> Result<()> {
         let e = self.exchange.as_ref().ok_or_else(invalid)?;
         let trusted = e.trusted.as_ref().ok_or_else(invalid)?;
-        if signer != trusted.signing_public_key || !self.identity.can_join()? {
+        if signer != trusted.signing_public_key {
             return Err(invalid());
         }
         roster.verifies_addition(
@@ -121,6 +127,16 @@ impl DeviceLinkRuntime {
             &trusted.device_id,
         )?;
         let hash = roster.digest()?;
+        let already_adopted = self
+            .identity
+            .record
+            .pending
+            .as_ref()
+            .is_some_and(|pending| pending.qr.id == e.qr.id)
+            && hash == self.identity.roster().digest()?;
+        if !self.identity.can_join()? && !already_adopted {
+            return Err(invalid());
+        }
         let ack = wire::seal(
             &e.qr,
             &self.identity.key(),

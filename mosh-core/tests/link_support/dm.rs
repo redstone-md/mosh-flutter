@@ -31,6 +31,10 @@ pub fn command(dm: &mut PrivateDmRuntime, action: &str, arg: &str, command: &Val
                 .unwrap(),
         )
         .unwrap(),
+        "dm_try_send" => match dm.send_message(arg, command["body"].as_str().unwrap().into()) {
+            Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
+            Err(error) => json!({"error":error.to_string()}),
+        },
         "dm_typing" => {
             dm.typing_signal(arg).unwrap();
             json!({})

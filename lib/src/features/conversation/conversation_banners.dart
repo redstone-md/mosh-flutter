@@ -18,6 +18,7 @@ import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/group_rejoin_needed_error.dart';
 import 'package:mosh/src/features/org/org_add_missing_banner.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
+import 'dm_revocation_banner.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/org_providers.dart' show orgAddPromptProvider;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -49,8 +50,14 @@ class ConversationBanners extends StatelessWidget {
     // A local, so the type check below promotes it.
     final loaded = snapshot;
     return switch (target.kind) {
-      ConversationKind.dm => _historyBanner(
-          l, loaded is DmConversation ? loaded.source.historySync : null),
+      ConversationKind.dm => Column(mainAxisSize: MainAxisSize.min, children: [
+          DmRevocationBanner(
+              state: loaded is DmConversation
+                  ? loaded.source.deviceRevocation
+                  : null),
+          if (loaded is DmConversation && !loaded.revoked)
+            _historyBanner(l, loaded.source.historySync),
+        ]),
       ConversationKind.channel => CryptoNoticeBanner(
           icon: Icons.tag,
           title: l.channelNoticeTitle,

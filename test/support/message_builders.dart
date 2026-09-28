@@ -23,6 +23,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
         ConnectOutcome,
         DmSessionState,
         DmHistorySyncState,
+        DmDeviceRevocationState,
         OutgoingCall,
         PendingCall,
         SessionSnapshot;
@@ -126,6 +127,7 @@ class TestSnapshots {
   /// private `_snapshot` helper (connected direct session, `inviter`
   /// role, placeholder fingerprint).
   static SessionSnapshot dm({
+    DmDeviceRevocationState? deviceRevocation,
     DmHistorySyncState? historySync,
     required String sessionId,
     String displayName = 'me',
@@ -145,6 +147,7 @@ class TestSnapshots {
     ActiveCall? activeCall,
   }) =>
       SessionSnapshot(
+        deviceRevocation: deviceRevocation,
         historySync: historySync,
         sessionId: sessionId,
         meshId: meshId,

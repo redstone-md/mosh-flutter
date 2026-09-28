@@ -173,7 +173,7 @@ for the semantic record format, authorization and replay protocol.
 
 When an admitted desktop returns after being offline, it automatically
 recovers missing text from an available participant, including the contact
-while its original desktop is off. Missed admission epochs are applied in
+while its original desktop is off. Missed Add and Remove epochs are applied in
 order to that desktop's own MLS state before recovery completes. Receipts
 settle delivery attempts without erasing text or epoch evidence needed by an
 offline installation. A replacement source resumes through a new manifest;
@@ -187,11 +187,31 @@ time. Signature, group, epoch and maximum lifetime checks still apply. Normal
 admission uses the current clock. Older evidence with no authenticated time
 cannot establish historical validity after expiry.
 
-Revocation is issue 27. Joining requires the new installation and an existing
+Joining requires the new installation and an existing
 client of the other user to durably accept the new epoch. Device
 association is visible to the participants. Network traffic anonymity is not
 part of this feature. See [ADR 0030](../ADR/0030-linked-desktop-dm-clients.md)
 for authorization, persistence and test details.
+
+Remove another linked installation in Settings, Devices. The author saves a
+signed roster removal and a real MLS Remove for that exact installation.
+Pending persists while any remaining participant has not acknowledged saving
+its removal epoch. Applied requires all those acknowledgements. A participant
+that is offline can still use its old epoch until it receives the removal;
+the screen does not promise instant global revocation.
+
+After honest participants accept the removal epoch, the old leaf cannot
+decrypt their new ciphertext. Removed clients cannot send, obtain a current
+Welcome or request fresh history/recovery, even with an older valid roster.
+Their already received history remains readable, with the composer disabled.
+The original desktop and contact keep the same DM and can continue messaging.
+An honest offline survivor recovers retained Add and Remove evidence in order
+from another authorized holder, even when the original author is offline.
+
+Fresh access requires a new QR and human code approval for the same user,
+then an independent MLS join. It preserves old local history; a fresh roster
+entry cannot renew the removed MLS leaf. Old QR, admission and roster replay
+cannot skip those steps. See [ADR 0033](../ADR/0033-dm-device-revocation.md).
 
 The real-process tests in `mosh-core/tests/multi_device_dm_flow.rs` use three
 independent installations with real Moss, OpenMLS and encrypted stores. They
@@ -203,6 +223,9 @@ The `mosh-core/tests/dm_history/` flows prove pre-link semantic history,
 interruption, live text during import, restart and large UTF-8 text transfer.
 The `mosh-core/tests/dm_recovery/` flows prove offline recovery, source switching,
 unavailable holders and ordered missed epochs with real independent clients.
+The `mosh-core/tests/dm_revocation/` flows prove durable pending/applied states,
+surviving messaging, old-client decryption and sync refusal, restart, ordered
+Add/Remove recovery and fresh reauthorization without erasing old history.
 Run
 `cargo test --manifest-path mosh-core/Cargo.toml --test multi_device_dm_flow`.
 

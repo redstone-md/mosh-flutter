@@ -16,7 +16,7 @@ fn text(snapshot: &Value, body: &str) -> Value {
     })
 }
 
-fn linked_dm(mut linked: Peer) -> (Peer, Peer, Peer, String) {
+pub(super) fn linked_dm(mut linked: Peer) -> (Peer, Peer, Peer, String) {
     let mut original = Peer::new();
     let mut contact = Peer::new();
     let invite = existing_dm(&mut original, &mut contact);

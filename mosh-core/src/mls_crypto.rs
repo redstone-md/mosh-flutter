@@ -5,6 +5,8 @@ use openmls_traits::types::SignatureScheme;
 
 use crate::mls_storage::PersistentProvider;
 
+mod membership;
+
 const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 const FINGERPRINT_LEN: usize = 16;
 
@@ -146,6 +148,14 @@ impl MlsSessionCrypto {
     }
 
     pub fn process_commit(&mut self, commit_bytes: &[u8]) -> Result<(), MlsCryptoError> {
+        self.process_commit_authenticated(commit_bytes, None)
+    }
+
+    fn process_commit_authenticated(
+        &mut self,
+        commit_bytes: &[u8],
+        expected: Option<&str>,
+    ) -> Result<(), MlsCryptoError> {
         let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
         let message = MlsMessageIn::tls_deserialize(&mut &commit_bytes[..])
             .map_err(|error| MlsCryptoError::Codec(error.to_string()))?;
@@ -155,6 +165,18 @@ impl MlsSessionCrypto {
         let processed = group
             .process_message(&self.provider, protocol_message)
             .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
+        if let Some(expected) = expected {
+            let signer = match processed.sender() {
+                Sender::Member(index) => group
+                    .members()
+                    .find(|member| member.index == *index)
+                    .map(|member| hex::encode(member.signature_key)),
+                _ => None,
+            };
+            if signer.as_deref() != Some(expected) {
+                return Err(MlsCryptoError::NotReady);
+            }
+        }
         match processed.into_content() {
             ProcessedMessageContent::StagedCommitMessage(staged) => {
                 group

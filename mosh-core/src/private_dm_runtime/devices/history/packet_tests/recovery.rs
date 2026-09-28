@@ -8,7 +8,7 @@ use crate::private_dm_runtime::{contracts::DmHistorySyncState, now_ms};
 
 mod historical;
 
-fn begin(f: &mut Fixture, source: &DeviceDescriptor, epoch: u64) {
+pub(super) fn begin(f: &mut Fixture, source: &DeviceDescriptor, epoch: u64) {
     let session = f.runtime.session_mut(&f.session).unwrap();
     let membership = session.membership.as_mut().unwrap();
     membership.history_import.as_mut().unwrap().complete = true;
@@ -44,11 +44,15 @@ fn batch(f: &Fixture, offset: usize, total: usize, records: Vec<TextRecord>) -> 
     }
 }
 
-fn text(f: &mut Fixture, id: &str) -> Vec<ChatMessage> {
-    f.snapshot()
+// Inspect packet results without ticking the fixed recovery round's timeout.
+fn text(f: &Fixture, id: &str) -> Vec<ChatMessage> {
+    f.runtime
+        .session_ref(&f.session)
+        .unwrap()
         .messages
-        .into_iter()
+        .iter()
         .filter(|message| message.message_id.as_deref() == Some(id))
+        .cloned()
         .collect()
 }
 
@@ -89,12 +93,9 @@ fn admitted_sources_and_prefix_rosters() {
     // The admitted contact's older valid roster can supply text. The newer
     // pinned roster still cannot give its listed, unadmitted device access.
     f.receive(&packet).unwrap();
-    assert_eq!(
-        text(&mut f, "contact-copy")[0].body,
-        "Recovered from contact"
-    );
+    assert_eq!(text(&f, "contact-copy")[0].body, "Recovered from contact");
     assert!(f.receive(&packet).is_err());
-    assert_eq!(text(&mut f, "contact-copy").len(), 1);
+    assert_eq!(text(&f, "contact-copy").len(), 1);
 }
 
 fn cursors_replays_and_conflicts() {
@@ -134,12 +135,26 @@ fn cursors_replays_and_conflicts() {
     for response in variants {
         let packet = f.packet(&f.contact, DeviceMessage::RecoveryBatch(response));
         assert!(f.receive(&packet).is_err());
-        assert!(text(&mut f, "second-copy").is_empty());
+        assert!(text(&f, "second-copy").is_empty());
     }
     let packet = f.packet(&f.contact, DeviceMessage::RecoveryBatch(correct));
+    let pending = f
+        .runtime
+        .session_ref(&f.session)
+        .unwrap()
+        .membership
+        .as_ref()
+        .unwrap()
+        .recovery
+        .as_ref()
+        .unwrap();
+    assert_eq!(
+        pending.round, 7,
+        "invalid packets cannot replace the active recovery round"
+    );
     f.receive(&packet).unwrap();
-    assert_eq!(text(&mut f, "first-copy")[0].body, "First recovered text");
-    assert_eq!(text(&mut f, "second-copy")[0].body, "Second recovered text");
+    assert_eq!(text(&f, "first-copy")[0].body, "First recovered text");
+    assert_eq!(text(&f, "second-copy")[0].body, "Second recovered text");
     assert_eq!(
         f.snapshot().history_sync,
         Some(DmHistorySyncState::Complete)
@@ -154,7 +169,7 @@ fn cursors_replays_and_conflicts() {
     assert_eq!(recovered, ["second-copy", "first-copy"]);
 }
 
-fn next_admission(f: &mut Fixture, name: &str, token: &str) -> Admission {
+pub(super) fn next_admission(f: &mut Fixture, name: &str, token: &str) -> Admission {
     next_admission_with_lifetime(f, name, token, None)
 }
 
@@ -310,7 +325,7 @@ fn live_text_is_durable_before_observation_or_completion() {
         let packet = f.packet(&f.contact, message);
         f.receive(&packet).unwrap();
         f.runtime.rehydrate();
-        assert_eq!(text(&mut f, "live-before-tail").len(), 1);
+        assert_eq!(text(&f, "live-before-tail").len(), 1);
         assert_eq!(
             f.snapshot().history_sync,
             Some(DmHistorySyncState::Complete)

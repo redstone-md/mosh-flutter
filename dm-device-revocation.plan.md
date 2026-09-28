@@ -112,12 +112,12 @@ ordered changes. They do not expand the product scope beyond text DM.
 - [x] Read issue 27, stored project guidance, architecture and ADRs 0029-0032.
 - [x] Inspect roster, replay, admission, history and ordered recovery boundaries.
 - [x] Confirm contracts, optional persisted fields, test boundaries and baseline.
-- [ ] Prepare Moss, baseline Rust build and Flutter analysis.
-- [ ] Red/green one removal slice through confirmed boundaries, then add the
+- [x] Prepare Moss, baseline Rust build and Flutter analysis.
+- [x] Red/green one removal slice through confirmed boundaries, then add the
   replay, restart, offline and fresh-authorization slices.
-- [ ] Regenerate bridge bindings after API changes; check drift.
-- [ ] Run Rust checks and focused test files during implementation.
-- [ ] Update ADR, architecture and feature flow with Mermaid.
+- [x] Regenerate bridge bindings after API changes; check drift.
+- [x] Run Rust checks and focused test files during implementation.
+- [x] Update ADR, architecture and feature flow with Mermaid.
 - [ ] Format, build, strict Clippy and Flutter analysis; full suites once at end.
 - [ ] Measure at least 80% changed production line coverage and 70% branch
   coverage where available; report platform and toolchain limitations.
@@ -142,3 +142,88 @@ macOS require their runners. Android foreground remains issue 28.
 
 The user approved this plan, contract/storage changes, test boundaries and
 review baseline on 2026-09-28.
+
+## Changed files
+
+- [dm-device-revocation.plan.md](dm-device-revocation.plan.md)
+- [docs/ADR/0033-dm-device-revocation.md](docs/ADR/0033-dm-device-revocation.md)
+- [docs/Architecture.md](docs/Architecture.md)
+- [docs/Features/device-linking.md](docs/Features/device-linking.md)
+- [docs/Features/private-dm.md](docs/Features/private-dm.md)
+- [lib/l10n/app_en.arb](lib/l10n/app_en.arb)
+- [lib/l10n/app_ru.arb](lib/l10n/app_ru.arb)
+- [lib/src/features/conversation/conversation_banners.dart](lib/src/features/conversation/conversation_banners.dart)
+- [lib/src/features/conversation/conversation_screen_body.dart](lib/src/features/conversation/conversation_screen_body.dart)
+- [lib/src/features/conversation/conversation_snapshot.dart](lib/src/features/conversation/conversation_snapshot.dart)
+- [lib/src/features/conversation/dm_revocation_banner.dart](lib/src/features/conversation/dm_revocation_banner.dart)
+- [lib/src/features/device_link/device_link_provider.dart](lib/src/features/device_link/device_link_provider.dart)
+- [lib/src/features/device_link/device_list.dart](lib/src/features/device_link/device_list.dart)
+- [lib/src/features/device_link/device_revocation_dialog.dart](lib/src/features/device_link/device_revocation_dialog.dart)
+- [lib/src/features/device_link/devices_settings_section.dart](lib/src/features/device_link/devices_settings_section.dart)
+- [lib/src/rust/api/device_link.dart](lib/src/rust/api/device_link.dart)
+- [lib/src/rust/device_link/types.dart](lib/src/rust/device_link/types.dart)
+- [lib/src/rust/frb_generated.dart](lib/src/rust/frb_generated.dart)
+- [lib/src/rust/frb_generated.io.dart](lib/src/rust/frb_generated.io.dart)
+- [lib/src/rust/frb_generated.web.dart](lib/src/rust/frb_generated.web.dart)
+- [lib/src/rust/private_dm_runtime/contracts.dart](lib/src/rust/private_dm_runtime/contracts.dart)
+- [mosh-core/src/api/conversation_bridge.rs](mosh-core/src/api/conversation_bridge.rs)
+- [mosh-core/src/api/device_link.rs](mosh-core/src/api/device_link.rs)
+- [mosh-core/src/device_link/identity.rs](mosh-core/src/device_link/identity.rs)
+- [mosh-core/src/device_link/identity_tests.rs](mosh-core/src/device_link/identity_tests.rs)
+- [mosh-core/src/device_link/mod.rs](mosh-core/src/device_link/mod.rs)
+- [mosh-core/src/device_link/protocol_tests.rs](mosh-core/src/device_link/protocol_tests.rs)
+- [mosh-core/src/device_link/roster.rs](mosh-core/src/device_link/roster.rs)
+- [mosh-core/src/device_link/runtime/actions.rs](mosh-core/src/device_link/runtime/actions.rs)
+- [mosh-core/src/device_link/runtime/mod.rs](mosh-core/src/device_link/runtime/mod.rs)
+- [mosh-core/src/device_link/runtime/receive.rs](mosh-core/src/device_link/runtime/receive.rs)
+- [mosh-core/src/device_link/runtime/revocation.rs](mosh-core/src/device_link/runtime/revocation.rs)
+- [mosh-core/src/device_link/runtime/revocation/tests.rs](mosh-core/src/device_link/runtime/revocation/tests.rs)
+- [mosh-core/src/device_link/runtime/service.rs](mosh-core/src/device_link/runtime/service.rs)
+- [mosh-core/src/device_link/types.rs](mosh-core/src/device_link/types.rs)
+- [mosh-core/src/device_link/wire.rs](mosh-core/src/device_link/wire.rs)
+- [mosh-core/src/frb_generated.rs](mosh-core/src/frb_generated.rs)
+- [mosh-core/src/mls_crypto.rs](mosh-core/src/mls_crypto.rs)
+- [mosh-core/src/mls_crypto/membership.rs](mosh-core/src/mls_crypto/membership.rs)
+- [mosh-core/src/moss_ffi.rs](mosh-core/src/moss_ffi.rs)
+- [mosh-core/src/persistence/dm_devices.rs](mosh-core/src/persistence/dm_devices.rs)
+- [mosh-core/src/private_dm_runtime.rs](mosh-core/src/private_dm_runtime.rs)
+- [mosh-core/src/private_dm_runtime/contracts.rs](mosh-core/src/private_dm_runtime/contracts.rs)
+- [mosh-core/src/private_dm_runtime/devices/admission.rs](mosh-core/src/private_dm_runtime/devices/admission.rs)
+- [mosh-core/src/private_dm_runtime/devices/authorization_tests.rs](mosh-core/src/private_dm_runtime/devices/authorization_tests.rs)
+- [mosh-core/src/private_dm_runtime/devices/history/mod.rs](mosh-core/src/private_dm_runtime/devices/history/mod.rs)
+- [mosh-core/src/private_dm_runtime/devices/history/packet_tests.rs](mosh-core/src/private_dm_runtime/devices/history/packet_tests.rs)
+- [mosh-core/src/private_dm_runtime/devices/history/packet_tests/recovery.rs](mosh-core/src/private_dm_runtime/devices/history/packet_tests/recovery.rs)
+- [mosh-core/src/private_dm_runtime/devices/history/packet_tests/revocation.rs](mosh-core/src/private_dm_runtime/devices/history/packet_tests/revocation.rs)
+- [mosh-core/src/private_dm_runtime/devices/history/packet_tests/revocation/forgery.rs](mosh-core/src/private_dm_runtime/devices/history/packet_tests/revocation/forgery.rs)
+- [mosh-core/src/private_dm_runtime/devices/history/packet_tests/revocation/multiple.rs](mosh-core/src/private_dm_runtime/devices/history/packet_tests/revocation/multiple.rs)
+- [mosh-core/src/private_dm_runtime/devices/live.rs](mosh-core/src/private_dm_runtime/devices/live.rs)
+- [mosh-core/src/private_dm_runtime/devices/mod.rs](mosh-core/src/private_dm_runtime/devices/mod.rs)
+- [mosh-core/src/private_dm_runtime/devices/proof.rs](mosh-core/src/private_dm_runtime/devices/proof.rs)
+- [mosh-core/src/private_dm_runtime/devices/recovery/epochs.rs](mosh-core/src/private_dm_runtime/devices/recovery/epochs.rs)
+- [mosh-core/src/private_dm_runtime/devices/recovery/mod.rs](mosh-core/src/private_dm_runtime/devices/recovery/mod.rs)
+- [mosh-core/src/private_dm_runtime/devices/recovery/source.rs](mosh-core/src/private_dm_runtime/devices/recovery/source.rs)
+- [mosh-core/src/private_dm_runtime/devices/recovery/types.rs](mosh-core/src/private_dm_runtime/devices/recovery/types.rs)
+- [mosh-core/src/private_dm_runtime/devices/rejoin.rs](mosh-core/src/private_dm_runtime/devices/rejoin.rs)
+- [mosh-core/src/private_dm_runtime/devices/revocation/delivery.rs](mosh-core/src/private_dm_runtime/devices/revocation/delivery.rs)
+- [mosh-core/src/private_dm_runtime/devices/revocation/evidence.rs](mosh-core/src/private_dm_runtime/devices/revocation/evidence.rs)
+- [mosh-core/src/private_dm_runtime/devices/revocation/mod.rs](mosh-core/src/private_dm_runtime/devices/revocation/mod.rs)
+- [mosh-core/src/private_dm_runtime/devices/revocation/recovery.rs](mosh-core/src/private_dm_runtime/devices/revocation/recovery.rs)
+- [mosh-core/src/private_dm_runtime/devices/revocation/transition.rs](mosh-core/src/private_dm_runtime/devices/revocation/transition.rs)
+- [mosh-core/src/private_dm_runtime/devices/runtime.rs](mosh-core/src/private_dm_runtime/devices/runtime.rs)
+- [mosh-core/src/private_dm_runtime/devices/types.rs](mosh-core/src/private_dm_runtime/devices/types.rs)
+- [mosh-core/src/private_dm_runtime/snapshot.rs](mosh-core/src/private_dm_runtime/snapshot.rs)
+- [mosh-core/tests/device_link_flow.rs](mosh-core/tests/device_link_flow.rs)
+- [mosh-core/tests/dm_recovery/mod.rs](mosh-core/tests/dm_recovery/mod.rs)
+- [mosh-core/tests/dm_revocation/mod.rs](mosh-core/tests/dm_revocation/mod.rs)
+- [mosh-core/tests/dm_revocation/sync.rs](mosh-core/tests/dm_revocation/sync.rs)
+- [mosh-core/tests/link_revocation/mod.rs](mosh-core/tests/link_revocation/mod.rs)
+- [mosh-core/tests/link_support/api.rs](mosh-core/tests/link_support/api.rs)
+- [mosh-core/tests/link_support/crypto.rs](mosh-core/tests/link_support/crypto.rs)
+- [mosh-core/tests/link_support/dm.rs](mosh-core/tests/link_support/dm.rs)
+- [mosh-core/tests/link_support/mod.rs](mosh-core/tests/link_support/mod.rs)
+- [mosh-core/tests/link_support/protocol.rs](mosh-core/tests/link_support/protocol.rs)
+- [mosh-core/tests/multi_device_dm_flow.rs](mosh-core/tests/multi_device_dm_flow.rs)
+- [native_test/device_link_test.dart](native_test/device_link_test.dart)
+- [test/features/conversation/dm_revoked_screen_test.dart](test/features/conversation/dm_revoked_screen_test.dart)
+- [test/features/device_link/device_revocation_test.dart](test/features/device_link/device_revocation_test.dart)
+- [test/support/message_builders.dart](test/support/message_builders.dart)

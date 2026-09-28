@@ -1,3 +1,4 @@
+mod link_revocation;
 mod link_support;
 
 use link_support::{isolated_network_scenario, peer_process, Peer};

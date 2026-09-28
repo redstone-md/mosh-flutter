@@ -10,7 +10,7 @@ impl PrivateDmRuntime {
         sender: &DeviceDescriptor,
         offer: DmOffer,
     ) -> Result<()> {
-        if self.sessions.holds(&offer.session_id) {
+        if self.sessions.holds(&offer.session_id) && !self.can_rejoin_device(identity, &offer)? {
             return Ok(());
         }
         let signers: Vec<_> = offer
@@ -43,7 +43,8 @@ impl PrivateDmRuntime {
             )?,
             key_package: crypto.key_package_bytes()?,
         };
-        let session = self.pending_device_session(offer, crypto, request.clone(), sender)?;
+        let mut session = self.pending_device_session(offer, crypto, request.clone(), sender)?;
+        self.restore_revoked_history(&mut session)?;
         self.persist_device_session(&session)?;
         self.sessions.mark_record_final(&session.session_id);
         self.sessions.insert(session.session_id.clone(), session);
@@ -103,6 +104,9 @@ impl PrivateDmRuntime {
             recovery: None,
             recovery_exports: Vec::new(),
             epoch_records: Vec::new(),
+            removals: Vec::new(),
+            revoked: false,
+            pending_rosters: Vec::new(),
         });
         Ok(session)
     }
@@ -167,6 +171,12 @@ impl PrivateDmRuntime {
         let session = self.session_ref(&session_id)?;
         let membership = session.membership.as_ref().ok_or_else(invalid)?;
         verify_authorizer(membership, sender, sender_roster, &admission)?;
+        membership.authorize_current_admission(
+            identity,
+            sender,
+            sender_roster,
+            &admission.request.claim,
+        )?;
         verify_request(&session.crypto, &admission.request)?;
         let evidence =
             super::recovery::EpochRecord::from_admission(sender, sender_roster, &admission)?;
@@ -289,7 +299,7 @@ const JOIN_TOKEN: &str = "device-join";
 const PARTICIPANT_TOKEN: &str = "participant";
 const MAX_REQUEST_ID_BYTES: usize = 128;
 
-fn copy_crypto(session: &PrivateDmSession) -> Result<MlsSessionCrypto> {
+pub(super) fn copy_crypto(session: &PrivateDmSession) -> Result<MlsSessionCrypto> {
     let signer = session.crypto.signer_public();
     let snapshot = session.crypto.snapshot();
     match session.crypto.group_id_bytes() {
