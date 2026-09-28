@@ -64,12 +64,16 @@ impl DeviceMembership {
     }
 
     pub(super) fn observe_roster_removal(&mut self, roster: &DeviceRoster) -> Result<bool> {
-        let removes_client = self.topology.clients.iter().any(|c| {
-            c.roster.user_id() == roster.user_id()
-                && roster
-                    .revoked_since(&c.roster, &c.device_id)
-                    .unwrap_or(false)
-        });
+        let removes_client = self
+            .topology
+            .roster(&roster.user_id())
+            .is_some_and(|base| roster.has_removal_since(base).unwrap_or(false))
+            || self.topology.clients.iter().any(|c| {
+                c.roster.user_id() == roster.user_id()
+                    && roster
+                        .revoked_since(&c.roster, &c.device_id)
+                        .unwrap_or(false)
+            });
         if removes_client {
             self.pin_roster(roster)?
         }
@@ -123,6 +127,17 @@ impl DeviceMembership {
 }
 
 impl PrivateDmSession {
+    pub(in crate::private_dm_runtime::devices) fn awaiting_device_epoch(&self) -> bool {
+        self.membership.as_ref().is_some_and(|membership| {
+            membership.pending_removal()
+                || membership.recovery.as_ref().is_some_and(|recovery| {
+                    self.crypto
+                        .epoch()
+                        .is_none_or(|epoch| epoch < recovery.required_epoch)
+                })
+        })
+    }
+
     pub(in crate::private_dm_runtime) fn device_revocation_state(
         &self,
     ) -> Option<DmDeviceRevocationState> {

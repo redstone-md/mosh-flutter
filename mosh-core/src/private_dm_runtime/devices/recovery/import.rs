@@ -70,6 +70,7 @@ impl PrivateDmRuntime {
             return Err(invalid());
         }
         let rows = session.history_rows(source.import.accept(&response.batch)?)?;
+        session.require_history_epoch(&store, response.batch.epoch)?;
         if source.import.complete {
             recovery
                 .observed

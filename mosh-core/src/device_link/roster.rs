@@ -301,6 +301,15 @@ impl DeviceRoster {
         Ok(!self.revoked_since(admission, &device.device_id)? && self.devices()?.contains(device))
     }
 
+    pub(crate) fn has_removal_since(&self, base: &Self) -> Result<bool> {
+        if !self.extends(base)? {
+            return Err(invalid());
+        }
+        Ok(self.entries[base.entries.len()..]
+            .iter()
+            .any(|e| e.version == REMOVAL_VERSION))
+    }
+
     pub(crate) fn first_removal_since(
         &self,
         admission: &Self,

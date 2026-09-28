@@ -3,6 +3,11 @@ use sha2::Digest;
 
 pub(super) fn signed_roster_order_preserves_the_remaining_client() {
     let mut f = Fixture::new();
+    let (third, mut crypto) = admit_third(&mut f);
+    remove_in_roster_order(&mut f, &third, &mut crypto);
+}
+
+pub(super) fn admit_third(f: &mut Fixture) -> (DeviceIdentity, MlsSessionCrypto) {
     let mut third = identity(&f.dir, "third-own.redb");
     let roster = f
         .receiver
@@ -38,6 +43,10 @@ pub(super) fn signed_roster_order_preserves_the_remaining_client() {
     crypto
         .join_welcome(&admission.welcome, &admission.tree)
         .unwrap();
+    (third, crypto)
+}
+
+fn remove_in_roster_order(f: &mut Fixture, third: &DeviceIdentity, crypto: &mut MlsSessionCrypto) {
     // Roster order differs from the order in which these MLS leaves joined.
     let roster = f
         .receiver
