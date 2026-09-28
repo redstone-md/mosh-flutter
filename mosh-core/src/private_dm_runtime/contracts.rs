@@ -32,6 +32,16 @@ pub enum DmSessionState {
     Connected,
 }
 
+/// Initial text history import on a linked installation. Completion is durable.
+#[frb(non_opaque)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DmHistorySyncState {
+    WaitingForSource,
+    Importing,
+    Complete,
+}
+
 /// What the last request to reach the counterpart answered, for the
 /// diagnostics card. moss keeps retrying a requested target on its own, so
 /// "requested" is the good outcome; a failure means moss would not take the
@@ -97,6 +107,8 @@ pub struct ReadReceiptBody {
 #[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_sync: Option<DmHistorySyncState>,
     pub session_id: String,
     pub mesh_id: String,
     pub role: String,

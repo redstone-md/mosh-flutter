@@ -10,6 +10,7 @@ use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::secure_storage::{OsSecureSecretStore, SecureSecretStore};
 
 mod dm_devices;
+mod dm_history;
 
 const NONCE_LEN: usize = 12;
 

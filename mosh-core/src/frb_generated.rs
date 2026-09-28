@@ -3301,6 +3301,19 @@ impl SseDecode for crate::device_link::types::DeviceLinkSnapshot {
     }
 }
 
+impl SseDecode for crate::private_dm_runtime::contracts::DmHistorySyncState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::private_dm_runtime::contracts::DmHistorySyncState::WaitingForSource,
+            1 => crate::private_dm_runtime::contracts::DmHistorySyncState::Importing,
+            2 => crate::private_dm_runtime::contracts::DmHistorySyncState::Complete,
+            _ => unreachable!("Invalid variant for DmHistorySyncState: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::conversation::dm_offers::DmOffer {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4099,6 +4112,21 @@ impl SseDecode for Option<crate::device_link::types::DeviceLinkErrorKind> {
     }
 }
 
+impl SseDecode for Option<crate::private_dm_runtime::contracts::DmHistorySyncState> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::private_dm_runtime::contracts::DmHistorySyncState>::sse_decode(
+                    deserializer,
+                ),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::conversation::mesh::MeshInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4413,6 +4441,10 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_historySync =
+            <Option<crate::private_dm_runtime::contracts::DmHistorySyncState>>::sse_decode(
+                deserializer,
+            );
         let mut var_sessionId = <String>::sse_decode(deserializer);
         let mut var_meshId = <String>::sse_decode(deserializer);
         let mut var_role = <String>::sse_decode(deserializer);
@@ -4443,6 +4475,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
         let mut var_activeCall =
             <Option<crate::private_dm_runtime::contracts::ActiveCall>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::SessionSnapshot {
+            history_sync: var_historySync,
             session_id: var_sessionId,
             mesh_id: var_meshId,
             role: var_role,
@@ -5502,6 +5535,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::device_link::types::DeviceLinkSnap
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::DmHistorySyncState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::WaitingForSource => 0.into_dart(),
+            Self::Importing => 1.into_dart(),
+            Self::Complete => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::private_dm_runtime::contracts::DmHistorySyncState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::DmHistorySyncState>
+    for crate::private_dm_runtime::contracts::DmHistorySyncState
+{
+    fn into_into_dart(self) -> crate::private_dm_runtime::contracts::DmHistorySyncState {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::conversation::dm_offers::DmOffer {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -6259,6 +6314,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Ses
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::SessionSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.history_sync.into_into_dart().into_dart(),
             self.session_id.into_into_dart().into_dart(),
             self.mesh_id.into_into_dart().into_dart(),
             self.role.into_into_dart().into_dart(),
@@ -6902,6 +6958,23 @@ impl SseEncode for crate::device_link::types::DeviceLinkSnapshot {
     }
 }
 
+impl SseEncode for crate::private_dm_runtime::contracts::DmHistorySyncState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::private_dm_runtime::contracts::DmHistorySyncState::WaitingForSource => 0,
+                crate::private_dm_runtime::contracts::DmHistorySyncState::Importing => 1,
+                crate::private_dm_runtime::contracts::DmHistorySyncState::Complete => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::conversation::dm_offers::DmOffer {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7477,6 +7550,18 @@ impl SseEncode for Option<crate::device_link::types::DeviceLinkErrorKind> {
     }
 }
 
+impl SseEncode for Option<crate::private_dm_runtime::contracts::DmHistorySyncState> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::private_dm_runtime::contracts::DmHistorySyncState>::sse_encode(
+                value, serializer,
+            );
+        }
+    }
+}
+
 impl SseEncode for Option<crate::conversation::mesh::MeshInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7707,6 +7792,10 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::private_dm_runtime::contracts::DmHistorySyncState>>::sse_encode(
+            self.history_sync,
+            serializer,
+        );
         <String>::sse_encode(self.session_id, serializer);
         <String>::sse_encode(self.mesh_id, serializer);
         <String>::sse_encode(self.role, serializer);

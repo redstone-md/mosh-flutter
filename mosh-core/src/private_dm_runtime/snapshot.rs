@@ -7,7 +7,7 @@ impl PrivateDmSession {
         // The poll is the heartbeat: a hint past its deadline stops being
         // carried (and files its lapse into the event ring) from here.
         self.expire_peer_typing(now_ms());
-        let messages: Vec<ChatMessage> = self
+        let mut messages: Vec<ChatMessage> = self
             .messages
             .iter()
             .map(|message| {
@@ -16,7 +16,13 @@ impl PrivateDmSession {
                 stamped
             })
             .collect();
+        let history_sync = self.history_sync_state(now_ms());
+        if history_sync.is_some() {
+            messages
+                .sort_by(|a, b| (a.sent_at_ms, &a.message_id).cmp(&(b.sent_at_ms, &b.message_id)));
+        }
         SessionSnapshot {
+            history_sync,
             session_id: self.session_id.clone(),
             mesh_id: self.mesh_id.clone(),
             role: self.role.as_str().to_string(),

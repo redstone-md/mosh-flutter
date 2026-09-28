@@ -290,6 +290,25 @@ classDiagram
     DmTopology --> IdentityClaim
 ```
 
+### Initial history on a linked desktop
+
+An admitted linked desktop imports semantic text from its authorized source
+over the private encrypted device stream. Source manifests and recipient
+cursors survive restart. Imported rows and progress commit together under
+the recipient's own local key; live and imported text share message ids.
+The optional `SessionSnapshot.history_sync` drives the conversation's waiting
+and importing notices. See [ADR 0031](ADR/0031-linked-desktop-dm-history.md).
+
+```mermaid
+flowchart LR
+    Source[Authorized source history] --> Manifest[Durable frozen manifest]
+    Manifest --> Stream[Signed batches over encrypted Moss stream]
+    Stream --> Import[Verify and deduplicate semantic text]
+    Import --> Store[Atomic rows and cursor under local key]
+    Store --> View[Existing DM snapshot and history status]
+    Live[New live text] --> Import
+```
+
 ## Interface Contracts
 
 ```mermaid
