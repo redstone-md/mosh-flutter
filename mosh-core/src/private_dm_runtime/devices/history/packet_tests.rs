@@ -37,6 +37,10 @@ fn adopt(identity: &mut DeviceIdentity, roster: DeviceRoster) {
 
 impl Fixture {
     fn new() -> Self {
+        Self::with_clients(true)
+    }
+
+    fn with_clients(include_source: bool) -> Self {
         let dir =
             std::env::temp_dir().join(format!("mosh-history-packets-{}", rand::random::<u64>()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -80,11 +84,11 @@ impl Fixture {
             dir,
             peers: Default::default(),
         };
-        fixture.admit_clients();
+        fixture.admit_clients(include_source);
         fixture
     }
 
-    fn admit_clients(&mut self) {
+    fn admit_clients(&mut self, include_source: bool) {
         let session = self.runtime.session_mut(&self.session).unwrap();
         let mut clients = vec![IdentityClaim::create(
             &self.receiver,
@@ -94,6 +98,9 @@ impl Fixture {
         )
         .unwrap()];
         for identity in [&self.source, &self.contact] {
+            if !include_source && identity.device().device_id == self.source.device().device_id {
+                continue;
+            }
             let mut crypto = MlsSessionCrypto::new(&identity.device().device_id).unwrap();
             let outcome = session
                 .crypto
@@ -125,7 +132,8 @@ impl Fixture {
             delivery: None,
             receipt_targets: Default::default(),
             delivered_ids: Vec::new(),
-            history_import: Some(HistoryImport::new("packets", self.source.device())),
+            history_import: include_source
+                .then(|| HistoryImport::new("packets", self.source.device())),
             history_exports: Vec::new(),
             recovery: None,
             recovery_exports: Vec::new(),

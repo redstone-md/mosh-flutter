@@ -327,12 +327,25 @@ impl DeviceRoster {
     }
 
     pub(crate) fn verifies_removal(&self, base: &Self, target: &str, signer: &str) -> Result<()> {
+        self.verifies_removal_extension(base, target, signer)?;
+        let last = self.entries.last().ok_or_else(invalid)?;
+        if !base.devices()?.contains(&last.device) {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn verifies_removal_extension(
+        &self,
+        base: &Self,
+        target: &str,
+        signer: &str,
+    ) -> Result<()> {
         let last = self.entries.last().ok_or_else(invalid)?;
         if !self.extends(base)?
             || last.version != REMOVAL_VERSION
             || last.device.device_id != target
             || last.signer != signer
-            || !base.devices()?.contains(&last.device)
         {
             return Err(invalid());
         }

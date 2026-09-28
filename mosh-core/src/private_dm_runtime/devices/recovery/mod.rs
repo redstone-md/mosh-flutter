@@ -18,6 +18,18 @@ use sha2::{Digest, Sha256};
 const PROBE_MS: u64 = 5_000;
 const SOURCE_TIMEOUT_MS: u64 = 10_000;
 
+impl DeviceMembership {
+    pub(super) fn require_epoch(&mut self, epoch: u64, current: u64) {
+        let recovery = self
+            .recovery
+            .get_or_insert_with(|| Recovery::new(crate::private_dm_runtime::now_ms(), current));
+        recovery.required_epoch = recovery.required_epoch.max(epoch);
+        if let Some(source) = &mut recovery.source {
+            source.epoch = source.epoch.max(epoch);
+        }
+    }
+}
+
 impl PrivateDmSession {
     fn authorize_recovery_device(
         &self,

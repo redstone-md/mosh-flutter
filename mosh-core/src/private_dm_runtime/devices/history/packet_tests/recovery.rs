@@ -202,11 +202,11 @@ fn next_admission_with_lifetime(
     let outcome = author.add_members(&[&request.key_package]).unwrap();
     let group_id = author.group_id_bytes().unwrap();
     let epoch = author.epoch().unwrap();
-    f.peers
-        .get_mut(&f.source.device().device_id)
-        .unwrap()
-        .process_commit(&outcome.commit_bytes)
-        .unwrap();
+    for (device, peer) in &mut f.peers {
+        if device != &f.contact.device().device_id {
+            peer.process_commit(&outcome.commit_bytes).unwrap();
+        }
+    }
     Admission {
         request,
         commit: outcome.commit_bytes,

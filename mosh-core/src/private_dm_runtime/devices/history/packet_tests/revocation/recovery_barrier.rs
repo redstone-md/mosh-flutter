@@ -132,3 +132,43 @@ fn apply_remove(
         .unwrap()
         .awaiting_device_epoch());
 }
+
+pub(super) fn higher_epoch_is_recorded_while_text_waits() {
+    let mut f = Fixture::new();
+    let (third, _) = multiple::admit_third(&mut f);
+    let source = f.source.device().clone();
+    recovery::begin(&mut f, &source, 3);
+    let roster = f
+        .receiver
+        .roster()
+        .revoke(&third.device().device_id, &f.source.key())
+        .unwrap();
+    adopt(&mut f.receiver, roster.clone());
+    adopt(&mut f.source, roster);
+    f.snapshot();
+    let mut batch = f.batch(0, vec![record("blocked-recovery", "future")]);
+    batch.request_id = "history-recovery-packets".into();
+    batch.total = 1;
+    batch.epoch = Some(9);
+    let packet = f.packet(
+        &f.source,
+        DeviceMessage::RecoveryBatch(RecoveryBatch { round: 7, batch }),
+    );
+    assert!(f.receive(&packet).is_err());
+    assert_unchanged_import(&f);
+    f.runtime.rehydrate();
+    assert_eq!(
+        f.runtime
+            .session_ref(&f.session)
+            .unwrap()
+            .membership
+            .as_ref()
+            .unwrap()
+            .recovery
+            .as_ref()
+            .unwrap()
+            .required_epoch,
+        9,
+        "a pending Remove must not discard a newer correlated batch epoch"
+    );
+}
