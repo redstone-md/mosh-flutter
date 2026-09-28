@@ -26,13 +26,14 @@ impl DeviceLinkRuntime {
         Ok(())
     }
 
-    fn expire(&mut self) -> Result<()> {
-        if self
-            .exchange
-            .as_ref()
-            .is_some_and(|e| e.qr.expires_at <= now())
-        {
+    pub(super) fn expire(&mut self) -> Result<()> {
+        let Some(exchange) = &self.exchange else {
+            return Ok(());
+        };
+        if exchange.qr.expires_at <= now() {
             self.fail(DeviceLinkErrorKind::Expired)?;
+        } else if exchange.role == Role::Joining && !self.identity.can_join()? {
+            self.fail(DeviceLinkErrorKind::Ineligible)?;
         }
         Ok(())
     }

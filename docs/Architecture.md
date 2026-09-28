@@ -40,7 +40,9 @@ seam -- `RealBridgeGateway` delegating to the generated free functions in
 only the real implementations; tests swap in `ScriptableGateway` and
 `ScriptableBridge` (`test/support/`) through the providers. Conversation
 callers consume `gatewayProvider`, never a concrete `Gateway` (ADR 0013);
-mirror callers consume `bridgeFacadeProvider`. The `api` facade is real
+mirror callers consume `bridgeFacadeProvider`. Device linking follows the
+scoped direct bridge decision in [ADR 0029](ADR/0029-private-desktop-device-linking.md).
+The `api` facade is real
 for every command family (`diagnostics`, `private_dm`, `channel`,
 `private_group`, `org`, `network`, `vpn`; OnceLock singletons, ADR 0016).
 

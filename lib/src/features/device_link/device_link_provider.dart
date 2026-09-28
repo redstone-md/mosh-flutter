@@ -11,6 +11,7 @@ final deviceLinkProvider =
 
 class DeviceLinkController extends AsyncNotifier<DeviceLinkSnapshot> {
   bool _reading = false;
+  int _actionRevision = 0;
 
   @override
   Future<DeviceLinkSnapshot> build() async {
@@ -22,19 +23,30 @@ class DeviceLinkController extends AsyncNotifier<DeviceLinkSnapshot> {
   Future<void> _refresh() async {
     if (_reading) return;
     _reading = true;
+    final revision = _actionRevision;
     try {
       final value = await api.snapshot();
-      if (ref.mounted) state = AsyncData(value);
+      if (ref.mounted && revision == _actionRevision) {
+        state = AsyncData(value);
+      }
     } catch (error, stack) {
-      if (ref.mounted) state = AsyncError(error, stack);
+      if (ref.mounted && revision == _actionRevision) {
+        state = AsyncError(error, stack);
+      }
     } finally {
       _reading = false;
     }
   }
 
   Future<void> _act(Future<DeviceLinkSnapshot> Function() action) async {
-    final value = await action();
-    if (ref.mounted) state = AsyncData(value);
+    _actionRevision++;
+    try {
+      final value = await action();
+      if (ref.mounted) state = AsyncData(value);
+    } finally {
+      // Discard reads started either before or during the action.
+      _actionRevision++;
+    }
   }
 
   Future<void> createQr(String name) =>
