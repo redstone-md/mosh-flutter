@@ -47,20 +47,19 @@ void main() {
               padding: EdgeInsets.all(16), child: DevicesSettingsSection()),
         )),
         settle: false);
-    await pumpUntil(tester, find.text('Name of this desktop'));
+    await pumpUntil(tester, find.text('Name of this device'));
     await tester.enterText(
-        find.widgetWithText(TextField, 'Name of this desktop'), 'Main desktop');
-    await tapVisible(
-        tester, find.text('Link this desktop to an existing user'));
+        find.widgetWithText(TextField, 'Name of this device'), 'Main desktop');
+    await tapVisible(tester, find.text('Link this device to an existing user'));
     await pumpUntil(tester, find.text('Copy link'));
     final qr = await tester.runAsync(link.snapshot);
     expect(qr!.qrUri, startsWith('mosh://device-link/'));
     await tapVisible(tester, find.text('Cancel link'));
-    await pumpUntil(tester, find.text('Connect to new desktop'));
+    await pumpUntil(tester, find.text('Connect to new device'));
     await tester.enterText(
-        find.widgetWithText(TextField, 'Or paste the new desktop link'),
+        find.widgetWithText(TextField, 'Or paste the new device link'),
         'broken');
-    await tapVisible(tester, find.text('Connect to new desktop'));
+    await tapVisible(tester, find.text('Connect to new device'));
     await pumpUntil(
         tester, find.textContaining('This is not a valid device QR'));
 
@@ -69,20 +68,20 @@ void main() {
     final request = await tester.runAsync(
         () => peer.ask({'action': 'qr', 'argument': 'Second desktop'}));
     await tester.enterText(
-        find.widgetWithText(TextField, 'Or paste the new desktop link'),
+        find.widgetWithText(TextField, 'Or paste the new device link'),
         request!['qr_uri'] as String);
-    await tapVisible(tester, find.text('Connect to new desktop'));
-    await pumpUntil(tester, find.text('Code from the new desktop'));
+    await tapVisible(tester, find.text('Connect to new device'));
+    await pumpUntil(tester, find.text('Code from the new device'));
     final confirmation =
         await tester.runAsync(() => peer.waitPhase('AwaitingConfirmation'));
     await tester.enterText(
-        find.widgetWithText(TextField, 'Code from the new desktop'),
+        find.widgetWithText(TextField, 'Code from the new device'),
         '000000000000');
     await tapVisible(tester, find.text('Approve device'));
     await pumpUntil(tester, find.textContaining('The code does not match'));
     expect((await tester.runAsync(link.snapshot))!.devices.length, 1);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Code from the new desktop'),
+        find.widgetWithText(TextField, 'Code from the new device'),
         confirmation!['confirmation_code'] as String);
     await tapVisible(tester, find.text('Approve device'));
     await pumpUntil(tester, find.textContaining('Device linked.'));
@@ -128,14 +127,14 @@ Future<void> approveFreshPeer(WidgetTester tester, NativePeer peer) async {
   final request = await tester
       .runAsync(() => peer.ask({'action': 'qr', 'argument': 'Second desktop'}));
   await tester.enterText(
-      find.widgetWithText(TextField, 'Or paste the new desktop link'),
+      find.widgetWithText(TextField, 'Or paste the new device link'),
       request!['qr_uri'] as String);
-  await tapVisible(tester, find.text('Connect to new desktop'));
-  await pumpUntil(tester, find.text('Code from the new desktop'));
+  await tapVisible(tester, find.text('Connect to new device'));
+  await pumpUntil(tester, find.text('Code from the new device'));
   final ready =
       await tester.runAsync(() => peer.waitPhase('AwaitingConfirmation'));
   await tester.enterText(
-      find.widgetWithText(TextField, 'Code from the new desktop'),
+      find.widgetWithText(TextField, 'Code from the new device'),
       ready!['confirmation_code'] as String);
   await tapVisible(tester, find.text('Approve device'));
   await pumpUntil(tester, find.textContaining('Device linked.'));
@@ -145,10 +144,10 @@ Future<void> approveFreshPeer(WidgetTester tester, NativePeer peer) async {
 Future<void> requestFreshAccess(
     WidgetTester tester, NativePeer peer, String userId) async {
   await pumpUntil(tester, find.text('Request access again'));
-  expect(find.textContaining('This desktop was removed.'), findsOneWidget);
+  expect(find.textContaining('This device was removed.'), findsOneWidget);
   expect(find.byTooltip('Remove device'), findsNothing);
-  expect(find.text('Name of this desktop'), findsNothing);
-  expect(find.text('Connect to new desktop'), findsNothing);
+  expect(find.text('Name of this device'), findsNothing);
+  expect(find.text('Connect to new device'), findsNothing);
   await tapVisible(tester, find.text('Request access again'));
   await pumpUntil(tester, find.text('Copy link'));
   final request = await tester.runAsync(link.snapshot);
@@ -157,7 +156,7 @@ Future<void> requestFreshAccess(
   await pumpUntil(
       tester,
       find.text(
-          'Enter this code on your trusted desktop to approve this device.'));
+          'Enter this code on your trusted device to approve this device.'));
   final ready = await tester.runAsync(link.snapshot);
   await tester.runAsync(() =>
       peer.ask({'action': 'approve', 'argument': ready!.confirmationCode}));

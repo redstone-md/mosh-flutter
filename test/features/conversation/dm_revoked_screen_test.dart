@@ -29,7 +29,7 @@ void main() {
       bridgeFacadeProvider.overrideWithValue(bridge),
     ]);
     expect(find.text('Already received history'), findsOneWidget);
-    expect(find.text('This desktop was removed'), findsOneWidget);
+    expect(find.text('This device was removed'), findsOneWidget);
     expect(find.textContaining('Request a fresh link in Settings'),
         findsOneWidget);
     final composer = find.byType(ConversationComposer);

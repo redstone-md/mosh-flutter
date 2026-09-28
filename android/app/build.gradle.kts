@@ -73,6 +73,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // The physical linked-DM test must not touch a user's Mosh data.
+            if (providers.gradleProperty("moshLinkedDmTest").isPresent) {
+                applicationIdSuffix = ".linked_dm_test"
+            }
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.

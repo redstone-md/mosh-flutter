@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/platform/foreground_poller.dart';
 import 'package:mosh/src/rust/api/device_link.dart' as api;
 import 'package:mosh/src/rust/device_link/types.dart';
 
@@ -15,8 +14,8 @@ class DeviceLinkController extends AsyncNotifier<DeviceLinkSnapshot> {
 
   @override
   Future<DeviceLinkSnapshot> build() async {
-    final timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
-    ref.onDispose(timer.cancel);
+    final poller = ForegroundPoller(const Duration(seconds: 1), _refresh);
+    ref.onDispose(poller.dispose);
     return api.snapshot();
   }
 
