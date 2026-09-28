@@ -35,16 +35,16 @@ Use no new service doubles. QR encoding/decoding gets a real round-trip test.
   time for refusal, code mismatch, expiry, replay and interrupted connections.
 - [x] 8. Add thin bridge functions and regenerate bindings. Run cargo build,
   clippy and bridge generation drift check. Preserve all existing signatures.
-- [ ] 9. Add the Devices settings section, Riverpod polling, QR image import
+- [x] 9. Add the Devices settings section, Riverpod polling, QR image import
   and approval/error UI in English and Russian. Verify QR round-trip, analyzer
   and screen actions using the real native bridge where supported.
-- [ ] 10. Run final full Rust/Flutter suites, focused independent-process
+- [x] 10. Run final full Rust/Flutter suites, focused independent-process
   pairing proof and coverage. Changed production code needs 80% line coverage
   and 70% branch coverage when available. Run available stack quality gates.
-- [ ] 11. Apply implement's code-review skill against the starting commit,
+- [x] 11. Apply implement's code-review skill against the starting commit,
   standards and issue 23. Reviewers are read-only; fix actionable findings and
   rerun affected checks. Apply unslop to docs and user copy.
-- [ ] 12. Update this plan with actual evidence and remaining platform limits,
+- [x] 12. Update this plan with actual evidence and remaining platform limits,
   commit atomically with Conventional Commits, verify subject and clean tree.
 
 ## Baseline failures
@@ -83,24 +83,42 @@ checks, and use the Linux host for real native/bridge/runtime evidence.
 
 ## Validation evidence
 
-- Rust build, formatting and Clippy with `-D warnings` pass.
+- Rust build, formatting and Clippy with `-D warnings` pass. The final full
+  suite passes 406 tests, with six existing ignored tests. The additional
+  ignored process entry is deliberately spawned by the eight flow tests.
 - A fresh bridge generation followed by Rust formatting changes no generated
   file. Existing bridge signatures are compatible.
 - All 870 Flutter tests pass, with the five existing skips. Analyzer is clean
   and Dart formatting changes no files.
-- Six independent-process Moss flows and two encrypted identity tests pass.
+- The actual native Flutter approval flow and two QR image tests pass.
+  New Flutter feature line coverage is 87.88%, or 174 of 198 lines.
+  Each feature file exceeds 80%; the lowest is 81.82%.
+- Eight independent-process Moss flows and two encrypted identity tests pass.
   Three protocol tests prove signatures, tampering and expiry at byte boundaries.
-- LLVM line coverage for the new Rust feature and its bridge is about 90%.
+- LLVM line coverage for the new Rust feature and its bridge is 91.30%,
+  or 882 of 966 measured lines.
   Coverage uses the real-process tests, including the public bridge, and the
   protocol tests. The stable Rust toolchain and Flutter LCOV do not emit branch
   coverage here.
 - Mermaid CLI renders all six device-link diagrams successfully.
 
-The first native UI rerun overlapped cargo rebuilding its peer executable.
-It failed before starting that peer. Run native verification after cargo
-finishes, as CI does, then record its final result and Flutter coverage.
-The initial atomic feature commit pins the reviewers' diff to the starting
-commit. A final commit will record their findings, fixes and completed checks.
+Run native UI verification after cargo finishes, as CI does. An earlier run
+overlapped rebuilding its peer executable and failed before starting the peer.
+The final sequential run passes. Windows/macOS packaging cannot run on this
+Linux host; their existing CI lanes must prove those platform builds.
+
+Coverage commands, run sequentially after the full Rust suite:
+
+```sh
+cargo llvm-cov test --manifest-path mosh-core/Cargo.toml --test device_link_flow --test device_link_identity --json --output-path /tmp/mosh-link-rust-coverage.json
+cargo llvm-cov test --manifest-path mosh-core/Cargo.toml --no-clean --lib --json --output-path /tmp/mosh-link-rust-coverage.json device_link::protocol_tests
+flutter test --coverage native_test/device_link_test.dart test/features/device_link/qr_image_test.dart
+```
+
+The Rust report counts feature and bridge files, excluding test and generated
+code. Flutter uses its LCOV report for the six feature files. Generated reports
+stay outside version control. The feature and two review-fix commits preserve
+the reviewed changes; this final documentation commit records the checks.
 
 ## Review findings and fixes
 
@@ -129,6 +147,9 @@ commit. A final commit will record their findings, fixes and completed checks.
   once, then let Moss's own handshake maintenance retry it; packet retries
   no longer launch a new handshake every 500 ms.
 
+The standards and spec reviewers rechecked the fixes and report no unresolved
+actionable findings. Unslop review kept the docs and user copy in plain language.
+
 ## Recovery findings
 
 - [x] Restart during delivery originally left the joining desktop Idle.
@@ -144,4 +165,58 @@ commit. A final commit will record their findings, fixes and completed checks.
   Normalize malformed image decoder errors to the localized invalid-QR message.
 - [x] A concurrent real-process test could dial the wrong port after Moss
   fell back from an occupied requested port. Use OS-assigned ports and read
-  the actual listen_port from Moss. All six scenarios now pass together.
+  the actual listen_port from Moss. All eight scenarios now pass together.
+
+## Changed files
+
+- `.github/workflows/ci.yml`
+- `AGENTS.md`
+- `CONTEXT.md`
+- `desktop-link.brainstorm.md`
+- `desktop-link.plan.md`
+- `docs/ADR/0029-private-desktop-device-linking.md`
+- `docs/Architecture.md`
+- `docs/Features/device-linking.md`
+- `lib/l10n/app_en.arb`
+- `lib/l10n/app_ru.arb`
+- `lib/src/features/device_link/device_link_copy.dart`
+- `lib/src/features/device_link/device_link_provider.dart`
+- `lib/src/features/device_link/device_link_qr.dart`
+- `lib/src/features/device_link/device_list.dart`
+- `lib/src/features/device_link/devices_settings_section.dart`
+- `lib/src/features/device_link/qr_image.dart`
+- `lib/src/features/settings/settings_screen.dart`
+- `lib/src/rust/api/device_link.dart`
+- `lib/src/rust/device_link/types.dart`
+- `lib/src/rust/frb_generated.dart`
+- `lib/src/rust/frb_generated.io.dart`
+- `lib/src/rust/frb_generated.web.dart`
+- `mosh-core/AGENTS.md`
+- `mosh-core/src/api/device_link.rs`
+- `mosh-core/src/api/mod.rs`
+- `mosh-core/src/device_link/identity.rs`
+- `mosh-core/src/device_link/mod.rs`
+- `mosh-core/src/device_link/protocol_tests.rs`
+- `mosh-core/src/device_link/qr.rs`
+- `mosh-core/src/device_link/roster.rs`
+- `mosh-core/src/device_link/runtime/actions.rs`
+- `mosh-core/src/device_link/runtime/mod.rs`
+- `mosh-core/src/device_link/runtime/receive.rs`
+- `mosh-core/src/device_link/runtime/service.rs`
+- `mosh-core/src/device_link/transport.rs`
+- `mosh-core/src/device_link/types.rs`
+- `mosh-core/src/device_link/wire.rs`
+- `mosh-core/src/frb_generated.rs`
+- `mosh-core/src/lib.rs`
+- `mosh-core/src/moss_ffi.rs`
+- `mosh-core/src/persistence.rs`
+- `mosh-core/tests/device_link_flow.rs`
+- `mosh-core/tests/device_link_identity.rs`
+- `mosh-core/tests/link_support/api.rs`
+- `mosh-core/tests/link_support/dm.rs`
+- `mosh-core/tests/link_support/mod.rs`
+- `native_test/device_link_test.dart`
+- `native_test/support/native_peer.dart`
+- `pubspec.lock`
+- `pubspec.yaml`
+- `test/features/device_link/qr_image_test.dart`
