@@ -104,6 +104,11 @@ commit. A final commit will record their findings, fixes and completed checks.
 
 ## Review findings and fixes
 
+- [x] Becoming ineligible after Ready cleared only the joining desktop.
+  The real-process DM-during-pairing test failed with the trusted desktop still
+  awaiting approval. Share cancellation's signed rejection path after saving
+  terminal state. The test now proves rejection, refusal of the old code and
+  no addition while preserving the joining desktop's identity and DM.
 - [x] Cancelled QR replay after disconnect. The real-process regression failed
   because cancellation forgot the request after a best-effort packet. Save
   consumed ids until expiry in the encrypted row before rejecting or approving.

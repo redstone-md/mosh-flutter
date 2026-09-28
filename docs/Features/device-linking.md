@@ -50,6 +50,7 @@ It cannot silently undo a signed authorization.
 Cancellation records that request until expiry, so losing its rejection packet
 does not let the trusted desktop accept that QR again. Starting a conversation
 on a desktop waiting to join cancels its pending request and keeps its own user.
+The online trusted desktop receives that rejection and cannot approve its code.
 
 The list is signed and sent only through an encrypted directed Moss stream.
 It is never published through gossip. The local record uses the installation's

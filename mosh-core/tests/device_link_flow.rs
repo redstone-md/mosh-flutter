@@ -292,8 +292,21 @@ fn a_new_dm_during_pairing_preserves_identity_and_clears_the_ineligible_request(
     let qr = joining.ask(json!({"action":"qr","argument":"New desktop"}));
     trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
     trusted.wait_phase("AwaitingApproval");
-    joining.wait_phase("AwaitingConfirmation");
+    let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     let invite = joining.ask(json!({"action":"dm_invite"}));
+    assert_eq!(joining.wait_phase("Failed")["error"], "Ineligible");
+    assert_eq!(trusted.wait_phase("Failed")["error"], "Rejected");
+    assert_eq!(
+        trusted.ask(json!({"action":"approve","argument":code}))["error"],
+        "InvalidRoster"
+    );
+    assert_eq!(
+        trusted.ask(json!({"action":"snapshot"}))["devices"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     joining.restart();
     let restored = joining.ask(json!({"action":"snapshot"}));
     assert_eq!(restored["user_id"], before["user_id"]);
