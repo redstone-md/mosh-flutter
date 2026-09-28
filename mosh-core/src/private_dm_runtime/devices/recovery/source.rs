@@ -65,10 +65,10 @@ impl PrivateDmRuntime {
             round: pull.round,
             batch: export.batch(&store, &pull.request)?,
         };
-        while !fits_stream(
+        while !DevicePacket::fits_stream(
             identity,
             &sender.moss_peer_id,
-            &DeviceMessage::RecoveryBatch(batch.clone()),
+            DeviceMessage::RecoveryBatch(batch.clone()),
         ) {
             batch.batch.shrink()?;
         }
@@ -123,13 +123,4 @@ impl PrivateDmSession {
         self.save_recovery_membership(store, next)?;
         Ok(export)
     }
-}
-
-pub(super) fn fits_stream(identity: &DeviceIdentity, peer: &str, message: &DeviceMessage) -> bool {
-    DevicePacket::seal(identity, peer, message.clone())
-        .ok()
-        .and_then(|packet| {
-            crate::stream_transport::frame_for_channel(super::super::DEVICE_CHANNEL, &packet)
-        })
-        .is_some_and(|frame| frame.len() <= 64 * 1024)
 }

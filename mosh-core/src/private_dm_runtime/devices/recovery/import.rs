@@ -1,5 +1,5 @@
 use super::*;
-use crate::private_dm_runtime::{now_ms, ChatMessage};
+use crate::private_dm_runtime::now_ms;
 
 impl PrivateDmRuntime {
     pub(in crate::private_dm_runtime::devices) fn receive_recovery_offer(
@@ -25,10 +25,9 @@ impl PrivateDmRuntime {
             return session.save_recovery_membership(&store, next);
         }
         let epoch = session.crypto.epoch().ok_or_else(invalid)?;
-        if offer.epoch > epoch
-            || (offer.manifest != session.recovery_manifest()?
-                && recovery.observed.get(&sender.device_id) != Some(&offer.manifest))
-        {
+        let matches_local = offer.manifest == session.recovery_manifest()?;
+        let observed = recovery.observed.get(&sender.device_id) == Some(&offer.manifest);
+        if offer.epoch > epoch || (!matches_local && !observed) {
             recovery.source = Some(RecoverySource {
                 device_id: sender.device_id.clone(),
                 epoch: offer.epoch,
@@ -40,8 +39,13 @@ impl PrivateDmRuntime {
                 .insert(sender.device_id.clone(), offer.manifest);
         }
         recovery.last_rx_ms = now_ms();
+        if matches_local && !observed {
+            session.commit_current_history(&store, next)?;
+        } else {
+            session.commit_history_rows(&store, next, Vec::new())?;
+        }
         session.history_last_rx_ms = 0;
-        session.save_recovery_membership(&store, next)
+        Ok(())
     }
 
     pub(in crate::private_dm_runtime::devices) fn receive_recovery_batch(
@@ -73,15 +77,8 @@ impl PrivateDmRuntime {
             recovery.source = None;
         }
         recovery.last_rx_ms = now_ms();
-        let mut record = session.to_persisted_record();
-        record.membership = Some(next.clone());
-        let bytes = serde_json::to_vec(&record).map_err(|_| invalid())?;
-        store.commit_dm_history_import::<ChatMessage>(&session.session_id, &bytes, &rows)?;
-        session.membership = Some(next);
+        session.commit_history_rows(&store, next, rows)?;
         session.history_last_rx_ms = now_ms();
-        for row in rows {
-            session.messages.push_stamped(row.message);
-        }
         Ok(())
     }
 }
