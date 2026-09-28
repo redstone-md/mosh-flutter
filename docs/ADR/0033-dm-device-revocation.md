@@ -122,6 +122,10 @@ its incomplete transfer and lets ordinary recovery select an authorized holder.
 Initial history batches also wait for an observed pending removal or required
 newer epoch. Ordered epoch recovery can run during that paused initial import;
 the same correlated batch can resume once the transition has been applied.
+Recovery text import and export use the same pending-epoch barrier, including
+when a source was selected before learning the roster removal. Commit relay
+stays available while text waits. A refused batch does not advance its cursor
+or save rows; a refused pull does not freeze an old-epoch text export.
 Initial and recovery batches carry the source's signed MLS epoch. A correlated
 batch from a newer epoch durably raises the required recovery epoch while its
 cursor and rows remain unchanged. Legacy batches without this optional field

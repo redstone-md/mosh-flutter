@@ -5,6 +5,7 @@ use crate::private_dm_runtime::now_ms;
 use sha2::Digest;
 mod forgery;
 mod multiple;
+mod recovery_barrier;
 
 fn ordered_add_then_remove() {
     let mut f = Fixture::new();
@@ -213,6 +214,7 @@ fn revocation_packet_process() {
     multiple::signed_roster_order_preserves_the_remaining_client();
     initial_history_waits_for_an_observed_removal();
     removing_an_unadmitted_device_does_not_block_initial_history();
+    recovery_barrier::recovery_text_waits_for_known_remove();
 }
 
 fn removing_an_unadmitted_device_does_not_block_initial_history() {
