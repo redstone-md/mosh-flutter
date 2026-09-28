@@ -112,6 +112,11 @@ impl DeviceLinkRuntime {
         if self.identity.record.delivery.is_some() {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::Busy));
         }
+        self.reject(DeviceLinkErrorKind::Rejected)?;
+        self.snapshot()
+    }
+
+    pub(super) fn reject(&mut self, kind: DeviceLinkErrorKind) -> Result<()> {
         let rejection = self
             .exchange
             .as_ref()
@@ -121,10 +126,10 @@ impl DeviceLinkRuntime {
                     .map(|packet| (peer, packet))
             })
             .transpose()?;
-        self.fail(DeviceLinkErrorKind::Rejected)?;
+        self.fail(kind)?;
         if let Some((peer, packet)) = rejection {
             let _ = self.transport.send(&peer, &packet);
         }
-        self.snapshot()
+        Ok(())
     }
 }
