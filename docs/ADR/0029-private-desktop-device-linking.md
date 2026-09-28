@@ -28,6 +28,7 @@ classDiagram
         approvedDelivery
         receipt
         pendingJoin
+        consumedRequests
     }
     class DeviceRoster {
         genesis
@@ -102,6 +103,9 @@ authenticated rejection while the path exists. Packet retries are idempotent.
 After approval, the saved delivery journal resends that exact authorization;
 a saved receipt answers duplicates after restart. No duplicate creates a new
 addition. A connection failure is visible and cannot fabricate success.
+Terminal rejection and approval save the consumed request id in the same
+encrypted row until its expiry. Reimporting that QR fails even after a restart
+or if the other desktop never received the rejection packet.
 
 ## Storage and boundaries
 
@@ -111,6 +115,8 @@ Table creation is additive and does not
 rewrite Moss, MLS, history or contact tables. Fail closed on corrupt state.
 A new desktop with existing conversations or multiple devices cannot join
 another user. It can authorize a fresh desktop instead.
+If a conversation starts during a pending join, clear that request and preserve
+the valid local identity and conversation. Eligibility is not a storage error.
 
 ```mermaid
 flowchart LR
@@ -131,6 +137,20 @@ and expired QR, packet tampering/replay, disconnect and restart. Preserve
 existing DM history/peer-id and prove ordinary DM messaging still works.
 Test the real QR renderer/decoder and Flutter screen with the native bridge.
 Commands and quality bars live in desktop-link.plan.md during implementation.
+
+## Dart bridge access
+
+The device-link provider calls its five typed generated bridge functions
+directly. This is a scoped exception to ADR 0025's shared facade rule.
+This feature must prove consent and persistence through the real bridge,
+database and independent Moss nodes. It uses no scripted bridge substitute.
+Adding its calls to the shared facade would also expand the scripted facade's
+contract, without improving this proof or hiding a decision.
+
+Keep these calls in the feature provider. Widgets consume that provider;
+Rust owns the identity, approval and storage rules. All existing facade
+callers continue to follow ADR 0025. The generated Rust API remains the sole
+Dart-to-Rust boundary.
 
 ## Maintainability exceptions
 

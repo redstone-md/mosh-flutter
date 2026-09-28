@@ -47,6 +47,9 @@ the new desktop acknowledges its save. Revocation is a later feature.
 If the new desktop never receives that approval before its request expires,
 the trusted desktop keeps the approved entry and reports incomplete delivery.
 It cannot silently undo a signed authorization.
+Cancellation records that request until expiry, so losing its rejection packet
+does not let the trusted desktop accept that QR again. Starting a conversation
+on a desktop waiting to join cancels its pending request and keeps its own user.
 
 The list is signed and sent only through an encrypted directed Moss stream.
 It is never published through gossip. The local record uses the installation's
