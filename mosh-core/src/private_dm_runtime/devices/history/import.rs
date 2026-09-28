@@ -17,16 +17,48 @@ impl PrivateDmSession {
             return Err(invalid());
         }
         let rows = self.history_rows(import.accept(&batch)?)?;
+        self.commit_history_rows(store, membership, rows)?;
+        self.history_last_rx_ms = super::super::super::now_ms();
+        Ok(())
+    }
+
+    // Matching live rows are saved too: they can be visible before the normal
+    // tail writer runs. Durable progress must never get ahead of those rows.
+    pub(in crate::private_dm_runtime::devices) fn commit_history_rows(
+        &mut self,
+        store: &Persistence,
+        membership: super::super::DeviceMembership,
+        rows: Vec<StoredMessage<ChatMessage>>,
+    ) -> Result<()> {
         let mut persisted = self.to_persisted_record();
         persisted.membership = Some(membership.clone());
         let json = serde_json::to_vec(&persisted).map_err(|_| invalid())?;
         store.commit_dm_history_import::<ChatMessage>(&self.session_id, &json, &rows)?;
         self.membership = Some(membership);
-        self.history_last_rx_ms = super::super::super::now_ms();
         for row in rows {
-            self.messages.push_stamped(row.message);
+            if !self
+                .messages
+                .iter()
+                .any(|message| message.message_id.as_ref() == Some(&row.message_id))
+            {
+                self.messages.push_stamped(row.message);
+            }
         }
         Ok(())
+    }
+
+    pub(in crate::private_dm_runtime::devices) fn commit_current_history(
+        &mut self,
+        store: &Persistence,
+        membership: super::super::DeviceMembership,
+    ) -> Result<()> {
+        let records = self
+            .messages
+            .iter()
+            .filter_map(TextRecord::from_message)
+            .collect();
+        let rows = self.history_rows(records)?;
+        self.commit_history_rows(store, membership, rows)
     }
 
     pub(in crate::private_dm_runtime::devices) fn history_rows(
@@ -40,21 +72,20 @@ impl PrivateDmSession {
             if !ids.insert(record.message_id.clone()) {
                 return Err(invalid());
             }
-            if let Some(existing) = self
+            let existing = self
                 .messages
                 .iter()
-                .find(|message| message.message_id.as_ref() == Some(&record.message_id))
-            {
+                .find(|message| message.message_id.as_ref() == Some(&record.message_id));
+            if let Some(existing) = existing {
                 if TextRecord::from_message(existing).as_ref() != Some(&record) {
                     return Err(invalid());
                 }
-                continue;
             }
             rows.push(StoredMessage {
                 conversation_id: self.session_id.clone(),
                 sent_at_ms: record.sent_at_ms,
                 message_id: record.message_id.clone(),
-                message: record.into_message(),
+                message: existing.cloned().unwrap_or_else(|| record.into_message()),
                 attachment_manifest: None,
             });
         }

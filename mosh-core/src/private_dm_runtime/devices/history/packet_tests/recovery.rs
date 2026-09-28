@@ -249,6 +249,61 @@ fn original_author_epoch_order_and_restart() {
     );
 }
 
+fn live_text_is_durable_before_observation_or_completion() {
+    for equal_offer in [true, false] {
+        let mut f = Fixture::new();
+        let source = f.contact.device().clone();
+        begin(&mut f, &source, 2);
+        let live = record("live-before-tail", "Live text during recovery");
+        let session = f.runtime.session_mut(&f.session).unwrap();
+        // A live frame enters the log before tick writes its tail. Recovery
+        // packets can arrive in that same drain, before the tail transaction.
+        session.messages.push_stamped(live.clone().into_message());
+        let message = if equal_offer {
+            session
+                .membership
+                .as_mut()
+                .unwrap()
+                .recovery
+                .as_mut()
+                .unwrap()
+                .source = None;
+            DeviceMessage::RecoveryOffer(
+                crate::private_dm_runtime::devices::recovery::RecoveryOffer {
+                    probe: crate::private_dm_runtime::devices::recovery::RecoveryProbe {
+                        session_id: f.session.clone(),
+                        request_id: "recovery-packets".into(),
+                        round: 7,
+                    },
+                    epoch: 2,
+                    manifest: HistoryExport::freeze(
+                        session,
+                        &source,
+                        &HistoryRequest {
+                            session_id: f.session.clone(),
+                            request_id: "history-recovery-packets".into(),
+                            offset: 0,
+                            body_offset: 0,
+                        },
+                    )
+                    .unwrap()
+                    .digest,
+                },
+            )
+        } else {
+            DeviceMessage::RecoveryBatch(batch(&f, 0, 1, vec![live]))
+        };
+        let packet = f.packet(&f.contact, message);
+        f.receive(&packet).unwrap();
+        f.runtime.rehydrate();
+        assert_eq!(text(&mut f, "live-before-tail").len(), 1);
+        assert_eq!(
+            f.snapshot().history_sync,
+            Some(DmHistorySyncState::Complete)
+        );
+    }
+}
+
 #[test]
 fn signed_recovery_boundary_checks_admission_epochs_cursors_and_restart() {
     let status = std::process::Command::new(std::env::current_exe().unwrap())
@@ -269,4 +324,5 @@ fn recovery_packet_process() {
     admitted_sources_and_prefix_rosters();
     cursors_replays_and_conflicts();
     original_author_epoch_order_and_restart();
+    live_text_is_durable_before_observation_or_completion();
 }

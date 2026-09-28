@@ -112,6 +112,15 @@ pub(super) struct DevicePacket {
 }
 
 impl DevicePacket {
+    pub fn fits_stream(identity: &DeviceIdentity, peer: &str, message: DeviceMessage) -> bool {
+        Self::seal(identity, peer, message)
+            .ok()
+            .and_then(|packet| {
+                crate::stream_transport::frame_for_channel(super::DEVICE_CHANNEL, &packet)
+            })
+            .is_some_and(|frame| frame.len() <= 64 * 1024)
+    }
+
     pub fn seal(
         identity: &DeviceIdentity,
         recipient: &str,

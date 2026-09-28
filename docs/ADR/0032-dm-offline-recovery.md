@@ -113,6 +113,11 @@ and partial text. A batch must match all those fields. Save imported rows and
 progress together under the recipient's own storage key. Install progress
 only after the transaction succeeds. Identical live text keeps its existing
 receipt state; conflicting metadata or bodies refuse the entire batch.
+Matching live rows participate in that transaction even before the ordinary
+history tail writer runs. Observing an equal manifest also saves the matching
+visible text before recording it as already received. A crash cannot leave a
+durable completion/observation marker ahead of those rows. Initial history and
+recovery share one commit/publish helper and one signed-frame ceiling check.
 
 After ten seconds without source progress, start a new round and probe again.
 A replacement source starts at its own frozen manifest's first record.
