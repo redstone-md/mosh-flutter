@@ -6,19 +6,6 @@ use crate::private_dm_runtime::PrivateDmRuntime;
 use sha2::{Digest, Sha256};
 
 // Moss's default application payload ceiling applies after our base64 framing.
-const STREAM_FRAME_BYTES: usize = 64 * 1024;
-
-impl HistoryBatch {
-    fn fits_stream(&self, identity: &DeviceIdentity, peer: &str) -> bool {
-        DevicePacket::seal(identity, peer, DeviceMessage::HistoryBatch(self.clone()))
-            .ok()
-            .and_then(|packet| {
-                crate::stream_transport::frame_for_channel(super::super::DEVICE_CHANNEL, &packet)
-            })
-            .is_some_and(|frame| frame.len() <= STREAM_FRAME_BYTES)
-    }
-}
-
 impl HistoryExport {
     pub(in crate::private_dm_runtime::devices) fn freeze(
         session: &PrivateDmSession,
@@ -148,7 +135,11 @@ impl PrivateDmRuntime {
         session.authorize_history_device(identity, sender, roster)?;
         let export = session.history_export(&store, sender, &request)?;
         let mut batch = export.batch(&store, &request)?;
-        while !batch.fits_stream(identity, &sender.moss_peer_id) {
+        while !DevicePacket::fits_stream(
+            identity,
+            &sender.moss_peer_id,
+            DeviceMessage::HistoryBatch(batch.clone()),
+        ) {
             batch.shrink()?;
         }
         send_packet(

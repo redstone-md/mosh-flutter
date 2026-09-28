@@ -83,7 +83,7 @@ add a product feature or broaden the text-only DM scope.
 - [x] Update localized runtime notices and widget tests.
 - [x] Document retention, acknowledgements and MLS ordering with Mermaid.
 - [x] Run regular Rust checks and focused native/widget tests.
-- [ ] Format, build, strict Clippy, Flutter analysis and full suites once at end.
+- [x] Format, build, strict Clippy, Flutter analysis and full suites once at end.
 - [ ] Measure changed Rust line coverage, at least 80%; branch coverage at
   least 70% if available. Verify bindings remain unchanged.
 - [ ] Commit, run Standards and Spec reviews through the code-review skill,
@@ -136,7 +136,45 @@ passed 871 tests with five existing platform skips. Flutter analysis and Dart
 formatting passed. Bridge generation made no changes. All 25 diagrams in the
 architecture and new ADR rendered; the existing feature diagrams also render.
 Rust build, strict Clippy and focused runtime/signed packet checks passed.
-The full instrumented Rust suite is running. Logs are under `/tmp/mosh-26-*`.
+The full instrumented Rust suite passed 428 tests: 404 unit tests, eight
+device-link flows, two identity tests and fourteen real-process DM scenarios.
+Ten entry points remain ignored, including isolated workers invoked by their
+parent tests. No behavioral test was removed. Logs are under `/tmp/mosh-26-*`.
+
+Implementation commit: `ae92a55`, reviewed against `c21b7e1` with independent
+read-only Standards and Spec agents. Review fixes are being verified with
+focused signed/native checks.
+
+## Standards
+
+No hard documented-standard breaches; two low-severity duplication findings.
+The recovery importer repeated the initial importer's transaction/publication
+sequence, and recovery repeated the signed frame-size check. Both now share
+the existing history commit/publish owner and device packet ceiling owner.
+The affected initial/recovery signed-packet suites passed. Source switching
+with live text and large UTF-8 native transfers passed after these fixes.
+
+## Spec
+
+P1: an equal source manifest or an imported duplicate could mark progress
+before the concurrent live row was durable. A crash then lost the row while
+the observed source digest prevented reimport. A signed-boundary regression
+failed on the missing row after rehydration. Both observation and completion
+now commit matching live rows with progress; the regression passes for both
+paths, preserving one visible copy and local receipt metadata.
+
+P2: OpenMLS 0.8.1 validates historical Add package lifetimes against today's
+clock, including inside commit processing. Default lifetimes expire after
+84 days. The current dependency therefore prevents replay after that expiry,
+even if a holder retains valid evidence. Its public existing-group API has no
+historical validation time. A reviewable scoped-clock patch is prepared at
+`/tmp/mosh-26-openmls-historical-validation.patch`; project dependencies are
+unchanged. Approval to vendor that dependency patch, or explicitly accept the
+expiry limit, is pending. Never change the process-global clock or import
+another installation's MLS state to bypass this restriction.
+
+Review findings: Standards 2 (both fixed); Spec 2 (P1 fixed,
+P2 awaits the dependency decision). Keep the axes separate.
 
 ## Changed files
 
