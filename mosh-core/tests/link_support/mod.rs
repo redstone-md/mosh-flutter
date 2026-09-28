@@ -176,6 +176,7 @@ pub fn peer_process() {
     if std::env::var("MOSH_LINK_TEST_API").as_deref() == Ok("1") {
         return api::run(dir);
     }
+    mosh_core::api::private_dm::set_app_data_dir(dir.to_string_lossy().into_owned()).unwrap();
     let port = std::env::var("MOSH_LINK_TEST_PORT")
         .unwrap()
         .parse()

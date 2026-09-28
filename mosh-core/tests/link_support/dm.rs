@@ -31,6 +31,19 @@ pub fn command(dm: &mut PrivateDmRuntime, action: &str, arg: &str, command: &Val
                 .unwrap(),
         )
         .unwrap(),
+        "dm_typing" => {
+            dm.typing_signal(arg).unwrap();
+            json!({})
+        }
+        "dm_receipts" => {
+            dm.set_read_receipts_enabled(command["enabled"].as_bool().unwrap())
+                .unwrap();
+            json!({})
+        }
+        "dm_viewed" => {
+            dm.mark_viewed(arg).unwrap();
+            json!({})
+        }
         _ => panic!("unknown DM command"),
     }
 }
