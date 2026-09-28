@@ -105,6 +105,12 @@ pub(crate) struct DeviceMembership {
     pub(super) history_import: Option<super::history::HistoryImport>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(super) history_exports: Vec<super::history::HistoryExport>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) recovery: Option<super::recovery::Recovery>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) recovery_exports: Vec<super::recovery::RecoveryExport>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) epoch_records: Vec<super::recovery::EpochRecord>,
 }
 
 impl DeviceMembership {
@@ -160,6 +166,8 @@ pub(super) struct Admission {
     pub topology: DmTopology,
     pub group_id: Vec<u8>,
     pub epoch: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_authorization: Option<super::recovery::EpochAuthorization>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +177,24 @@ pub(super) struct AdmissionJournal {
 }
 
 impl AdmissionJournal {
+    // One available counterpart accepts the epoch for its user. The joining
+    // client must also save its Welcome; other clients recover retained commits.
+    pub fn accepted(&self) -> Result<bool> {
+        let joining = self.admission.request.claim.device()?;
+        if self.waiting.contains(&joining.moss_peer_id) {
+            return Ok(false);
+        }
+        let user = self.admission.request.claim.roster.user_id();
+        for client in &self.admission.topology.clients {
+            if client.roster.user_id() != user
+                && !self.waiting.contains(&client.device()?.moss_peer_id)
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub fn new(admission: Admission, local_device: &str) -> Result<Self> {
         let waiting = admission
             .topology
@@ -191,6 +217,11 @@ pub(super) enum DeviceMessage {
     Admission(Admission),
     HistoryRequest(super::history::HistoryRequest),
     HistoryBatch(super::history::HistoryBatch),
+    RecoveryProbe(super::recovery::RecoveryProbe),
+    RecoveryOffer(super::recovery::RecoveryOffer),
+    RecoveryPull(super::recovery::RecoveryPull),
+    RecoveryBatch(super::recovery::RecoveryBatch),
+    RecoveryEpoch(super::recovery::RecoveryEpoch),
     Ack {
         session_id: String,
         request_id: String,

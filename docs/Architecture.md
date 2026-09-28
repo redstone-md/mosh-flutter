@@ -272,6 +272,9 @@ classDiagram
         topology
         joining
         delivery
+        recovery
+        recoveryExports
+        epochRecords
     }
     class DmTopology {
         ownUserId
@@ -307,6 +310,28 @@ flowchart LR
     Import --> Store[Atomic rows and cursor under local key]
     Store --> View[Existing DM snapshot and history status]
     Live[New live text] --> Import
+```
+
+### Returning DM installations
+
+An admitted installation probes available participants for missed text and MLS
+admission evidence. It applies verified commits in epoch order to its own MLS
+state, then imports semantic text through the existing atomic history boundary.
+Acknowledgements finish retries without deleting retained text or evidence.
+Source replacement uses a new durable round; live/imported text shares ids.
+The existing history status reports waiting when holders are unavailable.
+See [ADR 0032](ADR/0032-dm-offline-recovery.md) for retention, authorization,
+ordered recovery and future storage boundaries.
+
+```mermaid
+flowchart LR
+    Probe[Probe admitted participants] --> Source[Select available holder]
+    Source --> Epoch[Verify and save each next MLS epoch]
+    Epoch --> Import[Import bounded semantic text]
+    Import --> Local[Own encrypted store and durable cursor]
+    Local --> View[Existing snapshot and history status]
+    Source --> Waiting[Wait or switch source after silence]
+    Waiting --> Probe
 ```
 
 ## Interface Contracts

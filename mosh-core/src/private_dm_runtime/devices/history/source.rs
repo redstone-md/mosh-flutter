@@ -20,11 +20,24 @@ impl HistoryBatch {
 }
 
 impl HistoryExport {
-    fn freeze(
+    pub(in crate::private_dm_runtime::devices) fn freeze(
         session: &PrivateDmSession,
         sender: &DeviceDescriptor,
         request: &HistoryRequest,
     ) -> Result<Self> {
+        let keys = Self::keys(session)?;
+        let json = serde_json::to_vec(&keys).map_err(|_| invalid())?;
+        Ok(Self {
+            request_id: request.request_id.clone(),
+            recipient_device_id: sender.device_id.clone(),
+            keys,
+            digest: hex::encode(Sha256::digest(json)),
+        })
+    }
+
+    pub(in crate::private_dm_runtime::devices) fn keys(
+        session: &PrivateDmSession,
+    ) -> Result<Vec<HistoryKey>> {
         let mut keys = Vec::new();
         for message in session.messages.iter() {
             if let Some(record) = TextRecord::from_message(message) {
@@ -36,16 +49,14 @@ impl HistoryExport {
             }
         }
         keys.sort_by(|a, b| (a.sent_at_ms, &a.message_id).cmp(&(b.sent_at_ms, &b.message_id)));
-        let json = serde_json::to_vec(&keys).map_err(|_| invalid())?;
-        Ok(Self {
-            request_id: request.request_id.clone(),
-            recipient_device_id: sender.device_id.clone(),
-            keys,
-            digest: hex::encode(Sha256::digest(json)),
-        })
+        Ok(keys)
     }
 
-    fn batch(&self, store: &Persistence, request: &HistoryRequest) -> Result<HistoryBatch> {
+    pub(in crate::private_dm_runtime::devices) fn batch(
+        &self,
+        store: &Persistence,
+        request: &HistoryRequest,
+    ) -> Result<HistoryBatch> {
         if request.offset > self.keys.len() {
             return Err(invalid());
         }

@@ -1654,7 +1654,7 @@
   "deviceLinkStorageError": "The device list could not be saved. Check local storage and try again.",
   "deviceLinkUnavailable": "Device linking is unavailable. Check the connection and restart Mosh.",
   "dmHistoryWaitingTitle": "Waiting for message history",
-  "dmHistoryWaitingBody": "Open a linked device that has this conversation. Transfer will resume automatically.",
+  "dmHistoryWaitingBody": "Waiting for a participant with the missing messages to come online. Recovery will resume automatically.",
   "dmHistoryImportingTitle": "Importing message history",
   "dmHistoryImportingBody": "You can keep messaging while older messages arrive."
 }

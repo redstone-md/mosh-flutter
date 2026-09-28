@@ -83,13 +83,16 @@ impl PrivateDmRuntime {
         let Some(store) = self.sessions.persistence().cloned() else {
             return;
         };
-        let Ok(identity) = link.identity(store) else {
+        let Ok(identity) = link.identity(store.clone()) else {
             return;
         };
         let mut packets = Vec::new();
         for session in self.sessions.values_mut() {
             if session.device_signer.is_none() {
                 continue;
+            }
+            if let Ok(recovery) = session.recovery_packets(&store, now) {
+                packets.extend(recovery);
             }
             packets.extend(session.device_packets(&identity));
             session.publish_identity_claim(&identity);
@@ -130,6 +133,21 @@ impl PrivateDmRuntime {
             DeviceMessage::HistoryBatch(batch) => {
                 self.receive_history_batch(&identity, &sender, &packet.roster, batch)
             }
+            DeviceMessage::RecoveryProbe(probe) => {
+                self.receive_recovery_probe(&identity, &sender, &packet.roster, probe)
+            }
+            DeviceMessage::RecoveryOffer(offer) => {
+                self.receive_recovery_offer(&sender, &packet.roster, offer)
+            }
+            DeviceMessage::RecoveryPull(pull) => {
+                self.receive_recovery_pull(&identity, &sender, &packet.roster, pull)
+            }
+            DeviceMessage::RecoveryBatch(batch) => {
+                self.receive_recovery_batch(&sender, &packet.roster, batch)
+            }
+            DeviceMessage::RecoveryEpoch(epoch) => {
+                self.receive_recovery_epoch(&identity, &sender, &packet.roster, epoch)
+            }
             DeviceMessage::Ack {
                 session_id,
                 request_id,
@@ -146,13 +164,26 @@ impl PrivateDmRuntime {
 }
 
 impl PrivateDmSession {
-    fn refresh_device_identity(&mut self, identity: &DeviceIdentity) -> Result<()> {
-        let claim = IdentityClaim::create(
+    fn current_device_claim(&self, identity: &DeviceIdentity) -> Result<IdentityClaim> {
+        let current = self
+            .membership
+            .as_ref()
+            .and_then(|membership| membership.topology.roster(&identity.roster().user_id()));
+        let roster = match current {
+            Some(roster) if roster.extends(identity.roster()).map_err(|_| invalid())? => roster,
+            _ => identity.roster(),
+        };
+        IdentityClaim::create_with_roster(
             identity,
+            roster,
             &self.session_id,
             &self.crypto.signer_public(),
             &self.device_id,
-        )?;
+        )
+    }
+
+    fn refresh_device_identity(&mut self, identity: &DeviceIdentity) -> Result<()> {
+        let claim = self.current_device_claim(identity)?;
         if self.membership.is_none() {
             self.membership = Some(DeviceMembership {
                 topology: DmTopology {
@@ -166,6 +197,9 @@ impl PrivateDmSession {
                 delivered_ids: Vec::new(),
                 history_import: None,
                 history_exports: Vec::new(),
+                recovery: None,
+                recovery_exports: Vec::new(),
+                epoch_records: Vec::new(),
             });
         }
         let membership = self.membership.as_mut().ok_or_else(invalid)?;
@@ -191,12 +225,7 @@ impl PrivateDmSession {
         if !self.peer_joined {
             return;
         }
-        let Ok(claim) = IdentityClaim::create(
-            identity,
-            &self.session_id,
-            &self.crypto.signer_public(),
-            &self.device_id,
-        ) else {
+        let Ok(claim) = self.current_device_claim(identity) else {
             return;
         };
         let Ok(body) = serde_json::to_vec(&claim) else {
