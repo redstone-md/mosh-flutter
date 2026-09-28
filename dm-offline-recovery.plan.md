@@ -4,7 +4,7 @@ Spec: https://github.com/redstone-md/mosh-flutter/issues/26.
 Review fixed point: `c21b7e1bf25af0b6dfa959c3a21a3b5515ea7a7d`.
 Commit on the current branch. No push or deployment.
 
-## Scope and proposed design
+## Scope and design
 
 Recover text and missed MLS admission epochs in one existing DM. Each linked
 installation retains its own signing keys, MLS client and local storage key.
@@ -49,15 +49,16 @@ of delivery receipts. The private recovery protocol separates epoch evidence
 from semantic text import. A future hosted storage adapter can supply those
 records without owning device keys or replacing the importer.
 
-## Approval requested
+## Approved scope and test boundaries
 
 The repository requires approval before persisted schemas or public contracts
-change. Approve optional encrypted session membership fields, private recovery
-packet variants and the existing history-status semantics described above.
+change. The user approved optional encrypted session membership fields,
+private recovery packet variants and the existing history-status semantics
+described above.
 There are no new Flutter/Rust bridge signatures. The later approved dependency
 exception is documented in `docs/Proposals/openmls-historical-validation.md`.
 
-The TDD skill requires confirmed test boundaries. Proposed boundaries are:
+The TDD skill requires confirmed test boundaries. Approved boundaries are:
 
 - Existing public DM and device-link runtimes in independent installation
   processes, using real Moss, OpenMLS and independently keyed stores. Observe
@@ -106,7 +107,7 @@ separate tickets. Keep Moss sources unchanged.
 The user approved this plan, the persisted fields, private protocol scope,
 test boundaries and review baseline on 2026-09-28.
 
-## Verification in progress
+## Verification results
 
 Baseline Rust build, Moss preparation and Flutter analysis passed. The three
 existing native history tests and the existing banner widget test passed.
@@ -139,19 +140,32 @@ passed 873 tests with five existing platform skips. Flutter analysis and Dart
 formatting passed. Bridge generation made no changes. All 25 diagrams in the
 architecture and new ADR rendered; the existing feature diagrams also render.
 Rust build, strict Clippy and focused runtime/signed packet checks passed.
-The full instrumented Rust suite passed 428 tests: 404 unit tests, eight
-device-link flows, two identity tests and fourteen real-process DM scenarios.
-Ten entry points remain ignored, including isolated workers invoked by their
-parent tests. No behavioral test was removed. Logs are under `/tmp/mosh-26-*`.
+The final full instrumented Rust suite passed 430 tests: 405 unit tests, eight
+device-link flows, two identity tests, one patched-API policy test and fourteen
+real-process DM scenarios. Eleven entry points remain ignored, including
+isolated workers invoked by their parent tests. No behavioral test was removed.
+The unit phase took 381.06 seconds; the independent DM phase took 591.97 seconds.
+Logs are under `/tmp/mosh-26-*`.
 The separate native Flutter pairing test passed against the rebuilt library.
+Two additional runs timed out waiting for the confirmation-code field after
+40 seconds, including an isolated run. A later run passed in 26 seconds; the
+final original test and harness passed unchanged in 20 seconds. The artifact
+selection hypothesis was false: the first executable was already current.
+Temporary sorting was reverted. No timeout or product behavior was changed.
+The intermittent native UI timeout remains a validation risk outside the DM
+recovery slice; the eight independent Rust linking flows all passed.
 Final formatting, strict Clippy and Flutter analysis passed. Code generation
 and the final drift comparison confirmed unchanged bridge files.
 
 The full Rust run used `cargo llvm-cov show-env --sh`, including independent
 installation processes. Focused review-fix tests used the same instrumentation.
-Against the fixed point, 620 of 635 changed executable production lines are
-covered, or 97.64%. Test code is excluded. New recovery modules range from
-93.33% to 100%. JSON and LCOV reports remain under `/tmp/mosh-26-*`.
+Against the fixed point, 645 of 712 changed executable production lines are
+covered, or 90.59%. Test code and unchanged vendored upstream code are excluded.
+The 11 changed executable lines in the OpenMLS patch all have coverage. The
+final measurement includes compiler-mapped derived code and the historical
+validation correction; it replaces the earlier 620/635 result. Coverage was
+exported without the default workspace filter so the path dependency is
+included. JSON and LCOV reports remain under `/tmp/mosh-26-*`.
 Stable Rust reports that branch instrumentation requires nightly, unavailable
 on this host. Branch coverage is unavailable; region coverage is not used as
 branch coverage.
@@ -165,6 +179,11 @@ findings. Spec confirmed P1 resolved, with no new related findings.
 
 ## Standards
 
+Final independent read-only review of `c21b7e1...fe805ff`: zero unresolved
+findings. Both earlier duplications remain fixed. The guard restores the
+calling thread's previous clock; dependency wiring shares OpenMLS 0.8.1 with
+the probe. License, provenance and upgrade instructions are documented.
+
 No hard documented-standard breaches; two low-severity duplication findings.
 The recovery importer repeated the initial importer's transaction/publication
 sequence, and recovery repeated the signed frame-size check. Both now share
@@ -173,6 +192,12 @@ The affected initial/recovery signed-packet suites passed. Source switching
 with live text and large UTF-8 native transfers passed after these fixes.
 
 ## Spec
+
+Final independent read-only review of `c21b7e1...fe805ff`: zero findings.
+P1 remains resolved. P2 is resolved for v2 evidence, which authenticates the
+original admission time before both package validation and local commit
+processing. The one changed upstream source and timestamp fields match the
+additional user approval. Legacy v1 evidence retains its documented policy.
 
 P1: an equal source manifest or an imported duplicate could mark progress
 before the concurrent live row was durable. A crash then lost the row while
@@ -196,8 +221,9 @@ and thread isolation. The signed seam first failed a genuine 100-day-old
 package/commit, then passed recovery, restart and bidirectional MLS messages.
 It refuses forged/out-of-window/future times, tampered package/commit signatures
 and excessive lifetime ranges. Strict Clippy, core build and Flutter analysis
-pass. The final full Rust rerun, coverage and independent review are in progress.
-Code generation is also being checked for unchanged bindings.
+pass. Final independent review has no unresolved findings. Code generation
+passed without binding changes. The full Rust rerun passed and changed
+production coverage is 90.59%, including 100% of the patched upstream lines.
 
 The separate probe check exposes a pre-existing E0603: `mosh-probe/src/main.rs`
 imports `PrivateGroupRuntime`, whose core re-export is crate-private. Neither
@@ -205,12 +231,14 @@ source differs from the review baseline. Probe resolution correctly selects
 the patched OpenMLS; its lockfile only drops that crate's registry/checksum.
 The unrelated visibility failure remains outside issue 26.
 
-Review findings: Standards 2 fixed; Spec P1 and P2 implemented and verified at
-their focused seams. Final independent review follows the dependency patch.
+The implementation and corrections are local commits on `main`, including
+`ae92a55`, `337b514` and `fe805ff`. No push, deployment or merge was performed.
+
+Review findings: Standards 0 unresolved; Spec 0 unresolved. Earlier Standards
+2 and Spec 2 are fixed and independently reviewed.
 
 ## Changed files
 
-- `coverage/lcov.info`
 - `dm-offline-recovery.plan.md`
 - `docs/ADR/0032-dm-offline-recovery.md`
 - `docs/Architecture.md`

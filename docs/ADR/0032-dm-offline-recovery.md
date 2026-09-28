@@ -182,6 +182,8 @@ size exceptions from ADRs 0030/0031 remain. Ordered native interruption and
 two-epoch tests, plus signed-packet scenario helpers, may exceed 50 lines to
 keep their durable transitions and caller-visible assertions together. New
 production recovery files remain below the repository's file/type limits.
+The existing `MlsSessionCrypto` file/type also exceeds those limits; this change
+shares package construction and adds its common lifetime-range validation.
 Historical signed scenario helpers have the same function-size exception.
 Vendored upstream files retain their original structure and are exempt from
 Mosh size limits; the local patch is documented beside the dependency.
