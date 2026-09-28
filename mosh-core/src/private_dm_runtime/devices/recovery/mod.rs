@@ -1,5 +1,6 @@
 mod epochs;
 mod import;
+mod relay;
 mod source;
 mod types;
 
@@ -165,16 +166,11 @@ impl PrivateDmSession {
     }
 
     fn recovery_probe_packets(&self, probe: RecoveryProbe) -> Result<Vec<(String, DeviceMessage)>> {
-        self.membership
-            .as_ref()
-            .ok_or_else(invalid)?
-            .topology
-            .clients
-            .iter()
-            .filter(|client| client.mls_signer != hex::encode(self.crypto.signer_public()))
-            .map(|client| {
+        self.recovery_candidates()?
+            .into_iter()
+            .map(|device| {
                 Ok((
-                    client.device()?.moss_peer_id,
+                    device.moss_peer_id,
                     DeviceMessage::RecoveryProbe(probe.clone()),
                 ))
             })
@@ -183,14 +179,11 @@ impl PrivateDmSession {
 
     fn recovery_pull(&self, recovery: &Recovery) -> Result<(String, DeviceMessage)> {
         let source = recovery.source.as_ref().ok_or_else(invalid)?;
-        let membership = self.membership.as_ref().ok_or_else(invalid)?;
-        let peer = membership
-            .topology
-            .clients
-            .iter()
-            .find(|client| client.device_id == source.device_id)
+        let peer = self
+            .recovery_candidates()?
+            .into_iter()
+            .find(|device| device.device_id == source.device_id)
             .ok_or_else(invalid)?
-            .device()?
             .moss_peer_id;
         Ok((
             peer,
