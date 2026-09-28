@@ -1,0 +1,146 @@
+use super::*;
+use crate::private_dm_runtime::devices::recovery::{RecoveryOffer, RecoveryProbe};
+
+pub(super) fn two_client_contact_recovers_missed_add_and_remove() {
+    let mut f = Fixture::with_clients(false);
+    assert_eq!(
+        f.runtime.session_ref(&f.session).unwrap().crypto.epoch(),
+        Some(1)
+    );
+    let admission = recovery::next_admission(&mut f, "missed-first-add.redb", "first-add");
+    let addition = EpochRecord::create(&f.contact, &admission, now_ms()).unwrap();
+    let roster = f
+        .contact
+        .roster()
+        .revoke(&admission.request.claim.device_id, &f.contact.key())
+        .unwrap();
+    let author = f.peers.get_mut(&f.contact.device().device_id).unwrap();
+    let commit = author
+        .remove_member_by_signer(&admission.request.claim.mls_signer)
+        .unwrap();
+    let removal = RemovalRecord::create(
+        &f.contact,
+        &f.session,
+        admission.request.claim.device_id,
+        roster.clone(),
+        author,
+        commit,
+    )
+    .unwrap();
+    adopt(&mut f.contact, roster);
+    let mut forged = removal.clone();
+    forged.epoch += 1;
+    let forged = f.packet(&f.contact, DeviceMessage::Removal(forged));
+    assert!(f.receive(&forged).is_err());
+    assert!(f
+        .runtime
+        .session_ref(&f.session)
+        .unwrap()
+        .membership
+        .as_ref()
+        .unwrap()
+        .recovery
+        .is_none());
+    let packet = f.packet(&f.contact, DeviceMessage::Removal(removal.clone()));
+    assert!(
+        f.receive(&packet).is_err(),
+        "ahead evidence cannot install a skipped epoch"
+    );
+    f.runtime.rehydrate();
+    let recovery = f
+        .runtime
+        .session_ref(&f.session)
+        .unwrap()
+        .membership
+        .as_ref()
+        .unwrap()
+        .recovery
+        .as_ref()
+        .expect("authenticated ahead Remove must durably bootstrap two-client recovery");
+    assert_eq!(recovery.required_epoch, 3);
+    assert_eq!(
+        f.runtime.session_ref(&f.session).unwrap().crypto.epoch(),
+        Some(1)
+    );
+    let store = f.runtime.sessions.persistence().cloned().unwrap();
+    let packets = f
+        .runtime
+        .session_mut(&f.session)
+        .unwrap()
+        .recovery_packets(&store, now_ms() + 5_001)
+        .unwrap();
+    let probe = packets
+        .into_iter()
+        .find_map(|(_, message)| match message {
+            DeviceMessage::RecoveryProbe(probe) => Some(probe),
+            _ => None,
+        })
+        .expect("the original two-client membership must request its missed epochs");
+    finish_ordered_recovery(&mut f, probe, addition, removal);
+}
+
+fn finish_ordered_recovery(
+    f: &mut Fixture,
+    probe: RecoveryProbe,
+    addition: EpochRecord,
+    removal: RemovalRecord,
+) {
+    let round = probe.round;
+    let packet = f.packet(
+        &f.contact,
+        DeviceMessage::RecoveryOffer(RecoveryOffer {
+            probe,
+            epoch: 3,
+            manifest: "ab".repeat(32),
+        }),
+    );
+    f.receive(&packet).unwrap();
+    let request_id = f
+        .runtime
+        .session_ref(&f.session)
+        .unwrap()
+        .membership
+        .as_ref()
+        .unwrap()
+        .recovery
+        .as_ref()
+        .unwrap()
+        .source
+        .as_ref()
+        .unwrap()
+        .import
+        .request_id
+        .clone();
+    let add = f.packet(
+        &f.contact,
+        DeviceMessage::RecoveryEpoch(RecoveryEpoch {
+            round,
+            request_id: request_id.clone(),
+            evidence: addition,
+        }),
+    );
+    f.receive(&add)
+        .expect("recover the first missed Add before its Remove");
+    let remove = f.packet(
+        &f.contact,
+        DeviceMessage::RecoveryRemoval(RecoveryRemoval {
+            round,
+            request_id,
+            evidence: removal,
+        }),
+    );
+    let _ = f.receive(&remove); // The durable transition precedes its disconnected acknowledgement.
+    let session = f.runtime.session_mut(&f.session).unwrap();
+    assert_eq!(session.crypto.epoch(), Some(3));
+    assert_eq!(session.crypto.member_count(), 2);
+    assert!(!session.awaiting_device_epoch());
+    let ciphertext = session.crypto.encrypt(b"surviving contact").unwrap();
+    assert_eq!(
+        f.peers
+            .get_mut(&f.contact.device().device_id)
+            .unwrap()
+            .decrypt(&ciphertext)
+            .unwrap(),
+        b"surviving contact"
+    );
+}

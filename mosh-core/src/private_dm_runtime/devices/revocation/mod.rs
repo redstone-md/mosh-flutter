@@ -1,3 +1,4 @@
+mod bootstrap;
 mod delivery;
 mod evidence;
 mod recovery;

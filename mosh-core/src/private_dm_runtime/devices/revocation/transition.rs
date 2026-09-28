@@ -79,6 +79,9 @@ impl PrivateDmRuntime {
         roster: &DeviceRoster,
         evidence: RemovalRecord,
     ) -> Result<()> {
+        if self.bootstrap_future_removal(sender, roster, &evidence)? {
+            return Err(invalid());
+        }
         let session = self.session_ref(&evidence.session_id)?;
         session.authorize_removal_relay(sender, roster)?;
         let membership = session.membership.as_ref().ok_or_else(invalid)?;

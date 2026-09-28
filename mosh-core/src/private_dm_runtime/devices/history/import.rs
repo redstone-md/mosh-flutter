@@ -30,32 +30,23 @@ impl PrivateDmSession {
         roster: &DeviceRoster,
         epoch: Option<u64>,
     ) -> Result<()> {
-        if self.awaiting_device_epoch()
-            || (epoch.is_none()
-                && self
-                    .membership
-                    .as_ref()
-                    .and_then(|m| m.topology.roster(&roster.user_id()))
-                    .is_some_and(|base| roster.has_removal_since(base).unwrap_or(false)))
-        {
-            return Err(invalid());
-        }
         let Some(epoch) =
             epoch.filter(|epoch| self.crypto.epoch().is_some_and(|current| *epoch > current))
         else {
+            if self.awaiting_device_epoch()
+                || (epoch.is_none()
+                    && self
+                        .membership
+                        .as_ref()
+                        .and_then(|m| m.topology.roster(&roster.user_id()))
+                        .is_some_and(|base| roster.has_removal_since(base).unwrap_or(false)))
+            {
+                return Err(invalid());
+            }
             return Ok(());
         };
         let mut next = self.membership.clone().ok_or_else(invalid)?;
-        let recovery = next.recovery.get_or_insert_with(|| {
-            super::super::recovery::Recovery::new(
-                super::super::super::now_ms(),
-                self.crypto.epoch().unwrap_or(0),
-            )
-        });
-        recovery.required_epoch = recovery.required_epoch.max(epoch);
-        if let Some(source) = &mut recovery.source {
-            source.epoch = source.epoch.max(epoch);
-        }
+        next.require_epoch(epoch, self.crypto.epoch().ok_or_else(invalid)?);
         self.save_recovery_membership(store, next)?;
         Err(invalid())
     }

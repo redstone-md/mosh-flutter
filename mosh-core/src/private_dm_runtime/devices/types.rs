@@ -146,7 +146,9 @@ impl DeviceMembership {
     }
 
     pub(super) fn live(&self) -> bool {
-        (self.topology.clients.len() > INITIAL_CLIENTS || !self.removals.is_empty())
+        (self.topology.clients.len() > INITIAL_CLIENTS
+            || !self.removals.is_empty()
+            || self.recovery.is_some())
             && self.joining.is_none()
     }
 
