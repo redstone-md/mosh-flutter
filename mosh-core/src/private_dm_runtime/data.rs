@@ -10,6 +10,7 @@ impl PrivateDmSession {
         {
             return Ok(());
         }
+        let expected_signer = self.verify_device_text(&envelope)?;
 
         // Re-ack a message we already hold BEFORE decrypting: MLS forward
         // secrecy makes a second decrypt of the same ciphertext fail, and a
@@ -17,26 +18,59 @@ impl PrivateDmSession {
         // This also covers post-restart replays — rehydrated history re-acks
         // instead of erroring on the consumed MLS secret.
         if let Some(message_id) = envelope.message_id.as_deref() {
-            if self.has_inbound_message(message_id) {
+            if self.has_inbound_message(message_id)
+                || (self.devices_live()
+                    && self
+                        .messages
+                        .iter()
+                        .any(|message| message.message_id.as_deref() == Some(message_id)))
+            {
                 self.send_delivery_ack(message_id);
                 return Ok(());
             }
         }
 
-        let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
-        self.note_authenticated_frame(&envelope.from_device);
+        let (plaintext, signer) = self
+            .crypto
+            .decrypt_with_signer(&decode(&envelope.ciphertext_b64)?)?;
+        if expected_signer
+            .as_ref()
+            .is_some_and(|expected| *expected != hex::encode(&signer))
+        {
+            return Err(super::devices::invalid());
+        }
+        let (author, own) = if self.devices_live() {
+            self.device_author(&signer)?
+        } else {
+            (envelope.from_device.clone(), false)
+        };
+        if !own {
+            self.note_authenticated_frame(&author);
+        }
         // A delivered message contradicts "typing": the hint dies at once,
         // whatever its deadline said.
-        self.clear_peer_typing();
+        if !own {
+            self.clear_peer_typing();
+        }
         let ack_id = envelope.message_id.clone();
         let message = self.messages.stamp(ChatMessage {
-            from_device: envelope.from_device,
+            from_device: author,
             body: String::from_utf8_lossy(&plaintext).into_owned(),
             message_id: envelope.message_id,
             sent_at_ms: envelope.sent_at_ms,
             attachment: None,
             call_event: None,
-            delivery_status: None,
+            delivery_status: own.then(|| {
+                if ack_id.as_ref().is_some_and(|id| {
+                    self.membership
+                        .as_ref()
+                        .is_some_and(|membership| membership.peer_delivered(id))
+                }) {
+                    MessageDeliveryStatus::Delivered
+                } else {
+                    MessageDeliveryStatus::Sent
+                }
+            }),
             delivery_error: None,
             retryable: None,
             retry_count: None,

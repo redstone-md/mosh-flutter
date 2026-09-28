@@ -1,0 +1,377 @@
+use super::super::*;
+use super::types::DmOffer;
+use super::{invalid, proof::IdentityClaim, runtime::send_packet, types::*};
+use crate::device_link::{identity::DeviceIdentity, roster::DeviceRoster, types::DeviceDescriptor};
+
+impl PrivateDmRuntime {
+    pub(super) fn receive_device_offer(
+        &mut self,
+        identity: &DeviceIdentity,
+        sender: &DeviceDescriptor,
+        offer: DmOffer,
+    ) -> Result<()> {
+        if self.sessions.holds(&offer.session_id) {
+            return Ok(());
+        }
+        let signers: Vec<_> = offer
+            .topology
+            .clients
+            .iter()
+            .map(|client| client.mls_signer.clone())
+            .collect();
+        offer.topology.validate(&offer.session_id, &signers)?;
+        if offer.topology.own_user_id != identity.roster().user_id()
+            || !offer.topology.clients.iter().any(|client| {
+                client.device_id == sender.device_id && offer.topology.own(&client.mls_signer)
+            })
+            || offer
+                .topology
+                .clients
+                .iter()
+                .any(|client| client.device_id == identity.device().device_id)
+        {
+            return Err(invalid());
+        }
+        let mut crypto = MlsSessionCrypto::new(&identity.device().device_id)?;
+        let request = JoinRequest {
+            request_id: crypto.random_token(JOIN_TOKEN)?,
+            claim: IdentityClaim::create(
+                identity,
+                &offer.session_id,
+                &crypto.signer_public(),
+                &offer.own_name,
+            )?,
+            key_package: crypto.key_package_bytes()?,
+        };
+        let session = self.pending_device_session(offer, crypto, request.clone(), sender)?;
+        self.persist_device_session(&session)?;
+        self.sessions.mark_record_final(&session.session_id);
+        self.sessions.insert(session.session_id.clone(), session);
+        send_packet(
+            &self.transport,
+            identity,
+            &sender.moss_peer_id,
+            DeviceMessage::Join(request),
+        )
+    }
+
+    fn pending_device_session(
+        &mut self,
+        offer: DmOffer,
+        crypto: MlsSessionCrypto,
+        request: JoinRequest,
+        sender: &DeviceDescriptor,
+    ) -> Result<PrivateDmSession> {
+        self.open_dm_room(&offer.mesh_id, &offer.session_id, 0, None)?;
+        let participant = crypto.random_token(PARTICIPANT_TOKEN)?;
+        let mut session = PrivateDmSession::new(
+            SessionRole::Bob,
+            offer.own_name,
+            participant,
+            offer.session_id,
+            offer.mesh_id,
+            offer.fingerprint,
+            offer.invite_uri,
+            0,
+            None,
+            Arc::clone(&self.transport),
+            crypto,
+            Arc::clone(self.sessions.attachment_store()),
+        );
+        session.peer_display_name = Some(offer.peer_name);
+        session.peer_moss_id = offer
+            .topology
+            .clients
+            .iter()
+            .find(|client| !offer.topology.own(&client.mls_signer))
+            .map(IdentityClaim::device)
+            .transpose()?
+            .map(|device| device.moss_peer_id);
+        session.membership = Some(DeviceMembership {
+            topology: offer.topology,
+            joining: Some(PendingJoin {
+                request,
+                authorizer_peer: sender.moss_peer_id.clone(),
+                group_id: offer.group_id,
+            }),
+            delivery: None,
+            receipt_targets: HashMap::new(),
+            delivered_ids: Vec::new(),
+        });
+        Ok(session)
+    }
+
+    pub(super) fn authorize_device_join(
+        &mut self,
+        identity: &DeviceIdentity,
+        sender: &DeviceDescriptor,
+        request: JoinRequest,
+    ) -> Result<()> {
+        let session_id = request.claim.session_id.clone();
+        let session = self.session_ref(&session_id)?;
+        let membership = session.membership.as_ref().ok_or_else(invalid)?;
+        verify_request(&session.crypto, &request)?;
+        if sender.device_id != request.claim.device_id
+            || request.claim.roster.digest().map_err(|_| invalid())?
+                != identity.roster().digest().map_err(|_| invalid())?
+            || identity.roster().user_id() != membership.topology.own_user_id
+        {
+            return Err(invalid());
+        }
+        if membership.client(&request.claim.mls_signer).is_some() || membership.delivery.is_some() {
+            return Ok(());
+        }
+        membership
+            .topology
+            .validate(&session_id, &session.crypto.member_signers())?;
+        let mut crypto = copy_crypto(session)?;
+        let outcome = crypto.add_members(&[&request.key_package])?;
+        let mut next = membership.clone();
+        next.topology.add_client(request.claim.clone())?;
+        next.topology
+            .validate(&session_id, &crypto.member_signers())?;
+        let admission = Admission {
+            request,
+            commit: outcome.commit_bytes,
+            welcome: outcome.welcome_bytes,
+            tree: outcome.tree_bytes,
+            topology: next.topology.clone(),
+            group_id: crypto.group_id_bytes().ok_or_else(invalid)?,
+            epoch: crypto.epoch().ok_or_else(invalid)?,
+        };
+        next.delivery = Some(AdmissionJournal::new(
+            admission,
+            &identity.device().device_id,
+        )?);
+        self.install_device_transition(&session_id, crypto, next)
+    }
+
+    pub(super) fn apply_device_admission(
+        &mut self,
+        identity: &DeviceIdentity,
+        sender: &DeviceDescriptor,
+        sender_roster: &DeviceRoster,
+        admission: Admission,
+    ) -> Result<()> {
+        let session_id = admission.request.claim.session_id.clone();
+        let session = self.session_ref(&session_id)?;
+        let membership = session.membership.as_ref().ok_or_else(invalid)?;
+        verify_authorizer(membership, sender, sender_roster, &admission)?;
+        verify_request(&session.crypto, &admission.request)?;
+        if membership.joining.is_none()
+            && session.crypto.epoch() == Some(admission.epoch)
+            && membership
+                .client(&admission.request.claim.mls_signer)
+                .is_some()
+        {
+            return self.send_admission_ack(identity, sender, &admission);
+        }
+        let (crypto, next) = stage_admission(session, &admission)?;
+        self.install_device_transition(&session_id, crypto, next)?;
+        self.send_admission_ack(identity, sender, &admission)
+    }
+
+    fn send_admission_ack(
+        &self,
+        identity: &DeviceIdentity,
+        sender: &DeviceDescriptor,
+        admission: &Admission,
+    ) -> Result<()> {
+        send_packet(
+            &self.transport,
+            identity,
+            &sender.moss_peer_id,
+            DeviceMessage::Ack {
+                session_id: admission.request.claim.session_id.clone(),
+                request_id: admission.request.request_id.clone(),
+                epoch: admission.epoch,
+            },
+        )
+    }
+
+    pub(super) fn acknowledge_device_admission(
+        &mut self,
+        sender: &DeviceDescriptor,
+        roster: &DeviceRoster,
+        session_id: &str,
+        request: &str,
+        epoch: u64,
+    ) -> Result<()> {
+        let session = self.session_ref(session_id)?;
+        let membership = session.membership.as_ref().ok_or_else(invalid)?;
+        let base = membership
+            .topology
+            .roster(&roster.user_id())
+            .ok_or_else(invalid)?;
+        if !roster.extends(base).map_err(|_| invalid())?
+            || !membership
+                .topology
+                .clients
+                .iter()
+                .any(|client| client.device_id == sender.device_id)
+        {
+            return Err(invalid());
+        }
+        let Some(journal) = &membership.delivery else {
+            return Ok(());
+        };
+        if journal.admission.request.request_id != request || journal.admission.epoch != epoch {
+            return Err(invalid());
+        }
+        let mut next = membership.clone();
+        let journal = next.delivery.as_mut().ok_or_else(invalid)?;
+        journal.waiting.retain(|peer| peer != &sender.moss_peer_id);
+        if journal.waiting.is_empty() {
+            next.delivery = None;
+        }
+        self.install_device_transition(session_id, copy_crypto(session)?, next)
+    }
+
+    fn install_device_transition(
+        &mut self,
+        session_id: &str,
+        crypto: MlsSessionCrypto,
+        membership: DeviceMembership,
+    ) -> Result<()> {
+        let session = self.session_ref(session_id)?;
+        let mut record = session.to_persisted_record();
+        record.membership = Some(membership.clone());
+        record.group_id = crypto.group_id_bytes().unwrap_or_default();
+        self.save_device_transition(&record, &crypto)?;
+        let session = self.session_mut(session_id)?;
+        let epoch_changed = session.crypto.epoch() != crypto.epoch();
+        session.crypto = crypto;
+        session.membership = Some(membership);
+        session.record_dirty = false;
+        if epoch_changed {
+            for attempt in session.outbound_attempts.values_mut() {
+                attempt.last_send_ms = 0;
+            }
+            session.note_handshake_frame();
+            session.state = DmSessionState::Handshaking;
+            session.seen = SeenFrames::default();
+        }
+        Ok(())
+    }
+
+    fn persist_device_session(&self, session: &PrivateDmSession) -> Result<()> {
+        self.save_device_transition(&session.to_persisted_record(), &session.crypto)
+    }
+
+    fn save_device_transition(
+        &self,
+        record: &contracts::PersistedSession,
+        crypto: &MlsSessionCrypto,
+    ) -> Result<()> {
+        let store = self.sessions.persistence().ok_or_else(invalid)?;
+        let bytes = serde_json::to_vec(record).map_err(|_| invalid())?;
+        store.put_dm_transition(&record.session_id, &bytes, &crypto.snapshot())?;
+        Ok(())
+    }
+}
+
+const JOIN_TOKEN: &str = "device-join";
+const PARTICIPANT_TOKEN: &str = "participant";
+const MAX_REQUEST_ID_BYTES: usize = 128;
+
+fn copy_crypto(session: &PrivateDmSession) -> Result<MlsSessionCrypto> {
+    let signer = session.crypto.signer_public();
+    let snapshot = session.crypto.snapshot();
+    match session.crypto.group_id_bytes() {
+        Some(group) => Ok(MlsSessionCrypto::restore(
+            &session.device_id,
+            &signer,
+            &snapshot,
+            &group,
+        )?),
+        None => Ok(MlsSessionCrypto::restore_unjoined(
+            &session.device_id,
+            &signer,
+            &snapshot,
+        )?),
+    }
+}
+
+pub(super) fn verify_request(crypto: &MlsSessionCrypto, request: &JoinRequest) -> Result<()> {
+    request.claim.verify(&request.claim.session_id)?;
+    if request.request_id.is_empty()
+        || request.request_id.len() > MAX_REQUEST_ID_BYTES
+        || crypto.key_package_identity(&request.key_package)? != request.claim.device_id
+        || crypto.key_package_signer(&request.key_package)? != request.claim.mls_signer
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+pub(super) fn verify_authorizer(
+    membership: &DeviceMembership,
+    sender: &DeviceDescriptor,
+    roster: &DeviceRoster,
+    admission: &Admission,
+) -> Result<()> {
+    let author = membership
+        .topology
+        .clients
+        .iter()
+        .find(|client| client.device_id == sender.device_id)
+        .ok_or_else(invalid)?;
+    let base = membership
+        .topology
+        .roster(&roster.user_id())
+        .ok_or_else(invalid)?;
+    if author.roster.user_id() != admission.request.claim.roster.user_id()
+        || roster.user_id() != author.roster.user_id()
+        || !roster.extends(base).map_err(|_| invalid())?
+        || !admission
+            .request
+            .claim
+            .roster
+            .extends(base)
+            .map_err(|_| invalid())?
+        || !admission
+            .request
+            .claim
+            .roster
+            .devices()
+            .map_err(|_| invalid())?
+            .contains(sender)
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+fn stage_admission(
+    session: &PrivateDmSession,
+    admission: &Admission,
+) -> Result<(MlsSessionCrypto, DeviceMembership)> {
+    let mut next = session.membership.clone().ok_or_else(invalid)?;
+    let mut crypto = copy_crypto(session)?;
+    if let Some(join) = &next.joining {
+        if join.request.request_id != admission.request.request_id
+            || join.request.key_package != admission.request.key_package
+            || join.group_id != admission.group_id
+        {
+            return Err(invalid());
+        }
+        crypto.join_welcome(&admission.welcome, &admission.tree)?;
+    } else {
+        if crypto.epoch().and_then(|epoch| epoch.checked_add(1)) != Some(admission.epoch)
+            || crypto.group_id_bytes().as_ref() != Some(&admission.group_id)
+        {
+            return Err(invalid());
+        }
+        crypto.process_commit(&admission.commit)?;
+    }
+    next.topology.add_client(admission.request.claim.clone())?;
+    next.topology
+        .validate(&session.session_id, &crypto.member_signers())?;
+    if crypto.epoch() != Some(admission.epoch)
+        || crypto.group_id_bytes().as_ref() != Some(&admission.group_id)
+    {
+        return Err(invalid());
+    }
+    next.joining = None;
+    Ok((crypto, next))
+}

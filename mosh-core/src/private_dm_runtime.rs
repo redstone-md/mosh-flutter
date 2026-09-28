@@ -1,5 +1,6 @@
 mod call_media;
 pub(crate) mod contracts;
+mod devices;
 mod invite;
 pub(crate) mod transport;
 mod wire;
@@ -163,9 +164,14 @@ pub struct PrivateDmRuntime {
     /// never takes this runtime's lock.
     media: Arc<CallMedia>,
     lost_window_ms: u64,
+    device_link: Option<devices::DeviceDmLink>,
 }
 
 struct PrivateDmSession {
+    membership: Option<devices::DeviceMembership>,
+    device_signer: Option<ed25519_dalek::SigningKey>,
+    device_store: Option<Arc<Persistence>>,
+    device_connect_requested: std::collections::HashSet<String>,
     role: SessionRole,
     state: DmSessionState,
     // When the last authenticated frame from the counterpart was drained, on
@@ -267,11 +273,16 @@ impl PrivateDmRuntime {
         attachment_store: Arc<AttachmentStore>,
         persistence: Option<Arc<Persistence>>,
     ) -> Self {
-        Self::with_transport(
-            MossDmTransport::new(shared_node),
+        let linked = persistence.is_some();
+        let mut runtime = Self::with_transport(
+            MossDmTransport::new(shared_node.clone()),
             attachment_store,
             persistence,
-        )
+        );
+        if linked {
+            runtime.device_link = Some(devices::DeviceDmLink::new(shared_node));
+        }
+        runtime
     }
 
     /// A runtime on any transport. Production passes the moss transport; a
@@ -286,6 +297,7 @@ impl PrivateDmRuntime {
             media: CallMedia::new(Arc::clone(&transport)),
             transport,
             lost_window_ms: LOST_WINDOW_MS,
+            device_link: None,
         }
     }
 
@@ -354,12 +366,22 @@ impl PrivateDmRuntime {
                     continue;
                 }
             };
-            let crypto = match MlsSessionCrypto::restore(
-                &rec.display_name,
-                &rec.signer_public,
-                &snapshot,
-                &rec.group_id,
-            ) {
+            let restored = if rec.group_id.is_empty()
+                && rec
+                    .membership
+                    .as_ref()
+                    .is_some_and(|membership| membership.is_joining())
+            {
+                MlsSessionCrypto::restore_unjoined(&rec.display_name, &rec.signer_public, &snapshot)
+            } else {
+                MlsSessionCrypto::restore(
+                    &rec.display_name,
+                    &rec.signer_public,
+                    &snapshot,
+                    &rec.group_id,
+                )
+            };
+            let crypto = match restored {
                 Ok(c) => c,
                 Err(e) => {
                     dlog::write(
@@ -421,6 +443,8 @@ impl PrivateDmRuntime {
         // Without this the restored session cannot tell whether its
         // counterpart is reachable, and cannot ask the transport to reach it.
         session.peer_moss_id = rec.peer_moss_id.clone();
+        session.membership = rec.membership.clone();
+        session.device_store = self.sessions.persistence().cloned();
         // Read state rides the session record: ids the counterpart had
         // authenticated a read of before the restart. Without this a restart
         // would re-ask the counterpart for every receipt it already sent.
@@ -578,7 +602,14 @@ impl PrivateDmRuntime {
             let message = session.messages.stamp(ChatMessage {
                 from_device: session.device_id.clone(),
                 body,
-                message_id: None,
+                message_id: session
+                    .devices_live()
+                    .then(|| {
+                        session
+                            .crypto
+                            .random_token(&hex::encode(session.crypto.signer_public()))
+                    })
+                    .transpose()?,
                 sent_at_ms: None,
                 attachment: None,
                 call_event: None,
@@ -838,6 +869,7 @@ impl PrivateDmRuntime {
     /// [`Self::drain_inbound`] on a given clock: the frames drained here are
     /// stamped with `now` when the tick records the counterpart's proof.
     fn drain_inbound_at(&mut self, now: u64) {
+        self.prepare_devices();
         for message in self.transport.drain() {
             self.route_frame(message);
         }
@@ -854,6 +886,12 @@ impl PrivateDmRuntime {
     /// "secret deleted to preserve forward secrecy". That is expected, so the
     /// frame is dropped and the drain keeps going.
     fn route_frame(&mut self, message: MossReceivedMessage) {
+        if message.channel == devices::DEVICE_CHANNEL {
+            if let Err(error) = self.receive_device_packet(&message.payload) {
+                dlog::write(LogLevel::Warn, kinds::VERIFY, KIND, &error.to_string());
+            }
+            return;
+        }
         if let Some(session_id) = channel_session_id(&message.channel).map(str::to_string) {
             let Some(session) = self.sessions.get_mut(&session_id) else {
                 return;
@@ -893,6 +931,7 @@ impl PrivateDmRuntime {
         for (session_id, message_id) in dirty {
             self.sessions.persist_send(&session_id, &message_id, false);
         }
+        self.pump_devices(now);
         self.sessions.persist_tail();
         self.sync_call_media();
     }
@@ -1032,6 +1071,10 @@ impl ConversationSession for PrivateDmSession {
     /// empty placeholder, and a session saved in that state cannot be rebuilt.
     fn record_is_final(&self) -> bool {
         self.crypto.group_id_bytes().is_some()
+            || self
+                .membership
+                .as_ref()
+                .is_some_and(|membership| membership.is_joining())
     }
 
     fn record_changed(&self) -> bool {
