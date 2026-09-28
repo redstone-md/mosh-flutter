@@ -84,6 +84,8 @@ dependencies:
   # Atomic #2 will wire it into the launcher; this atomic only adds the dep +
   # the FileProvider config it requires.
   open_filex: ^4.7.0
+  qr_flutter: ^4.1.0
+  zxing2: ^0.2.4
 
 # record_macos 2.1.1 with one patch (InputHelper.swift, getInputSampleRates):
 # a virtual audio driver that reports the sample-rate range 0...DBL_MAX made

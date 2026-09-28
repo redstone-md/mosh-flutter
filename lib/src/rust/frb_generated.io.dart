@@ -8,6 +8,7 @@ import 'api/audio_devices.dart';
 import 'api/channel.dart';
 import 'api/conversation.dart';
 import 'api/conversation_bridge.dart';
+import 'api/device_link.dart';
 import 'api/diagnostics.dart';
 import 'api/network.dart';
 import 'api/org.dart';
@@ -27,6 +28,7 @@ import 'conversation/mesh.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
+import 'device_link/types.dart';
 import 'frb_generated.dart';
 import 'moss_runtime.dart';
 import 'network_inventory.dart';
@@ -188,6 +190,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CreateGroupRequest dco_decode_box_autoadd_create_group_request(dynamic raw);
 
   @protected
+  DeviceDescriptor dco_decode_box_autoadd_device_descriptor(dynamic raw);
+
+  @protected
+  DeviceLinkErrorKind dco_decode_box_autoadd_device_link_error_kind(
+      dynamic raw);
+
+  @protected
   JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw);
 
   @protected
@@ -272,6 +281,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CreateGroupRequest dco_decode_create_group_request(dynamic raw);
 
   @protected
+  DeviceDescriptor dco_decode_device_descriptor(dynamic raw);
+
+  @protected
+  DeviceLinkError dco_decode_device_link_error(dynamic raw);
+
+  @protected
+  DeviceLinkErrorKind dco_decode_device_link_error_kind(dynamic raw);
+
+  @protected
+  DeviceLinkPhase dco_decode_device_link_phase(dynamic raw);
+
+  @protected
+  DeviceLinkSnapshot dco_decode_device_link_snapshot(dynamic raw);
+
+  @protected
   DmOffer dco_decode_dm_offer(dynamic raw);
 
   @protected
@@ -321,6 +345,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatMessage> dco_decode_list_chat_message(dynamic raw);
+
+  @protected
+  List<DeviceDescriptor> dco_decode_list_device_descriptor(dynamic raw);
 
   @protected
   List<DmOffer> dco_decode_list_dm_offer(dynamic raw);
@@ -421,6 +448,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ConnectOutcome? dco_decode_opt_box_autoadd_connect_outcome(dynamic raw);
+
+  @protected
+  DeviceDescriptor? dco_decode_opt_box_autoadd_device_descriptor(dynamic raw);
+
+  @protected
+  DeviceLinkErrorKind? dco_decode_opt_box_autoadd_device_link_error_kind(
+      dynamic raw);
 
   @protected
   MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw);
@@ -659,6 +693,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  DeviceDescriptor sse_decode_box_autoadd_device_descriptor(
+      SseDeserializer deserializer);
+
+  @protected
+  DeviceLinkErrorKind sse_decode_box_autoadd_device_link_error_kind(
+      SseDeserializer deserializer);
+
+  @protected
   JoinChannelRequest sse_decode_box_autoadd_join_channel_request(
       SseDeserializer deserializer);
 
@@ -756,6 +798,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  DeviceDescriptor sse_decode_device_descriptor(SseDeserializer deserializer);
+
+  @protected
+  DeviceLinkError sse_decode_device_link_error(SseDeserializer deserializer);
+
+  @protected
+  DeviceLinkErrorKind sse_decode_device_link_error_kind(
+      SseDeserializer deserializer);
+
+  @protected
+  DeviceLinkPhase sse_decode_device_link_phase(SseDeserializer deserializer);
+
+  @protected
+  DeviceLinkSnapshot sse_decode_device_link_snapshot(
+      SseDeserializer deserializer);
+
+  @protected
   DmOffer sse_decode_dm_offer(SseDeserializer deserializer);
 
   @protected
@@ -811,6 +870,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer);
+
+  @protected
+  List<DeviceDescriptor> sse_decode_list_device_descriptor(
+      SseDeserializer deserializer);
 
   @protected
   List<DmOffer> sse_decode_list_dm_offer(SseDeserializer deserializer);
@@ -928,6 +991,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ConnectOutcome? sse_decode_opt_box_autoadd_connect_outcome(
+      SseDeserializer deserializer);
+
+  @protected
+  DeviceDescriptor? sse_decode_opt_box_autoadd_device_descriptor(
+      SseDeserializer deserializer);
+
+  @protected
+  DeviceLinkErrorKind? sse_decode_opt_box_autoadd_device_link_error_kind(
       SseDeserializer deserializer);
 
   @protected
@@ -1182,6 +1253,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       CreateGroupRequest self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_device_descriptor(
+      DeviceDescriptor self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_device_link_error_kind(
+      DeviceLinkErrorKind self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_join_channel_request(
       JoinChannelRequest self, SseSerializer serializer);
 
@@ -1285,6 +1364,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       CreateGroupRequest self, SseSerializer serializer);
 
   @protected
+  void sse_encode_device_descriptor(
+      DeviceDescriptor self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_device_link_error(
+      DeviceLinkError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_device_link_error_kind(
+      DeviceLinkErrorKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_device_link_phase(
+      DeviceLinkPhase self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_device_link_snapshot(
+      DeviceLinkSnapshot self, SseSerializer serializer);
+
+  @protected
   void sse_encode_dm_offer(DmOffer self, SseSerializer serializer);
 
   @protected
@@ -1344,6 +1443,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_chat_message(
       List<ChatMessage> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_device_descriptor(
+      List<DeviceDescriptor> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_dm_offer(List<DmOffer> self, SseSerializer serializer);
@@ -1467,6 +1570,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_connect_outcome(
       ConnectOutcome? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_device_descriptor(
+      DeviceDescriptor? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_device_link_error_kind(
+      DeviceLinkErrorKind? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_mesh_info(

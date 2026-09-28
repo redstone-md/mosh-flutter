@@ -15,6 +15,7 @@
 //! kept bridge-friendly so `flutter_rust_bridge` can generate the Dart
 //! bindings without manual glue.
 
+pub mod device_link;
 /// Facade for app-level health: `app_diagnostics` /
 /// `native_runtime_status`.
 pub mod diagnostics;

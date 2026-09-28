@@ -1,0 +1,63 @@
+use std::sync::{Arc, OnceLock};
+
+use super::types::{DeviceLinkError, DeviceLinkErrorKind, Result};
+use crate::inbox::{self, Inbox};
+use crate::moss_ffi::{MossNode, MossReceivedMessage};
+use crate::shared_node::SharedMossNode;
+
+pub const LINK_CHANNEL: &str = "mosh-device-link";
+pub(crate) const LINK_STREAM_ID: u32 = 3;
+static INBOX: OnceLock<Inbox> = OnceLock::new();
+
+pub(crate) struct LinkTransport {
+    shared: Arc<SharedMossNode>,
+    node: Arc<MossNode>,
+}
+
+impl LinkTransport {
+    pub fn new(shared: Arc<SharedMossNode>) -> Result<Self> {
+        INBOX.get_or_init(|| inbox::register(|channel| channel == LINK_CHANNEL));
+        let node = shared.acquire(0, None).map_err(|_| unavailable())?;
+        if node.register_stream_handler(LINK_STREAM_ID).is_err() {
+            shared.release();
+            return Err(unavailable());
+        }
+        Ok(Self { shared, node })
+    }
+
+    pub fn peer_id(&self) -> Result<String> {
+        self.node.public_key_hex().ok_or_else(unavailable)
+    }
+
+    pub fn send(&self, peer: &str, packet: &[u8]) -> Result<()> {
+        self.node
+            .connect_to_peer(peer)
+            .map_err(|_| disconnected())?;
+        self.node
+            .open_stream(peer, LINK_STREAM_ID)
+            .map_err(|_| disconnected())?;
+        self.node
+            .send_stream(peer, LINK_STREAM_ID, packet)
+            .map_err(|_| disconnected())
+    }
+
+    pub fn drain(&self) -> Vec<MossReceivedMessage> {
+        // OnStream starts readers for peers connected since registration.
+        // Moss's periodic reader refresh otherwise waits up to 30 seconds.
+        let _ = self.node.register_stream_handler(LINK_STREAM_ID);
+        INBOX.get().map(Inbox::drain).unwrap_or_default()
+    }
+}
+
+fn unavailable() -> DeviceLinkError {
+    DeviceLinkError::new(DeviceLinkErrorKind::Unavailable)
+}
+fn disconnected() -> DeviceLinkError {
+    DeviceLinkError::new(DeviceLinkErrorKind::ConnectionLost)
+}
+
+impl Drop for LinkTransport {
+    fn drop(&mut self) {
+        self.shared.release();
+    }
+}
