@@ -7,6 +7,13 @@ impl PrivateDmSession {
         let envelope: ControlEnvelope = decode_json(&payload)?;
 
         match envelope {
+            ControlEnvelope::DeviceIdentity {
+                session_id,
+                participant_id,
+                ciphertext_b64,
+            } if self.is_from_counterpart(&session_id, &participant_id) => {
+                self.accept_identity_claim(&ciphertext_b64)
+            }
             ControlEnvelope::KeyPackage {
                 session_id,
                 participant_id,
@@ -26,6 +33,14 @@ impl PrivateDmSession {
                 ratchet_tree_b64,
                 moss_peer_id,
             } if self.is_bob_session(&session_id, &participant_id) => {
+                // A linked client accepts only its authorized private admission.
+                if self
+                    .membership
+                    .as_ref()
+                    .is_some_and(|membership| membership.is_joining())
+                {
+                    return Ok(());
+                }
                 if self.peer_joined {
                     return Ok(());
                 }
@@ -49,8 +64,11 @@ impl PrivateDmSession {
                 // The MLS error names the cause (a replay of an already read
                 // message, a stale epoch, a forgery); it carries no key
                 // material.
-                let plaintext = match self.crypto.decrypt(&decode(&hello_ciphertext_b64)?) {
-                    Ok(plaintext) => plaintext,
+                let (plaintext, signer) = match self
+                    .crypto
+                    .decrypt_with_signer(&decode(&hello_ciphertext_b64)?)
+                {
+                    Ok(result) => result,
                     Err(error) => {
                         dlog::write(
                             LogLevel::Warn,
@@ -60,6 +78,15 @@ impl PrivateDmSession {
                         );
                         return Ok(());
                     }
+                };
+                let from_device = if self.devices_live() {
+                    let (author, own) = self.device_author(&signer)?;
+                    if own {
+                        return Ok(());
+                    }
+                    author
+                } else {
+                    from_device
                 };
                 if let Ok(moss_peer_id) = String::from_utf8(plaintext) {
                     self.note_peer_moss_id(Some(moss_peer_id));
@@ -81,7 +108,7 @@ impl PrivateDmSession {
                 let Ok(ciphertext) = decode(&ack_ciphertext_b64) else {
                     return Ok(());
                 };
-                let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
+                let Ok((plaintext, signer)) = self.crypto.decrypt_with_signer(&ciphertext) else {
                     dlog::write(
                         LogLevel::Warn,
                         kinds::DELIVERY,
@@ -93,6 +120,9 @@ impl PrivateDmSession {
                 let Ok(message_id) = String::from_utf8(plaintext) else {
                     return Ok(());
                 };
+                if self.devices_live() {
+                    return self.accept_device_receipt(&message_id, &signer);
+                }
                 self.note_authenticated_frame("");
                 // The peer's runtime holds the message: settle it as
                 // Delivered and stop the auto-resend loop. Unknown ids (ack

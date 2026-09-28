@@ -236,6 +236,7 @@ fn duplicate_inbound_data_reacks_without_decrypt() {
         read: None,
     });
     let dup = serde_json::to_vec(&DataEnvelope {
+        device_signature: None,
         session_id: invite.session_id.clone(),
         participant_id: "peer-participant".to_string(),
         from_device: "Peer".to_string(),
@@ -289,6 +290,7 @@ fn a_decrypted_inbound_frame_proves_the_connection() {
         .encrypt(b"hello after flag loss")
         .expect("Bob should encrypt");
     let payload = serde_json::to_vec(&DataEnvelope {
+        device_signature: None,
         session_id: invite.session_id.clone(),
         participant_id: "bob-participant".to_string(),
         from_device: "Bob".to_string(),
@@ -1595,6 +1597,7 @@ fn a_final_record_without_snapshot_is_kept_and_reported() {
     // A final (group_id present) record written without its snapshot: the
     // state a silently failed snapshot write leaves behind.
     let record = contracts::PersistedSession {
+        membership: None,
         role_is_alice: true,
         display_name: "Alice".to_string(),
         participant_id: "participant-1".to_string(),

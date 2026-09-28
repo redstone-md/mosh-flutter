@@ -23,8 +23,9 @@
 //!   that arrives on both (the ingest path is idempotent per chunk index, and
 //!   a repeated `Request` is re-served — that is the retry protocol).
 //!
-//! Scope: DM attachments only. Groups and channels have no single direct
-//! peer — their blob traffic stays on the room wire this slice.
+//! DM device admission and live text also reuse this framing and stream id.
+//! Their authorization belongs to `private_dm_runtime::devices`. Groups and
+//! channels keep their blob traffic on the room wire.
 //!
 //! Mixed-version framing: a peer that predates streams never receives a
 //! stream send (the sender falls back on any stream error), so the framing is
@@ -100,7 +101,6 @@ fn frame(channel: &str, payload: &[u8]) -> Option<Vec<u8>> {
 
 /// Public framing for callers outside this module (the dm runtime tests
 /// build a frame the way the stream callback would deliver it).
-#[cfg(test)]
 pub(crate) fn frame_for_channel(channel: &str, payload: &[u8]) -> Option<Vec<u8>> {
     frame(channel, payload)
 }

@@ -10,7 +10,7 @@ const ROSTER_VERSION: u32 = 1;
 pub(crate) const DEFAULT_DEVICE_NAME: &str = "Desktop";
 pub(crate) const MAX_NAME_CHARS: usize = 64;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Authorization {
     version: u32,
     parent: Option<String>,
@@ -19,7 +19,7 @@ struct Authorization {
     signature: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceRoster {
     entries: Vec<Authorization>,
 }
@@ -98,6 +98,17 @@ impl Authorization {
 }
 
 impl DeviceRoster {
+    pub(crate) fn extends(&self, base: &Self) -> Result<bool> {
+        self.devices()?;
+        if self.entries.len() < base.entries.len() {
+            return Ok(false);
+        }
+        let prefix = Self {
+            entries: self.entries[..base.entries.len()].to_vec(),
+        };
+        Ok(prefix.digest()? == base.digest()?)
+    }
+
     pub(crate) fn genesis(device: DeviceDescriptor, key: &SigningKey) -> Result<Self> {
         let entry = Authorization::signed(None, device.device_id.clone(), device, key)?;
         let roster = Self {

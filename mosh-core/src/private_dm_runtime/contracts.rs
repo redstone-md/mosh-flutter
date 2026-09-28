@@ -376,6 +376,8 @@ impl From<crate::persistence::PersistenceError> for PrivateDmRuntimeError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedSession {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) membership: Option<super::devices::DeviceMembership>,
     pub role_is_alice: bool,
     pub display_name: String,
     pub participant_id: String,

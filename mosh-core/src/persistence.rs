@@ -9,6 +9,8 @@ use redb::{Database, ReadableTable, TableDefinition};
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::secure_storage::{OsSecureSecretStore, SecureSecretStore};
 
+mod dm_devices;
+
 const NONCE_LEN: usize = 12;
 
 /// Runtime status snapshot for the persistence module. Canonical home for the

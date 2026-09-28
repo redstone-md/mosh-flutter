@@ -89,7 +89,7 @@ impl DeviceIdentity {
                 let key = SigningKey::generate(&mut OsRng);
                 let device = DeviceDescriptor::new(&key, peer_id);
                 let roster = DeviceRoster::genesis(device.clone(), &key)?;
-                LocalIdentity {
+                let candidate = LocalIdentity {
                     seed: key.to_bytes(),
                     device,
                     roster,
@@ -97,12 +97,16 @@ impl DeviceIdentity {
                     receipt: None,
                     pending: None,
                     consumed: Vec::new(),
-                }
+                };
+                let bytes = serde_json::to_vec(&candidate).map_err(storage_error)?;
+                let bytes = store
+                    .initialize_device_link(&bytes)
+                    .map_err(storage_error)?;
+                serde_json::from_slice(&bytes).map_err(storage_error)?
             }
         };
         let identity = Self { store, record };
         identity.validate(peer_id)?;
-        identity.save(&identity.record)?;
         Ok(identity)
     }
 
