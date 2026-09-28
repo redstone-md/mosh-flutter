@@ -29,7 +29,10 @@ impl PrivateDmSession {
         Ok(())
     }
 
-    fn history_rows(&self, records: Vec<TextRecord>) -> Result<Vec<StoredMessage<ChatMessage>>> {
+    pub(in crate::private_dm_runtime::devices) fn history_rows(
+        &self,
+        records: Vec<TextRecord>,
+    ) -> Result<Vec<StoredMessage<ChatMessage>>> {
         let mut rows = Vec::new();
         let mut ids = HashSet::new();
         for record in records {

@@ -72,7 +72,7 @@ impl HistoryBatch {
         Ok(())
     }
 
-    pub(super) fn shrink(&mut self) -> Result<()> {
+    pub(in crate::private_dm_runtime::devices) fn shrink(&mut self) -> Result<()> {
         if self.records.len() > 1 {
             self.records.pop();
         } else if self.fragment.is_none() {

@@ -20,6 +20,7 @@ struct Fixture {
     outsider: DeviceIdentity,
     session: String,
     dir: PathBuf,
+    peers: std::collections::HashMap<String, MlsSessionCrypto>,
 }
 
 fn identity(dir: &std::path::Path, name: &str) -> DeviceIdentity {
@@ -77,6 +78,7 @@ impl Fixture {
             outsider,
             session: invite.session_id,
             dir,
+            peers: Default::default(),
         };
         fixture.admit_clients();
         fixture
@@ -93,14 +95,22 @@ impl Fixture {
         .unwrap()];
         for identity in [&self.source, &self.contact] {
             let mut crypto = MlsSessionCrypto::new(&identity.device().device_id).unwrap();
-            session
+            let outcome = session
                 .crypto
-                .add_peer(&crypto.key_package_bytes().unwrap())
+                .add_members(&[&crypto.key_package_bytes().unwrap()])
+                .unwrap();
+            for peer in self.peers.values_mut() {
+                peer.process_commit(&outcome.commit_bytes).unwrap();
+            }
+            crypto
+                .join_welcome(&outcome.welcome_bytes, &outcome.tree_bytes)
                 .unwrap();
             clients.push(
                 IdentityClaim::create(identity, &self.session, &crypto.signer_public(), "Original")
                     .unwrap(),
             );
+            self.peers
+                .insert(identity.device().device_id.clone(), crypto);
         }
         session.membership = Some(DeviceMembership {
             topology: DmTopology {
@@ -117,6 +127,9 @@ impl Fixture {
             delivered_ids: Vec::new(),
             history_import: Some(HistoryImport::new("packets", self.source.device())),
             history_exports: Vec::new(),
+            recovery: None,
+            recovery_exports: Vec::new(),
+            epoch_records: Vec::new(),
         });
         // Model the newly admitted recipient, whose persisted Welcome proves
         // admission even before its first complete history row is visible.
@@ -150,6 +163,8 @@ impl Fixture {
         self.runtime.poll_session(&self.session).unwrap()
     }
 }
+
+mod recovery;
 
 impl Drop for Fixture {
     fn drop(&mut self) {
