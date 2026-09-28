@@ -185,7 +185,7 @@ impl PrivateDmRuntime {
     ) -> Result<()> {
         let session_id = response.evidence.request.claim.session_id.clone();
         let session = self.session_ref(&session_id)?;
-        session.authorize_recovery_device(sender, roster)?;
+        session.authorize_epoch_relay(sender, roster)?;
         let membership = session.membership.as_ref().ok_or_else(invalid)?;
         let recovery = membership.recovery.as_ref().ok_or_else(invalid)?;
         let source = recovery.source.as_ref().ok_or_else(invalid)?;

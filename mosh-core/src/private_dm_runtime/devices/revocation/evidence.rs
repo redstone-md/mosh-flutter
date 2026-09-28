@@ -103,24 +103,45 @@ impl RemovalRecord {
             .topology
             .roster(&author.roster.user_id())
             .ok_or_else(invalid)?;
+        let device = author.device()?;
+        if !base.devices().map_err(|_| invalid())?.contains(&device) {
+            return Err(invalid());
+        }
+        self.verify_context(session, &device, base)?;
+        Ok(author.clone())
+    }
+    pub(super) fn verify_hint(&self, session: &PrivateDmSession) -> Result<()> {
+        let membership = session.membership.as_ref().ok_or_else(invalid)?;
+        let base = membership
+            .topology
+            .roster(&self.roster.user_id())
+            .ok_or_else(invalid)?;
+        let author = self
+            .roster
+            .devices()
+            .map_err(|_| invalid())?
+            .into_iter()
+            .find(|device| device.device_id == self.author)
+            .ok_or_else(invalid)?;
+        self.verify_context(session, &author, base)
+    }
+
+    fn verify_context(
+        &self,
+        session: &PrivateDmSession,
+        author: &DeviceDescriptor,
+        base: &DeviceRoster,
+    ) -> Result<()> {
         if self.session_id != session.session_id
             || self.group_id != session.crypto.group_id_bytes().ok_or_else(invalid)?
-            || !base
-                .devices()
-                .map_err(|_| invalid())?
-                .contains(&author.device()?)
         {
             return Err(invalid());
         }
         self.roster
             .verifies_removal_extension(base, &self.target, &self.author)
             .map_err(|_| invalid())?;
-        super::super::proof::verify(
-            &author.device()?.signing_public_key,
-            &self.signature,
-            &self.bytes()?,
-        )?;
-        Ok(author.clone())
+        super::super::proof::verify(&author.signing_public_key, &self.signature, &self.bytes()?)?;
+        Ok(())
     }
 }
 

@@ -120,12 +120,17 @@ epochs and retains the existing semantic ids, metadata, deduplication and
 atomic cursor boundary from ADRs 0031/0032. Removing an active source abandons
 its incomplete transfer and lets ordinary recovery select an authorized holder.
 An original two-client participant can miss the first Add and its subsequent
-Remove. Ahead removal evidence from an admitted relay verifies the original
-admitted author's signature, conversation, group and roster extension, then
+Remove. Ahead removal evidence verifies the original author's signature,
+conversation, group and an extension of a trusted DM user's signed roster, then
 durably pins the required epoch and starts recovery. It installs no skipped
 commit and sends no acknowledgement. Ordered replay verifies each exact MLS
 committer and leaf set. Recovery intent keeps directed routing active even
 before that participant has observed its first added leaf.
+The surviving relay may be the newly added installation that removed the
+original. Current signed roster authorization permits recovery offers and
+relay of original commits while epochs are missing. Each original MLS author
+and exact leaf set is verified in the preceding topology during ordered replay.
+Text transfer and serving remain restricted to actual admitted MLS clients.
 Initial history batches also wait for an observed pending removal or required
 newer epoch. Ordered epoch recovery can run during that paused initial import;
 the same correlated batch can resume once the transition has been applied.
