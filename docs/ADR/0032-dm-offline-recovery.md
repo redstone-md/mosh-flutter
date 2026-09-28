@@ -10,7 +10,8 @@ participants. Its own device signing key, Moss identity, MLS state and local
 storage key remain independent. Recovery lives beside admission and initial
 history in the private DM runtime. It reuses the directed encrypted Moss
 stream, signed device packets and [semantic history importer](0031-linked-desktop-dm-history.md).
-There is no new dependency, table or bridge operation.
+There is no new table or bridge operation. The approved OpenMLS 0.8.1
+dependency patch supports authenticated historical lifetime validation.
 
 [Signal Sesame](https://signal.org/docs/specifications/sesame/) separates
 per-device sessions and retries. Mosh similarly retains semantic messages
@@ -38,7 +39,8 @@ evidence and its resulting local MLS snapshot in the same durable transition.
 An acknowledgement is sent only after that commit.
 
 Evidence carries the original author, frozen signed roster, authorized join
-request, public MLS commit, group id and resulting epoch. The author signs
+request, public MLS commit, group id, resulting epoch and original admission
+time. The author signs
 these fields with a recovery-specific context. The frozen authorization
 survives later roster extensions and permits another holder to relay it.
 It carries no Welcome, tree export, private key or another client's MLS state.
@@ -71,6 +73,7 @@ sequenceDiagram
         Returning->>Holder: Pull with local epoch and durable cursor
         Holder-->>Returning: Evidence for the next epoch
         Returning->>Returning: Verify original author and authorized join
+        Returning->>Returning: Validate lifetimes at the signed admission time
         Returning->>Returning: Apply commit to a copy of own MLS state
         Returning->>Local: Save evidence, topology and own MLS snapshot atomically
         Local-->>Returning: Durable commit
@@ -140,12 +143,19 @@ without a migration or new key. Older runtimes cannot provide commit evidence
 they already discarded. No source can reconstruct deleted text or absent
 commits. A receipt on one installation does not change these retention rules.
 
-Current OpenMLS lifetime validation also refuses a retained Add transition
-after its joining KeyPackage expires, normally 84 days after creation. This
-limits long-offline replay even when evidence is available. A
-[scoped historical-validation dependency patch](../Proposals/openmls-historical-validation.md)
-is prepared and awaits approval; it has not been applied. The implementation
-does not bypass validation or copy another installation's MLS state.
+Unpatched OpenMLS validates Add lifetimes against the current clock, so an
+expired joining package would prevent long-offline recovery. The user approved
+vendoring the same version with a
+[scoped historical-validation patch](../Proposals/openmls-historical-validation.md).
+Only after verifying the original author, roster, same group and exact next
+epoch does recovery validate at the author-signed admission time. The scope
+is synchronous and local to the calling thread; return or panic restores the
+previous policy. Zero and implausibly future times are refused. Package/leaf
+signatures and lifetime windows remain checked. The shared decoder enforces
+OpenMLS's maximum range of 84 days plus its one-hour skew margin. Normal
+admission still uses the actual clock. Legacy evidence without an authenticated
+time keeps its v1 signature and current-clock policy; its expired package cannot
+establish historical validity. Recovery never imports another client's MLS state.
 
 The protocol separates retained epoch evidence from semantic text import.
 A future hosted storage adapter can supply those records through this boundary
@@ -159,7 +169,11 @@ and two ordered missed epochs after other clients acknowledged them. Temporary
 extra clients generate genuine admission commits; each owns real independent
 keys and stores. Signed packet tests cover admitted-device authorization,
 prefix rosters, replay/cursor refusals, conflicting records, original-author
-proofs, wrong groups, future epochs and restart between epochs. Widget tests
+proofs, wrong groups, future epochs and restart between epochs. A genuine
+100-day-old signed admission covers expired replay, invalid/tampered times,
+package/commit signature failures, lifetime limits and continued bidirectional
+MLS messages after restart. Public patched-API tests cover nested scopes,
+thread isolation and cleanup on panic. Widget tests
 observe waiting/importing/completion through `test/support/`.
 
 Results and the exact changed-file inventory live in
@@ -168,3 +182,6 @@ size exceptions from ADRs 0030/0031 remain. Ordered native interruption and
 two-epoch tests, plus signed-packet scenario helpers, may exceed 50 lines to
 keep their durable transitions and caller-visible assertions together. New
 production recovery files remain below the repository's file/type limits.
+Historical signed scenario helpers have the same function-size exception.
+Vendored upstream files retain their original structure and are exempt from
+Mosh size limits; the local patch is documented beside the dependency.

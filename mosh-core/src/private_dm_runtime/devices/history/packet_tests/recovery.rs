@@ -6,6 +6,8 @@ use crate::private_dm_runtime::devices::types::{Admission, JoinRequest};
 use crate::private_dm_runtime::ChatMessage;
 use crate::private_dm_runtime::{contracts::DmHistorySyncState, now_ms};
 
+mod historical;
+
 fn begin(f: &mut Fixture, source: &DeviceDescriptor, epoch: u64) {
     let session = f.runtime.session_mut(&f.session).unwrap();
     let membership = session.membership.as_mut().unwrap();
@@ -153,6 +155,15 @@ fn cursors_replays_and_conflicts() {
 }
 
 fn next_admission(f: &mut Fixture, name: &str, token: &str) -> Admission {
+    next_admission_with_lifetime(f, name, token, None)
+}
+
+fn next_admission_with_lifetime(
+    f: &mut Fixture,
+    name: &str,
+    token: &str,
+    lifetime: Option<openmls::prelude::Lifetime>,
+) -> Admission {
     let mut joining = identity(&f.dir, name);
     let roster = f
         .contact
@@ -166,7 +177,10 @@ fn next_admission(f: &mut Fixture, name: &str, token: &str) -> Admission {
         request_id: token.into(),
         claim: IdentityClaim::create(&joining, &f.session, &crypto.signer_public(), "Contact")
             .unwrap(),
-        key_package: crypto.key_package_bytes().unwrap(),
+        key_package: match lifetime {
+            Some(lifetime) => crypto.key_package_with_lifetime(lifetime).unwrap(),
+            None => crypto.key_package_bytes().unwrap(),
+        },
     };
     let author = f.peers.get_mut(&f.contact.device().device_id).unwrap();
     let outcome = author.add_members(&[&request.key_package]).unwrap();
@@ -211,9 +225,9 @@ fn epoch_packet(f: &Fixture, evidence: EpochRecord) -> Vec<u8> {
 fn original_author_epoch_order_and_restart() {
     let mut f = Fixture::new();
     let third = next_admission(&mut f, "third.redb", "epoch-three");
-    let first = EpochRecord::create(&f.contact, &third).unwrap();
+    let first = EpochRecord::create(&f.contact, &third, now_ms()).unwrap();
     let fourth = next_admission(&mut f, "fourth.redb", "epoch-four");
-    let second = EpochRecord::create(&f.contact, &fourth).unwrap();
+    let second = EpochRecord::create(&f.contact, &fourth, now_ms()).unwrap();
     let source = f.source.device().clone();
     begin(&mut f, &source, 4);
     let future = epoch_packet(&f, second.clone());
@@ -221,11 +235,11 @@ fn original_author_epoch_order_and_restart() {
     let mut tampered = first.clone();
     tampered.signature = "00".repeat(64);
     assert!(f.receive(&epoch_packet(&f, tampered)).is_err());
-    let outsider = EpochRecord::create(&f.outsider, &third).unwrap();
+    let outsider = EpochRecord::create(&f.outsider, &third, now_ms()).unwrap();
     assert!(f.receive(&epoch_packet(&f, outsider)).is_err());
     let mut foreign = third.clone();
     foreign.group_id = vec![9];
-    let foreign = EpochRecord::create(&f.contact, &foreign).unwrap();
+    let foreign = EpochRecord::create(&f.contact, &foreign, now_ms()).unwrap();
     assert!(f.receive(&epoch_packet(&f, foreign)).is_err());
     let first_packet = epoch_packet(&f, first);
     f.receive(&first_packet).unwrap();
