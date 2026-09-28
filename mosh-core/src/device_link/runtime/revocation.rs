@@ -129,10 +129,12 @@ impl DeviceLinkRuntime {
             if !notice.roster.devices()?.contains(&sender) {
                 return Err(invalid());
             }
-            self.identity.adopt_roster(notice.roster.clone())?;
-            if self.identity.revoked()? {
-                self.exchange = None;
-                self.phase = DeviceLinkPhase::Idle;
+            if notice.roster.digest()? != self.identity.roster().digest()? {
+                self.identity.adopt_roster(notice.roster.clone())?;
+                if self.identity.revoked()? {
+                    self.exchange = None;
+                    self.phase = DeviceLinkPhase::Idle;
+                }
             }
             let ack =
                 RosterNotice::seal(&self.identity, &sender.moss_peer_id, notice.roster, true)?;

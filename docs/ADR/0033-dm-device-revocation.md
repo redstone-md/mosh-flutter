@@ -154,6 +154,9 @@ finish if its signed roster notification arrived first, but a consumed approval
 cannot restore a later-removed device.
 Service ticks and restart preserve only the matching pending QR/addition until
 its nonce-bound approval completes or expires.
+Redelivery of an already pinned roster still receives an acknowledgement, but
+does not reset a fresh QR or its persisted pending approval. A new removal
+invalidates obsolete pairing state when that roster is first adopted.
 
 Fresh roster permission still requires new independent MLS keys and an ordinary
 authenticated Join/Welcome for each old DM. Preserve local semantic history
