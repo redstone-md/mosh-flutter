@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 /// Another installation using the same real runtime harness as the Rust tests.
 class NativePeer {
@@ -12,6 +13,9 @@ class NativePeer {
 
   static Future<NativePeer> start() async {
     final dir = await Directory.systemTemp.createTemp('mosh-native-peer-');
+    final random = Random.secure();
+    await File('${dir.path}/storage-key.bin')
+        .writeAsBytes(List.generate(32, (_) => random.nextInt(256)));
     final executables = Directory('mosh-core/target/debug/deps')
         .listSync()
         .whereType<File>()

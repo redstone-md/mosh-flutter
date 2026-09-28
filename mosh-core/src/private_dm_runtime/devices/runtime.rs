@@ -124,6 +124,12 @@ impl PrivateDmRuntime {
             DeviceMessage::Admission(admission) => {
                 self.apply_device_admission(&identity, &sender, &packet.roster, admission)
             }
+            DeviceMessage::HistoryRequest(request) => {
+                self.receive_history_request(&identity, &sender, &packet.roster, request)
+            }
+            DeviceMessage::HistoryBatch(batch) => {
+                self.receive_history_batch(&identity, &sender, &packet.roster, batch)
+            }
             DeviceMessage::Ack {
                 session_id,
                 request_id,
@@ -158,6 +164,8 @@ impl PrivateDmSession {
                 delivery: None,
                 receipt_targets: HashMap::new(),
                 delivered_ids: Vec::new(),
+                history_import: None,
+                history_exports: Vec::new(),
             });
         }
         let membership = self.membership.as_mut().ok_or_else(invalid)?;
@@ -271,7 +279,7 @@ impl PrivateDmSession {
             return Vec::new();
         };
         let offer = self.device_offer(membership);
-        devices
+        let mut packets: Vec<_> = devices
             .into_iter()
             .filter(|device| {
                 !membership
@@ -281,7 +289,9 @@ impl PrivateDmSession {
                     .any(|client| client.device_id == device.device_id)
             })
             .map(|device| (device.moss_peer_id, DeviceMessage::Offer(offer.clone())))
-            .collect()
+            .collect();
+        packets.extend(self.history_request());
+        packets
     }
 
     fn device_offer(&self, membership: &DeviceMembership) -> DmOffer {

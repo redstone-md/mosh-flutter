@@ -101,6 +101,10 @@ pub(crate) struct DeviceMembership {
     pub(super) receipt_targets: std::collections::HashMap<String, Vec<String>>,
     #[serde(default)]
     pub(super) delivered_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) history_import: Option<super::history::HistoryImport>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) history_exports: Vec<super::history::HistoryExport>,
 }
 
 impl DeviceMembership {
@@ -185,6 +189,8 @@ pub(super) enum DeviceMessage {
     Offer(DmOffer),
     Join(JoinRequest),
     Admission(Admission),
+    HistoryRequest(super::history::HistoryRequest),
+    HistoryBatch(super::history::HistoryBatch),
     Ack {
         session_id: String,
         request_id: String,

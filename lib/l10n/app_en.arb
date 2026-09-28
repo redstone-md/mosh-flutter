@@ -1629,7 +1629,7 @@
   "deviceLinkApprovalHelp": "Enter the code shown on the desktop you want to link. Approve only a device you control.",
   "deviceLinkConfirmationHelp": "Enter this code on your trusted desktop to approve this device.",
   "deviceLinkDelivering": "Approval saved. Waiting for the new desktop to save its device list. Keep both desktops online.",
-  "deviceLinkSuccess": "Device linked. Both desktops share this Mosh user. Chat and history sync will be available in a later update.",
+  "deviceLinkSuccess": "Device linked. Both desktops share this Mosh user. Keep the original desktop online to transfer your conversations and message history.",
   "deviceLinkTryAgain": "You can start a new link.",
   "deviceLinkQrLabel": "One-time device linking QR",
   "deviceLinkExpires": "This QR expires after five minutes. Do not share it with anyone else.",
@@ -1652,5 +1652,9 @@
   "deviceLinkConnectionLost": "The connection was interrupted. Keep both desktops online. An approved link will retry automatically.",
   "deviceLinkInvalidRoster": "The device list could not be verified. This link was not accepted.",
   "deviceLinkStorageError": "The device list could not be saved. Check local storage and try again.",
-  "deviceLinkUnavailable": "Device linking is unavailable. Check the connection and restart Mosh."
+  "deviceLinkUnavailable": "Device linking is unavailable. Check the connection and restart Mosh.",
+  "dmHistoryWaitingTitle": "Waiting for message history",
+  "dmHistoryWaitingBody": "Open a linked device that has this conversation. Transfer will resume automatically.",
+  "dmHistoryImportingTitle": "Importing message history",
+  "dmHistoryImportingBody": "You can keep messaging while older messages arrive."
 }

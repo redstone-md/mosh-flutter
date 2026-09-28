@@ -1,7 +1,7 @@
 //! Atomic DM epoch records and race-free creation of the shared device identity.
 use super::*;
 
-fn db_error(error: impl std::fmt::Display) -> PersistenceError {
+pub(super) fn db_error(error: impl std::fmt::Display) -> PersistenceError {
     PersistenceError::Db(error.to_string())
 }
 

@@ -2,6 +2,7 @@
 mod admission;
 #[cfg(test)]
 mod authorization_tests;
+mod history;
 mod live;
 mod proof;
 mod receipts;
