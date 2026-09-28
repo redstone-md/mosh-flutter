@@ -44,6 +44,55 @@ mirror callers consume `bridgeFacadeProvider`. The `api` facade is real
 for every command family (`diagnostics`, `private_dm`, `channel`,
 `private_group`, `org`, `network`, `vpn`; OnceLock singletons, ADR 0016).
 
+## Desktop device linking
+
+The Devices settings section uses the device-link bridge and its own
+Riverpod async state. `DeviceLinkRuntime` owns one local signing identity,
+a verified device roster and the pairing exchange. It borrows the existing
+`SharedMossNode` and encrypted `Persistence`; pairing uses directed Moss
+stream 3. Existing DM, org and MLS identities keep their contracts.
+See [ADR 0029](ADR/0029-private-desktop-device-linking.md) for admission,
+signature verification, expiry, replay and delivery recovery.
+
+```mermaid
+flowchart LR
+    Settings[Devices settings] --> Provider[Device-link provider]
+    Provider --> Bridge[Device-link API]
+    Bridge --> Runtime[DeviceLinkRuntime]
+    Runtime --> Identity[DeviceIdentity]
+    Identity --> Roster[Signed DeviceRoster]
+    Identity --> Store[Encrypted device-link row]
+    Runtime --> Node[SharedMossNode]
+    Node --> Stream[Directed stream 3]
+```
+
+```mermaid
+classDiagram
+    class DeviceLinkSnapshot {
+        userId
+        ownDeviceId
+        devices
+        phase
+        pendingDevice
+        confirmationCode
+        error
+    }
+    class DeviceLinkRuntime {
+        snapshot()
+        createQr(name)
+        importQr(uri)
+        approve(code)
+        cancel()
+    }
+    class DeviceIdentity
+    class DeviceRoster
+    class DeviceDescriptor
+    DeviceLinkRuntime --> DeviceLinkSnapshot
+    DeviceLinkRuntime --> DeviceIdentity
+    DeviceIdentity --> DeviceRoster
+    DeviceRoster --> DeviceDescriptor
+```
+
 ## Repository Boundaries
 
 ```mermaid

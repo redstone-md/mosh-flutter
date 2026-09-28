@@ -154,6 +154,23 @@ jobs:
       - name: Integration test (slice one)
         run: flutter test integration_test/slice_one_test.dart -d windows
 
+      - name: Build device-link native test library
+        run: cargo build --manifest-path mosh-core/Cargo.toml
+
+      - name: Device linking with independent Moss processes
+        run: cargo test --manifest-path mosh-core/Cargo.toml --test device_link_flow --test device_link_identity
+
+      - name: Device linking through the native Flutter UI
+        run: flutter test native_test/device_link_test.dart
+
+      # The process-global Rust store closes when flutter_tester exits.
+      - name: Clean native device-link test stores
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path ([System.IO.Path]::GetTempPath()) -Directory -Filter 'mosh-native-link-*' |
+            Remove-Item -Recurse -Force
+
   android-build:
     name: Android APK (arm64, debug)
     runs-on: ubuntu-latest

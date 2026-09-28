@@ -31,6 +31,30 @@ restarts. Durable. Sender authenticity against it is proven by the org
 signed envelope — the gossip transport itself does not authenticate
 senders; only the relay path pins it.
 
+## Mosh user
+
+A person represented by one stable user id across linked installations.
+The first device's public signing key anchors that id. It differs from a
+device id, a Moss peer-id and a conversation's MLS fingerprint.
+
+## Device
+
+One installation with its own signing key, Moss peer-id, MLS clients and
+connections. Its device id identifies its signing public key. Linking
+authorizes a device without copying another installation's private keys.
+
+## Device roster
+
+The private, signed list of devices authorized to act as one Mosh user.
+The first device signs genesis. Each addition extends that verified list
+and carries a signature from an existing device. Distinct from an org roster.
+
+## Device link
+
+A one-time QR exchange that adds an independent installation to a Mosh user's
+device roster after approval on a trusted device. Possession of the QR starts
+the exchange; entering the new device's code authorizes that exact device.
+
 ## MLS fingerprint
 
 Derived from a per-conversation MLS signature key. Ephemeral relative to a
