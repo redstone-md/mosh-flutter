@@ -323,6 +323,12 @@ The existing history status reports waiting when holders are unavailable.
 See [ADR 0032](ADR/0032-dm-offline-recovery.md) for retention, authorization,
 ordered recovery and future storage boundaries.
 
+The vendored OpenMLS 0.8.1 patch validates retained Add lifetimes at their
+original author-signed admission time after group, epoch and author checks.
+It restores the actual-clock policy after each synchronous recovery operation.
+Normal admission uses the actual clock and the shared decoder enforces the
+library's maximum package lifetime range.
+
 ```mermaid
 flowchart LR
     Probe[Probe admitted participants] --> Source[Select available holder]

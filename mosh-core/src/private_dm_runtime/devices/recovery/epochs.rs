@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 pub(in crate::private_dm_runtime::devices) struct EpochAuthorization {
     pub roster: DeviceRoster,
     pub signature: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admitted_at_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,11 +26,18 @@ pub(in crate::private_dm_runtime::devices) struct EpochRecord {
     pub group_id: Vec<u8>,
     pub epoch: u64,
     pub signature: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admitted_at_ms: Option<u64>,
 }
 
 impl EpochRecord {
-    pub fn create(identity: &DeviceIdentity, admission: &Admission) -> Result<Self> {
+    pub fn create(
+        identity: &DeviceIdentity,
+        admission: &Admission,
+        admitted_at_ms: u64,
+    ) -> Result<Self> {
         let mut record = Self::unsigned(identity.device(), identity.roster(), admission);
+        record.admitted_at_ms = Some(admitted_at_ms);
         record.signature = hex::encode(identity.key().sign(&record.bytes()?).to_bytes());
         Ok(record)
     }
@@ -48,6 +57,7 @@ impl EpochRecord {
             return Err(invalid());
         }
         let mut record = Self::unsigned(sender, &authorization.roster, admission);
+        record.admitted_at_ms = authorization.admitted_at_ms;
         record.signature = authorization.signature.clone();
         if record.author()? != *sender {
             return Err(invalid());
@@ -59,6 +69,7 @@ impl EpochRecord {
         EpochAuthorization {
             roster: self.roster.clone(),
             signature: self.signature.clone(),
+            admitted_at_ms: self.admitted_at_ms,
         }
     }
 
@@ -71,11 +82,19 @@ impl EpochRecord {
             group_id: admission.group_id.clone(),
             epoch: admission.epoch,
             signature: String::new(),
+            admitted_at_ms: None,
         }
     }
 
     fn bytes(&self) -> Result<Vec<u8>> {
-        let mut bytes = b"mosh-dm-epoch-evidence-v1".to_vec();
+        let mut bytes = match self.admitted_at_ms {
+            Some(time) => {
+                let mut bytes = b"mosh-dm-epoch-evidence-v2".to_vec();
+                bytes.extend(time.to_be_bytes());
+                bytes
+            }
+            None => b"mosh-dm-epoch-evidence-v1".to_vec(),
+        };
         bytes.extend(
             serde_json::to_vec(&(
                 &self.author_device_id,
@@ -100,6 +119,16 @@ impl EpochRecord {
             .ok_or_else(invalid)?;
         verify(&author.signing_public_key, &self.signature, &self.bytes()?)?;
         Ok(author)
+    }
+
+    fn validation_time(&self) -> Result<Option<u64>> {
+        if let Some(time) = self.admitted_at_ms {
+            // Match OpenMLS's one-hour allowance for installation clock skew.
+            if time == 0 || time > now_ms().saturating_add(3_600_000) {
+                return Err(invalid());
+            }
+        }
+        Ok(self.admitted_at_ms.map(|time| time / 1000))
     }
 
     fn admission(&self, membership: &DeviceMembership) -> Admission {
@@ -161,14 +190,21 @@ impl PrivateDmRuntime {
                 .epoch()
                 .and_then(|epoch| epoch.checked_add(1))
                 != Some(response.evidence.epoch)
+            || session.crypto.group_id_bytes().as_ref() != Some(&response.evidence.group_id)
         {
             return Err(invalid());
         }
         let author = response.evidence.author()?;
         let admission = response.evidence.admission(membership);
         verify_authorizer(membership, &author, &response.evidence.roster, &admission)?;
-        verify_request(&session.crypto, &admission.request)?;
-        let (crypto, mut next) = stage_admission(session, &admission)?;
+        let validate = || {
+            verify_request(&session.crypto, &admission.request)?;
+            stage_admission(session, &admission)
+        };
+        let (crypto, mut next) = match response.evidence.validation_time()? {
+            Some(time) => openmls::prelude::Lifetime::with_validation_time(time, validate),
+            None => validate(),
+        }?;
         next.retain_epoch(response.evidence)?;
         let recovery = next.recovery.as_mut().ok_or_else(invalid)?;
         recovery.required_epoch = recovery.required_epoch.max(admission.epoch);

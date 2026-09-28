@@ -181,6 +181,12 @@ retries, restart and concurrent live text preserve one copy of each message.
 If every holder is unavailable, the conversation waits and resumes when one
 returns. See [ADR 0032](../ADR/0032-dm-offline-recovery.md).
 
+Retained epoch evidence includes the original author's signed admission time.
+Recovery can apply a package that has since expired if it was valid at that
+time. Signature, group, epoch and maximum lifetime checks still apply. Normal
+admission uses the current clock. Older evidence with no authenticated time
+cannot establish historical validity after expiry.
+
 Revocation is issue 27. Joining requires the new installation and an existing
 client of the other user to durably accept the new epoch. Device
 association is visible to the participants. Network traffic anonymity is not
