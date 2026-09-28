@@ -46,7 +46,7 @@ The `api` facade is real
 for every command family (`diagnostics`, `private_dm`, `channel`,
 `private_group`, `org`, `network`, `vpn`; OnceLock singletons, ADR 0016).
 
-## Desktop device linking
+## Device linking
 
 The Devices settings section uses the device-link bridge and its own
 Riverpod async state. `DeviceLinkRuntime` owns one local signing identity,
@@ -60,6 +60,28 @@ row. Identity writers compare their exact persisted bytes inside the write
 transaction, so a stale owner cannot overwrite a newer roster. Typed revoked
 and pending/applied snapshot fields drive the Devices UI; the DM runtime owns
 MLS application. See [ADR 0033](ADR/0033-dm-device-revocation.md).
+
+Android uses these same identity, roster, MLS admission, history recovery and
+removal owners. Startup loads its own user-presence-gated Keystore DEK before
+opening app-private encrypted records. System backup/transfer is excluded so
+new installations cannot inherit a copied device identity or keyless database.
+`ForegroundPoller` pauses Android UI reads while hidden/paused and refreshes
+immediately on resume without reconstructing native owners. Desktop polling
+retains its existing behavior. The main Android manifest grants network access
+in release builds as well as debug. See [ADR 0034](ADR/0034-android-linked-text-dm.md)
+and [the physical Android scenario](Features/android-linked-dm.md).
+
+```mermaid
+flowchart LR
+    Unlock[Android foreground unlock] --> DEK[Own Keystore DEK]
+    DEK --> Local[Own encrypted identities and DM records]
+    Local --> Runtime[Existing device-link and private-DM owners]
+    Runtime --> Moss[Real arm64 Moss, automatic discovery]
+    Moss --> Desktop[Linked desktop]
+    Moss --> Contact[DM contact]
+    Resume[Foreground return] --> Poll[Immediate guarded UI refresh]
+    Poll --> Runtime
+```
 
 ```mermaid
 flowchart LR
