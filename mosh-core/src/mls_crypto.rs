@@ -78,7 +78,19 @@ impl MlsSessionCrypto {
     }
 
     pub fn key_package_bytes(&mut self) -> Result<Vec<u8>, MlsCryptoError> {
-        let key_package = KeyPackage::builder()
+        self.serialize_key_package(KeyPackage::builder())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn key_package_with_lifetime(
+        &mut self,
+        lifetime: Lifetime,
+    ) -> Result<Vec<u8>, MlsCryptoError> {
+        self.serialize_key_package(KeyPackage::builder().key_package_lifetime(lifetime))
+    }
+
+    fn serialize_key_package(&self, builder: KeyPackageBuilder) -> Result<Vec<u8>, MlsCryptoError> {
+        let key_package = builder
             .build(
                 CIPHERSUITE,
                 &self.provider,
@@ -609,9 +621,15 @@ fn decode_key_package_impl(
         MlsMessageBodyIn::KeyPackage(key_package) => key_package,
         _ => return Err(MlsCryptoError::Codec("expected KeyPackage".to_string())),
     };
-    key_package
+    let key_package = key_package
         .validate(provider.crypto(), ProtocolVersion::default())
-        .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))
+        .map_err(|error| MlsCryptoError::OpenMls(error.to_string()))?;
+    if !key_package.life_time().has_acceptable_range() {
+        return Err(MlsCryptoError::OpenMls(
+            "key package lifetime exceeds the accepted range".into(),
+        ));
+    }
+    Ok(key_package)
 }
 
 #[cfg(test)]

@@ -9,8 +9,9 @@ Commit on the current branch. No push or deployment.
 Recover text and missed MLS admission epochs in one existing DM. Each linked
 installation retains its own signing keys, MLS client and local storage key.
 Use the existing directed encrypted Moss stream and signed device packets.
-Discovery stays automatic. No new dependency, table, bridge operation,
-gateway method, wallet or hosted service is needed.
+Discovery stays automatic. No new table, bridge operation, gateway method,
+wallet or hosted service is needed. The user approved a same-version OpenMLS
+dependency patch on 2026-09-28 to recover genuinely expired historical commits.
 
 Keep signed evidence of accepted admission commits in the encrypted session
 record. Save each transition and the resulting local MLS snapshot atomically.
@@ -53,7 +54,8 @@ records without owning device keys or replacing the importer.
 The repository requires approval before persisted schemas or public contracts
 change. Approve optional encrypted session membership fields, private recovery
 packet variants and the existing history-status semantics described above.
-There are no new Flutter/Rust bridge signatures or dependencies.
+There are no new Flutter/Rust bridge signatures. The later approved dependency
+exception is documented in `docs/Proposals/openmls-historical-validation.md`.
 
 The TDD skill requires confirmed test boundaries. Proposed boundaries are:
 
@@ -88,7 +90,7 @@ add a product feature or broaden the text-only DM scope.
   least 70% if available. Verify bindings remain unchanged.
 - [x] Commit and run Standards and Spec reviews through the code-review skill.
 - [x] Fix findings within approved scope, verify affected checks and keep clean.
-- [ ] Resolve expired historical packages after the dependency decision.
+- [x] Resolve expired historical packages after the dependency decision.
 
 ## Risks and limits
 
@@ -133,7 +135,7 @@ The localized waiting notice failed its widget assertion before the copy was
 generalized to an available participant, then passed. The existing DM screen
 test also passes rendering and sending live text in both waiting and importing
 states through the approved widget seam. Full Flutter validation
-passed 871 tests with five existing platform skips. Flutter analysis and Dart
+passed 873 tests with five existing platform skips. Flutter analysis and Dart
 formatting passed. Bridge generation made no changes. All 25 diagrams in the
 architecture and new ADR rendered; the existing feature diagrams also render.
 Rust build, strict Clippy and focused runtime/signed packet checks passed.
@@ -179,19 +181,32 @@ failed on the missing row after rehydration. Both observation and completion
 now commit matching live rows with progress; the regression passes for both
 paths, preserving one visible copy and local receipt metadata.
 
-P2: OpenMLS 0.8.1 validates historical Add package lifetimes against today's
-clock, including inside commit processing. Default lifetimes expire after
-84 days. The current dependency therefore prevents replay after that expiry,
-even if a holder retains valid evidence. Its public existing-group API has no
-historical validation time. A reviewable scoped-clock patch is prepared at
-[`docs/Proposals/openmls-historical-validation.patch`](docs/Proposals/openmls-historical-validation.patch);
-project dependencies are unchanged. Approval to vendor that dependency patch,
-or explicitly accept the expiry limit, is pending. The patch is unapplied and
-has not been tested against the OpenMLS crate. Never change the process-global clock or import
-another installation's MLS state to bypass this restriction.
+P2: OpenMLS checked historical Add lifetimes against today's clock, including
+inside commit processing. The user approved the scoped-clock dependency patch.
+OpenMLS 0.8.1 is now vendored with only that source patch. Recovery's v2 evidence
+signs the original admission time. After author, roster, group and exact-next-
+epoch checks, synchronous validation uses that time and restores the prior
+policy on return or unwind. Ordinary admission keeps the actual clock. The
+shared decoder enforces the library's acceptable lifetime range; the upstream
+predicate requires the application to call it. Legacy evidence without a signed
+time retains its v1 signature and actual-clock policy.
 
-Review findings: Standards 2 (both fixed); Spec 2 (P1 fixed,
-P2 awaits the dependency decision). Keep the axes separate.
+The public patched API passes validity boundaries, nested scopes, panic cleanup
+and thread isolation. The signed seam first failed a genuine 100-day-old
+package/commit, then passed recovery, restart and bidirectional MLS messages.
+It refuses forged/out-of-window/future times, tampered package/commit signatures
+and excessive lifetime ranges. Strict Clippy, core build and Flutter analysis
+pass. The final full Rust rerun, coverage and independent review are in progress.
+Code generation is also being checked for unchanged bindings.
+
+The separate probe check exposes a pre-existing E0603: `mosh-probe/src/main.rs`
+imports `PrivateGroupRuntime`, whose core re-export is crate-private. Neither
+source differs from the review baseline. Probe resolution correctly selects
+the patched OpenMLS; its lockfile only drops that crate's registry/checksum.
+The unrelated visibility failure remains outside issue 26.
+
+Review findings: Standards 2 fixed; Spec P1 and P2 implemented and verified at
+their focused seams. Final independent review follows the dependency patch.
 
 ## Changed files
 
@@ -205,6 +220,9 @@ P2 awaits the dependency decision). Keep the axes separate.
 - `lib/l10n/app_en.arb`
 - `lib/l10n/app_ru.arb`
 - `mosh-core/src/private_dm_runtime.rs`
+- `mosh-core/Cargo.toml`
+- `mosh-core/Cargo.lock`
+- `mosh-core/src/mls_crypto.rs`
 - `mosh-core/src/private_dm_runtime/devices/admission.rs`
 - `mosh-core/src/private_dm_runtime/devices/authorization_tests.rs`
 - `mosh-core/src/private_dm_runtime/devices/history/fragments.rs`
@@ -212,6 +230,7 @@ P2 awaits the dependency decision). Keep the axes separate.
 - `mosh-core/src/private_dm_runtime/devices/history/mod.rs`
 - `mosh-core/src/private_dm_runtime/devices/history/packet_tests.rs`
 - `mosh-core/src/private_dm_runtime/devices/history/packet_tests/recovery.rs`
+- `mosh-core/src/private_dm_runtime/devices/history/packet_tests/recovery/historical.rs`
 - `mosh-core/src/private_dm_runtime/devices/history/source.rs`
 - `mosh-core/src/private_dm_runtime/devices/mod.rs`
 - `mosh-core/src/private_dm_runtime/devices/proof.rs`
@@ -225,5 +244,9 @@ P2 awaits the dependency decision). Keep the axes separate.
 - `mosh-core/src/private_dm_runtime/session.rs`
 - `mosh-core/tests/dm_recovery/mod.rs`
 - `mosh-core/tests/multi_device_dm_flow.rs`
+- `mosh-core/tests/historical_lifetime.rs`
+- `mosh-probe/Cargo.lock`
 - `test/features/conversation/dm_history_banner_test.dart`
 - `test/features/conversation/dm_screen_test.dart`
+- `third_party/openmls/` retains 244 upstream crate files plus the upstream MIT
+  license and `MOSH-PATCH.md`. Only `src/key_packages/lifetime.rs` changes.

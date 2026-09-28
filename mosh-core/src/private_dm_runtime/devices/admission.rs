@@ -146,7 +146,7 @@ impl PrivateDmRuntime {
             epoch: crypto.epoch().ok_or_else(invalid)?,
             recovery_authorization: None,
         };
-        let evidence = super::recovery::EpochRecord::create(identity, &admission)?;
+        let evidence = super::recovery::EpochRecord::create(identity, &admission, now_ms())?;
         admission.recovery_authorization = Some(evidence.authorization());
         next.retain_epoch(evidence)?;
         next.delivery = Some(AdmissionJournal::new(
