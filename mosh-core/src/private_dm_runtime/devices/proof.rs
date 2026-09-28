@@ -32,9 +32,27 @@ impl IdentityClaim {
         signer: &[u8],
         name: &str,
     ) -> Result<Self> {
+        Self::create_with_roster(identity, identity.roster(), session, signer, name)
+    }
+
+    pub fn create_with_roster(
+        identity: &DeviceIdentity,
+        roster: &DeviceRoster,
+        session: &str,
+        signer: &[u8],
+        name: &str,
+    ) -> Result<Self> {
+        if !roster.extends(identity.roster()).map_err(|_| invalid())?
+            || !roster
+                .devices()
+                .map_err(|_| invalid())?
+                .contains(identity.device())
+        {
+            return Err(invalid());
+        }
         let mut claim = Self {
             session_id: session.into(),
-            roster: identity.roster().clone(),
+            roster: roster.clone(),
             device_id: identity.device().device_id.clone(),
             mls_signer: hex::encode(signer),
             display_name: name.into(),

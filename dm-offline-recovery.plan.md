@@ -1,7 +1,7 @@
 # DM offline recovery, issue 26
 
 Spec: https://github.com/redstone-md/mosh-flutter/issues/26.
-Proposed review fixed point: `c21b7e1bf25af0b6dfa959c3a21a3b5515ea7a7d`.
+Review fixed point: `c21b7e1bf25af0b6dfa959c3a21a3b5515ea7a7d`.
 Commit on the current branch. No push or deployment.
 
 ## Scope and proposed design
@@ -76,13 +76,13 @@ add a product feature or broaden the text-only DM scope.
   limits. Read the previous implementation and its verified test boundaries.
 - [x] Confirm persisted fields, protocol scope, test boundaries and baseline.
 - [x] Finish baseline Rust build, Moss preparation and Flutter analysis.
-- [ ] Fail one public-runtime offline/restart text test, then implement recovery.
-- [ ] Add source switching, concurrent text and unavailable-source coverage.
-- [ ] Fail real missed-epoch coverage, retain evidence and recover in order.
-- [ ] Verify cryptographic refusals and durable replay behavior.
-- [ ] Update localized runtime notices and widget tests.
-- [ ] Document retention, acknowledgements and MLS ordering with Mermaid.
-- [ ] Run regular Rust checks and focused native/widget tests.
+- [x] Fail one public-runtime offline/restart text test, then implement recovery.
+- [x] Add source switching, concurrent text and unavailable-source coverage.
+- [x] Fail real missed-epoch coverage, retain evidence and recover in order.
+- [x] Verify cryptographic refusals and durable replay behavior.
+- [x] Update localized runtime notices and widget tests.
+- [x] Document retention, acknowledgements and MLS ordering with Mermaid.
+- [x] Run regular Rust checks and focused native/widget tests.
 - [ ] Format, build, strict Clippy, Flutter analysis and full suites once at end.
 - [ ] Measure changed Rust line coverage, at least 80%; branch coverage at
   least 70% if available. Verify bindings remain unchanged.
@@ -102,3 +102,71 @@ separate tickets. Keep Moss sources unchanged.
 
 The user approved this plan, the persisted fields, private protocol scope,
 test boundaries and review baseline on 2026-09-28.
+
+## Verification in progress
+
+Baseline Rust build, Moss preparation and Flutter analysis passed. The three
+existing native history tests and the existing banner widget test passed.
+The first returning-device test failed on missing own-device text, then passed
+after recovery could import the contact's retained history. A partial import
+also passed source loss, recipient restart, source switching and concurrent
+live text without repeated rows. The real missed-epoch test failed before the
+signed epoch journal was added, then passed with the author off and a restarted
+holder relaying the original proof. A second regression failed because the
+admission journal waited for every offline device. Admission now finishes
+after the joining client and an available counterpart durably acknowledge it;
+evidence remains retained. The real five-client scenario passed two missed
+epochs, old-client claims after roster extension and continued bidirectional
+messaging after recovery. Waiting with all holders off and recovery after one
+returns also passed across restart.
+
+Signed packet tests passed admitted/prefix-roster authorization, outsider,
+roster-only and wrong-source refusal, changed recipient, stale round, request,
+cursor, digest and total, duplicate/conflicting records, forged original author,
+wrong group, future epoch and replay. Restart between two genuine epochs
+preserves progress. The original-desktop completion regression first returned
+no status; it now passes completion and original time/id ordering without an
+initial history import.
+
+The localized waiting notice failed its widget assertion before the copy was
+generalized to an available participant, then passed. The existing DM screen
+test also passes rendering and sending live text in both waiting and importing
+states through the approved widget seam. Full Flutter validation
+passed 871 tests with five existing platform skips. Flutter analysis and Dart
+formatting passed. Bridge generation made no changes. All 25 diagrams in the
+architecture and new ADR rendered; the existing feature diagrams also render.
+Rust build, strict Clippy and focused runtime/signed packet checks passed.
+The full instrumented Rust suite is running. Logs are under `/tmp/mosh-26-*`.
+
+## Changed files
+
+- `coverage/lcov.info`
+- `dm-offline-recovery.plan.md`
+- `docs/ADR/0032-dm-offline-recovery.md`
+- `docs/Architecture.md`
+- `docs/Features/private-dm.md`
+- `lib/l10n/app_en.arb`
+- `lib/l10n/app_ru.arb`
+- `mosh-core/src/private_dm_runtime.rs`
+- `mosh-core/src/private_dm_runtime/devices/admission.rs`
+- `mosh-core/src/private_dm_runtime/devices/authorization_tests.rs`
+- `mosh-core/src/private_dm_runtime/devices/history/fragments.rs`
+- `mosh-core/src/private_dm_runtime/devices/history/import.rs`
+- `mosh-core/src/private_dm_runtime/devices/history/mod.rs`
+- `mosh-core/src/private_dm_runtime/devices/history/packet_tests.rs`
+- `mosh-core/src/private_dm_runtime/devices/history/packet_tests/recovery.rs`
+- `mosh-core/src/private_dm_runtime/devices/history/source.rs`
+- `mosh-core/src/private_dm_runtime/devices/mod.rs`
+- `mosh-core/src/private_dm_runtime/devices/proof.rs`
+- `mosh-core/src/private_dm_runtime/devices/recovery/epochs.rs`
+- `mosh-core/src/private_dm_runtime/devices/recovery/import.rs`
+- `mosh-core/src/private_dm_runtime/devices/recovery/mod.rs`
+- `mosh-core/src/private_dm_runtime/devices/recovery/source.rs`
+- `mosh-core/src/private_dm_runtime/devices/recovery/types.rs`
+- `mosh-core/src/private_dm_runtime/devices/runtime.rs`
+- `mosh-core/src/private_dm_runtime/devices/types.rs`
+- `mosh-core/src/private_dm_runtime/session.rs`
+- `mosh-core/tests/dm_recovery/mod.rs`
+- `mosh-core/tests/multi_device_dm_flow.rs`
+- `test/features/conversation/dm_history_banner_test.dart`
+- `test/features/conversation/dm_screen_test.dart`

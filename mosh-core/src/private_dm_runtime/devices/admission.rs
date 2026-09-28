@@ -100,6 +100,9 @@ impl PrivateDmRuntime {
             delivered_ids: Vec::new(),
             history_import: Some(history_import),
             history_exports: Vec::new(),
+            recovery: None,
+            recovery_exports: Vec::new(),
+            epoch_records: Vec::new(),
         });
         Ok(session)
     }
@@ -133,7 +136,7 @@ impl PrivateDmRuntime {
         next.topology.add_client(request.claim.clone())?;
         next.topology
             .validate(&session_id, &crypto.member_signers())?;
-        let admission = Admission {
+        let mut admission = Admission {
             request,
             commit: outcome.commit_bytes,
             welcome: outcome.welcome_bytes,
@@ -141,7 +144,11 @@ impl PrivateDmRuntime {
             topology: next.topology.clone(),
             group_id: crypto.group_id_bytes().ok_or_else(invalid)?,
             epoch: crypto.epoch().ok_or_else(invalid)?,
+            recovery_authorization: None,
         };
+        let evidence = super::recovery::EpochRecord::create(identity, &admission)?;
+        admission.recovery_authorization = Some(evidence.authorization());
+        next.retain_epoch(evidence)?;
         next.delivery = Some(AdmissionJournal::new(
             admission,
             &identity.device().device_id,
@@ -161,6 +168,8 @@ impl PrivateDmRuntime {
         let membership = session.membership.as_ref().ok_or_else(invalid)?;
         verify_authorizer(membership, sender, sender_roster, &admission)?;
         verify_request(&session.crypto, &admission.request)?;
+        let evidence =
+            super::recovery::EpochRecord::from_admission(sender, sender_roster, &admission)?;
         if membership.joining.is_none()
             && session.crypto.epoch() == Some(admission.epoch)
             && membership
@@ -169,12 +178,15 @@ impl PrivateDmRuntime {
         {
             return self.send_admission_ack(identity, sender, &admission);
         }
-        let (crypto, next) = stage_admission(session, &admission)?;
+        let (crypto, mut next) = stage_admission(session, &admission)?;
+        if let Some(evidence) = evidence {
+            next.retain_epoch(evidence)?;
+        }
         self.install_device_transition(&session_id, crypto, next)?;
         self.send_admission_ack(identity, sender, &admission)
     }
 
-    fn send_admission_ack(
+    pub(super) fn send_admission_ack(
         &self,
         identity: &DeviceIdentity,
         sender: &DeviceDescriptor,
@@ -224,13 +236,13 @@ impl PrivateDmRuntime {
         let mut next = membership.clone();
         let journal = next.delivery.as_mut().ok_or_else(invalid)?;
         journal.waiting.retain(|peer| peer != &sender.moss_peer_id);
-        if journal.waiting.is_empty() {
+        if journal.accepted()? {
             next.delivery = None;
         }
         self.install_device_transition(session_id, copy_crypto(session)?, next)
     }
 
-    fn install_device_transition(
+    pub(super) fn install_device_transition(
         &mut self,
         session_id: &str,
         crypto: MlsSessionCrypto,
@@ -345,7 +357,7 @@ pub(super) fn verify_authorizer(
     Ok(())
 }
 
-fn stage_admission(
+pub(super) fn stage_admission(
     session: &PrivateDmSession,
     admission: &Admission,
 ) -> Result<(MlsSessionCrypto, DeviceMembership)> {

@@ -171,8 +171,18 @@ the user to bring the source online, and an importing notice disappears only
 after durable completion. See [ADR 0031](../ADR/0031-linked-desktop-dm-history.md)
 for the semantic record format, authorization and replay protocol.
 
-Missed messages and epochs are issue 26, and revocation is issue 27. Joining
-requires the existing DM participants to accept the new epoch. Device
+When an admitted desktop returns after being offline, it automatically
+recovers missing text from an available participant, including the contact
+while its original desktop is off. Missed admission epochs are applied in
+order to that desktop's own MLS state before recovery completes. Receipts
+settle delivery attempts without erasing text or epoch evidence needed by an
+offline installation. A replacement source resumes through a new manifest;
+retries, restart and concurrent live text preserve one copy of each message.
+If every holder is unavailable, the conversation waits and resumes when one
+returns. See [ADR 0032](../ADR/0032-dm-offline-recovery.md).
+
+Revocation is issue 27. Joining requires the new installation and an existing
+client of the other user to durably accept the new epoch. Device
 association is visible to the participants. Network traffic anonymity is not
 part of this feature. See [ADR 0030](../ADR/0030-linked-desktop-dm-clients.md)
 for authorization, persistence and test details.
@@ -185,6 +195,8 @@ off, restart and default discovery through public bridge calls. The companion
 then proves sibling activity cannot make an offline contact appear online.
 The `mosh-core/tests/dm_history/` flows prove pre-link semantic history,
 interruption, live text during import, restart and large UTF-8 text transfer.
+The `mosh-core/tests/dm_recovery/` flows prove offline recovery, source switching,
+unavailable holders and ordered missed epochs with real independent clients.
 Run
 `cargo test --manifest-path mosh-core/Cargo.toml --test multi_device_dm_flow`.
 

@@ -6,6 +6,7 @@ mod history;
 mod live;
 mod proof;
 mod receipts;
+mod recovery;
 mod runtime;
 mod types;
 

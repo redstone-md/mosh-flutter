@@ -113,8 +113,12 @@ fn a_valid_self_signed_outsider_cannot_authorize_dm_admission() {
         delivered_ids: Vec::new(),
         history_import: None,
         history_exports: Vec::new(),
+        recovery: None,
+        recovery_exports: Vec::new(),
+        epoch_records: Vec::new(),
     };
     let admission = Admission {
+        recovery_authorization: None,
         request: JoinRequest {
             request_id: "outsider-join".into(),
             claim: claim(&outsider, &outsider_crypto),

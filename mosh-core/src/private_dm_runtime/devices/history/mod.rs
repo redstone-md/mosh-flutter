@@ -47,6 +47,9 @@ impl PrivateDmSession {
         &self,
         now: u64,
     ) -> Option<DmHistorySyncState> {
+        if let Some(state) = self.recovery_sync_state(now) {
+            return Some(state);
+        }
         let import = self.membership.as_ref()?.history_import.as_ref()?;
         Some(if import.complete {
             DmHistorySyncState::Complete
