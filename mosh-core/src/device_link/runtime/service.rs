@@ -33,7 +33,7 @@ impl DeviceLinkRuntime {
         if exchange.qr.expires_at <= now() {
             self.fail(DeviceLinkErrorKind::Expired)?;
         } else if exchange.role == Role::Joining && !self.identity.can_join()? {
-            self.fail(DeviceLinkErrorKind::Ineligible)?;
+            self.reject(DeviceLinkErrorKind::Ineligible)?;
         }
         Ok(())
     }

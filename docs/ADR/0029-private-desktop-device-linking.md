@@ -117,6 +117,8 @@ A new desktop with existing conversations or multiple devices cannot join
 another user. It can authorize a fresh desktop instead.
 If a conversation starts during a pending join, clear that request and preserve
 the valid local identity and conversation. Eligibility is not a storage error.
+Send the same signed rejection as cancellation so an online trusted desktop
+stops offering approval for the abandoned request.
 
 ```mermaid
 flowchart LR
