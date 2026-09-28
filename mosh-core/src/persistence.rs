@@ -85,6 +85,8 @@ const OUTBOUND_ATTEMPTS: TableDefinition<&str, &[u8]> = TableDefinition::new("ou
 const MOSS_IDENTITY: TableDefinition<&str, &[u8]> = TableDefinition::new("moss_identity");
 // Single-row table: the device's stable Moss transport identity (libp2p key).
 const MOSS_IDENTITY_KEY: &str = "node-identity-v1";
+const DEVICE_LINK: TableDefinition<&str, &[u8]> = TableDefinition::new("device_link");
+const DEVICE_LINK_KEY: &str = "local-device-v1";
 // Key: org pubkey hex -> latest verified roster bytes (multi-org).
 const ORG_ROSTERS: TableDefinition<&str, &[u8]> = TableDefinition::new("org_rosters");
 // Key: "<group_id>/<epoch:020>" — zero-padded so lexicographic order == numeric.
@@ -226,6 +228,8 @@ impl Persistence {
                 .map_err(|e| PersistenceError::Db(e.to_string()))?;
             wtx.open_table(MOSS_IDENTITY)
                 .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(DEVICE_LINK)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
             wtx.open_table(ORG_ROSTERS)
                 .map_err(|e| PersistenceError::Db(e.to_string()))?;
             wtx.open_table(GROUP_COMMIT_LOG)
@@ -274,6 +278,8 @@ impl Persistence {
             wtx.open_table(OUTBOUND_ATTEMPTS)
                 .map_err(|e| PersistenceError::Db(e.to_string()))?;
             wtx.open_table(MOSS_IDENTITY)
+                .map_err(|e| PersistenceError::Db(e.to_string()))?;
+            wtx.open_table(DEVICE_LINK)
                 .map_err(|e| PersistenceError::Db(e.to_string()))?;
             wtx.open_table(ORG_ROSTERS)
                 .map_err(|e| PersistenceError::Db(e.to_string()))?;
@@ -771,6 +777,14 @@ impl Persistence {
     }
     pub fn get_moss_identity(&self) -> Result<Option<Vec<u8>>, PersistenceError> {
         self.get(MOSS_IDENTITY, MOSS_IDENTITY_KEY)
+    }
+
+    pub fn put_device_link(&self, record: &[u8]) -> Result<(), PersistenceError> {
+        self.put(DEVICE_LINK, DEVICE_LINK_KEY, record)
+    }
+
+    pub fn get_device_link(&self) -> Result<Option<Vec<u8>>, PersistenceError> {
+        self.get(DEVICE_LINK, DEVICE_LINK_KEY)
     }
 
     pub fn put_org_roster(

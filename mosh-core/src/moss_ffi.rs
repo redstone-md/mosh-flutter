@@ -770,10 +770,12 @@ unsafe extern "C" fn on_stream_payload(peer_id: *const c_char, data: *const u8, 
         .to_string_lossy()
         .into_owned();
     let payload = unsafe { std::slice::from_raw_parts(data, len as usize) }.to_vec();
-    crate::inbox::deliver(MossReceivedMessage {
-        channel: stream_receive_channel(&peer_id),
-        payload,
-    });
+    let channel = if crate::device_link::wire::is_pairing_packet(&payload) {
+        crate::device_link::transport::LINK_CHANNEL.to_string()
+    } else {
+        stream_receive_channel(&peer_id)
+    };
+    crate::inbox::deliver(MossReceivedMessage { channel, payload });
 }
 
 /// The channel every stream-delivered frame is filed under. One source of

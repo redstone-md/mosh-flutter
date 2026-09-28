@@ -22,13 +22,14 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'about_settings_section.dart';
 import 'connection_settings_section.dart';
 import 'voice_settings_section.dart';
+import '../device_link/devices_settings_section.dart';
 
 /// Below this width the section nav becomes a dropdown and the content
 /// pane takes the full width (mobile).
 const double kSettingsTwoPaneMinWidth = 700;
 
 /// The sections, in nav order.
-enum _SettingsSection { voice, connection, about }
+enum _SettingsSection { voice, devices, connection, about }
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -43,12 +44,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _sectionLabel(AppLocalizations l, _SettingsSection section) =>
       switch (section) {
         _SettingsSection.voice => l.settingsSectionVoice,
+        _SettingsSection.devices => l.settingsSectionDevices,
         _SettingsSection.connection => l.settingsSectionConnection,
         _SettingsSection.about => l.settingsSectionAbout,
       };
 
   Widget _sectionBody(_SettingsSection section) => switch (section) {
         _SettingsSection.voice => const VoiceSettingsSection(),
+        _SettingsSection.devices => const DevicesSettingsSection(),
         _SettingsSection.connection => const ConnectionSettingsSection(),
         _SettingsSection.about => const AboutSettingsSection(),
       };
