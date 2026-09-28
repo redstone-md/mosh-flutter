@@ -87,6 +87,7 @@ impl PrivateDmRuntime {
             .map(IdentityClaim::device)
             .transpose()?
             .map(|device| device.moss_peer_id);
+        let history_import = super::history::HistoryImport::new(&request.request_id, sender);
         session.membership = Some(DeviceMembership {
             topology: offer.topology,
             joining: Some(PendingJoin {
@@ -97,6 +98,8 @@ impl PrivateDmRuntime {
             delivery: None,
             receipt_targets: HashMap::new(),
             delivered_ids: Vec::new(),
+            history_import: Some(history_import),
+            history_exports: Vec::new(),
         });
         Ok(session)
     }

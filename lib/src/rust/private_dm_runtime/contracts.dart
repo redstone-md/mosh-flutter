@@ -214,6 +214,14 @@ enum ConnectOutcome {
   ;
 }
 
+/// Initial text history import on a linked installation. Completion is durable.
+enum DmHistorySyncState {
+  waitingForSource,
+  importing,
+  complete,
+  ;
+}
+
 /// Where a DM stands, as proven by the other side. `Connected` is only
 /// reached on an MLS-authenticated frame from the counterpart and only left
 /// when the counterpart drops out of reach.
@@ -323,6 +331,7 @@ class SessionListSnapshot {
 }
 
 class SessionSnapshot {
+  final DmHistorySyncState? historySync;
   final String sessionId;
   final String meshId;
   final String role;
@@ -362,6 +371,7 @@ class SessionSnapshot {
   final ActiveCall? activeCall;
 
   const SessionSnapshot({
+    this.historySync,
     required this.sessionId,
     required this.meshId,
     required this.role,
@@ -385,6 +395,7 @@ class SessionSnapshot {
 
   @override
   int get hashCode =>
+      historySync.hashCode ^
       sessionId.hashCode ^
       meshId.hashCode ^
       role.hashCode ^
@@ -410,6 +421,7 @@ class SessionSnapshot {
       identical(this, other) ||
       other is SessionSnapshot &&
           runtimeType == other.runtimeType &&
+          historySync == other.historySync &&
           sessionId == other.sessionId &&
           meshId == other.meshId &&
           role == other.role &&

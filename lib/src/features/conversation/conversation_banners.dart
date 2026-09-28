@@ -1,12 +1,12 @@
 /// The banners that sit between the header and the message list.
 ///
-/// Which ones show follows the kind: a DM has none, a channel says its
-/// messages are public, and a group says they are encrypted and can add a
+/// A linked DM shows its runtime history progress. A channel says its
+/// messages are public. A group says they are encrypted and can add a
 /// rejoin warning and an "add the missing org members" prompt.
 ///
-/// The notice comes from the target, not the snapshot, so it is there from
-/// the first frame and stays if a read fails. Only the group's rejoin
-/// warning waits for the snapshot, because only the snapshot knows.
+/// Channel and group notices come from the target, so they appear from the
+/// first frame and stay if a read fails. History progress and group rejoin
+/// warnings wait for their runtime snapshot.
 library;
 
 import 'package:flutter/material.dart';
@@ -20,6 +20,8 @@ import 'package:mosh/src/features/org/org_add_missing_banner.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/org_providers.dart' show orgAddPromptProvider;
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show DmHistorySyncState;
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 /// The tint on the channel notice: the same info blue the web app used.
@@ -47,7 +49,8 @@ class ConversationBanners extends StatelessWidget {
     // A local, so the type check below promotes it.
     final loaded = snapshot;
     return switch (target.kind) {
-      ConversationKind.dm => const SizedBox.shrink(),
+      ConversationKind.dm => _historyBanner(
+          l, loaded is DmConversation ? loaded.source.historySync : null),
       ConversationKind.channel => CryptoNoticeBanner(
           icon: Icons.tag,
           title: l.channelNoticeTitle,
@@ -73,6 +76,27 @@ class ConversationBanners extends StatelessWidget {
         ),
     };
   }
+}
+
+Widget _historyBanner(AppLocalizations l, DmHistorySyncState? state) {
+  final copy = switch (state) {
+    DmHistorySyncState.waitingForSource => (
+        l.dmHistoryWaitingTitle,
+        l.dmHistoryWaitingBody
+      ),
+    DmHistorySyncState.importing => (
+        l.dmHistoryImportingTitle,
+        l.dmHistoryImportingBody
+      ),
+    DmHistorySyncState.complete || null => null,
+  };
+  if (copy == null) return const SizedBox.shrink();
+  return CryptoNoticeBanner(
+    icon: Icons.history,
+    title: copy.$1,
+    body: copy.$2,
+    accent: MoshColors.info,
+  );
 }
 
 /// Offers an org admin the one tap that adds the org members who are not in

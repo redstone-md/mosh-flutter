@@ -197,6 +197,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       dynamic raw);
 
   @protected
+  DmHistorySyncState dco_decode_box_autoadd_dm_history_sync_state(dynamic raw);
+
+  @protected
   JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw);
 
   @protected
@@ -294,6 +297,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceLinkSnapshot dco_decode_device_link_snapshot(dynamic raw);
+
+  @protected
+  DmHistorySyncState dco_decode_dm_history_sync_state(dynamic raw);
 
   @protected
   DmOffer dco_decode_dm_offer(dynamic raw);
@@ -454,6 +460,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceLinkErrorKind? dco_decode_opt_box_autoadd_device_link_error_kind(
+      dynamic raw);
+
+  @protected
+  DmHistorySyncState? dco_decode_opt_box_autoadd_dm_history_sync_state(
       dynamic raw);
 
   @protected
@@ -701,6 +711,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  DmHistorySyncState sse_decode_box_autoadd_dm_history_sync_state(
+      SseDeserializer deserializer);
+
+  @protected
   JoinChannelRequest sse_decode_box_autoadd_join_channel_request(
       SseDeserializer deserializer);
 
@@ -812,6 +826,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceLinkSnapshot sse_decode_device_link_snapshot(
+      SseDeserializer deserializer);
+
+  @protected
+  DmHistorySyncState sse_decode_dm_history_sync_state(
       SseDeserializer deserializer);
 
   @protected
@@ -999,6 +1017,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceLinkErrorKind? sse_decode_opt_box_autoadd_device_link_error_kind(
+      SseDeserializer deserializer);
+
+  @protected
+  DmHistorySyncState? sse_decode_opt_box_autoadd_dm_history_sync_state(
       SseDeserializer deserializer);
 
   @protected
@@ -1261,6 +1283,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       DeviceLinkErrorKind self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_dm_history_sync_state(
+      DmHistorySyncState self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_join_channel_request(
       JoinChannelRequest self, SseSerializer serializer);
 
@@ -1382,6 +1408,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_device_link_snapshot(
       DeviceLinkSnapshot self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_dm_history_sync_state(
+      DmHistorySyncState self, SseSerializer serializer);
 
   @protected
   void sse_encode_dm_offer(DmOffer self, SseSerializer serializer);
@@ -1578,6 +1608,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_device_link_error_kind(
       DeviceLinkErrorKind? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_dm_history_sync_state(
+      DmHistorySyncState? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_mesh_info(

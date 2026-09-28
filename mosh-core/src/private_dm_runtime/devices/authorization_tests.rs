@@ -111,6 +111,8 @@ fn a_valid_self_signed_outsider_cannot_authorize_dm_admission() {
         delivery: None,
         receipt_targets: Default::default(),
         delivered_ids: Vec::new(),
+        history_import: None,
+        history_exports: Vec::new(),
     };
     let admission = Admission {
         request: JoinRequest {

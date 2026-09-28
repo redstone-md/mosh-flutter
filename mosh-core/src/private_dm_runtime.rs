@@ -168,6 +168,7 @@ pub struct PrivateDmRuntime {
 }
 
 struct PrivateDmSession {
+    history_last_rx_ms: u64,
     membership: Option<devices::DeviceMembership>,
     device_signer: Option<ed25519_dalek::SigningKey>,
     device_store: Option<Arc<Persistence>>,

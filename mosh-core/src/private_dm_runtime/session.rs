@@ -22,6 +22,7 @@ impl PrivateDmSession {
         let data_channel = data_channel(&session_id);
         let blob_channel = blob_channel(&session_id);
         Self {
+            history_last_rx_ms: 0,
             membership: None,
             device_signer: None,
             device_store: None,

@@ -54,6 +54,7 @@ impl Peer {
     fn new_installation(api: bool, manual_dm: bool) -> Self {
         let dir = std::env::temp_dir().join(format!("mosh-link-flow-{}", rand::random::<u64>()));
         std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("storage-key.bin"), rand::random::<[u8; 32]>()).unwrap();
         Self::start(dir, api, manual_dm)
     }
 
@@ -181,7 +182,11 @@ pub fn peer_process() {
         .unwrap()
         .parse()
         .unwrap();
-    let store = Arc::new(Persistence::open_with_dek(&dir.join("history.redb"), [91; 32]).unwrap());
+    let key = std::fs::read(dir.join("storage-key.bin"))
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let store = Arc::new(Persistence::open_with_dek(&dir.join("history.redb"), key).unwrap());
     set_moss_keystore(store.clone());
     let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
     moss.install_keystore().unwrap();

@@ -10,7 +10,7 @@ use super::OUTPUT_PREFIX;
 /// Exercise the public bridge facade with real shared resources and discovery.
 pub(super) fn run(dir: PathBuf) {
     private_dm::set_app_data_dir(dir.to_string_lossy().into_owned()).unwrap();
-    private_dm::set_history_dek(vec![91; 32]).unwrap();
+    private_dm::set_history_dek(std::fs::read(dir.join("storage-key.bin")).unwrap()).unwrap();
     for line in std::io::stdin().lock().lines() {
         let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
         let argument = command["argument"].as_str().unwrap_or_default().to_owned();

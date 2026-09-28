@@ -162,8 +162,16 @@ working after restart. The linked desktop can exchange text with the contact
 while the original is off. A receipt from a sibling stops retries to that
 device. Only a receipt from the contact marks the text delivered.
 
-This covers live text after admission. Old history transfer is issue 25,
-missed messages and epochs are issue 26, and revocation is issue 27. Joining
+After admission, the linked desktop automatically imports available text
+history from the authorizing desktop. Original message ids, authors and send
+times stay intact. Each installation encrypts its own imported history with
+its local storage key. Interrupted transfers resume after reconnect or restart;
+repeated batches and concurrent live text appear once. A waiting notice asks
+the user to bring the source online, and an importing notice disappears only
+after durable completion. See [ADR 0031](../ADR/0031-linked-desktop-dm-history.md)
+for the semantic record format, authorization and replay protocol.
+
+Missed messages and epochs are issue 26, and revocation is issue 27. Joining
 requires the existing DM participants to accept the new epoch. Device
 association is visible to the participants. Network traffic anonymity is not
 part of this feature. See [ADR 0030](../ADR/0030-linked-desktop-dm-clients.md)
@@ -174,7 +182,10 @@ independent installations with real Moss, OpenMLS and encrypted stores. They
 prove admission, sender-device sync, simultaneous sends, the original being
 off, restart and default discovery through public bridge calls. The companion
 `mosh-core/tests/dm_controls/` flow checks real contact typing and read receipts,
-then proves sibling activity cannot make an offline contact appear online. Run
+then proves sibling activity cannot make an offline contact appear online.
+The `mosh-core/tests/dm_history/` flows prove pre-link semantic history,
+interruption, live text during import, restart and large UTF-8 text transfer.
+Run
 `cargo test --manifest-path mosh-core/Cargo.toml --test multi_device_dm_flow`.
 
 ## Single-device proof
