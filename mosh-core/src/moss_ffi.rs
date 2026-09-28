@@ -259,41 +259,32 @@ impl Drop for TestPublishFailureGuard {
     }
 }
 
-/// Armed by a test that needs the next `public_key_hex` call to answer the
-/// way a node without a key answers: `None`. One-shot like the publish hook
-/// above — consumed on the first call and reset when the guard drops, so a
-/// leaked armed state cannot poison later tests.
+// A keyless-node fault affects only the requesting test thread; background
+// device services cannot consume it.
 #[cfg(test)]
-static TEST_PUBLIC_KEY_UNAVAILABLE: Mutex<bool> = Mutex::new(false);
+thread_local! {
+    static TEST_PUBLIC_KEY_UNAVAILABLE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
 
 #[cfg(test)]
-pub struct TestPublicKeyUnavailableGuard;
+pub struct TestPublicKeyUnavailableGuard(std::marker::PhantomData<std::rc::Rc<()>>);
 
-/// Make the NEXT `public_key_hex` call return `None`.
+/// Make this thread's next `public_key_hex` call return `None`.
 #[cfg(test)]
 pub fn public_key_unavailable_next_node() -> TestPublicKeyUnavailableGuard {
-    *TEST_PUBLIC_KEY_UNAVAILABLE
-        .lock()
-        .expect("test public key lock poisoned") = true;
-    TestPublicKeyUnavailableGuard
+    TEST_PUBLIC_KEY_UNAVAILABLE.set(true);
+    TestPublicKeyUnavailableGuard(std::marker::PhantomData)
 }
 
 #[cfg(test)]
 fn take_test_public_key_unavailable() -> bool {
-    let mut armed = TEST_PUBLIC_KEY_UNAVAILABLE
-        .lock()
-        .expect("test public key lock poisoned");
-    let was_armed = *armed;
-    *armed = false;
-    was_armed
+    TEST_PUBLIC_KEY_UNAVAILABLE.replace(false)
 }
 
 #[cfg(test)]
 impl Drop for TestPublicKeyUnavailableGuard {
     fn drop(&mut self) {
-        *TEST_PUBLIC_KEY_UNAVAILABLE
-            .lock()
-            .expect("test public key lock poisoned") = false;
+        TEST_PUBLIC_KEY_UNAVAILABLE.set(false);
     }
 }
 
@@ -1101,6 +1092,28 @@ mod tests {
         let read = unsafe { keystore_load(buffer.as_mut_ptr(), buffer.len() as u32) };
         assert_eq!(read, identity.len() as u32);
         assert_eq!(buffer, identity);
+    }
+
+    #[test]
+    fn keyless_node_fault_is_scoped_to_the_requesting_thread() {
+        let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
+        let node = Arc::new(
+            moss.init_node("keyless-isolation", &node_config(0, None))
+                .unwrap(),
+        );
+        assert!(node.public_key_hex().is_some());
+        let _fault = public_key_unavailable_next_node();
+        let background = node.clone();
+        assert!(
+            std::thread::spawn(move || background.public_key_hex())
+                .join()
+                .unwrap()
+                .is_some(),
+            "background device services cannot consume another test's keyless-node fault"
+        );
+        assert!(node.public_key_hex().is_none());
+        assert!(node.public_key_hex().is_some());
     }
 
     const TEST_MESH: &str = "mosh-runtime-smoke";
