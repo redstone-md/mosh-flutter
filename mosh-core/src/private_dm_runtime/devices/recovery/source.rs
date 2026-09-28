@@ -43,6 +43,9 @@ impl PrivateDmRuntime {
             let message = session.recovery_epoch_packet(&pull)?;
             return send_packet(&self.transport, identity, &sender.moss_peer_id, message);
         }
+        if session.awaiting_device_epoch() {
+            return Err(invalid());
+        }
         let export = session.recovery_export(&store, sender, &pull)?;
         let mut batch = RecoveryBatch {
             round: pull.round,
