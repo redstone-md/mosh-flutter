@@ -44,7 +44,21 @@ impl DmTopology {
 
     pub fn add_client(&mut self, claim: IdentityClaim) -> Result<()> {
         claim.verify(&claim.session_id)?;
-        self.update_roster(claim.roster.clone())?;
+        match self.roster(&claim.roster.user_id()) {
+            Some(base) if base.extends(&claim.roster).map_err(|_| invalid())? => {
+                if !base
+                    .devices()
+                    .map_err(|_| invalid())?
+                    .contains(&claim.device()?)
+                    || base
+                        .revoked_since(&claim.roster, &claim.device_id)
+                        .map_err(|_| invalid())?
+                {
+                    return Err(invalid());
+                }
+            }
+            _ => self.update_roster(claim.roster.clone())?,
+        }
         if let Some(existing) = self.client(&claim.mls_signer) {
             if existing.device_id != claim.device_id
                 || existing.roster.user_id() != claim.roster.user_id()
@@ -75,6 +89,18 @@ impl DmTopology {
         };
         for claim in &self.clients {
             claim.verify(session)?;
+            let current = self.roster(&claim.roster.user_id()).ok_or_else(invalid)?;
+            if !current.extends(&claim.roster).map_err(|_| invalid())?
+                || current
+                    .revoked_since(&claim.roster, &claim.device_id)
+                    .map_err(|_| invalid())?
+                || !current
+                    .devices()
+                    .map_err(|_| invalid())?
+                    .contains(&claim.device()?)
+            {
+                return Err(invalid());
+            }
             checked.add_client(claim.clone())?;
         }
         let mut expected: Vec<_> = self
@@ -111,6 +137,12 @@ pub(crate) struct DeviceMembership {
     pub(super) recovery_exports: Vec<super::recovery::RecoveryExport>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(super) epoch_records: Vec<super::recovery::EpochRecord>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) removals: Vec<super::revocation::RemovalJournal>,
+    #[serde(default)]
+    pub(super) revoked: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) pending_rosters: Vec<DeviceRoster>,
 }
 
 impl DeviceMembership {
@@ -123,7 +155,8 @@ impl DeviceMembership {
     }
 
     pub(super) fn live(&self) -> bool {
-        self.topology.clients.len() > INITIAL_CLIENTS && self.joining.is_none()
+        (self.topology.clients.len() > INITIAL_CLIENTS || !self.removals.is_empty())
+            && self.joining.is_none()
     }
 
     pub(super) fn client(&self, signer: &str) -> Option<&IdentityClaim> {
@@ -212,6 +245,12 @@ impl AdmissionJournal {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) enum DeviceMessage {
+    Removal(super::revocation::RemovalRecord),
+    RemovalAck {
+        session_id: String,
+        epoch: u64,
+        evidence: String,
+    },
     Offer(DmOffer),
     Join(JoinRequest),
     Admission(Admission),
@@ -222,6 +261,7 @@ pub(super) enum DeviceMessage {
     RecoveryPull(super::recovery::RecoveryPull),
     RecoveryBatch(super::recovery::RecoveryBatch),
     RecoveryEpoch(super::recovery::RecoveryEpoch),
+    RecoveryRemoval(super::recovery::RecoveryRemoval),
     Ack {
         session_id: String,
         request_id: String,

@@ -601,6 +601,7 @@ impl PrivateDmRuntime {
         self.drain_inbound();
         let message_id = {
             let session = self.session_mut(session_id)?;
+            session.ensure_device_authorized()?;
             let message = session.messages.stamp(ChatMessage {
                 from_device: session.device_id.clone(),
                 body,
@@ -898,6 +899,9 @@ impl PrivateDmRuntime {
             let Some(session) = self.sessions.get_mut(&session_id) else {
                 return;
             };
+            if session.ensure_device_authorized().is_err() {
+                return;
+            }
             if let Err(error) = session.handle_moss_message(message) {
                 dlog::write(
                     LogLevel::Warn,
@@ -916,6 +920,9 @@ impl PrivateDmRuntime {
         let lost_window = self.lost_window_ms;
         let mut dirty: Vec<(String, String)> = Vec::new();
         for (session_id, session) in self.sessions.iter_mut() {
+            if session.ensure_device_authorized().is_err() {
+                continue;
+            }
             session.pump_attachment_requests();
             session.pump_peer_connect();
             session.pump_liveness(now, lost_window);

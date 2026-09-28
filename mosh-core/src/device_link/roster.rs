@@ -5,8 +5,10 @@ use sha2::{Digest, Sha256};
 use super::types::{DeviceDescriptor, DeviceLinkError, DeviceLinkErrorKind, Result};
 
 const ROSTER_CONTEXT: &[u8] = b"mosh-device-roster-v1\0";
+const REMOVAL_CONTEXT: &[u8] = b"mosh-device-roster-remove-v2\0";
 const DEVICE_CONTEXT: &[u8] = b"mosh-device-id-v1\0";
 const ROSTER_VERSION: u32 = 1;
+const REMOVAL_VERSION: u32 = 2;
 pub(crate) const DEFAULT_DEVICE_NAME: &str = "Desktop";
 pub(crate) const MAX_NAME_CHARS: usize = 64;
 
@@ -74,19 +76,25 @@ impl DeviceDescriptor {
 impl Authorization {
     fn bytes(&self) -> Result<Vec<u8>> {
         let content = (&self.version, &self.parent, &self.signer, &self.device);
-        let mut bytes = ROSTER_CONTEXT.to_vec();
+        let mut bytes = match self.version {
+            ROSTER_VERSION => ROSTER_CONTEXT,
+            REMOVAL_VERSION => REMOVAL_CONTEXT,
+            _ => return Err(invalid()),
+        }
+        .to_vec();
         bytes.extend(serde_json::to_vec(&content).map_err(|_| invalid())?);
         Ok(bytes)
     }
 
     fn signed(
+        version: u32,
         parent: Option<String>,
         signer: String,
         device: DeviceDescriptor,
         key: &SigningKey,
     ) -> Result<Self> {
         let mut entry = Self {
-            version: ROSTER_VERSION,
+            version,
             parent,
             signer,
             device,
@@ -110,7 +118,8 @@ impl DeviceRoster {
     }
 
     pub(crate) fn genesis(device: DeviceDescriptor, key: &SigningKey) -> Result<Self> {
-        let entry = Authorization::signed(None, device.device_id.clone(), device, key)?;
+        let entry =
+            Authorization::signed(ROSTER_VERSION, None, device.device_id.clone(), device, key)?;
         let roster = Self {
             entries: vec![entry],
         };
@@ -144,14 +153,50 @@ impl DeviceRoster {
             let signature = Signature::from_slice(&signature).map_err(|_| invalid())?;
             key.verify_strict(&entry.bytes()?, &signature)
                 .map_err(|_| invalid())?;
-            if devices.iter().any(|d| {
+            if entry.version == REMOVAL_VERSION {
+                if entry.signer == entry.device.device_id || !devices.contains(&entry.device) {
+                    return Err(invalid());
+                }
+                devices.retain(|d| d.device_id != entry.device.device_id);
+            } else if devices.iter().any(|d| {
                 d.device_id == entry.device.device_id || d.moss_peer_id == entry.device.moss_peer_id
             }) {
                 return Err(invalid());
+            } else {
+                devices.push(entry.device.clone());
             }
-            devices.push(entry.device.clone());
         }
         Ok(devices)
+    }
+
+    pub(crate) fn known_device(&self, id: &str) -> Result<Option<DeviceDescriptor>> {
+        self.devices()?;
+        Ok(self
+            .entries
+            .iter()
+            .rev()
+            .find(|e| e.device.device_id == id)
+            .map(|e| e.device.clone()))
+    }
+
+    pub(crate) fn removed_devices(&self) -> Result<Vec<DeviceDescriptor>> {
+        let active = self.devices()?;
+        let mut removed = Vec::new();
+        for entry in self
+            .entries
+            .iter()
+            .rev()
+            .filter(|e| e.version == REMOVAL_VERSION)
+        {
+            if !active
+                .iter()
+                .chain(&removed)
+                .any(|d| d.device_id == entry.device.device_id)
+            {
+                removed.push(entry.device.clone());
+            }
+        }
+        Ok(removed)
     }
 
     fn authority(
@@ -160,11 +205,14 @@ impl DeviceRoster {
         entry: &Authorization,
         devices: &[DeviceDescriptor],
     ) -> Result<VerifyingKey> {
-        if entry.version != ROSTER_VERSION {
+        if !matches!(entry.version, ROSTER_VERSION | REMOVAL_VERSION) {
             return Err(invalid());
         }
         if index == 0 {
-            if entry.parent.is_some() || entry.signer != entry.device.device_id {
+            if entry.version != ROSTER_VERSION
+                || entry.parent.is_some()
+                || entry.signer != entry.device.device_id
+            {
                 return Err(invalid());
             }
             return public_key(&entry.device.signing_public_key);
@@ -186,6 +234,7 @@ impl DeviceRoster {
         let signer = device_id(&key.verifying_key());
         let mut next = self.clone();
         next.entries.push(Authorization::signed(
+            ROSTER_VERSION,
             Some(self.digest()?),
             signer,
             device,
@@ -193,6 +242,74 @@ impl DeviceRoster {
         )?);
         next.devices()?;
         Ok(next)
+    }
+
+    pub(crate) fn revoke(&self, target: &str, key: &SigningKey) -> Result<Self> {
+        let device = self
+            .devices()?
+            .into_iter()
+            .find(|d| d.device_id == target)
+            .ok_or_else(invalid)?;
+        let mut next = self.clone();
+        next.entries.push(Authorization::signed(
+            REMOVAL_VERSION,
+            Some(self.digest()?),
+            device_id(&key.verifying_key()),
+            device,
+            key,
+        )?);
+        next.devices()?;
+        Ok(next)
+    }
+
+    pub(crate) fn removal_author(&self, target: &str) -> Result<Option<String>> {
+        self.devices()?;
+        Ok(self
+            .entries
+            .iter()
+            .rev()
+            .find(|e| e.device.device_id == target && e.version == REMOVAL_VERSION)
+            .map(|e| e.signer.clone()))
+    }
+
+    /// A fresh addition grants roster access, but cannot renew an MLS leaf
+    /// admitted before an intervening removal.
+    pub(crate) fn revoked_since(&self, admission: &Self, target: &str) -> Result<bool> {
+        if !self.extends(admission)? {
+            return Err(invalid());
+        }
+        Ok(self.entries[admission.entries.len()..]
+            .iter()
+            .any(|e| e.version == REMOVAL_VERSION && e.device.device_id == target))
+    }
+
+    pub(crate) fn first_removal_since(
+        &self,
+        admission: &Self,
+        target: &str,
+    ) -> Result<Option<Self>> {
+        if !self.extends(admission)? {
+            return Err(invalid());
+        }
+        Ok(self.entries[admission.entries.len()..]
+            .iter()
+            .position(|e| e.device.device_id == target && e.version == REMOVAL_VERSION)
+            .map(|index| Self {
+                entries: self.entries[..=admission.entries.len() + index].to_vec(),
+            }))
+    }
+
+    pub(crate) fn verifies_removal(&self, base: &Self, target: &str, signer: &str) -> Result<()> {
+        let last = self.entries.last().ok_or_else(invalid)?;
+        if !self.extends(base)?
+            || last.version != REMOVAL_VERSION
+            || last.device.device_id != target
+            || last.signer != signer
+            || !base.devices()?.contains(&last.device)
+        {
+            return Err(invalid());
+        }
+        Ok(())
     }
 
     pub(crate) fn verifies_addition(
@@ -208,7 +325,11 @@ impl DeviceRoster {
         let parent = Self {
             entries: self.entries[..self.entries.len() - 1].to_vec(),
         };
-        if parent.digest()? != base.digest()? || &last.device != device || last.signer != signer {
+        if last.version != ROSTER_VERSION
+            || parent.digest()? != base.digest()?
+            || &last.device != device
+            || last.signer != signer
+        {
             return Err(invalid());
         }
         Ok(())

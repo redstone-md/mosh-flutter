@@ -1,5 +1,6 @@
 mod actions;
 mod receive;
+mod revocation;
 mod service;
 
 use std::sync::Arc;
@@ -95,6 +96,7 @@ pub struct DeviceLinkRuntime {
     error: Option<DeviceLinkErrorKind>,
     delivery_last_send: Option<Instant>,
     delivery_started: Instant,
+    roster_last_send: Option<Instant>,
 }
 
 impl DeviceLinkRuntime {
@@ -122,6 +124,7 @@ impl DeviceLinkRuntime {
             error: None,
             delivery_last_send: None,
             delivery_started: Instant::now(),
+            roster_last_send: None,
         };
         runtime.expire()?;
         Ok(runtime)
@@ -139,6 +142,8 @@ impl DeviceLinkRuntime {
             _ => None,
         };
         Ok(DeviceLinkSnapshot {
+            revoked: self.identity.revoked()?,
+            revocations: self.identity.revocations()?,
             user_id: self.identity.roster().user_id(),
             own_device_id: self.identity.device().device_id.clone(),
             devices: self.identity.roster().devices()?,

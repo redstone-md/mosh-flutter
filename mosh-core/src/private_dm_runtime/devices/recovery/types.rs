@@ -73,3 +73,10 @@ pub(in crate::private_dm_runtime::devices) struct RecoveryEpoch {
     pub request_id: String,
     pub evidence: super::epochs::EpochRecord,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(in crate::private_dm_runtime::devices) struct RecoveryRemoval {
+    pub round: u64,
+    pub request_id: String,
+    pub evidence: super::super::revocation::RemovalRecord,
+}

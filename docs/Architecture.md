@@ -55,6 +55,11 @@ a verified device roster and the pairing exchange. It borrows the existing
 stream 3. Existing DM, org and MLS identities keep their contracts.
 See [ADR 0029](ADR/0029-private-desktop-device-linking.md) for admission,
 signature verification, expiry, replay and delivery recovery.
+Signed roster removals use the same private stream and encrypted identity
+row. Identity writers compare their exact persisted bytes inside the write
+transaction, so a stale owner cannot overwrite a newer roster. Typed revoked
+and pending/applied snapshot fields drive the Devices UI; the DM runtime owns
+MLS application. See [ADR 0033](ADR/0033-dm-device-revocation.md).
 
 ```mermaid
 flowchart LR
@@ -74,6 +79,8 @@ classDiagram
         userId
         ownDeviceId
         devices
+        revoked
+        revocations
         phase
         pendingDevice
         confirmationCode
@@ -85,6 +92,7 @@ classDiagram
         importQr(uri)
         approve(code)
         cancel()
+        revoke(deviceId)
     }
     class DeviceIdentity
     class DeviceRoster
@@ -339,6 +347,37 @@ flowchart LR
     Source --> Waiting[Wait or switch source after silence]
     Waiting --> Probe
 ```
+
+### Revoking a DM installation
+
+`api::device_link::revoke(device_id)` persists a signed roster removal before
+transport. The private DM runtime processes removals in signed roster order,
+creates an exact-leaf MLS Remove and saves its evidence, topology, local MLS
+snapshot and retry journal together. Receivers verify both the original device
+authorization and the actual MLS committer before saving and acknowledging.
+The remaining cohort, excluding removed clients, determines pending/applied
+status. Retained evidence supports ordered Add/Remove recovery from another
+authorized holder when the original author is offline.
+
+```mermaid
+flowchart LR
+    Roster[Durable signed roster removal] --> MLS[Exact MLS leaf Remove]
+    MLS --> Store[Atomic epoch and evidence save]
+    Store --> Remaining[Remaining clients verify and save]
+    Remaining --> Ack[Durable acknowledgement]
+    Ack --> Applied[Typed applied status]
+    Store --> Recovery[Retained ordered Add and Remove evidence]
+    Recovery --> Returning[Honest returning client applies next epoch]
+```
+
+Current roster authorization gates live routing, history and recovery. A newer
+roster is pinned without publishing it as the old epoch's topology while the
+MLS transition is pending. Removal between a client's signed admission and
+the current roster retires that leaf even if the device later receives fresh
+roster permission. A revoked DM remains a readable local archive. Fresh
+same-user QR approval enables a new independent Join/Welcome while preserving
+semantic history. No private MLS state is transferred between installations.
+See [ADR 0033](ADR/0033-dm-device-revocation.md).
 
 ## Interface Contracts
 

@@ -18,7 +18,7 @@ import 'package:mosh/src/rust/channel_runtime/types.dart'
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show CallEvent, ChatMessage, SessionSnapshot;
+    show CallEvent, ChatMessage, SessionSnapshot, DmDeviceRevocationState;
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/private_group_runtime.dart'
@@ -186,6 +186,9 @@ final class DmConversation extends ConversationSnapshot {
 
   @override
   final SessionSnapshot source;
+
+  bool get revoked =>
+      source.deviceRevocation == DmDeviceRevocationState.revoked;
 
   /// When the counterpart's [[Typing indicator]] hint stands until, or null
   /// when the counterpart is not typing. The poll cycle carries it; the

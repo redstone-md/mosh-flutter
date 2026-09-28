@@ -52,7 +52,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -519816935;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 213369118;
 
 // Section: executor
 
@@ -1839,6 +1839,40 @@ fn wire__crate__api__conversation__retry_impl(
         },
     )
 }
+fn wire__crate__api__device_link__revoke_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "revoke",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_device_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::device_link::types::DeviceLinkError>((move || {
+                    let output_ok = crate::api::device_link::revoke(api_device_id)?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
+        },
+    )
+}
 fn wire__crate__api__conversation__send_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -3273,6 +3307,9 @@ impl SseDecode for crate::device_link::types::DeviceLinkPhase {
 impl SseDecode for crate::device_link::types::DeviceLinkSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_revoked = <bool>::sse_decode(deserializer);
+        let mut var_revocations =
+            <Vec<crate::device_link::types::DeviceRevocationStatus>>::sse_decode(deserializer);
         let mut var_userId = <String>::sse_decode(deserializer);
         let mut var_ownDeviceId = <String>::sse_decode(deserializer);
         let mut var_devices =
@@ -3287,6 +3324,8 @@ impl SseDecode for crate::device_link::types::DeviceLinkSnapshot {
         let mut var_error =
             <Option<crate::device_link::types::DeviceLinkErrorKind>>::sse_decode(deserializer);
         return crate::device_link::types::DeviceLinkSnapshot {
+            revoked: var_revoked,
+            revocations: var_revocations,
             user_id: var_userId,
             own_device_id: var_ownDeviceId,
             devices: var_devices,
@@ -3297,6 +3336,45 @@ impl SseDecode for crate::device_link::types::DeviceLinkSnapshot {
             confirmation_code: var_confirmationCode,
             pending_device: var_pendingDevice,
             error: var_error,
+        };
+    }
+}
+
+impl SseDecode for crate::device_link::types::DeviceRevocationState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::device_link::types::DeviceRevocationState::Pending,
+            1 => crate::device_link::types::DeviceRevocationState::Applied,
+            _ => unreachable!("Invalid variant for DeviceRevocationState: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::device_link::types::DeviceRevocationStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_device =
+            <crate::device_link::types::DeviceDescriptor>::sse_decode(deserializer);
+        let mut var_state =
+            <crate::device_link::types::DeviceRevocationState>::sse_decode(deserializer);
+        return crate::device_link::types::DeviceRevocationStatus {
+            device: var_device,
+            state: var_state,
+        };
+    }
+}
+
+impl SseDecode for crate::private_dm_runtime::contracts::DmDeviceRevocationState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::private_dm_runtime::contracts::DmDeviceRevocationState::Pending,
+            1 => crate::private_dm_runtime::contracts::DmDeviceRevocationState::Applied,
+            2 => crate::private_dm_runtime::contracts::DmDeviceRevocationState::Revoked,
+            _ => unreachable!("Invalid variant for DmDeviceRevocationState: {}", inner),
         };
     }
 }
@@ -3617,6 +3695,20 @@ impl SseDecode for Vec<crate::device_link::types::DeviceDescriptor> {
             ans_.push(<crate::device_link::types::DeviceDescriptor>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::device_link::types::DeviceRevocationStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::device_link::types::DeviceRevocationStatus>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -4112,6 +4204,21 @@ impl SseDecode for Option<crate::device_link::types::DeviceLinkErrorKind> {
     }
 }
 
+impl SseDecode for Option<crate::private_dm_runtime::contracts::DmDeviceRevocationState> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::private_dm_runtime::contracts::DmDeviceRevocationState>::sse_decode(
+                    deserializer,
+                ),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::private_dm_runtime::contracts::DmHistorySyncState> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4441,6 +4548,9 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deviceRevocation = <Option<
+            crate::private_dm_runtime::contracts::DmDeviceRevocationState,
+        >>::sse_decode(deserializer);
         let mut var_historySync =
             <Option<crate::private_dm_runtime::contracts::DmHistorySyncState>>::sse_decode(
                 deserializer,
@@ -4475,6 +4585,7 @@ impl SseDecode for crate::private_dm_runtime::contracts::SessionSnapshot {
         let mut var_activeCall =
             <Option<crate::private_dm_runtime::contracts::ActiveCall>>::sse_decode(deserializer);
         return crate::private_dm_runtime::contracts::SessionSnapshot {
+            device_revocation: var_deviceRevocation,
             history_sync: var_historySync,
             session_id: var_sessionId,
             mesh_id: var_meshId,
@@ -4711,46 +4822,47 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         50 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
-        52 => {
+        51 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
+        53 => {
             wire__crate__api__conversation__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        53 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        55 => {
+        54 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        56 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        56 => {
+        57 => {
             wire__crate__api__private_dm__set_app_data_dir_impl(port, ptr, rust_vec_len, data_len)
         }
-        57 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
+        58 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__shared_runtime__set_history_dek_impl(
+        60 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__shared_runtime__set_history_dek_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
+        62 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        63 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        65 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -4774,38 +4886,38 @@ fn pde_ffi_dispatcher_sync_impl(
         40 => {
             wire__crate__api__audio_devices__list_output_devices_impl(ptr, rust_vec_len, data_len)
         }
-        58 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
+        59 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        67 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
+        68 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
+        69 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
+        70 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
+        71 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        71 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
+        72 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        72 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        73 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -5509,6 +5621,8 @@ impl flutter_rust_bridge::IntoIntoDart<crate::device_link::types::DeviceLinkPhas
 impl flutter_rust_bridge::IntoDart for crate::device_link::types::DeviceLinkSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.revoked.into_into_dart().into_dart(),
+            self.revocations.into_into_dart().into_dart(),
             self.user_id.into_into_dart().into_dart(),
             self.own_device_id.into_into_dart().into_dart(),
             self.devices.into_into_dart().into_dart(),
@@ -5531,6 +5645,73 @@ impl flutter_rust_bridge::IntoIntoDart<crate::device_link::types::DeviceLinkSnap
     for crate::device_link::types::DeviceLinkSnapshot
 {
     fn into_into_dart(self) -> crate::device_link::types::DeviceLinkSnapshot {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::device_link::types::DeviceRevocationState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Pending => 0.into_dart(),
+            Self::Applied => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::device_link::types::DeviceRevocationState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::device_link::types::DeviceRevocationState>
+    for crate::device_link::types::DeviceRevocationState
+{
+    fn into_into_dart(self) -> crate::device_link::types::DeviceRevocationState {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::device_link::types::DeviceRevocationStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.device.into_into_dart().into_dart(),
+            self.state.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::device_link::types::DeviceRevocationStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::device_link::types::DeviceRevocationStatus>
+    for crate::device_link::types::DeviceRevocationStatus
+{
+    fn into_into_dart(self) -> crate::device_link::types::DeviceRevocationStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::private_dm_runtime::contracts::DmDeviceRevocationState
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Pending => 0.into_dart(),
+            Self::Applied => 1.into_dart(),
+            Self::Revoked => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::private_dm_runtime::contracts::DmDeviceRevocationState
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::DmDeviceRevocationState>
+    for crate::private_dm_runtime::contracts::DmDeviceRevocationState
+{
+    fn into_into_dart(self) -> crate::private_dm_runtime::contracts::DmDeviceRevocationState {
         self
     }
 }
@@ -6314,6 +6495,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::private_dm_runtime::contracts::Ses
 impl flutter_rust_bridge::IntoDart for crate::private_dm_runtime::contracts::SessionSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.device_revocation.into_into_dart().into_dart(),
             self.history_sync.into_into_dart().into_dart(),
             self.session_id.into_into_dart().into_dart(),
             self.mesh_id.into_into_dart().into_dart(),
@@ -6940,6 +7122,11 @@ impl SseEncode for crate::device_link::types::DeviceLinkPhase {
 impl SseEncode for crate::device_link::types::DeviceLinkSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.revoked, serializer);
+        <Vec<crate::device_link::types::DeviceRevocationStatus>>::sse_encode(
+            self.revocations,
+            serializer,
+        );
         <String>::sse_encode(self.user_id, serializer);
         <String>::sse_encode(self.own_device_id, serializer);
         <Vec<crate::device_link::types::DeviceDescriptor>>::sse_encode(self.devices, serializer);
@@ -6954,6 +7141,47 @@ impl SseEncode for crate::device_link::types::DeviceLinkSnapshot {
         );
         <Option<crate::device_link::types::DeviceLinkErrorKind>>::sse_encode(
             self.error, serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::device_link::types::DeviceRevocationState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::device_link::types::DeviceRevocationState::Pending => 0,
+                crate::device_link::types::DeviceRevocationState::Applied => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::device_link::types::DeviceRevocationStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::device_link::types::DeviceDescriptor>::sse_encode(self.device, serializer);
+        <crate::device_link::types::DeviceRevocationState>::sse_encode(self.state, serializer);
+    }
+}
+
+impl SseEncode for crate::private_dm_runtime::contracts::DmDeviceRevocationState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::private_dm_runtime::contracts::DmDeviceRevocationState::Pending => 0,
+                crate::private_dm_runtime::contracts::DmDeviceRevocationState::Applied => 1,
+                crate::private_dm_runtime::contracts::DmDeviceRevocationState::Revoked => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
         );
     }
 }
@@ -7189,6 +7417,16 @@ impl SseEncode for Vec<crate::device_link::types::DeviceDescriptor> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::device_link::types::DeviceDescriptor>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::device_link::types::DeviceRevocationStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::device_link::types::DeviceRevocationStatus>::sse_encode(item, serializer);
         }
     }
 }
@@ -7550,6 +7788,18 @@ impl SseEncode for Option<crate::device_link::types::DeviceLinkErrorKind> {
     }
 }
 
+impl SseEncode for Option<crate::private_dm_runtime::contracts::DmDeviceRevocationState> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::private_dm_runtime::contracts::DmDeviceRevocationState>::sse_encode(
+                value, serializer,
+            );
+        }
+    }
+}
+
 impl SseEncode for Option<crate::private_dm_runtime::contracts::DmHistorySyncState> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7792,6 +8042,10 @@ impl SseEncode for crate::private_dm_runtime::contracts::SessionListSnapshot {
 impl SseEncode for crate::private_dm_runtime::contracts::SessionSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::private_dm_runtime::contracts::DmDeviceRevocationState>>::sse_encode(
+            self.device_revocation,
+            serializer,
+        );
         <Option<crate::private_dm_runtime::contracts::DmHistorySyncState>>::sse_encode(
             self.history_sync,
             serializer,

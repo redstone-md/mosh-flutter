@@ -42,7 +42,13 @@ impl IdentityClaim {
         signer: &[u8],
         name: &str,
     ) -> Result<Self> {
-        if !roster.extends(identity.roster()).map_err(|_| invalid())?
+        if !(roster.extends(identity.roster()).map_err(|_| invalid())?
+            || identity.roster().extends(roster).map_err(|_| invalid())?)
+            || !identity
+                .roster()
+                .devices()
+                .map_err(|_| invalid())?
+                .contains(identity.device())
             || !roster
                 .devices()
                 .map_err(|_| invalid())?

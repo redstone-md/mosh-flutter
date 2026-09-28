@@ -42,6 +42,15 @@ pub enum DmHistorySyncState {
     Complete,
 }
 
+#[frb(non_opaque)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DmDeviceRevocationState {
+    Pending,
+    Applied,
+    Revoked,
+}
+
 /// What the last request to reach the counterpart answered, for the
 /// diagnostics card. moss keeps retrying a requested target on its own, so
 /// "requested" is the good outcome; a failure means moss would not take the
@@ -107,6 +116,8 @@ pub struct ReadReceiptBody {
 #[frb(non_opaque)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_revocation: Option<DmDeviceRevocationState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub history_sync: Option<DmHistorySyncState>,
     pub session_id: String,
@@ -296,6 +307,7 @@ pub struct SendMessageResult {
 
 #[derive(Debug)]
 pub enum PrivateDmRuntimeError {
+    Revoked,
     Moss(String),
     OpenMls(String),
     Codec(String),
@@ -318,6 +330,7 @@ pub enum PrivateDmRuntimeError {
 impl std::fmt::Display for PrivateDmRuntimeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Revoked => write!(formatter, "this installation's DM membership was revoked"),
             Self::Moss(error) => write!(formatter, "Moss error: {error}"),
             Self::OpenMls(error) => write!(formatter, "OpenMLS error: {error}"),
             Self::Codec(error) => write!(formatter, "codec error: {error}"),

@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -519816935;
+  int get rustContentHash => 213369118;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -261,6 +261,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiConversationRetry(
       {required BridgeConversationRef reference, required String messageId});
+
+  Future<DeviceLinkSnapshot> crateApiDeviceLinkRevoke(
+      {required String deviceId});
 
   Future<void> crateApiConversationSend(
       {required BridgeConversationRef reference, required String body});
@@ -1696,6 +1699,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DeviceLinkSnapshot> crateApiDeviceLinkRevoke(
+      {required String deviceId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(deviceId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 51, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_device_link_snapshot,
+        decodeErrorData: sse_decode_device_link_error,
+      ),
+      constMeta: kCrateApiDeviceLinkRevokeConstMeta,
+      argValues: [deviceId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDeviceLinkRevokeConstMeta => const TaskConstMeta(
+        debugName: "revoke",
+        argNames: ["deviceId"],
+      );
+
+  @override
   Future<void> crateApiConversationSend(
       {required BridgeConversationRef reference, required String body}) {
     return handler.executeNormal(NormalTask(
@@ -1704,7 +1732,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_box_autoadd_bridge_conversation_ref(reference, serializer);
         sse_encode_String(body, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 51, port: port_);
+            funcId: 52, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1731,7 +1759,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_box_autoadd_bridge_conversation_ref(reference, serializer);
         sse_encode_box_autoadd_bridge_attachment_payload(payload, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 52, port: port_);
+            funcId: 53, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1761,7 +1789,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(targetFingerprint, serializer);
         sse_encode_String(inviteUri, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 53, port: port_);
+            funcId: 54, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1794,7 +1822,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_16(listenPort, serializer);
         sse_encode_opt_String(staticPeer, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 54, port: port_);
+            funcId: 55, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_invite_created,
@@ -1829,7 +1857,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(targetFingerprint, serializer);
         sse_encode_String(inviteUri, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 55, port: port_);
+            funcId: 56, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1854,7 +1882,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(path, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 56, port: port_);
+            funcId: 57, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1879,7 +1907,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(path, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 57, port: port_);
+            funcId: 58, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1905,7 +1933,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_String(inputDeviceId, serializer);
         sse_encode_opt_String(outputDeviceId, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 58)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 59)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1930,7 +1958,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_list_prim_u_8_loose(dek, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 59, port: port_);
+            funcId: 60, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1955,7 +1983,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_list_prim_u_8_loose(dek, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 60, port: port_);
+            funcId: 61, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1981,7 +2009,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_bool(enabled, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 61, port: port_);
+            funcId: 62, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2006,7 +2034,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_String(interface_, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 62, port: port_);
+            funcId: 63, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2030,7 +2058,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 63, port: port_);
+            funcId: 64, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_device_link_snapshot,
@@ -2063,7 +2091,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_64(start, serializer);
         sse_encode_u_64(end, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 64, port: port_);
+            funcId: 65, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_attachment_stream_range,
@@ -2089,7 +2117,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_bridge_conversation_ref(reference, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 65, port: port_);
+            funcId: 66, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2116,7 +2144,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallOpusEncoder(
             encoder, serializer);
         sse_encode_list_prim_u_8_loose(pcm16, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 66)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 67)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_prim_u_8_strict,
@@ -2139,7 +2167,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 67)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 68)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2171,7 +2199,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             p, serializer);
         sse_encode_U128(seq, serializer);
         sse_encode_list_prim_u_8_loose(opus, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 68)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 69)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2197,7 +2225,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_String(outputDeviceId, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 69)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 70)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2224,7 +2252,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoicePlayback(
             p, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 70)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 71)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2249,7 +2277,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_String(outputDeviceId, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 71)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 72)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -2276,7 +2304,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerVoiceCallRingtone(
             ringtone, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 72)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 73)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -2618,6 +2646,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DmDeviceRevocationState dco_decode_box_autoadd_dm_device_revocation_state(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_dm_device_revocation_state(raw);
+  }
+
+  @protected
   DmHistorySyncState dco_decode_box_autoadd_dm_history_sync_state(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_dm_history_sync_state(raw);
@@ -2926,20 +2961,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DeviceLinkSnapshot dco_decode_device_link_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return DeviceLinkSnapshot(
-      userId: dco_decode_String(arr[0]),
-      ownDeviceId: dco_decode_String(arr[1]),
-      devices: dco_decode_list_device_descriptor(arr[2]),
-      canJoin: dco_decode_bool(arr[3]),
-      phase: dco_decode_device_link_phase(arr[4]),
-      qrUri: dco_decode_opt_String(arr[5]),
-      expiresAt: dco_decode_opt_box_autoadd_u_64(arr[6]),
-      confirmationCode: dco_decode_opt_String(arr[7]),
-      pendingDevice: dco_decode_opt_box_autoadd_device_descriptor(arr[8]),
-      error: dco_decode_opt_box_autoadd_device_link_error_kind(arr[9]),
+      revoked: dco_decode_bool(arr[0]),
+      revocations: dco_decode_list_device_revocation_status(arr[1]),
+      userId: dco_decode_String(arr[2]),
+      ownDeviceId: dco_decode_String(arr[3]),
+      devices: dco_decode_list_device_descriptor(arr[4]),
+      canJoin: dco_decode_bool(arr[5]),
+      phase: dco_decode_device_link_phase(arr[6]),
+      qrUri: dco_decode_opt_String(arr[7]),
+      expiresAt: dco_decode_opt_box_autoadd_u_64(arr[8]),
+      confirmationCode: dco_decode_opt_String(arr[9]),
+      pendingDevice: dco_decode_opt_box_autoadd_device_descriptor(arr[10]),
+      error: dco_decode_opt_box_autoadd_device_link_error_kind(arr[11]),
     );
+  }
+
+  @protected
+  DeviceRevocationState dco_decode_device_revocation_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DeviceRevocationState.values[raw as int];
+  }
+
+  @protected
+  DeviceRevocationStatus dco_decode_device_revocation_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DeviceRevocationStatus(
+      device: dco_decode_device_descriptor(arr[0]),
+      state: dco_decode_device_revocation_state(arr[1]),
+    );
+  }
+
+  @protected
+  DmDeviceRevocationState dco_decode_dm_device_revocation_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DmDeviceRevocationState.values[raw as int];
   }
 
   @protected
@@ -3149,6 +3210,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DeviceDescriptor> dco_decode_list_device_descriptor(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_device_descriptor).toList();
+  }
+
+  @protected
+  List<DeviceRevocationStatus> dco_decode_list_device_revocation_status(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_device_revocation_status)
+        .toList();
   }
 
   @protected
@@ -3451,6 +3521,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DmDeviceRevocationState?
+      dco_decode_opt_box_autoadd_dm_device_revocation_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_dm_device_revocation_state(raw);
+  }
+
+  @protected
   DmHistorySyncState? dco_decode_opt_box_autoadd_dm_history_sync_state(
       dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -3689,29 +3768,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SessionSnapshot dco_decode_session_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 20)
-      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
+    if (arr.length != 21)
+      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
     return SessionSnapshot(
-      historySync: dco_decode_opt_box_autoadd_dm_history_sync_state(arr[0]),
-      sessionId: dco_decode_String(arr[1]),
-      meshId: dco_decode_String(arr[2]),
-      role: dco_decode_String(arr[3]),
-      displayName: dco_decode_String(arr[4]),
-      peerDisplayName: dco_decode_String(arr[5]),
-      state: dco_decode_dm_session_state(arr[6]),
-      transport: dco_decode_peer_transport(arr[7]),
-      peerMossId: dco_decode_opt_String(arr[8]),
-      lastConnectOutcome: dco_decode_opt_box_autoadd_connect_outcome(arr[9]),
-      inviteUri: dco_decode_opt_String(arr[10]),
-      fingerprint: dco_decode_String(arr[11]),
-      messages: dco_decode_list_chat_message(arr[12]),
-      attachments: dco_decode_list_attachment_view(arr[13]),
-      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[14]),
-      events: dco_decode_list_snapshot_event(arr[15]),
-      pendingCall: dco_decode_opt_box_autoadd_pending_call(arr[16]),
-      peerTypingUntilMs: dco_decode_opt_box_autoadd_u_64(arr[17]),
-      outgoingCall: dco_decode_opt_box_autoadd_outgoing_call(arr[18]),
-      activeCall: dco_decode_opt_box_autoadd_active_call(arr[19]),
+      deviceRevocation:
+          dco_decode_opt_box_autoadd_dm_device_revocation_state(arr[0]),
+      historySync: dco_decode_opt_box_autoadd_dm_history_sync_state(arr[1]),
+      sessionId: dco_decode_String(arr[2]),
+      meshId: dco_decode_String(arr[3]),
+      role: dco_decode_String(arr[4]),
+      displayName: dco_decode_String(arr[5]),
+      peerDisplayName: dco_decode_String(arr[6]),
+      state: dco_decode_dm_session_state(arr[7]),
+      transport: dco_decode_peer_transport(arr[8]),
+      peerMossId: dco_decode_opt_String(arr[9]),
+      lastConnectOutcome: dco_decode_opt_box_autoadd_connect_outcome(arr[10]),
+      inviteUri: dco_decode_opt_String(arr[11]),
+      fingerprint: dco_decode_String(arr[12]),
+      messages: dco_decode_list_chat_message(arr[13]),
+      attachments: dco_decode_list_attachment_view(arr[14]),
+      mesh: dco_decode_opt_box_autoadd_mesh_info(arr[15]),
+      events: dco_decode_list_snapshot_event(arr[16]),
+      pendingCall: dco_decode_opt_box_autoadd_pending_call(arr[17]),
+      peerTypingUntilMs: dco_decode_opt_box_autoadd_u_64(arr[18]),
+      outgoingCall: dco_decode_opt_box_autoadd_outgoing_call(arr[19]),
+      activeCall: dco_decode_opt_box_autoadd_active_call(arr[20]),
     );
   }
 
@@ -4144,6 +4225,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DmDeviceRevocationState sse_decode_box_autoadd_dm_device_revocation_state(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_dm_device_revocation_state(deserializer));
+  }
+
+  @protected
   DmHistorySyncState sse_decode_box_autoadd_dm_history_sync_state(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -4476,6 +4564,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DeviceLinkSnapshot sse_decode_device_link_snapshot(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_revoked = sse_decode_bool(deserializer);
+    var var_revocations =
+        sse_decode_list_device_revocation_status(deserializer);
     var var_userId = sse_decode_String(deserializer);
     var var_ownDeviceId = sse_decode_String(deserializer);
     var var_devices = sse_decode_list_device_descriptor(deserializer);
@@ -4489,6 +4580,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_error =
         sse_decode_opt_box_autoadd_device_link_error_kind(deserializer);
     return DeviceLinkSnapshot(
+        revoked: var_revoked,
+        revocations: var_revocations,
         userId: var_userId,
         ownDeviceId: var_ownDeviceId,
         devices: var_devices,
@@ -4499,6 +4592,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         confirmationCode: var_confirmationCode,
         pendingDevice: var_pendingDevice,
         error: var_error);
+  }
+
+  @protected
+  DeviceRevocationState sse_decode_device_revocation_state(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DeviceRevocationState.values[inner];
+  }
+
+  @protected
+  DeviceRevocationStatus sse_decode_device_revocation_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_device = sse_decode_device_descriptor(deserializer);
+    var var_state = sse_decode_device_revocation_state(deserializer);
+    return DeviceRevocationStatus(device: var_device, state: var_state);
+  }
+
+  @protected
+  DmDeviceRevocationState sse_decode_dm_device_revocation_state(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DmDeviceRevocationState.values[inner];
   }
 
   @protected
@@ -4780,6 +4898,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <DeviceDescriptor>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_device_descriptor(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DeviceRevocationStatus> sse_decode_list_device_revocation_status(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DeviceRevocationStatus>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_device_revocation_status(deserializer));
     }
     return ans_;
   }
@@ -5233,6 +5364,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DmDeviceRevocationState?
+      sse_decode_opt_box_autoadd_dm_device_revocation_state(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_dm_device_revocation_state(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   DmHistorySyncState? sse_decode_opt_box_autoadd_dm_history_sync_state(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -5512,6 +5656,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SessionSnapshot sse_decode_session_snapshot(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceRevocation =
+        sse_decode_opt_box_autoadd_dm_device_revocation_state(deserializer);
     var var_historySync =
         sse_decode_opt_box_autoadd_dm_history_sync_state(deserializer);
     var var_sessionId = sse_decode_String(deserializer);
@@ -5536,6 +5682,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_decode_opt_box_autoadd_outgoing_call(deserializer);
     var var_activeCall = sse_decode_opt_box_autoadd_active_call(deserializer);
     return SessionSnapshot(
+        deviceRevocation: var_deviceRevocation,
         historySync: var_historySync,
         sessionId: var_sessionId,
         meshId: var_meshId,
@@ -5952,6 +6099,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_dm_device_revocation_state(
+      DmDeviceRevocationState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_dm_device_revocation_state(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_dm_history_sync_state(
       DmHistorySyncState self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -6225,6 +6379,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_device_link_snapshot(
       DeviceLinkSnapshot self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.revoked, serializer);
+    sse_encode_list_device_revocation_status(self.revocations, serializer);
     sse_encode_String(self.userId, serializer);
     sse_encode_String(self.ownDeviceId, serializer);
     sse_encode_list_device_descriptor(self.devices, serializer);
@@ -6236,6 +6392,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_device_descriptor(
         self.pendingDevice, serializer);
     sse_encode_opt_box_autoadd_device_link_error_kind(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_device_revocation_state(
+      DeviceRevocationState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_device_revocation_status(
+      DeviceRevocationStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_device_descriptor(self.device, serializer);
+    sse_encode_device_revocation_state(self.state, serializer);
+  }
+
+  @protected
+  void sse_encode_dm_device_revocation_state(
+      DmDeviceRevocationState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -6433,6 +6611,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_device_descriptor(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_device_revocation_status(
+      List<DeviceRevocationStatus> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_device_revocation_status(item, serializer);
     }
   }
 
@@ -6788,6 +6976,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_dm_device_revocation_state(
+      DmDeviceRevocationState? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_dm_device_revocation_state(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_dm_history_sync_state(
       DmHistorySyncState? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -7018,6 +7217,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_session_snapshot(
       SessionSnapshot self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_dm_device_revocation_state(
+        self.deviceRevocation, serializer);
     sse_encode_opt_box_autoadd_dm_history_sync_state(
         self.historySync, serializer);
     sse_encode_String(self.sessionId, serializer);

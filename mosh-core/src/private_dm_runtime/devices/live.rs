@@ -125,6 +125,14 @@ impl PrivateDmSession {
         channel: &str,
         payload: &[u8],
     ) -> Result<()> {
+        self.ensure_device_authorized()?;
+        if self
+            .membership
+            .as_ref()
+            .is_some_and(|m| m.pending_removal())
+        {
+            return Err(crate::private_dm_runtime::PrivateDmRuntimeError::NotReady);
+        }
         self.persist_device_crypto()?;
         let membership = self.membership.as_ref().ok_or_else(invalid)?;
         let own_signer = hex::encode(self.crypto.signer_public());
@@ -202,6 +210,13 @@ impl PrivateDmSession {
     }
 
     pub(in crate::private_dm_runtime) fn device_outbox_ready(&self) -> bool {
+        if self
+            .membership
+            .as_ref()
+            .is_some_and(|m| m.revoked || m.pending_removal())
+        {
+            return false;
+        }
         !self.devices_live()
             || (self.state == DmSessionState::Connected
                 && self

@@ -12,6 +12,7 @@ fn due(sent: Option<Instant>) -> bool {
 impl DeviceLinkRuntime {
     /// Drive pairing even while its settings section is closed.
     pub fn service(&mut self) -> Result<()> {
+        self.identity.reload()?;
         self.expire()?;
         for message in self.transport.drain() {
             // Unauthenticated traffic never changes consent or membership.
@@ -23,6 +24,7 @@ impl DeviceLinkRuntime {
         }
         self.retry_exchange();
         self.retry_delivery();
+        self.retry_roster();
         Ok(())
     }
 

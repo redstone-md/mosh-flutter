@@ -28,10 +28,41 @@ The linked desktop keeps its own signing key, Moss identity and connections.
 The list restores after restart. An installation with existing conversations
 cannot join another user; it can approve a fresh desktop instead.
 
-Pairing is free and needs no wallet. This release only links identities.
-Live DM sync, history transfer, catchup, revocation and Android delivery are
-separate issues 24 through 28. A linked desktop does not yet display the old
-desktop's conversations. The screen states this after successful linking.
+Pairing is free and needs no wallet. Linked desktops join existing text DMs
+with independent MLS keys, import available history and recover missed epochs
+and text after reconnecting. See [Private DM](private-dm.md). Android
+foreground delivery remains issue 28.
+
+## Remove a linked desktop
+
+Choose Remove beside another desktop and confirm its name. The signed roster
+removal is saved before delivery. Affected DMs remove that installation's
+exact MLS leaf and retry the same durable transition to remaining participants.
+Pending means a remaining participant has not saved its removal epoch; Applied
+means all affected remaining participants have acknowledged that save. An
+offline participant must reconnect to apply it. The removed desktop need not
+acknowledge the transition.
+
+```mermaid
+flowchart TD
+    Confirm[Confirm another desktop by name] --> Roster[Save signed removal]
+    Roster --> Remove[Remove that exact MLS leaf]
+    Remove --> Save[Save epoch and delivery journal atomically]
+    Save --> Pending[Pending while remaining participants are offline]
+    Pending --> Ack[Remaining participants save and acknowledge epoch]
+    Ack --> Applied[Applied: future text uses the removal epoch]
+    Roster --> Archive[Removed desktop keeps received history]
+    Archive --> QR[Fresh QR and human code approval for the same user]
+    QR --> Join[Fresh independent MLS join]
+```
+
+The removed desktop keeps already received history readable and cannot send
+or request new sync in those DMs. This does not erase its local history. Old
+QRs, approvals and signed roster prefixes cannot restore access. Request
+access again on that desktop to obtain a fresh QR; the trusted desktop must
+approve its new code. Its old history stays under its own storage key, and
+its DM joins use new MLS keys. Retained conversations cannot be used to join
+a different user. See [ADR 0033](../ADR/0033-dm-device-revocation.md).
 
 ## Failures and recovery
 
@@ -43,7 +74,8 @@ created again after restart. Once both desktops have exchanged their proof,
 the new desktop restores that pending request until its five-minute expiry.
 Once approval is saved, it cannot be cancelled
 as though it never happened. The core retries the saved authorization until
-the new desktop acknowledges its save. Revocation is a later feature.
+the new desktop acknowledges its save. Removing an approved entry uses the
+separate signed removal flow above.
 If the new desktop never receives that approval before its request expires,
 the trusted desktop keeps the approved entry and reports incomplete delivery.
 It cannot silently undo a signed authorization.
@@ -67,12 +99,17 @@ for the exact authorization and verification rules.
   proves persistent identity and unchanged old history/transport records.
 - `cargo test --manifest-path mosh-core/Cargo.toml device_link::protocol_tests`
   checks strict signed membership, authorized delegation, packet integrity,
-  ciphertext confidentiality and expiry at the byte-decoding boundaries.
+  ciphertext confidentiality, removal authority and expiry at the byte-decoding boundaries.
+- `cargo test --manifest-path mosh-core/Cargo.toml --lib fresh_approval_completes`
+  proves a signed roster notice arriving before the matching fresh approval
+  cannot interrupt that approval or revive a consumed request after removal.
 - `flutter test test/features/device_link/qr_image_test.dart` renders a real
   QR and decodes its image with the desktop importer.
 - After `cargo build` and the real-process tests above,
   `flutter test native_test/device_link_test.dart` drives the actual Devices
-  screen through the native bridge and a separate Moss process. No bridge or
+  screen through linking, removal cancellation, confirmed removal and fresh
+  approval on the revoked installation using
+  the native bridge and a separate Moss process. No bridge or
   service doubles are used. CI runs this in its Windows native test lane.
 
 New production code requires 80% line coverage; branch coverage is required

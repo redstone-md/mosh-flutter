@@ -27,6 +27,7 @@ pub(super) fn run(dir: PathBuf) {
             "import" => device_link::import_qr(argument),
             "approve" => device_link::approve(argument),
             "cancel" => device_link::cancel(),
+            "revoke" => device_link::revoke(argument),
             _ => panic!("unknown bridge command"),
         };
         let response = match result {

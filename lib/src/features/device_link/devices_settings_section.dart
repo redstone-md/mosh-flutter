@@ -9,6 +9,7 @@ import 'device_link_copy.dart';
 import 'device_link_provider.dart';
 import 'device_link_qr.dart';
 import 'device_list.dart';
+import 'device_revocation_dialog.dart';
 import 'qr_image.dart';
 
 const _imageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
@@ -92,7 +93,13 @@ class _DevicesSettingsSectionState
         s.phase == DeviceLinkPhase.failed ||
         s.phase == DeviceLinkPhase.linked;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      LinkedDeviceList(snapshot: s),
+      LinkedDeviceList(
+          snapshot: s,
+          onRemove: idle && !_busy && !s.revoked ? _removeDevice : null),
+      if (s.revoked) ...[
+        const SizedBox(height: 8),
+        Text(l.deviceLinkRevokedBody),
+      ],
       const SizedBox(height: 16),
       Text(deviceLinkPhase(l, s.phase),
           semanticsLabel: deviceLinkPhase(l, s.phase)),
@@ -118,6 +125,12 @@ class _DevicesSettingsSectionState
     ]);
   }
 
+  Future<void> _removeDevice(DeviceDescriptor device) async {
+    if (!await confirmDeviceRemoval(context, device.name) || !mounted) return;
+    await _run(
+        () => ref.read(deviceLinkProvider.notifier).revoke(device.deviceId));
+  }
+
   List<Widget> _qr(AppLocalizations l, String uri) => [
         const SizedBox(height: 16),
         DeviceLinkQr(uri: uri, label: l.deviceLinkQrLabel),
@@ -133,30 +146,35 @@ class _DevicesSettingsSectionState
       [
         if (s.canJoin) ...[
           const SizedBox(height: 16),
-          TextField(
-              controller: _name,
-              maxLength: 64,
-              decoration: InputDecoration(labelText: l.deviceLinkDeviceName)),
+          if (!s.revoked)
+            TextField(
+                controller: _name,
+                maxLength: 64,
+                decoration: InputDecoration(labelText: l.deviceLinkDeviceName)),
           FilledButton(
               onPressed: _busy
                   ? null
                   : () => _run(() => controller.createQr(_name.text)),
-              child: Text(l.deviceLinkJoin)),
+              child:
+                  Text(s.revoked ? l.deviceLinkFreshJoin : l.deviceLinkJoin)),
         ],
-        const SizedBox(height: 16),
-        OutlinedButton.icon(
-            onPressed: _busy ? null : () => _run(_importImage),
-            icon: const Icon(Icons.qr_code),
-            label: Text(l.deviceLinkImportImage)),
-        const SizedBox(height: 8),
-        TextField(
-            controller: _uri,
-            maxLength: 2048,
-            decoration: InputDecoration(labelText: l.deviceLinkPasteLabel)),
-        FilledButton(
-            onPressed:
-                _busy ? null : () => _run(() => controller.importQr(_uri.text)),
-            child: Text(l.deviceLinkImport)),
+        if (!s.revoked) ...[
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+              onPressed: _busy ? null : () => _run(_importImage),
+              icon: const Icon(Icons.qr_code),
+              label: Text(l.deviceLinkImportImage)),
+          const SizedBox(height: 8),
+          TextField(
+              controller: _uri,
+              maxLength: 2048,
+              decoration: InputDecoration(labelText: l.deviceLinkPasteLabel)),
+          FilledButton(
+              onPressed: _busy
+                  ? null
+                  : () => _run(() => controller.importQr(_uri.text)),
+              child: Text(l.deviceLinkImport)),
+        ],
       ];
 
   List<Widget> _approval(AppLocalizations l, DeviceLinkSnapshot s,

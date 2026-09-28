@@ -66,3 +66,7 @@ pub fn approve(confirmation_code: String) -> Result<DeviceLinkSnapshot, DeviceLi
 pub fn cancel() -> Result<DeviceLinkSnapshot, DeviceLinkError> {
     with_runtime(DeviceLinkRuntime::cancel)
 }
+
+pub fn revoke(device_id: String) -> Result<DeviceLinkSnapshot, DeviceLinkError> {
+    with_runtime(|rt| rt.revoke(device_id))
+}

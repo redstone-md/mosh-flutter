@@ -1,5 +1,7 @@
 mod api;
+mod crypto;
 mod dm;
+mod protocol;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -195,13 +197,13 @@ pub fn peer_process() {
     let runtime = Arc::new(Mutex::new(
         DeviceLinkRuntime::open(shared.clone(), store.clone()).unwrap(),
     ));
-    let dm = dm_runtime(shared, store, dir);
+    let dm = dm_runtime(shared, store.clone(), dir);
     let service = runtime.clone();
     std::thread::spawn(move || loop {
         let _ = service.lock().unwrap().service();
         std::thread::sleep(Duration::from_millis(100));
     });
-    serve(runtime, node, dm);
+    serve(runtime, node, dm, store);
 }
 
 fn dm_runtime(
@@ -227,6 +229,7 @@ fn serve(
     runtime: Arc<Mutex<DeviceLinkRuntime>>,
     node: Arc<mosh_core::moss_ffi::MossNode>,
     dm: Arc<Mutex<PrivateDmRuntime>>,
+    store: Arc<Persistence>,
 ) {
     for line in std::io::stdin().lock().lines() {
         let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
@@ -235,6 +238,20 @@ fn serve(
             break;
         }
         let arg = command["argument"].as_str().unwrap_or_default().to_string();
+        if action.starts_with("protocol_") {
+            let response = protocol::command(&store, &node, action, &arg, &command);
+            println!("{OUTPUT_PREFIX}{response}");
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
+        if action.starts_with("crypto_") {
+            // Each worker inspects only its own encrypted MLS state. The parent
+            // receives ciphertext and public metadata, never a private snapshot.
+            let response = crypto::command(&store, action, &arg, &command);
+            println!("{OUTPUT_PREFIX}{response}");
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
         if action.starts_with("dm_") {
             let response = dm::command(&mut dm.lock().unwrap(), action, &arg, &command);
             println!("{OUTPUT_PREFIX}{response}");
@@ -257,6 +274,7 @@ fn serve(
             "import" => rt.import_qr(arg),
             "approve" => rt.approve(arg),
             "cancel" => rt.cancel(),
+            "revoke" => rt.revoke(arg),
             _ => panic!("unknown command"),
         };
         let response = match result {

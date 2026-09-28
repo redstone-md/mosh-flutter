@@ -116,6 +116,9 @@ fn a_valid_self_signed_outsider_cannot_authorize_dm_admission() {
         recovery: None,
         recovery_exports: Vec::new(),
         epoch_records: Vec::new(),
+        removals: Vec::new(),
+        revoked: false,
+        pending_rosters: Vec::new(),
     };
     let admission = Admission {
         recovery_authorization: None,
