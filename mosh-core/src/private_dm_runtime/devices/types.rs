@@ -47,12 +47,8 @@ impl DmTopology {
         match self.roster(&claim.roster.user_id()) {
             Some(base) if base.extends(&claim.roster).map_err(|_| invalid())? => {
                 if !base
-                    .devices()
+                    .authorizes_admitted(&claim.roster, &claim.device()?)
                     .map_err(|_| invalid())?
-                    .contains(&claim.device()?)
-                    || base
-                        .revoked_since(&claim.roster, &claim.device_id)
-                        .map_err(|_| invalid())?
                 {
                     return Err(invalid());
                 }
@@ -90,14 +86,9 @@ impl DmTopology {
         for claim in &self.clients {
             claim.verify(session)?;
             let current = self.roster(&claim.roster.user_id()).ok_or_else(invalid)?;
-            if !current.extends(&claim.roster).map_err(|_| invalid())?
-                || current
-                    .revoked_since(&claim.roster, &claim.device_id)
-                    .map_err(|_| invalid())?
-                || !current
-                    .devices()
-                    .map_err(|_| invalid())?
-                    .contains(&claim.device()?)
+            if !current
+                .authorizes_admitted(&claim.roster, &claim.device()?)
+                .map_err(|_| invalid())?
             {
                 return Err(invalid());
             }

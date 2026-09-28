@@ -27,7 +27,7 @@ fn early_roster_notice_process() {
     let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
     moss.install_keystore().unwrap();
     let shared = SharedMossNode::new(moss);
-    let mut rt = DeviceLinkRuntime::open(shared, store).unwrap();
+    let mut rt = DeviceLinkRuntime::open(shared.clone(), store.clone()).unwrap();
     let key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
     let mut trusted = DeviceIdentity::open(
         Arc::new(Persistence::open_with_dek(&dir.join("trusted.redb"), rand::random()).unwrap()),
@@ -77,6 +77,12 @@ fn early_roster_notice_process() {
         !rt.identity.can_join().unwrap(),
         "the signed roster has already added this device"
     );
+    rt.service().unwrap();
+    assert_eq!(rt.phase, DeviceLinkPhase::AwaitingConfirmation);
+    assert!(rt.identity.record.pending.is_some());
+    drop(rt);
+    let mut rt = DeviceLinkRuntime::open(shared, store).unwrap();
+    assert_eq!(rt.phase, DeviceLinkPhase::AwaitingConfirmation);
     rt.receive(&approved)
         .expect("the matching fresh approval must still finish");
     assert_eq!(rt.snapshot().unwrap().phase, DeviceLinkPhase::Linked);

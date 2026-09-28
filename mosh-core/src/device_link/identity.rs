@@ -219,25 +219,28 @@ impl DeviceIdentity {
                 .map_err(storage_error)
             })
             .collect::<Result<Vec<_>>>()?;
+        let active = self.roster().devices()?;
         Ok(self
             .roster()
-            .removed_devices()?
+            .removal_targets()?
             .into_iter()
-            .map(|device| {
+            .filter_map(|device| {
                 let pending = records.iter().any(|record| {
                     record
                         .membership
                         .as_ref()
-                        .is_some_and(|m| m.removal_pending(&device.device_id))
+                        .is_some_and(|m| m.removal_pending(&device.device_id, self.roster()))
                 });
-                super::types::DeviceRevocationStatus {
-                    device,
-                    state: if pending {
-                        super::types::DeviceRevocationState::Pending
-                    } else {
-                        super::types::DeviceRevocationState::Applied
+                (pending || !active.contains(&device)).then_some(
+                    super::types::DeviceRevocationStatus {
+                        device,
+                        state: if pending {
+                            super::types::DeviceRevocationState::Pending
+                        } else {
+                            super::types::DeviceRevocationState::Applied
+                        },
                     },
-                }
+                )
             })
             .collect())
     }

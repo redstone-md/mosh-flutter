@@ -35,13 +35,9 @@ impl DeviceMembership {
         .flatten()
         {
             if current.extends(&claim.roster).map_err(|_| invalid())? {
-                if current
-                    .revoked_since(&claim.roster, &claim.device_id)
+                if !current
+                    .authorizes_admitted(&claim.roster, &claim.device()?)
                     .map_err(|_| invalid())?
-                    || !current
-                        .devices()
-                        .map_err(|_| invalid())?
-                        .contains(&claim.device()?)
                 {
                     return Err(invalid());
                 }
@@ -80,15 +76,16 @@ impl DeviceMembership {
         Ok(removes_client)
     }
 
-    pub(crate) fn removal_pending(&self, target: &str) -> bool {
-        self.topology
-            .clients
+    pub(crate) fn removal_pending(&self, target: &str, roster: &DeviceRoster) -> bool {
+        self.topology.clients.iter().any(|client| {
+            client.device_id == target
+                && roster
+                    .revoked_since(&client.roster, target)
+                    .unwrap_or(false)
+        }) || self
+            .removals
             .iter()
-            .any(|client| client.device_id == target)
-            || self
-                .removals
-                .iter()
-                .any(|journal| journal.evidence.target == target && !journal.waiting.is_empty())
+            .any(|journal| journal.evidence.target == target && !journal.waiting.is_empty())
     }
 
     pub(super) fn current_roster(&self, user: &str) -> Option<&DeviceRoster> {
@@ -104,16 +101,15 @@ impl DeviceMembership {
     pub(super) fn authorized(&self, device: &DeviceDescriptor, user: &str) -> bool {
         !self.revoked
             && self.current_roster(user).is_some_and(|r| {
-                r.devices().is_ok_and(|devices| devices.contains(device))
-                    && self
-                        .topology
-                        .clients
-                        .iter()
-                        .find(|c| c.device_id == device.device_id)
-                        .is_none_or(|c| {
-                            r.revoked_since(&c.roster, &c.device_id)
-                                .is_ok_and(|removed| !removed)
-                        })
+                match self
+                    .topology
+                    .clients
+                    .iter()
+                    .find(|c| c.device_id == device.device_id)
+                {
+                    Some(c) => r.authorizes_admitted(&c.roster, device).unwrap_or(false),
+                    None => r.devices().is_ok_and(|devices| devices.contains(device)),
+                }
             })
     }
 
