@@ -118,10 +118,10 @@ ordered changes. They do not expand the product scope beyond text DM.
 - [x] Regenerate bridge bindings after API changes; check drift.
 - [x] Run Rust checks and focused test files during implementation.
 - [x] Update ADR, architecture and feature flow with Mermaid.
-- [ ] Format, build, strict Clippy and Flutter analysis; full suites once at end.
-- [ ] Measure at least 80% changed production line coverage and 70% branch
+- [x] Format, build, strict Clippy and Flutter analysis; full suites once at end.
+- [x] Measure at least 80% changed production line coverage and 70% branch
   coverage where available; report platform and toolchain limitations.
-- [ ] Commit, run independent Standards and Spec code-review axes against the
+- [x] Commit, run independent Standards and Spec code-review axes against the
   confirmed baseline, fix findings, verify affected checks and finish clean.
 
 ## Risks
@@ -142,6 +142,50 @@ macOS require their runners. Android foreground remains issue 28.
 
 The user approved this plan, contract/storage changes, test boundaries and
 review baseline on 2026-09-28.
+
+## Verification
+
+Verified implementation at `0d8695f` on Linux against the approved baseline.
+Independent Standards and Spec reviews have no open findings, including the
+final duplicate-notification fix. Every implementation commit uses a
+Conventional Commit subject. No push, deployment or issue mutation occurred.
+
+- Rust formatting, build and `cargo clippy --manifest-path mosh-core/Cargo.toml
+  --all-targets -- -D warnings` passed. Final test results across all targets:
+  410 library tests, 9 device-link process tests, 2 identity tests, 1 historical
+  time test and 17 multi-device DM process tests passed; 13 worker/legacy entry
+  points were ignored. The doc-test target passed with no examples.
+- The complete Rust command initially encountered a transient Moss listener
+  bind failure (`start: -13`) during restart and a default-discovery timeout.
+  Both scenarios passed in isolation without code changes; the subsequent
+  complete multi-device process file passed all 17 tests. Live Moss discovery
+  timing remains a test-environment risk.
+- Flutter analysis and formatting passed. The full widget suite passed 877
+  tests with 5 existing skips. The native Devices screen passed through the
+  real bridge and an independent Moss installation on the final build.
+- Bridge regeneration and a subsequent hash check showed no drift across all
+  40 binding files. All four changed Mermaid diagrams rendered successfully
+  and their sources still match the rendered diagrams.
+- Changed handwritten production coverage: Rust **1,316/1,417 lines (92.87%)**;
+  Dart **69/71 lines (97.18%)** and **21/23 branches (91.30%)**. Rust coverage
+  includes independent-worker profiles; Dart combines full widget and native
+  screen runs. Generated bindings and test-only code are excluded. Rust branch
+  instrumentation requires a nightly toolchain, which is not installed here.
+
+The real-process and signed-packet checks cover durable pending/applied status,
+both offline removal directions, ordered Add/Remove recovery with the original
+author unavailable, actual removed-client decryption refusal, denied old and
+freshly signed sync requests, retained local history and fresh same-user MLS
+admission. Higher correlated batch epochs survive restart without changing
+history rows or cursors. Repeated known removal notifications preserve fresh
+QR and pending approval state before Offer, after Offer and across restart;
+new removals still invalidate obsolete approval state.
+
+The implementation reuses existing MLS transactions, semantic history import,
+recovery, directed transport and settings components. No dependency or table
+was added. Windows and macOS checks remain for their runners. Offline protection
+starts after honest participants accept the removal epoch; old received history
+remains on the removed installation. Mixed-version availability is not promised.
 
 ## Changed files
 
