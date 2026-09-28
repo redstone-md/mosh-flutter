@@ -207,6 +207,7 @@ review baseline on 2026-09-28.
 - [mosh-core/src/private_dm_runtime/devices/recovery/epochs.rs](mosh-core/src/private_dm_runtime/devices/recovery/epochs.rs)
 - [mosh-core/src/private_dm_runtime/devices/recovery/import.rs](mosh-core/src/private_dm_runtime/devices/recovery/import.rs)
 - [mosh-core/src/private_dm_runtime/devices/recovery/mod.rs](mosh-core/src/private_dm_runtime/devices/recovery/mod.rs)
+- [mosh-core/src/private_dm_runtime/devices/recovery/relay.rs](mosh-core/src/private_dm_runtime/devices/recovery/relay.rs)
 - [mosh-core/src/private_dm_runtime/devices/recovery/source.rs](mosh-core/src/private_dm_runtime/devices/recovery/source.rs)
 - [mosh-core/src/private_dm_runtime/devices/recovery/types.rs](mosh-core/src/private_dm_runtime/devices/recovery/types.rs)
 - [mosh-core/src/private_dm_runtime/devices/rejoin.rs](mosh-core/src/private_dm_runtime/devices/rejoin.rs)

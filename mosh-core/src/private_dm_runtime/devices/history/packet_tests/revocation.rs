@@ -217,6 +217,7 @@ fn revocation_packet_process() {
     removing_an_unadmitted_device_does_not_block_initial_history();
     recovery_barrier::recovery_text_waits_for_known_remove();
     bootstrap::two_client_contact_recovers_missed_add_and_remove();
+    bootstrap::new_client_can_relay_its_removal_of_the_original();
     recovery_barrier::higher_epoch_is_recorded_while_text_waits();
 }
 

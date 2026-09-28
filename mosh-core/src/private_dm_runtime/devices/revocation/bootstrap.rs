@@ -15,8 +15,8 @@ impl PrivateDmRuntime {
         if evidence.epoch <= epoch.checked_add(1).ok_or_else(invalid)? {
             return Ok(false);
         }
-        session.authorize_removal_relay(sender, roster)?;
-        evidence.verify_author(session)?;
+        session.authorize_roster_relay(sender, roster)?;
+        evidence.verify_hint(session)?;
         let mut next = session.membership.clone().ok_or_else(invalid)?;
         next.pin_roster(&evidence.roster)?;
         next.require_epoch(evidence.epoch, epoch);

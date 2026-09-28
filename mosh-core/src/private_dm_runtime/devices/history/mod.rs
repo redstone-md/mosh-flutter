@@ -27,7 +27,6 @@ impl PrivateDmSession {
             .topology
             .validate(&self.session_id, &self.crypto.member_signers())?;
         if membership.joining.is_some()
-            || self.awaiting_device_epoch()
             || !membership.authorized(sender, &roster.user_id())
             || !self.peer_joined
             || roster.digest().map_err(|_| invalid())?

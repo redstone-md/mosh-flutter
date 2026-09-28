@@ -10,7 +10,7 @@ impl PrivateDmRuntime {
     ) -> Result<()> {
         let store = self.sessions.persistence().cloned().ok_or_else(invalid)?;
         let session = self.session_mut(&offer.probe.session_id)?;
-        session.authorize_recovery_device(sender, roster)?;
+        session.authorize_epoch_relay(sender, roster)?;
         let mut next = session.membership.clone().ok_or_else(invalid)?;
         let recovery = next.recovery.as_mut().ok_or_else(invalid)?;
         if recovery.round != offer.probe.round
@@ -60,17 +60,18 @@ impl PrivateDmRuntime {
         let mut next = session.membership.clone().ok_or_else(invalid)?;
         let recovery = next.recovery.as_mut().ok_or_else(invalid)?;
         let source = recovery.source.as_mut().ok_or_else(invalid)?;
-        if recovery.round != response.round
-            || source.device_id != sender.device_id
-            || session
-                .crypto
-                .epoch()
-                .is_none_or(|epoch| epoch < source.epoch)
-        {
+        if recovery.round != response.round || source.device_id != sender.device_id {
             return Err(invalid());
         }
         let rows = session.history_rows(source.import.accept(&response.batch)?)?;
         session.require_history_epoch(&store, roster, response.batch.epoch)?;
+        if session
+            .crypto
+            .epoch()
+            .is_none_or(|epoch| epoch < source.epoch)
+        {
+            return Err(invalid());
+        }
         if source.import.complete {
             recovery
                 .observed

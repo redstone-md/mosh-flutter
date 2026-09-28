@@ -134,41 +134,58 @@ fn apply_remove(
 }
 
 pub(super) fn higher_epoch_is_recorded_while_text_waits() {
-    let mut f = Fixture::new();
-    let (third, _) = multiple::admit_third(&mut f);
-    let source = f.source.device().clone();
-    recovery::begin(&mut f, &source, 3);
-    let roster = f
-        .receiver
-        .roster()
-        .revoke(&third.device().device_id, &f.source.key())
-        .unwrap();
-    adopt(&mut f.receiver, roster.clone());
-    adopt(&mut f.source, roster);
-    f.snapshot();
-    let mut batch = f.batch(0, vec![record("blocked-recovery", "future")]);
-    batch.request_id = "history-recovery-packets".into();
-    batch.total = 1;
-    batch.epoch = Some(9);
-    let packet = f.packet(
-        &f.source,
-        DeviceMessage::RecoveryBatch(RecoveryBatch { round: 7, batch }),
-    );
-    assert!(f.receive(&packet).is_err());
-    assert_unchanged_import(&f);
-    f.runtime.rehydrate();
-    assert_eq!(
-        f.runtime
-            .session_ref(&f.session)
-            .unwrap()
-            .membership
-            .as_ref()
-            .unwrap()
-            .recovery
-            .as_ref()
-            .unwrap()
-            .required_epoch,
-        9,
-        "a pending Remove must not discard a newer correlated batch epoch"
-    );
+    for recovery_import in [true, false] {
+        let mut f = Fixture::new();
+        let (third, _) = multiple::admit_third(&mut f);
+        let source = f.source.device().clone();
+        if recovery_import {
+            recovery::begin(&mut f, &source, 3);
+        }
+        let roster = f
+            .receiver
+            .roster()
+            .revoke(&third.device().device_id, &f.source.key())
+            .unwrap();
+        adopt(&mut f.receiver, roster.clone());
+        adopt(&mut f.source, roster);
+        f.snapshot();
+        for epoch in [9, 10] {
+            let mut batch = f.batch(0, vec![record("blocked-recovery", "future")]);
+            batch.total = 1;
+            batch.epoch = Some(epoch);
+            let message = if recovery_import {
+                batch.request_id = "history-recovery-packets".into();
+                DeviceMessage::RecoveryBatch(RecoveryBatch { round: 7, batch })
+            } else {
+                DeviceMessage::HistoryBatch(batch)
+            };
+            let packet = f.packet(&f.source, message);
+            assert!(f.receive(&packet).is_err());
+            f.runtime.rehydrate();
+            let session = f.runtime.session_ref(&f.session).unwrap();
+            assert!(session
+                .messages
+                .iter()
+                .all(|m| m.message_id.as_deref() != Some("blocked-recovery")));
+            let membership = session.membership.as_ref().unwrap();
+            let import = if recovery_import {
+                &membership
+                    .recovery
+                    .as_ref()
+                    .unwrap()
+                    .source
+                    .as_ref()
+                    .unwrap()
+                    .import
+            } else {
+                membership.history_import.as_ref().unwrap()
+            };
+            assert_eq!(import.cursor, 0);
+            assert_eq!(
+                membership.recovery.as_ref().unwrap().required_epoch,
+                epoch,
+                "every newer correlated epoch survives a restart while text remains paused"
+            );
+        }
+    }
 }

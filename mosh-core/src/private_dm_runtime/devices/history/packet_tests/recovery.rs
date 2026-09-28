@@ -180,6 +180,23 @@ fn next_admission_with_lifetime(
     token: &str,
     lifetime: Option<openmls::prelude::Lifetime>,
 ) -> Admission {
+    prepare_admission(f, name, token, lifetime).2
+}
+
+pub(super) fn next_client(
+    f: &mut Fixture,
+    name: &str,
+    token: &str,
+) -> (DeviceIdentity, MlsSessionCrypto, Admission) {
+    prepare_admission(f, name, token, None)
+}
+
+fn prepare_admission(
+    f: &mut Fixture,
+    name: &str,
+    token: &str,
+    lifetime: Option<openmls::prelude::Lifetime>,
+) -> (DeviceIdentity, MlsSessionCrypto, Admission) {
     let mut joining = identity(&f.dir, name);
     let roster = f
         .contact
@@ -207,7 +224,7 @@ fn next_admission_with_lifetime(
             peer.process_commit(&outcome.commit_bytes).unwrap();
         }
     }
-    Admission {
+    let admission = Admission {
         request,
         commit: outcome.commit_bytes,
         welcome: outcome.welcome_bytes,
@@ -224,7 +241,8 @@ fn next_admission_with_lifetime(
         group_id,
         epoch,
         recovery_authorization: None,
-    }
+    };
+    (joining, crypto, admission)
 }
 
 fn epoch_packet(f: &Fixture, evidence: EpochRecord) -> Vec<u8> {

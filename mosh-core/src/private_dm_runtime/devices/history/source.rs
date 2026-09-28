@@ -134,6 +134,9 @@ impl PrivateDmRuntime {
         let store = self.sessions.persistence().cloned().ok_or_else(invalid)?;
         let session = self.session_mut(&request.session_id)?;
         session.authorize_history_device(identity, sender, roster)?;
+        if session.awaiting_device_epoch() {
+            return Err(invalid());
+        }
         let export = session.history_export(&store, sender, &request)?;
         let mut batch = export.batch(&store, &request)?;
         batch.epoch = session.crypto.epoch();
