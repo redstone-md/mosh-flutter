@@ -84,6 +84,10 @@ text id, timestamp, ciphertext and author metadata before duplicate handling.
 Map the authenticated leaf to its Mosh user. Own-device messages use the same
 local author; counterpart-device messages use the same contact name.
 Only a counterpart's MLS-authenticated receipt means delivered to that user.
+Hello, typing and read receipts share an authenticated-contact check. Activity
+on a sibling cannot prove the contact is online or show contact typing.
+Verified client rosters own delivery addresses after admission; legacy
+plaintext peer announcements cannot replace those addresses.
 Retain the send attempt until each admitted recipient acknowledges it, with
 the existing bounded retry budget. Remember recent contact receipts so a
 sibling can receive the receipt before the text without losing delivery
