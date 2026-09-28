@@ -8,6 +8,14 @@ mod multiple;
 
 fn ordered_add_then_remove() {
     let mut f = Fixture::new();
+    let contact = f.peers.get(&f.contact.device().device_id).unwrap();
+    let mut before_add = MlsSessionCrypto::restore(
+        "Contact",
+        &contact.signer_public(),
+        &contact.snapshot(),
+        &contact.group_id_bytes().unwrap(),
+    )
+    .unwrap();
     let addition = recovery::next_admission(&mut f, "removed.redb", "missed-add");
     let add = EpochRecord::create(&f.contact, &addition, now_ms()).unwrap();
     let target = addition.request.claim.device_id.clone();
@@ -42,17 +50,56 @@ fn ordered_add_then_remove() {
         .process_commit(&commit)
         .unwrap();
     adopt(&mut f.contact, roster);
+    let claim = IdentityClaim::create(
+        &f.contact,
+        &f.session,
+        &before_add.signer_public(),
+        "Contact",
+    )
+    .unwrap();
+    let ciphertext = before_add
+        .encrypt(&serde_json::to_vec(&claim).unwrap())
+        .unwrap();
+    f.runtime
+        .session_mut(&f.session)
+        .unwrap()
+        .accept_identity_claim(&crate::private_dm_runtime::encode(&ciphertext))
+        .unwrap();
+    assert!(
+        f.runtime
+            .session_ref(&f.session)
+            .unwrap()
+            .membership
+            .as_ref()
+            .unwrap()
+            .pending_rosters
+            .iter()
+            .any(|r| r.user_id() == f.contact.roster().user_id()),
+        "a future removal roster must stay separate from the old MLS topology"
+    );
+    let mut batch = f.batch(
+        0,
+        vec![
+            record("future-first", "new epoch text"),
+            record("future-second", "more new epoch text"),
+        ],
+    );
+    batch.epoch = Some(4);
+    let initial = f.packet(&f.source, DeviceMessage::HistoryBatch(batch));
+    assert!(
+        f.receive(&initial).is_err(),
+        "initial history must first recover its signed source epoch"
+    );
     let stale_admission = f.packet(&f.contact, DeviceMessage::Admission(addition));
     assert!(f.receive(&stale_admission).is_err());
     assert_eq!(f.runtime.session_ref(&f.session).unwrap().crypto.epoch(), Some(2),
         "a direct old admission must not install a removed leaf; ordered recovery alone may replay the historical Add");
-    let source = f.source.device().clone();
-    recovery::begin(&mut f, &source, 4);
+    let (round, request_id) = start_initial_epoch_recovery(&mut f);
     let packet = f.packet(
         &f.source,
         DeviceMessage::RecoveryEpoch(RecoveryEpoch {
-            round: 7,
-            request_id: "history-recovery-packets".into(),
+            round,
+            request_id: request_id.clone(),
             evidence: add,
         }),
     );
@@ -77,8 +124,8 @@ fn ordered_add_then_remove() {
     let packet = f.packet(
         &f.source,
         DeviceMessage::RecoveryRemoval(RecoveryRemoval {
-            round: 7,
-            request_id: "history-recovery-packets".into(),
+            round,
+            request_id,
             evidence: removal,
         }),
     );
@@ -98,6 +145,54 @@ fn ordered_add_then_remove() {
             .unwrap(),
         b"protected"
     );
+    f.receive(&initial)
+        .expect("initial import resumes after ordered Add and Remove");
+}
+
+fn start_initial_epoch_recovery(f: &mut Fixture) -> (u64, String) {
+    f.snapshot();
+    let membership = f
+        .runtime
+        .session_ref(&f.session)
+        .unwrap()
+        .membership
+        .as_ref()
+        .unwrap();
+    assert!(!membership.history_import.as_ref().unwrap().complete);
+    let recovery = membership
+        .recovery
+        .as_ref()
+        .expect("ordered recovery must run while initial import waits");
+    let round = recovery.round;
+    let request_id = recovery.request_id.clone();
+    let offer = super::super::super::recovery::RecoveryOffer {
+        probe: super::super::super::recovery::RecoveryProbe {
+            session_id: f.session.clone(),
+            round,
+            request_id: request_id.clone(),
+        },
+        epoch: 4,
+        manifest: "cd".repeat(32),
+    };
+    let packet = f.packet(&f.source, DeviceMessage::RecoveryOffer(offer));
+    f.receive(&packet).unwrap();
+    let request_id = f
+        .runtime
+        .session_ref(&f.session)
+        .unwrap()
+        .membership
+        .as_ref()
+        .unwrap()
+        .recovery
+        .as_ref()
+        .unwrap()
+        .source
+        .as_ref()
+        .unwrap()
+        .import
+        .request_id
+        .clone();
+    (round, request_id)
 }
 
 #[test]
@@ -116,6 +211,101 @@ fn revocation_packet_process() {
     fresh_roster_permission_does_not_revive_an_old_mls_leaf();
     forgery::original_author_exact_leaf_and_replay();
     multiple::signed_roster_order_preserves_the_remaining_client();
+    initial_history_waits_for_an_observed_removal();
+    removing_an_unadmitted_device_does_not_block_initial_history();
+}
+
+fn removing_an_unadmitted_device_does_not_block_initial_history() {
+    let mut f = Fixture::new();
+    let third = identity(&f.dir, "unadmitted.redb");
+    let roster = f
+        .receiver
+        .roster()
+        .extend(third.device().clone(), &f.receiver.key())
+        .unwrap()
+        .revoke(&third.device().device_id, &f.receiver.key())
+        .unwrap();
+    adopt(&mut f.receiver, roster.clone());
+    adopt(&mut f.source, roster);
+    f.snapshot();
+    let mut batch = f.batch(
+        0,
+        vec![record("one", "current epoch"), record("two", "same epoch")],
+    );
+    batch.epoch = Some(2);
+    let packet = f.packet(&f.source, DeviceMessage::HistoryBatch(batch));
+    f.receive(&packet)
+        .expect("a device which never joined has no MLS transition to wait for");
+}
+
+fn initial_history_waits_for_an_observed_removal() {
+    let mut f = Fixture::new();
+    let (third, crypto) = multiple::admit_third(&mut f);
+    let roster = f
+        .receiver
+        .roster()
+        .revoke(&third.device().device_id, &f.source.key())
+        .unwrap();
+    adopt(&mut f.receiver, roster.clone());
+    adopt(&mut f.source, roster.clone());
+    f.snapshot();
+    let batch = f.batch(
+        0,
+        vec![
+            record("future-one", "after removal"),
+            record("future-two", "after removal too"),
+        ],
+    );
+    let packet = f.packet(&f.source, DeviceMessage::HistoryBatch(batch));
+    assert!(
+        f.receive(&packet).is_err(),
+        "initial import must wait for its known removal epoch"
+    );
+    let session = f.runtime.session_ref(&f.session).unwrap();
+    assert_eq!(
+        session
+            .membership
+            .as_ref()
+            .unwrap()
+            .history_import
+            .as_ref()
+            .unwrap()
+            .cursor,
+        0
+    );
+    assert!(
+        session.membership.as_ref().unwrap().recovery.is_some(),
+        "an incomplete initial import must still start ordered epoch recovery"
+    );
+    let source = f.peers.get_mut(&f.source.device().device_id).unwrap();
+    let commit = source
+        .remove_member_by_signer(&hex::encode(crypto.signer_public()))
+        .unwrap();
+    let evidence = RemovalRecord::create(
+        &f.source,
+        &f.session,
+        third.device().device_id.clone(),
+        roster,
+        source,
+        commit,
+    )
+    .unwrap();
+    let removal = f.packet(&f.source, DeviceMessage::Removal(evidence));
+    let _ = f.receive(&removal); // No connected peer can receive the durable-save acknowledgement.
+    f.receive(&packet)
+        .expect("the same correlated text can import after Remove");
+    assert!(
+        f.runtime
+            .session_ref(&f.session)
+            .unwrap()
+            .membership
+            .as_ref()
+            .unwrap()
+            .history_import
+            .as_ref()
+            .unwrap()
+            .complete
+    );
 }
 
 fn fresh_roster_permission_does_not_revive_an_old_mls_leaf() {

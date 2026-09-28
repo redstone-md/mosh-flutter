@@ -48,6 +48,7 @@ impl PrivateDmRuntime {
             round: pull.round,
             batch: export.batch(&store, &pull.request)?,
         };
+        batch.batch.epoch = session.crypto.epoch();
         while !DevicePacket::fits_stream(
             identity,
             &sender.moss_peer_id,

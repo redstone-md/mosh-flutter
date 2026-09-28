@@ -96,6 +96,8 @@ pub(in crate::private_dm_runtime) struct HistoryRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(in crate::private_dm_runtime) struct HistoryBatch {
     pub session_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub epoch: Option<u64>,
     pub request_id: String,
     pub offset: usize,
     pub total: usize,

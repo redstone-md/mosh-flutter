@@ -186,6 +186,9 @@ impl PrivateDmSession {
             .and_then(|membership| membership.topology.roster(&identity.roster().user_id()));
         let pending = self.membership.as_ref().is_some_and(|m| {
             m.pending_removal()
+                || current.is_some_and(|roster| {
+                    identity.roster().has_removal_since(roster).unwrap_or(false)
+                })
                 || m.topology.clients.iter().any(|c| {
                     c.roster.user_id() == identity.roster().user_id()
                         && identity

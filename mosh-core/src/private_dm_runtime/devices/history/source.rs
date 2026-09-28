@@ -68,6 +68,7 @@ impl HistoryExport {
         }
         let mut batch = HistoryBatch {
             session_id: request.session_id.clone(),
+            epoch: None,
             request_id: self.request_id.clone(),
             offset: request.offset,
             total: self.keys.len(),
@@ -135,6 +136,7 @@ impl PrivateDmRuntime {
         session.authorize_history_device(identity, sender, roster)?;
         let export = session.history_export(&store, sender, &request)?;
         let mut batch = export.batch(&store, &request)?;
+        batch.epoch = session.crypto.epoch();
         while !DevicePacket::fits_stream(
             identity,
             &sender.moss_peer_id,

@@ -54,6 +54,8 @@ A later roster addition cannot renew a leaf retired by an intervening removal.
 Pin newly observed roster authorization separately until the corresponding
 MLS transition is applied; never advertise an old MLS topology under a roster
 that already removes one of its clients.
+This also covers a removal after an unseen intermediate Add: retain the older
+topology roster until ordered recovery applies both commits.
 
 Original evidence binds the conversation, group, next epoch, target, author,
 frozen removal roster and actual MLS commit with a distinct signature context.
@@ -117,6 +119,15 @@ that same admission after removal is refused. Text import waits for required
 epochs and retains the existing semantic ids, metadata, deduplication and
 atomic cursor boundary from ADRs 0031/0032. Removing an active source abandons
 its incomplete transfer and lets ordinary recovery select an authorized holder.
+Initial history batches also wait for an observed pending removal or required
+newer epoch. Ordered epoch recovery can run during that paused initial import;
+the same correlated batch can resume once the transition has been applied.
+Initial and recovery batches carry the source's signed MLS epoch. A correlated
+batch from a newer epoch durably raises the required recovery epoch while its
+cursor and rows remain unchanged. Legacy batches without this optional field
+are refused when a future removal roster is known. A device removed before
+it ever joined the DM creates no MLS transition and does not block a current
+epoch batch from an authorized source.
 
 A removed installation keeps its original identity and locally received text.
 Its DM composer and runtime send path are disabled, including after restart.

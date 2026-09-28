@@ -145,6 +145,7 @@ impl Fixture {
     fn batch(&self, offset: usize, records: Vec<TextRecord>) -> HistoryBatch {
         HistoryBatch {
             session_id: self.session.clone(),
+            epoch: None,
             request_id: "history-packets".into(),
             offset,
             total: 2,
