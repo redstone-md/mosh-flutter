@@ -36,15 +36,15 @@ membership and admission state.
 - [x] Add simultaneous sends, duplicate delivery and restart continuation to
   the real flow. Test outsiders, changed signed metadata and roster rollback
   through the cryptographic admission contract with real keys and storage.
-- [ ] Prove the same flow through public bridge calls and default Moss
+- [x] Prove the same flow through public bridge calls and default Moss
   discovery. Verify that each installation lists exactly one DM and that the
   fingerprint is unchanged. Run related single-device and device-link tests.
 - [x] Update private-DM docs, glossary and ADR with Mermaid diagrams,
   admission trust rules, epoch persistence and explicit privacy limits.
-- [ ] Run the final validation in the order below. Measure changed Rust code
+- [x] Run the final validation in the order below. Measure changed Rust code
   coverage with the real-process flow; require 80% lines and 70% branches
   where branch measurement is supported. Address uncovered failure paths.
-- [ ] Commit atomic changes on the current branch. Run the implement skill's
+- [x] Commit atomic changes on the current branch. Run the implement skill's
   two-axis code-review against the fixed point. Fix actionable findings,
   rerun affected checks and commit corrections. Verify a clean working tree.
 
@@ -155,22 +155,43 @@ at the baseline and once at final validation.
 9. `git diff --check`, verified Conventional Commit subjects and clean status.
    Deliver the change with changed files, simplifications and remaining risks.
 
-## Verification so far
+## Final verification
 
-The five real DM scenarios and six authorization tests passed. Final Flutter
-validation passed, 870 tests with five existing platform skips. Native Flutter
-pairing passed. Analyze, strict Clippy, localization generation and binding
-drift passed. All 29 Mermaid diagrams in the changed docs rendered as SVG.
+The final build and full Rust suite passed after the review correction.
+All 418 tests passed: 402 unit tests, eight device-link flows, two identity
+tests and six three-process DM scenarios. Eight tests remain ignored,
+including the new independent-process worker entry point required by the
+existing harness. No behavioral test was skipped to make the suite pass.
+
+Final Flutter validation passed 870 tests with five existing platform skips.
+The rebuilt native library also passed the real Flutter bridge pairing test
+after the Rust suite, in 19 seconds. Analyze, strict Clippy, localization
+generation, Rust formatting and binding drift checks passed. All 29 Mermaid
+diagrams in the changed docs rendered as SVG.
 
 The first final Rust run found nine legacy carrier regressions. The membership
-guard fixed all nine; the related 39 tests passed. The final full Rust rerun
-and coverage report are pending. Branch coverage requires a nightly compiler;
-this host has stable Rust only. No ignored test was added except the required
-independent-process worker entry point, matching the existing harness.
+guard fixed all nine. Their related 39 tests and the full suite passed with
+the original assertions. The review's stopped-contact regression first failed
+on sibling typing, then passed after the authenticated-contact check.
 
-Commit the tested implementation for the required two-axis review. Review
-agents own no files and must not edit. Record final suite, coverage and review
-results in the completion commit before delivery.
+The final full Rust run used the environment from `cargo llvm-cov show-env`,
+so coverage includes the real independent processes. JSON and LCOV reports
+cover 1,260 of 1,326 changed executable production lines, or 95.02%. Each
+changed production file with measured lines exceeds 80%. New device modules
+range from 90.22% to 100%; the new persistence module reaches 93.02%. Test
+code is excluded from this calculation. Stable Rust cannot measure branches;
+`cargo llvm-cov --branch` reports that nightly is required. The 70% branch
+gate therefore does not apply on this host. Region coverage is not reported
+as branch coverage.
+
+Windows and macOS app builds and installer packaging require their platform
+runners and were unavailable on this Linux host. History, missed-epoch
+catchup and revocation remain issues 25, 26 and 27 respectively.
+
+The implementation and review correction are committed as `3f40ed4` and
+`efe9b07`. The final documentation commit records these checks and the
+separate review outcomes below. Verify its Conventional Commit subject,
+`git diff --check` and clean status before delivery.
 
 ## Standards
 
@@ -225,10 +246,20 @@ worst issue.
 - [x] Add one authenticated-contact helper for Hello, typing and read receipts.
   Keep sibling delivery receipts separate and reject legacy address hints
   after verified multi-client admission.
-- [ ] Verify real contact typing and read receipts reach both desktops, while
+- [x] Verify real contact typing and read receipts reach both desktops, while
   sibling typing/read activity cannot restore the stopped contact's liveness.
-- [ ] Ask both read-only reviewers to check the correction.
-- [ ] Run the final full Rust suite and coverage after the review fix. The
+- [x] Ask both read-only reviewers to check the correction.
+- [x] Run the final full Rust suite and coverage after the review fix. The
   preceding full run passed 402 unit and 15 integration tests, with eight
   existing or required subprocess ignores. Do not repeat the unchanged full
   Flutter suite; rebuild and run the native Flutter bridge check sequentially.
+
+Both follow-up reviewers accepted `efe9b07`. Standards reported the shared
+contact check and real-process test resolve its boundary finding and ownership
+smell, with no remaining consequential standards findings. Spec reported the
+contact address, sender authentication and offline-control regression resolve
+its finding, with no remaining issue 24 gaps or scope creep. Neither reviewer
+ran native tests or changed files. The final full suite and coverage now pass.
+
+Final findings: Standards has zero remaining findings. Spec has zero remaining
+findings. The sibling contact-control defect identified by each axis is fixed.
