@@ -2,6 +2,7 @@ use super::*;
 use crate::private_dm_runtime::devices::recovery::{EpochRecord, RecoveryEpoch, RecoveryRemoval};
 use crate::private_dm_runtime::devices::revocation::RemovalRecord;
 use crate::private_dm_runtime::now_ms;
+use sha2::Digest;
 mod forgery;
 mod multiple;
 
@@ -127,7 +128,9 @@ fn fresh_roster_permission_does_not_revive_an_old_mls_leaf() {
         .extend(f.source.device().clone(), &f.receiver.key())
         .unwrap();
     adopt(&mut f.receiver, roster);
+    assert_pending_removal(&f);
     f.snapshot();
+    assert_pending_removal(&f);
     let ciphertext = f
         .runtime
         .session_mut(&f.session)
@@ -143,4 +146,34 @@ fn fresh_roster_permission_does_not_revive_an_old_mls_leaf() {
             .is_err(),
         "fresh roster permission must require a new MLS join; the old leaf stays removed"
     );
+    let evidence = f
+        .runtime
+        .session_ref(&f.session)
+        .unwrap()
+        .membership
+        .as_ref()
+        .unwrap()
+        .removals
+        .last()
+        .unwrap()
+        .evidence
+        .clone();
+    let packet = f.packet(
+        &f.contact,
+        DeviceMessage::RemovalAck {
+            session_id: f.session.clone(),
+            epoch: evidence.epoch,
+            evidence: hex::encode(sha2::Sha256::digest(serde_json::to_vec(&evidence).unwrap())),
+        },
+    );
+    f.receive(&packet).unwrap();
+    assert!(f.receiver.revocations().unwrap().is_empty(),
+        "fresh permission must stop showing the old removal once its remaining participant has acknowledged");
+}
+
+fn assert_pending_removal(f: &Fixture) {
+    let statuses = f.receiver.revocations().unwrap();
+    assert!(statuses.iter().any(|s| s.device.device_id == f.source.device().device_id
+        && s.state == crate::device_link::types::DeviceRevocationState::Pending),
+        "fresh roster permission must retain the removal status while the old leaf or its acknowledgement is pending");
 }

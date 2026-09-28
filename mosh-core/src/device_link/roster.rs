@@ -1,6 +1,7 @@
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::sync::OnceLock;
 
 use super::types::{DeviceDescriptor, DeviceLinkError, DeviceLinkErrorKind, Result};
 
@@ -24,6 +25,9 @@ struct Authorization {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceRoster {
     entries: Vec<Authorization>,
+    // Each immutable chain verifies once. Wire/storage decoding starts cold.
+    #[serde(skip)]
+    verified: OnceLock<Result<Vec<DeviceDescriptor>>>,
 }
 
 pub(crate) fn invalid() -> DeviceLinkError {
@@ -106,23 +110,26 @@ impl Authorization {
 }
 
 impl DeviceRoster {
+    fn from_entries(entries: Vec<Authorization>) -> Self {
+        Self {
+            entries,
+            verified: OnceLock::new(),
+        }
+    }
+
     pub(crate) fn extends(&self, base: &Self) -> Result<bool> {
         self.devices()?;
         if self.entries.len() < base.entries.len() {
             return Ok(false);
         }
-        let prefix = Self {
-            entries: self.entries[..base.entries.len()].to_vec(),
-        };
+        let prefix = Self::from_entries(self.entries[..base.entries.len()].to_vec());
         Ok(prefix.digest()? == base.digest()?)
     }
 
     pub(crate) fn genesis(device: DeviceDescriptor, key: &SigningKey) -> Result<Self> {
         let entry =
             Authorization::signed(ROSTER_VERSION, None, device.device_id.clone(), device, key)?;
-        let roster = Self {
-            entries: vec![entry],
-        };
+        let roster = Self::from_entries(vec![entry]);
         roster.devices()?;
         Ok(roster)
     }
@@ -142,6 +149,10 @@ impl DeviceRoster {
     }
 
     pub fn devices(&self) -> Result<Vec<DeviceDescriptor>> {
+        self.verified.get_or_init(|| self.verify_devices()).clone()
+    }
+
+    fn verify_devices(&self) -> Result<Vec<DeviceDescriptor>> {
         if self.entries.is_empty() {
             return Err(invalid());
         }
@@ -179,18 +190,17 @@ impl DeviceRoster {
             .map(|e| e.device.clone()))
     }
 
-    pub(crate) fn removed_devices(&self) -> Result<Vec<DeviceDescriptor>> {
-        let active = self.devices()?;
-        let mut removed = Vec::new();
+    pub(crate) fn removal_targets(&self) -> Result<Vec<DeviceDescriptor>> {
+        self.devices()?;
+        let mut removed: Vec<DeviceDescriptor> = Vec::new();
         for entry in self
             .entries
             .iter()
             .rev()
             .filter(|e| e.version == REMOVAL_VERSION)
         {
-            if !active
+            if !removed
                 .iter()
-                .chain(&removed)
                 .any(|d| d.device_id == entry.device.device_id)
             {
                 removed.push(entry.device.clone());
@@ -217,9 +227,7 @@ impl DeviceRoster {
             }
             return public_key(&entry.device.signing_public_key);
         }
-        let parent = Self {
-            entries: self.entries[..index].to_vec(),
-        };
+        let parent = Self::from_entries(self.entries[..index].to_vec());
         if entry.parent.as_ref() != Some(&parent.digest()?) {
             return Err(invalid());
         }
@@ -232,16 +240,13 @@ impl DeviceRoster {
 
     pub(crate) fn extend(&self, device: DeviceDescriptor, key: &SigningKey) -> Result<Self> {
         let signer = device_id(&key.verifying_key());
-        let mut next = self.clone();
-        next.entries.push(Authorization::signed(
+        self.with_entry(Authorization::signed(
             ROSTER_VERSION,
             Some(self.digest()?),
             signer,
             device,
             key,
-        )?);
-        next.devices()?;
-        Ok(next)
+        )?)
     }
 
     pub(crate) fn revoke(&self, target: &str, key: &SigningKey) -> Result<Self> {
@@ -250,14 +255,19 @@ impl DeviceRoster {
             .into_iter()
             .find(|d| d.device_id == target)
             .ok_or_else(invalid)?;
-        let mut next = self.clone();
-        next.entries.push(Authorization::signed(
+        self.with_entry(Authorization::signed(
             REMOVAL_VERSION,
             Some(self.digest()?),
             device_id(&key.verifying_key()),
             device,
             key,
-        )?);
+        )?)
+    }
+
+    fn with_entry(&self, entry: Authorization) -> Result<Self> {
+        let mut entries = self.entries.clone();
+        entries.push(entry);
+        let next = Self::from_entries(entries);
         next.devices()?;
         Ok(next)
     }
@@ -283,6 +293,14 @@ impl DeviceRoster {
             .any(|e| e.version == REMOVAL_VERSION && e.device.device_id == target))
     }
 
+    pub(crate) fn authorizes_admitted(
+        &self,
+        admission: &Self,
+        device: &DeviceDescriptor,
+    ) -> Result<bool> {
+        Ok(!self.revoked_since(admission, &device.device_id)? && self.devices()?.contains(device))
+    }
+
     pub(crate) fn first_removal_since(
         &self,
         admission: &Self,
@@ -294,8 +312,8 @@ impl DeviceRoster {
         Ok(self.entries[admission.entries.len()..]
             .iter()
             .position(|e| e.device.device_id == target && e.version == REMOVAL_VERSION)
-            .map(|index| Self {
-                entries: self.entries[..=admission.entries.len() + index].to_vec(),
+            .map(|index| {
+                Self::from_entries(self.entries[..=admission.entries.len() + index].to_vec())
             }))
     }
 
@@ -322,9 +340,7 @@ impl DeviceRoster {
         let Some(last) = self.entries.last() else {
             return Err(invalid());
         };
-        let parent = Self {
-            entries: self.entries[..self.entries.len() - 1].to_vec(),
-        };
+        let parent = Self::from_entries(self.entries[..self.entries.len() - 1].to_vec());
         if last.version != ROSTER_VERSION
             || parent.digest()? != base.digest()?
             || &last.device != device

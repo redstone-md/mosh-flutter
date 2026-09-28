@@ -28,6 +28,15 @@ chain to calculate current authorization. A removed signer cannot authorize
 new operations. Adopt only extensions of a pinned chain; unrelated roots,
 rollback and competing forks fail. Concurrent fork merging remains out of scope.
 
+Roster entries are private and immutable. Cache signature verification and
+effective devices for that exact chain in memory. Clones keep the same verified
+chain; appending constructs a new chain with a cold cache. The cache is omitted
+from serialization, so every decoded packet or stored chain verifies again.
+This keeps repeated outbox and snapshot authorization checks from delaying
+typing controls and recovery beyond their existing timeouts. Authorization of
+an admitted leaf uses one shared predicate for its active exact descriptor and
+absence of an intervening removal.
+
 Save the roster and notification intent before sending. Notifications and
 acknowledgements use recipient-bound signed packets on private stream 3.
 A removed recipient can acknowledge its notification with its historical
@@ -82,9 +91,11 @@ Exact duplicate evidence is acknowledged without applying another epoch.
 Evidence remains retained after its retry journal settles.
 
 `DeviceLinkSnapshot.revocations` reports pending while any affected local DM
-still contains the target or awaits a remaining participant's acknowledgement;
+still contains the retired target leaf or awaits a remaining participant's acknowledgement;
 otherwise it reports applied. `SessionSnapshot.device_revocation` separately
 reports pending, applied or revoked for that DM. These states survive restart.
+Fresh roster permission retains outstanding removal status until the old
+transition settles; a new admitted leaf does not keep that old removal pending.
 An offline participant cannot acknowledge a transition it has not received.
 It can still use its old epoch until it learns the removal. Protection from
 future ciphertext starts when honest senders accept the removal epoch; the UI
@@ -114,6 +125,8 @@ human code approval must extend the post-removal roster; retained history
 cannot authorize joining another user. A matching nonce-bound approval can
 finish if its signed roster notification arrived first, but a consumed approval
 cannot restore a later-removed device.
+Service ticks and restart preserve only the matching pending QR/addition until
+its nonce-bound approval completes or expires.
 
 Fresh roster permission still requires new independent MLS keys and an ordinary
 authenticated Join/Welcome for each old DM. Preserve local semantic history
@@ -139,9 +152,11 @@ and confirm, revoked settings and fresh approval through the native bridge
 and another Moss process.
 
 Run Moss preparation, Rust format/build/test/strict Clippy, Flutter format/
-analysis/tests and bridge codegen with a drift check. Coverage includes worker
-processes and the native UI bridge. Linux is the available host; Windows and
-macOS require their own runners. Branch coverage depends on toolchain support.
+analysis/tests and bridge codegen with a drift check. Changed handwritten code
+coverage combines worker-process profiles and Flutter/native UI coverage.
+Generated bindings are checked through native execution and a regeneration
+drift check. Linux is the available host; Windows and macOS require their own
+runners. Branch coverage depends on toolchain support.
 
 Inherited runtime, session and generated binding size exceptions from ADRs
 0030-0032 remain. `DeviceRoster` exceeds 200 aggregate implementation lines

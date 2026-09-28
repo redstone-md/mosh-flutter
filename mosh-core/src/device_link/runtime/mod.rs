@@ -34,6 +34,16 @@ struct Exchange {
 }
 
 impl Exchange {
+    fn awaits_adopted_approval(&self, identity: &DeviceIdentity) -> bool {
+        identity.record.pending.as_ref().is_some_and(|pending| {
+            pending.qr.id == self.qr.id
+                && identity
+                    .roster()
+                    .verifies_addition(&pending.base, &self.qr.device, &pending.trusted.device_id)
+                    .is_ok()
+        })
+    }
+
     fn check_offer(
         &self,
         signer: &str,
