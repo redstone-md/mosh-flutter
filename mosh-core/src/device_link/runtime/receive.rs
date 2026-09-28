@@ -127,13 +127,8 @@ impl DeviceLinkRuntime {
             &trusted.device_id,
         )?;
         let hash = roster.digest()?;
-        let already_adopted = self
-            .identity
-            .record
-            .pending
-            .as_ref()
-            .is_some_and(|pending| pending.qr.id == e.qr.id)
-            && hash == self.identity.roster().digest()?;
+        let already_adopted =
+            e.awaits_adopted_approval(&self.identity) && hash == self.identity.roster().digest()?;
         if !self.identity.can_join()? && !already_adopted {
             return Err(invalid());
         }
