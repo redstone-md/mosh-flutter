@@ -102,6 +102,28 @@ finishes, as CI does, then record its final result and Flutter coverage.
 The initial atomic feature commit pins the reviewers' diff to the starting
 commit. A final commit will record their findings, fixes and completed checks.
 
+## Review findings and fixes
+
+- [x] Cancelled QR replay after disconnect. The real-process regression failed
+  because cancellation forgot the request after a best-effort packet. Save
+  consumed ids until expiry in the encrypted row before rejecting or approving.
+  Prove that reimport fails even after both processes restart.
+- [x] A DM started during pairing made a saved request ineligible and prevented
+  runtime construction. The real-process regression failed with InvalidRoster.
+  Separate valid identity loading from changing admission eligibility; clear
+  the pending request while preserving identity and real DM data.
+  Both regression tests now pass in the eight-scenario real-Moss suite.
+- [x] Prevent an older poll from replacing an action result. Invalidate snapshots
+  started before or during an action with an action revision.
+- [x] Document a scoped exception to ADR 0025 for the five feature-owned bridge
+  calls. Keep real native verification and avoid widening the scripted facade.
+- [x] Isolate real network scenarios from each other's LAN discovery traffic.
+  Installations inside each scenario still run as independent processes.
+  Default discovery gets a 60-second bound to cover the 12-second bootstrap
+  timeout and 15-second announcement intervals. Register each priority target
+  once, then let Moss's own handshake maintenance retry it; packet retries
+  no longer launch a new handshake every 500 ms.
+
 ## Recovery findings
 
 - [x] Restart during delivery originally left the joining desktop Idle.

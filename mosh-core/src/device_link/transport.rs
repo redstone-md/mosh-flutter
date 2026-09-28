@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::{Arc, OnceLock};
 
 use super::types::{DeviceLinkError, DeviceLinkErrorKind, Result};
@@ -12,6 +13,7 @@ static INBOX: OnceLock<Inbox> = OnceLock::new();
 pub(crate) struct LinkTransport {
     shared: Arc<SharedMossNode>,
     node: Arc<MossNode>,
+    requested: HashSet<String>,
 }
 
 impl LinkTransport {
@@ -22,17 +24,25 @@ impl LinkTransport {
             shared.release();
             return Err(unavailable());
         }
-        Ok(Self { shared, node })
+        Ok(Self {
+            shared,
+            node,
+            requested: HashSet::new(),
+        })
     }
 
     pub fn peer_id(&self) -> Result<String> {
         self.node.public_key_hex().ok_or_else(unavailable)
     }
 
-    pub fn send(&self, peer: &str, packet: &[u8]) -> Result<()> {
-        self.node
-            .connect_to_peer(peer)
-            .map_err(|_| disconnected())?;
+    pub fn send(&mut self, peer: &str, packet: &[u8]) -> Result<()> {
+        if !self.requested.contains(peer) {
+            // Moss retains this target and retries its handshake itself.
+            self.node
+                .connect_to_peer(peer)
+                .map_err(|_| disconnected())?;
+            self.requested.insert(peer.to_owned());
+        }
         self.node
             .open_stream(peer, LINK_STREAM_ID)
             .map_err(|_| disconnected())?;

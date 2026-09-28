@@ -114,7 +114,7 @@ impl DeviceLinkRuntime {
         } else {
             DeviceLinkPhase::Idle
         };
-        Ok(Self {
+        let mut runtime = Self {
             identity,
             transport,
             exchange,
@@ -122,7 +122,9 @@ impl DeviceLinkRuntime {
             error: None,
             delivery_last_send: None,
             delivery_started: Instant::now(),
-        })
+        };
+        runtime.expire()?;
+        Ok(runtime)
     }
 
     pub fn snapshot(&mut self) -> Result<DeviceLinkSnapshot> {
@@ -161,9 +163,10 @@ impl DeviceLinkRuntime {
     }
 
     fn fail(&mut self, kind: DeviceLinkErrorKind) -> Result<()> {
-        if self.identity.record.pending.is_some() {
+        if let Some(exchange) = &self.exchange {
             let mut record = self.identity.record.clone();
             record.pending = None;
+            record.consume(&exchange.qr, now());
             self.identity.update(record)?;
         }
         self.exchange = None;

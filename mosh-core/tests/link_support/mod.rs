@@ -15,6 +15,14 @@ use mosh_core::shared_node::SharedMossNode;
 use serde_json::{json, Value};
 
 const OUTPUT_PREFIX: &str = "MOSH_TEST_JSON ";
+static NETWORK_SCENARIO: Mutex<()> = Mutex::new(());
+
+/// Each scenario owns the shared LAN discovery environment; its peers stay independent.
+pub fn isolated_network_scenario() -> std::sync::MutexGuard<'static, ()> {
+    NETWORK_SCENARIO
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
 
 pub struct Peer {
     child: Child,
@@ -91,7 +99,7 @@ impl Peer {
     }
 
     pub fn wait_phase(&mut self, phase: &str) -> Value {
-        let deadline = Instant::now() + Duration::from_secs(30);
+        let deadline = Instant::now() + Duration::from_secs(if self.api { 60 } else { 30 });
         loop {
             let snapshot = self.ask(json!({"action":"snapshot"}));
             if snapshot["phase"] == phase {

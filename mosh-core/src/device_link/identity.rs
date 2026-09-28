@@ -32,6 +32,12 @@ pub(crate) struct PendingJoin {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+struct ConsumedRequest {
+    id: String,
+    expires_at: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct LocalIdentity {
     pub seed: [u8; 32],
     pub device: DeviceDescriptor,
@@ -42,6 +48,26 @@ pub(crate) struct LocalIdentity {
     pub receipt: Option<LinkReceipt>,
     #[serde(default)]
     pub pending: Option<PendingJoin>,
+    #[serde(default)]
+    consumed: Vec<ConsumedRequest>,
+}
+
+impl LocalIdentity {
+    pub(crate) fn consume(&mut self, qr: &PairingQr, now: u64) {
+        self.consumed.retain(|request| request.expires_at > now);
+        if qr.expires_at > now && !self.consumed(qr, now) {
+            self.consumed.push(ConsumedRequest {
+                id: qr.id.clone(),
+                expires_at: qr.expires_at,
+            });
+        }
+    }
+
+    pub(crate) fn consumed(&self, qr: &PairingQr, now: u64) -> bool {
+        self.consumed
+            .iter()
+            .any(|request| request.id == qr.id && request.expires_at > now)
+    }
 }
 
 pub struct DeviceIdentity {
@@ -70,6 +96,7 @@ impl DeviceIdentity {
                     delivery: None,
                     receipt: None,
                     pending: None,
+                    consumed: Vec::new(),
                 }
             }
         };
@@ -90,7 +117,6 @@ impl DeviceIdentity {
         if let Some(pending) = &self.record.pending {
             let devices = pending.base.devices()?;
             if pending.qr.device != *device
-                || !self.can_join()?
                 || self.record.delivery.is_some()
                 || !devices.contains(&pending.trusted)
                 || devices.iter().any(|d| {

@@ -37,6 +37,9 @@ impl DeviceLinkRuntime {
     pub fn import_qr(&mut self, uri: String) -> Result<DeviceLinkSnapshot> {
         self.ensure_idle()?;
         let qr = PairingQr::parse(&uri, now())?;
+        if self.identity.record.consumed(&qr, now()) {
+            return Err(DeviceLinkError::new(DeviceLinkErrorKind::InvalidQr));
+        }
         let existing = self.identity.roster().devices()?;
         if existing
             .iter()
@@ -95,6 +98,7 @@ impl DeviceLinkRuntime {
             roster_hash: roster.digest()?,
         });
         record.roster = roster;
+        record.consume(&e.qr, now());
         self.identity.update(record)?;
         self.exchange = None;
         self.phase = DeviceLinkPhase::Delivering;
@@ -108,13 +112,19 @@ impl DeviceLinkRuntime {
         if self.identity.record.delivery.is_some() {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::Busy));
         }
-        if let Some(e) = &self.exchange {
-            if let Some(peer) = e.peer() {
-                let packet = wire::seal(&e.qr, &self.identity.key(), LinkMessage::Rejected)?;
-                let _ = self.transport.send(peer, &packet);
-            }
-        }
+        let rejection = self
+            .exchange
+            .as_ref()
+            .and_then(|e| e.peer().map(|peer| (peer.to_owned(), &e.qr)))
+            .map(|(peer, qr)| {
+                wire::seal(qr, &self.identity.key(), LinkMessage::Rejected)
+                    .map(|packet| (peer, packet))
+            })
+            .transpose()?;
         self.fail(DeviceLinkErrorKind::Rejected)?;
+        if let Some((peer, packet)) = rejection {
+            let _ = self.transport.send(&peer, &packet);
+        }
         self.snapshot()
     }
 }

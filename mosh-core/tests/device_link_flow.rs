@@ -1,10 +1,11 @@
 mod link_support;
 
-use link_support::{peer_process, Peer};
+use link_support::{isolated_network_scenario, peer_process, Peer};
 use serde_json::json;
 
 #[test]
 fn two_independent_desktops_link_only_after_trusted_approval() {
+    let _network = isolated_network_scenario();
     let mut trusted = Peer::new();
     let mut joining = Peer::new();
     let before = trusted.ask(json!({"action":"snapshot"}));
@@ -52,6 +53,7 @@ fn independent_installation_process() {
 
 #[test]
 fn declining_an_outsider_and_replaying_a_qr_never_adds_a_device() {
+    let _network = isolated_network_scenario();
     let mut trusted = Peer::new();
     let mut outsider = Peer::new();
     trusted.connect(&outsider);
@@ -67,12 +69,11 @@ fn declining_an_outsider_and_replaying_a_qr_never_adds_a_device() {
             .len(),
         1
     );
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
-    std::thread::sleep(std::time::Duration::from_secs(1));
     assert_eq!(
-        trusted.ask(json!({"action":"snapshot"}))["phase"],
-        "Connecting"
+        trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}))["error"],
+        "InvalidQr"
     );
+    assert_eq!(trusted.ask(json!({"action":"snapshot"}))["phase"], "Failed");
     assert_eq!(
         outsider.ask(json!({"action":"snapshot"}))["devices"]
             .as_array()
@@ -85,6 +86,7 @@ fn declining_an_outsider_and_replaying_a_qr_never_adds_a_device() {
 
 #[test]
 fn expired_and_substituted_qr_requests_cannot_authorize_a_device() {
+    let _network = isolated_network_scenario();
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
     let mut trusted = Peer::new();
     let mut joining = Peer::new();
@@ -142,6 +144,7 @@ fn encoded_qr(contents: &serde_json::Value) -> String {
 
 #[test]
 fn pairing_preserves_a_real_existing_dm_and_its_counterpart_after_restart() {
+    let _network = isolated_network_scenario();
     let mut trusted = Peer::new();
     let mut counterpart = Peer::new();
     let mut joining = Peer::new();
@@ -182,6 +185,7 @@ fn pairing_preserves_a_real_existing_dm_and_its_counterpart_after_restart() {
 
 #[test]
 fn an_interrupted_approved_link_recovers_when_both_desktops_restart() {
+    let _network = isolated_network_scenario();
     let mut trusted = Peer::new();
     let mut joining = Peer::new();
     trusted.connect(&joining);
@@ -213,6 +217,7 @@ fn an_interrupted_approved_link_recovers_when_both_desktops_restart() {
 
 #[test]
 fn public_bridge_links_independent_desktops_through_default_moss_discovery() {
+    let _network = isolated_network_scenario();
     let mut trusted = Peer::new_api();
     let mut joining = Peer::new_api();
     let before = trusted.ask(json!({"action":"snapshot"}));
@@ -239,5 +244,68 @@ fn public_bridge_links_independent_desktops_through_default_moss_discovery() {
     assert_eq!(
         joining.ask(json!({"action":"snapshot"}))["devices"],
         joined["devices"]
+    );
+}
+
+#[test]
+fn cancelling_while_the_joining_desktop_is_offline_consumes_the_qr_after_restart() {
+    let _network = isolated_network_scenario();
+    let mut trusted = Peer::new();
+    let mut joining = Peer::new();
+    trusted.connect(&joining);
+    let qr = joining.ask(json!({"action":"qr","argument":"Offline desktop"}));
+    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    trusted.wait_phase("AwaitingApproval");
+    joining.wait_phase("AwaitingConfirmation");
+    joining.stop();
+    trusted.ask(json!({"action":"cancel"}));
+    trusted.restart();
+    joining.restart();
+    trusted.connect(&joining);
+    assert_eq!(
+        trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}))["error"],
+        "InvalidQr"
+    );
+    assert_eq!(
+        trusted.ask(json!({"action":"snapshot"}))["devices"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        joining.ask(json!({"action":"snapshot"}))["devices"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn a_new_dm_during_pairing_preserves_identity_and_clears_the_ineligible_request() {
+    let _network = isolated_network_scenario();
+    let mut trusted = Peer::new();
+    let mut joining = Peer::new();
+    trusted.connect(&joining);
+    let before = joining.ask(json!({"action":"snapshot"}));
+    let qr = joining.ask(json!({"action":"qr","argument":"New desktop"}));
+    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    trusted.wait_phase("AwaitingApproval");
+    joining.wait_phase("AwaitingConfirmation");
+    let invite = joining.ask(json!({"action":"dm_invite"}));
+    joining.restart();
+    let restored = joining.ask(json!({"action":"snapshot"}));
+    assert_eq!(restored["user_id"], before["user_id"]);
+    assert_eq!(restored["own_device_id"], before["own_device_id"]);
+    assert_eq!(restored["can_join"], false);
+    assert!(restored["qr_uri"].is_null());
+    assert!(restored["confirmation_code"].is_null());
+    joining.ask(json!({"action":"cancel"}));
+    joining.restart();
+    assert_eq!(joining.ask(json!({"action":"snapshot"}))["phase"], "Idle");
+    assert_eq!(
+        joining.ask(json!({"action":"dm_poll","argument":invite["session_id"]}))["session_id"],
+        invite["session_id"]
     );
 }
