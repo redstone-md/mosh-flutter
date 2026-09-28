@@ -17,9 +17,35 @@ impl PrivateDmSession {
             return Err(invalid());
         }
         let rows = self.history_rows(import.accept(&batch)?)?;
+        self.require_history_epoch(store, batch.epoch)?;
         self.commit_history_rows(store, membership, rows)?;
         self.history_last_rx_ms = super::super::super::now_ms();
         Ok(())
+    }
+
+    pub(in crate::private_dm_runtime::devices) fn require_history_epoch(
+        &mut self,
+        store: &Persistence,
+        epoch: Option<u64>,
+    ) -> Result<()> {
+        let Some(epoch) =
+            epoch.filter(|epoch| self.crypto.epoch().is_some_and(|current| *epoch > current))
+        else {
+            return Ok(());
+        };
+        let mut next = self.membership.clone().ok_or_else(invalid)?;
+        let recovery = next.recovery.get_or_insert_with(|| {
+            super::super::recovery::Recovery::new(
+                super::super::super::now_ms(),
+                self.crypto.epoch().unwrap_or(0),
+            )
+        });
+        recovery.required_epoch = recovery.required_epoch.max(epoch);
+        if let Some(source) = &mut recovery.source {
+            source.epoch = source.epoch.max(epoch);
+        }
+        self.save_recovery_membership(store, next)?;
+        Err(invalid())
     }
 
     // Matching live rows are saved too: they can be visible before the normal
@@ -104,6 +130,15 @@ impl PrivateDmRuntime {
         let store = self.sessions.persistence().cloned().ok_or_else(invalid)?;
         let session = self.session_mut(&batch.session_id)?;
         session.authorize_history_device(identity, sender, roster)?;
+        if batch.epoch.is_none()
+            && session
+                .membership
+                .as_ref()
+                .and_then(|m| m.topology.roster(&roster.user_id()))
+                .is_some_and(|base| roster.has_removal_since(base).unwrap_or(false))
+        {
+            return Err(invalid());
+        }
         session.import_history_batch(&store, sender, batch)
     }
 }

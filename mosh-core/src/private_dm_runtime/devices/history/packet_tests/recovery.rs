@@ -34,6 +34,7 @@ fn batch(f: &Fixture, offset: usize, total: usize, records: Vec<TextRecord>) -> 
         round: 7,
         batch: HistoryBatch {
             session_id: f.session.clone(),
+            epoch: None,
             request_id: "history-recovery-packets".into(),
             offset,
             total,

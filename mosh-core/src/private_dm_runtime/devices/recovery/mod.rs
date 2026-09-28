@@ -113,10 +113,11 @@ impl PrivateDmSession {
             || next.revoked
             || next.joining.is_some()
             || !self.peer_joined
-            || next
-                .history_import
-                .as_ref()
-                .is_some_and(|import| !import.complete)
+            || (!self.awaiting_device_epoch()
+                && next
+                    .history_import
+                    .as_ref()
+                    .is_some_and(|import| !import.complete))
         {
             return Ok(Vec::new());
         }
