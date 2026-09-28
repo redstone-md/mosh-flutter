@@ -119,6 +119,13 @@ that same admission after removal is refused. Text import waits for required
 epochs and retains the existing semantic ids, metadata, deduplication and
 atomic cursor boundary from ADRs 0031/0032. Removing an active source abandons
 its incomplete transfer and lets ordinary recovery select an authorized holder.
+An original two-client participant can miss the first Add and its subsequent
+Remove. Ahead removal evidence from an admitted relay verifies the original
+admitted author's signature, conversation, group and roster extension, then
+durably pins the required epoch and starts recovery. It installs no skipped
+commit and sends no acknowledgement. Ordered replay verifies each exact MLS
+committer and leaf set. Recovery intent keeps directed routing active even
+before that participant has observed its first added leaf.
 Initial history batches also wait for an observed pending removal or required
 newer epoch. Ordered epoch recovery can run during that paused initial import;
 the same correlated batch can resume once the transition has been applied.

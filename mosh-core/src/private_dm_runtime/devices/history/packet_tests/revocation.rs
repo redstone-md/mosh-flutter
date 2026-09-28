@@ -3,6 +3,7 @@ use crate::private_dm_runtime::devices::recovery::{EpochRecord, RecoveryEpoch, R
 use crate::private_dm_runtime::devices::revocation::RemovalRecord;
 use crate::private_dm_runtime::now_ms;
 use sha2::Digest;
+mod bootstrap;
 mod forgery;
 mod multiple;
 mod recovery_barrier;
@@ -215,6 +216,8 @@ fn revocation_packet_process() {
     initial_history_waits_for_an_observed_removal();
     removing_an_unadmitted_device_does_not_block_initial_history();
     recovery_barrier::recovery_text_waits_for_known_remove();
+    bootstrap::two_client_contact_recovers_missed_add_and_remove();
+    recovery_barrier::higher_epoch_is_recorded_while_text_waits();
 }
 
 fn removing_an_unadmitted_device_does_not_block_initial_history() {

@@ -70,6 +70,28 @@ impl RemovalRecord {
     }
 
     pub(super) fn verify(&self, session: &PrivateDmSession) -> Result<String> {
+        let author = self.verify_author(session)?;
+        let membership = session.membership.as_ref().ok_or_else(invalid)?;
+        let target = membership
+            .topology
+            .clients
+            .iter()
+            .find(|c| c.device_id == self.target)
+            .ok_or_else(invalid)?;
+        let base = membership
+            .topology
+            .roster(&author.roster.user_id())
+            .ok_or_else(invalid)?;
+        if target.roster.user_id() != author.roster.user_id() {
+            return Err(invalid());
+        }
+        self.roster
+            .verifies_removal(base, &self.target, &self.author)
+            .map_err(|_| invalid())?;
+        Ok(author.mls_signer)
+    }
+
+    pub(super) fn verify_author(&self, session: &PrivateDmSession) -> Result<IdentityClaim> {
         let membership = session.membership.as_ref().ok_or_else(invalid)?;
         let author = membership
             .topology
@@ -81,15 +103,8 @@ impl RemovalRecord {
             .topology
             .roster(&author.roster.user_id())
             .ok_or_else(invalid)?;
-        let target = membership
-            .topology
-            .clients
-            .iter()
-            .find(|c| c.device_id == self.target)
-            .ok_or_else(invalid)?;
         if self.session_id != session.session_id
             || self.group_id != session.crypto.group_id_bytes().ok_or_else(invalid)?
-            || target.roster.user_id() != author.roster.user_id()
             || !base
                 .devices()
                 .map_err(|_| invalid())?
@@ -98,14 +113,14 @@ impl RemovalRecord {
             return Err(invalid());
         }
         self.roster
-            .verifies_removal(base, &self.target, &self.author)
+            .verifies_removal_extension(base, &self.target, &self.author)
             .map_err(|_| invalid())?;
         super::super::proof::verify(
             &author.device()?.signing_public_key,
             &self.signature,
             &self.bytes()?,
         )?;
-        Ok(author.mls_signer.clone())
+        Ok(author.clone())
     }
 }
 
