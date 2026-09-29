@@ -43,9 +43,9 @@ impl LinkTransport {
                 .map_err(|_| disconnected())?;
             self.requested.insert(peer.to_owned());
         }
-        self.node
-            .open_stream(peer, LINK_STREAM_ID)
-            .map_err(|_| disconnected())?;
+        // SendStream starts its reader itself. OpenStream would perform a
+        // blocking overlay lookup while the runtime holds the service lock;
+        // the retained connect request and protocol retries own discovery.
         self.node
             .send_stream(peer, LINK_STREAM_ID, packet)
             .map_err(|_| disconnected())

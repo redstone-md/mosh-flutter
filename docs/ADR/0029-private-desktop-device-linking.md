@@ -71,6 +71,12 @@ encrypted, signed pairing packets to the specific peer-id. The QR, version,
 request id, direction and signer are bound to packet authentication. Signing
 keys never leave their installation. The roster never enters gossip.
 
+Connecting to a peer-id requests Moss discovery once per target. Sending uses
+`SendStream`, which owns stream-reader startup. A separate `OpenStream` lookup
+can wait on the public overlay while holding the service lock and is redundant
+before `SendStream`. Protocol retries remain responsible for resending while
+Moss establishes the path. Commands can still cancel an offline pairing.
+
 ```mermaid
 sequenceDiagram
     participant New as New desktop

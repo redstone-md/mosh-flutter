@@ -123,7 +123,9 @@ The public-runtime proof uses three independent processes with real Moss,
 OpenMLS and separate encrypted stores. It covers both linked desktops,
 own-device echo, the original switched off, simultaneous sends and restart.
 Cryptographic refusal tests use real keys and storage. The public bridge also
-runs through default discovery. Commands, coverage requirements and results
+runs through automatic discovery. CI uses a local real tracker as described
+in [ADR 0015](0015-deep-link-and-ci-and-versioning.md); unwrapped Cargo runs
+retain the public Moss defaults. Commands, coverage requirements and results
 are tracked in [the plan](../../two-desktop-dm.plan.md).
 
 ## Maintainability exceptions

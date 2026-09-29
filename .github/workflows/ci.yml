@@ -56,9 +56,10 @@ jobs:
       - name: Clippy check
         run: cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings
 
-      # Adapter tests dlopen moss.dll, which the setup action provides.
+      # Real Moss + automatic discovery use a local tracker, independent of
+      # public tracker availability or unrelated public peers.
       - name: Cargo test
-        run: cargo test --manifest-path mosh-core/Cargo.toml
+        run: node scripts/moss-test.mjs
 
   codegen-drift:
     name: flutter_rust_bridge codegen drift
@@ -158,7 +159,7 @@ jobs:
         run: cargo build --manifest-path mosh-core/Cargo.toml
 
       - name: Device linking with independent Moss processes
-        run: cargo test --manifest-path mosh-core/Cargo.toml --test device_link_flow --test device_link_identity
+        run: node scripts/moss-test.mjs --test device_link_flow --test device_link_identity
 
       - name: Device linking through the native Flutter UI
         run: flutter test native_test/device_link_test.dart
@@ -247,9 +248,9 @@ jobs:
       - name: Clippy check
         run: cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings
 
-      # Adapter tests dlopen the universal libmoss.dylib the setup action built.
+      # Match the Windows test network while loading the real universal dylib.
       - name: Cargo test
-        run: cargo test --manifest-path mosh-core/Cargo.toml
+        run: node scripts/moss-test.mjs
 
   # Proves main still packages into the setup .exe users install. The same
   # reusable workflow builds the artifact a release publishes.

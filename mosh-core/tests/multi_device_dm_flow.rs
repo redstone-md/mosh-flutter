@@ -239,7 +239,7 @@ fn pending_join_and_admission_journal_resume_with_independent_keys_after_restart
 }
 
 #[test]
-fn public_bridge_delivers_one_dm_to_linked_desktops_through_default_discovery() {
+fn public_bridge_delivers_one_dm_to_linked_desktops_through_moss_discovery() {
     let _network = isolated_network_scenario();
     let mut original = Peer::new_api();
     let mut counterpart = Peer::new_api();

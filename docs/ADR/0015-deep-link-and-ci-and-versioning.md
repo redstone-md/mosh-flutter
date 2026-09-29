@@ -161,3 +161,31 @@ flowchart LR
   the installer, its SHA-256 and notes from `scripts/release-notes.sh`.
 - Release builds of `mosh-core` use fat LTO, one codegen unit and stripped
   symbols; moss is built with `-trimpath -ldflags="-s -w"`.
+
+## Update 2026-09-29: isolated discovery for native Cargo checks
+
+The Windows and macOS Cargo jobs use `node scripts/moss-test.mjs`. The wrapper
+starts WebTorrent's `bittorrent-tracker` 11.2.3 HTTP server on a random loopback
+port, runs the requested Cargo tests and closes the server. It installs the
+pinned test tool outside application manifests and the working tree.
+The server's public filter hook accepts Moss's literal `event=none` as a
+regular announce. Moss sources remain unchanged.
+
+Debug builds accept `MOSH_TEST_TRACKER_URL` only for
+`http://127.0.0.1:<port>/announce`, without credentials, query or fragment.
+This uses the SDK's existing `trackers` and isolated `network_id` options.
+The Rust process fixture passes a random `MOSH_TEST_NETWORK_SCOPE` to every
+installation in a scenario and retains it across restart. Each scenario gets
+a separate network id, so tracker addresses from previous tests cannot affect
+its discovery. The scope is a u64 and has no effect without the test tracker.
+Public DHT, LAN discovery and NAT port mapping are disabled in that test
+network. The peers retain real Moss transport, stream handlers, OpenMLS and
+independent encrypted stores. Public bridge tests still discover each other
+automatically and have no manual peer-address connection.
+
+The test override is absent from release builds. With no override, debug
+configuration remains byte-identical to the default configuration. Direct
+Cargo commands still probe the live public network, including its tracker
+and relay availability. Public-network probes and physical-device acceptance
+remain separate from the isolated CI proof. Test assertions, deadlines and
+protocol retry budgets are unchanged.

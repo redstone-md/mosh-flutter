@@ -147,9 +147,11 @@ fn drop_ref(state: &mut SharedNodeState) {
 /// The field-log context for the stream-handler registration result, so the
 /// line is greppable by call site rather than by peer.
 const STREAM_HANDLER_CONTEXT: &str = "stream-handler";
+const MAX_START_ATTEMPTS: usize = 3;
 
-/// Starts the node on `listen_port`, or on any free port when that one is
-/// taken. A busy port used to keep the node down for the whole process: every
+/// Starts on `listen_port`, reallocating after a bind collision. Even port 0
+/// can collide: default Moss Masq binds TCP first, then UDP on that port.
+/// A busy port used to keep the node down for the whole process: every
 /// saved chat was dropped at startup and every new one failed with "could not
 /// reach the network". Peers find the node through the trackers, so the port
 /// number itself does not matter to them.
@@ -158,18 +160,34 @@ fn start_node(
     listen_port: u16,
     static_peer: Option<String>,
 ) -> Result<MossNode, MossFfiError> {
-    match start_node_on(moss, listen_port, static_peer.clone()) {
-        Err(error) if listen_port != 0 && error.is_listen_failed() => {
-            dlog::write(
-                LogLevel::Warn,
-                kinds::CONNECT,
-                &listen_port.to_string(),
-                &format!("listen port busy ({error}); starting on a free port"),
-            );
-            start_node_on(moss, 0, static_peer)
+    start_with_port_fallback(listen_port, |port| {
+        start_node_on(moss, port, static_peer.clone())
+    })
+}
+
+fn start_with_port_fallback<T>(
+    listen_port: u16,
+    mut start: impl FnMut(u16) -> Result<T, MossFfiError>,
+) -> Result<T, MossFfiError> {
+    let mut port = listen_port;
+    let mut result = start(port);
+    for _ in 1..MAX_START_ATTEMPTS {
+        let Err(error) = &result else {
+            return result;
+        };
+        if !error.is_listen_failed() {
+            return result;
         }
-        result => result,
+        dlog::write(
+            LogLevel::Warn,
+            kinds::CONNECT,
+            &port.to_string(),
+            &format!("listen port busy ({error}); starting on a free port"),
+        );
+        port = 0;
+        result = start(port);
     }
+    result
 }
 
 fn start_node_on(
@@ -210,6 +228,58 @@ fn start_node_on(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn busy_port() -> MossFfiError {
+        MossFfiError::Operation {
+            name: "start",
+            code: -13,
+        }
+    }
+
+    #[test]
+    fn an_auto_port_collision_allocates_another_port() {
+        let mut outcomes = [Err(busy_port()), Ok(42)].into_iter();
+        assert_eq!(
+            start_with_port_fallback(0, |_| outcomes.next().unwrap()).unwrap(),
+            42
+        );
+    }
+
+    #[test]
+    fn a_busy_explicit_port_can_survive_an_auto_port_collision_too() {
+        let mut outcomes = [Err(busy_port()), Err(busy_port()), Ok(42)].into_iter();
+        let mut ports = Vec::new();
+        let node = start_with_port_fallback(12345, |port| {
+            ports.push(port);
+            outcomes.next().unwrap()
+        })
+        .unwrap();
+        assert_eq!(node, 42);
+        assert_eq!(ports, [12345, 0, 0]);
+    }
+
+    #[test]
+    fn non_bind_failures_are_returned_without_reallocation() {
+        let mut outcomes = [Err::<(), _>(MossFfiError::Operation {
+            name: "start",
+            code: -8,
+        })]
+        .into_iter();
+        let error = start_with_port_fallback(0, |_| outcomes.next().unwrap()).unwrap_err();
+        assert!(matches!(error, MossFfiError::Operation { code: -8, .. }));
+    }
+
+    #[test]
+    fn repeated_bind_failures_stop_after_three_attempts() {
+        let mut attempts = 0;
+        let error = start_with_port_fallback(0, |_| {
+            attempts += 1;
+            Err::<(), _>(busy_port())
+        })
+        .unwrap_err();
+        assert!(error.is_listen_failed());
+        assert_eq!(attempts, 3);
+    }
 
     /// Refcounting is the whole contract: the node stays up until the last
     /// holder lets go, and a stray extra release must not underflow the count
