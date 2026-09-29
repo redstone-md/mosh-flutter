@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 
 // Keep test tools outside application manifests and the working tree.
@@ -94,7 +95,15 @@ async function ensureTracker() {
 
 function run(command, args, env) {
   return new Promise((resolve, reject) => {
-    child = spawn(command, args, { stdio: "inherit", env, shell: false, detached: process.platform !== "win32" });
+    const recording = Boolean(env.MOSH_DEBUG_RECORD_DIR);
+    child = spawn(command, args, { stdio: recording ? ["inherit", "pipe", "pipe"] : "inherit", env, shell: false, detached: process.platform !== "win32" });
+    if (recording) {
+      for (const [input, output] of [[child.stdout, process.stdout], [child.stderr, process.stderr]]) {
+        createInterface({ input }).on("line", (line) => {
+          output.write(`${line.replace(/([?&]token=)[^&\s]+/g, "$1<REDACTED>")}\n`);
+        });
+      }
+    }
     child.once("error", reject);
     child.once("exit", (status) => {
       child = undefined;

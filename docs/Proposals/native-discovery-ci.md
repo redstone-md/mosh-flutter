@@ -63,6 +63,19 @@ seconds. The successful debug build cache was not saved because the later
 test failed. The approved CI split removes the desktop build and prerequisite
 job wait from native linking feedback, while keeping desktop integration.
 
+[Run 36512077773](https://github.com/redstone-md/mosh-flutter/actions/runs/36512077773)
+completed native linking feedback in 11 minutes 34 seconds, starting alongside
+the first jobs. Both subprocess pipe regressions passed on Windows. The UI
+still failed fresh linking at the same phase, so the pipe correction does not
+explain that failure. Setup took 164 seconds, Rust library build 222 seconds,
+independent-process checks 90 seconds, the first Flutter test 127 seconds and
+the UI step 64 seconds. Cargo cache save was still skipped on failure despite
+the trusted-PR `save-if`; `cache-on-failure` is now enabled with that restriction.
+The next diagnostic run records Moss session events through the existing
+`MOSH_DEBUG_RECORD_DIR` seam and captures only phase/error/authorization flags
+from the independent peer on fresh-link failure. Records contain network
+metadata, not QR values, codes or encrypted installation databases.
+
 ## Changes
 
 - Device linking and DM request peer discovery through the existing
