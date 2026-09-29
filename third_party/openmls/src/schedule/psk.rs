@@ -6,6 +6,10 @@ use openmls_traits::{random::OpenMlsRand, storage::StorageProvider as StoragePro
 use serde::{Deserialize, Serialize};
 use tls_codec::{Serialize as TlsSerializeTrait, VLBytes};
 
+#[cfg(test)]
+#[path = "psk_store_review_tests.rs"]
+mod review_tests;
+
 use super::*;
 use crate::{
     group::{GroupEpoch, GroupId},
@@ -588,8 +592,15 @@ pub mod store {
                 self.resumption_psk.push(item);
                 self.cursor += 1;
             } else {
-                self.cursor += 1;
-                self.cursor %= self.resumption_psk.len();
+                // Older stores can have an incorrect cursor or rollover order.
+                // Evict by epoch while preserving the serialized store format.
+                self.cursor = self
+                    .resumption_psk
+                    .iter()
+                    .enumerate()
+                    .min_by_key(|(_, (epoch, _))| *epoch)
+                    .expect("A full nonzero-capacity store contains a secret")
+                    .0;
                 self.resumption_psk[self.cursor] = item;
             }
         }

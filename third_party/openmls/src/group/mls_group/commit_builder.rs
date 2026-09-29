@@ -952,6 +952,10 @@ impl CommitBuilder<'_, Complete, &mut MlsGroup> {
             ..
         } = self;
 
+        // Conversion can fail and writes message secrets when encrypting.
+        // Finish it before publishing a pending commit to memory or storage.
+        let mls_message = group.content_to_mls_message(create_commit_result.commit, provider)?;
+
         // Set the current group state to [`MlsGroupState::PendingCommit`],
         // storing the current [`StagedCommit`] from the commit results
         group.group_state = MlsGroupState::PendingCommit(Box::new(PendingCommitState::Member(
@@ -964,13 +968,6 @@ impl CommitBuilder<'_, Complete, &mut MlsGroup> {
             .map_err(CommitBuilderStageError::KeyStoreError)?;
 
         group.reset_aad();
-
-        // Convert PublicMessage messages to MLSMessage and encrypt them if required by the
-        // configuration.
-        //
-        // Note that this performs writes to the storage, so we should do that here, rather than
-        // when working with the result.
-        let mls_message = group.content_to_mls_message(create_commit_result.commit, provider)?;
 
         Ok(CommitMessageBundle {
             version: group.version(),

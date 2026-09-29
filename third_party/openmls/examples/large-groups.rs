@@ -26,6 +26,10 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{types::Ciphersuite, OpenMlsProvider as _};
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+#[path = "review_regressions/large_groups.rs"]
+mod review_tests;
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 struct Member {
@@ -429,12 +433,22 @@ struct Args {
 
     /// The group sizes to run or generate.
     /// This has to be a list of values, separated by spaces, e.g. 2 3 5 10
-    #[clap(short, long, value_delimiter = ' ', num_args = 1..)]
+    #[clap(short, long, value_delimiter = ' ', num_args = 1.., value_parser = parse_group_size)]
     groups: Option<Vec<usize>>,
 
     /// The group setup to use.
     #[clap(short, long)]
     setup: Option<SetupVariants>,
+}
+
+fn parse_group_size(value: &str) -> Result<usize, String> {
+    let size: usize = value
+        .parse()
+        .map_err(|error: std::num::ParseIntError| error.to_string())?;
+    if size < 2 {
+        return Err("Benchmarks require at least two members".into());
+    }
+    Ok(size)
 }
 mod util {
     use std::path::Path;
@@ -549,6 +563,10 @@ fn main() {
             if !group_sizes.contains(&groups.len()) {
                 continue;
             }
+        }
+        if groups.len() < 2 {
+            eprintln!("Skipping stored group with fewer than two members");
+            continue;
         }
         println!("{} Members", groups.len());
 

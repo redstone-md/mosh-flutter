@@ -1230,10 +1230,10 @@ fn test_valsem105() {
                             result.unwrap();
                         }
                         _ => {
-                            matches!(
+                            assert!(matches!(
                                 result.unwrap_err(),
                                 CommitToPendingProposalsError::CreateCommitError(_)
-                            );
+                            ));
                         }
                     }
                 }
@@ -1249,7 +1249,10 @@ fn test_valsem105() {
                             result.unwrap();
                         }
                         _ => {
-                            matches!(result.unwrap_err(), AddMembersError::CreateCommitError(_));
+                            assert!(matches!(
+                                result.unwrap_err(),
+                                AddMembersError::CreateCommitError(_)
+                            ));
                         }
                     }
                 }
