@@ -16,6 +16,7 @@ class NativePeer {
   // [DEBUG-native-link] Last worker stderr lines for the failure diagnostic.
   List<String> stderrTail = [];
   int get pid => _process.pid;
+  String get executable => _executable;
   static const _prefix = 'MOSH_TEST_JSON ';
 
   static Future<NativePeer> start(
