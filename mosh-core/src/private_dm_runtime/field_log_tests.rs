@@ -122,3 +122,22 @@ fn a_change_of_path_to_the_counterpart_is_logged_once() {
         1
     );
 }
+
+#[test]
+fn a_failed_mesh_report_is_not_logged_as_a_lost_path() {
+    let (net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+
+    net.fail_mesh_reports(ALICE_ID, true);
+    let now = now_ms();
+    alice.tick(now);
+    net.fail_mesh_reports(ALICE_ID, false);
+    alice.tick(now + 1_000);
+
+    assert!(
+        log_lines(&invite.session_id, "peer reach Direct -> None").is_empty(),
+        "no report says nothing about the counterpart"
+    );
+}
