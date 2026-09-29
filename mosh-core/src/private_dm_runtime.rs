@@ -920,6 +920,9 @@ impl PrivateDmRuntime {
     /// written down afterwards, once the mutable borrow is over.
     fn tick(&mut self, now: u64) {
         let lost_window = self.lost_window_ms;
+        // A failed mesh report says nothing about the counterpart: logged,
+        // it would read as a lost path and a recovery that never happened.
+        let mesh_reported = self.transport.mesh_info().is_some();
         let mut dirty: Vec<(String, String)> = Vec::new();
         for (session_id, session) in self.sessions.iter_mut() {
             if session.ensure_device_authorized().is_err() {
@@ -928,7 +931,9 @@ impl PrivateDmRuntime {
             session.pump_attachment_requests();
             session.pump_peer_connect();
             session.pump_liveness(now, lost_window);
-            session.pump_reach_log();
+            if mesh_reported {
+                session.pump_reach_log();
+            }
             session.pump_handshake(now);
             session.pump_hello(now);
             session.pump_peer_announce(now);

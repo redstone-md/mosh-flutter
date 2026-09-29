@@ -292,7 +292,7 @@ impl PrivateDmSession {
                     LogLevel::Info,
                     kinds::CONNECT,
                     &self.session_id,
-                    "connect_peer requested",
+                    &format!("connect_peer requested for {id}"),
                 );
                 self.connect_requested_for = Some(id);
                 self.last_connect_outcome = Some(ConnectOutcome::Requested);
