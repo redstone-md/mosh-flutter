@@ -57,9 +57,7 @@ class NativePeer {
           'MOSH_LINK_TEST_API': api ? '1' : '0',
         });
     process.stderr.drain<void>();
-    final lines = StreamIterator(
-        process.stdout.transform(utf8.decoder).transform(const LineSplitter()));
-    final peer = NativePeer(process, dir, lines, api, worker);
+    final peer = NativePeer(process, dir, _readReplies(process), api, worker);
     try {
       await peer.ask({'action': 'snapshot'});
       return peer;
@@ -69,15 +67,24 @@ class NativePeer {
     }
   }
 
+  // Keep draining the pipe between requests, buffering only JSON replies.
+  static StreamIterator<String> _readReplies(Process process) {
+    return StreamIterator(process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .where((line) => line.startsWith(_prefix))
+        .asBroadcastStream(onCancel: (subscription) {
+      unawaited(subscription.cancel());
+    }));
+  }
+
   Future<Map<String, dynamic>> ask(Map<String, Object?> command) async {
     if (_stopped) throw StateError('Independent native peer is stopped');
     _process.stdin.writeln(jsonEncode(command));
     await _process.stdin.flush();
-    while (await _lines.moveNext().timeout(const Duration(seconds: 40))) {
-      if (_lines.current.startsWith(_prefix)) {
-        return jsonDecode(_lines.current.substring(_prefix.length))
-            as Map<String, dynamic>;
-      }
+    if (await _lines.moveNext().timeout(const Duration(seconds: 40))) {
+      return jsonDecode(_lines.current.substring(_prefix.length))
+          as Map<String, dynamic>;
     }
     throw StateError('Independent native peer exited');
   }

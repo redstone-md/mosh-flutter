@@ -176,6 +176,21 @@ It runs Flutter and its independent native peer under one real tracker, then
 closes the tracker. Windows launches Flutter's batch entry point through a
 fixed command; caller arguments are never interpolated into that command.
 
+Native device linking runs in an independent Windows job. It builds the Rust
+library and independent peer for `flutter_tester`, runs the real-process suites
+and then exercises the Devices UI. It does not require a desktop app build or
+wait for the Rust, binding and Flutter jobs. Desktop slice-one integration
+retains those prerequisites and its Windows debug build. Cargokit cache
+restore and save are separate: save follows the successful debug build, so a
+later test failure cannot discard the cache. Shared Cargo dependency caches
+can be saved by main and PRs from this repository, excluding fork PRs.
+
+The Dart test peer keeps stdout draining between commands. A filtered
+broadcast stream discards logs and buffers only JSON replies for the existing
+iterator; iterator cancellation cancels the upstream subscription. A real
+subprocess pipe regression verifies progress without a pending request and
+the existing EOF error. This changes the test helper, not Moss transport.
+
 Debug builds accept `MOSH_TEST_TRACKER_URL` only for
 `http://127.0.0.1:<port>/announce`, without credentials, query or fragment.
 This uses the SDK's existing `trackers` and isolated `network_id` options.
