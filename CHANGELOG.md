@@ -4,6 +4,30 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **The field log shows the whole Connect timeline.** Besides "session
+  connected", a DM now logs when it asked moss to dial the contact, every
+  change of the path to the contact (none, direct, relayed), and a
+  "session lost" line with the silence that took Connected away.
+- **The expected macOS keychain fallback is no longer a warning.** The
+  self-signed release is always refused the protected keychain for a
+  missing entitlement and uses the legacy one; that refusal now logs as
+  info. Any other refusal is still a warning.
+- **Settings, Devices has one action per device.** A fresh device shows
+  Show linking QR; a device in use shows Choose QR image, with the link
+  field under it (Enter submits). The name field is gone: the new device
+  sends its computer name.
+- **Device and user ids no longer wrap.** They show as a short monospace
+  `head…tail`, enough to compare two devices by eye. The link field drops
+  its character counter.
+
+### Fixed
+- **A new device creates its link QR without a name.** A blank name used
+  to fail as "QR or link is invalid"; it now keeps the device's current
+  name.
+
 ## [0.10.0] - 2026-09-29
 
 ### Added

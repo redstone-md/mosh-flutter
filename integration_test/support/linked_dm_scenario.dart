@@ -21,10 +21,7 @@ final class LinkedDmScenario {
   Future<void> pair() async {
     final before = await identity();
     await ui.devices();
-    await ui.visible(find.text('Name of this device'));
-    await tester.enterText(
-        find.widgetWithText(TextField, 'Name of this device'), 'Android arm64');
-    await ui.tap(find.text('Link this device to an existing user'));
+    await ui.tap(find.text('Show linking QR'));
     await ui.visible(find.text('Copy link'));
     final qr = await identity();
     expect(qr.qrUri, startsWith('mosh://device-link/'));
