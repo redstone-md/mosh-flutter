@@ -76,6 +76,20 @@ The next diagnostic run records Moss session events through the existing
 from the independent peer on fresh-link failure. Records contain network
 metadata, not QR values, codes or encrypted installation databases.
 
+The recordings showed the Moss session open while the child stopped sending.
+Function-only CDB stacks of the stuck child (runs 36516167768, 36517279105)
+showed the command thread in `println!` → `Handle::synchronous_write` →
+`WaitForSingleObject`, holding the `DeviceLinkRuntime` mutex, and the link
+service thread waiting for that mutex. Dart gives Windows children overlapped
+pipes. Go 1.25's `os` package, loaded with `moss.dll`, adopts overlapped
+stdout/stderr as pollable and sets `FILE_SKIP_SET_EVENT_ON_HANDLE`. Rust std
+waits on that handle when a write pends, so the first reply larger than the
+free pipe space never returns. The Rust-parent suites use synchronous pipes,
+and the earlier flood fixture did not load Go, so neither reproduced it.
+[Run 36518768842](https://github.com/redstone-md/mosh-flutter/actions/runs/36518768842)
+passed the Windows native job with this correction, including fresh relinking
+of the revoked peer. The temporary stack capture was then removed.
+
 ## Changes
 
 - Device linking and DM request peer discovery through the existing
@@ -113,6 +127,10 @@ metadata, not QR values, codes or encrypted installation databases.
 - `NativePeer` continuously drains child stdout, discards background log lines
   and buffers JSON replies between requests. Cancelling the reply iterator
   cancels its upstream subscription. The subprocess lifecycle is unchanged.
+- Independent workers call `link_support::stdio::isolate_from_moss` before
+  loading Moss. On Windows it moves stdout/stderr to synchronous pipes relayed
+  to the inherited handles, which Go never sees. The stdout-flood fixture
+  shares that module and loads the real `moss.dll` on Windows first.
 - Native device linking has its own Windows job, independent of desktop app
   compilation and the three prerequisite jobs. It builds the real Rust library
   and peer, runs both independent-process suites, checks the pipe regression
@@ -232,6 +250,7 @@ and the CI network in [ADR 0015](../ADR/0015-deep-link-and-ci-and-versioning.md)
 - `mosh-core/tests/device_link_flow.rs`
 - `mosh-core/tests/multi_device_dm_flow.rs`
 - `mosh-core/tests/link_support/mod.rs`
+- `mosh-core/tests/link_support/stdio.rs`
 - `native_test/device_link_test.dart`
 - `native_test/support/native_peer.dart`
 - `native_test/native_peer_io_test.dart`

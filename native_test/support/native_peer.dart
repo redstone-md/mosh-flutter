@@ -13,10 +13,6 @@ class NativePeer {
   final bool _api;
   final String _executable;
   bool _stopped = false;
-  // [DEBUG-native-link] Last worker stderr lines for the failure diagnostic.
-  List<String> stderrTail = [];
-  int get pid => _process.pid;
-  String get executable => _executable;
   static const _prefix = 'MOSH_TEST_JSON ';
 
   static Future<NativePeer> start(
@@ -60,8 +56,8 @@ class NativePeer {
           'MOSH_LINK_TEST_PORT': '0',
           'MOSH_LINK_TEST_API': api ? '1' : '0',
         });
+    process.stderr.drain<void>();
     final peer = NativePeer(process, dir, _readReplies(process), api, worker);
-    _keepStderrTail(process, peer.stderrTail);
     try {
       await peer.ask({'action': 'snapshot'});
       return peer;
@@ -69,17 +65,6 @@ class NativePeer {
       await peer.stop().catchError((Object _) {});
       rethrow;
     }
-  }
-
-  // [DEBUG-native-link] Drain stderr, retaining only the recent tail.
-  static void _keepStderrTail(Process process, List<String> tail) {
-    process.stderr
-        .transform(const Utf8Decoder(allowMalformed: true))
-        .transform(const LineSplitter())
-        .listen((line) {
-      tail.add(line);
-      if (tail.length > 80) tail.removeAt(0);
-    });
   }
 
   // Keep draining the pipe between requests, buffering only JSON replies.
@@ -117,7 +102,6 @@ class NativePeer {
   Future<void> restart() async {
     await stop();
     final peer = await _spawn(_dir, _api, _executable);
-    stderrTail = peer.stderrTail;
     _process = peer._process;
     _lines = peer._lines;
     _stopped = false;
