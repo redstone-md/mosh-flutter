@@ -34,6 +34,8 @@ permissions:
 # to every red mac iteration. macos-preflight gives the fast signal
 # (~10 min: podspec syntax + the x86_64 cross-link), macos-dmg the full
 # artifact. The tagged release still gates through release.yml's verify.
+# Native device-link checks run independently: they build the Rust library
+# and peer executable for flutter_tester without building the desktop app.
 jobs:
   rust-core:
     name: Rust core (fmt + clippy + test)
@@ -140,7 +142,8 @@ jobs:
         with:
           rust-cache-key: windows
 
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: cargokit-cache
         with:
           path: build/windows/x64/plugins/rust_builder/cargokit_build
           key: cargokit-windows-debug-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
@@ -152,14 +155,37 @@ jobs:
       - name: Build Windows app (debug)
         run: flutter build windows --debug
 
+      - name: Save Windows debug build cache
+        if: steps.cargokit-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/windows/x64/plugins/rust_builder/cargokit_build
+          key: ${{ steps.cargokit-cache.outputs.cache-primary-key }}
+
       - name: Integration test (slice one)
         run: flutter test integration_test/slice_one_test.dart -d windows
+
+  native-device-linking:
+    name: Native device linking (real bridge and peers)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup
+        with:
+          rust-cache-key: desktop
 
       - name: Build device-link native test library
         run: cargo build --manifest-path mosh-core/Cargo.toml
 
       - name: Device linking with independent Moss processes
         run: node scripts/moss-test.mjs --test device_link_flow --test device_link_identity
+
+      - name: Native peer pipe regression
+        run: flutter test native_test/native_peer_io_test.dart
 
       - name: Device linking through the native Flutter UI
         run: node scripts/moss-test.mjs --native-ui

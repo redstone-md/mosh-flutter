@@ -48,7 +48,7 @@ runs:
       with:
         workspaces: mosh-core
         shared-key: ${{ inputs.rust-cache-key }}
-        save-if: ${{ github.ref == 'refs/heads/main' }}
+        save-if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
 
     # Pinned, not `channel: stable`: a runner picking up a newer Flutter
     # than the one the release was built with is a drift nobody asked for,

@@ -47,6 +47,22 @@ discovery and failed to reach `Device linked` after approval within 40 seconds.
 Its local public-network run passed in 39 seconds; the same test with the
 loopback tracker passed in 7 seconds. The UI step now uses that tracker too.
 
+[Run 36506447520](https://github.com/redstone-md/mosh-flutter/actions/runs/36506447520)
+again passed eight of nine jobs, including both complete Rust suites. The
+isolated Windows UI completed initial linking and revocation, then failed
+fresh linking of the revoked peer with `Connecting` / `ConnectionLost`.
+Closing the peer also timed out. The test helper's stdout reader paused
+between JSON requests. A real subprocess regression reproduced a full output
+pipe preventing the peer from progressing, then passed after continuous
+draining. This establishes a helper defect; the next Windows run must verify
+whether it explains that runner's linking failure.
+
+That Windows job spent 590 seconds building the desktop app, 249 seconds
+building the native library and 172 seconds in setup. The UI step took 81
+seconds. The successful debug build cache was not saved because the later
+test failed. The approved CI split removes the desktop build and prerequisite
+job wait from native linking feedback, while keeping desktop integration.
+
 ## Changes
 
 - Device linking and DM request peer discovery through the existing
@@ -81,6 +97,18 @@ loopback tracker passed in 7 seconds. The UI step now uses that tracker too.
   that every run uses the public defaults.
 - Native UI timeout diagnostics include only the real phase and error kind,
   without QR payloads or confirmation codes. The 40-second deadline is unchanged.
+- `NativePeer` continuously drains child stdout, discards background log lines
+  and buffers JSON replies between requests. Cancelling the reply iterator
+  cancels its upstream subscription. The subprocess lifecycle is unchanged.
+- Native device linking has its own Windows job, independent of desktop app
+  compilation and the three prerequisite jobs. It builds the real Rust library
+  and peer, runs both independent-process suites, checks the pipe regression
+  and exercises the Devices UI. The desktop slice-one job keeps its build and
+  integration test.
+- The desktop job saves its debug Cargokit cache immediately after a successful
+  build. The shared setup saves Cargo dependency caches on main and PRs from
+  this repository; fork PRs cannot save them. Native linking uses the same
+  `desktop` cache namespace as the Windows Rust job.
 
 Without the override, config bytes remain unchanged. Release builds do not
 compile the override. No public Rust API, bridge binding, application
@@ -118,6 +146,12 @@ dependency, database schema or wire format changes.
   config and startup unit tests plus both real public-API scenarios. The
   debug network module reached 100% line coverage. Stable Rust does not export
   branch counters, so no Rust branch percentage is claimed.
+- The real stdout-flood subprocess regression failed before the reader fix,
+  then passed. A second case verifies the existing error on EOF before a reply.
+  The full native Devices UI also passed locally in 7 seconds after the fix.
+- Direct Dart VM coverage measured 10/10 changed helper runtime lines and
+  4/4 SDK-reported changed branch counters. These are changed-code counts,
+  not whole-helper coverage. Flutter analysis and formatting passed.
 - Windows/macOS validation runs in GitHub Actions after publication; the local
   checks above ran on Linux.
 
@@ -128,8 +162,9 @@ retain their boundaries.
 
 ## Standards
 
-Source review of the initial 17 CI files and the six-file native UI follow-up
-found no documented breaches or substantive heuristic smells. The changes
+Source review of the initial 17 CI files, the six-file native UI follow-up and
+the eight-file pipe/CI split follow-up found no documented breaches or
+substantive heuristic smells. The changes
 retain module boundaries, existing dependencies and contracts. The inherited
 file-size exception is documented. Findings: 0.
 
@@ -139,8 +174,9 @@ Scenario scope reaches every child and survives restart. The private override
 affects only debug tracker networks. Automatic discovery and real native
 dependencies, protocol acknowledgements and shared-node ownership remain in
 place. The six-file native UI follow-up preserves the real bridge, independent
-peer, assertions and deadline. Both reviews found no missing requirement or
-unrequested public contract change. Actionable findings: 0.
+peer, assertions and deadline. The eight-file pipe/CI split follow-up preserves
+those checks and adds two real subprocess cases. All three reviews found no
+missing requirement or unrequested public contract change. Actionable findings: 0.
 
 ## Limits and reproduction
 
@@ -155,6 +191,7 @@ From the repository root:
 node scripts/moss-prepare.mjs
 cargo build --manifest-path mosh-core/Cargo.toml
 node scripts/moss-test.mjs
+flutter test native_test/native_peer_io_test.dart
 node scripts/moss-test.mjs --native-ui
 ```
 
@@ -172,6 +209,7 @@ and the CI network in [ADR 0015](../ADR/0015-deep-link-and-ci-and-versioning.md)
 ## Changed files
 
 - `.github/workflows/ci.yml`
+- `.github/actions/setup/action.yml`
 - `scripts/moss-test.mjs`
 - `mosh-core/src/moss_ffi.rs`
 - `mosh-core/src/moss_ffi/test_network.rs`
@@ -182,6 +220,9 @@ and the CI network in [ADR 0015](../ADR/0015-deep-link-and-ci-and-versioning.md)
 - `mosh-core/tests/multi_device_dm_flow.rs`
 - `mosh-core/tests/link_support/mod.rs`
 - `native_test/device_link_test.dart`
+- `native_test/support/native_peer.dart`
+- `native_test/native_peer_io_test.dart`
+- `native_test/support/stdout_flood.rs`
 - `docs/ADR/0015-deep-link-and-ci-and-versioning.md`
 - `docs/ADR/0026-one-node-a-transport-seam-and-a-dm-outbox.md`
 - `docs/ADR/0029-private-desktop-device-linking.md`

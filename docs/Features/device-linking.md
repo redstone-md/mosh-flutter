@@ -111,8 +111,13 @@ for the exact authorization and verification rules.
   screen through linking, removal cancellation, confirmed removal and fresh
   approval on the revoked installation using
   the native bridge and a separate Moss process. No bridge or
-  service doubles are used. CI runs this in its Windows native test lane,
-  with the same real tracker as the independent-process checks.
+  service doubles are used. CI runs this in its independent Windows native
+  linking job, with the same real tracker as the independent-process checks.
+  This job builds the Rust library and peer without compiling the desktop app;
+  the separate desktop integration job still builds and tests slice one.
+- `flutter test native_test/native_peer_io_test.dart` checks the test helper
+  with a real subprocess: background stdout must not prevent progress between
+  requests, and exiting before a reply must report the existing EOF error.
 
 New production code requires 80% line coverage; branch coverage is required
 where the toolchain provides it. Windows/macOS installers need their own
