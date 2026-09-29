@@ -21,6 +21,11 @@ All notable changes to Mosh are documented here. Format follows
   `head…tail`, enough to compare two devices by eye. The link field drops
   its character counter.
 
+### Fixed
+- **A new device creates its link QR without a name.** A blank name used
+  to fail as "QR or link is invalid"; it now keeps the device's current
+  name.
+
 ## [0.10.0] - 2026-09-29
 
 ### Added
