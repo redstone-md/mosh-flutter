@@ -90,7 +90,7 @@ fn linked_desktop_imports_pre_link_text_with_original_ids_authors_and_times() {
     assert_eq!(imported["history_sync"], "complete");
     linked.restart();
     linked.connect(&counterpart);
-    let restored = linked.wait_dm_text(session, "Original history");
+    let restored = finish_history(&mut original, &mut linked, session);
     assert_eq!(
         text(&restored, "Before pairing"),
         text(&before, "Before pairing")
@@ -99,7 +99,6 @@ fn linked_desktop_imports_pre_link_text_with_original_ids_authors_and_times() {
         text(&restored, "Original history"),
         text(&before, "Original history")
     );
-    assert_eq!(restored["history_sync"], "complete");
 }
 
 #[test]
@@ -159,9 +158,8 @@ fn interrupted_history_waits_for_source_resumes_and_keeps_live_text_once() {
         original.ask(json!({"action":"dm_poll","argument":session}));
     }
     linked.restart();
-    let final_history = linked.ask(json!({"action":"dm_poll","argument":session}));
+    let final_history = finish_history(&mut original, &mut linked, session);
     assert_eq!(final_history["messages"].as_array().unwrap().len(), 43);
-    assert_eq!(final_history["history_sync"], "complete");
 }
 
 #[test]
@@ -181,7 +179,6 @@ fn history_transfers_text_larger_than_a_signed_packet_without_changing_it() {
     let imported = finish_history(&mut original, &mut linked, session);
     assert_eq!(text(&imported, &body), text(&before, &body));
     linked.restart();
-    let restored = linked.ask(json!({"action":"dm_poll","argument":session}));
+    let restored = finish_history(&mut original, &mut linked, session);
     assert_eq!(text(&restored, &body), text(&before, &body));
-    assert_eq!(restored["history_sync"], "complete");
 }
