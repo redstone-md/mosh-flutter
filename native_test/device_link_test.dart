@@ -130,7 +130,12 @@ Future<void> approveFreshPeer(WidgetTester tester, NativePeer peer) async {
       find.widgetWithText(TextField, 'Or paste the new device link'),
       request!['qr_uri'] as String);
   await tapVisible(tester, find.text('Connect to new device'));
-  await pumpUntil(tester, find.text('Code from the new device'));
+  try {
+    await pumpUntil(tester, find.text('Code from the new device'));
+  } catch (_) {
+    await tester.runAsync(() => printPeerDiagnostic(peer));
+    rethrow;
+  }
   final ready =
       await tester.runAsync(() => peer.waitPhase('AwaitingConfirmation'));
   await tester.enterText(
@@ -139,6 +144,19 @@ Future<void> approveFreshPeer(WidgetTester tester, NativePeer peer) async {
   await tapVisible(tester, find.text('Approve device'));
   await pumpUntil(tester, find.textContaining('Device linked.'));
   await tester.runAsync(() => peer.waitPhase('Linked'));
+}
+
+Future<void> printPeerDiagnostic(NativePeer peer) async {
+  try {
+    final state = await peer
+        .ask({'action': 'snapshot'}).timeout(const Duration(seconds: 2));
+    debugPrint('[DEBUG-native-link] independent peer: '
+        'phase=${state['phase']}, error=${state['error']}, '
+        'revoked=${state['revoked']}, can_join=${state['can_join']}');
+  } catch (error) {
+    debugPrint('[DEBUG-native-link] peer snapshot unavailable: '
+        '${error.runtimeType}');
+  }
 }
 
 Future<void> requestFreshAccess(
