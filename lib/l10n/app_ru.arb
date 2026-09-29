@@ -812,7 +812,7 @@
   "deviceLinkDeviceName": "Название этого устройства",
   "deviceLinkJoin": "Связать это устройство с пользователем",
   "deviceLinkImportImage": "Импортировать QR нового устройства",
-  "deviceLinkPasteLabel": "Или вставьте ссылку с нового устройства",
+  "deviceLinkPasteLabel": "Или вставьте ссылку mosh://device-link/… с нового устройства",
   "deviceLinkImport": "Подключиться к новому устройству",
   "deviceLinkCodeLabel": "Код с нового устройства",
   "deviceLinkApprove": "Подтвердить устройство",
