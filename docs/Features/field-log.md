@@ -42,6 +42,15 @@ The `stream` kind carries the attachment chunk carrier (spec #8): the
 room-wire fallback note and frames that arrive on the reserved inbox
 channel but do not deframe.
 
+A DM session's Connect timeline reads from four lines under its session
+id: `connect connect_peer requested` (moss was asked to dial the
+counterpart), `connect peer reach <old> -> <new>` (the path to the
+counterpart appeared or changed between `None`, `Direct` and `Relayed`),
+`handshake session connected (was …)` and `handshake session lost: no
+authenticated frame for <ms> (reach …)`, the change back to Handshaking.
+Each is written on the change, never per tick; the proof is
+`private_dm_runtime/field_log_tests.rs`.
+
 The `panic` kind carries Rust panics mirrored by the process panic hook
 (installed from the first Rust entry point): one `error` line per panic
 with its source location, before the default hook runs. It is the only

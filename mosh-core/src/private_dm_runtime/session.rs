@@ -42,6 +42,7 @@ impl PrivateDmSession {
             peer_moss_id: None,
             connect_requested_for: None,
             last_connect_outcome: None,
+            logged_reach: PeerTransport::None,
             invite_uri,
             listen_port,
             static_peer,
@@ -287,6 +288,12 @@ impl PrivateDmSession {
         }
         match self.transport.connect_peer(&id) {
             Ok(()) => {
+                dlog::write(
+                    LogLevel::Info,
+                    kinds::CONNECT,
+                    &self.session_id,
+                    "connect_peer requested",
+                );
                 self.connect_requested_for = Some(id);
                 self.last_connect_outcome = Some(ConnectOutcome::Requested);
             }
@@ -313,21 +320,6 @@ impl PrivateDmSession {
         self.peer_moss_id
             .as_deref()
             .map_or(PeerTransport::None, |id| self.transport.reach(id))
-    }
-
-    /// Stamp the proof drained since the last tick, and admit the
-    /// counterpart is gone once nothing authenticated arrived for the whole
-    /// lost window. Moss's peer table plays no part: gossip carries a chat
-    /// through other peers while moss lists no row for the counterpart, and a
-    /// failed mesh report says nothing about the counterpart at all.
-    pub(super) fn pump_liveness(&mut self, now_ms: u64, lost_window_ms: u64) {
-        if std::mem::take(&mut self.authenticated_since_tick) {
-            self.last_authenticated_rx_ms = self.last_authenticated_rx_ms.max(now_ms);
-        }
-        let silent_for = now_ms.saturating_sub(self.last_authenticated_rx_ms);
-        if self.state == DmSessionState::Connected && silent_for >= lost_window_ms {
-            self.state = next_state(self.state, SessionEvent::CounterpartLost);
-        }
     }
 
     /// Best-effort retransmit of the joiner's KeyPackage while the MLS handshake
