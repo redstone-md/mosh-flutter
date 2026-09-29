@@ -314,12 +314,22 @@ impl PrivateDmSession {
     /// How the counterpart is reachable right now, or `None` before its id is
     /// known.
     pub(super) fn reach(&self) -> PeerTransport {
-        if let Some(reach) = self.peer_device_reach() {
-            return reach;
+        self.reach_by(|id| self.transport.reach(id))
+    }
+
+    /// The same answer read from one mesh report, so every peer in it is
+    /// judged against the same moment.
+    pub(super) fn reach_in(&self, info: &MeshInfo) -> PeerTransport {
+        self.reach_by(|id| transport::reach_of(id, info))
+    }
+
+    fn reach_by(&self, reach: impl Fn(&str) -> PeerTransport) -> PeerTransport {
+        if let Some(best) = self.peer_device_reach(&reach) {
+            return best;
         }
         self.peer_moss_id
             .as_deref()
-            .map_or(PeerTransport::None, |id| self.transport.reach(id))
+            .map_or(PeerTransport::None, reach)
     }
 
     /// Best-effort retransmit of the joiner's KeyPackage while the MLS handshake
