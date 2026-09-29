@@ -588,5 +588,5 @@ fn key_package_version() {
         .expect_err("Deserialization should have failed.");
 
     // Expect a decoding  error
-    matches!(err, tls_codec::Error::DecodingError(_));
+    assert!(matches!(err, tls_codec::Error::DecodingError(_)));
 }

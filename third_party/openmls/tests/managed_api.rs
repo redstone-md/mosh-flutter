@@ -6,6 +6,9 @@ use openmls::{
 };
 use openmls_test::openmls_test;
 
+#[path = "review_regressions/test_framework.rs"]
+mod review_regressions;
+
 #[openmls_test]
 fn test_mls_group_api() {
     // Some basic setup functions for the MlsGroup.

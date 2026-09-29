@@ -14,6 +14,10 @@ dependency change on 2026-09-28. The existing version is vendored under
 `third_party/openmls`, with its license and provenance. Core and probe use that
 same copy without changing dependency versions.
 
+The approved [PR 29 review corrections](openmls-review-corrections.md) document
+subsequent fixes to this vendor copy and how its upstream tests are restored
+without changing repository dependencies.
+
 The original admission time is part of the author's v2 evidence signature.
 Recovery verifies the original author, roster, same local group and exact next
 epoch before selecting that time. Zero times and times over one hour ahead of

@@ -224,9 +224,12 @@ impl<Provider: OpenMlsProvider> MemberState<'_, Provider> {
             .process_message(&self.party.core_state.provider, message)?;
 
         match processed_message.into_content() {
-            ProcessedMessageContent::ApplicationMessage(_) => todo!(),
-            ProcessedMessageContent::ProposalMessage(_) => todo!(),
-            ProcessedMessageContent::ExternalJoinProposalMessage(_) => todo!(),
+            ProcessedMessageContent::ApplicationMessage(_) => (),
+            ProcessedMessageContent::ProposalMessage(proposal)
+            | ProcessedMessageContent::ExternalJoinProposalMessage(proposal) => self
+                .group
+                .store_pending_proposal(self.party.core_state.provider.storage(), *proposal)
+                .map_err(ProcessMessageError::StorageError)?,
             ProcessedMessageContent::StagedCommitMessage(m) => self
                 .group
                 .merge_staged_commit(&self.party.core_state.provider, *m)?,

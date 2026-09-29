@@ -34,7 +34,7 @@ use crate::{
     messages::*,
     treesync::{node::Node, LeafNode, RatchetTree, RatchetTreeIn},
 };
-use ::rand::{rngs::OsRng, RngCore, TryRngCore};
+use ::rand::{rngs::OsRng, seq::IndexedRandom, RngCore, TryRngCore};
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_traits::{
     crypto::OpenMlsCrypto,
@@ -48,8 +48,31 @@ use tls_codec::*;
 pub mod client;
 pub mod errors;
 
+#[cfg(test)]
+#[path = "review_tests.rs"]
+mod review_tests;
+
 use self::client::*;
 use self::errors::*;
+
+fn random_removal_targets(
+    members: &[(usize, Vec<u8>)],
+    own_index: usize,
+    rng: &mut impl RngCore,
+) -> Vec<LeafNodeIndex> {
+    let candidates: Vec<_> = members
+        .iter()
+        .filter(|(index, _)| *index != own_index)
+        .collect();
+    if candidates.is_empty() {
+        return Vec::new();
+    }
+    let count = (rng.next_u32() as usize) % candidates.len().min(5) + 1;
+    candidates
+        .choose_multiple(rng, count)
+        .map(|(index, _)| LeafNodeIndex::new(*index as u32))
+        .collect()
+}
 
 #[derive(Clone)]
 /// The `Group` struct represents the "global" shared state of the group. Note,
@@ -212,8 +235,7 @@ impl<Provider: OpenMlsProvider + Default> MlsGroupTestSetup<Provider> {
         let (_, id) = group
             .members
             .iter()
-            .find(|(leaf_index, _)| index == *leaf_index)
-            .expect("Couldn't find member at leaf index");
+            .find(|(leaf_index, _)| index == *leaf_index)?;
         let clients = self.clients.read().expect("An unexpected error occurred.");
         let client = clients
             .get(id)
@@ -465,6 +487,9 @@ impl<Provider: OpenMlsProvider + Default> MlsGroupTestSetup<Provider> {
     ) -> Result<GroupId, SetupError<Provider::StorageError>> {
         // Pick a random group creator.
         let clients = self.clients.read().expect("An unexpected error occurred.");
+        if clients.is_empty() {
+            return Err(SetupError::NotEnoughClients);
+        }
         let group_creator_id = ((OsRng.unwrap_mut().next_u32() as usize) % clients.len())
             .to_be_bytes()
             .to_vec();
@@ -505,6 +530,9 @@ impl<Provider: OpenMlsProvider + Default> MlsGroupTestSetup<Provider> {
         ciphersuite: Ciphersuite,
         authentication_service: AS,
     ) -> Result<GroupId, SetupError<Provider::StorageError>> {
+        if target_group_size == 0 {
+            return Err(SetupError::Unknown);
+        }
         // Create the initial group.
         let group_id = self.create_group(ciphersuite)?;
 
@@ -686,10 +714,6 @@ impl<Provider: OpenMlsProvider + Default> MlsGroupTestSetup<Provider> {
             1 => {
                 // If it's a single-member group, don't remove anyone.
                 if group.members.len() > 1 {
-                    // How many members?
-                    let number_of_removals =
-                        (((rng.next_u32() as usize) % group.members.len()) % 5) + 1;
-
                     let (own_index, _) = group
                         .members
                         .iter()
@@ -698,40 +722,8 @@ impl<Provider: OpenMlsProvider + Default> MlsGroupTestSetup<Provider> {
                         .clone();
                     println!("Index of the member performing the {action_type:?}: {own_index:?}");
 
-                    let mut target_member_leaf_indices = Vec::new();
-                    let mut target_member_identities = Vec::new();
-                    let clients = self.clients.read().expect("An unexpected error occurred.");
-                    // Get the client references, as opposed to just the member indices.
-                    println!("Removing members:");
-                    for _ in 0..number_of_removals {
-                        // Get a random index.
-                        let mut member_list_index = (rng.next_u32() as usize) % group.members.len();
-                        // Re-sample until the index is not our own index and
-                        // not one that is not already being removed.
-                        let (mut leaf_index, mut identity) =
-                            group.members[member_list_index].clone();
-                        while leaf_index == own_index
-                            || target_member_identities.contains(&identity)
-                        {
-                            member_list_index = (rng.next_u32() as usize) % group.members.len();
-                            let (new_leaf_index, new_identity) =
-                                group.members[member_list_index].clone();
-                            leaf_index = new_leaf_index;
-                            identity = new_identity;
-                        }
-                        let client = clients
-                            .get(&identity)
-                            .expect("An unexpected error occurred.")
-                            .read()
-                            .expect("An unexpected error occurred.");
-                        let client_group =
-                            client.groups.read().expect("An unexpected error occurred.");
-                        let client_group = client_group
-                            .get(&group.group_id)
-                            .expect("An unexpected error occurred.");
-                        target_member_leaf_indices.push(client_group.own_leaf_index());
-                        target_member_identities.push(identity);
-                    }
+                    let target_member_leaf_indices =
+                        random_removal_targets(&group.members, own_index, &mut rng);
                     self.remove_clients(
                         action_type,
                         group,

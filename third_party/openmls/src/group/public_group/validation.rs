@@ -751,18 +751,13 @@ impl PublicGroup {
                 // state for a component_id that has no state present.
                 //
                 // https://datatracker.ietf.org/doc/html/draft-ietf-mls-extensions#section-4.7-4
-                let Some(gce) = group_context_extension_proposal else {
-                    // extension gets implicitly created in the group context, so absence is not an
-                    // error condition
-                    return Ok(());
-                };
-                let Some(app_data_dict) = gce.extensions().app_data_dictionary() else {
-                    // extension gets implicitly created in the group context, so absence is not an
-                    // error condition
-                    return Ok(());
-                };
-
-                if app_data_dict.dictionary().get(&component_id).is_none() {
+                let extensions = group_context_extension_proposal
+                    .map(|gce| gce.extensions())
+                    .unwrap_or(self.group_context().extensions());
+                let component_exists = extensions
+                    .app_data_dictionary()
+                    .is_some_and(|dictionary| dictionary.dictionary().get(&component_id).is_some());
+                if !component_exists {
                     return Err(AppDataUpdateValidationError::CannotRemoveNonexistentComponent);
                 }
 
