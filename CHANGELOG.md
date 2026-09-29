@@ -4,7 +4,7 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.1] - 2026-09-29
 
 ### Changed
 - **The field log shows the whole Connect timeline.** Besides "session
