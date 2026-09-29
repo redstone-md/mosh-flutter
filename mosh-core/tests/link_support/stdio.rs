@@ -4,8 +4,8 @@
 //! adopts overlapped stdout/stderr and sets `FILE_SKIP_SET_EVENT_ON_HANDLE`,
 //! while Rust std waits on that handle when a pipe write pends. The first
 //! reply that does not fit the pipe then never returns. Workers therefore
-//! write through synchronous pipes, relayed to the inherited handles by
-//! threads Go never sees.
+//! move overlapped stdio to synchronous pipes, relayed to the inherited
+//! handles by threads Go never sees. Synchronous stdio stays untouched.
 
 /// Call before loading Moss. A no-op where stdio has no such conflict.
 #[cfg(windows)]
@@ -18,6 +18,26 @@ pub fn isolate_from_moss() {
     unsafe extern "system" {
         fn SetStdHandle(id: u32, handle: *mut c_void) -> i32;
     }
+    #[link(name = "ntdll")]
+    unsafe extern "system" {
+        fn NtQueryInformationFile(
+            handle: RawHandle,
+            status: *mut [usize; 2],
+            info: *mut u32,
+            length: u32,
+            class: u32,
+        ) -> i32;
+    }
+    // Go's `windows.IsNonblock`: no FILE_SYNCHRONOUS_IO_* mode bit is set.
+    let overlapped = |handle: RawHandle| {
+        const FILE_MODE_INFORMATION: u32 = 16;
+        const SYNCHRONOUS_IO: u32 = 0x10 | 0x20;
+        let (mut status, mut mode) = ([0; 2], 0);
+        let queried = unsafe {
+            NtQueryInformationFile(handle, &mut status, &mut mode, 4, FILE_MODE_INFORMATION)
+        };
+        queried == 0 && mode & SYNCHRONOUS_IO == 0
+    };
     const STD_OUTPUT_HANDLE: u32 = -11i32 as u32;
     const STD_ERROR_HANDLE: u32 = -12i32 as u32;
 
@@ -26,7 +46,7 @@ pub fn isolate_from_moss() {
         (STD_ERROR_HANDLE, std::io::stderr().as_raw_handle()),
     ];
     for (id, handle) in inherited {
-        if handle.is_null() {
+        if handle.is_null() || !overlapped(handle) {
             continue;
         }
         let (mut reader, writer) = std::io::pipe().expect("stdio relay pipe");
