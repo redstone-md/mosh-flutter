@@ -4,11 +4,30 @@ use crate::prelude::*;
 use crate::test_utils::{frankenstein::*, single_group_test_framework::*};
 use openmls_test::openmls_test;
 
+#[path = "app_data_review_tests.rs"]
+mod review_tests;
+
 fn setup<'a, Provider: OpenMlsProvider>(
     alice_party: &'a CorePartyState<Provider>,
     bob_party: &'a CorePartyState<Provider>,
     ciphersuite: Ciphersuite,
     include_required_capabilities: bool,
+) -> GroupState<'a, Provider> {
+    setup_with_dictionary(
+        alice_party,
+        bob_party,
+        ciphersuite,
+        include_required_capabilities,
+        None,
+    )
+}
+
+fn setup_with_dictionary<'a, Provider: OpenMlsProvider>(
+    alice_party: &'a CorePartyState<Provider>,
+    bob_party: &'a CorePartyState<Provider>,
+    ciphersuite: Ciphersuite,
+    include_required_capabilities: bool,
+    dictionary: Option<AppDataDictionaryExtension>,
 ) -> GroupState<'a, Provider> {
     // Required capabilities for leaf node
     let capabilities = Capabilities::new(
@@ -25,11 +44,14 @@ fn setup<'a, Provider: OpenMlsProvider>(
             &[ProposalType::AppDataUpdate],
             &[],
         ));
-    let group_context_extensions = if include_required_capabilities {
-        Extensions::single(required_capabilities_extension).unwrap()
-    } else {
-        Extensions::default()
-    };
+    let mut extensions = Vec::new();
+    if include_required_capabilities {
+        extensions.push(required_capabilities_extension);
+    }
+    if let Some(dictionary) = dictionary {
+        extensions.push(Extension::AppDataDictionary(dictionary));
+    }
+    let group_context_extensions = Extensions::from_vec(extensions).unwrap();
 
     // Set up the PreGroups with the required Capabilities
     let alice_pre_group = alice_party.pre_group_builder(ciphersuite).build();
@@ -235,7 +257,15 @@ fn test_app_data_update_multi_remove_validate_outgoing() {
     let alice_party = CorePartyState::<Provider>::new("alice");
     let bob_party = CorePartyState::<Provider>::new("bob");
 
-    let mut group_state = setup(&alice_party, &bob_party, ciphersuite, true);
+    let mut dictionary = AppDataDictionary::default();
+    dictionary.insert(16, b"existing".to_vec());
+    let mut group_state = setup_with_dictionary(
+        &alice_party,
+        &bob_party,
+        ciphersuite,
+        true,
+        Some(AppDataDictionaryExtension::new(dictionary)),
+    );
 
     let [alice] = group_state.members_mut(&["alice"]);
 
@@ -727,6 +757,9 @@ fn test_process_with_wrong_app_data_updates() {
         b"wrong_component".to_vec().into(),
     ));
 
+    let epoch_before = bob.group.epoch();
+    let dictionary_before = bob.group.extensions().app_data_dictionary().cloned();
+
     // Process with the wrong updates
     let result = bob.group.process_unverified_message_with_app_data_updates(
         &bob_party.provider,
@@ -734,48 +767,15 @@ fn test_process_with_wrong_app_data_updates() {
         bob_updater.changes(),
     );
 
-    // This should succeed (the API doesn't validate that updates match proposals),
-    // but the resulting state will be different from Alice's.
-    // This test documents the current behavior.
-    match result {
-        Ok(processed_message) => {
-            // The message processed, but let's verify the state is inconsistent
-            if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
-                processed_message.into_content()
-            {
-                bob.group
-                    .merge_staged_commit(&bob_party.provider, *staged_commit)
-                    .unwrap();
-
-                // Merge Alice's commit too
-                alice
-                    .group
-                    .merge_pending_commit(&alice_party.provider)
-                    .unwrap();
-
-                // The dictionaries should NOT match because Bob provided wrong updates
-                let alice_dict = alice.group.extensions().app_data_dictionary();
-                let bob_dict = bob.group.extensions().app_data_dictionary();
-
-                // Note: This documents that the API allows mismatched updates
-                // A stricter API might want to validate this
-                if alice_dict == bob_dict {
-                    panic!(
-                        "Expected dictionaries to differ when Bob provides wrong updates, \
-                         but they are the same. This suggests the API might be validating \
-                         updates against proposals (which would be good!)."
-                    );
-                }
-            }
-        }
-        Err(e) => {
-            // If the API validates updates against proposals, this error is acceptable
-            println!(
-                "API validates updates against proposals (good!). Error: {:?}",
-                e
-            );
-        }
-    }
+    assert_eq!(
+        result.unwrap_err(),
+        ProcessMessageError::InvalidCommit(StageCommitError::ConfirmationTagMismatch)
+    );
+    assert_eq!(bob.group.epoch(), epoch_before);
+    assert_eq!(
+        bob.group.extensions().app_data_dictionary(),
+        dictionary_before.as_ref()
+    );
 }
 
 /// Test that standalone AppDataUpdate proposals can be processed normally

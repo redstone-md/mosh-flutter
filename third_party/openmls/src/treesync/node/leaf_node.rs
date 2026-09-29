@@ -374,16 +374,17 @@ impl LeafNode {
             EncryptionKeyPair::random(provider.rand(), provider.crypto(), ciphersuite)?;
         leaf_node_tbs.payload.encryption_key = encryption_key_pair.public_key().clone();
 
-        // Store the encryption key pair in the key store.
-        encryption_key_pair
-            .write(provider.storage())
-            .map_err(LeafNodeUpdateError::Storage)?;
-
         // Set the leaf node source to update
         leaf_node_tbs.payload.leaf_node_source = LeafNodeSource::Update;
 
         // Sign the leaf node
         let leaf_node = leaf_node_tbs.sign(signer)?;
+
+        // Persist the new key only after signing succeeded.
+        encryption_key_pair
+            .write(provider.storage())
+            .map_err(LeafNodeUpdateError::Storage)?;
+
         self.payload = leaf_node.payload;
         self.signature = leaf_node.signature;
 

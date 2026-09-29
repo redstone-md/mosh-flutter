@@ -1,5 +1,9 @@
 use openmls_traits::{signatures::Signer, storage::StorageProvider as _, types::Ciphersuite};
 
+#[cfg(test)]
+#[path = "proposal_review_tests.rs"]
+mod review_tests;
+
 use super::{
     errors::{ProposalError, ProposeAddMemberError, ProposeRemoveMemberError, RemoveProposalError},
     AddProposal, CreateGroupContextExtProposalError, CustomProposal, FramingParameters, MlsGroup,
@@ -179,9 +183,10 @@ impl MlsGroup {
             },
 
             Propose::Update(leaf_node_parameters) => match ref_or_value {
-                ProposalOrRefType::Proposal => self
-                    .propose_self_update(provider, signer, leaf_node_parameters)
-                    .map_err(|e| e.into()),
+                // RFC 9420 Section 12.2 forbids committing one's own Update.
+                ProposalOrRefType::Proposal => Err(ProposalError::LibraryError(
+                    LibraryError::custom("Self-update proposals must be sent by reference"),
+                )),
                 ProposalOrRefType::Reference => self
                     .propose_self_update(provider, signer, leaf_node_parameters)
                     .map_err(|e| e.into()),

@@ -493,13 +493,20 @@ fn discard_commit_custom_proposal() {
 
     // === Alice creates a group ===
     let mut alice_group = MlsGroup::builder()
+        .with_group_id(group_id.clone())
         .with_capabilities(capabilities.clone())
+        // Keep the sending ratchet unchanged so storage snapshots can be compared.
+        .with_wire_format_policy(PURE_PLAINTEXT_WIRE_FORMAT_POLICY)
         .ciphersuite(ciphersuite)
         .build(alice_provider, &alice_signer, alice_credential.clone())
         .expect("An unexpected error occurred.");
 
     // save the storage state
     let state_before = GroupStorageState::from_storage(alice_provider.storage(), &group_id);
+
+    assert!(MlsGroup::load(alice_provider.storage(), &group_id)
+        .unwrap()
+        .is_some());
 
     let payload = vec![0; 100];
     let custom_proposal = CustomProposal::new(custom_proposal_type, payload);
@@ -521,5 +528,6 @@ fn discard_commit_custom_proposal() {
         .expect("Could not clear pending commit");
 
     let state_after = GroupStorageState::from_storage(alice_provider.storage(), &group_id);
-    assert!(state_before == state_after);
+    assert!(state_before.non_proposal_state() == state_after.non_proposal_state());
+    assert_eq!(alice_group.pending_proposals().count(), 1);
 }

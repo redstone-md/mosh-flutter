@@ -1900,9 +1900,11 @@ fn update_proposal_bob() {
     else {
         panic!("expected proposal");
     };
-    bob_group
-        .store_pending_proposal(bob_provider.storage(), *proposal_msg)
+    alice_group
+        .store_pending_proposal(alice_provider.storage(), *proposal_msg)
         .unwrap();
+
+    assert_eq!(alice_group.pending_proposals().count(), 1);
 
     // === Alice commits to the proposal ===
     let (commit, _, _) = alice_group
@@ -1923,6 +1925,7 @@ fn update_proposal_bob() {
     else {
         panic!("Expected a commit");
     };
+    assert_eq!(staged_commit.update_proposals().count(), 1);
     bob_group
         .merge_staged_commit(bob_provider, *staged_commit)
         .expect("error merging commit to own update proposal");

@@ -9,6 +9,12 @@ use openmls::{
 use openmls_test::openmls_test;
 use openmls_traits::signatures::Signer;
 
+#[path = "review_regressions/commit_and_update.rs"]
+mod commit_and_update;
+
+#[path = "review_regressions/delivery.rs"]
+mod delivery;
+
 fn generate_key_package<Provider: OpenMlsProvider>(
     ciphersuite: Ciphersuite,
     extensions: Extensions<KeyPackage>,
