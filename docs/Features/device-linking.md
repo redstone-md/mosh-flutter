@@ -107,11 +107,12 @@ for the exact authorization and verification rules.
 - `flutter test test/features/device_link/qr_image_test.dart` renders a real
   QR and decodes its image with the desktop importer.
 - After `cargo build` and the real-process tests above,
-  `flutter test native_test/device_link_test.dart` drives the actual Devices
+  `node scripts/moss-test.mjs --native-ui` drives the actual Devices
   screen through linking, removal cancellation, confirmed removal and fresh
   approval on the revoked installation using
   the native bridge and a separate Moss process. No bridge or
-  service doubles are used. CI runs this in its Windows native test lane.
+  service doubles are used. CI runs this in its Windows native test lane,
+  with the same real tracker as the independent-process checks.
 
 New production code requires 80% line coverage; branch coverage is required
 where the toolchain provides it. Windows/macOS installers need their own
@@ -122,3 +123,5 @@ To probe the live public Moss network, run the same suite directly with
 That probe depends on public tracker and relay availability. Neither mode
 manually connects peers in the public bridge scenario. The local tracker
 override only exists in debug builds.
+The UI probe can also run directly with
+`flutter test native_test/device_link_test.dart`.

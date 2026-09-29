@@ -176,8 +176,11 @@ Future<void> tapVisible(WidgetTester tester, Finder target) async {
 Future<void> pumpUntil(WidgetTester tester, Finder target) async {
   final deadline = DateTime.now().add(const Duration(seconds: 40));
   while (target.evaluate().isEmpty) {
-    expect(DateTime.now().isBefore(deadline), isTrue,
-        reason: 'Native UI must reach $target');
+    if (!DateTime.now().isBefore(deadline)) {
+      final snapshot = await tester.runAsync(link.snapshot);
+      fail('Native UI must reach $target; '
+          'phase=${snapshot?.phase}, error=${snapshot?.error}');
+    }
     await tester.pump(const Duration(seconds: 1));
     await tester
         .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
