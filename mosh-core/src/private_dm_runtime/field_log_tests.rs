@@ -2,7 +2,7 @@
 //! these lines, so they must name real state changes and real causes: a line
 //! written on every frame reads like a reconnect storm that never happened.
 
-use super::state_tests::{accept, connect, invite, memory_pair, BOB_ID};
+use super::state_tests::{accept, connect, invite, memory_pair, ALICE_ID, BOB_ID};
 use super::*;
 use crate::private_dm_runtime::transport::memory::MemoryNet;
 
@@ -76,4 +76,49 @@ fn forge_hello_from_bob(net: &Arc<MemoryNet>, invite: &InviteCreated) {
             &forged,
         )
         .expect("a forged publish is still a publish");
+}
+
+#[test]
+fn losing_the_counterpart_logs_how_long_it_was_silent() {
+    let (net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+
+    net.link(ALICE_ID, BOB_ID, PeerTransport::None);
+    let gone_at = now_ms();
+    alice.tick(gone_at);
+    alice.tick(gone_at + LOST_WINDOW_MS);
+    alice.tick(gone_at + LOST_WINDOW_MS + 1_000);
+
+    let lines = log_lines(&invite.session_id, "session lost");
+    assert_eq!(lines.len(), 1, "one line per change out of Connected");
+    assert!(
+        lines[0].contains("no authenticated frame for") && lines[0].contains("reach None"),
+        "the line names the silence and the path: {}",
+        lines[0]
+    );
+}
+
+#[test]
+fn a_change_of_path_to_the_counterpart_is_logged_once() {
+    let (net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    assert_eq!(
+        log_lines(&invite.session_id, "peer reach None -> Direct").len(),
+        2,
+        "the first path found is news, once on each side"
+    );
+
+    net.link(ALICE_ID, BOB_ID, PeerTransport::Relayed);
+    let now = now_ms();
+    alice.tick(now);
+    alice.tick(now + 1_000);
+
+    assert_eq!(
+        log_lines(&invite.session_id, "peer reach Direct -> Relayed").len(),
+        1
+    );
 }

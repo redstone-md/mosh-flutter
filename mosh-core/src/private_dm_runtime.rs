@@ -207,6 +207,8 @@ struct PrivateDmSession {
     connect_requested_for: Option<String>,
     // What the last connect request answered, for the diagnostics card.
     last_connect_outcome: Option<ConnectOutcome>,
+    // The path to the counterpart the field log last reported.
+    logged_reach: PeerTransport,
     invite_uri: Option<String>,
     // Transport coordinates kept so the persisted session record can be
     // rebuilt verbatim (notably to refresh the joiner's group_id after join).
@@ -926,6 +928,7 @@ impl PrivateDmRuntime {
             session.pump_attachment_requests();
             session.pump_peer_connect();
             session.pump_liveness(now, lost_window);
+            session.pump_reach_log();
             session.pump_handshake(now);
             session.pump_hello(now);
             session.pump_peer_announce(now);
@@ -1033,6 +1036,7 @@ mod blob;
 mod calls;
 mod control;
 mod data;
+mod liveness;
 mod session;
 mod snapshot;
 mod typing;
