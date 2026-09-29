@@ -162,7 +162,7 @@ flowchart LR
 - Release builds of `mosh-core` use fat LTO, one codegen unit and stripped
   symbols; moss is built with `-trimpath -ldflags="-s -w"`.
 
-## Update 2026-09-29: isolated discovery for native Cargo checks
+## Update 2026-09-29: isolated discovery for native checks
 
 The Windows and macOS Cargo jobs use `node scripts/moss-test.mjs`. The wrapper
 starts WebTorrent's `bittorrent-tracker` 11.2.3 HTTP server on a random loopback
@@ -170,6 +170,11 @@ port, runs the requested Cargo tests and closes the server. It installs the
 pinned test tool outside application manifests and the working tree.
 The server's public filter hook accepts Moss's literal `event=none` as a
 regular announce. Moss sources remain unchanged.
+
+The Windows native Devices UI step uses the same wrapper with `--native-ui`.
+It runs Flutter and its independent native peer under one real tracker, then
+closes the tracker. Windows launches Flutter's batch entry point through a
+fixed command; caller arguments are never interpolated into that command.
 
 Debug builds accept `MOSH_TEST_TRACKER_URL` only for
 `http://127.0.0.1:<port>/announce`, without credentials, query or fragment.
@@ -185,7 +190,7 @@ automatically and have no manual peer-address connection.
 
 The test override is absent from release builds. With no override, debug
 configuration remains byte-identical to the default configuration. Direct
-Cargo commands still probe the live public network, including its tracker
+Cargo and Flutter commands still probe the live public network, including its tracker
 and relay availability. Public-network probes and physical-device acceptance
 remain separate from the isolated CI proof. Test assertions, deadlines and
 protocol retry budgets are unchanged.

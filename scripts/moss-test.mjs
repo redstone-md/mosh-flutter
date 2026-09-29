@@ -46,9 +46,10 @@ try {
     await listening;
     const trackerUrl = `http://127.0.0.1:${tracker.http.address().port}/announce`;
     console.log(`Moss test discovery: ${trackerUrl}`);
-    const status = await run(process.platform === "win32" ? "cargo.exe" : "cargo", [
-      "test", "--manifest-path", "mosh-core/Cargo.toml", ...process.argv.slice(2),
-    ], { ...process.env, MOSH_TEST_TRACKER_URL: trackerUrl });
+    const test = testCommand();
+    const status = await run(test.command, test.args, {
+      ...process.env, MOSH_TEST_TRACKER_URL: trackerUrl,
+    });
     process.exitCode = process.exitCode || status;
   } finally {
     tracker.http?.closeIdleConnections?.();
@@ -57,6 +58,23 @@ try {
 } catch (error) {
   console.error(`moss-test: ${error.message}`);
   process.exitCode = 1;
+}
+
+function testCommand() {
+  const args = process.argv.slice(2);
+  if (args[0] === "--native-ui") {
+    if (args.length !== 1) throw new Error("--native-ui does not accept additional arguments");
+    if (process.platform === "win32") {
+      // Flutter's Windows entry point is a batch file. This fixed command
+      // passes no caller arguments through cmd; cleanup owns its process tree.
+      return { command: "cmd.exe", args: ["/d", "/s", "/c", "flutter test native_test/device_link_test.dart"] };
+    }
+    return { command: "flutter", args: ["test", "native_test/device_link_test.dart"] };
+  }
+  return {
+    command: process.platform === "win32" ? "cargo.exe" : "cargo",
+    args: ["test", "--manifest-path", "mosh-core/Cargo.toml", ...args],
+  };
 }
 
 async function ensureTracker() {
