@@ -209,3 +209,18 @@ Cargo and Flutter commands still probe the live public network, including its tr
 and relay availability. Public-network probes and physical-device acceptance
 remain separate from the isolated CI proof. Test assertions, deadlines and
 protocol retry budgets are unchanged.
+
+## Update 2026-09-29: CI wall-clock
+
+The repository is public, so runner minutes are free and wall-clock is the
+cost that matters. All CI jobs start at once; the platform builds no longer
+wait for the cheap checks. `macos-preflight` is removed: `macos-dmg` builds
+the same x86_64 slice, and `rust-core-macos` keeps the podspec syntax check.
+`flutter-test` runs on Ubuntu. Native device linking no longer repeats the
+Cargo process suites that `rust-core` already runs.
+
+The cargokit target-dir caches never matched a real path, so every platform
+build compiled all Rust dependencies. They now point at the plugin's actual
+build dirs: `build/windows/x64/plugins/mosh_core/cargokit_build`,
+`build/macos/**/mosh_core.build` (the pod's Xcode `TARGET_TEMP_DIR`) and
+`build/mosh_core/build` (the plugin's Gradle build dir, newly cached).

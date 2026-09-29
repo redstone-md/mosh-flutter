@@ -33,12 +33,13 @@ jobs:
         with:
           rust-cache-key: windows
 
-      # cargokit compiles mosh-core into its own target dir under build/,
-      # which the cargo cache above does not see. Keyed on the lockfile and
+      # cargokit compiles mosh-core into its own target dir under the
+      # plugin's CMake binary dir (named after the plugin, mosh_core), which
+      # the cargo cache above does not see. Keyed on the lockfile and
       # toolchain; a stale hit is safe, cargo re-fingerprints.
       - uses: actions/cache@v4
         with:
-          path: build/windows/x64/plugins/rust_builder/cargokit_build
+          path: build/windows/x64/plugins/mosh_core/cargokit_build
           key: cargokit-windows-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: cargokit-windows-release-
 
