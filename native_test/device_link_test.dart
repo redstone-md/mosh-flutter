@@ -130,12 +130,7 @@ Future<void> approveFreshPeer(WidgetTester tester, NativePeer peer) async {
       find.widgetWithText(TextField, 'Or paste the new device link'),
       request!['qr_uri'] as String);
   await tapVisible(tester, find.text('Connect to new device'));
-  try {
-    await pumpUntil(tester, find.text('Code from the new device'));
-  } catch (_) {
-    await tester.runAsync(() => printPeerDiagnostic(peer));
-    rethrow;
-  }
+  await pumpUntil(tester, find.text('Code from the new device'));
   final ready =
       await tester.runAsync(() => peer.waitPhase('AwaitingConfirmation'));
   await tester.enterText(
@@ -144,47 +139,6 @@ Future<void> approveFreshPeer(WidgetTester tester, NativePeer peer) async {
   await tapVisible(tester, find.text('Approve device'));
   await pumpUntil(tester, find.textContaining('Device linked.'));
   await tester.runAsync(() => peer.waitPhase('Linked'));
-}
-
-Future<void> printPeerDiagnostic(NativePeer peer) async {
-  try {
-    final state = await peer
-        .ask({'action': 'snapshot'}).timeout(const Duration(seconds: 2));
-    debugPrint('[DEBUG-native-link] independent peer: '
-        'phase=${state['phase']}, error=${state['error']}, '
-        'revoked=${state['revoked']}, can_join=${state['can_join']}');
-  } catch (error) {
-    debugPrint('[DEBUG-native-link] peer snapshot unavailable: '
-        '${error.runtimeType}');
-    await printPeerStacks(peer.pid, File(peer.executable).parent.path);
-    await Future<void>.delayed(const Duration(seconds: 2));
-    await printPeerStacks(peer.pid, File(peer.executable).parent.path);
-  }
-  debugPrint('[DEBUG-native-link] peer stderr tail:\n'
-      '${peer.stderrTail.join('\n')}');
-}
-
-// [DEBUG-native-link] Function-only thread stacks of the unresponsive worker.
-Future<void> printPeerStacks(int pid, String symbols) async {
-  const cdb = r'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe';
-  final (command, args) = Platform.isWindows && File(cdb).existsSync()
-      ? (cdb, ['-pv', '-p', '$pid', '-y', symbols, '-c', '.reload /f;~*k 40;q'])
-      : (
-          'gdb',
-          [
-            '-p', '$pid', '-batch', //
-            '-ex', 'set print frame-arguments none',
-            '-ex', 'thread apply all bt 40',
-          ]
-        );
-  try {
-    final result =
-        await Process.run(command, args).timeout(const Duration(seconds: 90));
-    debugPrint('[DEBUG-native-link] $command stacks:\n'
-        '${result.stdout}\n${result.stderr}');
-  } catch (error) {
-    debugPrint('[DEBUG-native-link] stack capture failed: $error');
-  }
 }
 
 Future<void> requestFreshAccess(
