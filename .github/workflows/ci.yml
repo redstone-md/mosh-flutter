@@ -162,7 +162,7 @@ jobs:
         run: node scripts/moss-test.mjs --test device_link_flow --test device_link_identity
 
       - name: Device linking through the native Flutter UI
-        run: flutter test native_test/device_link_test.dart
+        run: node scripts/moss-test.mjs --native-ui
 
       # The process-global Rust store closes when flutter_tester exits.
       - name: Clean native device-link test stores

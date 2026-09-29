@@ -38,6 +38,15 @@ Giving each scenario its own network id reduced those lists to that scenario's
 processes. The configuration regression for independent scenario networks
 failed before this correction; all five config tests now pass.
 
+The first corrected [run 36501886326](https://github.com/redstone-md/mosh-flutter/actions/runs/36501886326)
+passed both Rust jobs: Windows completed 418 unit and 30 integration tests;
+macOS completed 419 unit and 30 integration tests. Both retained 13 ignored
+entries. Flutter, binding drift, macOS preflight, Android APK and both desktop
+packages also passed. The remaining Windows native UI step still used public
+discovery and failed to reach `Device linked` after approval within 40 seconds.
+Its local public-network run passed in 39 seconds; the same test with the
+loopback tracker passed in 7 seconds. The UI step now uses that tracker too.
+
 ## Changes
 
 - Device linking and DM request peer discovery through the existing
@@ -63,11 +72,15 @@ failed before this correction; all five config tests now pass.
   The scope separates tracker discovery between scenarios without changing
   process-global environment variables. It is ignored without the test tracker.
 - The Windows and macOS Cargo jobs use the wrapper. The independent-process
-  linking step in the Windows native lane uses it too. Public bridge cases
+  linking step and Flutter Devices UI in the Windows native lane use it too.
+  The wrapper's `--native-ui` mode runs the existing Flutter test, including
+  its real Rust library and independent peer. Public bridge cases
   still discover each other automatically, without manual peer connections.
 - Test assertions, deadlines, ignore lists and protocol retry budgets are
   unchanged. Private test names now describe Moss discovery without claiming
   that every run uses the public defaults.
+- Native UI timeout diagnostics include only the real phase and error kind,
+  without QR payloads or confirmation codes. The 40-second deadline is unchanged.
 
 Without the override, config bytes remain unchanged. Release builds do not
 compile the override. No public Rust API, bridge binding, application
@@ -96,9 +109,10 @@ dependency, database schema or wire format changes.
 - The wrapper preserves Cargo exit 101 and closes its tracker after a failing
   command or spawn error. SIGTERM terminates its owned native process tree
   and closes the tracker; interruption returns a nonzero exit status.
-- V8/c8 measured the wrapper at 93% line coverage and 75.75% branch coverage.
+- V8/c8 measured the updated wrapper at 90.67% line coverage and 76.31% branch coverage.
   Checks exercised fresh tool installation, automatic native discovery,
-  malformed tool metadata, Cargo failure, spawn failure and interruption.
+  malformed tool metadata, Cargo failure, spawn failure and interruption,
+  plus native UI execution and rejection of extra UI-mode arguments.
   Windows cleanup branches require the Windows runner.
 - LLVM coverage of measured changed runtime lines is 75/83, 90.36%, from the
   config and startup unit tests plus both real public-API scenarios. The
@@ -114,17 +128,19 @@ retain their boundaries.
 
 ## Standards
 
-Source review of all 17 CI files found no documented breaches or substantive
-heuristic smells. The changes retain module boundaries, existing dependencies
-and contracts. The inherited file-size exception is documented. Findings: 0.
+Source review of the initial 17 CI files and the six-file native UI follow-up
+found no documented breaches or substantive heuristic smells. The changes
+retain module boundaries, existing dependencies and contracts. The inherited
+file-size exception is documented. Findings: 0.
 
 ## Spec
 
 Scenario scope reaches every child and survives restart. The private override
 affects only debug tracker networks. Automatic discovery and real native
 dependencies, protocol acknowledgements and shared-node ownership remain in
-place. No missing requirement or unrequested public contract change was found.
-Actionable findings: 0.
+place. The six-file native UI follow-up preserves the real bridge, independent
+peer, assertions and deadline. Both reviews found no missing requirement or
+unrequested public contract change. Actionable findings: 0.
 
 ## Limits and reproduction
 
@@ -139,6 +155,7 @@ From the repository root:
 node scripts/moss-prepare.mjs
 cargo build --manifest-path mosh-core/Cargo.toml
 node scripts/moss-test.mjs
+node scripts/moss-test.mjs --native-ui
 ```
 
 For a live public-network probe, omit the wrapper and ensure the test override
@@ -146,6 +163,7 @@ is unset:
 
 ```bash
 cargo test --manifest-path mosh-core/Cargo.toml --test device_link_flow --test multi_device_dm_flow public_bridge
+flutter test native_test/device_link_test.dart
 ```
 
 The runtime boundary is documented in [ADR 0029](../ADR/0029-private-desktop-device-linking.md),
@@ -163,6 +181,7 @@ and the CI network in [ADR 0015](../ADR/0015-deep-link-and-ci-and-versioning.md)
 - `mosh-core/tests/device_link_flow.rs`
 - `mosh-core/tests/multi_device_dm_flow.rs`
 - `mosh-core/tests/link_support/mod.rs`
+- `native_test/device_link_test.dart`
 - `docs/ADR/0015-deep-link-and-ci-and-versioning.md`
 - `docs/ADR/0026-one-node-a-transport-seam-and-a-dm-outbox.md`
 - `docs/ADR/0029-private-desktop-device-linking.md`
