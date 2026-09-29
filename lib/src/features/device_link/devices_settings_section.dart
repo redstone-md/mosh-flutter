@@ -168,7 +168,8 @@ class _DevicesSettingsSectionState
           TextField(
               controller: _uri,
               maxLength: 2048,
-              decoration: InputDecoration(labelText: l.deviceLinkPasteLabel)),
+              decoration: InputDecoration(
+                  labelText: l.deviceLinkPasteLabel, counterText: '')),
           FilledButton(
               onPressed: _busy
                   ? null

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
+import 'package:mosh/src/util/format.dart';
 
 class LinkedDeviceList extends StatelessWidget {
   const LinkedDeviceList({required this.snapshot, this.onRemove, super.key});
@@ -12,14 +13,14 @@ class LinkedDeviceList extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text(l.deviceLinkUserId, style: Theme.of(context).textTheme.labelLarge),
-      SelectableText(snapshot.userId),
+      _Id(snapshot.userId),
       const SizedBox(height: 16),
       for (final device in snapshot.devices)
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.computer_outlined),
           title: Text(device.name),
-          subtitle: SelectableText(device.deviceId),
+          subtitle: _Id(device.deviceId),
           trailing: device.deviceId == snapshot.ownDeviceId
               ? Text(l.deviceLinkThisDevice)
               : onRemove == null
@@ -44,4 +45,15 @@ class LinkedDeviceList extends StatelessWidget {
         ),
     ]);
   }
+}
+
+/// A 64-hex id as `head…tail`: enough to compare two devices by eye, and it
+/// never wraps mid-id. Linking runs on the QR and code, so nobody types it.
+class _Id extends StatelessWidget {
+  const _Id(this.id);
+  final String id;
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(shorten(id, 8), style: const TextStyle(fontFamily: 'monospace'));
 }

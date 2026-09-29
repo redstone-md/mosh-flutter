@@ -1623,7 +1623,7 @@
   "settingsSectionDevices": "Devices",
   "deviceLinkUserId": "Mosh user",
   "deviceLinkThisDevice": "This device",
-  "deviceLinkHelp": "Link a fresh device to this Mosh user. Pairing is free. Each device keeps its own keys.",
+  "deviceLinkHelp": "Link a new device to this Mosh user. The QR appears on the new device: open Settings → Devices there, then import its QR or link here. Pairing is free. Each device keeps its own keys.",
   "deviceLinkQrHelp": "On your trusted device, open Settings → Devices and import this QR image or link. Keep both devices online.",
   "deviceLinkConnecting": "Connecting to the new device…",
   "deviceLinkApprovalHelp": "Enter the code shown on the device you want to link. Approve only a device you control.",
