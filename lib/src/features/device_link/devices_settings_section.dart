@@ -150,17 +150,21 @@ class _DevicesSettingsSectionState
 
   /// One primary action per role: a fresh device shows its QR, a device in
   /// use imports one. A fresh device that links another instead swaps to
-  /// the import action. A removed device can only request access again.
+  /// the import action and can still show its QR from there. A removed
+  /// device can only request access again.
   List<Widget> _startActions(AppLocalizations l, DeviceLinkSnapshot s,
       DeviceLinkController controller) {
     final importing = !s.revoked && (!s.canJoin || _linkOther);
+    void showQr() {
+      setState(() => _linkOther = false);
+      _run(() => controller.createQr(_deviceName()));
+    }
+
     return [
       if (s.canJoin && !importing) ...[
         const SizedBox(height: 16),
         FilledButton(
-            onPressed: _busy
-                ? null
-                : () => _run(() => controller.createQr(_deviceName())),
+            onPressed: _busy ? null : showQr,
             child: Text(s.revoked ? l.deviceLinkFreshJoin : l.deviceLinkJoin)),
         if (!s.revoked)
           TextButton(
@@ -168,6 +172,9 @@ class _DevicesSettingsSectionState
               child: Text(l.deviceLinkLinkOther)),
       ],
       if (importing) ..._import(l, controller),
+      if (importing && s.canJoin)
+        TextButton(
+            onPressed: _busy ? null : showQr, child: Text(l.deviceLinkJoin)),
     ];
   }
 
