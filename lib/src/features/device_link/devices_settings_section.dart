@@ -149,11 +149,12 @@ class _DevicesSettingsSectionState
           : deviceLinkPhase(l, s.phase);
 
   /// One primary action per role: a fresh device shows its QR, a device in
-  /// use imports one. A fresh device can still link another on request.
+  /// use imports one. A fresh device that links another instead swaps to
+  /// the import action.
   List<Widget> _startActions(AppLocalizations l, DeviceLinkSnapshot s,
           DeviceLinkController controller) =>
       [
-        if (s.canJoin) ...[
+        if (s.canJoin && !_linkOther) ...[
           const SizedBox(height: 16),
           FilledButton(
               onPressed: _busy
@@ -161,7 +162,7 @@ class _DevicesSettingsSectionState
                   : () => _run(() => controller.createQr(_deviceName())),
               child:
                   Text(s.revoked ? l.deviceLinkFreshJoin : l.deviceLinkJoin)),
-          if (!s.revoked && !_linkOther)
+          if (!s.revoked)
             TextButton(
                 onPressed: () => setState(() => _linkOther = true),
                 child: Text(l.deviceLinkLinkOther)),
