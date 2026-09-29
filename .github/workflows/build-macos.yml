@@ -39,12 +39,13 @@ jobs:
         with:
           rust-cache-key: macos
 
-      # cargokit compiles mosh-core into its own target dir under build/,
-      # which the cargo cache above does not see. Keyed on the lockfile and
-      # toolchain; a stale hit is safe, cargo re-fingerprints.
+      # cargokit compiles mosh-core into the pod target's Xcode temp dir
+      # (TARGET_TEMP_DIR, .../Pods.build/<config>/mosh_core.build), which the
+      # cargo cache above does not see. Keyed on the lockfile and toolchain;
+      # a stale hit is safe, cargo re-fingerprints.
       - uses: actions/cache@v4
         with:
-          path: build/macos/**/cargokit_build
+          path: build/macos/**/mosh_core.build
           key: cargokit-macos-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: cargokit-macos-release-
 

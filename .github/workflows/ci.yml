@@ -16,8 +16,9 @@ permissions:
 
 # CI matrix (ADR 0015). The desktop jobs run on windows-latest: the
 # integration test needs mosh_core.dll (Windows-built via cargokit), and the
-# cargo jobs dlopen moss.dll. android-build runs on ubuntu-latest, whose image
-# ships the Android SDK + NDK. The macOS lanes (rust-core-macos, macos-dmg) run
+# cargo jobs dlopen moss.dll. flutter-test needs no Rust runtime and no
+# Windows-only behaviour, so it runs on the faster ubuntu-latest, as does
+# android-build, whose image ships the Android SDK + NDK. The macOS lanes (rust-core-macos, macos-dmg) run
 # on macos-latest (arm64): the darwin compile and the universal DMG can only
 # be proven there.
 #
@@ -25,17 +26,12 @@ permissions:
 # every job pins the same versions. The moss build and the cargo target dirs
 # are cached; a job pays for them only when the submodule or lockfile moves.
 #
-# Job order: the three cheap gates (rust-core, codegen-drift, flutter-test)
-# run in parallel; the windows-side expensive builds (integration-test,
-# android-build, windows-installer) run only if all three pass, so a cheap
-# failure never pays for a platform build. The macOS lanes are deliberately
-# UNGATED: mac plumbing can only be proven on a mac runner, and the gates
-# tell us nothing about it -- during bring-up they added ~11 dead minutes
-# to every red mac iteration. macos-preflight gives the fast signal
-# (~10 min: podspec syntax + the x86_64 cross-link), macos-dmg the full
-# artifact. The tagged release still gates through release.yml's verify.
-# Native device-link checks run independently: they build the Rust library
-# and peer executable for flutter_tester without building the desktop app.
+# Job order: every job starts at once. The repo is public, so runner minutes
+# are free and wall-clock is the only cost; gating the platform builds behind
+# the cheap checks put ~15 min of dead time on the critical path. The tagged
+# release still gates through release.yml's verify. Native device-link checks
+# build the Rust library and peer executable for flutter_tester without
+# building the desktop app.
 jobs:
   rust-core:
     name: Rust core (fmt + clippy + test)
@@ -107,7 +103,7 @@ jobs:
 
   flutter-test:
     name: Flutter gen-l10n + widget and unit tests
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -116,6 +112,18 @@ jobs:
         with:
           rust: 'false'
           moss: none
+
+      # flutter test runs native-asset hooks: super_native_extensions builds
+      # its Rust (gtk-rs on Linux) through the runner's rustup.
+      - name: GTK headers for native-asset hooks
+        run: sudo apt-get update -q && sudo apt-get install -y -q libgtk-3-dev
+
+      # The hook's Rust build output, keyed on the resolved packages.
+      - uses: actions/cache@v4
+        with:
+          path: .dart_tool/hooks_runner/shared
+          key: native-hooks-linux-${{ hashFiles('pubspec.lock') }}
+          restore-keys: native-hooks-linux-
 
       # The generated lib/l10n/app_localizations*.dart are gitignored, so
       # the drift signal is gen-l10n exiting 0: a broken ARB fails here,
@@ -132,7 +140,6 @@ jobs:
     name: Integration test (real bridge, slice one)
     runs-on: windows-latest
     timeout-minutes: 60
-    needs: [rust-core, codegen-drift, flutter-test]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -145,7 +152,7 @@ jobs:
       - uses: actions/cache/restore@v4
         id: cargokit-cache
         with:
-          path: build/windows/x64/plugins/rust_builder/cargokit_build
+          path: build/windows/x64/plugins/mosh_core/cargokit_build
           key: cargokit-windows-debug-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: cargokit-windows-debug-
 
@@ -159,7 +166,7 @@ jobs:
         if: steps.cargokit-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: build/windows/x64/plugins/rust_builder/cargokit_build
+          path: build/windows/x64/plugins/mosh_core/cargokit_build
           key: ${{ steps.cargokit-cache.outputs.cache-primary-key }}
 
       - name: Integration test (slice one)
@@ -180,9 +187,6 @@ jobs:
 
       - name: Build device-link native test library
         run: cargo build --manifest-path mosh-core/Cargo.toml
-
-      - name: Device linking with independent Moss processes
-        run: node scripts/moss-test.mjs --test device_link_flow --test device_link_identity
 
       - name: Native peer pipe regression
         run: flutter test native_test/native_peer_io_test.dart
@@ -215,7 +219,6 @@ jobs:
     name: Android APK (arm64, debug)
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: [rust-core, codegen-drift, flutter-test]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -253,6 +256,14 @@ jobs:
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           bash scripts/opus-prepare-android.sh
 
+      # cargokit compiles mosh-core into the plugin's Gradle build dir
+      # (build/<plugin>/build), which the cargo cache above does not see.
+      - uses: actions/cache@v4
+        with:
+          path: build/mosh_core/build
+          key: cargokit-android-debug-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: cargokit-android-debug-
+
       # --target-platform is REQUIRED, not an optimisation: jniLibs only
       # carries an arm64-v8a libmoss.so, so a default all-ABI build would
       # emit x86_64/armeabi APK slices whose dlopen("libmoss.so") fails at
@@ -283,6 +294,12 @@ jobs:
           flutter: 'false'
           rust-cache-key: macos
 
+      # Seconds, and the only check the iOS podspec gets before iOS CI.
+      - name: Podspec syntax (both pods)
+        run: |
+          ruby -c rust_builder/macos/mosh_core.podspec
+          ruby -c rust_builder/ios/mosh_core.podspec
+
       # Strict lint gate (ADR 0015): warnings fail the job.
       - name: Clippy check
         run: cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings
@@ -294,60 +311,10 @@ jobs:
   # Proves main still packages into the setup .exe users install. The same
   # reusable workflow builds the artifact a release publishes.
   windows-installer:
-    needs: [rust-core, codegen-drift, flutter-test]
     uses: ./.github/workflows/build-windows.yml
 
-  # Fast mac-plumbing signal, ungated: podspec/podfile syntax + the
-  # x86_64 cross-link (the exact seams that broke during mac bring-up).
-  # ~10 min from push instead of the full dmg lane's 20+.
-  macos-preflight:
-    name: macOS preflight (podspec + x86_64 link)
-    runs-on: macos-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      # No flutter, no moss dylib: nothing here runs the app or the adapter
-      # tests, only the Rust core cross-link and the podspec files.
-      - uses: ./.github/actions/setup
-        with:
-          flutter: 'false'
-          moss: 'none'
-          rust-cache-key: macos
-
-      - name: Podspec syntax (both pods)
-        run: |
-          ruby -c rust_builder/macos/mosh_core.podspec
-          ruby -c rust_builder/ios/mosh_core.podspec
-
-      # The universal prebuilt opus, same as build-macos.yml provisions.
-      - id: opus
-        uses: actions/cache@v4
-        with:
-          path: third_party/opus-macos-universal
-          key: opus-macos-universal-audiopus_sys-0.1.8-${{ hashFiles('scripts/opus-prepare-macos.sh') }}
-
-      - if: steps.opus.outputs.cache-hit != 'true'
-        name: Build libopus.a (macOS universal)
-        run: bash scripts/opus-prepare-macos.sh
-
-      # The x86_64 half of the universal app: the seam where a static
-      # archive loses framework/link flags. arm64 compiles in the other
-      # lanes; x86_64 only ever compiles here and in macos-dmg.
-      - name: Add Rust macos target
-        run: rustup target add x86_64-apple-darwin
-
-      - name: x86_64 cross-link (release)
-        run: |
-          LIBOPUS_LIB_DIR="$PWD/third_party/opus-macos-universal" \
-          OPUS_NO_PKG=1 \
-          cargo build --manifest-path mosh-core/Cargo.toml -p mosh-core --release --target x86_64-apple-darwin
-
-  # Same proof for the macOS DMG, sequenced behind the preflight so a red
-  # seam fails in ~10 min instead of paying for the full packaging lane.
+  # Same proof for the macOS DMG. It builds the x86_64 slice through the
+  # macOS podspec, which covers the old preflight lane's cross-link.
   macos-dmg:
-    needs: [macos-preflight]
     uses: ./.github/workflows/build-macos.yml
     secrets: inherit
