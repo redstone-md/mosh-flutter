@@ -182,13 +182,23 @@ impl PrivateDmSession {
                 if !self.device_connect_requested.contains(&device.moss_peer_id)
                     && self.transport.connect_peer(&device.moss_peer_id).is_ok()
                 {
+                    dlog::write(
+                        LogLevel::Info,
+                        kinds::CONNECT,
+                        &self.session_id,
+                        &format!("connect_peer requested for {}", device.moss_peer_id),
+                    );
                     self.device_connect_requested.insert(device.moss_peer_id);
                 }
             }
         }
     }
 
-    pub(in crate::private_dm_runtime) fn peer_device_reach(&self) -> Option<PeerTransport> {
+    /// The best path to any of the counterpart's devices, by `reach`.
+    pub(in crate::private_dm_runtime) fn peer_device_reach(
+        &self,
+        reach: &impl Fn(&str) -> PeerTransport,
+    ) -> Option<PeerTransport> {
         let membership = self
             .membership
             .as_ref()
@@ -199,7 +209,7 @@ impl PrivateDmSession {
             .iter()
             .filter(|client| !membership.topology.own(&client.mls_signer))
             .filter_map(|client| client.device().ok())
-            .map(|device| self.transport.reach(&device.moss_peer_id));
+            .map(|device| reach(&device.moss_peer_id));
         Some(
             reaches.fold(PeerTransport::None, |best, reach| match (best, reach) {
                 (PeerTransport::Direct, _) | (_, PeerTransport::Direct) => PeerTransport::Direct,

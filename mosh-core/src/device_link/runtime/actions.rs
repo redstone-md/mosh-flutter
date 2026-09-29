@@ -10,17 +10,11 @@ impl DeviceLinkRuntime {
         if !self.identity.can_join()? {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::Ineligible));
         }
-        let name = if self.identity.revoked()? {
-            self.identity.device().name.as_str()
-        } else {
-            name.trim()
-        };
-        if name.is_empty()
-            || name.chars().count() > MAX_NAME_CHARS
-            || name.chars().any(char::is_control)
-        {
-            return Err(DeviceLinkError::new(DeviceLinkErrorKind::InvalidQr));
-        }
+        let name = join_name(
+            &self.identity.device().name,
+            &name,
+            self.identity.revoked()?,
+        )?;
         let mut record = self.identity.record.clone();
         if !self.identity.revoked()? {
             record.device.name = name.into();
@@ -144,5 +138,48 @@ impl DeviceLinkRuntime {
             let _ = self.transport.send(&peer, &packet);
         }
         Ok(())
+    }
+}
+
+/// The name the joining device announces. A blank field keeps the current
+/// name, so linking works without typing one; a removed device always keeps
+/// its own.
+fn join_name<'a>(current: &'a str, typed: &'a str, revoked: bool) -> Result<&'a str> {
+    let typed = typed.trim();
+    let name = if revoked || typed.is_empty() {
+        current
+    } else {
+        typed
+    };
+    if name.is_empty()
+        || name.chars().count() > MAX_NAME_CHARS
+        || name.chars().any(char::is_control)
+    {
+        return Err(DeviceLinkError::new(DeviceLinkErrorKind::InvalidQr));
+    }
+    Ok(name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_blank_name_keeps_the_current_one() {
+        assert_eq!(join_name("Desktop", "   ", false).unwrap(), "Desktop");
+        assert_eq!(join_name("Desktop", " Office ", false).unwrap(), "Office");
+    }
+
+    #[test]
+    fn a_removed_device_keeps_its_name() {
+        assert_eq!(join_name("Desktop", "Office", true).unwrap(), "Desktop");
+    }
+
+    #[test]
+    fn an_unusable_name_is_refused() {
+        let long = "x".repeat(MAX_NAME_CHARS + 1);
+        assert!(join_name("Desktop", &long, false).is_err());
+        assert!(join_name("Desktop", "a\nb", false).is_err());
+        assert!(join_name("", " ", false).is_err());
     }
 }

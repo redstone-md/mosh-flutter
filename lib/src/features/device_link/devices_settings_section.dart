@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,15 +28,14 @@ class DevicesSettingsSection extends ConsumerStatefulWidget {
 
 class _DevicesSettingsSectionState
     extends ConsumerState<DevicesSettingsSection> {
-  final _name = TextEditingController();
   final _uri = TextEditingController();
   final _code = TextEditingController();
   bool _busy = false;
+  bool _linkOther = false;
   String? _error;
 
   @override
   void dispose() {
-    _name.dispose();
     _uri.dispose();
     _code.dispose();
     super.dispose();
@@ -101,8 +102,7 @@ class _DevicesSettingsSectionState
         Text(l.deviceLinkRevokedBody),
       ],
       const SizedBox(height: 16),
-      Text(deviceLinkPhase(l, s.phase),
-          semanticsLabel: deviceLinkPhase(l, s.phase)),
+      Text(_status(l, s), semanticsLabel: _status(l, s)),
       if (s.error != null || _error != null) ...[
         const SizedBox(height: 8),
         Text(_error ?? deviceLinkErrorKind(l, s.error!),
@@ -141,41 +141,58 @@ class _DevicesSettingsSectionState
         Text(l.deviceLinkExpires),
       ];
 
+  /// A fresh device is the one being linked, so its idle text says how to
+  /// show its QR; a device in use says where the QR comes from.
+  String _status(AppLocalizations l, DeviceLinkSnapshot s) =>
+      s.phase == DeviceLinkPhase.idle && s.canJoin && !s.revoked
+          ? l.deviceLinkJoinHelp
+          : deviceLinkPhase(l, s.phase);
+
+  /// One primary action per role: a fresh device shows its QR, a device in
+  /// use imports one. A fresh device that links another instead swaps to
+  /// the import action.
   List<Widget> _startActions(AppLocalizations l, DeviceLinkSnapshot s,
           DeviceLinkController controller) =>
       [
-        if (s.canJoin) ...[
+        if (s.canJoin && !_linkOther) ...[
           const SizedBox(height: 16),
-          if (!s.revoked)
-            TextField(
-                controller: _name,
-                maxLength: 64,
-                decoration: InputDecoration(labelText: l.deviceLinkDeviceName)),
           FilledButton(
               onPressed: _busy
                   ? null
-                  : () => _run(() => controller.createQr(_name.text)),
+                  : () => _run(() => controller.createQr(_deviceName())),
               child:
                   Text(s.revoked ? l.deviceLinkFreshJoin : l.deviceLinkJoin)),
+          if (!s.revoked)
+            TextButton(
+                onPressed: () => setState(() => _linkOther = true),
+                child: Text(l.deviceLinkLinkOther)),
         ],
-        if (!s.revoked) ...[
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-              onPressed: _busy ? null : () => _run(_importImage),
-              icon: const Icon(Icons.qr_code),
-              label: Text(l.deviceLinkImportImage)),
-          const SizedBox(height: 8),
-          TextField(
-              controller: _uri,
-              maxLength: 2048,
-              decoration: InputDecoration(labelText: l.deviceLinkPasteLabel)),
-          FilledButton(
-              onPressed: _busy
-                  ? null
-                  : () => _run(() => controller.importQr(_uri.text)),
-              child: Text(l.deviceLinkImport)),
-        ],
+        if (!s.revoked && (!s.canJoin || _linkOther)) ..._import(l, controller),
       ];
+
+  List<Widget> _import(AppLocalizations l, DeviceLinkController controller) {
+    void submit() => _run(() => controller.importQr(_uri.text));
+    return [
+      const SizedBox(height: 16),
+      FilledButton.icon(
+          onPressed: _busy ? null : () => _run(_importImage),
+          icon: const Icon(Icons.qr_code),
+          label: Text(l.deviceLinkImportImage)),
+      const SizedBox(height: 8),
+      TextField(
+          controller: _uri,
+          maxLength: 2048,
+          textInputAction: TextInputAction.go,
+          onSubmitted: _busy ? null : (_) => submit(),
+          decoration: InputDecoration(
+              labelText: l.deviceLinkPasteLabel,
+              counterText: '',
+              suffixIcon: IconButton(
+                  tooltip: l.deviceLinkImport,
+                  onPressed: _busy ? null : submit,
+                  icon: const Icon(Icons.arrow_forward)))),
+    ];
+  }
 
   List<Widget> _approval(AppLocalizations l, DeviceLinkSnapshot s,
           DeviceLinkController controller) =>
@@ -193,4 +210,13 @@ class _DevicesSettingsSectionState
                 _busy ? null : () => _run(() => controller.approve(_code.text)),
             child: Text(l.deviceLinkApprove)),
       ];
+}
+
+/// The name the trusted device sees while approving: this computer's
+/// hostname. Android answers "localhost", so it sends none and the device
+/// keeps its current name.
+String _deviceName() {
+  final host = Platform.localHostname;
+  if (host == 'localhost') return '';
+  return host.length > 64 ? host.substring(0, 64) : host;
 }

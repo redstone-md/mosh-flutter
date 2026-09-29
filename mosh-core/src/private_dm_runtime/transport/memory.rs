@@ -32,6 +32,9 @@ struct Endpoint {
     /// The stream fast path refuses, the way a moss stream refuses a peer it
     /// cannot open.
     fail_streams: bool,
+    /// The mesh report fails, the way moss's does while the node restarts:
+    /// no report, and so no path to anyone.
+    fail_mesh_reports: bool,
 }
 
 #[derive(Clone)]
@@ -66,6 +69,14 @@ impl Link {
 struct NetState {
     endpoints: HashMap<String, Endpoint>,
     links: HashMap<(String, String), Link>,
+}
+
+impl NetState {
+    fn reports_fail(&self, peer_id: &str) -> bool {
+        self.endpoints
+            .get(peer_id)
+            .is_some_and(|endpoint| endpoint.fail_mesh_reports)
+    }
 }
 
 #[derive(Default)]
@@ -161,6 +172,13 @@ impl MemoryNet {
     pub fn fail_streams(&self, from: &str, fail: bool) {
         if let Some(endpoint) = self.lock().endpoints.get_mut(from) {
             endpoint.fail_streams = fail;
+        }
+    }
+
+    /// Make `from`'s mesh reports fail, or stop doing so.
+    pub fn fail_mesh_reports(&self, from: &str, fail: bool) {
+        if let Some(endpoint) = self.lock().endpoints.get_mut(from) {
+            endpoint.fail_mesh_reports = fail;
         }
     }
 
@@ -289,8 +307,11 @@ impl DmTransport for MemoryTransport {
     }
 
     fn reach(&self, peer_moss_id: &str) -> PeerTransport {
-        self.net
-            .lock()
+        let state = self.net.lock();
+        if state.reports_fail(&self.peer_id) {
+            return PeerTransport::None;
+        }
+        state
             .links
             .get(&(self.peer_id.clone(), peer_moss_id.to_string()))
             .map_or(PeerTransport::None, Link::visible_reach)
@@ -302,6 +323,9 @@ impl DmTransport for MemoryTransport {
 
     fn mesh_info(&self) -> Option<MeshInfo> {
         let state = self.net.lock();
+        if state.reports_fail(&self.peer_id) {
+            return None;
+        }
         let peer_details = self.reachable_peers(&state);
         Some(MeshInfo {
             mesh_id: "memory".to_string(),
