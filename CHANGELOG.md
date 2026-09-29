@@ -4,6 +4,26 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-09-29
+
+### Added
+- **Link another desktop to your Mosh user.** In Settings, Devices, the new
+  desktop shows a private QR; the trusted desktop imports it and approves
+  with the 12-character code the new desktop displays. Each installation
+  keeps its own signing key, Moss identity and encrypted storage. The QR
+  expires after five minutes.
+- **Linked desktops continue existing text DMs.** A linked desktop imports
+  the conversation's text history and keeps talking to the contact, even
+  while the original desktop is off. A desktop that comes back recovers the
+  messages and MLS epochs it missed from any available linked installation.
+- **Remove a linked device.** Removal is signed by a remaining installation
+  and shows Applied once the other participants have saved the new epoch.
+  The removed installation keeps what it already received but cannot read
+  or send new messages; linking it again needs a fresh QR and code.
+- **Android can join as a linked device** for text DMs while the app is in
+  the foreground. It has not yet been checked on a physical phone, and this
+  release ships desktop builds only.
+
 ## [0.9.7] - 2026-09-26
 
 ### Fixed
