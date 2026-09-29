@@ -1,0 +1,173 @@
+# Native discovery CI correction
+
+PR [29](https://github.com/redstone-md/mosh-flutter/pull/29), 2026-09-29.
+The user held publication of the verified OpenMLS review fixes until the
+failed native CI checks were investigated and corrected.
+
+## Evidence
+
+[Run 36483166048](https://github.com/redstone-md/mosh-flutter/actions/runs/36483166048)
+failed the Windows public-bridge pairing flow and the macOS public-bridge DM
+flow. Rerunning only the failed jobs on the unchanged head `5049a302` failed
+both again. Other core suites passed in those jobs.
+
+The affected tests use independent native processes and automatic public
+Moss discovery. Their network snapshots included hundreds of unrelated peers
+and relay paths between processes on the same host. Local repetitions also
+failed at different stages, including the initial two-party DM handshake,
+delivery after restart and offline recovery. These failures cannot all be
+attributed to one application state transition.
+
+A temporary timing probe measured 10.66 seconds in `OpenStream` while the
+device-link service held its lock. `SendStream` already starts the SDK's
+reader. Removing the redundant lookup improves command responsiveness, but
+did not make repeated public-network tests reliable. The timing probe was
+removed after diagnosis. QR payloads and confirmation codes were removed
+from the pairing timeout diagnostic.
+
+The first full isolated run passed 413 unit tests, then one child failed
+startup with Moss listen error -13. Default SDK Masq chooses an ephemeral TCP port
+before binding UDP on the same number. That UDP port can already be occupied.
+The old shared-node fallback handled only a requested nonzero port, and did
+not reallocate after an ephemeral bind collision.
+
+A later full run reached public pairing but failed discovery after prior
+scenarios shared one tracker network. The real tracker retains addresses for
+20 minutes. A temporary probe counted 34 advertised addresses in one suite.
+Giving each scenario its own network id reduced those lists to that scenario's
+processes. The configuration regression for independent scenario networks
+failed before this correction; all five config tests now pass.
+
+## Changes
+
+- Device linking and DM request peer discovery through the existing
+  `ConnectToPeer` path, then send with `SendStream`. Protocol retries and
+  durable acknowledgements remain unchanged.
+- Shared-node startup reallocates after a bind failure, including auto-port
+  collisions, with at most three attempts. It returns other errors immediately
+  and returns the final bind error when allocation is exhausted. This retries
+  socket allocation, not failed tests or protocol operations.
+- `scripts/moss-test.mjs` starts a real WebTorrent `bittorrent-tracker` 11.2.3
+  server on `127.0.0.1` and a random port. It runs Cargo, propagates its exit
+  status and closes the server. Signal cleanup terminates the owned process
+  tree. The test tool installs outside the repository and app manifests.
+- The tracker uses its public filter hook to treat Moss's literal
+  `event=none` as a regular announce. No Moss source is modified.
+- A private debug-only `MOSH_TEST_TRACKER_URL` config override accepts only
+  loopback HTTP `/announce` URLs with an explicit nonzero port and no
+  credentials, query or fragment. Existing SDK `trackers` and `network_id`
+  options isolate discovery. Public DHT, LAN and NAT mapping are disabled
+  only in that network.
+- The fixture assigns a random u64 `MOSH_TEST_NETWORK_SCOPE` per scenario,
+  passes it to all independent installations and preserves it across restart.
+  The scope separates tracker discovery between scenarios without changing
+  process-global environment variables. It is ignored without the test tracker.
+- The Windows and macOS Cargo jobs use the wrapper. The independent-process
+  linking step in the Windows native lane uses it too. Public bridge cases
+  still discover each other automatically, without manual peer connections.
+- Test assertions, deadlines, ignore lists and protocol retry budgets are
+  unchanged. Private test names now describe Moss discovery without claiming
+  that every run uses the public defaults.
+
+Without the override, config bytes remain unchanged. Release builds do not
+compile the override. No public Rust API, bridge binding, application
+dependency, database schema or wire format changes.
+
+## Checks
+
+- New configuration regressions failed before implementation, then passed.
+  They verify isolation, preservation of unrelated node settings, rejection
+  of remote/malformed URLs and byte-identical default configuration.
+- Auto-port collision, collision after fixed-port fallback and bounded
+  exhaustion regressions failed against the old allocation policy. The
+  six shared-node tests now pass, including the existing occupied-port test
+  against the real SDK and immediate propagation of non-bind errors.
+- Each originally failing public-bridge scenario passed five consecutive
+  runs with the local tracker. Pairing took 1.28 to 1.35 seconds; DM took
+  8.24 to 12.76 seconds, including primary-off delivery and restart.
+- The offline pairing responsiveness test passes. It also passed on the old
+  code, so it freezes the cancellation/latency contract rather than proving
+  reproduction of the original CI failure.
+- The full wrapped command passed 419 unit tests and 30 integration tests,
+  with 13 existing ignored entries. It includes pairing, restart, primary-off
+  delivery, offline recovery, history transfer and revocation.
+- Build, release-library check, strict all-target Clippy, rustfmt, Node syntax,
+  `git diff --check` and actionlint passed.
+- The wrapper preserves Cargo exit 101 and closes its tracker after a failing
+  command or spawn error. SIGTERM terminates its owned native process tree
+  and closes the tracker; interruption returns a nonzero exit status.
+- V8/c8 measured the wrapper at 93% line coverage and 75.75% branch coverage.
+  Checks exercised fresh tool installation, automatic native discovery,
+  malformed tool metadata, Cargo failure, spawn failure and interruption.
+  Windows cleanup branches require the Windows runner.
+- LLVM coverage of measured changed runtime lines is 75/83, 90.36%, from the
+  config and startup unit tests plus both real public-API scenarios. The
+  debug network module reached 100% line coverage. Stable Rust does not export
+  branch counters, so no Rust branch percentage is claimed.
+- Windows/macOS validation runs in GitHub Actions after publication; the local
+  checks above ran on Linux.
+
+The inherited `moss_ffi.rs` exceeds the repository's file-size limit. The
+override lives in a separate module; its new helpers and tests are below the
+function limit. The existing FFI loader and native end-to-end test structure
+retain their boundaries.
+
+## Standards
+
+Source review of all 17 CI files found no documented breaches or substantive
+heuristic smells. The changes retain module boundaries, existing dependencies
+and contracts. The inherited file-size exception is documented. Findings: 0.
+
+## Spec
+
+Scenario scope reaches every child and survives restart. The private override
+affects only debug tracker networks. Automatic discovery and real native
+dependencies, protocol acknowledgements and shared-node ownership remain in
+place. No missing requirement or unrequested public contract change was found.
+Actionable findings: 0.
+
+## Limits and reproduction
+
+The local network proves native automatic discovery, pairing, MLS delivery,
+restart and storage behavior. Public tracker, NAT and relay availability
+still need live-network probes. Physical Android acceptance remains pending
+because the user's device cannot connect to this server. Issue 28 remains open.
+
+From the repository root:
+
+```bash
+node scripts/moss-prepare.mjs
+cargo build --manifest-path mosh-core/Cargo.toml
+node scripts/moss-test.mjs
+```
+
+For a live public-network probe, omit the wrapper and ensure the test override
+is unset:
+
+```bash
+cargo test --manifest-path mosh-core/Cargo.toml --test device_link_flow --test multi_device_dm_flow public_bridge
+```
+
+The runtime boundary is documented in [ADR 0029](../ADR/0029-private-desktop-device-linking.md),
+and the CI network in [ADR 0015](../ADR/0015-deep-link-and-ci-and-versioning.md).
+
+## Changed files
+
+- `.github/workflows/ci.yml`
+- `scripts/moss-test.mjs`
+- `mosh-core/src/moss_ffi.rs`
+- `mosh-core/src/moss_ffi/test_network.rs`
+- `mosh-core/src/device_link/transport.rs`
+- `mosh-core/src/private_dm_runtime/transport.rs`
+- `mosh-core/src/shared_node.rs`
+- `mosh-core/tests/device_link_flow.rs`
+- `mosh-core/tests/multi_device_dm_flow.rs`
+- `mosh-core/tests/link_support/mod.rs`
+- `docs/ADR/0015-deep-link-and-ci-and-versioning.md`
+- `docs/ADR/0026-one-node-a-transport-seam-and-a-dm-outbox.md`
+- `docs/ADR/0029-private-desktop-device-linking.md`
+- `docs/ADR/0030-linked-desktop-dm-clients.md`
+- `docs/Features/device-linking.md`
+- `docs/Features/private-dm.md`
+- `docs/Proposals/native-discovery-ci.md`
+- `docs/Proposals/openmls-review-corrections.md`

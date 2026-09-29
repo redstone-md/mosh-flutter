@@ -2,6 +2,7 @@ mod api;
 mod crypto;
 mod dm;
 mod protocol;
+use std::cell::Cell;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -18,12 +19,17 @@ use serde_json::{json, Value};
 
 const OUTPUT_PREFIX: &str = "MOSH_TEST_JSON ";
 static NETWORK_SCENARIO: Mutex<()> = Mutex::new(());
+thread_local! {
+    static NETWORK_SCOPE: Cell<u64> = const { Cell::new(0) };
+}
 
-/// Each scenario owns the shared LAN discovery environment; its peers stay independent.
+/// Serialize LAN probes and give local-tracker scenarios independent networks.
 pub fn isolated_network_scenario() -> std::sync::MutexGuard<'static, ()> {
-    NETWORK_SCENARIO
+    let guard = NETWORK_SCENARIO
         .lock()
-        .unwrap_or_else(|error| error.into_inner())
+        .unwrap_or_else(|error| error.into_inner());
+    NETWORK_SCOPE.with(|scope| scope.set(rand::random()));
+    guard
 }
 
 pub struct Peer {
@@ -33,6 +39,7 @@ pub struct Peer {
     dir: PathBuf,
     api: bool,
     manual_dm: bool,
+    network_scope: u64,
     pub port: u16,
 }
 
@@ -57,10 +64,10 @@ impl Peer {
         let dir = std::env::temp_dir().join(format!("mosh-link-flow-{}", rand::random::<u64>()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("storage-key.bin"), rand::random::<[u8; 32]>()).unwrap();
-        Self::start(dir, api, manual_dm)
+        Self::start(dir, api, manual_dm, NETWORK_SCOPE.with(Cell::get))
     }
 
-    fn start(dir: PathBuf, api: bool, manual_dm: bool) -> Self {
+    fn start(dir: PathBuf, api: bool, manual_dm: bool, network_scope: u64) -> Self {
         let mut child = Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
@@ -72,6 +79,7 @@ impl Peer {
             .env("MOSH_LINK_TEST_PORT", "0")
             .env("MOSH_LINK_TEST_API", if api { "1" } else { "0" })
             .env("MOSH_DM_MANUAL_SERVICE", if manual_dm { "1" } else { "0" })
+            .env("MOSH_TEST_NETWORK_SCOPE", network_scope.to_string())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -87,6 +95,7 @@ impl Peer {
             dir,
             api,
             manual_dm,
+            network_scope,
             port: 0,
         };
         peer.ask(json!({"action":"snapshot"}));
@@ -109,7 +118,7 @@ impl Peer {
     }
 
     pub fn connect(&mut self, other: &Self) {
-        // Public bridge scenarios deliberately use default discovery only.
+        // Public bridge scenarios deliberately rely on automatic discovery.
         if self.api {
             return;
         }
@@ -125,7 +134,9 @@ impl Peer {
             }
             assert!(
                 Instant::now() < deadline,
-                "expected {phase}, got {snapshot}"
+                "expected {phase}, got phase={}, error={}",
+                snapshot["phase"],
+                snapshot["error"]
             );
             std::thread::sleep(Duration::from_millis(100));
         }
@@ -133,7 +144,12 @@ impl Peer {
 
     pub fn restart(&mut self) {
         self.stop();
-        let mut replacement = Self::start(self.dir.clone(), self.api, self.manual_dm);
+        let mut replacement = Self::start(
+            self.dir.clone(),
+            self.api,
+            self.manual_dm,
+            self.network_scope,
+        );
         std::mem::swap(self, &mut replacement);
         // Keep this installation's persistent state; only the killed process is old.
         replacement.dir = PathBuf::new();
@@ -145,6 +161,12 @@ impl Peer {
             let _ = self.stdin.flush();
             self.child.wait().unwrap();
         }
+    }
+
+    #[allow(dead_code)] // Shared helper also compiles in the DM test executable.
+    pub fn crash(&mut self) {
+        self.child.kill().unwrap();
+        self.child.wait().unwrap();
     }
 }
 

@@ -34,6 +34,12 @@ once it knows it, and moss decides between direct, hole punch and its own
 network relay. The invite, the KeyPackage and the Welcome keep carrying a moss
 peer id; it now names the one node, so the wire format does not change.
 
+Startup can reallocate the listen port after a bind failure, at most three
+attempts. This includes auto-port collisions because default Moss Masq binds TCP first and
+then UDP on that same port. Failed handles are dropped before reallocation;
+non-bind errors return immediately. Only the successfully started node enters
+the shared state and refcount.
+
 **Every DM frame crosses one interface.** `DmTransport` (in
 `private_dm_runtime/transport.rs`) is the only door: open and close a room,
 subscribe a channel, publish a frame, ask to reach a peer, report how a peer is
