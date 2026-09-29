@@ -156,6 +156,32 @@ Future<void> printPeerDiagnostic(NativePeer peer) async {
   } catch (error) {
     debugPrint('[DEBUG-native-link] peer snapshot unavailable: '
         '${error.runtimeType}');
+    await printPeerStacks(peer.pid);
+  }
+  debugPrint('[DEBUG-native-link] peer stderr tail:\n'
+      '${peer.stderrTail.join('\n')}');
+}
+
+// [DEBUG-native-link] Function-only thread stacks of the unresponsive worker.
+Future<void> printPeerStacks(int pid) async {
+  const cdb = r'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe';
+  final (command, args) = Platform.isWindows && File(cdb).existsSync()
+      ? (cdb, ['-pv', '-p', '$pid', '-c', '~*k 40;q'])
+      : (
+          'gdb',
+          [
+            '-p', '$pid', '-batch', //
+            '-ex', 'set print frame-arguments none',
+            '-ex', 'thread apply all bt 40',
+          ]
+        );
+  try {
+    final result =
+        await Process.run(command, args).timeout(const Duration(seconds: 90));
+    debugPrint('[DEBUG-native-link] $command stacks:\n'
+        '${result.stdout}\n${result.stderr}');
+  } catch (error) {
+    debugPrint('[DEBUG-native-link] stack capture failed: $error');
   }
 }
 
