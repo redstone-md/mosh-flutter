@@ -150,7 +150,8 @@ class _DevicesSettingsSectionState
             TextField(
                 controller: _name,
                 maxLength: 64,
-                decoration: InputDecoration(labelText: l.deviceLinkDeviceName)),
+                decoration: InputDecoration(
+                    labelText: l.deviceLinkDeviceName, counterText: '')),
           FilledButton(
               onPressed: _busy
                   ? null

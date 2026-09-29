@@ -1637,7 +1637,7 @@
   "deviceLinkDeviceName": "Name of this device",
   "deviceLinkJoin": "Link this device to an existing user",
   "deviceLinkImportImage": "Import new device QR image",
-  "deviceLinkPasteLabel": "Or paste the new device link",
+  "deviceLinkPasteLabel": "Or paste the mosh://device-link/… link from the new device",
   "deviceLinkImport": "Connect to new device",
   "deviceLinkCodeLabel": "Code from the new device",
   "deviceLinkApprove": "Approve device",
