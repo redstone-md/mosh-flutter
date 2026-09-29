@@ -128,8 +128,10 @@ of the revoked peer. The temporary stack capture was then removed.
   and buffers JSON replies between requests. Cancelling the reply iterator
   cancels its upstream subscription. The subprocess lifecycle is unchanged.
 - Independent workers call `link_support::stdio::isolate_from_moss` before
-  loading Moss. On Windows it moves stdout/stderr to synchronous pipes relayed
-  to the inherited handles, which Go never sees. The stdout-flood fixture
+  loading Moss. On Windows it moves overlapped stdout/stderr, detected with
+  Go's own `IsNonblock` test, to synchronous pipes relayed to the inherited
+  handles, which Go never sees. Rust-parent suites keep their synchronous
+  stdio unchanged. The stdout-flood fixture
   shares that module and loads the real `moss.dll` on Windows first.
 - Native device linking has its own Windows job, independent of desktop app
   compilation and the three prerequisite jobs. It builds the real Rust library
