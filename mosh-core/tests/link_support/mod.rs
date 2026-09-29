@@ -2,6 +2,7 @@ mod api;
 mod crypto;
 mod dm;
 mod protocol;
+mod stdio;
 use std::cell::Cell;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
@@ -197,6 +198,7 @@ impl Drop for Peer {
 }
 
 pub fn peer_process() {
+    stdio::isolate_from_moss();
     let dir = PathBuf::from(std::env::var("MOSH_LINK_TEST_DIR").unwrap());
     if std::env::var("MOSH_LINK_TEST_API").as_deref() == Ok("1") {
         return api::run(dir);
