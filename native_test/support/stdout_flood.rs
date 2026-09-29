@@ -1,8 +1,12 @@
 use std::io::{self, BufRead, Write};
 
+#[path = "../../mosh-core/tests/link_support/stdio.rs"]
+mod stdio;
+
 // A pipe fixture for NativePeer's reply reader, independent of the Moss protocol.
 fn main() {
     // Like the real worker, host the Go runtime that inspects inherited stdio.
+    stdio::isolate_from_moss();
     start_moss_runtime();
     let marker = std::path::PathBuf::from(std::env::var("MOSH_LINK_TEST_DIR").unwrap())
         .join("stdout-drained");
@@ -35,7 +39,7 @@ fn main() {
 fn start_moss_runtime() {
     use std::ffi::{c_char, c_void};
     #[link(name = "kernel32")]
-    extern "system" {
+    unsafe extern "system" {
         fn LoadLibraryA(name: *const u8) -> *mut c_void;
         fn GetProcAddress(module: *mut c_void, name: *const u8) -> *mut c_void;
     }
