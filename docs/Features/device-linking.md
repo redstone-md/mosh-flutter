@@ -91,10 +91,11 @@ for the exact authorization and verification rules.
 
 ## Tests
 
-- `cargo test --manifest-path mosh-core/Cargo.toml --test device_link_flow`
+- `node scripts/moss-test.mjs --test device_link_flow`
   runs separate installations with real Moss, independent signing/transport
   keys and databases. It checks approval, refusal, QR mutation/replay, restart
-  and an existing text DM with a third installation.
+  and an existing text DM with a third installation. Automatic discovery uses
+  a real local tracker. The wrapper installs its pinned tool outside the repo.
 - `cargo test --manifest-path mosh-core/Cargo.toml --test device_link_identity`
   proves persistent identity and unchanged old history/transport records.
 - `cargo test --manifest-path mosh-core/Cargo.toml device_link::protocol_tests`
@@ -115,3 +116,9 @@ for the exact authorization and verification rules.
 New production code requires 80% line coverage; branch coverage is required
 where the toolchain provides it. Windows/macOS installers need their own
 hosts; Linux verifies the native bridge and protocol here.
+
+To probe the live public Moss network, run the same suite directly with
+`cargo test --manifest-path mosh-core/Cargo.toml --test device_link_flow`.
+That probe depends on public tracker and relay availability. Neither mode
+manually connects peers in the public bridge scenario. The local tracker
+override only exists in debug builds.

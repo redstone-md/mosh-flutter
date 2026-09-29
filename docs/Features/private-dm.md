@@ -216,7 +216,7 @@ cannot skip those steps. See [ADR 0033](../ADR/0033-dm-device-revocation.md).
 The real-process tests in `mosh-core/tests/multi_device_dm_flow.rs` use three
 independent installations with real Moss, OpenMLS and encrypted stores. They
 prove admission, sender-device sync, simultaneous sends, the original being
-off, restart and default discovery through public bridge calls. The companion
+off, restart and automatic discovery through public bridge calls. The companion
 `mosh-core/tests/dm_controls/` flow checks real contact typing and read receipts,
 then proves sibling activity cannot make an offline contact appear online.
 The `mosh-core/tests/dm_history/` flows prove pre-link semantic history,
@@ -227,6 +227,9 @@ The `mosh-core/tests/dm_revocation/` flows prove durable pending/applied states,
 surviving messaging, old-client decryption and sync refusal, restart, ordered
 Add/Remove recovery and fresh reauthorization without erasing old history.
 Run
+`node scripts/moss-test.mjs --test multi_device_dm_flow`.
+This uses a real local tracker and isolated Moss network in debug builds.
+For a live public-network probe, run
 `cargo test --manifest-path mosh-core/Cargo.toml --test multi_device_dm_flow`.
 
 ## Single-device proof

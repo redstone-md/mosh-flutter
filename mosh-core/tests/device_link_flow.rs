@@ -5,6 +5,46 @@ use link_support::{isolated_network_scenario, peer_process, Peer};
 use serde_json::json;
 
 #[test]
+fn an_offline_pairing_target_does_not_block_link_commands() {
+    let _network = isolated_network_scenario();
+    let mut trusted = Peer::new();
+    let mut carrier = Peer::new();
+    let mut joining = Peer::new();
+    let carrier_id =
+        carrier.ask(json!({"action":"snapshot"}))["devices"][0]["moss_peer_id"].clone();
+    trusted.connect(&carrier);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let network = trusted.ask(json!({"action":"network"}));
+        if network["peer_details"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|peer| peer["id"] == carrier_id)
+        {
+            break;
+        }
+        assert!(std::time::Instant::now() < until, "carrier must connect");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let qr = joining.ask(json!({"action":"qr","argument":"Offline desktop"}));
+    joining.crash();
+    carrier.crash();
+
+    let started = std::time::Instant::now();
+    let pending = trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(2),
+        "pairing discovery must retry outside the link command, elapsed {:?}",
+        started.elapsed()
+    );
+    assert_eq!(pending["phase"], "Connecting");
+    assert_eq!(pending["devices"].as_array().unwrap().len(), 1);
+    trusted.ask(json!({"action":"cancel"}));
+    assert_eq!(trusted.ask(json!({"action":"snapshot"}))["phase"], "Failed");
+}
+
+#[test]
 fn two_independent_desktops_link_only_after_trusted_approval() {
     let _network = isolated_network_scenario();
     let mut trusted = Peer::new();
@@ -217,7 +257,7 @@ fn an_interrupted_approved_link_recovers_when_both_desktops_restart() {
 }
 
 #[test]
-fn public_bridge_links_independent_desktops_through_default_moss_discovery() {
+fn public_bridge_links_independent_desktops_through_moss_discovery() {
     let _network = isolated_network_scenario();
     let mut trusted = Peer::new_api();
     let mut joining = Peer::new_api();
@@ -242,10 +282,13 @@ fn public_bridge_links_independent_desktops_through_default_moss_discovery() {
     assert_eq!(joined["user_id"], before["user_id"]);
     assert_eq!(joined["devices"].as_array().unwrap().len(), 2);
     joining.restart();
-    assert_eq!(
-        joining.ask(json!({"action":"snapshot"}))["devices"],
-        joined["devices"]
+    let restored = joining.ask(json!({"action":"snapshot"}));
+    assert!(
+        restored["error"].is_null(),
+        "restarted bridge snapshot failed: {}",
+        restored["error"]
     );
+    assert_eq!(restored["devices"], joined["devices"]);
 }
 
 #[test]

@@ -8,6 +8,9 @@ use std::{
 
 use libloading::{Library, Symbol};
 
+#[cfg(debug_assertions)]
+mod test_network;
+
 /// App-wide network override. When set to a non-empty interface name or
 /// numeric index, every Moss node started after the value changes will be
 /// configured to bypass the routing table via IP_UNICAST_IF (or platform
@@ -884,10 +887,13 @@ pub fn node_config_json(config: &MossNodeConfig) -> String {
         _ => String::new(),
     };
 
-    format!(
+    let config = format!(
         r#"{{"listen_port":{},"static_peers":{}{},"announce_interval_sec":15,"bootstrap_timeout_sec":12,"lan_discovery_enabled":true,"gossipsub":{{"heartbeat_ms":250}},"nat":{{"upnp_enabled":true,"natpmp_enabled":true,"pcp_enabled":true,"hole_punch_attempts":8,"port_prediction_enabled":true}}{}}}"#,
         config.listen_port, peers, bind, debug
-    )
+    );
+    #[cfg(debug_assertions)]
+    let config = test_network::from_environment(config);
+    config
 }
 
 fn escape_json(s: &str) -> String {
