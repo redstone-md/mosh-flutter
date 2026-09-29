@@ -242,12 +242,17 @@ fn select_sandboxed_mac_store() -> Result<(), SecureStorageError> {
     let selected = keyring::use_named_store("protected")
         .map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
         .and_then(|()| probe_protected_store(&probe_key));
+    // Expected on every launch of the self-signed release: the data-protection
+    // keychain needs an Apple team signature. Info, so testers do not read
+    // the designed fallback as a fault.
     if let Err(error) = selected {
         dlog::write(
-            LogLevel::Warn,
+            LogLevel::Info,
             kinds::IDENTITY,
             SERVICE_NAME,
-            &format!("protected keychain store unavailable ({error}); using legacy keychain store"),
+            &format!(
+                "protected keychain store unavailable ({error}); using legacy keychain store (expected without an Apple team signature)"
+            ),
         );
         PROTECTED_STORE_ACTIVE.store(false, Ordering::Release);
         return keyring::use_native_store(false).map_err(|error| {

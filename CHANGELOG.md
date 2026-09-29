@@ -4,6 +4,17 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **The field log shows the whole Connect timeline.** Besides "session
+  connected", a DM now logs when it asked moss to dial the contact, every
+  change of the path to the contact (none, direct, relayed), and a
+  "session lost" line with the silence that took Connected away.
+- **The macOS keychain fallback is no longer a warning.** The self-signed
+  release always uses the legacy keychain; the line now says it is
+  expected.
+
 ## [0.10.0] - 2026-09-29
 
 ### Added
