@@ -11,9 +11,10 @@ All notable changes to Mosh are documented here. Format follows
   connected", a DM now logs when it asked moss to dial the contact, every
   change of the path to the contact (none, direct, relayed), and a
   "session lost" line with the silence that took Connected away.
-- **The macOS keychain fallback is no longer a warning.** The self-signed
-  release always uses the legacy keychain; the line now says it is
-  expected.
+- **The expected macOS keychain fallback is no longer a warning.** The
+  self-signed release is always refused the protected keychain for a
+  missing entitlement and uses the legacy one; that refusal now logs as
+  info. Any other refusal is still a warning.
 
 ## [0.10.0] - 2026-09-29
 

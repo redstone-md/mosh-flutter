@@ -242,17 +242,13 @@ fn select_sandboxed_mac_store() -> Result<(), SecureStorageError> {
     let selected = keyring::use_named_store("protected")
         .map_err(|error| SecureStorageError::Backend(format!("{NATIVE_STORE_ERROR}: {error}")))
         .and_then(|()| probe_protected_store(&probe_key));
-    // Expected on every launch of the self-signed release: the data-protection
-    // keychain needs an Apple team signature. Info, so testers do not read
-    // the designed fallback as a fault.
     if let Err(error) = selected {
+        let error = error.to_string();
         dlog::write(
-            LogLevel::Info,
+            protected_store_fallback_level(&error),
             kinds::IDENTITY,
             SERVICE_NAME,
-            &format!(
-                "protected keychain store unavailable ({error}); using legacy keychain store (expected without an Apple team signature)"
-            ),
+            &format!("protected keychain store unavailable ({error}); using legacy keychain store"),
         );
         PROTECTED_STORE_ACTIVE.store(false, Ordering::Release);
         return keyring::use_native_store(false).map_err(|error| {
@@ -267,6 +263,20 @@ fn select_sandboxed_mac_store() -> Result<(), SecureStorageError> {
         "macOS sandboxed: protected keychain store selected",
     );
     Ok(())
+}
+
+/// How loud the legacy fallback is. The self-signed release has no Apple
+/// team, so the data-protection keychain refuses it with
+/// errSecMissingEntitlement on every launch: that is the designed path, and
+/// a warning would read as a fault. Any other refusal still is one.
+#[cfg(any(target_os = "macos", test))]
+fn protected_store_fallback_level(error: &str) -> crate::diagnostics_log::LogLevel {
+    use crate::diagnostics_log::LogLevel;
+    if error.contains("-34018") || error.contains("entitlement isn't present") {
+        LogLevel::Info
+    } else {
+        LogLevel::Warn
+    }
 }
 
 /// A set/get/delete roundtrip in the data-protection keychain. Ad-hoc
@@ -345,6 +355,18 @@ fn load_from_legacy_keychain(key: &str) -> Option<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_a_missing_entitlement_is_an_expected_fallback() {
+        use super::protected_store_fallback_level as level;
+        use crate::diagnostics_log::LogLevel;
+        assert_eq!(
+            level("Platform secure storage failure: A required entitlement isn't present."),
+            LogLevel::Info
+        );
+        assert_eq!(level("OSStatus -34018"), LogLevel::Info);
+        assert_eq!(level("User interaction is not allowed."), LogLevel::Warn);
+    }
+
     use super::*;
 
     const TEST_SECRET_KEY: &str = "adapter-contract-test-secret";
