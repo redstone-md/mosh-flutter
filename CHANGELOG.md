@@ -15,8 +15,10 @@ All notable changes to Mosh are documented here. Format follows
   self-signed release is always refused the protected keychain for a
   missing entitlement and uses the legacy one; that refusal now logs as
   info. Any other refusal is still a warning.
-- **Settings, Devices says where the QR is.** The help now says the QR
-  appears on the new device, under its own Settings, Devices.
+- **Settings, Devices has one action per device.** A fresh device shows
+  Show linking QR; a device in use shows Choose QR image, with the link
+  field under it (Enter submits). The name field is gone: the new device
+  sends its computer name.
 - **Device and user ids no longer wrap.** They show as a short monospace
   `head…tail`, enough to compare two devices by eye. The link field drops
   its character counter.
