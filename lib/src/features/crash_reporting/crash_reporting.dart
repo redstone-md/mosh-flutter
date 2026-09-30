@@ -76,12 +76,19 @@ class CrashReporting {
   }
 
   /// The settings switch. Off stops the SDK first, then forgets the consent
-  /// and the unsent queue.
+  /// and the unsent queue. A failed start is rolled back to off, so a switch
+  /// the user sees off never reports on the next launch.
   Future<void> setEnabled(bool enabled) async {
-    if (enabled) {
+    if (!enabled) return _end();
+    try {
       await _begin(await _bridge.enableCrashReporting());
-      return;
+    } catch (_) {
+      await _end();
+      rethrow;
     }
+  }
+
+  Future<void> _end() async {
     await _rustPanics?.cancel();
     _rustPanics = null;
     await _bridge.stopPanicReporting();
