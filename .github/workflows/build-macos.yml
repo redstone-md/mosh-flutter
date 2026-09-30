@@ -19,11 +19,20 @@ on:
         description: Upload native debug files to Sentry (release tags only).
         type: boolean
         default: false
+      universal:
+        description: Build universal binary (arm64 + x86_64). When false, builds host arch (arm64 on Apple Silicon) for fast CI checks.
+        type: boolean
+        default: true
     outputs:
       artifact:
         description: Name of the uploaded artifact holding the universal .dmg and its .sha256.
         value: ${{ jobs.dmg.outputs.artifact }}
   workflow_dispatch:
+    inputs:
+      universal:
+        description: Build universal binary (arm64 + x86_64).
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -56,8 +65,9 @@ jobs:
 
       # Universal release build: cargokit builds one slice per ARCHS
       # entry (arm64 + x86_64) and lipos them, so the x86_64 target must
-      # be installed first.
-      - name: Add Rust macos target
+      # be installed first. Fast single-arch builds (PRs) skip it.
+      - if: inputs.universal
+        name: Add Rust macos target
         run: rustup target add x86_64-apple-darwin
 
       # audiopus_sys links a prebuilt universal libopus.a from
@@ -75,6 +85,9 @@ jobs:
         run: bash scripts/opus-prepare-macos.sh
 
       - name: Build macOS app (release)
+        env:
+          MOSH_ONLY_ACTIVE_ARCH: ${{ inputs.universal && 'NO' || 'YES' }}
+          MOSH_MACOS_UNIVERSAL: ${{ inputs.universal && 'true' || 'false' }}
         # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
         # crash reporting; without it the build cannot report at all.
         run: flutter build macos --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
@@ -112,6 +125,8 @@ jobs:
         run: bash scripts/macos-import-signing.sh
 
       - name: Package DMG + checksum
+        env:
+          MOSH_MACOS_UNIVERSAL: ${{ inputs.universal && 'true' || 'false' }}
         run: bash scripts/macos-package.sh
 
       - uses: actions/upload-artifact@v4
