@@ -4,6 +4,41 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-09-30
+
+### Added
+- **Telegram-style incoming message animations.** Newly arriving conversation messages
+  enter with a subtle fade, slide-up, and scale-in curve, while existing history
+  renders instantly without animation on initial load.
+- **Tactile button press feedback.** Primary interactive affordances (New conversation,
+  Settings, Onboarding tiles, Send button, Attachment thumbnails) scale smoothly to 0.96
+  on pointer-down and recover on release with an ease-out transition.
+- **Contextual icon animations.** Interactive toggles (voice message play/pause, voice
+  composer preview) cross-fade and scale smoothly between states instead of abruptly popping.
+- **Smooth collapsible transitions.** Typing indicator hints and disclosure sections
+  now animate their height with gentle ease-out curves instead of jumping.
+
+### Changed
+- **Accessible minimum hit areas on desktop.** Close buttons, attachment action controls,
+  file pickers, and retry affordances now maintain a minimum 40×40px tap target.
+- **Concentric corner geometry.** Nested borders on crypto notice cards, attachment cards,
+  filter toggles, and voice message cards now follow concentric curvature
+  (`outerRadius = innerRadius + padding`) to eliminate pinched corners.
+- **Optical icon alignment.** Directional play arrows, upward warning triangles, and
+  the composer send paper plane now use optical offsets to balance visual mass.
+- **Tabular figures for dynamic numerals.** Message timestamps and download progress
+  percentages use tabular figures (`tabular-nums`) to prevent horizontal jitter during updates.
+- **Visual containment outlines.** High-contrast QR codes and image previews have subtle
+  1px containment borders for cleaner contrast on dark surfaces.
+- **Readable message timestamps.** Timestamp font color upgraded to `fg3` to meet WCAG AA
+  contrast requirements against dark backgrounds.
+
+### Fixed
+- **Windows Moss startup port allocation.** Probing UDP first in `dual_protocol_port`
+  prevents Windows WSAEACCES errors caused by Hyper-V and WinNAT dynamic port exclusions.
+- **Fast macOS CI builds.** Single-arch (arm64) builds on pull requests cut macOS DMG
+  pipeline duration in half (~7–8 minutes) while tagged releases continue shipping universal binaries.
+
 ## [0.11.1] - 2026-09-30
 
 0.11.0 was tagged but never published: its Windows release build failed
