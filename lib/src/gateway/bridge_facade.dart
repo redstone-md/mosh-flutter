@@ -48,7 +48,9 @@ import 'package:mosh/src/rust/api/diagnostics.dart' as api
         disableCrashReporting,
         enableCrashReporting,
         mossLibraryInfo,
-        nativeRuntimeStatus;
+        nativeRuntimeStatus,
+        startPanicReporting,
+        stopPanicReporting;
 import 'package:mosh/src/rust/api/private_dm.dart' as api
     show
         acceptInvite,
@@ -136,6 +138,12 @@ class BridgeFacade {
   Future<String> enableCrashReporting() => api.enableCrashReporting();
 
   Future<void> disableCrashReporting() => api.disableCrashReporting();
+
+  /// Rust panics as Sentry event JSON, while crash reporting is on.
+  Stream<String> startPanicReporting({required String dsn}) =>
+      api.startPanicReporting(dsn: dsn);
+
+  Future<void> stopPanicReporting() => api.stopPanicReporting();
 
   // Channels/groups read seam (1:1 port of `channel_list`/
   // `private_group_list`). One conversation's own state comes from the

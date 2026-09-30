@@ -1,0 +1,45 @@
+{
+  "event_id": "3266c3df14a24b14ab21827a3fae00fd",
+  "timestamp": 1790758533.5150192,
+  "platform": "native",
+  "level": "fatal",
+  "environment": "production",
+  "exception": {
+    "values": [
+      {
+        "type": "panic",
+        "value": "no session for a3f9c2e81b7d4f60a3f9c2e81b7d4f60",
+        "mechanism": {
+          "type": "panic",
+          "handled": false
+        },
+        "stacktrace": {
+          "frames": [
+            {
+              "function": "mosh_core::stream_transport::deliver",
+              "package": "mosh_core",
+              "filename": "stream_transport.rs",
+              "abs_path": "/home/runner/work/mosh-flutter/mosh-core/src/stream_transport.rs",
+              "lineno": 342,
+              "in_app": true,
+              "instruction_addr": "0x7f3a2c25465"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "debug_meta": {
+    "images": [
+      {
+        "arch": null,
+        "code_id": "d5a17d95e62eecd161bdead6bd066df5d75b8d28",
+        "id": "957da1d5-2ee6-d1ec-61bd-ead6bd066df5",
+        "image_addr": "0x562b9f219000",
+        "image_size": 75627872,
+        "name": "/home/olga/.local/share/mosh/libmosh_core.so",
+        "type": "symbolic"
+      }
+    ]
+  }
+}

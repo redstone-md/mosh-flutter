@@ -1,7 +1,8 @@
 # ADR 0035: Opt-in crash reporting via Sentry
 
 Date: 2026-09-30
-Status: Accepted. Layer 1 (Dart SDK, consent, scrubbing) implemented.
+Status: Accepted. Layers 1 (Dart SDK, consent, scrubbing) and 2 (Rust panics)
+implemented.
 
 ## Context
 
@@ -27,6 +28,13 @@ that users must choose.
   breadcrumbs, no screenshots or replay, `sendDefaultPii: false`.
 - **Scrub before send.** `CrashReportScrubber` runs as `beforeSend` over
   messages, exception values, frame paths and debug-image paths.
+- **Rust panics go through Dart.** `panic_reporting.rs` uses the `sentry` crate
+  (`backtrace`, `debug-images`, `panic`; no transport feature) to capture a
+  panic with its frames and loaded images, which Sentry needs to symbolicate
+  the call chain. A sink transport hands the event JSON to Dart over an FRB
+  stream; Dart sends it through the same scrubber, consent and SDK. One
+  privacy policy, no network code in Rust. A panic inside a bridge call is
+  reported once, from Rust: the Dart-side `PanicException` is dropped.
 
 ## Threat model
 
@@ -54,7 +62,7 @@ ingest request itself carries the client's IP.
   thread stack memory, which can hold fragments of in-memory data. The switch
   subtitle says so.
 - Crashes while reporting is off are not recorded for later sending.
-- Next layers: Rust `sentry` crate for background-thread panics, debug-symbol
-  upload in CI (`SENTRY_AUTH_TOKEN`), a post-crash "send report?" prompt, and a
-  manual report with a reviewed `mosh.log`. The field log's context ids must
-  be hashed before that last one ships.
+- Rust call chains are addresses until debug symbols are uploaded.
+- Next layers: debug-symbol upload in CI (`SENTRY_AUTH_TOKEN`), a post-crash
+  "send report?" prompt, and a manual report with a reviewed `mosh.log`. The
+  field log's context ids must be hashed before that last one ships.

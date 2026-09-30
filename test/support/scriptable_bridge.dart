@@ -16,6 +16,7 @@
 // file/type budgets; the reason, scope and removal plan are documented in
 // ADR 0025.
 
+import 'dart:async' show StreamController;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:mosh/src/gateway/bridge_facade.dart';
@@ -63,6 +64,8 @@ enum BridgeMethod {
   crashReportingSalt,
   enableCrashReporting,
   disableCrashReporting,
+  startPanicReporting,
+  stopPanicReporting,
   listChannels,
   listGroups,
   joinChannel,
@@ -178,6 +181,9 @@ class ScriptableBridge
   /// Seeds the crash-reporting consent; `null` is opted out.
   void seedCrashReportingSalt(String? salt) => _crashReportingSalt = salt;
 
+  /// What `startPanicReporting` streams; tests add Rust event JSON here.
+  final StreamController<String> rustPanics = StreamController.broadcast();
+
   // -------------------------------------------------------------- diagnostics
 
   @override
@@ -268,6 +274,16 @@ class ScriptableBridge
       BridgeMethod.enableCrashReporting,
       const {},
       () => _crashReportingSalt ??= 'scripted-salt');
+
+  @override
+  Stream<String> startPanicReporting({required String dsn}) {
+    calls.add(ScriptedCall(BridgeMethod.startPanicReporting, {'dsn': dsn}));
+    return rustPanics.stream;
+  }
+
+  @override
+  Future<void> stopPanicReporting() =>
+      runScripted(BridgeMethod.stopPanicReporting, const {}, () {});
 
   @override
   Future<void> disableCrashReporting() =>

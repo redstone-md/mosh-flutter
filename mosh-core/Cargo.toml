@@ -34,6 +34,9 @@ if-addrs = "0.15.0"
 audiopus = { version = "0.2.0", features = ["encoder", "decoder"] }
 cpal = "0.18.1"
 ringbuf = "0.5.1"
+# ADR 0035: panic capture only. No transport feature: events go to Dart,
+# which scrubs and sends them.
+sentry = { version = "0.49.3", default-features = false, features = ["backtrace", "debug-images", "panic"] }
 
 [target."cfg(windows)".dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_NetworkManagement_IpHelper", "Win32_Foundation", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
