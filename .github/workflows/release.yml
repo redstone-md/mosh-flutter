@@ -55,10 +55,15 @@ jobs:
   installer:
     needs: verify
     uses: ./.github/workflows/build-windows.yml
+    with:
+      upload-debug-files: true
+    secrets: inherit
 
   dmg:
     needs: verify
     uses: ./.github/workflows/build-macos.yml
+    with:
+      upload-debug-files: true
     secrets: inherit
 
   publish:
