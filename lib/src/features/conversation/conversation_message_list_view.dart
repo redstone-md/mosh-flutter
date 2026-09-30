@@ -14,6 +14,8 @@ import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
 import 'package:mosh/src/features/conversation/message_copy.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 
@@ -91,8 +93,10 @@ class ConversationAttachmentCallbacks {
 }
 
 /// Renders the visible messages of one conversation. Their text can be
-/// selected and copied; see [MessageSelectionArea].
-class ConversationMessageListView extends StatelessWidget {
+/// selected and copied; see [MessageSelectionArea]. Newly arriving messages
+/// animate in (fade + slight slide up + micro-scale) like in Telegram,
+/// while initial messages skip animation on load.
+class ConversationMessageListView extends StatefulWidget {
   const ConversationMessageListView({
     super.key,
     required this.messages,
@@ -119,42 +123,179 @@ class ConversationMessageListView extends StatelessWidget {
   final PeerActions? peer;
 
   @override
+  State<ConversationMessageListView> createState() =>
+      _ConversationMessageListViewState();
+}
+
+class _ConversationMessageListViewState
+    extends State<ConversationMessageListView> {
+  final Set<String> _seenMessageIds = <String>{};
+  final Set<String> _newIncomingIds = <String>{};
+  String? _lastTargetId;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastTargetId = widget.snapshot.target.id;
+    for (final m in widget.messages) {
+      _seenMessageIds.add(_messageKey(m));
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ConversationMessageListView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.snapshot.target.id != _lastTargetId) {
+      _lastTargetId = widget.snapshot.target.id;
+      _seenMessageIds.clear();
+      _newIncomingIds.clear();
+      for (final m in widget.messages) {
+        _seenMessageIds.add(_messageKey(m));
+      }
+      return;
+    }
+
+    _newIncomingIds.clear();
+    for (final m in widget.messages) {
+      final key = _messageKey(m);
+      if (!_seenMessageIds.contains(key)) {
+        _seenMessageIds.add(key);
+        // Only newly arrived incoming messages animate.
+        if (!m.own) {
+          _newIncomingIds.add(key);
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final kind = snapshot.target.kind;
-    // Grouped oldest first, then reversed: the list itself is reversed so
-    // the newest message sits at the bottom.
-    final rows = groupConversationMessages(messages).reversed.toList();
+    final kind = widget.snapshot.target.kind;
+    final rows = groupConversationMessages(widget.messages).reversed.toList();
     return MessageSelectionArea(
       child: ListView.builder(
         padding: kChatScrollPadding,
         reverse: true,
         itemCount: rows.length,
-        itemBuilder: (context, index) {
-          final row = rows[index];
-          final attachment = row.message.attachment;
-          final view = attachment == null
-              ? null
-              : snapshot.attachmentView(attachment.attachmentId);
-          final callbacks = attachmentCallbacks(view);
-          final body = row.message.body;
-          final messageRow = ConversationMessageRow(
-            message: row.message,
-            kind: kind,
-            grouped: row.grouped,
-            attachmentView: view,
-            peer: peer,
-            busy: callbacks.busy,
-            onAttachmentDownload: callbacks.onDownload,
-            onAttachmentCancel: callbacks.onCancel,
-            onAttachmentOpen: callbacks.onOpen,
-            onRetry: onRetryMessage,
-            l: l,
-          );
-          return body.isEmpty
-              ? messageRow
-              : CopyableMessage(body: body, child: messageRow);
-        },
+        itemBuilder: (context, index) =>
+            _buildRow(context, rows[index], kind, l),
+      ),
+    );
+  }
+
+  Widget _buildRow(
+    BuildContext context,
+    GroupedConversationMessage row,
+    ConversationKind kind,
+    AppLocalizations l,
+  ) {
+    final attachment = row.message.attachment;
+    final view = attachment == null
+        ? null
+        : widget.snapshot.attachmentView(attachment.attachmentId);
+    final callbacks = widget.attachmentCallbacks(view);
+    final body = row.message.body;
+    final messageRow = ConversationMessageRow(
+      message: row.message,
+      kind: kind,
+      grouped: row.grouped,
+      attachmentView: view,
+      peer: widget.peer,
+      busy: callbacks.busy,
+      onAttachmentDownload: callbacks.onDownload,
+      onAttachmentCancel: callbacks.onCancel,
+      onAttachmentOpen: callbacks.onOpen,
+      onRetry: widget.onRetryMessage,
+      l: l,
+    );
+    final wrapped = body.isEmpty
+        ? messageRow
+        : CopyableMessage(body: body, child: messageRow);
+
+    final id = _messageKey(row.message);
+    return _AnimatedMessageRow(
+      key: ValueKey(id),
+      animate: _newIncomingIds.contains(id),
+      child: wrapped,
+    );
+  }
+
+  String _messageKey(ConversationMessage m) =>
+      m.messageId ??
+      '${m.fromDevice}:${m.sentAtMs}:${m.body}:${identityHashCode(m)}';
+}
+
+/// Telegram-style entrance animation for newly arriving messages: subtle
+/// fade-in + slight slide-up + micro-scale with an ease-out cubic curve.
+class _AnimatedMessageRow extends StatefulWidget {
+  const _AnimatedMessageRow({
+    super.key,
+    required this.animate,
+    required this.child,
+  });
+
+  final bool animate;
+  final Widget child;
+
+  @override
+  State<_AnimatedMessageRow> createState() => _AnimatedMessageRowState();
+}
+
+class _AnimatedMessageRowState extends State<_AnimatedMessageRow>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _controller;
+  Animation<double>? _fadeAnimation;
+  Animation<Offset>? _slideAnimation;
+  Animation<double>? _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) {
+      final controller = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 240),
+      );
+      _controller = controller;
+      final curve = CurvedAnimation(
+        parent: controller,
+        curve: Curves.easeOutCubic,
+      );
+      _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(curve);
+      _slideAnimation = Tween<Offset>(
+        begin: const Offset(0, 0.06),
+        end: Offset.zero,
+      ).animate(curve);
+      _scaleAnimation = Tween<double>(begin: 0.94, end: 1.0).animate(curve);
+      controller.addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) {
+          setState(() {});
+        }
+      });
+      controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    if (controller == null || controller.isCompleted) return widget.child;
+    return FadeTransition(
+      opacity: _fadeAnimation!,
+      child: SlideTransition(
+        position: _slideAnimation!,
+        child: ScaleTransition(
+          scale: _scaleAnimation!,
+          alignment: Alignment.bottomLeft,
+          child: widget.child,
+        ),
       ),
     );
   }

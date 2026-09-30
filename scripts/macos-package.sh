@@ -14,7 +14,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/build/macos/Build/Products/Release/mosh.app"
 VERSION="$(sed -n 's/^version:[[:space:]]*//p' "$ROOT/pubspec.yaml" | tr -d '[:space:]')"
 DIST="$ROOT/build/macos-dist"
-DMG="$DIST/Mosh_${VERSION}_universal.dmg"
+UNIVERSAL="${MOSH_MACOS_UNIVERSAL:-true}"
+if [ "$UNIVERSAL" = "false" ]; then
+  ARCH_SUFFIX="$(uname -m)"
+else
+  ARCH_SUFFIX="universal"
+fi
+DMG="$DIST/Mosh_${VERSION}_${ARCH_SUFFIX}.dmg"
 BACKGROUND="$ROOT/macos/packaging/dmg-background.png"
 
 fail() {
@@ -29,9 +35,8 @@ fail() {
 BUNDLED_LIB="$APP/Contents/MacOS/libmoss.dylib"
 [ -f "$BUNDLED_LIB" ] || fail "libmoss.dylib is not in Contents/MacOS (run scripts/moss-prepare.mjs before the build)"
 
-# Everything that must run on both Intel and Apple Silicon: the main
-# executable and every dylib in the bundle (mosh_core from cargokit,
-# libmoss from the copy phase).
+# Everything that must run on the target arch: the main executable and every
+# dylib in the bundle (mosh_core from cargokit, libmoss from the copy phase).
 while IFS= read -r -d '' binary; do
   archs="$(lipo -archs "$binary" 2>/dev/null || true)"
   case "$archs" in
@@ -42,11 +47,15 @@ while IFS= read -r -d '' binary; do
     *arm64*) ;;
     *) fail "no arm64 slice in $binary" ;;
   esac
-  case "$archs" in
-    *x86_64*) ;;
-    *) fail "no x86_64 slice in $binary" ;;
-  esac
-  echo "universal ok: ${binary#"$APP"/} ($archs)"
+  if [ "$UNIVERSAL" != "false" ]; then
+    case "$archs" in
+      *x86_64*) ;;
+      *) fail "no x86_64 slice in $binary" ;;
+    esac
+    echo "universal ok: ${binary#"$APP"/} ($archs)"
+  else
+    echo "arch check ok: ${binary#"$APP"/} ($archs)"
+  fi
 done < <(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" -maxdepth 1 \( -name '*.dylib' -o -path "$APP/Contents/MacOS/mosh" \) -print0)
 
 # --- Signing --------------------------------------------------------------------

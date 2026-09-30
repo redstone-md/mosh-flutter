@@ -29,15 +29,26 @@ class Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     // ThemeData fills every text slot, so labelMedium is never null.
     final step = Theme.of(context).textTheme.labelMedium!;
-    return CircleAvatar(
-      backgroundColor: MoshColors.avatarSurface,
-      radius: radius,
-      child: Text(
-        avatarInitials(name),
-        style: step.copyWith(
-          color: MoshColors.fg1,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.04 * step.fontSize!,
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      foregroundDecoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+          width: 1,
+        ),
+      ),
+      child: CircleAvatar(
+        backgroundColor: MoshColors.avatarSurface,
+        radius: radius,
+        child: Text(
+          avatarInitials(name),
+          style: step.copyWith(
+            color: MoshColors.fg1,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.04 * step.fontSize!,
+          ),
         ),
       ),
     );
