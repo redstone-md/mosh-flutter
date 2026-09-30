@@ -12,11 +12,11 @@
 // the caller decides routing.
 import 'package:flutter/material.dart';
 
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 part 'onboard_menu_x.dart';
@@ -70,16 +70,10 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
   void _onNameChanged(String value) =>
       ref.read(inviteFlowProvider.notifier).setDisplayName(value);
 
-  TextStyle? _sectionStyle(ThemeData t) => t.textTheme.labelSmall?.copyWith(
-        color: MoshColors.fg4,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.365,
-      );
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
+    final text = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -91,27 +85,15 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
           onChanged: _onNameChanged,
         ),
         const SizedBox(height: 18),
-        Text(
-          l.onboardTitle,
-          style: const TextStyle(
-            fontSize: 23,
-            letterSpacing: -0.23,
-            color: MoshColors.fg1,
-          ),
-        ),
+        Text(l.onboardTitle, style: text.headlineMedium),
         const SizedBox(height: 6),
         Text(
           l.onboardSubtitle,
-          style: const TextStyle(
-            fontSize: 12.5,
-            height: 1.55,
-            color: MoshColors.fg3,
-          ),
+          style: text.bodySmall?.copyWith(color: MoshColors.fg3),
         ),
         const SizedBox(height: 18),
         _TileSection(
           label: l.onboardStartLabel,
-          labelStyle: _sectionStyle(theme),
           tiles: [
             _OnboardTile(
               icon: Icons.chat_bubble_outline,
@@ -127,9 +109,9 @@ class _OnboardMenuState extends ConsumerState<OnboardMenu> {
             ),
           ],
         ),
+        const SizedBox(height: 18),
         _TileSection(
           label: l.onboardJoinLabel,
-          labelStyle: _sectionStyle(theme),
           tiles: [
             _OnboardTile(
               icon: Icons.link,
