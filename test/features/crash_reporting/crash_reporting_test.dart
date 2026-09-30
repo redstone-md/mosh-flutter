@@ -1,5 +1,7 @@
 // Opt-in crash reporting (ADR 0035): the SDK starts only with consent and a
 // build DSN, and an opt-out stops it before forgetting the consent.
+import 'dart:io' show File;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,6 +20,8 @@ class _Sdk {
         dsn: dsn,
         start: (dsn, salt) async => events.add('start $salt'),
         stop: () async => events.add('stop'),
+        capture: (event) =>
+            events.add('capture ${event.exceptions!.single.type}'),
       );
 }
 
@@ -41,12 +45,44 @@ void main() {
     expect(sdk.events, isEmpty);
   });
 
+  test('a failed start leaves the install opted out', () async {
+    final bridge = ScriptableBridge();
+    final reporting = CrashReporting(
+      bridge: bridge,
+      dsn: 'dsn',
+      start: (dsn, salt) async => throw StateError('sdk down'),
+      stop: () async {},
+    );
+    await expectLater(reporting.setEnabled(true), throwsStateError);
+    expect(await bridge.crashReportingSalt(), isNull,
+        reason: 'a switch shown off must not report on the next launch');
+  });
+
   test('opt-out stops the SDK and forgets the consent', () async {
     final sdk = _Sdk();
     final bridge = ScriptableBridge()..seedCrashReportingSalt('s1');
     await sdk.reporting(bridge).setEnabled(false);
     expect(sdk.events, ['stop']);
     expect(await bridge.crashReportingSalt(), isNull);
+  });
+
+  test('Rust panics are forwarded while on, and not after opt-out', () async {
+    final sdk = _Sdk();
+    final bridge = ScriptableBridge()..seedCrashReportingSalt('s1');
+    final reporting = sdk.reporting(bridge);
+    final panic =
+        File('test/fixtures/rust_panic_event.json').readAsStringSync();
+
+    await reporting.resume();
+    bridge.rustPanics.add(panic);
+    await pumpEventQueue();
+    expect(sdk.events, ['start s1', 'capture panic']);
+
+    await reporting.setEnabled(false);
+    bridge.rustPanics.add(panic);
+    await pumpEventQueue();
+    expect(sdk.events, ['start s1', 'capture panic', 'stop']);
+    expect(bridge.callsTo(BridgeMethod.stopPanicReporting), isNotEmpty);
   });
 
   testWidgets('switching on records consent and starts reporting',

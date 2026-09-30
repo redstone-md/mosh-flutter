@@ -9,6 +9,7 @@
 
 use crate::api::shared_runtime::{database_path, ensure_shared_resources};
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
+use crate::frb_generated::StreamSink;
 use crate::moss_runtime::{MossDynamicRuntime, MossRuntime, MossRuntimeStatus};
 pub use crate::openmls_crypto::{
     run_openmls_alice_bob_roundtrip, run_openmls_smoke_test, OpenMlsRoundTripStatus,
@@ -285,6 +286,22 @@ pub fn enable_crash_reporting() -> Result<String, String> {
 pub fn disable_crash_reporting() -> Result<(), String> {
     crate::crash_reporting::disable(&crate::api::shared_runtime::resolved_data_dir())
         .map_err(|error| error.to_string())
+}
+
+/// Start capturing Rust panics while crash reporting is on. Each panic
+/// arrives on `sink` as Sentry event JSON; Dart scrubs and sends it.
+pub fn start_panic_reporting(dsn: String, sink: StreamSink<String>) -> Result<(), String> {
+    crate::panic_reporting::start(
+        &dsn,
+        Box::new(move |json| {
+            let _ = sink.add(json);
+        }),
+    )
+}
+
+/// Stop capturing Rust panics (crash reporting switched off).
+pub fn stop_panic_reporting() {
+    crate::panic_reporting::stop();
 }
 
 #[cfg(test)]

@@ -1,7 +1,11 @@
+import 'dart:io' show File;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:mosh/src/features/crash_reporting/crash_report_scrubber.dart';
+import 'package:mosh/src/features/crash_reporting/crash_reporting.dart'
+    show rustEventFromJson;
 
 void main() {
   final scrubber = CrashReportScrubber(salt: 'salt-a');
@@ -59,6 +63,21 @@ void main() {
         isNot(contains('olga')));
     expect(out.serverName, isNull);
     expect(out.user, isNull);
+  });
+
+  test('a Rust panic keeps what symbolication needs and loses the user', () {
+    final event = rustEventFromJson(
+      File('test/fixtures/rust_panic_event.json').readAsStringSync(),
+    );
+    final out = scrubber.scrubEvent(event).toJson();
+    final image = (out['debug_meta'] as Map)['images'][0] as Map;
+    final frame = (out['exception'] as Map)['values'][0]['stacktrace']['frames']
+        [0] as Map;
+    expect(out['platform'], 'native');
+    expect(image['id'], '957da1d5-2ee6-d1ec-61bd-ead6bd066df5');
+    expect(image['name'], isNot(contains('olga')));
+    expect(frame['instruction_addr'], '0x7f3a2c25465');
+    expect(out.toString(), isNot(contains(peer)));
   });
 }
 

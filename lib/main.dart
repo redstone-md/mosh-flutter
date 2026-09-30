@@ -1,4 +1,4 @@
-import 'dart:async' show Completer;
+import 'dart:async' show Completer, unawaited;
 import 'dart:io' show Platform;
 
 // `hide LockState` resolves an ambiguous-import clash: material re-exports
@@ -92,11 +92,13 @@ void main(List<String> args) async {
   // open. Must run BEFORE `initMobileDek()` and the first runtime
   // construct; idempotent-once on the Rust side.
   await setAppDataDirBridge();
-  // ADR 0035: start opt-in crash reporting as early as the consent file is
-  // readable (it lives in the data dir just bridged), so launch failures
-  // after this point are reported. A no-op without consent or without a
-  // build DSN; never throws.
-  await CrashReporting(bridge: BridgeFacade()).resume();
+  // ADR 0035: start opt-in crash reporting once the consent file is
+  // readable (it lives in the data dir just bridged). Not awaited: the SDK
+  // init must not hold back the first frame, so failures in the first
+  // moments of launch may go unreported. A no-op without consent or without
+  // a build DSN; never throws.
+  final crashReporting = CrashReporting(bridge: BridgeFacade());
+  unawaited(crashReporting.resume());
   // M-3 (ADR 0011): on Android, load/mint the at-rest history DEK from the
   // Keystore via `flutter_secure_storage` and inject the 32 raw bytes into
   // Rust via the frb `set_history_dek` BEFORE the runtime constructs
@@ -120,7 +122,10 @@ void main(List<String> args) async {
   // synchronously.
   runApp(
     ProviderScope(
-      overrides: productionOverrides,
+      overrides: [
+        ...productionOverrides,
+        crashReportingProvider.overrideWithValue(crashReporting),
+      ],
       child: ValueListenableBuilder<Widget>(
         valueListenable: _appRoot,
         builder: (BuildContext context, Widget value, _) => value,

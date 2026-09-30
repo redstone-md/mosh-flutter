@@ -23,6 +23,7 @@ pub mod org_roster;
 pub mod org_runtime;
 pub mod org_signing;
 pub mod outbound_delivery;
+pub mod panic_reporting;
 pub mod persistence;
 pub mod private_dm_runtime;
 pub mod private_group_runtime;
