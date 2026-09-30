@@ -156,6 +156,6 @@ void _goJoin(String inviteUri) {
     appRouter.go(AppRoutes.join, extra: inviteUri);
   } catch (e, st) {
     // Never let a navigation failure crash the link stream listener.
-    debugPrint('mosh: failed to navigate to /join for $inviteUri: $e\n$st');
+    debugPrint('mosh: failed to navigate to /join: $e\n$st');
   }
 }

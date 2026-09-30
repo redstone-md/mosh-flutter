@@ -37,6 +37,20 @@ Future<MossLibraryInfo> mossLibraryInfo({String? peerMossId}) =>
     RustLib.instance.api
         .crateApiDiagnosticsMossLibraryInfo(peerMossId: peerMossId);
 
+/// The crash-reporting scrub salt when the user opted in, `None` when not
+/// (ADR 0035). A file read, like `read_receipts_enabled`: the reporter asks
+/// early in launch, before any runtime exists.
+Future<String?> crashReportingSalt() =>
+    RustLib.instance.api.crateApiDiagnosticsCrashReportingSalt();
+
+/// Opt in to crash reporting; returns the install's scrub salt.
+Future<String> enableCrashReporting() =>
+    RustLib.instance.api.crateApiDiagnosticsEnableCrashReporting();
+
+/// Opt out of crash reporting; forgets the scrub salt.
+Future<void> disableCrashReporting() =>
+    RustLib.instance.api.crateApiDiagnosticsDisableCrashReporting();
+
 /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
 class AppDiagnostics {
   final String appName;

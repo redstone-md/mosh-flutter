@@ -5,6 +5,11 @@ writes its operating events to, so a release Windows build — no console,
 stderr lost — still leaves an answer to "what happened". Reference:
 [Architecture](../Architecture.md).
 
+The file stays on the device: opt-in crash reporting
+([ADR 0035](../ADR/0035-opt-in-crash-reporting.md)) does not send it. Its
+context ids are raw peer, session and group ids, so they must be hashed
+before any report attaches it.
+
 ## The flow
 
 ```mermaid
