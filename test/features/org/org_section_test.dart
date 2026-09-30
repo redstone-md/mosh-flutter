@@ -3,9 +3,11 @@
 // callbacks, the admin new-group form, and the member list (avatar, you
 // badge, admin crown, self disabled).
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import '../../support/pump.dart';
@@ -206,7 +208,8 @@ void main() {
         ),
       );
       expect(find.byIcon(Icons.add), findsOneWidget);
-      expect(find.text('e.g. Design review'), findsOneWidget);
+      // The field is named by a label, not only by its placeholder.
+      expect(find.text('Group name'), findsOneWidget);
     },
   );
 
@@ -261,7 +264,44 @@ void main() {
           l: await _l(),
         ),
       );
-      expect(find.byIcon(Icons.workspace_premium), findsOneWidget);
+      // The crown is the only cue for the role, so it carries a name.
+      expect(find.bySemanticsLabel(RegExp('Org admin')), findsOneWidget);
     },
   );
+
+  testWidgets('Tab onto a member row draws the keyboard focus ring',
+      (tester) async {
+    await _pump(
+      tester,
+      section: OrgSection(
+        org: _org(members: [_member(name: 'Alice')]),
+        busy: false,
+        onMember: (_, __) {},
+        onAcceptDmOffer: (_, __) {},
+        onDismissDmOffer: (_, __) {},
+        onAcceptGroupOffer: (_, __) {},
+        onDismissGroupOffer: (_, __) {},
+        onCreateGroup: (_, __) {},
+        onLeave: (_) {},
+        l: await _l(),
+      ),
+    );
+
+    // The leave button, then the member row.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    final ring = find.ancestor(
+      of: find.text('Alice'),
+      matching: find.byWidgetPredicate(
+        (w) => switch (w) {
+          DecoratedBox(decoration: BoxDecoration(:final border)) =>
+            border == Border.all(color: MoshColors.focusRing, width: 2),
+          _ => false,
+        },
+      ),
+    );
+    expect(ring, findsOneWidget);
+  });
 }

@@ -139,9 +139,9 @@ final class ChannelRailEntry extends RailEntry {
   }
 }
 
-/// One group row: leading `Icons.group`, title the group label (falling
-/// back to a shortened group id), subtitle the member count, trailing
-/// `UnreadBadge`. `onTap` opens the group screen.
+/// One group row: leading `Icons.group_outlined`, title the group label
+/// (falling back to a shortened group id), subtitle the member count,
+/// trailing `UnreadBadge`. `onTap` opens the group screen.
 final class GroupRailEntry extends RailEntry {
   const GroupRailEntry(this.group);
 
@@ -157,7 +157,7 @@ final class GroupRailEntry extends RailEntry {
     final label = group.label ?? shorten(group.groupId, 6);
     return RailItem(
       kind: RailItemKind.group,
-      leading: const Icon(Icons.group),
+      leading: const Icon(Icons.group_outlined),
       title: label,
       // `memberCount` is a `BigInt`; narrowing to `int` is safe for
       // realistic member counts.
