@@ -12,6 +12,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,10 @@ use serde::{Deserialize, Serialize};
 const FILE_NAME: &str = "crash-reporting.json";
 /// Salt length in bytes before hex encoding.
 const SALT_BYTES: usize = 16;
+
+/// Serializes enable/disable, so two concurrent enables cannot mint two
+/// salts. In-process only: one app instance owns the data dir.
+static CONSENT_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct CrashReportingConsent {
@@ -40,6 +45,9 @@ pub fn salt(config_dir: &Path) -> Option<String> {
 /// Opts in and returns the salt. Keeps an existing salt, so enabling twice
 /// does not split one install into two.
 pub fn enable(config_dir: &Path) -> std::io::Result<String> {
+    let _guard = CONSENT_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     if let Some(existing) = salt(config_dir) {
         return Ok(existing);
     }
@@ -57,6 +65,9 @@ pub fn enable(config_dir: &Path) -> std::io::Result<String> {
 
 /// Opts out: deletes the file, and with it the salt. Already-off is fine.
 pub fn disable(config_dir: &Path) -> std::io::Result<()> {
+    let _guard = CONSENT_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     match fs::remove_file(consent_path(config_dir)) {
         Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error),
         _ => Ok(()),
