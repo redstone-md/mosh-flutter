@@ -36,6 +36,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/org/org_section.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart'
+    show ConversationActionError;
 import 'package:mosh/src/features/sessions/rail_entry.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_rail_actions.dart';
@@ -98,8 +100,11 @@ class SessionsScreen extends ConsumerWidget {
               const RailDivider(),
               Expanded(
                 child: async.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                  loading: () => Center(
+                    child: CircularProgressIndicator(
+                      semanticsLabel: l.sessionsLoading,
+                    ),
+                  ),
                   error: (e, _) => _ErrorState(error: e, ref: ref),
                   data: (list) => _RailList(dmSessions: sessionsOf(list)),
                 ),
@@ -207,7 +212,7 @@ class _RailList extends ConsumerWidget {
           OfferRailEntry(
             pending: offer,
             onAccept: () => acceptOfferAction(context, ref, offer),
-            onDismiss: () => dismissOfferAction(ref, offer),
+            onDismiss: () => dismissOfferAction(context, ref, offer),
           ),
       ],
       [
@@ -350,16 +355,26 @@ class _ErrorState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                l.sessionsError,
-                style: theme.textTheme.titleMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                error.toString(),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall,
+              // One live region, so a screen reader announces the failure
+              // and its reason together when the list fails to load.
+              Semantics(
+                liveRegion: true,
+                container: true,
+                child: Column(
+                  children: [
+                    Text(
+                      l.sessionsError,
+                      style: theme.textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      ConversationActionError.of(error).describe(l),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 18),
               FilledButton(
