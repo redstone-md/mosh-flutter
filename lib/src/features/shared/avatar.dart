@@ -32,10 +32,10 @@ class Avatar extends StatelessWidget {
     return Container(
       width: radius * 2,
       height: radius * 2,
-      decoration: BoxDecoration(
+      foregroundDecoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: Colors.white.withValues(alpha: 0.10),
           width: 1,
         ),
       ),

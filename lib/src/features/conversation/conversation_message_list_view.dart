@@ -222,7 +222,8 @@ class _ConversationMessageListViewState
   }
 
   String _messageKey(ConversationMessage m) =>
-      m.messageId ?? '${m.fromDevice}:${m.sentAtMs}:${m.body}';
+      m.messageId ??
+      '${m.fromDevice}:${m.sentAtMs}:${m.body}:${identityHashCode(m)}';
 }
 
 /// Telegram-style entrance animation for newly arriving messages: subtle
@@ -263,7 +264,7 @@ class _AnimatedMessageRowState extends State<_AnimatedMessageRow>
       );
       _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(curve);
       _slideAnimation = Tween<Offset>(
-        begin: const Offset(0, 0.2),
+        begin: const Offset(0, 0.06),
         end: Offset.zero,
       ).animate(curve);
       _scaleAnimation = Tween<double>(begin: 0.94, end: 1.0).animate(curve);

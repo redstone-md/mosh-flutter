@@ -308,7 +308,7 @@ class _CloseButton extends StatelessWidget {
       tooltip: tooltip,
       icon: const Icon(Icons.close, size: 16),
       onPressed: onPressed,
-      visualDensity: VisualDensity.compact,
+      visualDensity: VisualDensity.standard,
       // >=40px hit area for comfortable desktop targeting.
       splashRadius: 20,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),

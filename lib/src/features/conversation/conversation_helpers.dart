@@ -70,11 +70,11 @@ const TextStyle kMessageMetaNameStyle = TextStyle(
   color: MoshColors.fg1,
 );
 
-/// Timestamp in a message meta row: 11px fg-4 with tabular figures so
-/// numerals keep equal width.
+/// Timestamp in a message meta row: 11px fg-3 with tabular figures so
+/// numerals keep equal width and clear contrast.
 const TextStyle kMessageTimeStyle = TextStyle(
   fontSize: 11,
-  color: MoshColors.fg4,
+  color: MoshColors.fg3,
   fontFeatures: kLiveNumberFontFeatures,
 );
 

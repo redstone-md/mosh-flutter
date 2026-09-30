@@ -38,11 +38,18 @@ class TypingHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final String? text;
-    if (names.isNotEmpty && l != null) {
-      final label = typingLabel ?? l.typingHint;
-      text = names.length == 1
-          ? label(names.first)
-          : '${names.join(', ')} ${l.typingHintAnd}';
+    if (names.isNotEmpty) {
+      if (typingLabel != null) {
+        text = names.length == 1
+            ? typingLabel!(names.first)
+            : '${names.join(', ')} and others are typing…';
+      } else if (l != null) {
+        text = names.length == 1
+            ? l.typingHint(names.first)
+            : '${names.join(', ')} ${l.typingHintAnd}';
+      } else {
+        text = null;
+      }
     } else {
       text = null;
     }

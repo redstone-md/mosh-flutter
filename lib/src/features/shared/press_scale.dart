@@ -35,6 +35,14 @@ class _PressScaleState extends State<PressScale> {
   }
 
   @override
+  void didUpdateWidget(covariant PressScale oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.enabled && _pressed) {
+      _pressed = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
     return Listener(
