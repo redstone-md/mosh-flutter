@@ -48,8 +48,12 @@ void main() {
       l.onboardTileJoinDesc,
       l.onboardTileChannelDesc,
     ]) {
+      // Not cut by a line cap, and laid out as tall as its lines need, so
+      // not cut by the parent either.
       final paragraph = tester.renderObject<RenderParagraph>(find.text(desc));
       expect(paragraph.didExceedMaxLines, isFalse, reason: desc);
+      final needed = paragraph.getMaxIntrinsicHeight(paragraph.size.width);
+      expect(paragraph.size.height, greaterThanOrEqualTo(needed), reason: desc);
     }
   });
 
