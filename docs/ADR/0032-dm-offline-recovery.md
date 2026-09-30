@@ -122,6 +122,9 @@ visible text before recording it as already received. A crash cannot leave a
 durable completion/observation marker ahead of those rows. Initial history and
 recovery share one commit/publish helper and one signed-frame ceiling check.
 
+Selecting a source and saving each batch immediately pull the next batch, so
+a transfer runs at round-trip speed. The two-second device pump repeats a
+pull only when no pull went out during that interval.
 After ten seconds without source progress, start a new round and probe again.
 A replacement source starts at its own frozen manifest's first record.
 Already imported rows remain deduplicated; incomplete fragments from the old
