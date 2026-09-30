@@ -5,13 +5,9 @@
 // chat). These tests pin both layouts so a regression that re-flattens
 // the routes (rail disappears while reading a DM) fails loudly.
 //
-// The tests pump the real MoshApp (which owns the process-global appRouter)
-// inside a ProviderScope overriding the two bridge providers with scripted
-// doubles sharing one conversation state
-// seeded with one DM session
-// (peer display name 'Alice' / 'Bob'). The surface width is set via
-// tester.view.physicalSize + devicePixelRatio so isMobileBreakpoint
-// (MediaQuery.sizeOf, width <= 580) reads the test width.
+// The tests pump the real MoshApp through shell_harness.dart, seeded with
+// one DM session (peer display name 'Alice' / 'Bob'), at a surface width
+// isMobileBreakpoint (MediaQuery.sizeOf, width <= 580) reads.
 //
 // Cases:
 //   1. Desktop (1200x900): /sessions shows the rail (SessionsScreen) AND
@@ -28,9 +24,7 @@
 //      so the tap silently no-opped).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/main.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
@@ -39,65 +33,10 @@ import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
+import 'shell_harness.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
-
-// Seeded test gateway: listSessions + poll return one DM session
-// with the given peer display name, so the rail renders one row AND the DM
-// screen resolves without the native cdylib. leave removes the
-// seeded session so the leave-flow's context.go('/sessions') returns to an
-// empty rail (mirrors the real close).
-SessionSnapshot _session({required String sessionId, required String peer}) =>
-    SessionSnapshot(
-      sessionId: sessionId,
-      meshId: 'testmesh',
-      role: 'inviter',
-      displayName: 'me',
-      peerDisplayName: peer,
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
-      inviteUri: null,
-      fingerprint: 'AABB',
-      messages: const [],
-      attachments: const [],
-      mesh: null,
-      events: const [],
-      pendingCall: null,
-      outgoingCall: null,
-      activeCall: null,
-    );
-
-// Pumps MoshApp (owns appRouter) inside a ProviderScope overriding the two
-// bridge providers, at the given surface size. appRouter is process-global,
-// so the test navigates it via appRouter.go('/sessions') before pumping so
-// the rail is the initial visible branch.
-Future<void> _pumpApp(
-  WidgetTester tester, {
-  required ScriptableGateway gateway,
-  required Size physical,
-}) async {
-  tester.view.physicalSize = physical;
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  // Reset the process-global router to the rail so a prior test's location
-  // does not leak in (appRouter is shared across tests in this file).
-  appRouter.go(AppRoutes.sessions);
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      gatewayProvider.overrideWithValue(gateway),
-      bridgeFacadeProvider.overrideWithValue(
-          ScriptableBridge(conversations: gateway.conversations)),
-    ],
-    child: const MoshApp(),
-  ));
-  await tester.pumpAndSettle();
-}
 
 // The onboard head shares its label with the rail's start button.
 Finder _onboardTitle() => find.descendant(
@@ -111,9 +50,9 @@ void main() {
       'tapping a DM row swaps the chat pane while the rail STAYS',
       (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'alice-1', peer: 'Alice')]);
+      ..seedSessions([shellSession(sessionId: 'alice-1', peer: 'Alice')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // Desktop two-pane: the rail (SessionsScreen) AND the welcome pane
     // (ChatPaneWelcome) BOTH render (the rail stays beside
@@ -138,9 +77,9 @@ void main() {
       'mounts PeerStatusDrawer and the close button unmounts it',
       (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'carol-1', peer: 'Carol')]);
+      ..seedSessions([shellSession(sessionId: 'carol-1', peer: 'Carol')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // No drawer before the titlebar button is tapped.
     expect(find.byType(PeerStatusDrawer), findsNothing);
@@ -175,9 +114,9 @@ void main() {
       'DmScreen and the rail is GONE; leaving returns to the rail',
       (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'bob-1', peer: 'Bob')]);
+      ..seedSessions([shellSession(sessionId: 'bob-1', peer: 'Bob')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(400, 800));
 
     // Mobile single-pane: the rail renders ALONE (no welcome pane -- the
     // chat branch is offstage).
@@ -223,9 +162,9 @@ void main() {
       'desktop (1200x900): closing a DM routes to /chat so the inline '
       'NewSessionPanel reappears while the rail STAYS mounted', (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'frank-1', peer: 'Frank')]);
+      ..seedSessions([shellSession(sessionId: 'frank-1', peer: 'Frank')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // Open Frank's DM. Desktop two-pane: rail STAYS, chat pane swaps to
     // the DM (the welcome pane is replaced).
@@ -260,9 +199,9 @@ void main() {
       'tapping the Chat tile switches the inline step (no routing); Back '
       'returns to the menu', (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'dave-1', peer: 'Dave')]);
+      ..seedSessions([shellSession(sessionId: 'dave-1', peer: 'Dave')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // The welcome pane renders beside the rail (chat branch preloaded).
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
@@ -325,9 +264,9 @@ void main() {
   testWidgets('mobile (400x800): ChatPaneWelcome embeds NewSessionPanel inline',
       (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'erin-1', peer: 'Erin')]);
+      ..seedSessions([shellSession(sessionId: 'erin-1', peer: 'Erin')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(400, 800));
 
     // Mobile single-pane: the chat branch is offstage (rail is active),
     // so navigate to /chat to mount ChatPaneWelcome as the active branch.
@@ -341,5 +280,25 @@ void main() {
     expect(_onboardTitle(), findsOneWidget);
     expect(find.text('Start a private chat'), findsOneWidget);
     expect(find.byType(ChatCreateScreen), findsNothing);
+  });
+
+  // The DM is a pushed route in the chat branch; its ModalBarrier blocks the
+  // semantics of everything painted before it in the shell.
+  testWidgets(
+      'desktop (1200x900): with a DM open, screen readers still reach the '
+      'rail and the titlebar', (tester) async {
+    final handle = tester.ensureSemantics();
+    final gw = ScriptableGateway()
+      ..seedSessions([shellSession(sessionId: 'gina-1', peer: 'Gina')]);
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
+
+    await tester.tap(find.text('Gina'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DmScreen), findsOneWidget);
+
+    expect(
+        find.bySemanticsLabel(RegExp('Start a conversation')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Connection status')), findsOneWidget);
+    handle.dispose();
   });
 }
