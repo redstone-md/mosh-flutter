@@ -1,8 +1,8 @@
 # ADR 0035: Opt-in crash reporting via Sentry
 
 Date: 2026-09-30
-Status: Accepted. Layers 1 (Dart SDK, consent, scrubbing) and 2 (Rust panics)
-implemented.
+Status: Accepted. Layers 1 (Dart SDK, consent, scrubbing), 2 (Rust panics) and
+3 (debug files) implemented.
 
 ## Context
 
@@ -35,6 +35,11 @@ that users must choose.
   stream; Dart sends it through the same scrubber, consent and SDK. One
   privacy policy, no network code in Rust. A panic inside a bridge call is
   reported once, from Rust: the Dart-side `PanicException` is dropped.
+- **Debug files stay off the device.** The release profile writes line tables
+  to separate files (PDB on Windows, dSYM on macOS) instead of stripping them;
+  release-tag builds upload them with `sentry-cli debug-files upload`
+  (secret `SENTRY_AUTH_TOKEN`). Dart frames need nothing: AOT traces are
+  symbolic without `--split-debug-info`.
 
 ## Threat model
 
@@ -62,7 +67,9 @@ ingest request itself carries the client's IP.
   thread stack memory, which can hold fragments of in-memory data. The switch
   subtitle says so.
 - Crashes while reporting is off are not recorded for later sending.
-- Rust call chains are addresses until debug symbols are uploaded.
-- Next layers: debug-symbol upload in CI (`SENTRY_AUTH_TOKEN`), a post-crash
-  "send report?" prompt, and a manual report with a reviewed `mosh.log`. The
-  field log's context ids must be hashed before that last one ships.
+- A release built without the token (a fork) reports Rust frames as
+  addresses. moss is stripped Go (`-s -w`), so its native frames stay
+  addresses too.
+- Next layers: a post-crash "send report?" prompt, and a manual report with
+  a reviewed `mosh.log`. The field log's context ids must be hashed before
+  that last one ships.
