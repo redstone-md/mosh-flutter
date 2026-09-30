@@ -5,16 +5,17 @@
 //
 // Layout: brand (shield icon + strong "MOSH" product name), subtitle,
 // "Peer status" button (opens the PeerStatusDrawer for the active
-// conversation), then the live StatePill for the active conversation.
+// conversation), then the live StatePill for the active conversation. The
+// subtitle and the pill ellipsize (full text in a tooltip); below
+// [_kCompactWidth] the Peer status button drops to its icon.
 //
 // State (all live): activeConversationKeyProvider -> key; the matching
 // snapshot family is watched for the live .state (activeSessionProvider /
 // channelSnapshotProvider / groupSnapshotProvider). Label mapper:
 // stateLabel() (features/diagnostics/state_label.dart) -- reused, DRY.
 //
-// Colors: the same literals summary_card.dart / bind_interface_field.dart
-// use; neutral pill chrome maps to theme.surfaceContainerHighest /
-// theme.dividerColor.
+// Colors: MoshColors tokens; neutral pill chrome maps to
+// theme.surfaceContainerHighest / theme.dividerColor.
 library;
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
+import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/state/active_conversation_key_provider.dart';
@@ -30,15 +32,10 @@ import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-// File-local pill colors, kept so the pill chrome is self-describing
-// without threading a theme extension through the seed ColorScheme.
-const Color _kMoss = MoshColors.moss;
-const Color _kWarn = MoshColors.warn;
-const Color _kFg3 = MoshColors.fg3;
-// Moss-glow background: rgba(183,216,74,~0.14). summary_card.dart uses
-// `Color(0x24B7D84A).withValues(alpha: 0.14)` for the ready badge; this
-// file mirrors that exact recipe.
-final Color _kMossGlow = const Color(0x24B7D84A).withValues(alpha: 0.14);
+/// Below this bar width the Peer status button shows only its icon.
+const double _kCompactWidth = 640;
+
+const IconData _kPeerStatusIcon = Icons.electrical_services_outlined;
 
 /// Desktop titlebar. Watches activeConversationKeyProvider + the matching
 /// snapshot family only for the StatePill slot. The shell-level
@@ -59,83 +56,103 @@ class MoshTitleBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final activeKey = ref.watch(activeConversationProvider);
-    // 44-tall bar with a bottom hairline. Wrapped in a transparent
-    // Material so the Peer status button's InkWell has an ink ancestor --
-    // the shell mounts the titlebar ABOVE the branch Scaffolds, so there
-    // is no Material above it.
+    // The Material carries the bar fill, so the Peer status button's ink
+    // paints above it. The shell mounts the titlebar ABOVE the branch
+    // Scaffolds, so there is no other Material to draw on.
     return Material(
-      type: MaterialType.transparency,
+      color: theme.scaffoldBackgroundColor,
       child: Container(
-        height: 44,
+        constraints: const BoxConstraints(minHeight: 44),
         padding: const EdgeInsets.symmetric(horizontal: 18),
         decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          border: Border(
-            bottom: BorderSide(color: theme.dividerColor),
-          ),
+          border: Border(bottom: BorderSide(color: theme.dividerColor)),
         ),
-        child: Row(
-          children: <Widget>[
-            // Brand: shield icon + strong MOSH in moss color.
-            Icon(Icons.verified_user, size: 18, color: _kMoss),
-            const SizedBox(width: 8),
-            Text(
-              l.shellProductName,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.04,
-                color: theme.colorScheme.onSurface,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(width: 14),
-            // Subtitle: flexed out, muted, 12px, ellipsized.
-            Expanded(
-              child: Text(
-                l.shellWindowSubtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            // "Peer status" ghost button; fires the shell-supplied
-            // onOpenPeerStatus -- the shell owns + mounts the drawer
-            // overlay.
-            _PeerStatusButton(onTap: onOpenPeerStatus),
-            const SizedBox(width: 14),
-            _StatePillSlot(activeKey: activeKey),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) => _row(
+            context,
+            activeKey,
+            compact: constraints.maxWidth < _kCompactWidth,
+          ),
         ),
       ),
     );
   }
+
+  Widget _row(BuildContext context, ActiveConversation? activeKey,
+      {required bool compact}) {
+    final l = AppLocalizations.of(context)!;
+    final text = Theme.of(context).textTheme;
+    return Row(
+      children: <Widget>[
+        const Icon(Icons.verified_user, size: 18, color: MoshColors.moss),
+        const SizedBox(width: 8),
+        Text(
+          l.shellProductName,
+          style: text.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.04 * 14,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Tooltip(
+            message: l.shellWindowSubtitle,
+            excludeFromSemantics: true,
+            child: Text(
+              l.shellWindowSubtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySmall,
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        compact
+            ? IconButton(
+                tooltip: l.peerStatusTitle,
+                icon: const Icon(_kPeerStatusIcon, size: 18),
+                style: _focusRingStyle,
+                onPressed: onOpenPeerStatus,
+              )
+            : _PeerStatusButton(onTap: onOpenPeerStatus),
+        const SizedBox(width: 14),
+        Flexible(child: _StatePillSlot(activeKey: activeKey)),
+      ],
+    );
+  }
 }
 
-/// The "Peer status" ghost button (plug icon 14 + text). Icons.
-/// electrical_services is the same icon the DM/Channel/Group AppBars use
-/// for their peer-status action, kept for visual consistency.
+/// The [FocusRing] border for a stock button: `focused` is only set while
+/// the keyboard focus highlight shows.
+final ButtonStyle _focusRingStyle = ButtonStyle(
+  side: WidgetStateProperty.resolveWith(
+    (states) => states.contains(WidgetState.focused)
+        ? const BorderSide(color: MoshColors.focusRing, width: 2)
+        : null,
+  ),
+);
+
+/// The "Peer status" ghost button (plug icon 14 + text), the same icon the
+/// DM/Channel/Group AppBars use for their peer-status action. The visible
+/// text is its accessible name; the InkWell supplies button semantics.
 class _PeerStatusButton extends StatelessWidget {
   const _PeerStatusButton({required this.onTap});
 
   final VoidCallback onTap;
 
+  static final BorderRadius _radius = BorderRadius.circular(6);
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    return Semantics(
-      button: true,
-      label: l.openPeerStatus,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(6),
-        onTap: onTap,
+    return InkWell(
+      borderRadius: _radius,
+      onTap: onTap,
+      child: FocusRing(
+        radius: _radius,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 30),
           child: Padding(
@@ -144,17 +161,12 @@ class _PeerStatusButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Icon(
-                  Icons.electrical_services,
+                  _kPeerStatusIcon,
                   size: 14,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  l.peerStatusTitle,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                Text(l.peerStatusTitle, style: theme.textTheme.labelMedium),
               ],
             ),
           ),
@@ -199,9 +211,10 @@ class _StatePillSlot extends ConsumerWidget {
   }
 }
 
-/// StatePill: inline-flex row, gap 8, height 26, horizontal padding 12,
-/// radius 999, font 11.5 semibold, raised-surface bg, 1px hairline
-/// border, a 7x7 round dot. Variants:
+/// StatePill: inline-flex row, gap 8, min height 26 (grows with the text),
+/// padding 12x3, radius 999, labelMedium ellipsized (full label in a
+/// tooltip), raised-surface bg, 1px hairline border, a 7x7 round dot.
+/// Variants:
 ///   ready   = moss-glow bg + moss text + moss dot with glow
 ///   waiting = warn text + warn dot (default bg)
 ///   idle    = default text + fg-3 dot
@@ -220,38 +233,45 @@ class StatePill extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final variant = _pillVariant(state);
-    return Container(
-      height: 26,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: variant.background ?? theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: variant.border(theme)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // 7x7 round state dot; ready gets a moss glow shadow.
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: variant.dotColor,
-              shape: BoxShape.circle,
-              boxShadow: variant.dotGlow,
+    return Tooltip(
+      message: label,
+      excludeFromSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 26),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        decoration: BoxDecoration(
+          color:
+              variant.background ?? theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: variant.border(theme)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // 7x7 round state dot; ready gets a moss glow shadow.
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: variant.dotColor,
+                shape: BoxShape.circle,
+                boxShadow: variant.dotGlow,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.02,
-              color: variant.textColor ?? theme.colorScheme.onSurfaceVariant,
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  letterSpacing: 0.02 * 11.5,
+                  color: variant.textColor,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -291,24 +311,25 @@ _PillVariant _pillVariant(String state) {
     case 'ready':
       // ready: moss-glow bg, moss text, moss dot + glow, moss border.
       return _PillVariant(
-        background: _kMossGlow,
-        textColor: _kMoss,
-        dotColor: _kMoss,
+        background: MoshColors.mossGlow,
+        textColor: MoshColors.moss,
+        dotColor: MoshColors.moss,
         dotGlow: <BoxShadow>[
-          BoxShadow(color: _kMoss.withValues(alpha: 0.6), blurRadius: 4),
+          BoxShadow(
+              color: MoshColors.moss.withValues(alpha: 0.6), blurRadius: 4),
         ],
-        borderColorOverride: _kMoss.withValues(alpha: 0.25),
+        borderColorOverride: MoshColors.moss.withValues(alpha: 0.25),
       );
     case 'waiting':
       // waiting: warn text, warn dot, warn-tinted border; base bg.
       return _PillVariant(
-        textColor: _kWarn,
-        dotColor: _kWarn,
-        borderColorOverride: _kWarn.withValues(alpha: 0.25),
+        textColor: MoshColors.warn,
+        dotColor: MoshColors.warn,
+        borderColorOverride: MoshColors.warn.withValues(alpha: 0.25),
       );
     case 'idle':
     default:
       // idle (and unknown states): default text, fg-3 dot.
-      return _PillVariant(dotColor: _kFg3);
+      return _PillVariant(dotColor: MoshColors.fg3);
   }
 }
