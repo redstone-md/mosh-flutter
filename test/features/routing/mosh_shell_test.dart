@@ -37,6 +37,7 @@ import '../../support/scriptable_gateway.dart';
 import 'shell_harness.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart';
 
 // The onboard head shares its label with the rail's start button.
 Finder _onboardTitle() => find.descendant(
@@ -298,7 +299,32 @@ void main() {
 
     expect(
         find.bySemanticsLabel(RegExp('Start a conversation')), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp('Connection status')), findsOneWidget);
+    expect(find.semantics.byLabel(RegExp('Connection status')), findsOne);
     handle.dispose();
+  });
+
+  testWidgets(
+      'desktop (1200x900): the shell drawer words a failed read for people, '
+      'not with the runtime message', (tester) async {
+    final gw = ScriptableGateway()
+      ..seedSessions([shellSession(sessionId: 'hana-1', peer: 'Hana')])
+      ..failAlways(
+        GatewayMethod.poll,
+        error: const ConversationBridgeError(
+          kind: ConversationBridgeErrorKind.unavailable,
+          message: 'moss: socket closed',
+        ),
+      );
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await tester.tap(find.text('Hana'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Connection status'));
+    await tester.pumpAndSettle();
+
+    Finder inDrawer(String text) => find.descendant(
+        of: find.byType(PeerStatusDrawer), matching: find.textContaining(text));
+    expect(inDrawer('Mosh could not reach the network.'), findsWidgets);
+    expect(inDrawer('moss: socket closed'), findsNothing);
   });
 }

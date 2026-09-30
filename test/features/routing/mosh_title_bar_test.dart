@@ -62,7 +62,7 @@ void main() {
     final handle = tester.ensureSemantics();
     await _pumpBar(tester);
 
-    expect(find.bySemanticsLabel('Connection status'), findsOneWidget);
+    expect(find.semantics.byLabel('Connection status'), findsOne);
     handle.dispose();
   });
 
