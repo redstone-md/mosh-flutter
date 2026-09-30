@@ -90,27 +90,22 @@ final class DmRailEntry extends RailEntry {
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     final l = AppLocalizations.of(context)!;
     final label = peerLabel(l, session);
-    return Semantics(
-      label: l.openSessionAria(label),
-      button: true,
-      selected: chrome.active,
-      child: RailItem(
-        kind: RailItemKind.dm,
-        leading: Avatar(name: label),
-        title: label,
-        subtitle: revokedOrgName != null
-            ? l.orgRevokedBadge(revokedOrgName!)
-            : dmStateLabel(l, session.state),
-        // The expanded rail hides `.rail-dot`, so the badge stands alone.
-        trailing: UnreadBadge(count: chrome.unreadCount),
-        active: chrome.active,
-        onTap: () {
-          // Clear the badge + mark the conversation open first, then
-          // navigate.
-          chrome.onSelect?.call();
-          context.go(AppRoutes.dmFor(session.sessionId));
-        },
-      ),
+    return RailItem(
+      kind: RailItemKind.dm,
+      leading: Avatar(name: label),
+      title: label,
+      subtitle: revokedOrgName != null
+          ? l.orgRevokedBadge(revokedOrgName!)
+          : dmStateLabel(l, session.state),
+      // The expanded rail hides `.rail-dot`, so the badge stands alone.
+      trailing: UnreadBadge(count: chrome.unreadCount),
+      active: chrome.active,
+      onTap: () {
+        // Clear the badge + mark the conversation open first, then
+        // navigate.
+        chrome.onSelect?.call();
+        context.go(AppRoutes.dmFor(session.sessionId));
+      },
     );
   }
 }
@@ -128,24 +123,18 @@ final class ChannelRailEntry extends RailEntry {
 
   @override
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
-    final l = AppLocalizations.of(context)!;
-    return Semantics(
-      label: l.openChannelAria(channel.name),
-      button: true,
-      selected: chrome.active,
-      child: RailItem(
-        kind: RailItemKind.channel,
-        leading: const Icon(Icons.tag),
-        title: '#${channel.name}',
-        // An empty topic yields no subtitle line ([RailItem] hides it).
-        subtitle: channel.topic,
-        trailing: UnreadBadge(count: chrome.unreadCount),
-        active: chrome.active,
-        onTap: () {
-          chrome.onSelect?.call();
-          context.go(AppRoutes.channelFor(channel.name));
-        },
-      ),
+    return RailItem(
+      kind: RailItemKind.channel,
+      leading: const Icon(Icons.tag),
+      title: '#${channel.name}',
+      // An empty topic yields no subtitle line ([RailItem] hides it).
+      subtitle: channel.topic,
+      trailing: UnreadBadge(count: chrome.unreadCount),
+      active: chrome.active,
+      onTap: () {
+        chrome.onSelect?.call();
+        context.go(AppRoutes.channelFor(channel.name));
+      },
     );
   }
 }
@@ -166,26 +155,21 @@ final class GroupRailEntry extends RailEntry {
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     final l = AppLocalizations.of(context)!;
     final label = group.label ?? shorten(group.groupId, 6);
-    return Semantics(
-      label: l.openGroupAria(label),
-      button: true,
-      selected: chrome.active,
-      child: RailItem(
-        kind: RailItemKind.group,
-        leading: const Icon(Icons.group),
-        title: label,
-        // `memberCount` is a `BigInt`; narrowing to `int` is safe for
-        // realistic member counts.
-        subtitle: l.membersCount(group.memberCount.toInt()),
-        // The expanded rail hides `.rail-admin-crown` and `.rail-dot`
-        // outright, so the badge is the only trailing element.
-        trailing: UnreadBadge(count: chrome.unreadCount),
-        active: chrome.active,
-        onTap: () {
-          chrome.onSelect?.call();
-          context.go(AppRoutes.groupFor(group.groupId));
-        },
-      ),
+    return RailItem(
+      kind: RailItemKind.group,
+      leading: const Icon(Icons.group),
+      title: label,
+      // `memberCount` is a `BigInt`; narrowing to `int` is safe for
+      // realistic member counts.
+      subtitle: l.membersCount(group.memberCount.toInt()),
+      // The expanded rail hides `.rail-admin-crown` and `.rail-dot`
+      // outright, so the badge is the only trailing element.
+      trailing: UnreadBadge(count: chrome.unreadCount),
+      active: chrome.active,
+      onTap: () {
+        chrome.onSelect?.call();
+        context.go(AppRoutes.groupFor(group.groupId));
+      },
     );
   }
 }
@@ -214,35 +198,25 @@ final class OfferRailEntry extends RailEntry {
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     final l = AppLocalizations.of(context)!;
     final fromDevice = pending.offer.fromDevice;
-    return Semantics(
-      label: l.railOfferAccept(fromDevice),
-      button: true,
-      child: RailItem(
-        kind: RailItemKind.dm,
-        leading: Avatar(name: fromDevice),
-        title: fromDevice,
-        subtitle: pending.kind == ConversationKind.channel
-            ? '#${pending.host}'
-            : l.onboardGroupInvite,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // Offer badge icon.
-            Icon(Icons.chat_bubble_outline,
-                size: 14, color: Theme.of(context).colorScheme.primary),
-            // A button inside the row's own
-            // tap target: the inner button wins the gesture arena, so the
-            // X dismisses and never accepts.
-            IconButton(
-              icon: const Icon(Icons.close, size: 16),
-              tooltip: l.railOfferDismiss,
-              visualDensity: VisualDensity.compact,
-              onPressed: onDismiss,
-            ),
-          ],
-        ),
-        onTap: onAccept,
+    return RailItem(
+      kind: RailItemKind.dm,
+      leading: Avatar(name: fromDevice),
+      title: fromDevice,
+      subtitle: pending.kind == ConversationKind.channel
+          ? '#${pending.host}'
+          : l.onboardGroupInvite,
+      semanticLabel: l.railOfferAccept(fromDevice),
+      // Offer badge icon.
+      trailing: Icon(Icons.chat_bubble_outline,
+          size: 14, color: Theme.of(context).colorScheme.primary),
+      // Beside the accept target, not inside it: two sibling buttons.
+      action: IconButton(
+        icon: const Icon(Icons.close, size: 16),
+        tooltip: l.railOfferDismiss,
+        visualDensity: VisualDensity.compact,
+        onPressed: onDismiss,
       ),
+      onTap: onAccept,
     );
   }
 }
