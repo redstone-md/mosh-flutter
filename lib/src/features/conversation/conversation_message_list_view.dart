@@ -13,6 +13,7 @@ import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
+import 'package:mosh/src/features/conversation/message_copy.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 
@@ -89,7 +90,8 @@ class ConversationAttachmentCallbacks {
   final void Function(AttachmentDescriptor descriptor) onOpen;
 }
 
-/// Renders the visible messages of one conversation.
+/// Renders the visible messages of one conversation. Their text can be
+/// selected and copied; see [MessageSelectionArea].
 class ConversationMessageListView extends StatelessWidget {
   const ConversationMessageListView({
     super.key,
@@ -123,31 +125,37 @@ class ConversationMessageListView extends StatelessWidget {
     // Grouped oldest first, then reversed: the list itself is reversed so
     // the newest message sits at the bottom.
     final rows = groupConversationMessages(messages).reversed.toList();
-    return ListView.builder(
-      padding: kChatScrollPadding,
-      reverse: true,
-      itemCount: rows.length,
-      itemBuilder: (context, index) {
-        final row = rows[index];
-        final attachment = row.message.attachment;
-        final view = attachment == null
-            ? null
-            : snapshot.attachmentView(attachment.attachmentId);
-        final callbacks = attachmentCallbacks(view);
-        return ConversationMessageRow(
-          message: row.message,
-          kind: kind,
-          grouped: row.grouped,
-          attachmentView: view,
-          peer: peer,
-          busy: callbacks.busy,
-          onAttachmentDownload: callbacks.onDownload,
-          onAttachmentCancel: callbacks.onCancel,
-          onAttachmentOpen: callbacks.onOpen,
-          onRetry: onRetryMessage,
-          l: l,
-        );
-      },
+    return MessageSelectionArea(
+      child: ListView.builder(
+        padding: kChatScrollPadding,
+        reverse: true,
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final row = rows[index];
+          final attachment = row.message.attachment;
+          final view = attachment == null
+              ? null
+              : snapshot.attachmentView(attachment.attachmentId);
+          final callbacks = attachmentCallbacks(view);
+          final body = row.message.body;
+          final messageRow = ConversationMessageRow(
+            message: row.message,
+            kind: kind,
+            grouped: row.grouped,
+            attachmentView: view,
+            peer: peer,
+            busy: callbacks.busy,
+            onAttachmentDownload: callbacks.onDownload,
+            onAttachmentCancel: callbacks.onCancel,
+            onAttachmentOpen: callbacks.onOpen,
+            onRetry: onRetryMessage,
+            l: l,
+          );
+          return body.isEmpty
+              ? messageRow
+              : CopyableMessage(body: body, child: messageRow);
+        },
+      ),
     );
   }
 }
