@@ -47,12 +47,12 @@ fn returning_desktop_recovers_missed_text_from_contact_after_source_restart() {
     contact.restart();
     linked.restart();
     linked.connect(&contact);
-    let recovered = linked.wait_dm_text(&session, "Own text while offline");
+    let recovered = linked.wait_recovered_dm_text(&session, "Own text while offline");
     assert_eq!(
         text(&recovered, "Own text while offline"),
         text(&own, "Own text while offline")
     );
-    let recovered = linked.wait_dm_text(&session, "Contact text while offline");
+    let recovered = linked.wait_recovered_dm_text(&session, "Contact text while offline");
     assert_eq!(
         text(&recovered, "Contact text while offline"),
         text(&other, "Contact text while offline")
@@ -75,7 +75,7 @@ fn recovery_switches_source_after_partial_import_and_restart_without_losing_live
     original.stop();
     linked.restart();
     linked.connect(&contact);
-    let partial = linked.wait_dm_text(&session, "Missed 0");
+    let partial = linked.wait_recovered_dm_text(&session, "Missed 0");
     assert_eq!(partial["history_sync"], "importing");
     assert!(partial["messages"].as_array().unwrap().len() < 41);
     contact.stop();
@@ -83,8 +83,8 @@ fn recovery_switches_source_after_partial_import_and_restart_without_losing_live
     original.restart();
     original.connect(&linked);
     send(&mut original, &session, "Live while switching source");
-    linked.wait_dm_text(&session, "Live while switching source");
-    let recovered = linked.wait_dm_text(&session, "Missed 39");
+    linked.wait_recovered_dm_text(&session, "Live while switching source");
+    let recovered = linked.wait_recovered_dm_text(&session, "Missed 39");
     for index in 0..40 {
         let body = format!("Missed {index}");
         assert_eq!(text(&recovered, &body), text(&before, &body));
@@ -112,7 +112,7 @@ fn returning_desktop_recovers_missed_epoch_from_a_holder_after_author_restart() 
     original.restart();
     linked.restart();
     linked.connect(&original);
-    let recovered = linked.wait_dm_text(&session, "Text in the missed epoch");
+    let recovered = linked.wait_recovered_dm_text(&session, "Text in the missed epoch");
     assert_eq!(
         text(&recovered, "Text in the missed epoch"),
         text(&before, "Text in the missed epoch")
@@ -156,7 +156,7 @@ fn returning_desktop_applies_two_missed_epochs_after_other_devices_acknowledged_
     original.restart();
     linked.restart();
     linked.connect(&original);
-    let recovered = linked.wait_dm_text(&session, "After two missed epochs");
+    let recovered = linked.wait_recovered_dm_text(&session, "After two missed epochs");
     assert_eq!(
         text(&recovered, "After two missed epochs"),
         text(&before, "After two missed epochs")
@@ -200,7 +200,8 @@ fn returning_desktop_waits_when_all_holders_are_offline_then_recovers_from_one()
     linked.restart();
     contact.restart();
     contact.connect(&linked);
-    let recovered = linked.wait_dm_text(&session, "Retained while every holder goes offline");
+    let recovered =
+        linked.wait_recovered_dm_text(&session, "Retained while every holder goes offline");
     assert_eq!(
         text(&recovered, "Retained while every holder goes offline"),
         text(&before, "Retained while every holder goes offline")
