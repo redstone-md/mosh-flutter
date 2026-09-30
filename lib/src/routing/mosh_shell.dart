@@ -113,30 +113,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     }
     return Stack(
       children: <Widget>[
-        Column(
-          children: <Widget>[
-            // Each pane is its own semantics container: a pushed chat route
-            // brings a ModalBarrier whose BlockSemantics would otherwise hide
-            // the titlebar and the rail from screen readers.
-            _SemanticsPane(
-              child: MoshTitleBar(
-                onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
-              ),
-            ),
-            Expanded(
-              child: Row(
-                children: <Widget>[
-                  SizedBox(
-                    width: kRailWidth,
-                    child: _SemanticsPane(child: widget.children[0]),
-                  ),
-                  const VerticalDivider(width: 1, thickness: 1),
-                  Expanded(child: _SemanticsPane(child: widget.children[1])),
-                ],
-              ),
-            ),
-          ],
-        ),
+        _desktopPanes(),
         // Shell-level PeerStatusDrawer overlay: branch on the parsed
         // active kind to the matching snapshot family; null ->
         // PeerStatusDrawer renders NoActiveSession. onRefresh
@@ -153,6 +130,34 @@ class _MoshShellState extends ConsumerState<MoshShell> {
               onClose: () => setState(() => _showPeerStatus = false),
             ),
           ),
+      ],
+    );
+  }
+
+  // The titlebar above the rail + chat row. Each pane is its own semantics
+  // container: a pushed chat route brings a ModalBarrier whose
+  // BlockSemantics would otherwise hide the titlebar and the rail from
+  // screen readers.
+  Widget _desktopPanes() {
+    return Column(
+      children: <Widget>[
+        _SemanticsPane(
+          child: MoshTitleBar(
+            onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+          ),
+        ),
+        Expanded(
+          child: Row(
+            children: <Widget>[
+              SizedBox(
+                width: kRailWidth,
+                child: _SemanticsPane(child: widget.children[0]),
+              ),
+              const VerticalDivider(width: 1, thickness: 1),
+              Expanded(child: _SemanticsPane(child: widget.children[1])),
+            ],
+          ),
+        ),
       ],
     );
   }
