@@ -123,14 +123,52 @@ void main() {
 
   testWidgets('hovering a truncated row shows its full title and subtitle',
       (tester) async {
-    await _pumpRail(tester, _row());
+    const title = 'Alice from the design review with a very long name';
+    await _pumpRail(
+      tester,
+      RailItem(
+        kind: RailItemKind.dm,
+        leading: const Icon(Icons.person),
+        title: title,
+        subtitle: 'Connected',
+        onTap: () {},
+      ),
+    );
+    // The rail width really truncates the title.
+    expect(
+        tester
+            .renderObject<RenderParagraph>(find.text(title))
+            .didExceedMaxLines,
+        isTrue);
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: tester.getCenter(find.text('Alice')));
+    await mouse.addPointer(location: tester.getCenter(find.text(title)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.text('Alice\nConnected', findRichText: true), findsOneWidget);
+    expect(find.text('$title\nConnected', findRichText: true), findsOneWidget);
+  });
+
+  testWidgets('a row with its own screen-reader label still activates',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    var accepted = 0;
+    await _pumpRail(
+      tester,
+      RailItem(
+        kind: RailItemKind.dm,
+        leading: const Icon(Icons.person),
+        title: 'Dora',
+        subtitle: '#general',
+        semanticLabel: 'Accept chat invite from Dora',
+        onTap: () => accepted++,
+      ),
+    );
+
+    tester.semantics
+        .tap(find.semantics.byLabel('Accept chat invite from Dora'));
+    expect(accepted, 1);
+    semantics.dispose();
   });
 }

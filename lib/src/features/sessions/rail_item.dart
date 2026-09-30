@@ -129,6 +129,9 @@ class RailItem extends StatelessWidget {
       selected: active,
       label: semanticLabel,
       excludeSemantics: semanticLabel != null,
+      // Excluding the children drops the InkWell's own tap action, so the
+      // labelled row carries it here or a screen reader cannot activate it.
+      onTap: semanticLabel == null ? null : onTap,
       child: InkWell(
         onTap: onTap,
         // An overlay, not an opaque fill, so the channel and group tints
