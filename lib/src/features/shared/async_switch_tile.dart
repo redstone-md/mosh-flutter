@@ -2,8 +2,9 @@
 /// (the Rust-side setting files).
 ///
 /// The row stays disabled until the read lands, so a default-value flicker
-/// cannot fire a write the user never asked for. A failed write rolls the
-/// switch back and shows the error inline.
+/// cannot fire a write the user never asked for, and again while a write is
+/// in flight, so overlapping writes cannot land out of order. A failed write
+/// rolls the switch back and shows the error inline.
 library;
 
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ class AsyncSwitchTile extends StatefulWidget {
 class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
   bool? _value;
   String? _error;
+  bool _writing = false;
 
   @override
   void initState() {
@@ -59,6 +61,7 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
     setState(() {
       _value = value;
       _error = null;
+      _writing = true;
     });
     try {
       await widget.write(value);
@@ -68,6 +71,8 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
         _value = previous;
         _error = error.toString();
       });
+    } finally {
+      if (mounted) setState(() => _writing = false);
     }
   }
 
@@ -91,7 +96,8 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
               style: const TextStyle(fontSize: 11.5, height: 1.5),
             ),
             value: _value ?? false,
-            onChanged: widget.enabled && _value != null ? _set : null,
+            onChanged:
+                widget.enabled && _value != null && !_writing ? _set : null,
           ),
           if (_error != null)
             Text(
