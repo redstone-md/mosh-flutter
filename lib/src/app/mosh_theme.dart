@@ -33,8 +33,11 @@ class MoshColors {
   // Foreground text: fg1 (primary) .. fg4 (disabled/faintest)
   static const Color fg1 = Color(0xFFECEEEA); // primary text
   static const Color fg2 = Color(0xFFA8AEB0); // secondary text
-  static const Color fg3 = Color(0xFF6B7075); // tertiary/muted text
-  static const Color fg4 = Color(0xFF474B50); // disabled/faintest
+  // fg3 clears 4.5:1 on bg0..bg3 (4.57 on bg3); fg4 does not clear it
+  // anywhere, so it is for disabled and decorative marks only, never text a
+  // user must read (interface review 2026-09-30).
+  static const Color fg3 = Color(0xFF83888D); // tertiary/muted text
+  static const Color fg4 = Color(0xFF474B50); // disabled/decorative only
 
   // Brand (moss)
   static const Color moss = Color(0xFFB7D84A); // brand primary
@@ -47,6 +50,30 @@ class MoshColors {
   static const Color warn = Color(0xFFE8B65A);
   static const Color danger = Color(0xFFE86A5A);
   static const Color info = Color(0xFF6CB7E8);
+
+  // Role tokens built on the primitives above. Components read these
+  // instead of re-deriving an alpha at the call site.
+
+  /// Text-field edge: white at 0.35, >= 3:1 against bg0..bg3.
+  static const Color fieldBorder = Color(0x5AFFFFFF);
+
+  /// Keyboard focus ring, drawn 2px around the focused control.
+  static const Color focusRing = fg1;
+
+  /// Channel-row tint: info at 0.10.
+  static const Color channelTint = Color(0x1A6CB7E8);
+
+  /// Initials-avatar plate.
+  static const Color avatarSurface = Color(0xFF2D3F23);
+
+  /// Warning callout fill / icon plate / edge (warn at 0.08 / 0.12 / 0.28).
+  static const Color warnSurface = Color(0x15E8B65A);
+  static const Color warnIconSurface = Color(0x1FE8B65A);
+  static const Color warnBorder = Color(0x47E8B65A);
+
+  /// Error callout fill / edge (danger at 0.08 / 0.35).
+  static const Color dangerSurface = Color(0x14E86A5A);
+  static const Color dangerBorder = Color(0x59E86A5A);
 }
 
 /// Font features for LIVE numbers (voice timers, audio position, unread
@@ -86,10 +113,10 @@ const List<FontFeature> kLiveNumberFontFeatures = <FontFeature>[
 ///    is the palette's darkest ink and reads cleanly on danger -- the same
 ///    mapping the light warn and info fills already use
 ///    (`onSecondary`/`onTertiary`).
-///  - `secondary` -> warn, `onSecondary` -> mossInk for contrast (warn is
-///    light; mossInk is the darkest ink in the palette and reads cleanly
-///    on warn).
-///  - `tertiary` -> info, `onTertiary` -> mossInk likewise.
+///  - `secondary` / `tertiary` -> fg2 with bg0 ink. Neutral on purpose:
+///    Material widgets that default to these slots must not borrow the
+///    warn/info status hues (interface review 2026-09-30). Status colors
+///    are read from [MoshColors] directly.
 ///  - `scrim` / `shadow` -> bg0 (deepest) so modals/overlays stay
 ///    in-palette.
 const ColorScheme _moshColorScheme = ColorScheme.dark(
@@ -98,12 +125,12 @@ const ColorScheme _moshColorScheme = ColorScheme.dark(
   onPrimary: MoshColors.mossInk,
   primaryContainer: MoshColors.moss,
   onPrimaryContainer: MoshColors.mossInk,
-  secondary: MoshColors.warn,
-  onSecondary: MoshColors.mossInk,
+  secondary: MoshColors.fg2,
+  onSecondary: MoshColors.bg0,
   secondaryContainer: MoshColors.bg3,
   onSecondaryContainer: MoshColors.fg1,
-  tertiary: MoshColors.info,
-  onTertiary: MoshColors.mossInk,
+  tertiary: MoshColors.fg2,
+  onTertiary: MoshColors.bg0,
   tertiaryContainer: MoshColors.bg3,
   onTertiaryContainer: MoshColors.fg1,
   error: MoshColors.danger,
@@ -134,6 +161,19 @@ const ColorScheme _moshColorScheme = ColorScheme.dark(
 /// Primary sans family. The font files are not bundled, so the stack falls
 /// through to the platform UI font.
 const String _kSansFamily = 'Inter Tight';
+const List<String> _kSansFallback = <String>[
+  'Geist',
+  'IBM Plex Sans',
+  'system-ui'
+];
+
+/// Every text style starts here, so no slot inherits Material's
+/// letter-spacing or family through `Typography.merge`.
+const TextStyle _kBase = TextStyle(
+  fontFamily: _kSansFamily,
+  fontFamilyFallback: _kSansFallback,
+  letterSpacing: 0,
+);
 
 /// Builds the canonical Mosh dark `ThemeData`.
 ///
@@ -162,7 +202,7 @@ ThemeData buildMoshTheme() {
     // widget metrics.
     visualDensity: VisualDensity.compact,
     fontFamily: _kSansFamily,
-    fontFamilyFallback: const ['Geist', 'IBM Plex Sans', 'system-ui'],
+    fontFamilyFallback: _kSansFallback,
     textTheme: _moshTextTheme(),
     // Chat-header look: 70px bar, 22px title spacing, hairline rule under
     // it. Material's default is a 56px bar with 16px title spacing and no
@@ -177,6 +217,7 @@ ThemeData buildMoshTheme() {
       shape: Border(bottom: BorderSide(color: MoshColors.line)),
       titleTextStyle: TextStyle(
         fontFamily: _kSansFamily,
+        fontFamilyFallback: _kSansFallback,
         fontSize: 15,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.02 * 15,
@@ -188,8 +229,9 @@ ThemeData buildMoshTheme() {
       thickness: 1,
       space: 1,
     ),
-    // Field look: 9/11 padding, radius 8, 1px hairline on bg1, 12.5px
-    // text; focus swaps the border to a translucent moss over bg0.
+    // Field look: 9/11 padding, radius 8, a 1px fieldBorder edge on bg1,
+    // 12.5px text; focus swaps the edge to solid moss (3.5:1 against the
+    // resting edge). Every state keeps radius 8.
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: MoshColors.bg1,
@@ -197,15 +239,16 @@ ThemeData buildMoshTheme() {
       contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       hintStyle: const TextStyle(fontSize: 12.5, color: MoshColors.fg3),
       labelStyle: const TextStyle(fontSize: 11, color: MoshColors.fg2),
-      border: _fieldBorder(MoshColors.line),
-      enabledBorder: _fieldBorder(MoshColors.line),
-      focusedBorder: _fieldBorder(MoshColors.moss.withValues(alpha: 0.45)),
-      errorBorder: _fieldBorder(MoshColors.danger.withValues(alpha: 0.35)),
-      focusedErrorBorder:
-          _fieldBorder(MoshColors.danger.withValues(alpha: 0.35)),
+      border: _fieldBorder(MoshColors.fieldBorder),
+      enabledBorder: _fieldBorder(MoshColors.fieldBorder),
+      disabledBorder: _fieldBorder(MoshColors.line),
+      focusedBorder: _fieldBorder(MoshColors.moss),
+      errorBorder: _fieldBorder(MoshColors.dangerBorder),
+      focusedErrorBorder: _fieldBorder(MoshColors.danger),
     ),
     // Rail/menu rows sit at 36–48px with 12px text and a 12px radius;
-    // Material's untuned ListTile is a 56px row with 16px text.
+    // Material's untuned ListTile is a 56px row with 16px text. Rows that
+    // wrap get 1.3/1.4 line-height; the subtitle is fg2 (fg4 fails AA).
     listTileTheme: const ListTileThemeData(
       dense: true,
       horizontalTitleGap: 10,
@@ -217,15 +260,21 @@ ThemeData buildMoshTheme() {
       selectedColor: MoshColors.fg1,
       selectedTileColor: MoshColors.mossGlow,
       titleTextStyle: TextStyle(
+        fontFamily: _kSansFamily,
+        fontFamilyFallback: _kSansFallback,
+        letterSpacing: 0,
         fontSize: 12.5,
-        height: 1.1,
+        height: 1.3,
         fontWeight: FontWeight.w600,
         color: MoshColors.fg1,
       ),
       subtitleTextStyle: TextStyle(
+        fontFamily: _kSansFamily,
+        fontFamilyFallback: _kSansFallback,
+        letterSpacing: 0,
         fontSize: 10.5,
-        height: 1.1,
-        color: MoshColors.fg4,
+        height: 1.4,
+        color: MoshColors.fg2,
       ),
     ),
     // Modal cards are radius-14 plates on bg2; Material's default is a
@@ -257,69 +306,66 @@ OutlineInputBorder _fieldBorder(Color color) => OutlineInputBorder(
 ///
 /// The sizes below are the app's literal chrome metrics, so a widget that
 /// just reads `theme.textTheme.X` lands on the right step instead of the
-/// Material default:
-///   bodyLarge   14/1.4
-///   bodyMedium  13.5/1.5
-///   bodySmall   12.5/1.55
-///   titleLarge  15/700
-///   titleMedium 14/600
-///   titleSmall  12.5/700
-///   labelLarge  12/650
-///   labelMedium 11.5/600
-///   labelSmall  10.5/-
-TextTheme _moshTextTheme() => ThemeData.dark()
-    .textTheme
-    .apply(
-      fontFamily: _kSansFamily,
-      bodyColor: MoshColors.fg1,
-      displayColor: MoshColors.fg1,
-    )
-    // copyWith runs AFTER apply: apply() rewrites the colour of every slot,
-    // so the muted slots below would be overwritten the other way round.
-    .copyWith(
-      bodyLarge: const TextStyle(
-          fontFamily: _kSansFamily,
-          fontSize: 14,
-          height: 1.4,
+/// Material default. Every slot derives from [_kBase], so line-height and
+/// letter-spacing are pinned here rather than inherited from Material:
+///   headlineMedium 23/600/1.15  (panel title)
+///   headlineSmall  19/600/1.2   (step title)
+///   titleLarge     15/700/1.25
+///   titleMedium    14/600/1.3
+///   titleSmall     12.5/700/1.3
+///   bodyLarge      14/1.4
+///   bodyMedium     13.5/1.5
+///   bodySmall      12.5/1.55   fg2
+///   labelLarge     12/600/1.3
+///   labelMedium    11.5/600/1.3 fg2
+///   labelSmall     10.5/1.3    fg3
+TextTheme _moshTextTheme() => TextTheme(
+      headlineMedium: _kBase.copyWith(
+          fontSize: 23,
+          fontWeight: FontWeight.w600,
+          height: 1.15,
+          letterSpacing: -0.01 * 23,
           color: MoshColors.fg1),
-      bodyMedium: const TextStyle(
-          fontFamily: _kSansFamily,
-          fontSize: 13.5,
-          height: 1.5,
+      headlineSmall: _kBase.copyWith(
+          fontSize: 19,
+          fontWeight: FontWeight.w600,
+          height: 1.2,
+          letterSpacing: -0.01 * 19,
           color: MoshColors.fg1),
-      bodySmall: const TextStyle(
-          fontFamily: _kSansFamily,
-          fontSize: 12.5,
-          height: 1.55,
-          color: MoshColors.fg2),
-      titleLarge: const TextStyle(
-          fontFamily: _kSansFamily,
+      titleLarge: _kBase.copyWith(
           fontSize: 15,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
+          height: 1.25,
+          letterSpacing: 0.02 * 15,
           color: MoshColors.fg1),
-      titleMedium: const TextStyle(
-          fontFamily: _kSansFamily,
+      titleMedium: _kBase.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w600,
+          height: 1.3,
           color: MoshColors.fg1),
-      titleSmall: const TextStyle(
-          fontFamily: _kSansFamily,
+      titleSmall: _kBase.copyWith(
           fontSize: 12.5,
           fontWeight: FontWeight.w700,
+          height: 1.3,
           color: MoshColors.fg1),
-      labelLarge: const TextStyle(
-          fontFamily: _kSansFamily,
+      bodyLarge:
+          _kBase.copyWith(fontSize: 14, height: 1.4, color: MoshColors.fg1),
+      bodyMedium:
+          _kBase.copyWith(fontSize: 13.5, height: 1.5, color: MoshColors.fg1),
+      bodySmall:
+          _kBase.copyWith(fontSize: 12.5, height: 1.55, color: MoshColors.fg2),
+      labelLarge: _kBase.copyWith(
           fontSize: 12,
           fontWeight: FontWeight.w600,
+          height: 1.3,
           color: MoshColors.fg1),
-      labelMedium: const TextStyle(
-          fontFamily: _kSansFamily,
+      labelMedium: _kBase.copyWith(
           fontSize: 11.5,
           fontWeight: FontWeight.w600,
+          height: 1.3,
           color: MoshColors.fg2),
-      labelSmall: const TextStyle(
-          fontFamily: _kSansFamily, fontSize: 10.5, color: MoshColors.fg3),
+      labelSmall:
+          _kBase.copyWith(fontSize: 10.5, height: 1.3, color: MoshColors.fg3),
     );
 
 /// Convenience top-level handle for `MaterialApp.router(theme: moshThemeData)`.
