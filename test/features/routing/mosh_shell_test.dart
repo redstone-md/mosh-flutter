@@ -20,7 +20,7 @@
 //   2. Mobile (400x800): /sessions shows the rail ALONE (no welcome pane).
 //      Tapping the DM row swaps to DmScreen and the rail is GONE. Leaving
 //      the DM (close + confirm) returns to the rail.
-//   3. Desktop (1200x900): tapping the shared titlebar's "Peer status"
+//   3. Desktop (1200x900): tapping the shared titlebar's "Connection status"
 //      button mounts the shell-level PeerStatusDrawer (Positioned.fill
 //      over rail + chat); tapping the drawer's close button unmounts it.
 //      Regression guard for the titlebar-owned-_showPeerStatus bug (the
@@ -99,6 +99,12 @@ Future<void> _pumpApp(
   await tester.pumpAndSettle();
 }
 
+// The onboard head shares its label with the rail's start button.
+Finder _onboardTitle() => find.descendant(
+      of: find.byType(OnboardMenu),
+      matching: find.text('Start a conversation'),
+    );
+
 void main() {
   testWidgets(
       'desktop (1200x900): rail + welcome pane render side-by-side; '
@@ -128,7 +134,7 @@ void main() {
   });
 
   testWidgets(
-      'desktop (1200x900): tapping the titlebar "Peer status" button '
+      'desktop (1200x900): tapping the titlebar "Connection status" button '
       'mounts PeerStatusDrawer and the close button unmounts it',
       (tester) async {
     final gw = ScriptableGateway()
@@ -139,11 +145,11 @@ void main() {
     // No drawer before the titlebar button is tapped.
     expect(find.byType(PeerStatusDrawer), findsNothing);
 
-    // Tap the shared desktop titlebar's "Peer status" button (its visible
+    // Tap the shared desktop titlebar's "Connection status" button (its visible
     // text is l.peerStatusTitle -- the same locator style the existing
     // cases use via find.text). At this point the drawer is closed, so
-    // "Peer status" resolves to exactly the titlebar button.
-    await tester.tap(find.text('Peer status'));
+    // "Connection status" resolves to exactly the titlebar button.
+    await tester.tap(find.text('Connection status'));
     await tester.pumpAndSettle();
 
     // The shell flipped its _showPeerStatus and rebuilt the Stack, so the
@@ -154,9 +160,9 @@ void main() {
     expect(find.byType(PeerStatusDrawer), findsOneWidget);
 
     // Close via the drawer header's close IconButton (tooltip
-    // l.closePeerStatus = "Close peer status" -- unique, so it does not
+    // l.closePeerStatus = "Close connection status" -- unique, so it does not
     // collide with the welcome pane or rail).
-    await tester.tap(find.byTooltip('Close peer status'));
+    await tester.tap(find.byTooltip('Close connection status'));
     await tester.pumpAndSettle();
 
     // The shell flipped _showPeerStatus back to false and the drawer
@@ -266,9 +272,9 @@ void main() {
     // (onboardTitle "Start a conversation") + the four tiles (Start:
     // chat/group, Join: join/channel).
     expect(find.byType(OnboardMenu), findsOneWidget);
-    expect(find.text('Start a conversation'), findsOneWidget);
-    expect(find.text('New private chat'), findsOneWidget);
-    expect(find.text('New group'), findsOneWidget);
+    expect(_onboardTitle(), findsOneWidget);
+    expect(find.text('Start a private chat'), findsOneWidget);
+    expect(find.text('Create a group'), findsOneWidget);
 
     // The bare EmptyState CTA is GONE on desktop (mobile-only now).
     expect(find.byIcon(Icons.chat_outlined), findsNothing);
@@ -278,20 +284,20 @@ void main() {
             'Create an invite or paste one to start your first encrypted conversation.'),
         findsNothing);
 
-    // Tap the Chat tile (onboardTileChatTitle "New private chat"). The
+    // Tap the Chat tile (onboardTileChatTitle "Start a private chat"). The
     // desktop NewSessionPanel switches its IndexedStack to the chat step
     // INLINE (no context.go): ChatCreateStep wrapped in OnboardStepBody
     // renders the step title (l.onboardTileChatTitle) + a Back button.
     // ChatCreateScreen does NOT mount -- the step is inline, the rail
     // stays, no routing happened.
-    await tester.tap(find.text('New private chat'));
+    await tester.tap(find.text('Start a private chat'));
     await tester.pumpAndSettle();
 
     // No routing: ChatCreateScreen does NOT mount (the step is inline).
     expect(find.byType(ChatCreateScreen), findsNothing);
     // The chat step body (ChatCreateStep) is now the active IndexedStack
     // child, so it is on-stage. The menu tile carrying the same
-    // "New private chat" text is offstage (skipOffstage default skips it),
+    // "Start a private chat" text is offstage (skipOffstage default skips it),
     // so find.text(l.onboardTileChatTitle) resolves to exactly the visible
     // step title (OnboardStepBody headlineSmall).
     final chatTitle =
@@ -304,12 +310,12 @@ void main() {
     // The menu re-renders (onboardTitle "Start a conversation" findsOne).
     // The chat step body (ChatCreateStep) goes offstage inside the
     // IndexedStack, so find.byType skips it (skipOffstage default). The
-    // menu tile "New private chat" re-shows, so find.text(chatTitle) is
+    // menu tile "Start a private chat" re-shows, so find.text(chatTitle) is
     // NOT usable as the "step gone" signal -- the type check is.
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Start a conversation'), findsOneWidget);
+    expect(_onboardTitle(), findsOneWidget);
     expect(find.byType(ChatCreateStep), findsNothing);
   });
 
@@ -332,8 +338,8 @@ void main() {
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(OnboardMenu), findsOneWidget);
-    expect(find.text('Start a conversation'), findsOneWidget);
-    expect(find.text('New private chat'), findsOneWidget);
+    expect(_onboardTitle(), findsOneWidget);
+    expect(find.text('Start a private chat'), findsOneWidget);
     expect(find.byType(ChatCreateScreen), findsNothing);
   });
 }

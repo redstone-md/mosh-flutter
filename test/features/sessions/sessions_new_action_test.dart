@@ -46,7 +46,11 @@ void main() {
     await _pumpSessions(tester, bridge, physicalSize: const Size(400, 800));
 
     expect(find.byType(SessionsScreen), findsOneWidget);
-    await tester.tap(find.text('New private chat'));
+    // The rail button carries the same label; the CTA is the FilledButton.
+    await tester.tap(find.ancestor(
+      of: find.text('Start a conversation'),
+      matching: find.bySubtype<FilledButton>(),
+    ));
     await tester.pumpAndSettle();
 
     expect(find.byType(NewSessionPanel), findsOneWidget);

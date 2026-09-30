@@ -4,13 +4,13 @@
   "@shellProductName": {
     "description": "Product name shown in the app shell"
   },
-  "shellWindowSubtitle": "Private DM · OpenMLS over Moss",
+  "shellWindowSubtitle": "OpenMLS over Moss",
   "@shellWindowSubtitle": {
     "description": "Window subtitle shown in the app shell"
   },
-  "shellNewSession": "New",
+  "shellNewSession": "Start a conversation",
   "@shellNewSession": {
-    "description": "Label for starting a new session"
+    "description": "Label for starting a new conversation (rail button, mobile title, sessions empty-state button); opens the start chooser"
   },
   "shellCloseSession": "Close session",
   "@shellCloseSession": {
@@ -188,10 +188,6 @@
   "@chatNoSessionBody": {
     "description": "Body shown on the no-session welcome screen"
   },
-  "chatStartCta": "New private chat",
-  "@chatStartCta": {
-    "description": "Call to action for starting a new private chat"
-  },
   "stateIdle": "Idle",
   "@stateIdle": {
     "description": "State label for the idle connection state"
@@ -240,13 +236,17 @@
   "@backToConversations": {
     "description": "Mobile back control that returns from a chat pane to the conversation rail"
   },
-  "sessionsError": "Could not load sessions.",
+  "sessionsError": "Unable to load conversations",
   "@sessionsError": {
     "description": "Error message shown when loading the session list fails"
   },
-  "sessionsRetry": "Retry",
+  "sessionsRetry": "Try again",
   "@sessionsRetry": {
     "description": "Button label for retrying the sessions list fetch"
+  },
+  "sessionsLoading": "Loading conversations",
+  "@sessionsLoading": {
+    "description": "Screen-reader label for the sessions list while it loads"
   },
   "cryptoNoticeTitle": "End-to-end encrypted",
   "@cryptoNoticeTitle": {
@@ -344,7 +344,7 @@
   "@onboardSubtitle": {
     "description": "Subtitle of the onboarding screen"
   },
-  "onboardIdentityHint": "This is how peers see you",
+  "onboardIdentityHint": "Contacts see this name",
   "@onboardIdentityHint": {
     "description": "Hint for the identity field on onboarding"
   },
@@ -368,7 +368,7 @@
   "@onboardAboutToggle": {
     "description": "Toggle label for the about-protection panel"
   },
-  "onboardTileChatTitle": "New private chat",
+  "onboardTileChatTitle": "Start a private chat",
   "@onboardTileChatTitle": {
     "description": "Title of the private-chat onboarding tile"
   },
@@ -376,7 +376,7 @@
   "@onboardTileChatDesc": {
     "description": "Description of the private-chat onboarding tile"
   },
-  "onboardTileGroupTitle": "New group",
+  "onboardTileGroupTitle": "Create a group",
   "@onboardTileGroupTitle": {
     "description": "Title of the new-group onboarding tile"
   },
@@ -388,7 +388,7 @@
   "@onboardTileJoinTitle": {
     "description": "Title of the join-with-link onboarding tile"
   },
-  "onboardTileJoinDesc": "Paste an invite a friend sent you",
+  "onboardTileJoinDesc": "Paste an invite a contact sent you",
   "@onboardTileJoinDesc": {
     "description": "Description of the join-with-link onboarding tile"
   },
@@ -846,7 +846,7 @@
   "@diagRttUnknown": {
     "description": "Value of the Peer RTT row when no round-trip time is known for the counterpart"
   },
-  "peerStatusTitle": "Peer status",
+  "peerStatusTitle": "Connection status",
   "@peerStatusTitle": {
     "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen"
   },
@@ -854,11 +854,11 @@
   "@refreshStatus": {
     "description": "Tooltip/aria-label of the refresh button in the Peer status drawer"
   },
-  "closePeerStatus": "Close peer status",
+  "closePeerStatus": "Close connection status",
   "@closePeerStatus": {
     "description": "Tooltip/aria-label of the close button in the Peer status drawer"
   },
-  "openPeerStatus": "Open peer status",
+  "openPeerStatus": "Open connection status",
   "@openPeerStatus": {
     "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen"
   },
@@ -993,7 +993,7 @@
       }
     }
   },
-  "openSessionAria": "Open session with {name}",
+  "openSessionAria": "Open chat with {name}",
   "@openSessionAria": {
     "description": "Screen-reader label for the Open-session rail-item row, with the peer label (React aria-label `Open session with ${label}`, SessionRail.tsx)",
     "placeholders": {
@@ -1119,7 +1119,7 @@
   "@chatActionErrorRevoked": {
     "description": "Chat error banner for ConversationBridgeErrorKind.revoked"
   },
-  "chatActionErrorInternal": "Something went wrong: {detail}",
+  "chatActionErrorInternal": "Unable to complete that. Restart Mosh if it keeps happening. Details: {detail}",
   "@chatActionErrorInternal": {
     "description": "Chat error banner for ConversationBridgeErrorKind.internal; {detail} is the runtime's diagnostic sentence. A non-bridge failure shows its own text instead",
     "placeholders": {"detail": {"type": "String"}}
@@ -1512,13 +1512,17 @@
   "@orgAdminBadge": {
     "description": "Tooltip for the admin crown on a roster member (React OrgSection.tsx orgText.adminBadge)"
   },
-  "orgNewGroup": "New org group",
+  "orgNewGroup": "Create group",
   "@orgNewGroup": {
     "description": "Tooltip for the new-group submit button (React OrgSection.tsx orgText.newGroup)"
   },
-  "orgNewGroupPlaceholder": "new group name",
+  "orgNewGroupPlaceholder": "e.g. Design review",
   "@orgNewGroupPlaceholder": {
     "description": "Placeholder for the new-group input (React OrgSection.tsx orgText.newGroupPlaceholder)"
+  },
+  "orgNewGroupLabel": "Group name",
+  "@orgNewGroupLabel": {
+    "description": "Visible label of the new org group name field"
   },
   "orgAcceptDmAria": "Accept chat invite from {name}",
   "@orgAcceptDmAria": {
