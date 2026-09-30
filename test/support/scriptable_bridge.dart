@@ -60,6 +60,9 @@ enum BridgeMethod {
   listSessions,
   readReceiptsEnabled,
   setReadReceiptsEnabled,
+  crashReportingSalt,
+  enableCrashReporting,
+  disableCrashReporting,
   listChannels,
   listGroups,
   joinChannel,
@@ -117,6 +120,7 @@ class ScriptableBridge
   VpnBypassConsent? _vpnConsent;
   List<Uint8List> _callFrames = const [];
   bool _readReceiptsEnabled = false;
+  String? _crashReportingSalt;
 
   // ----------------------------------------------------------------- seeding
 
@@ -170,6 +174,9 @@ class ScriptableBridge
   /// Seed the read-receipts answer. `setReadReceiptsEnabled` overwrites it,
   /// so a test can set then read without touching the filesystem.
   void seedReadReceiptsEnabled(bool enabled) => _readReceiptsEnabled = enabled;
+
+  /// Seeds the crash-reporting consent; `null` is opted out.
+  void seedCrashReportingSalt(String? salt) => _crashReportingSalt = salt;
 
   // -------------------------------------------------------------- diagnostics
 
@@ -250,6 +257,22 @@ class ScriptableBridge
       runScripted(BridgeMethod.setReadReceiptsEnabled, {'enabled': enabled},
           () {
         _readReceiptsEnabled = enabled;
+      });
+
+  @override
+  Future<String?> crashReportingSalt() => runScripted(
+      BridgeMethod.crashReportingSalt, const {}, () => _crashReportingSalt);
+
+  @override
+  Future<String> enableCrashReporting() => runScripted(
+      BridgeMethod.enableCrashReporting,
+      const {},
+      () => _crashReportingSalt ??= 'scripted-salt');
+
+  @override
+  Future<void> disableCrashReporting() =>
+      runScripted(BridgeMethod.disableCrashReporting, const {}, () {
+        _crashReportingSalt = null;
       });
 
   // -------------------------------------------------------- channels/groups

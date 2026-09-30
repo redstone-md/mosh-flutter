@@ -5,6 +5,7 @@ pub mod audio_devices;
 pub mod channel_runtime;
 pub mod commit_sequencer;
 pub mod conversation;
+pub mod crash_reporting;
 pub mod device_link;
 pub mod diagnostics_log;
 pub mod file_secret_store;

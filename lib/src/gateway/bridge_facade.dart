@@ -3,7 +3,7 @@
 //
 // `Gateway` is deliberately narrow -- the conversation seam, the surface
 // widgets and controllers share and the only surface a test scripts. These
-// 34 calls mirror one `mosh_core::api` function 1:1 and hide no decision:
+// These calls mirror one `mosh_core::api` function 1:1 and hide no decision:
 // no target parameter, no kind branch, no shaping. Faking them wholesale
 // in tests is what made the scripted double mirror 42 methods, so they
 // moved out of the interface; a caller reaches this class through
@@ -16,7 +16,7 @@
 // explicitly). The frb free functions come in prefixed because their
 // names collide with the facade's method names.
 //
-// Size exception: 34 one-line mirrors over `type_max_loc: 200`; reason,
+// Size exception: one-line mirrors over `type_max_loc: 200`; reason,
 // scope and removal plan in ADR 0025.
 
 import 'dart:typed_data' show Uint8List;
@@ -42,7 +42,13 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/api/diagnostics.dart'
     show AppDiagnostics, MossLibraryInfo, NativeRuntimeStatus;
 import 'package:mosh/src/rust/api/diagnostics.dart' as api
-    show appDiagnostics, mossLibraryInfo, nativeRuntimeStatus;
+    show
+        appDiagnostics,
+        crashReportingSalt,
+        disableCrashReporting,
+        enableCrashReporting,
+        mossLibraryInfo,
+        nativeRuntimeStatus;
 import 'package:mosh/src/rust/api/private_dm.dart' as api
     show
         acceptInvite,
@@ -122,6 +128,14 @@ class BridgeFacade {
 
   Future<void> setReadReceiptsEnabled({required bool enabled}) =>
       api.setReadReceiptsEnabled(enabled: enabled);
+
+  // The crash-reporting consent (ADR 0035): the salt is present only while
+  // the user opted in; disabling forgets it.
+  Future<String?> crashReportingSalt() => api.crashReportingSalt();
+
+  Future<String> enableCrashReporting() => api.enableCrashReporting();
+
+  Future<void> disableCrashReporting() => api.disableCrashReporting();
 
   // Channels/groups read seam (1:1 port of `channel_list`/
   // `private_group_list`). One conversation's own state comes from the
