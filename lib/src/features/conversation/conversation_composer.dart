@@ -19,6 +19,8 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/conversation/clipboard_paste_handler.dart'
     show PasteImageAction;
+import 'package:mosh/src/features/shared/optical_icon.dart';
+import 'package:mosh/src/features/shared/press_scale.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
 import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
 
@@ -213,25 +215,32 @@ class ConversationComposer extends StatelessWidget {
                 // wrapper's (audit 2026-09-21 hit-areas; CodeAnt PR #12).
                 Tooltip(
                   message: sendLabel,
-                  child: FilledButton(
-                    key: kComposerSendButtonKey,
-                    onPressed: enabled ? onSend : null,
-                    style: FilledButton.styleFrom(
-                      fixedSize: const Size.square(kComposerButtonSize),
-                      minimumSize: const Size.square(kComposerButtonSize),
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  child: PressScale(
+                    enabled: enabled,
+                    child: FilledButton(
+                      key: kComposerSendButtonKey,
+                      onPressed: enabled ? onSend : null,
+                      style: FilledButton.styleFrom(
+                        fixedSize: const Size.square(kComposerButtonSize),
+                        minimumSize: const Size.square(kComposerButtonSize),
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        disabledBackgroundColor: MoshColors.bg3,
+                        disabledForegroundColor: MoshColors.fg4,
                       ),
-                      disabledBackgroundColor: MoshColors.bg3,
-                      disabledForegroundColor: MoshColors.fg4,
+                      child: sending
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const OpticalIcon(
+                              icon: Icons.send,
+                              size: 16,
+                              offset: Offset(1.0, 0),
+                            ),
                     ),
-                    child: sending
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.send, size: 16),
                   ),
                 ),
               ],

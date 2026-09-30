@@ -70,9 +70,13 @@ const TextStyle kMessageMetaNameStyle = TextStyle(
   color: MoshColors.fg1,
 );
 
-/// Timestamp in a message meta row: 11px fg-4.
-const TextStyle kMessageTimeStyle =
-    TextStyle(fontSize: 11, color: MoshColors.fg4);
+/// Timestamp in a message meta row: 11px fg-4 with tabular figures so
+/// numerals keep equal width.
+const TextStyle kMessageTimeStyle = TextStyle(
+  fontSize: 11,
+  color: MoshColors.fg4,
+  fontFeatures: kLiveNumberFontFeatures,
+);
 
 /// The message text itself: 13.5px at 1.5 line height in fg-1.
 const TextStyle kMessageBodyStyle =

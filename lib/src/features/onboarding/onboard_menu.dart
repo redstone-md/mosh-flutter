@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/features/shared/press_scale.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 part 'onboard_menu_x.dart';

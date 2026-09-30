@@ -205,7 +205,8 @@ class _FilterSegment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(6);
+    // Concentric radius: outer track 8 - 3 padding = 5.
+    final radius = BorderRadius.circular(5);
     final color = active ? MoshColors.fg1 : MoshColors.fg3;
     return Material(
       color: active ? MoshColors.bg4 : Colors.transparent,
@@ -214,8 +215,8 @@ class _FilterSegment extends StatelessWidget {
         borderRadius: radius,
         onTap: onTap,
         child: Container(
-          height: 26,
-          padding: const EdgeInsets.symmetric(horizontal: 9),
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           alignment: Alignment.center,
           child: Row(
             mainAxisSize: MainAxisSize.min,

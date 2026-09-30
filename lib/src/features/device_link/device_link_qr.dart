@@ -29,12 +29,22 @@ class DeviceLinkQr extends StatelessWidget {
           child: Align(
               alignment: Alignment.topLeft,
               heightFactor: 1,
-              child: QrImageView.withQr(
-                  qr: qr,
-                  size: size,
-                  padding: const EdgeInsets.all(_padding),
-                  backgroundColor: Colors.white,
-                  semanticsLabel: label)));
+              child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      width: 1,
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: QrImageView.withQr(
+                      qr: qr,
+                      size: size,
+                      padding: const EdgeInsets.all(_padding),
+                      backgroundColor: Colors.white,
+                      semanticsLabel: label))));
     });
   }
 }

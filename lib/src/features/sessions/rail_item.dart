@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/features/shared/press_scale.dart';
 
 /// Which rail-item variant a row is: the tint and the active ring both
 /// follow from it.
@@ -245,39 +246,41 @@ class RailSettingsButton extends StatelessWidget {
     // focus ink paint above it instead of under an opaque Container.
     return Semantics(
       button: true,
-      child: Material(
-        color: MoshColors.bg2,
-        borderRadius: radius,
-        child: InkWell(
+      child: PressScale(
+        child: Material(
+          color: MoshColors.bg2,
           borderRadius: radius,
-          onTap: onTap,
-          hoverColor: MoshColors.bg3,
-          child: FocusRing(
-            radius: radius,
-            child: Container(
-              constraints: const BoxConstraints(minHeight: kRailButtonHeight),
-              padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
-              child: Row(
-                children: <Widget>[
-                  const Icon(Icons.settings_outlined,
-                      size: 18, color: MoshColors.fg2),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: MoshColors.fg2,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: onTap,
+            hoverColor: MoshColors.bg3,
+            child: FocusRing(
+              radius: radius,
+              child: Container(
+                constraints: const BoxConstraints(minHeight: kRailButtonHeight),
+                padding: const EdgeInsetsDirectional.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    const Icon(Icons.settings_outlined,
+                        size: 18, color: MoshColors.fg2),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: MoshColors.fg2,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -305,43 +308,45 @@ class RailNewButton extends StatelessWidget {
     final radius = BorderRadius.circular(12);
     return Semantics(
       button: true,
-      child: InkWell(
-        borderRadius: radius,
-        onTap: onTap,
-        // `.rail-new:hover { background: var(--moss-glow) }`.
-        hoverColor: MoshColors.mossGlow,
-        child: FocusRing(
-          radius: radius,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: kRailButtonHeight),
-            padding: const EdgeInsetsDirectional.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              border: Border.all(
-                color: MoshColors.moss.withValues(alpha: 0.35),
-                width: 1.5,
+      child: PressScale(
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          // `.rail-new:hover { background: var(--moss-glow) }`.
+          hoverColor: MoshColors.mossGlow,
+          child: FocusRing(
+            radius: radius,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: kRailButtonHeight),
+              padding: const EdgeInsetsDirectional.symmetric(
+                horizontal: 12,
+                vertical: 6,
               ),
-            ),
-            child: Row(
-              children: <Widget>[
-                const Icon(Icons.add, size: 18, color: MoshColors.moss),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: MoshColors.fg1,
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                border: Border.all(
+                  color: MoshColors.moss.withValues(alpha: 0.35),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  const Icon(Icons.add, size: 18, color: MoshColors.moss),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: MoshColors.fg1,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

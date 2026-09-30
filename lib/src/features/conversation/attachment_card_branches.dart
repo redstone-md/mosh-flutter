@@ -80,7 +80,10 @@ class _MediaPreviewCard extends StatelessWidget {
                   minHeight: kAttachmentPreviewMinHeight,
                   maxHeight: kAttachmentPreviewMaxHeight,
                 ),
-                color: MoshColors.bg0,
+                decoration: const BoxDecoration(
+                  color: MoshColors.bg0,
+                  border: Border(bottom: BorderSide(color: MoshColors.line)),
+                ),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -118,8 +121,13 @@ class _MediaPreviewCard extends StatelessWidget {
                             shape: BoxShape.circle,
                             color: MoshColors.bg0.withValues(alpha: 0.62),
                           ),
-                          child: const Icon(Icons.play_arrow,
-                              size: 24, color: Colors.white),
+                          child: const Center(
+                            child: OpticalIcon(
+                              icon: Icons.play_arrow,
+                              size: 24,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                   ],

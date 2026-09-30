@@ -71,7 +71,8 @@ class CryptoNoticeBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(10),
+          // Concentric radius: inner icon plate 8 + vertical inset 12 = 20.
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: border, width: 1),
         ),
         child: Row(

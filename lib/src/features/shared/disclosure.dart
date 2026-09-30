@@ -90,11 +90,17 @@ class _DisclosureState extends State<Disclosure> {
                 ),
               ),
             ),
-            if (_open)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 14),
-                child: widget.child,
-              ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _open
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 14),
+                      child: widget.child,
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),

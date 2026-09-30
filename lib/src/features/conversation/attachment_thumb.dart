@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/shared/optical_icon.dart';
+import 'package:mosh/src/features/shared/press_scale.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
 /// The file-card leading surface: a 40px rounded square in bg3/fg3.
@@ -38,19 +40,27 @@ class AttachmentThumb extends StatelessWidget {
         // subtree so only this full "Open <file>" action is announced.
         excludeSemantics: true,
         onTap: onOpenPressed,
-        child: Material(
-          color: MoshColors.bg3,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
+        child: PressScale(
+          child: Material(
+            color: MoshColors.bg3,
             borderRadius: BorderRadius.circular(8),
-            onTap: onOpenPressed,
-            // `.attachment-thumb-button { color: var(--moss) }` with a
-            // --bg-4 hover.
-            hoverColor: MoshColors.bg4,
-            child: const SizedBox(
-              width: kAttachmentThumbSize,
-              height: kAttachmentThumbSize,
-              child: Icon(Icons.play_arrow, size: 20, color: MoshColors.moss),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: onOpenPressed,
+              // `.attachment-thumb-button { color: var(--moss) }` with a
+              // --bg-4 hover.
+              hoverColor: MoshColors.bg4,
+              child: const SizedBox(
+                width: kAttachmentThumbSize,
+                height: kAttachmentThumbSize,
+                child: Center(
+                  child: OpticalIcon(
+                    icon: Icons.play_arrow,
+                    size: 20,
+                    color: MoshColors.moss,
+                  ),
+                ),
+              ),
             ),
           ),
         ),

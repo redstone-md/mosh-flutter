@@ -138,7 +138,7 @@ class AttachmentPicker extends StatelessWidget {
       tooltip: ariaLabel,
       onPressed: disabled ? null : _pick,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       visualDensity: VisualDensity.compact,
     );
   }
