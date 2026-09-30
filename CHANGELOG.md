@@ -6,6 +6,13 @@ All notable changes to Mosh are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+- **Message text can be copied.** Drag across messages to select text and
+  copy it with Ctrl+C (Cmd+C on macOS) or the menu. Right-click on desktop
+  or long-press on mobile offers "Copy text" for the whole message; a
+  keyboard-focused message copies with Ctrl+C, and screen readers get a
+  "Copy text" action.
+
 ### Changed
 - **One name per action.** The rail button, the empty-state button and the
   mobile title all say "Start a conversation"; the tiles start with a verb
