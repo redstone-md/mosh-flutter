@@ -149,13 +149,13 @@ impl PrivateDmRuntime {
                 self.receive_recovery_probe(&identity, &sender, &packet.roster, probe)
             }
             DeviceMessage::RecoveryOffer(offer) => {
-                self.receive_recovery_offer(&sender, &packet.roster, offer)
+                self.receive_recovery_offer(&identity, &sender, &packet.roster, offer)
             }
             DeviceMessage::RecoveryPull(pull) => {
                 self.receive_recovery_pull(&identity, &sender, &packet.roster, pull)
             }
             DeviceMessage::RecoveryBatch(batch) => {
-                self.receive_recovery_batch(&sender, &packet.roster, batch)
+                self.receive_recovery_batch(&identity, &sender, &packet.roster, batch)
             }
             DeviceMessage::RecoveryEpoch(epoch) => {
                 self.receive_recovery_epoch(&identity, &sender, &packet.roster, epoch)
