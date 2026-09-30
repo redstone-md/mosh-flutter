@@ -1,9 +1,9 @@
 // The rail row chrome.
 //
-// A rail row is a 48px row at radius 12 with 12px side padding and a 10px
-// gap, holding a leading avatar/icon, a two-line text block (12.5px/1.1
-// fg-1 over 10.5px/1.1 fg-4) and the unread badge. Active is an inset
-// 2px accent ring.
+// A rail row is at least 48px tall (large text grows it), radius 12, with
+// 12px side padding and a 10px gap, holding a leading avatar/icon, a
+// two-line text block (12.5px/1.1 fg-1 over 10.5px/1.1 fg-4) and the unread
+// badge. Active is an inset 2px accent ring.
 //
 // The per-kind tints: a DM row is plain bg-2 with fg-2 glyphs, a channel
 // row is info at 10% alpha with info, and a group row is moss-glow with
@@ -19,8 +19,11 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 /// follow from it.
 enum RailItemKind { dm, channel, group }
 
-/// Height of one rail row.
+/// Minimum height of one rail row; large text grows it.
 const double kRailItemHeight = 48;
+
+/// Minimum height of the pinned New chat and Settings buttons.
+const double kRailButtonHeight = 40;
 
 /// Vertical gap between rail rows.
 const double kRailListGap = 8;
@@ -89,8 +92,12 @@ class RailItem extends StatelessWidget {
           // `.rail-item:hover { background: var(--bg-3) }`.
           hoverColor: MoshColors.bg3,
           child: Container(
-            height: kRailItemHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            // A floor, not a fixed height: large text grows the row.
+            constraints: const BoxConstraints(minHeight: kRailItemHeight),
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
             decoration: BoxDecoration(
               borderRadius: radius,
               // `inset 0 0 0 2px <accent>` — an inside ring, so a border
@@ -164,9 +171,9 @@ class RailDivider extends StatelessWidget {
   }
 }
 
-/// The gear button pinned at the bottom of the rail: full width, 40px
-/// tall, radius 12, a settings glyph and a 12.5px/600 fg-2 label. Opens
-/// the Discord-like settings screen (AppRoutes.settings).
+/// The gear button pinned at the bottom of the rail: full width, at least
+/// 40px tall, radius 12, a settings glyph and a 12.5px/600 fg-2 label.
+/// Opens the Discord-like settings screen (AppRoutes.settings).
 class RailSettingsButton extends StatelessWidget {
   const RailSettingsButton({super.key, required this.label, this.onTap});
 
@@ -184,8 +191,11 @@ class RailSettingsButton extends StatelessWidget {
         onTap: onTap,
         hoverColor: MoshColors.bg2,
         child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          constraints: const BoxConstraints(minHeight: kRailButtonHeight),
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
           decoration: BoxDecoration(
             borderRadius: radius,
             color: MoshColors.bg2,
@@ -216,8 +226,8 @@ class RailSettingsButton extends StatelessWidget {
 }
 
 /// The dashed moss "New chat" button at the top of the rail: full width,
-/// 40px tall, radius 12, a 1.5px dashed moss border at 35% alpha, a moss
-/// plus glyph and a 12.5px/700 fg-1 label.
+/// at least 40px tall, radius 12, a 1.5px dashed moss border at 35% alpha,
+/// a moss plus glyph and a 12.5px/700 fg-1 label.
 ///
 /// Flutter has no dashed border primitive; a 1.5px solid moss border at the
 /// same alpha is the closest single-widget equivalent and keeps the row
@@ -240,8 +250,11 @@ class RailNewButton extends StatelessWidget {
         // `.rail-new:hover { background: var(--moss-glow) }`.
         hoverColor: MoshColors.mossGlow,
         child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          constraints: const BoxConstraints(minHeight: kRailButtonHeight),
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
           decoration: BoxDecoration(
             borderRadius: radius,
             border: Border.all(
