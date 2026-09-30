@@ -203,6 +203,7 @@ class UnreadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (count <= 0) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     final text = count > 99 ? '99+' : '$count';
     return Semantics(
       label: l.unreadBadge(count),
@@ -210,7 +211,7 @@ class UnreadBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
+          color: theme.colorScheme.primary,
           borderRadius: BorderRadius.circular(10),
         ),
         constraints: const BoxConstraints(minWidth: 18),
@@ -220,9 +221,8 @@ class UnreadBadge extends StatelessWidget {
           // The theme's on-accent ink (mossInk): white on the moss primary
           // fails contrast at ~1.6:1 (audit 2026-09-21). Live number ->
           // tabular figures keep the badge from jittering as the count ticks.
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
-            fontSize: 11,
+          style: theme.textTheme.labelMedium!.copyWith(
+            color: theme.colorScheme.onPrimary,
             fontWeight: FontWeight.w600,
             fontFeatures: kLiveNumberFontFeatures,
           ),
