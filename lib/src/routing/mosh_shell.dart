@@ -279,15 +279,20 @@ class ChatPaneWelcome extends StatelessWidget {
               title: Text(AppLocalizations.of(context)!.shellNewSession),
             )
           : null,
+      // Side padding follows the pane, not the window: at 581px the
+      // desktop pane is only ~312px wide.
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: isMobileBreakpoint(context)
-                ? const EdgeInsets.all(24)
-                : const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: const NewSessionPanel(),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsetsDirectional.symmetric(
+                horizontal: constraints.maxWidth < 400 ? 16 : 32,
+                vertical: mobile ? 24 : 48,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: const NewSessionPanel(),
+              ),
             ),
           ),
         ),
