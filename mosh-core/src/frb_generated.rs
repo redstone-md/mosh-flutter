@@ -52,7 +52,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 213369118;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1502073195;
 
 // Section: executor
 
@@ -616,6 +616,39 @@ fn wire__crate__api__conversation__cancel_attachment_impl(
         },
     )
 }
+fn wire__crate__api__diagnostics__crash_reporting_salt_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "crash_reporting_salt",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::diagnostics::crash_reporting_salt())?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__org__create_group_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -797,6 +830,38 @@ fn wire__crate__api__vpn__detect_vpn_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::vpn::detect_vpn()?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__diagnostics__disable_crash_reporting_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "disable_crash_reporting",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::diagnostics::disable_crash_reporting()?;
                     Ok(output_ok)
                 })())
             }
@@ -989,6 +1054,38 @@ fn wire__crate__api__conversation__download_attachment_impl(
                         Ok(output_ok)
                     })(),
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__diagnostics__enable_crash_reporting_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "enable_crash_reporting",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::diagnostics::enable_crash_reporting()?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -4761,108 +4858,126 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        16 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__device_link__create_qr_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__private_group__dismiss_dm_offer_impl(
+        16 => wire__crate__api__diagnostics__crash_reporting_salt_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__conversation__download_attachment_impl(
+        17 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__device_link__create_qr_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__diagnostics__disable_crash_reporting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__api__shared_runtime__ensure_shared_resources_impl(
+        23 => wire__crate__api__channel__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__org__dismiss_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__private_group__dismiss_dm_offer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__device_link__import_qr_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__conversation__mark_viewed_impl(port, ptr, rust_vec_len, data_len),
-        43 => {
+        26 => wire__crate__api__org__dismiss_group_offer_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__conversation__download_attachment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        28 => wire__crate__api__diagnostics__enable_crash_reporting_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        29 => wire__crate__api__shared_runtime__ensure_shared_resources_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        30 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__device_link__import_qr_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__channel__list_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__org__list_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__private_group__list_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__network__list_interfaces_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__private_dm__list_sessions_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__conversation__mark_viewed_impl(port, ptr, rust_vec_len, data_len),
+        46 => {
             wire__crate__api__diagnostics__moss_library_info_impl(port, ptr, rust_vec_len, data_len)
         }
-        44 => wire__crate__api__diagnostics__native_runtime_status_impl(
+        47 => wire__crate__api__diagnostics__native_runtime_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__private_dm__read_receipts_enabled_impl(
+        48 => wire__crate__api__channel__poll_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__org__poll_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__private_group__poll_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__private_dm__poll_session_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__private_dm__read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
-        53 => {
+        53 => wire__crate__api__conversation__retry_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__device_link__revoke_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__conversation__send_impl(port, ptr, rust_vec_len, data_len),
+        56 => {
             wire__crate__api__conversation__send_attachment_impl(port, ptr, rust_vec_len, data_len)
         }
-        54 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
-        56 => {
+        57 => wire__crate__api__channel__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__org__send_dm_offer_impl(port, ptr, rust_vec_len, data_len),
+        59 => {
             wire__crate__api__private_group__send_dm_offer_impl(port, ptr, rust_vec_len, data_len)
         }
-        57 => {
+        60 => {
             wire__crate__api__private_dm__set_app_data_dir_impl(port, ptr, rust_vec_len, data_len)
         }
-        58 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
+        61 => wire__crate__api__shared_runtime__set_app_data_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__shared_runtime__set_history_dek_impl(
+        63 => wire__crate__api__private_dm__set_history_dek_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__shared_runtime__set_history_dek_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
+        65 => wire__crate__api__private_dm__set_read_receipts_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
-        65 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
+        66 => wire__crate__api__vpn__set_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__device_link__snapshot_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__attachment_stream__stream_attachment_range_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__conversation__typing_signal_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -4883,41 +4998,41 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        40 => {
+        43 => {
             wire__crate__api__audio_devices__list_output_devices_impl(ptr, rust_vec_len, data_len)
         }
-        59 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
+        62 => wire__crate__api__audio_devices__set_audio_devices_impl(ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encode_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
+        71 => wire__crate__api__voice_call_opus_encode__voice_call_opus_encoder_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
+        72 => wire__crate__api__voice_call_playback__voice_call_playback_push_frame_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
+        73 => wire__crate__api__voice_call_playback__voice_call_playback_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        71 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
+        74 => wire__crate__api__voice_call_playback__voice_call_playback_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        72 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
+        75 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
+        76 => wire__crate__api__voice_call_ringtone__voice_call_ringtone_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
