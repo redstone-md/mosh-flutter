@@ -348,6 +348,9 @@ class _ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    // Only a bridge failure has a worded reason. Anything else would show
+    // raw exception text, so the title and Try again stand alone.
+    final reason = ConversationActionError.of(error);
     return SingleChildScrollView(
       child: Center(
         child: Padding(
@@ -367,12 +370,14 @@ class _ErrorState extends StatelessWidget {
                       style: theme.textTheme.titleMedium,
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      ConversationActionError.of(error).describe(l),
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall,
-                    ),
+                    if (reason.kind != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        reason.describe(l),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
               ),

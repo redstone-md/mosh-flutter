@@ -219,6 +219,9 @@ void main() {
 
     expect(find.text('Unable to load conversations'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
+    // A failure from outside the bridge has no worded kind: its raw
+    // exception text never reaches the rail.
+    expect(find.textContaining('boom-listSessions'), findsNothing);
     final callsBefore = bridge.countOf(BridgeMethod.listSessions);
 
     await tester.tap(find.text('Try again'));
