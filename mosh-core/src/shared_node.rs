@@ -199,11 +199,17 @@ fn start_with_port_fallback<T>(
 /// separate), or 0 to let Moss pick when no probe succeeds. Released before
 /// Moss binds it, so a racer can still take it; the start retry covers that.
 fn dual_protocol_port() -> u16 {
-    (0..MAX_START_ATTEMPTS)
+    const PROBE_ATTEMPTS: usize = 16;
+    (0..PROBE_ATTEMPTS)
         .find_map(|_| {
-            let tcp = std::net::TcpListener::bind(("0.0.0.0", 0)).ok()?;
-            let port = tcp.local_addr().ok()?.port();
-            std::net::UdpSocket::bind(("0.0.0.0", port)).ok()?;
+            // Probe UDP first: on Windows, the OS ephemeral UDP allocator avoids
+            // excluded ranges (e.g. WinNAT/Hyper-V), whereas probing TCP first can
+            // return a port that is forbidden for UDP (WSAEACCES 10013).
+            let udp = std::net::UdpSocket::bind(("0.0.0.0", 0)).ok()?;
+            let port = udp.local_addr().ok()?.port();
+            let tcp = std::net::TcpListener::bind(("0.0.0.0", port)).ok()?;
+            drop(tcp);
+            drop(udp);
             Some(port)
         })
         .unwrap_or(0)
