@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show AcceptInviteRequest;
+    show AcceptInviteRequest, SessionSnapshot;
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider;
 import 'package:mosh/src/state/dm_offer_providers.dart' show PendingDmOffer;
@@ -35,6 +35,8 @@ void openNewSessionAction(BuildContext context, WidgetRef ref) {
 // path -- top-level offers reuse acceptInvite, NOT org's acceptDmOffer),
 // then auto-dismiss the offer so it leaves the channel/group's offer
 // list, then navigate to the new DM session.
+// Once the invite is accepted the DM exists, so a failed dismiss is toasted
+// (by [dismissOfferAction]) and the DM still opens.
 // The displayName/listenPort/staticPeer come from inviteFlowProvider (the
 // same settings source onboarding uses, ADR 0010 DRY).
 Future<void> acceptOfferAction(
@@ -45,8 +47,9 @@ Future<void> acceptOfferAction(
   final flow = ref.read(inviteFlowProvider);
   final gateway = ref.read(gatewayProvider);
   final bridge = ref.read(bridgeFacadeProvider);
+  final SessionSnapshot session;
   try {
-    final session = await bridge.acceptInvite(
+    session = await bridge.acceptInvite(
       request: AcceptInviteRequest(
         inviteUri: pending.offer.inviteUri,
         displayName: flow.senderDisplayName,
@@ -54,26 +57,29 @@ Future<void> acceptOfferAction(
         staticPeer: flow.staticPeer,
       ),
     );
-    // Auto-dismiss the offer after accept.
-    await dismissOfferAction(ref, pending, gateway: gateway);
-    // The accepted invite creates a new DM session. Refresh the rail's
-    // session list after the offer and its source list have been refreshed.
-    await ref
-        .read(conversationListProvider(ConversationKind.dm).notifier)
-        .refresh();
-    if (!context.mounted) return;
-    context.go(AppRoutes.dmFor(session.sessionId));
   } catch (e) {
     if (!context.mounted) return;
     showActionErrorSnackBar(context, e);
+    return;
   }
+  if (!context.mounted) return;
+  await dismissOfferAction(context, ref, pending, gateway: gateway);
+  // The accepted invite creates a new DM session. Refresh the rail's
+  // session list after the offer and its source list have been refreshed.
+  // `refresh` never throws: a failed read lands in the list's error state.
+  await ref
+      .read(conversationListProvider(ConversationKind.dm).notifier)
+      .refresh();
+  if (!context.mounted) return;
+  context.go(AppRoutes.dmFor(session.sessionId));
 }
 
 // Dismiss a pending DM offer:
 // dismiss it on the channel or the group that carries it, then refresh the
-// channel/group list so the offer row disappears. The accept path passes
-// its already-acquired gateway to avoid a second read.
+// channel/group list so the offer row disappears. A failure is toasted. The
+// accept path passes its already-acquired gateway to avoid a second read.
 Future<void> dismissOfferAction(
+  BuildContext context,
   WidgetRef ref,
   PendingDmOffer pending, {
   Gateway? gateway,
@@ -82,7 +88,13 @@ Future<void> dismissOfferAction(
   final DmOfferHost<Object?> host = pending.kind == ConversationKind.channel
       ? ChannelTarget(pending.host)
       : GroupTarget(pending.host);
-  await gw.dismissDmOffer(host, offerId: pending.offer.offerId);
+  try {
+    await gw.dismissDmOffer(host, offerId: pending.offer.offerId);
+  } catch (e) {
+    if (!context.mounted) return;
+    showActionErrorSnackBar(context, e);
+    return;
+  }
   // Refresh both lists so the offer row leaves the rail (the derived
   // pendingDmOffersProvider re-reads on invalidation).
   await ref

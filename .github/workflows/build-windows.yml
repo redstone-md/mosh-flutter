@@ -48,6 +48,8 @@ jobs:
           key: cargokit-windows-release-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: cargokit-windows-release-
 
+      - uses: ./.github/actions/media-kit-windows
+
       - name: Build Windows app (release)
         # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
         # crash reporting; without it the build cannot report at all.

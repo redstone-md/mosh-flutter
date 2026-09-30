@@ -146,6 +146,11 @@ impl PrivateDmSession {
             && now.saturating_sub(recovery.last_rx_ms.max(self.recovery_boot_ms))
                 < SOURCE_TIMEOUT_MS
         {
+            // An answer already sent its follow-up pull; repeat it only after
+            // a retry interval without one.
+            if now.saturating_sub(self.recovery_pull_ms) < super::RETRY_MS {
+                return Ok(Vec::new());
+            }
             return self.recovery_pull(recovery).map(|packet| vec![packet]);
         }
         if recovery.source.is_none() && now.saturating_sub(recovery.started_ms) < PROBE_MS {

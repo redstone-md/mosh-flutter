@@ -12,12 +12,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
+
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart'
+    show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -119,7 +123,14 @@ void main() {
     await pumpSessions(tester, gateway, bridge);
 
     expect(find.text('Welcome to Mosh.'), findsOneWidget);
-    expect(find.text('New private chat'), findsOneWidget);
+    // The rail button carries the same label; the CTA is the FilledButton.
+    expect(
+      find.ancestor(
+        of: find.text('Start a conversation'),
+        matching: find.bySubtype<FilledButton>(),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -156,31 +167,46 @@ void main() {
     expect(find.text('Waiting for your contact'), findsOneWidget);
     expect(find.text('Contact is offline'), findsOneWidget);
 
-    // Accessibility: the Alice row exposes the expected semantics label.
-    // The two-pane StatefulShellRoute (mosh_shell.dart) lays the rail + chat
-    // branches out as two live Navigators on desktop, and two simultaneous
-    // ModalRoutes change the merged-semantics tree enough that
-    // find.bySemanticsLabel no longer resolves the row's label (the node
-    // ends up non-leaf with an empty label). The row's Semantics widget
-    // still carries the label in its properties, so assert on the widget
-    // directly -- layout-independent and pins the row semantics label
-    // the bySemanticsLabel check was guarding.
-    final rowSemantics = tester.widgetList<Semantics>(
-      find.ancestor(of: find.text('Alice'), matching: find.byType(Semantics)),
-    );
-    expect(
-      rowSemantics
-          .map((s) => s.properties.label)
-          .contains('Open session with Alice'),
-      isTrue,
-    );
-
     // Tapping the Alice row navigates to /dm/<aliceId>. The DM screen's
     // composer placeholder is a stable sentinel that the router pushed it.
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
 
     expect(find.text('Write a message\u2026'), findsOneWidget);
+  });
+
+  testWidgets('a DM row has one accessible name: the visible label and state',
+      (tester) async {
+    final (gateway, bridge) = _scriptedPair();
+    bridge.seedSessions([
+      _session(
+          sessionId: 'alice-a11y',
+          displayName: 'me',
+          peerDisplayName: 'Alice',
+          state: DmSessionState.connected),
+    ]);
+    await pumpSessions(tester, gateway, bridge);
+
+    expect(
+      tester.getSemantics(find.text('Alice')),
+      isSemantics(label: 'Alice\nConnected', isButton: true),
+    );
+  });
+
+  testWidgets('the offer dismiss button is not nested in the accept button',
+      (tester) async {
+    final (gateway, bridge) = _channelOfferBridge();
+    await pumpSessions(tester, gateway, bridge);
+
+    final accept = tester.getSemantics(find.text('alpha-peer'));
+    expect(
+      accept,
+      isSemantics(label: 'Accept chat invite from alpha-peer', isButton: true),
+    );
+    final dismiss = tester.getSemantics(find.byTooltip('Dismiss invite'));
+    for (var node = dismiss.parent; node != null; node = node.parent) {
+      expect(node, isNot(same(accept)));
+    }
   });
 
   testWidgets(
@@ -191,16 +217,39 @@ void main() {
         error: Exception('boom-listSessions'));
     await pumpSessions(tester, gateway, bridge);
 
-    expect(find.text('Could not load sessions.'), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Unable to load conversations'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+    // A failure from outside the bridge has no worded kind: its raw
+    // exception text never reaches the rail.
+    expect(find.textContaining('boom-listSessions'), findsNothing);
     final callsBefore = bridge.countOf(BridgeMethod.listSessions);
 
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
 
     // refresh() re-ran the bridge query (the count must increase, even if
     // Riverpod re-executed build() during settling -- we only assert growth).
     expect(bridge.countOf(BridgeMethod.listSessions), greaterThan(callsBefore));
+  });
+
+  testWidgets('the error state words a list failure and announces it',
+      (tester) async {
+    const error = ConversationBridgeError(
+      kind: ConversationBridgeErrorKind.unavailable,
+      message: 'dm runtime unavailable: node down',
+    );
+    final (gateway, bridge) = _scriptedPair();
+    bridge.failAlways(BridgeMethod.listSessions, error: error);
+    await pumpSessions(tester, gateway, bridge);
+
+    final reason =
+        AppLocalizations.of(tester.element(find.byType(SessionsScreen)))!
+            .chatActionErrorUnavailable;
+    expect(find.text(reason), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text(reason)),
+      isSemantics(isLiveRegion: true),
+    );
   });
 
 // Unread-badge rendering: a row whose
@@ -298,8 +347,8 @@ void main() {
     await pumpSessions(tester, gateway, bridge, useRouter: true);
 
     // One row shape: the offer row stops hand-rolling a `ListTile` and is a
-    // `RailItem` like every other row, with the dismiss X in its trailing
-    // slot next to the accept button.
+    // `RailItem` like every other row, with the dismiss X in its action
+    // slot beside the accept button.
     final offerRow = tester.widget<RailItem>(find.ancestor(
       of: find.byTooltip('Dismiss invite'),
       matching: find.byType(RailItem),
@@ -322,6 +371,28 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listSessions), sessionCallsBeforeAccept);
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 0);
     expect(find.text('Write a message\u2026'), findsNothing);
+  });
+
+  testWidgets(
+      'an accepted offer still opens its DM when the follow-up dismiss fails',
+      (tester) async {
+    final (gateway, bridge) = _channelOfferBridge();
+    gateway.failAlways(
+      GatewayMethod.dismissDmOffer,
+      error: const ConversationBridgeError(
+        kind: ConversationBridgeErrorKind.unavailable,
+        message: 'dm runtime unavailable: node down',
+      ),
+    );
+    await pumpSessions(tester, gateway, bridge, useRouter: true);
+    final l = AppLocalizations.of(tester.element(find.byType(SessionsScreen)))!;
+
+    await tester.tap(find.text('alpha-peer'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Write a message\u2026'), findsOneWidget);
+    // Both shell panes host a Scaffold, and the messenger toasts in each.
+    expect(find.text(l.chatActionErrorUnavailable), findsWidgets);
   });
 
   // Regression (CodeAnt PR #17): pull-to-refresh only re-read the DM list,

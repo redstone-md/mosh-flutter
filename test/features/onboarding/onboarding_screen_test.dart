@@ -6,7 +6,7 @@
 // an invite inline -- it navigates to /chat-create -- but the override
 // stays so the provider stays wired in this pump).
 //
-// S2-1+chat-create: tapping "New private chat" now navigates to the
+// S2-1+chat-create: tapping "Start a private chat" now navigates to the
 // chat-create step (AppRoutes.chatCreate) instead of showing a SnackBar.
 // The test pumps the screen through the real appRouter (MaterialApp.router)
 // so context.go resolves and the ChatCreateScreen renders after the tap.
@@ -42,7 +42,7 @@ void main() {
 
     // Title resolves from the ARB (en) -> "Start a conversation".
     expect(find.text('Start a conversation'), findsOneWidget);
-    expect(find.text('New private chat'), findsOneWidget);
+    expect(find.text('Start a private chat'), findsOneWidget);
 
     // Entering text must flow into inviteFlowProvider.displayName.
     await tester.enterText(find.byType(TextField), 'juno-laptop');
@@ -51,7 +51,7 @@ void main() {
 
     // Tapping the Chat tile navigates to /chat-create (the ChatCreateScreen
     // step), replacing the old SnackBar placeholder. No SnackBar renders.
-    await tester.tap(find.text('New private chat'));
+    await tester.tap(find.text('Start a private chat'));
     await tester.pumpAndSettle();
     expect(find.byType(ChatCreateScreen), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
@@ -104,11 +104,11 @@ void main() {
     // below the fold in the default 800x600 viewport, so scroll it into
     // view before tapping (matches how a user would scroll).
     await tester.scrollUntilVisible(
-      find.text('New group'),
+      find.text('Create a group'),
       100,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('New group'));
+    await tester.tap(find.text('Create a group'));
     await tester.pumpAndSettle();
     expect(find.byType(GroupCreateScreen), findsOneWidget);
   });

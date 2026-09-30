@@ -1,15 +1,15 @@
 // Shared onboarding step-frame: a Back button at the top (arrow-back
-// icon + the localized "Back" label), then the step title
-// (headlineSmall), then the step body (the `child`).
+// icon + the localized "Back" label), then the step title (the theme's
+// headlineSmall), then the step body (the `child`).
 //
 // Two widgets live here:
 //  - `OnboardStepFrame`: full-screen route wrapper -- Scaffold + SafeArea +
-//    Center + the body, used by the chat / group / join / channel step
-//    screens pushed as full routes.
-//  - `OnboardStepBody`: the Scaffold-free body (SingleChildScrollView +
-//    ConstrainedBox + Column), exposed so the desktop chat-pane can compose
-//    a step INLINE (inside its own scroll container) instead of pushing a
-//    full-screen route.
+//    Center + scroll + 32px padding + 460px column around the body, used
+//    by the chat / group / join / channel step screens pushed as routes.
+//  - `OnboardStepBody`: just the Column, exposed so the desktop chat-pane
+//    can compose a step INLINE. It adds no scroll, padding or width cap of
+//    its own: ChatPaneWelcome already supplies them, so an inline step sits
+//    exactly where the menu it replaced did.
 //
 // The frame is intentionally presentation-only: it owns no state and calls
 // back through `onBack` -- the parent owns the busy / copied / lastInvite
@@ -52,53 +52,39 @@ class OnboardStepBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back, size: 16),
-                label: Text(
-                  l.onboardBack,
-                  style: const TextStyle(fontSize: 12, color: MoshColors.fg3),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: MoshColors.fg3,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                ),
-              ),
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back, size: 16),
+            label: Text(
+              l.onboardBack,
+              style: text.bodySmall?.copyWith(color: MoshColors.fg3),
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 19,
-                letterSpacing: -0.19,
-                color: MoshColors.fg1,
-              ),
+            style: TextButton.styleFrom(
+              foregroundColor: MoshColors.fg3,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             ),
-            const SizedBox(height: 14),
-            child,
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(title, style: text.headlineSmall),
+        const SizedBox(height: 14),
+        child,
+      ],
     );
   }
 }
 
 /// Reusable step frame for the NewSessionPanel step screens.
 ///
-/// Full-screen route wrapper: [Scaffold] + [SafeArea] + [Center] around
-/// [OnboardStepBody]. State stays in the caller.
+/// Full-screen route wrapper: [Scaffold] + [SafeArea] + [Center] + a
+/// padded, width-capped scroll around [OnboardStepBody]. State stays in
+/// the caller.
 class OnboardStepFrame extends StatelessWidget {
   const OnboardStepFrame({
     super.key,
@@ -123,7 +109,17 @@ class OnboardStepFrame extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: OnboardStepBody(title: title, onBack: onBack, child: child),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: OnboardStepBody(
+                title: title,
+                onBack: onBack,
+                child: child,
+              ),
+            ),
+          ),
         ),
       ),
     );

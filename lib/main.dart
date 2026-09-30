@@ -283,8 +283,14 @@ class MoshApp extends ConsumerWidget {
       // question Mosh asks about the VPN can show above any screen. The
       // modal self-gates to SizedBox.shrink() when there is nothing to
       // ask.
-      builder: (context, child) =>
-          VpnConsentOverlay(child: child ?? const SizedBox()),
+      // Ink ripples are motion: with the platform's reduce-motion setting
+      // on, every InkWell below drops its splash.
+      builder: (context, child) => Theme(
+        data: MediaQuery.disableAnimationsOf(context)
+            ? Theme.of(context).copyWith(splashFactory: NoSplash.splashFactory)
+            : Theme.of(context),
+        child: VpnConsentOverlay(child: child ?? const SizedBox()),
+      ),
     );
     return DesktopAppRelauncherScope(
       relauncher: relauncher ?? DesktopAppRelauncher.unsupported(),

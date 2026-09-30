@@ -24,6 +24,7 @@ impl PrivateDmSession {
         Self {
             history_last_rx_ms: 0,
             recovery_boot_ms: 0,
+            recovery_pull_ms: 0,
             membership: None,
             device_signer: None,
             device_store: None,

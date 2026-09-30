@@ -1,19 +1,20 @@
 // Private leaf widgets of [OnboardMenu] (onboard_menu.dart): the
-// Start/Join section shells, the identity chip, the action tiles and
-// the Advanced-disclosure text field. Part of onboard_menu.dart.
+// Start/Join section shells, the identity chip and the action tiles.
+// Part of onboard_menu.dart.
+//
+// Radii are concentric (outer = inner + inset): the chip is 18 around a
+// radius-8 field at a 10px inset; a tile is 20 around a radius-8 icon
+// plate at a 12px inset, the same pairing as PersistenceWarningBanner.
 part of 'onboard_menu.dart';
 
 /// A Start/Join section: a labelSmall heading followed by the section's
 /// tiles with fixed spacing between them.
+/// A Start/Join section: an uppercase heading followed by the section's
+/// tiles with fixed spacing between them.
 class _TileSection extends StatelessWidget {
-  const _TileSection({
-    required this.label,
-    required this.labelStyle,
-    required this.tiles,
-  });
+  const _TileSection({required this.label, required this.tiles});
 
   final String label;
-  final TextStyle? labelStyle;
   final List<Widget> tiles;
 
   @override
@@ -21,7 +22,20 @@ class _TileSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(label, style: labelStyle),
+        // Flutter has no text-transform, so the string itself is
+        // uppercased; the Semantics label keeps the natural-case name.
+        Semantics(
+          label: label,
+          excludeSemantics: true,
+          child: Text(
+            label.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: MoshColors.fg3,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.13 * 10.5,
+                ),
+          ),
+        ),
         const SizedBox(height: 8),
         for (final (i, tile) in tiles.indexed) ...[
           if (i > 0) const SizedBox(height: 8),
@@ -51,8 +65,7 @@ class _IdentityChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: MoshColors.line),
+        borderRadius: BorderRadius.circular(18),
         color: MoshColors.bg2,
       ),
       child: Row(
@@ -63,7 +76,7 @@ class _IdentityChip extends StatelessWidget {
           const CircleAvatar(
             radius: 18,
             backgroundColor: MoshColors.mossGlow,
-            child: Icon(Icons.person, size: 20, color: MoshColors.moss),
+            child: Icon(Icons.person_outline, size: 20, color: MoshColors.moss),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -73,7 +86,6 @@ class _IdentityChip extends StatelessWidget {
                 labelText: label,
                 hintText: hint,
                 helperText: identityHint,
-                border: const OutlineInputBorder(),
                 isDense: true,
               ),
               onChanged: onChanged,
@@ -85,6 +97,8 @@ class _IdentityChip extends StatelessWidget {
   }
 }
 
+/// A menu action: icon plate, title and a description that wraps to as
+/// many lines as the locale needs, then a chevron.
 class _OnboardTile extends StatelessWidget {
   const _OnboardTile({
     required this.icon,
@@ -97,43 +111,75 @@ class _OnboardTile extends StatelessWidget {
   final String desc;
   final VoidCallback onTap;
 
+  static const _radius = BorderRadius.all(Radius.circular(20));
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
+    return Material(
       color: MoshColors.bg2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: MoshColors.line),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 13,
-        ),
-        horizontalTitleGap: 13,
-        leading: Container(
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: MoshColors.mossGlow,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 20, color: MoshColors.moss),
-        ),
-        title: Text(title,
-            style: const TextStyle(fontSize: 13.5, color: MoshColors.fg1)),
-        subtitle: Text(
-          desc,
-          style: const TextStyle(fontSize: 11.5, color: MoshColors.fg3),
-          maxLines: 2,
-        ),
-        trailing:
-            const Icon(Icons.chevron_right, size: 18, color: MoshColors.fg4),
+      borderRadius: _radius,
+      child: InkWell(
+        borderRadius: _radius,
         onTap: onTap,
+        child: FocusRing(
+          radius: _radius,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: MoshColors.mossGlow,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 20, color: MoshColors.moss),
+                ),
+                const SizedBox(width: 13),
+                Expanded(child: _TileLabels(title: title, desc: desc)),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right,
+                    size: 18, color: MoshColors.fg3),
+              ],
+            ),
+          ),
+        ),
       ),
+    );
+  }
+}
+
+/// A tile's title over its description; both wrap, nothing clips.
+class _TileLabels extends StatelessWidget {
+  const _TileLabels({required this.title, required this.desc});
+  final String title;
+  final String desc;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: text.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          desc,
+          style: text.labelMedium?.copyWith(
+            fontWeight: FontWeight.w400,
+            color: MoshColors.fg3,
+            height: 1.4,
+          ),
+        ),
+      ],
     );
   }
 }

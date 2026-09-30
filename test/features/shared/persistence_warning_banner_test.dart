@@ -1,6 +1,5 @@
 // Widget test for `PersistenceWarningBanner`. Asserts the localized
-// title + body render and the banner exposes a `Semantics` container so
-// screen readers announce it as a status region.
+// title + body render and a screen reader hears them once, as one region.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -47,7 +46,7 @@ void main() {
     );
   });
 
-  testWidgets('exposes a Semantics container labeled with title + body',
+  testWidgets('announces title and body once, without the icon',
       (tester) async {
     final warning = PersistenceWarning(
       kind: PersistenceWarningKind.unavailable,
@@ -60,39 +59,9 @@ void main() {
         tester.element(find.byType(PersistenceWarningBanner)))!;
     final title = l.persistenceWarningUnavailableTitle;
     final body = l.persistenceWarningUnavailableBody(' Reason: no instance');
-    // The banner wraps itself in Semantics(container: true, label: ...)
-    // so the screen reader announces "title. body" as a status region.
-    // Read the merged semantics node for the banner widget directly.
-    // The merged semantics node carries the title + body (Flutter joins the
-    // child Text labels of the Column); assert both substrings are present so
-    // the status region announces the full warning.
-    final label = tester
-        .getSemantics(find.byType(PersistenceWarningBanner))
-        .getSemanticsData()
-        .label;
-    expect(label, contains(title));
-    expect(label, contains(body));
-  });
-
-  testWidgets('omits a semantic label on the alert icon (decorative)',
-      (tester) async {
-    final warning = PersistenceWarning(
-      kind: PersistenceWarningKind.unavailable,
-      reason: null,
-    );
-    await pumpScreen(
-        tester, Scaffold(body: PersistenceWarningBanner(warning: warning)));
-
-    // The warning_amber icon renders; its ExcludeSemantics wrapper is the one
-    // that is an ancestor of the icon (the MaterialApp/Scaffold add their own
-    // ExcludeSemantics nodes, so scope the finder to the icon's ancestors).
-    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     expect(
-      find.ancestor(
-        of: find.byIcon(Icons.warning_amber_rounded),
-        matching: find.byType(ExcludeSemantics),
-      ),
-      findsOneWidget,
+      tester.getSemantics(find.byType(PersistenceWarningBanner)),
+      isSemantics(label: '$title. $body'),
     );
   });
 }
