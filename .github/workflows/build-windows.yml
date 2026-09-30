@@ -73,7 +73,10 @@ jobs:
           SENTRY_PROJECT: flutter
         run: |
           if [ -z "$SENTRY_AUTH_TOKEN" ]; then echo "No SENTRY_AUTH_TOKEN; skipping."; exit 0; fi
-          sentry-cli debug-files upload build/windows/x64
+          # --no-zips: plugin CMake (NuGet packages, WinSparkle) leaves archives
+          # in build/windows/x64; sentry-cli fails on them with "Invalid
+          # checksum", and no debug file we ship lives inside one.
+          sentry-cli debug-files upload --no-zips build/windows/x64
 
       # The runner image does not guarantee Inno Setup; chocolatey is there.
       - name: Install Inno Setup
