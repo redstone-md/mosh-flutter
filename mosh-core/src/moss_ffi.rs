@@ -84,6 +84,7 @@ type MossSetKeyStore =
 // library predates them: a stale copy beside the binary must degrade to the
 // room wire, never fail the whole load.
 type MossVersionFn = unsafe extern "C" fn() -> *mut c_char;
+type MossLastErrorFn = unsafe extern "C" fn(MossHandle) -> *mut c_char;
 type MossPeerRttFn = unsafe extern "C" fn(MossHandle, *const c_char) -> i64;
 type MossOpenStreamFn = unsafe extern "C" fn(MossHandle, *const c_char, u32) -> i32;
 type MossSendStreamFn = unsafe extern "C" fn(MossHandle, *const c_char, u32, *const u8, u32) -> i32;
@@ -322,6 +323,7 @@ pub struct MossFfiRuntime {
     // (see each accessor). No `?` in the loading below — the load itself
     // must not fail.
     version: Option<MossVersionFn>,
+    last_error: Option<MossLastErrorFn>,
     peer_rtt: Option<MossPeerRttFn>,
     open_stream: Option<MossOpenStreamFn>,
     send_stream: Option<MossSendStreamFn>,
@@ -398,6 +400,7 @@ impl MossFfiRuntime {
             free: load_symbol(&library, b"Moss_Free\0")?,
             set_key_store: load_symbol(&library, b"Moss_SetKeyStore\0")?,
             version: try_load_symbol(&library, b"Moss_Version\0"),
+            last_error: try_load_symbol(&library, b"Moss_LastError\0"),
             peer_rtt: try_load_symbol(&library, b"Moss_PeerRTT\0"),
             open_stream: try_load_symbol(&library, b"Moss_OpenStream\0"),
             send_stream: try_load_symbol(&library, b"Moss_SendStream\0"),
@@ -462,6 +465,15 @@ impl MossFfiRuntime {
 impl MossNode {
     pub fn start(&self) -> Result<(), MossFfiError> {
         check_code("start", unsafe { (self.runtime.start)(self.handle) })
+    }
+
+    /// Moss's reason for the last failed call on this node — for a failed
+    /// start, the OS bind error behind the coarse -13. `None` when nothing
+    /// failed or the library predates `Moss_LastError`.
+    pub fn last_error(&self) -> Option<String> {
+        let last_error = self.runtime.last_error?;
+        take_heap_string(unsafe { last_error(self.handle) }, &self.runtime.free)
+            .filter(|reason| !reason.is_empty())
     }
 
     pub fn subscribe(&self, channel: &str) -> Result<(), MossFfiError> {
