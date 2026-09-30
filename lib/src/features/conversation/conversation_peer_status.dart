@@ -7,8 +7,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 
 class ConversationPeerStatus extends StatelessWidget {
   const ConversationPeerStatus({
@@ -31,7 +33,11 @@ class ConversationPeerStatus extends StatelessWidget {
       session: snapshot is DmConversation ? snapshot.source : null,
       channel: snapshot is ChannelConversation ? snapshot.source : null,
       group: snapshot is GroupConversation ? snapshot.source : null,
-      error: async.hasError ? async.error.toString() : null,
+      // Worded from the error's kind, never the runtime's raw message.
+      error: async.hasError
+          ? ConversationActionError.of(async.error!)
+              .describe(AppLocalizations.of(context)!)
+          : null,
       refreshing: false,
       onRefresh: onRefresh,
       onClose: onClose,
