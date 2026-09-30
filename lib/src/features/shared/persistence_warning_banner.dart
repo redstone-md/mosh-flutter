@@ -23,10 +23,11 @@ class PersistenceWarningBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final isUnavailable = warning.kind == PersistenceWarningKind.unavailable;
-    // The persistence error is prefixed with ` Reason: ` (leading space);
-    // the gateway-error body already embeds `Reason: ` in the ARB string.
-    final unavailableReason =
-        warning.reason != null ? ' Reason: ${warning.reason}' : '';
+    // The persistence error is appended as ` <persistenceWarningReason>`
+    // (leading space); the gateway-error body embeds its own `Reason:`.
+    final unavailableReason = warning.reason != null
+        ? ' ${l.persistenceWarningReason(warning.reason!)}'
+        : '';
     final title = isUnavailable
         ? l.persistenceWarningUnavailableTitle
         : l.persistenceWarningErrorTitle;

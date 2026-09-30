@@ -99,7 +99,7 @@ final class DmRailEntry extends RailEntry {
         leading: Avatar(name: label),
         title: label,
         subtitle: revokedOrgName != null
-            ? '${l.orgRevokedBadge} $revokedOrgName'
+            ? l.orgRevokedBadge(revokedOrgName!)
             : dmStateLabel(l, session.state),
         // The expanded rail hides `.rail-dot`, so the badge stands alone.
         trailing: UnreadBadge(count: chrome.unreadCount),
