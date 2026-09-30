@@ -45,6 +45,19 @@ void main() {
     expect(sdk.events, isEmpty);
   });
 
+  test('a failed start leaves the install opted out', () async {
+    final bridge = ScriptableBridge();
+    final reporting = CrashReporting(
+      bridge: bridge,
+      dsn: 'dsn',
+      start: (dsn, salt) async => throw StateError('sdk down'),
+      stop: () async {},
+    );
+    await expectLater(reporting.setEnabled(true), throwsStateError);
+    expect(await bridge.crashReportingSalt(), isNull,
+        reason: 'a switch shown off must not report on the next launch');
+  });
+
   test('opt-out stops the SDK and forgets the consent', () async {
     final sdk = _Sdk();
     final bridge = ScriptableBridge()..seedCrashReportingSalt('s1');
