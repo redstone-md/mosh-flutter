@@ -4,7 +4,11 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.11.0] - 2026-09-30
+## [0.11.1] - 2026-09-30
+
+0.11.0 was tagged but never published: its Windows release build failed
+uploading debug files to Sentry. 0.11.1 ships the same changes with that
+fixed.
 
 ### Added
 - **Message text can be copied.** Drag across messages to select text and
