@@ -4,10 +4,11 @@
 //
 // Sections live in their own files (file budget): Voice & Video (device
 // pickers), Connection (the advanced controls moved out of the onboarding
-// menu), About (version + crypto notice). This file owns only the frame:
-// the section enum, the nav list, the content switch, and the mobile
-// degradation to a single scrolling column (the shell's two-pane layout
-// does not apply inside a route; the breakpoint mirrors the shell's).
+// menu), Privacy (opt-in crash reporting), About (version + crypto notice).
+// This file owns only the frame: the section enum, the nav list, the
+// content switch, and the mobile degradation to a single scrolling column
+// (the shell's two-pane layout does not apply inside a route; the
+// breakpoint mirrors the shell's).
 //
 // No section holds state beyond its own fields; navigation between
 // sections is a local `_SettingsSection` + setState, not a route, so the
@@ -19,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
+import 'package:mosh/src/features/crash_reporting/crash_reporting_toggle.dart';
+
 import 'about_settings_section.dart';
 import 'connection_settings_section.dart';
 import 'voice_settings_section.dart';
@@ -29,7 +32,7 @@ import '../device_link/devices_settings_section.dart';
 const double kSettingsTwoPaneMinWidth = 700;
 
 /// The sections, in nav order.
-enum _SettingsSection { voice, devices, connection, about }
+enum _SettingsSection { voice, devices, connection, privacy, about }
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -46,6 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _SettingsSection.voice => l.settingsSectionVoice,
         _SettingsSection.devices => l.settingsSectionDevices,
         _SettingsSection.connection => l.settingsSectionConnection,
+        _SettingsSection.privacy => l.settingsSectionPrivacy,
         _SettingsSection.about => l.settingsSectionAbout,
       };
 
@@ -53,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _SettingsSection.voice => const VoiceSettingsSection(),
         _SettingsSection.devices => const DevicesSettingsSection(),
         _SettingsSection.connection => const ConnectionSettingsSection(),
+        _SettingsSection.privacy => const CrashReportingToggle(),
         _SettingsSection.about => const AboutSettingsSection(),
       };
 

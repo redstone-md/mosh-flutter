@@ -1678,5 +1678,21 @@
   "dmDeviceRevokedTitle": "This device was removed",
   "dmDeviceRevokedBody": "Received messages remain readable. Sending and message recovery are disabled. Request a fresh link in Settings → Devices to regain access.",
   "dmRemovalPendingTitle": "Device removal pending",
-  "dmRemovalPendingBody": "Future messages are protected after all remaining participants accept the removal epoch. Offline participants apply it when they reconnect."
+  "dmRemovalPendingBody": "Future messages are protected after all remaining participants accept the removal epoch. Offline participants apply it when they reconnect.",
+  "settingsSectionPrivacy": "Privacy",
+  "@settingsSectionPrivacy": {
+    "description": "Left-nav label of the Privacy settings section"
+  },
+  "settingsCrashReportsTitle": "Send crash reports",
+  "@settingsCrashReportsTitle": {
+    "description": "Title of the opt-in crash-reporting switch"
+  },
+  "settingsCrashReportsSubtitle": "Off by default. When on, crashes and errors go to Sentry: stack traces, error types, app version and OS. Never messages, contacts, keys, invites or IP addresses; ids are replaced by hashes. A native crash report also includes a snapshot of thread stack memory.",
+  "@settingsCrashReportsSubtitle": {
+    "description": "What the crash-reporting switch sends and never sends (ADR 0035)"
+  },
+  "settingsCrashReportsUnavailable": "This build cannot send crash reports.",
+  "@settingsCrashReportsUnavailable": {
+    "description": "Subtitle of the crash-reporting switch in a build without a Sentry DSN"
+  }
 }

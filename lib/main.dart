@@ -16,6 +16,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 import 'package:mosh/src/deeplink/mosh_url_scheme_windows.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart';
+import 'package:mosh/src/features/crash_reporting/crash_reporting.dart';
 import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
@@ -90,6 +92,11 @@ void main(List<String> args) async {
   // open. Must run BEFORE `initMobileDek()` and the first runtime
   // construct; idempotent-once on the Rust side.
   await setAppDataDirBridge();
+  // ADR 0035: start opt-in crash reporting as early as the consent file is
+  // readable (it lives in the data dir just bridged), so launch failures
+  // after this point are reported. A no-op without consent or without a
+  // build DSN; never throws.
+  await CrashReporting(bridge: BridgeFacade()).resume();
   // M-3 (ADR 0011): on Android, load/mint the at-rest history DEK from the
   // Keystore via `flutter_secure_storage` and inject the 32 raw bytes into
   // Rust via the frb `set_history_dek` BEFORE the runtime constructs
