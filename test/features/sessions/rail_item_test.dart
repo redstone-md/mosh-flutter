@@ -1,6 +1,9 @@
 // The rail row chrome under the conditions users bring: large text,
 // keyboard navigation and the themed row surfaces.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,8 +32,16 @@ Future<void> _pumpRail(
       ),
     );
 
-RailItem _row({bool active = false}) => RailItem(
-      kind: RailItemKind.dm,
+/// WCAG contrast ratio between two opaque colours.
+double _contrast(Color a, Color b) {
+  final la = a.computeLuminance();
+  final lb = b.computeLuminance();
+  return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+}
+
+RailItem _row({RailItemKind kind = RailItemKind.dm, bool active = false}) =>
+    RailItem(
+      kind: kind,
       leading: const Icon(Icons.person),
       title: 'Alice',
       subtitle: 'Connected',
@@ -87,4 +98,25 @@ void main() {
     );
     expect(rings, findsOneWidget);
   });
+
+  for (final kind in RailItemKind.values) {
+    testWidgets('the ${kind.name} row subtitle reads at 4.5:1 on its surface',
+        (tester) async {
+      await _pumpRail(tester, _row(kind: kind));
+
+      final fill = tester
+          .widget<Material>(find
+              .descendant(
+                  of: find.byType(RailItem), matching: find.byType(Material))
+              .first)
+          .color!;
+      final surface = Color.alphaBlend(fill, MoshColors.bg0);
+      final ink = tester
+          .renderObject<RenderParagraph>(find.text('Connected'))
+          .text
+          .style!
+          .color!;
+      expect(_contrast(ink, surface), greaterThanOrEqualTo(4.5));
+    });
+  }
 }
