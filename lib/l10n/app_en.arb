@@ -128,6 +128,14 @@
   "@chatSendLabel": {
     "description": "Label for the send button"
   },
+  "messageCopyText": "Copy text",
+  "@messageCopyText": {
+    "description": "Menu item and screen-reader action that copies one whole message's text"
+  },
+  "messageCopied": "Copied",
+  "@messageCopied": {
+    "description": "Brief confirmation after a message's text was copied"
+  },
   "chatAttachLabel": "Attach a file",
   "@chatAttachLabel": {
     "description": "Label for the attach-file button"

@@ -32,6 +32,8 @@
   "chatEmptyBody": "Когда собеседник присоединится и завершится MLS-рукопожатие, открытый текст останется только на ваших устройствах.",
   "chatComposerPlaceholder": "Напишите сообщение…",
   "chatSendLabel": "Отправить",
+  "messageCopyText": "Копировать текст",
+  "messageCopied": "Скопировано",
   "chatAttachLabel": "Прикрепить файл",
   "chatDropHint": "Перетащите файл, чтобы поделиться им",
   "attachmentTooLargeMessage": "Размер вложения превышает 50 МБ",
