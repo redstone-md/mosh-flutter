@@ -113,7 +113,7 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       inlineActions: [
         // Start-call button, between the kebab and the peer-status button.
         IconButton(
-          icon: const Icon(Icons.phone, size: 18),
+          icon: const Icon(Icons.phone_outlined, size: 18),
           tooltip: l.callStart,
           onPressed: widget.onStartCall,
         ),

@@ -59,8 +59,9 @@ class ChatErrorBanner extends StatelessWidget {
                 onPressed: onRetry,
                 style: TextButton.styleFrom(
                   foregroundColor: theme.colorScheme.onErrorContainer,
-                  minimumSize: const Size(0, 32),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 40),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 // Refresh icon size 13 + the "Retry" label.

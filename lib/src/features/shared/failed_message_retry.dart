@@ -84,11 +84,11 @@ class FailedMessageRetry extends StatelessWidget {
             TextButton(
               onPressed: onRetry,
               style: TextButton.styleFrom(
-                // A small error-tinted
-                // button: error foreground + dense padding.
+                // Error-tinted button with comfortable >=40px hit area.
                 foregroundColor: theme.colorScheme.error,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: const Size(0, 32),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: const Size(0, 40),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Semantics(

@@ -115,34 +115,36 @@ class _OnboardTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: MoshColors.bg2,
-      borderRadius: _radius,
-      child: InkWell(
+    return PressScale(
+      child: Material(
+        color: MoshColors.bg2,
         borderRadius: _radius,
-        onTap: onTap,
-        child: FocusRing(
-          radius: _radius,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: MoshColors.mossGlow,
-                    borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: _radius,
+          onTap: onTap,
+          child: FocusRing(
+            radius: _radius,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: MoshColors.mossGlow,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, size: 20, color: MoshColors.moss),
                   ),
-                  child: Icon(icon, size: 20, color: MoshColors.moss),
-                ),
-                const SizedBox(width: 13),
-                Expanded(child: _TileLabels(title: title, desc: desc)),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right,
-                    size: 18, color: MoshColors.fg3),
-              ],
+                  const SizedBox(width: 13),
+                  Expanded(child: _TileLabels(title: title, desc: desc)),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right,
+                      size: 18, color: MoshColors.fg3),
+                ],
+              ),
             ),
           ),
         ),

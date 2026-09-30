@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:flutter/services.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
+import 'package:mosh/src/features/shared/optical_icon.dart';
 
 /// A centered modal confirmation dialog. Construct directly and pass to
 /// `showDialog`, or use the [showConfirmDialog] helper which returns `true`
@@ -308,9 +309,9 @@ class _CloseButton extends StatelessWidget {
       icon: const Icon(Icons.close, size: 16),
       onPressed: onPressed,
       visualDensity: VisualDensity.compact,
-      // Compact splash to match the tight 28px hit area.
-      splashRadius: 16,
-      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      // >=40px hit area for comfortable desktop targeting.
+      splashRadius: 20,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       padding: EdgeInsets.zero,
     );
   }
@@ -337,10 +338,9 @@ class _AlertIcon extends StatelessWidget {
           color: dangerColor.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(
-          // Material's `Icons.warning` is the standard filled
-          // alert-triangle glyph.
-          Icons.warning,
+        child: OpticalIcon(
+          icon: Icons.warning,
+          offset: const Offset(0, -1),
           size: 18,
           color: dangerColor,
         ),

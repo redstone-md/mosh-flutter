@@ -20,6 +20,8 @@ import 'package:media_kit/media_kit.dart';
 
 import 'package:mosh/src/features/shared/voice_composer.dart'
     show formatVoiceClock, waveformBuckets;
+import 'package:mosh/src/features/shared/contextual_icon_switcher.dart';
+import 'package:mosh/src/features/shared/press_scale.dart';
 
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
@@ -192,31 +194,38 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF7F7F7F).withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // `.voice-message-play { width: 32px; height: 32px; border-radius:
-          // 50%; background: #4f8cff; color: #fff }`, 0.65 opacity while it
-          // waits on the file.
+          // 40x40 hit target with tactile press scale, optical alignment,
+          // and contextual icon cross-fade.
           Opacity(
             opacity: enabled ? 1 : 0.65,
-            child: Material(
-              color: const Color(0xFF4F8CFF),
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: enabled ? _toggle : null,
-                child: Tooltip(
-                  message: playLabel,
-                  child: SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: Icon(
-                      _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      size: 18,
-                      color: Colors.white,
+            child: PressScale(
+              enabled: enabled,
+              child: Material(
+                color: const Color(0xFF4F8CFF),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: enabled ? _toggle : null,
+                  child: Tooltip(
+                    message: playLabel,
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Center(
+                        child: ContextualIconSwitcher(
+                          icon: _playing
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          offset: _playing ? Offset.zero : const Offset(1.5, 0),
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),
