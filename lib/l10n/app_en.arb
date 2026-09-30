@@ -559,38 +559,6 @@
   "@channelEmptyBody": {
     "description": "Body shown when a channel has no messages"
   },
-  "orgLeave": "Leave organization",
-  "@orgLeave": {
-    "description": "Label for leaving an organization"
-  },
-  "orgPendingHint": "Your confirmation code — give it to your admin",
-  "@orgPendingHint": {
-    "description": "Hint shown for a pending organization confirmation"
-  },
-  "orgDmOffer": "wants to chat",
-  "@orgDmOffer": {
-    "description": "Offer text for a direct-message request from an org member"
-  },
-  "orgGroupOffer": "Org group",
-  "@orgGroupOffer": {
-    "description": "Label for an organization group offer"
-  },
-  "orgGroupOfferFrom": "invited by",
-  "@orgGroupOfferFrom": {
-    "description": "Text attributing who invited a group"
-  },
-  "orgMemberDmHint": "Message",
-  "@orgMemberDmHint": {
-    "description": "Hint for messaging an org member"
-  },
-  "orgYouBadge": "you",
-  "@orgYouBadge": {
-    "description": "Badge marking the current user"
-  },
-  "orgAdminBadge": "Org admin",
-  "@orgAdminBadge": {
-    "description": "Badge marking an organization admin"
-  },
   "orgRevokedBadge": "no longer in",
   "@orgRevokedBadge": {
     "description": "Badge marking a revoked member"
@@ -606,14 +574,6 @@
   "orgMissingMany": "roster members not in this group",
   "@orgMissingMany": {
     "description": "Status text for several missing roster members"
-  },
-  "orgNewGroup": "New org group",
-  "@orgNewGroup": {
-    "description": "Button label to create a new org group"
-  },
-  "orgNewGroupPlaceholder": "new group name",
-  "@orgNewGroupPlaceholder": {
-    "description": "Placeholder for the new org group field"
   },
   "orgRejoinNeededTitle": "Group out of sync",
   "@orgRejoinNeededTitle": {
