@@ -181,7 +181,7 @@ void main() {
         ),
       );
       expect(find.text('Eng'), findsOneWidget);
-      expect(find.text('invited by Carol'), findsOneWidget);
+      expect(find.text('Invited by Carol'), findsOneWidget);
     },
   );
 

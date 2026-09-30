@@ -42,7 +42,7 @@ class OrgSection extends StatelessWidget {
     final theme = Theme.of(context);
     final selfIsAdmin = org.members.any((m) => m.isSelf && m.role == 'admin');
     return Semantics(
-      label: 'Organization ${org.orgName}',
+      label: l.orgSectionAria(org.orgName),
       container: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -218,7 +218,7 @@ class _OfferRow extends StatelessWidget {
                           switch (_kind) {
                             _OfferRowKind.dm => l.orgDmOffer,
                             _OfferRowKind.group =>
-                              '${l.orgGroupOfferFrom} $fromName',
+                              l.orgGroupOfferFrom(fromName),
                           },
                           style: theme.textTheme.bodySmall,
                         ),

@@ -436,7 +436,7 @@
   "@onboardGroupInviteReady": {
     "description": "Status shown when a group invite is ready"
   },
-  "onboardGroupInvite": "group invite",
+  "onboardGroupInvite": "Group invite",
   "@onboardGroupInvite": {
     "description": "Subtitle for a DM offer originating from a private group (the channel-offer subtitle is `#host`, this is the group-offer subtitle)"
   },
@@ -559,9 +559,14 @@
   "@channelEmptyBody": {
     "description": "Body shown when a channel has no messages"
   },
-  "orgRevokedBadge": "no longer in",
+  "orgRevokedBadge": "No longer in {org}",
   "@orgRevokedBadge": {
-    "description": "Badge marking a revoked member"
+    "description": "Rail subtitle for a DM whose org membership was revoked; {org} is the organization name",
+    "placeholders": {
+      "org": {
+        "type": "String"
+      }
+    }
   },
   "orgAddMissing": "Add to group",
   "@orgAddMissing": {
@@ -1185,7 +1190,16 @@
   },
   "persistenceWarningUnavailableBody": "Messages still send, but private DM history and session continuity may be lost after restart.{reason}",
   "@persistenceWarningUnavailableBody": {
-    "description": "Body of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch body; {reason} is the leading-space ' Reason: <error>' suffix or empty)",
+    "description": "Body of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch body; {reason} is a leading space plus persistenceWarningReason, or empty)",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "persistenceWarningReason": "Reason: {reason}",
+  "@persistenceWarningReason": {
+    "description": "Suffix appended to persistenceWarningUnavailableBody when the runtime reports why history is unavailable; {reason} is the runtime error message",
     "placeholders": {
       "reason": {
         "type": "String"
@@ -1456,6 +1470,15 @@
   "@orgLeave": {
     "description": "Tooltip/aria-label for the leave-org button (React OrgSection.tsx orgText.leave)"
   },
+  "orgSectionAria": "Organization {name}",
+  "@orgSectionAria": {
+    "description": "Screen-reader label for an organization section in the rail; {name} is the organization name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "orgPendingHint": "Your confirmation code — give it to your admin",
   "@orgPendingHint": {
     "description": "Hint under the confirmation code while not yet in roster (React OrgSection.tsx orgText.pendingHint)"
@@ -1468,9 +1491,14 @@
   "@orgGroupOffer": {
     "description": "Fallback label for a group offer without a group label (React OrgSection.tsx orgText.groupOffer)"
   },
-  "orgGroupOfferFrom": "invited by",
+  "orgGroupOfferFrom": "Invited by {name}",
   "@orgGroupOfferFrom": {
-    "description": "Group-offer row secondary text prefix before the inviter name (React OrgSection.tsx orgText.groupOfferFrom)"
+    "description": "Group-offer row secondary text naming the inviter (React OrgSection.tsx orgText.groupOfferFrom)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "orgMemberDmHint": "Message",
   "@orgMemberDmHint": {
