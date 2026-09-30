@@ -1,8 +1,10 @@
 // Widget tests for `PeerStatusDrawer` (lib/src/features/conversation/
 // peer_status_drawer.dart). The drawer is a `Positioned.fill` overlay (NOT a
 // `showDialog` route), so unlike the call modals it owns its own focus + Esc
-// handling via a `KeyboardListener`. These tests assert:
+// handling. These tests assert:
 //   - Esc calls `onClose`.
+//   - Opened from the keyboard, it takes focus, keeps Tab inside, hides
+//     the background from screen readers, and hands focus back on close.
 //   - The header title + the NoActiveSession fallback render when no
 //     conversation is active (idle branch).
 //   - The session branch renders the SessionDiagnostics section content.
@@ -165,4 +167,92 @@ void main() {
     await tester.pump();
     expect(refreshCount, 0);
   });
+
+  group('opened from the keyboard', () {
+    Future<void> openFromKeyboard(WidgetTester tester) async {
+      await pumpScreen(tester, const _Host());
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(_hasFocus(tester, 'Open'), isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.byType(PeerStatusDrawer), findsOneWidget);
+    }
+
+    testWidgets('Escape closes it and focus returns to the trigger',
+        (tester) async {
+      await openFromKeyboard(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PeerStatusDrawer), findsNothing);
+      expect(_hasFocus(tester, 'Open'), isTrue);
+    });
+
+    testWidgets('Tab cycles through the drawer controls only', (tester) async {
+      await openFromKeyboard(tester);
+
+      for (var i = 0; i < 6; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        final focused = FocusManager.instance.primaryFocus!.context!;
+        expect(focused.findAncestorWidgetOfExactType<PeerStatusDrawer>(),
+            isNotNull,
+            reason: 'Tab #${i + 1} left the drawer');
+      }
+    });
+
+    testWidgets('the screen behind is hidden from screen readers',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await openFromKeyboard(tester);
+
+      expect(find.semantics.byLabel('Behind'), findsNothing);
+      handle.dispose();
+    });
+  });
+}
+
+bool _hasFocus(WidgetTester tester, String buttonText) =>
+    Focus.of(tester.element(find.text(buttonText))).hasPrimaryFocus;
+
+/// A screen with a trigger and one more control, and the drawer over both
+/// while open -- the way the conversation screens and the shell host it.
+class _Host extends StatefulWidget {
+  const _Host();
+
+  @override
+  State<_Host> createState() => _HostState();
+}
+
+class _HostState extends State<_Host> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Column(
+              children: [
+                TextButton(
+                  onPressed: () => setState(() => _open = true),
+                  child: const Text('Open'),
+                ),
+                TextButton(onPressed: () {}, child: const Text('Behind')),
+              ],
+            ),
+            if (_open)
+              Positioned.fill(
+                child: PeerStatusDrawer(
+                  error: null,
+                  refreshing: false,
+                  onRefresh: () {},
+                  onClose: () => setState(() => _open = false),
+                ),
+              ),
+          ],
+        ),
+      );
 }
