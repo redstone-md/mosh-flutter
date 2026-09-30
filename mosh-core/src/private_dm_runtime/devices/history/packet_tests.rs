@@ -21,6 +21,7 @@ struct Fixture {
     session: String,
     dir: PathBuf,
     peers: std::collections::HashMap<String, MlsSessionCrypto>,
+    received_ms: u64,
 }
 
 fn identity(dir: &std::path::Path, name: &str) -> DeviceIdentity {
@@ -83,6 +84,7 @@ impl Fixture {
             session: invite.session_id,
             dir,
             peers: Default::default(),
+            received_ms: 0,
         };
         fixture.admit_clients(include_source);
         fixture
@@ -164,6 +166,7 @@ impl Fixture {
     }
 
     fn receive(&mut self, packet: &[u8]) -> Result<()> {
+        self.received_ms = crate::private_dm_runtime::now_ms();
         self.runtime.receive_device_packet(packet)
     }
 
@@ -173,6 +176,18 @@ impl Fixture {
 
     fn snapshot(&mut self) -> SessionSnapshot {
         self.runtime.poll_session(&self.session).unwrap()
+    }
+
+    /// History sync after a poll, read on the clock of the last received
+    /// packet. The poll dials the fixture's offline peers through real Moss,
+    /// which can take seconds on a loaded runner; reading on the wall clock
+    /// would then age a fresh answer past the source timeout.
+    fn history_sync(&mut self) -> Option<DmHistorySyncState> {
+        self.snapshot();
+        self.runtime
+            .session_ref(&self.session)
+            .unwrap()
+            .history_sync_state(self.received_ms)
     }
 }
 
