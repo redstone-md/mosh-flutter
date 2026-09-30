@@ -51,7 +51,16 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # Ship the smallest, fastest core: whole-program LTO and one codegen unit
 # cost release-build minutes, never runtime. `panic` stays `unwind` because
 # flutter_rust_bridge turns a Rust panic into a Dart exception.
+#
+# Line tables go to separate debug files (PDB on Windows, dSYM on macOS) that
+# CI uploads to Sentry, so crashes symbolicate without shipping DWARF
+# (ADR 0035). `strip` stays off: on MSVC any strip level suppresses the PDB,
+# and the shipped DLL carries no symbols there anyway. Android packaging
+# strips the .so itself; a Linux build keeps its DWARF in the .so (no Linux
+# release ships).
 [profile.release]
 lto = "fat"
 codegen-units = 1
-strip = "symbols"
+debug = "line-tables-only"
+split-debuginfo = "packed"
+strip = "none"
