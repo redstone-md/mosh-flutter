@@ -41,6 +41,9 @@ All notable changes to Mosh are documented here. Format follows
 - **Reduced motion turns off the tap ripple.**
 - **Russian copy:** grammar fixes, no English fragments ("Reason:",
   "Organization").
+- **A returning desktop catches up faster.** Offline recovery asks for the
+  next batch of missed messages as soon as one is saved, instead of
+  waiting for the next 2-second tick.
 
 ## [0.10.1] - 2026-09-29
 
