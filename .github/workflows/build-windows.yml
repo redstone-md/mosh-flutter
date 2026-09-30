@@ -44,7 +44,9 @@ jobs:
           restore-keys: cargokit-windows-release-
 
       - name: Build Windows app (release)
-        run: flutter build windows --release
+        # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
+        # crash reporting; without it the build cannot report at all.
+        run: flutter build windows --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
 
       # The runner image does not guarantee Inno Setup; chocolatey is there.
       - name: Install Inno Setup
