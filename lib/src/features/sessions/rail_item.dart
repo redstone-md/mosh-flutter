@@ -2,13 +2,13 @@
 //
 // A rail row is at least 48px tall (large text grows it), radius 12, with
 // 12px side padding and a 10px gap, holding a leading avatar/icon, a
-// two-line text block (12.5px/1.1 fg-1 over 10.5px/1.1 fg-4) and the unread
-// badge. Active is an inset 2px accent ring.
+// two-line text block (the theme's list-row title over its fg-2 subtitle)
+// and the unread badge. Active is an inset 2px accent ring.
 //
 // The per-kind tints: a DM row is plain bg-2 with fg-2 glyphs, a channel
-// row is info at 10% alpha with info, and a group row is moss-glow with
-// moss. The active ring follows the tint (info for channels, moss
-// otherwise).
+// row is channelTint (info at 10%) with info, and a group row is moss-glow
+// with moss. The active ring follows the tint (info for channels, moss
+// otherwise). Hover is a light wash over the tint, not a replacement.
 library;
 
 import 'package:flutter/material.dart';
@@ -35,10 +35,13 @@ const double kRailPadding = 12;
 /// Width of the expanded rail pane.
 const double kRailWidth = 268;
 
+/// Hover wash over any row tint: about one bg step lighter on bg2.
+final Color _kHoverOverlay = Colors.white.withValues(alpha: 0.03);
+
 extension on RailItemKind {
   Color get background => switch (this) {
         RailItemKind.dm => MoshColors.bg2,
-        RailItemKind.channel => MoshColors.info.withValues(alpha: 0.10),
+        RailItemKind.channel => MoshColors.channelTint,
         RailItemKind.group => MoshColors.mossGlow,
       };
 
@@ -90,8 +93,9 @@ class RailItem extends StatelessWidget {
         child: InkWell(
           borderRadius: radius,
           onTap: onTap,
-          // `.rail-item:hover { background: var(--bg-3) }`.
-          hoverColor: MoshColors.bg3,
+          // An overlay, not an opaque fill, so the channel and group tints
+          // still show through on hover.
+          hoverColor: _kHoverOverlay,
           child: FocusRing(
             radius: radius,
             child: Container(
@@ -115,36 +119,7 @@ class RailItem extends StatelessWidget {
                   ),
                   const SizedBox(width: 10), // `.rail-item { gap: 10px }`
                   Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            height: 1.1,
-                            color: MoshColors.fg1,
-                          ),
-                        ),
-                        if (subtitle.isNotEmpty) ...<Widget>[
-                          const SizedBox(
-                              height: 2), // `.rail-text { gap: 2px }`
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              height: 1.1,
-                              color: MoshColors.fg4,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                    child: _RailText(title: title, subtitle: subtitle),
                   ),
                   if (trailing != null) ...<Widget>[
                     const SizedBox(width: 10),
@@ -160,7 +135,42 @@ class RailItem extends StatelessWidget {
   }
 }
 
-/// A full-width hairline at rgba(255,255,255,0.08).
+/// The row's title over its optional subtitle, in the theme's list-row
+/// styles (the subtitle is fg2, which clears 4.5:1 on every row tint).
+class _RailText extends StatelessWidget {
+  const _RailText({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final styles = ListTileTheme.of(context);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: styles.titleTextStyle,
+        ),
+        if (subtitle.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 2), // `.rail-text { gap: 2px }`
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: styles.subtitleTextStyle,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// A full-width [MoshColors.lineStrong] hairline.
 class RailDivider extends StatelessWidget {
   const RailDivider({super.key});
 
@@ -170,7 +180,7 @@ class RailDivider extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: kRailListGap),
       child: Container(
         height: 1,
-        color: Colors.white.withValues(alpha: 0.08),
+        color: MoshColors.lineStrong,
       ),
     );
   }
