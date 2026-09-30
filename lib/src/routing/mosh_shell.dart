@@ -43,6 +43,7 @@ import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart' show kRailWidth;
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -112,28 +113,7 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     }
     return Stack(
       children: <Widget>[
-        Column(
-          children: <Widget>[
-            // Shared desktop titlebar. Sits ABOVE the rail+chat row,
-            // full window width.
-            MoshTitleBar(
-              onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
-            ),
-            Expanded(
-              child: Row(
-                children: <Widget>[
-                  // Branch A (the rail). Fixed width so the chat pane gets
-                  // the rest.
-                  SizedBox(width: kRailWidth, child: widget.children[0]),
-                  const VerticalDivider(width: 1, thickness: 1),
-                  // Branch B (the chat). Expanded so it fills the remaining
-                  // width.
-                  Expanded(child: widget.children[1]),
-                ],
-              ),
-            ),
-          ],
-        ),
+        _desktopPanes(),
         // Shell-level PeerStatusDrawer overlay: branch on the parsed
         // active kind to the matching snapshot family; null ->
         // PeerStatusDrawer renders NoActiveSession. onRefresh
@@ -150,6 +130,34 @@ class _MoshShellState extends ConsumerState<MoshShell> {
               onClose: () => setState(() => _showPeerStatus = false),
             ),
           ),
+      ],
+    );
+  }
+
+  // The titlebar above the rail + chat row. Each pane is its own semantics
+  // container: a pushed chat route brings a ModalBarrier whose
+  // BlockSemantics would otherwise hide the titlebar and the rail from
+  // screen readers.
+  Widget _desktopPanes() {
+    return Column(
+      children: <Widget>[
+        _SemanticsPane(
+          child: MoshTitleBar(
+            onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+          ),
+        ),
+        Expanded(
+          child: Row(
+            children: <Widget>[
+              SizedBox(
+                width: kRailWidth,
+                child: _SemanticsPane(child: widget.children[0]),
+              ),
+              const VerticalDivider(width: 1, thickness: 1),
+              Expanded(child: _SemanticsPane(child: widget.children[1])),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -179,9 +187,9 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     return ref.watch(groupSnapshotProvider(active!.arg)).value;
   }
 
-  // A runtime error string for the active snapshot
-  // (`async.hasError ? async.error.toString() : null`), or null when the
-  // active family is loading/data or no conversation is open.
+  // What the drawer says about a failed read of the active snapshot, worded
+  // from the error's kind (never the runtime's raw message), or null when
+  // the active family is loading/data or no conversation is open.
   String? _activeDrawerError(WidgetRef ref) {
     final active = ref.watch(activeConversationProvider);
     if (active == null) return null;
@@ -191,7 +199,10 @@ class _MoshShellState extends ConsumerState<MoshShell> {
         ref.watch(channelSnapshotProvider(active.arg)),
       ConversationKind.group => ref.watch(groupSnapshotProvider(active.arg)),
     };
-    return async.hasError ? async.error.toString() : null;
+    final error = async.error;
+    if (error == null) return null;
+    return ConversationActionError.of(error)
+        .describe(AppLocalizations.of(context)!);
   }
 
   // Invalidates the active conversation's snapshot family entry so a
@@ -202,6 +213,18 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     if (active == null) return;
     invalidateConversation(ref.invalidate, active.conversation);
   }
+}
+
+/// A shell pane as its own semantics container, so a modal barrier inside
+/// one pane blocks only that pane's semantics.
+class _SemanticsPane extends StatelessWidget {
+  const _SemanticsPane({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      Semantics(container: true, explicitChildNodes: true, child: child);
 }
 
 /// Mobile shell -- the go_router default _IndexedStackedRouteBranchContainer
@@ -261,15 +284,20 @@ class ChatPaneWelcome extends StatelessWidget {
               title: Text(AppLocalizations.of(context)!.shellNewSession),
             )
           : null,
+      // Side padding follows the pane, not the window: at 581px the
+      // desktop pane is only ~312px wide.
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: isMobileBreakpoint(context)
-                ? const EdgeInsets.all(24)
-                : const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: const NewSessionPanel(),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsetsDirectional.symmetric(
+                horizontal: constraints.maxWidth < 400 ? 16 : 32,
+                vertical: mobile ? 24 : 48,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: const NewSessionPanel(),
+              ),
             ),
           ),
         ),

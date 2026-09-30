@@ -4,13 +4,13 @@
   "@shellProductName": {
     "description": "Product name shown in the app shell"
   },
-  "shellWindowSubtitle": "Private DM · OpenMLS over Moss",
+  "shellWindowSubtitle": "OpenMLS over Moss",
   "@shellWindowSubtitle": {
     "description": "Window subtitle shown in the app shell"
   },
-  "shellNewSession": "New",
+  "shellNewSession": "Start a conversation",
   "@shellNewSession": {
-    "description": "Label for starting a new session"
+    "description": "Label for starting a new conversation (rail button, mobile title, sessions empty-state button); opens the start chooser"
   },
   "shellCloseSession": "Close session",
   "@shellCloseSession": {
@@ -128,6 +128,14 @@
   "@chatSendLabel": {
     "description": "Label for the send button"
   },
+  "messageCopyText": "Copy text",
+  "@messageCopyText": {
+    "description": "Menu item and screen-reader action that copies one whole message's text"
+  },
+  "messageCopied": "Copied",
+  "@messageCopied": {
+    "description": "Brief confirmation after a message's text was copied"
+  },
   "chatAttachLabel": "Attach a file",
   "@chatAttachLabel": {
     "description": "Label for the attach-file button"
@@ -188,10 +196,6 @@
   "@chatNoSessionBody": {
     "description": "Body shown on the no-session welcome screen"
   },
-  "chatStartCta": "New private chat",
-  "@chatStartCta": {
-    "description": "Call to action for starting a new private chat"
-  },
   "stateIdle": "Idle",
   "@stateIdle": {
     "description": "State label for the idle connection state"
@@ -240,13 +244,17 @@
   "@backToConversations": {
     "description": "Mobile back control that returns from a chat pane to the conversation rail"
   },
-  "sessionsError": "Could not load sessions.",
+  "sessionsError": "Unable to load conversations",
   "@sessionsError": {
     "description": "Error message shown when loading the session list fails"
   },
-  "sessionsRetry": "Retry",
+  "sessionsRetry": "Try again",
   "@sessionsRetry": {
     "description": "Button label for retrying the sessions list fetch"
+  },
+  "sessionsLoading": "Loading conversations",
+  "@sessionsLoading": {
+    "description": "Screen-reader label for the sessions list while it loads"
   },
   "cryptoNoticeTitle": "End-to-end encrypted",
   "@cryptoNoticeTitle": {
@@ -344,7 +352,7 @@
   "@onboardSubtitle": {
     "description": "Subtitle of the onboarding screen"
   },
-  "onboardIdentityHint": "This is how peers see you",
+  "onboardIdentityHint": "Contacts see this name",
   "@onboardIdentityHint": {
     "description": "Hint for the identity field on onboarding"
   },
@@ -368,7 +376,7 @@
   "@onboardAboutToggle": {
     "description": "Toggle label for the about-protection panel"
   },
-  "onboardTileChatTitle": "New private chat",
+  "onboardTileChatTitle": "Start a private chat",
   "@onboardTileChatTitle": {
     "description": "Title of the private-chat onboarding tile"
   },
@@ -376,7 +384,7 @@
   "@onboardTileChatDesc": {
     "description": "Description of the private-chat onboarding tile"
   },
-  "onboardTileGroupTitle": "New group",
+  "onboardTileGroupTitle": "Create a group",
   "@onboardTileGroupTitle": {
     "description": "Title of the new-group onboarding tile"
   },
@@ -388,7 +396,7 @@
   "@onboardTileJoinTitle": {
     "description": "Title of the join-with-link onboarding tile"
   },
-  "onboardTileJoinDesc": "Paste an invite a friend sent you",
+  "onboardTileJoinDesc": "Paste an invite a contact sent you",
   "@onboardTileJoinDesc": {
     "description": "Description of the join-with-link onboarding tile"
   },
@@ -436,7 +444,7 @@
   "@onboardGroupInviteReady": {
     "description": "Status shown when a group invite is ready"
   },
-  "onboardGroupInvite": "group invite",
+  "onboardGroupInvite": "Group invite",
   "@onboardGroupInvite": {
     "description": "Subtitle for a DM offer originating from a private group (the channel-offer subtitle is `#host`, this is the group-offer subtitle)"
   },
@@ -559,41 +567,14 @@
   "@channelEmptyBody": {
     "description": "Body shown when a channel has no messages"
   },
-  "orgLeave": "Leave organization",
-  "@orgLeave": {
-    "description": "Label for leaving an organization"
-  },
-  "orgPendingHint": "Your confirmation code — give it to your admin",
-  "@orgPendingHint": {
-    "description": "Hint shown for a pending organization confirmation"
-  },
-  "orgDmOffer": "wants to chat",
-  "@orgDmOffer": {
-    "description": "Offer text for a direct-message request from an org member"
-  },
-  "orgGroupOffer": "Org group",
-  "@orgGroupOffer": {
-    "description": "Label for an organization group offer"
-  },
-  "orgGroupOfferFrom": "invited by",
-  "@orgGroupOfferFrom": {
-    "description": "Text attributing who invited a group"
-  },
-  "orgMemberDmHint": "Message",
-  "@orgMemberDmHint": {
-    "description": "Hint for messaging an org member"
-  },
-  "orgYouBadge": "you",
-  "@orgYouBadge": {
-    "description": "Badge marking the current user"
-  },
-  "orgAdminBadge": "Org admin",
-  "@orgAdminBadge": {
-    "description": "Badge marking an organization admin"
-  },
-  "orgRevokedBadge": "no longer in",
+  "orgRevokedBadge": "No longer in {org}",
   "@orgRevokedBadge": {
-    "description": "Badge marking a revoked member"
+    "description": "Rail subtitle for a DM whose org membership was revoked; {org} is the organization name",
+    "placeholders": {
+      "org": {
+        "type": "String"
+      }
+    }
   },
   "orgAddMissing": "Add to group",
   "@orgAddMissing": {
@@ -606,14 +587,6 @@
   "orgMissingMany": "roster members not in this group",
   "@orgMissingMany": {
     "description": "Status text for several missing roster members"
-  },
-  "orgNewGroup": "New org group",
-  "@orgNewGroup": {
-    "description": "Button label to create a new org group"
-  },
-  "orgNewGroupPlaceholder": "new group name",
-  "@orgNewGroupPlaceholder": {
-    "description": "Placeholder for the new org group field"
   },
   "orgRejoinNeededTitle": "Group out of sync",
   "@orgRejoinNeededTitle": {
@@ -881,7 +854,7 @@
   "@diagRttUnknown": {
     "description": "Value of the Peer RTT row when no round-trip time is known for the counterpart"
   },
-  "peerStatusTitle": "Peer status",
+  "peerStatusTitle": "Connection status",
   "@peerStatusTitle": {
     "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen"
   },
@@ -889,11 +862,11 @@
   "@refreshStatus": {
     "description": "Tooltip/aria-label of the refresh button in the Peer status drawer"
   },
-  "closePeerStatus": "Close peer status",
+  "closePeerStatus": "Close connection status",
   "@closePeerStatus": {
     "description": "Tooltip/aria-label of the close button in the Peer status drawer"
   },
-  "openPeerStatus": "Open peer status",
+  "openPeerStatus": "Open connection status",
   "@openPeerStatus": {
     "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen"
   },
@@ -1009,33 +982,6 @@
   "diagDash": "-",
   "@diagDash": {
     "description": "Fallback value for the group Label row when the group has no label (mirrors React's null dash fallback)"
-  },
-  "openChannelAria": "Open channel {name}",
-  "@openChannelAria": {
-    "description": "Screen-reader label for the Open-channel rail-item row, with the channel name",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "openGroupAria": "Open group {label}",
-  "@openGroupAria": {
-    "description": "Screen-reader label for the Open-group rail-item row, with the group label",
-    "placeholders": {
-      "label": {
-        "type": "String"
-      }
-    }
-  },
-  "openSessionAria": "Open session with {name}",
-  "@openSessionAria": {
-    "description": "Screen-reader label for the Open-session rail-item row, with the peer label (React aria-label `Open session with ${label}`, SessionRail.tsx)",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
   },
   "membersCount": "{count, plural, one {{count} member} other {{count} members}}",
   "@membersCount": {
@@ -1154,7 +1100,7 @@
   "@chatActionErrorRevoked": {
     "description": "Chat error banner for ConversationBridgeErrorKind.revoked"
   },
-  "chatActionErrorInternal": "Something went wrong: {detail}",
+  "chatActionErrorInternal": "Unable to complete that. Restart Mosh if it keeps happening. Details: {detail}",
   "@chatActionErrorInternal": {
     "description": "Chat error banner for ConversationBridgeErrorKind.internal; {detail} is the runtime's diagnostic sentence. A non-bridge failure shows its own text instead",
     "placeholders": {"detail": {"type": "String"}}
@@ -1225,7 +1171,16 @@
   },
   "persistenceWarningUnavailableBody": "Messages still send, but private DM history and session continuity may be lost after restart.{reason}",
   "@persistenceWarningUnavailableBody": {
-    "description": "Body of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch body; {reason} is the leading-space ' Reason: <error>' suffix or empty)",
+    "description": "Body of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch body; {reason} is a leading space plus persistenceWarningReason, or empty)",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "persistenceWarningReason": "Reason: {reason}",
+  "@persistenceWarningReason": {
+    "description": "Suffix appended to persistenceWarningUnavailableBody when the runtime reports why history is unavailable; {reason} is the runtime error message",
     "placeholders": {
       "reason": {
         "type": "String"
@@ -1496,6 +1451,15 @@
   "@orgLeave": {
     "description": "Tooltip/aria-label for the leave-org button (React OrgSection.tsx orgText.leave)"
   },
+  "orgSectionAria": "Organization {name}",
+  "@orgSectionAria": {
+    "description": "Screen-reader label for an organization section in the rail; {name} is the organization name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "orgPendingHint": "Your confirmation code — give it to your admin",
   "@orgPendingHint": {
     "description": "Hint under the confirmation code while not yet in roster (React OrgSection.tsx orgText.pendingHint)"
@@ -1508,9 +1472,14 @@
   "@orgGroupOffer": {
     "description": "Fallback label for a group offer without a group label (React OrgSection.tsx orgText.groupOffer)"
   },
-  "orgGroupOfferFrom": "invited by",
+  "orgGroupOfferFrom": "Invited by {name}",
   "@orgGroupOfferFrom": {
-    "description": "Group-offer row secondary text prefix before the inviter name (React OrgSection.tsx orgText.groupOfferFrom)"
+    "description": "Group-offer row secondary text naming the inviter (React OrgSection.tsx orgText.groupOfferFrom)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "orgMemberDmHint": "Message",
   "@orgMemberDmHint": {
@@ -1524,13 +1493,17 @@
   "@orgAdminBadge": {
     "description": "Tooltip for the admin crown on a roster member (React OrgSection.tsx orgText.adminBadge)"
   },
-  "orgNewGroup": "New org group",
+  "orgNewGroup": "Create group",
   "@orgNewGroup": {
     "description": "Tooltip for the new-group submit button (React OrgSection.tsx orgText.newGroup)"
   },
-  "orgNewGroupPlaceholder": "new group name",
+  "orgNewGroupPlaceholder": "e.g. Design review",
   "@orgNewGroupPlaceholder": {
     "description": "Placeholder for the new-group input (React OrgSection.tsx orgText.newGroupPlaceholder)"
+  },
+  "orgNewGroupLabel": "Group name",
+  "@orgNewGroupLabel": {
+    "description": "Visible label of the new org group name field"
   },
   "orgAcceptDmAria": "Accept chat invite from {name}",
   "@orgAcceptDmAria": {

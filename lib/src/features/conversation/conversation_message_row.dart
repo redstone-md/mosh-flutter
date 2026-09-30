@@ -2,7 +2,7 @@
 ///
 /// The layout is the same everywhere: an avatar (a spacer on a continuation
 /// row), then the sender meta, the text, the attachment card, and whatever
-/// the message trails with. Rows are always left-aligned; `own` only decides
+/// the message trails with. Only the meta and the text are selectable. Rows are always left-aligned; `own` only decides
 /// whether the delivery state and the Retry button show.
 ///
 /// Three small parts follow the kind:
@@ -80,7 +80,12 @@ class ConversationMessageRow extends StatelessWidget {
             if (grouped)
               const SizedBox(width: messageAvatarSize)
             else
-              Avatar(name: message.fromDevice, radius: messageAvatarSize / 2),
+              SelectionContainer.disabled(
+                child: Avatar(
+                  name: message.fromDevice,
+                  radius: messageAvatarSize / 2,
+                ),
+              ),
             const SizedBox(width: kMessageRowGap),
             Expanded(child: _body()),
           ],
@@ -88,23 +93,34 @@ class ConversationMessageRow extends StatelessWidget {
       );
 
   /// The meta, the text, and whatever the message trails with.
-  Widget _body() {
+  Widget _body() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!grouped)
+            ConversationSenderMeta(
+              fromDevice: message.fromDevice,
+              fromFingerprint: message.fromFingerprint,
+              sentAtMs: message.sentAtMs,
+              showMlsBadge: kind != ConversationKind.channel,
+              peer: peer,
+            ),
+          if (message.body.isNotEmpty)
+            Text(message.body, style: kMessageBodyStyle),
+          // Cards, ticks and buttons are controls, not text: a selection
+          // skips them, so copied text never picks up their labels.
+          SelectionContainer.disabled(child: _trailing()),
+        ],
+      );
+
+  /// The attachment card, the call entry, the ticks and Retry.
+  Widget _trailing() {
     final attachment = message.attachment;
     final callEvent = message.callEvent;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (!grouped)
-          ConversationSenderMeta(
-            fromDevice: message.fromDevice,
-            fromFingerprint: message.fromFingerprint,
-            sentAtMs: message.sentAtMs,
-            showMlsBadge: kind != ConversationKind.channel,
-            peer: peer,
-          ),
-        if (message.body.isNotEmpty)
-          Text(message.body, style: kMessageBodyStyle),
         if (attachment != null)
           AttachmentCard(
             descriptor: attachment,

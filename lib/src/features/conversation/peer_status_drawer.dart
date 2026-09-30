@@ -23,7 +23,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/state/session_providers.dart'
     show mossLibraryInfoProvider;
 import 'package:mosh/src/features/diagnostics/channel_group_diagnostics.dart';
@@ -88,115 +87,112 @@ class PeerStatusDrawer extends StatefulWidget {
 }
 
 class _PeerStatusDrawerState extends State<PeerStatusDrawer> {
-  // A single [FocusNode] owned here and attached to a [KeyboardListener]
-  // wrapping the overlay. Autofocus pulls focus into the drawer on mount,
-  // and the key handler forwards Esc to `onClose`. The call modals
-  // (`IncomingCallModal` / `OutgoingCallModal`) use the same
-  // `KeyboardListener`-Esc pattern; this drawer matches them because it
-  // is a `Positioned.fill` overlay (no `showDialog` route to lean on).
-  late final FocusNode _focusNode = FocusNode(debugLabel: 'PeerStatusDrawer');
+  // The drawer is a `Positioned.fill` overlay, not a route, so it does the
+  // modal-route focus work itself: its own scope takes focus on open (Tab
+  // wraps inside a scope by default), and the control that had focus
+  // before gets it back on close.
+  final FocusScopeNode _scope = FocusScopeNode(debugLabel: 'PeerStatusDrawer');
+  final FocusNode? _opener = FocusManager.instance.primaryFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    // Post-frame: the scope node is attached once the first frame builds.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scope.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    _scope.dispose();
+    final opener = _opener;
+    if (opener != null && opener.context != null) opener.requestFocus();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    // A `GestureDetector` on the backdrop closes the drawer on tap; the
-    // panel swallows taps so they do not close it.
-    //
-    // The `KeyboardListener` is the outermost node so Esc is caught
-    // before the backdrop's `GestureDetector` (and before any child
-    // focusables). `autofocus: true` pulls focus into the drawer on open;
-    // the `FocusScope` is implicit in `KeyboardListener`.
-    return KeyboardListener(
-      focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: (event) {
-        // `KeyDownEvent` only -- not `KeyRepeatEvent`/`KeyUpEvent` -- so a
-        // held Esc does not fire `onClose` repeatedly.
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape) {
-          widget.onClose();
-        }
-      },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onClose,
-        child: ColoredBox(
-          // 34% black scrim.
-          color: Colors.black.withValues(alpha: 0.34),
-          // Inside the backdrop so the scrim still covers the status bar and
-          // the cutout, but the panel itself clears them -- as a
-          // `Positioned.fill` overlay it has no Scaffold or AppBar to inset
-          // it, so its header drew under the cutout on Android.
-          child: SafeArea(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                // Swallow taps inside the panel so only the backdrop closes.
-                onTap: () {},
-                child: ConstrainedBox(
-                  // At most 392px wide, or viewport minus 24px.
-                  constraints: BoxConstraints(
-                    maxWidth: math.min(
-                      392,
-                      MediaQuery.sizeOf(context).width - 24,
-                    ),
-                  ),
-                  child: Semantics(
-                    label: l.peerStatusTitle,
-                    container: true,
-                    // `scopesRoute: true` scopes the route so the drawer is
-                    // announced as a modal boundary; `label` is the title.
-                    // `explicitChildNodes: true` is REQUIRED by the framework
-                    // when `scopesRoute` is true (RenderObject assertion), so
-                    // the drawer's own semantics children stay visible under
-                    // the scoped node instead of being merged up.
-                    explicitChildNodes: true,
-                    scopesRoute: true,
-                    // ModalFocusTrap goes inside the outer backdrop listener and semantics
-                    // so Tab/Shift+Tab focus cycling is applied to the drawer contents.
-                    child: ModalFocusTrap(
-                      child: Material(
-                        // bg-0 panel with a hairline left border: it drops
-                        // below the bg-1 window, it does not match it.
-                        color: MoshColors.bg0,
-                        elevation: 0,
-                        shape: const Border(
-                          left: BorderSide(color: MoshColors.line),
-                        ),
-                        child: SizedBox.expand(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _DrawerHeader(
-                                title: l.peerStatusTitle,
-                                refreshTooltip: l.refreshStatus,
-                                closeTooltip: l.closePeerStatus,
-                                refreshing: widget.refreshing,
-                                onRefresh: widget.onRefresh,
-                                onClose: widget.onClose,
-                              ),
-                              Expanded(
-                                child: _DrawerContent(
-                                  session: widget.session,
-                                  channel: widget.channel,
-                                  group: widget.group,
-                                  error: widget.error,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+    // Escape closes, whichever drawer control holds focus. BlockSemantics
+    // hides the screen behind from screen readers while the drawer is up.
+    // The backdrop's `GestureDetector` closes on tap; the panel swallows
+    // taps so they do not close it.
+    return BlockSemantics(
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): widget.onClose,
+        },
+        child: FocusScope(
+          node: _scope,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onClose,
+            child: ColoredBox(
+              // 34% black scrim.
+              color: Colors.black.withValues(alpha: 0.34),
+              // Inside the backdrop so the scrim still covers the status bar
+              // and the cutout, but the panel itself clears them -- as a
+              // `Positioned.fill` overlay it has no Scaffold or AppBar to
+              // inset it, so its header drew under the cutout on Android.
+              child: SafeArea(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                    // Swallow taps inside the panel so only the backdrop
+                    // closes.
+                    onTap: () {},
+                    child: _panel(context),
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _panel(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return ConstrainedBox(
+      // At most 392px wide, or viewport minus 24px.
+      constraints: BoxConstraints(
+        maxWidth: math.min(392, MediaQuery.sizeOf(context).width - 24),
+      ),
+      // `scopesRoute` announces the drawer as a modal boundary named by
+      // `label`; the framework requires `explicitChildNodes` with it.
+      child: Semantics(
+        label: l.peerStatusTitle,
+        container: true,
+        explicitChildNodes: true,
+        scopesRoute: true,
+        child: Material(
+          // bg-0 panel with a hairline left border: it drops below the
+          // bg-1 window, it does not match it.
+          color: MoshColors.bg0,
+          elevation: 0,
+          shape: const Border(left: BorderSide(color: MoshColors.line)),
+          child: SizedBox.expand(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DrawerHeader(
+                  title: l.peerStatusTitle,
+                  refreshTooltip: l.refreshStatus,
+                  closeTooltip: l.closePeerStatus,
+                  refreshing: widget.refreshing,
+                  onRefresh: widget.onRefresh,
+                  onClose: widget.onClose,
+                ),
+                Expanded(
+                  child: _DrawerContent(
+                    session: widget.session,
+                    channel: widget.channel,
+                    group: widget.group,
+                    error: widget.error,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -235,7 +231,7 @@ class _DrawerHeader extends StatelessWidget {
         children: [
           // A plug glyph, matching the trigger used on the DM/Channel/Group
           // screens' AppBar action for visual consistency.
-          const Icon(Icons.electrical_services, size: 16),
+          const Icon(Icons.electrical_services_outlined, size: 16),
           const SizedBox(width: 8),
           // Uppercase 12px title with wide letter spacing in fg-2.
           // Flutter has no text-transform, so the string itself is

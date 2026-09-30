@@ -57,7 +57,7 @@ void main() {
       (tester) async {
     await pumpCreateStep(tester, _bridgeOffering('mosh://invite?x=1'));
 
-    expect(find.text('New private chat'), findsOneWidget);
+    expect(find.text('Start a private chat'), findsOneWidget);
     expect(find.text('Create invite link'), findsOneWidget);
     expect(find.byType(InviteResult), findsNothing);
     // Recreate label is not shown until an invite exists.

@@ -1,95 +1,69 @@
-// Persistence warning banner (`.persistence-warning` /
-// `.persistence-warning-icon` styling).
+// Persistence warning banner: a warn-tinted card with an icon plate, a
+// title and a body. Screen readers hear "title. body" once, as one region.
+//
+// Radii are concentric: the card's 20 = the icon plate's 8 + the 12px inset.
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/state/persistence_warning_provider.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-// CSS literal colors (theme.css): --warn #e8b65a, --fg-2 #a8aeb0, --fg-3 #6b7075.
-const Color _kWarnColor = MoshColors.warn;
-const Color _kFg3Color = MoshColors.fg3;
-// CSS rgba(232, 182, 90, 0.08/0.12/0.28) -> alpha 0.08=21, 0.12=31, 0.28=71.
-const Color _kBgColor = Color(0x15E8B65A);
-const Color _kIconBgColor = Color(0x1FE8B65A);
-const Color _kBorderColor = Color(0x47E8B65A);
-
 class PersistenceWarningBanner extends StatelessWidget {
   const PersistenceWarningBanner({super.key, required this.warning});
 
   final PersistenceWarning warning;
 
+  /// The localized title and body for [warning].
+  (String, String) _copy(AppLocalizations l) {
+    final reason = warning.reason;
+    return switch (warning.kind) {
+      // The persistence error is appended as ` <persistenceWarningReason>`
+      // (leading space); the gateway-error body embeds its own `Reason:`.
+      PersistenceWarningKind.unavailable => (
+          l.persistenceWarningUnavailableTitle,
+          l.persistenceWarningUnavailableBody(
+              reason == null ? '' : ' ${l.persistenceWarningReason(reason)}'),
+        ),
+      PersistenceWarningKind.error => (
+          l.persistenceWarningErrorTitle,
+          l.persistenceWarningErrorBody(reason ?? ''),
+        ),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final isUnavailable = warning.kind == PersistenceWarningKind.unavailable;
-    // The persistence error is prefixed with ` Reason: ` (leading space);
-    // the gateway-error body already embeds `Reason: ` in the ARB string.
-    final unavailableReason =
-        warning.reason != null ? ' Reason: ${warning.reason}' : '';
-    final title = isUnavailable
-        ? l.persistenceWarningUnavailableTitle
-        : l.persistenceWarningErrorTitle;
-    final body = isUnavailable
-        ? l.persistenceWarningUnavailableBody(unavailableReason)
-        : l.persistenceWarningErrorBody(warning.reason ?? '');
-
+    final (title, body) = _copy(AppLocalizations.of(context)!);
+    final text = Theme.of(context).textTheme;
     return Semantics(
       container: true,
       label: '$title. $body',
+      excludeSemantics: true,
       child: Container(
-        // CSS: padding 11px 12px; border 1px solid; border-radius 12px;
-        // background rgba(232,182,90,0.08); color var(--fg-2).
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          color: _kBgColor,
-          border: Border.all(color: _kBorderColor, width: 1),
-          borderRadius: BorderRadius.circular(12),
+          color: MoshColors.warnSurface,
+          border: Border.all(color: MoshColors.warnBorder),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // CSS .persistence-warning-icon: 26x26, radius 8, bg 0.12, warn.
-            ExcludeSemantics(
-              child: Container(
-                width: 26,
-                height: 26,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _kIconBgColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                // Tabler IconAlertTriangle size=15 -> Material triangle alert.
-                child: const Icon(Icons.warning_amber_rounded,
-                    size: 15, color: _kWarnColor),
-              ),
-            ),
+            const _IconPlate(),
             const SizedBox(width: 10),
-            // CSS .persistence-warning div: flex column, gap 3px, min-width 0.
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // CSS strong: warn color, 12.5px.
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: _kWarnColor,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: text.titleSmall?.copyWith(color: MoshColors.warn),
                   ),
                   const SizedBox(height: 3),
-                  // CSS span: fg-3, 11.5px, line-height 1.5, overflow-wrap anywhere.
                   Text(
                     body,
-                    softWrap: true,
-                    style: const TextStyle(
-                      color: _kFg3Color,
-                      fontSize: 11.5,
-                      height: 1.5,
-                    ),
+                    style: text.bodySmall?.copyWith(color: MoshColors.fg3),
                   ),
                 ],
               ),
@@ -97,6 +71,25 @@ class PersistenceWarningBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The banner's 26px warn-tinted plate around the alert glyph.
+class _IconPlate extends StatelessWidget {
+  const _IconPlate();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: MoshColors.warnIconSurface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.warning_amber, size: 15, color: MoshColors.warn),
     );
   }
 }

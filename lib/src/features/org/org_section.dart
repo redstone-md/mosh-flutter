@@ -6,9 +6,14 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/avatar.dart';
+import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
+
+/// Rows in the section share the rail row's corner radius.
+const BorderRadius _kRowRadius = BorderRadius.all(Radius.circular(12));
 
 /// The org-roster rail section.
 class OrgSection extends StatelessWidget {
@@ -42,7 +47,7 @@ class OrgSection extends StatelessWidget {
     final theme = Theme.of(context);
     final selfIsAdmin = org.members.any((m) => m.isSelf && m.role == 'admin');
     return Semantics(
-      label: 'Organization ${org.orgName}',
+      label: l.orgSectionAria(org.orgName),
       container: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,7 +121,7 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.apartment, size: 14),
+          const Icon(Icons.apartment_outlined, size: 14),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -127,7 +132,7 @@ class _Header extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 14),
+            icon: const Icon(Icons.close, size: 16),
             tooltip: l.orgLeave,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -181,7 +186,7 @@ class _OfferRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final styles = ListTileTheme.of(context);
     final groupOffer = _groupOffer;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -189,50 +194,53 @@ class _OfferRow extends StatelessWidget {
         children: [
           Expanded(
             child: InkWell(
+              borderRadius: _kRowRadius,
               onTap: busy ? null : () => onAccept(orgPubkey, offerId),
-              child: Row(
-                children: [
-                  switch (_kind) {
-                    _OfferRowKind.dm => Avatar(name: fromName, radius: 12),
-                    _OfferRowKind.group => const Icon(Icons.group, size: 18),
-                  },
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          switch (_kind) {
-                            _OfferRowKind.dm => fromName,
-                            _OfferRowKind.group =>
-                              (groupOffer!.groupLabel ?? '').isEmpty
-                                  ? l.orgGroupOffer
-                                  : groupOffer.groupLabel!,
-                          },
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
+              child: FocusRing(
+                radius: _kRowRadius,
+                child: Row(
+                  children: [
+                    switch (_kind) {
+                      _OfferRowKind.dm => Avatar(name: fromName, radius: 12),
+                      _OfferRowKind.group =>
+                        const Icon(Icons.group_outlined, size: 18),
+                    },
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            switch (_kind) {
+                              _OfferRowKind.dm => fromName,
+                              _OfferRowKind.group =>
+                                (groupOffer!.groupLabel ?? '').isEmpty
+                                    ? l.orgGroupOffer
+                                    : groupOffer.groupLabel!,
+                            },
+                            style: styles.titleTextStyle,
                           ),
-                        ),
-                        Text(
-                          switch (_kind) {
-                            _OfferRowKind.dm => l.orgDmOffer,
-                            _OfferRowKind.group =>
-                              '${l.orgGroupOfferFrom} $fromName',
-                          },
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
+                          Text(
+                            switch (_kind) {
+                              _OfferRowKind.dm => l.orgDmOffer,
+                              _OfferRowKind.group =>
+                                l.orgGroupOfferFrom(fromName),
+                            },
+                            style: styles.subtitleTextStyle,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  if (_kind == _OfferRowKind.dm)
-                    const Icon(Icons.chat_bubble_outline, size: 14),
-                ],
+                    if (_kind == _OfferRowKind.dm)
+                      const Icon(Icons.chat_bubble_outline, size: 14),
+                  ],
+                ),
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 14),
+            icon: const Icon(Icons.close, size: 16),
             tooltip: switch (_kind) {
               _OfferRowKind.dm => l.orgDismissDmAria(fromName),
               _OfferRowKind.group => l.orgDismissGroupAria(fromName),
@@ -290,16 +298,17 @@ class _NewGroupFormState extends State<_NewGroupForm> {
             child: TextField(
               controller: _controller,
               enabled: !widget.busy,
+              // The theme draws the radius-8 edge in every state, busy
+              // (disabled) included.
               decoration: InputDecoration(
+                labelText: widget.l.orgNewGroupLabel,
                 hintText: widget.l.orgNewGroupPlaceholder,
-                isDense: true,
-                border: const OutlineInputBorder(),
               ),
               onSubmitted: (_) => _submit(),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add, size: 13),
+            icon: const Icon(Icons.add, size: 16),
             tooltip: widget.l.orgNewGroup,
             onPressed: widget.busy ? null : _submit,
           ),
@@ -324,45 +333,49 @@ class _MemberRow extends StatelessWidget {
   final AppLocalizations l;
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final styles = ListTileTheme.of(context);
     final name =
         member.isSelf ? '${member.name} (${l.orgYouBadge})' : member.name;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: InkWell(
+        borderRadius: _kRowRadius,
         onTap: (busy || member.isSelf) ? null : () => onMember(org, member),
-        child: Row(
-          children: [
-            Avatar(name: member.name, radius: 12),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    name,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+        child: FocusRing(
+          radius: _kRowRadius,
+          child: Row(
+            children: [
+              Avatar(name: member.name, radius: 12),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      style: styles.titleTextStyle,
                     ),
-                  ),
-                  Text(
-                    shorten(member.mossPeerId, 6),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            if (member.role == 'admin')
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Icon(
-                  Icons.workspace_premium,
-                  size: 11,
-                  color: theme.colorScheme.primary,
+                    Text(
+                      shorten(member.mossPeerId, 6),
+                      style: styles.subtitleTextStyle,
+                    ),
+                  ],
                 ),
               ),
-          ],
+              if (member.role == 'admin')
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  // A static role marker, so text ink rather than the accent.
+                  child: Icon(
+                    Icons.workspace_premium_outlined,
+                    size: 14,
+                    color: MoshColors.fg2,
+                    semanticLabel: l.orgAdminBadge,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

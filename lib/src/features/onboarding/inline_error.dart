@@ -5,9 +5,9 @@
 // source of truth -- a transient SnackBar would auto-dismiss and would
 // not be announced to assistive tech.
 //
-// `Semantics(liveRegion: true, container: true)` makes screen readers
-// announce the error when it appears; the same pattern invite_paste's
-// `_DetectBadge` and diagnostics `RuntimeError` already use in this repo.
+// `Semantics(liveRegion: true, container: true, excludeSemantics: true)`
+// makes screen readers announce the error once when it appears; without
+// excludeSemantics the visible Text would merge in and repeat the label.
 library;
 
 import 'package:flutter/material.dart';
@@ -19,9 +19,8 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 ///
 /// Renders only when [message] is non-null. When null it returns
 /// `const SizedBox.shrink()` so the layout below the button does not jump.
-/// The error-colored `Text` is wrapped in `Semantics(liveRegion: true,
-/// container: true, label: message)` so screen readers announce it when it
-/// appears.
+/// The error-colored `Text` is wrapped in a live-region `Semantics` whose
+/// label replaces the Text's own, so screen readers announce it once.
 class InlineError extends StatelessWidget {
   const InlineError({super.key, this.message});
 
@@ -35,18 +34,20 @@ class InlineError extends StatelessWidget {
       liveRegion: true,
       container: true,
       label: text,
+      excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: MoshColors.danger.withValues(alpha: 0.08),
+          color: MoshColors.dangerSurface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: MoshColors.danger.withValues(alpha: 0.35),
-          ),
+          border: Border.all(color: MoshColors.dangerBorder),
         ),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 12, color: MoshColors.danger),
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: MoshColors.danger),
         ),
       ),
     );

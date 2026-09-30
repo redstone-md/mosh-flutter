@@ -149,7 +149,7 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
       desktopLeaveTooltip: l.groupLeaveLabel,
       leadingActions: [
         // The admin-pill badge, shown only if is_admin. `Icons.
-        // workspace_premium` matches the admin crown the rail uses.
+        // workspace_premium_outlined` matches the admin crown the rail uses.
         if (async.maybeWhen(
           data: (group) => group.isAdmin,
           orElse: () => false,
@@ -212,7 +212,7 @@ class _AdminPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.workspace_premium, size: 14),
+            const Icon(Icons.workspace_premium_outlined, size: 14),
             const SizedBox(width: 4),
             Text(label),
           ],

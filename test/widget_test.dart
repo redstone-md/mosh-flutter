@@ -41,12 +41,19 @@ void main() {
     // offstage, so the assertions use skipOffstage default semantics; the
     // shell test suite covers the desktop/mobile layout split in detail.
     expect(find.byType(NewSessionPanel), findsOneWidget);
-    expect(find.text('Start a conversation'), findsOneWidget);
+    // The rail button shares the label, so scope to the panel's head.
+    expect(
+      find.descendant(
+        of: find.byType(NewSessionPanel),
+        matching: find.text('Start a conversation'),
+      ),
+      findsOneWidget,
+    );
 
-    // The inline welcome's OnboardMenu also surfaces the Join / New group
+    // The inline welcome's OnboardMenu also surfaces the Join / Create a group
     // tiles (they live in the welcome, not the onboarding route), so they
     // render here too.
     expect(find.text('Join with a link'), findsOneWidget);
-    expect(find.text('New group'), findsOneWidget);
+    expect(find.text('Create a group'), findsOneWidget);
   });
 }

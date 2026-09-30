@@ -1,7 +1,6 @@
-// The rail's accept-offer action toasts a failed bridge accept the way every
-// other screen does: worded by the bridge error's kind, never the runtime's
-// diagnostic sentence. A failed accept also dismisses nothing and opens
-// nothing.
+// The rail's offer actions toast a failure the way every other screen
+// does: worded by the bridge error's kind, never the runtime's diagnostic
+// sentence. A failed accept dismisses nothing and opens nothing.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -30,6 +29,11 @@ const PendingDmOffer _kPending = PendingDmOffer(
   host: 'general',
 );
 
+const ConversationBridgeError _kUnavailable = ConversationBridgeError(
+  kind: ConversationBridgeErrorKind.unavailable,
+  message: 'dm runtime unavailable: node down',
+);
+
 void main() {
   testWidgets('a failed accept is worded by the bridge error\'s kind',
       (tester) async {
@@ -54,5 +58,21 @@ void main() {
     expect(find.textContaining(error.message), findsNothing);
     expect(find.text(kActionHarnessStartLabel), findsOneWidget);
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 0);
+  });
+
+  testWidgets('a failed dismiss is toasted, not thrown', (tester) async {
+    final gateway = ScriptableGateway()
+      ..failAlways(GatewayMethod.dismissDmOffer, error: _kUnavailable);
+    final harness = await mountActionHarness(
+      tester,
+      bridge: ScriptableBridge(conversations: gateway.conversations),
+      overrides: [gatewayProvider.overrideWithValue(gateway)],
+    );
+
+    await dismissOfferAction(harness.context, harness.ref, _kPending);
+    await tester.pumpAndSettle();
+
+    final l = AppLocalizations.of(harness.context)!;
+    expect(find.text(l.chatActionErrorUnavailable), findsOneWidget);
   });
 }

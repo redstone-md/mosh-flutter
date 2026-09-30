@@ -1,23 +1,21 @@
 // Initials avatar.
 //
-// Every avatar is styled identically (`.avatar { width: 32px; height:
-// 32px; border-radius: 50%; background: #2d3f23; color: var(--moss);
-// font-size: 11px; font-weight: 700; letter-spacing: 0.04em }`) -- there is
-// no per-name tint. An earlier version had an `avatarColor(name)` hash
-// that painted every sender a different Material hue, which is the most
-// visible palette drift in the message list and the rail.
+// Every avatar is styled identically: a 32px circle on the
+// [MoshColors.avatarSurface] plate with bold fg-1 initials on the
+// labelMedium step -- there is no per-name tint. An earlier version had an
+// `avatarColor(name)` hash that painted every sender a different Material
+// hue, which is the most visible palette drift in the message list and the
+// rail. The initials are static text, so they read in text ink, not in the
+// moss accent that marks interactive/primary elements.
 //
 // `radius` stays a parameter because the org rows render a smaller circle;
-// everything else about the chrome is CSS-fixed and therefore fixed here.
+// everything else about the chrome is fixed here.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
-
-/// Avatar background -- a fixed dark moss, not a per-name hash.
-const Color kAvatarBackground = Color(0xFF2D3F23);
 
 class Avatar extends StatelessWidget {
   const Avatar({super.key, required this.name, this.radius = 16.0});
@@ -29,16 +27,17 @@ class Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ThemeData fills every text slot, so labelMedium is never null.
+    final step = Theme.of(context).textTheme.labelMedium!;
     return CircleAvatar(
-      backgroundColor: kAvatarBackground,
+      backgroundColor: MoshColors.avatarSurface,
       radius: radius,
       child: Text(
         avatarInitials(name),
-        style: const TextStyle(
-          color: MoshColors.moss,
-          fontSize: 11,
+        style: step.copyWith(
+          color: MoshColors.fg1,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.04 * 11,
+          letterSpacing: 0.04 * step.fontSize!,
         ),
       ),
     );

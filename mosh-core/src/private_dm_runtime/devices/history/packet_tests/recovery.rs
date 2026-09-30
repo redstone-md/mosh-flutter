@@ -7,6 +7,7 @@ use crate::private_dm_runtime::ChatMessage;
 use crate::private_dm_runtime::{contracts::DmHistorySyncState, now_ms};
 
 mod historical;
+mod pipeline;
 
 pub(super) fn begin(f: &mut Fixture, source: &DeviceDescriptor, epoch: u64) {
     let session = f.runtime.session_mut(&f.session).unwrap();

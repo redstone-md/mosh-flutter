@@ -63,7 +63,7 @@ void main() {
     // Title (onboardTileGroupTitle) + body (onboardGroupStepBody) +
     // placeholder (onboardGroupNamePlaceholder) + button (onboardGroupCreate,
     // NOT onboardGroupRecreate since no invite exists).
-    expect(find.text('New group'), findsOneWidget);
+    expect(find.text('Create a group'), findsOneWidget);
     expect(find.text(_groupStepBody), findsOneWidget);
     expect(find.text('Group name (optional)'), findsOneWidget);
     expect(find.text('Create group'), findsOneWidget);

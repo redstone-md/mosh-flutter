@@ -31,6 +31,13 @@ void main() {
     expect(text.style!.color, moshThemeData.colorScheme.onPrimary);
   });
 
+  testWidgets('the count sits on the labelMedium step', (tester) async {
+    await tester.pumpWidget(_host(const UnreadBadge(count: 3)));
+
+    final text = tester.widget<Text>(find.text('3'));
+    expect(text.style!.fontSize, moshThemeData.textTheme.labelMedium!.fontSize);
+  });
+
   testWidgets('the count renders with tabular figures', (tester) async {
     await tester.pumpWidget(_host(const UnreadBadge(count: 3)));
 

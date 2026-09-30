@@ -5,13 +5,9 @@
 // chat). These tests pin both layouts so a regression that re-flattens
 // the routes (rail disappears while reading a DM) fails loudly.
 //
-// The tests pump the real MoshApp (which owns the process-global appRouter)
-// inside a ProviderScope overriding the two bridge providers with scripted
-// doubles sharing one conversation state
-// seeded with one DM session
-// (peer display name 'Alice' / 'Bob'). The surface width is set via
-// tester.view.physicalSize + devicePixelRatio so isMobileBreakpoint
-// (MediaQuery.sizeOf, width <= 580) reads the test width.
+// The tests pump the real MoshApp through shell_harness.dart, seeded with
+// one DM session (peer display name 'Alice' / 'Bob'), at a surface width
+// isMobileBreakpoint (MediaQuery.sizeOf, width <= 580) reads.
 //
 // Cases:
 //   1. Desktop (1200x900): /sessions shows the rail (SessionsScreen) AND
@@ -20,7 +16,7 @@
 //   2. Mobile (400x800): /sessions shows the rail ALONE (no welcome pane).
 //      Tapping the DM row swaps to DmScreen and the rail is GONE. Leaving
 //      the DM (close + confirm) returns to the rail.
-//   3. Desktop (1200x900): tapping the shared titlebar's "Peer status"
+//   3. Desktop (1200x900): tapping the shared titlebar's "Connection status"
 //      button mounts the shell-level PeerStatusDrawer (Positioned.fill
 //      over rail + chat); tapping the drawer's close button unmounts it.
 //      Regression guard for the titlebar-owned-_showPeerStatus bug (the
@@ -28,9 +24,7 @@
 //      so the tap silently no-opped).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mosh/main.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/onboarding/chat_create_screen.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
@@ -39,65 +33,17 @@ import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
+import 'shell_harness.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/routing/mosh_shell.dart';
-import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
-import 'package:mosh/src/rust/private_dm_runtime/transport.dart';
-import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart';
 
-// Seeded test gateway: listSessions + poll return one DM session
-// with the given peer display name, so the rail renders one row AND the DM
-// screen resolves without the native cdylib. leave removes the
-// seeded session so the leave-flow's context.go('/sessions') returns to an
-// empty rail (mirrors the real close).
-SessionSnapshot _session({required String sessionId, required String peer}) =>
-    SessionSnapshot(
-      sessionId: sessionId,
-      meshId: 'testmesh',
-      role: 'inviter',
-      displayName: 'me',
-      peerDisplayName: peer,
-      state: DmSessionState.connected,
-      transport: PeerTransport.direct,
-      inviteUri: null,
-      fingerprint: 'AABB',
-      messages: const [],
-      attachments: const [],
-      mesh: null,
-      events: const [],
-      pendingCall: null,
-      outgoingCall: null,
-      activeCall: null,
+// The onboard head shares its label with the rail's start button.
+Finder _onboardTitle() => find.descendant(
+      of: find.byType(OnboardMenu),
+      matching: find.text('Start a conversation'),
     );
-
-// Pumps MoshApp (owns appRouter) inside a ProviderScope overriding the two
-// bridge providers, at the given surface size. appRouter is process-global,
-// so the test navigates it via appRouter.go('/sessions') before pumping so
-// the rail is the initial visible branch.
-Future<void> _pumpApp(
-  WidgetTester tester, {
-  required ScriptableGateway gateway,
-  required Size physical,
-}) async {
-  tester.view.physicalSize = physical;
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  // Reset the process-global router to the rail so a prior test's location
-  // does not leak in (appRouter is shared across tests in this file).
-  appRouter.go(AppRoutes.sessions);
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      gatewayProvider.overrideWithValue(gateway),
-      bridgeFacadeProvider.overrideWithValue(
-          ScriptableBridge(conversations: gateway.conversations)),
-    ],
-    child: const MoshApp(),
-  ));
-  await tester.pumpAndSettle();
-}
 
 void main() {
   testWidgets(
@@ -105,9 +51,9 @@ void main() {
       'tapping a DM row swaps the chat pane while the rail STAYS',
       (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'alice-1', peer: 'Alice')]);
+      ..seedSessions([shellSession(sessionId: 'alice-1', peer: 'Alice')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // Desktop two-pane: the rail (SessionsScreen) AND the welcome pane
     // (ChatPaneWelcome) BOTH render (the rail stays beside
@@ -128,22 +74,22 @@ void main() {
   });
 
   testWidgets(
-      'desktop (1200x900): tapping the titlebar "Peer status" button '
+      'desktop (1200x900): tapping the titlebar "Connection status" button '
       'mounts PeerStatusDrawer and the close button unmounts it',
       (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'carol-1', peer: 'Carol')]);
+      ..seedSessions([shellSession(sessionId: 'carol-1', peer: 'Carol')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // No drawer before the titlebar button is tapped.
     expect(find.byType(PeerStatusDrawer), findsNothing);
 
-    // Tap the shared desktop titlebar's "Peer status" button (its visible
+    // Tap the shared desktop titlebar's "Connection status" button (its visible
     // text is l.peerStatusTitle -- the same locator style the existing
     // cases use via find.text). At this point the drawer is closed, so
-    // "Peer status" resolves to exactly the titlebar button.
-    await tester.tap(find.text('Peer status'));
+    // "Connection status" resolves to exactly the titlebar button.
+    await tester.tap(find.text('Connection status'));
     await tester.pumpAndSettle();
 
     // The shell flipped its _showPeerStatus and rebuilt the Stack, so the
@@ -154,9 +100,9 @@ void main() {
     expect(find.byType(PeerStatusDrawer), findsOneWidget);
 
     // Close via the drawer header's close IconButton (tooltip
-    // l.closePeerStatus = "Close peer status" -- unique, so it does not
+    // l.closePeerStatus = "Close connection status" -- unique, so it does not
     // collide with the welcome pane or rail).
-    await tester.tap(find.byTooltip('Close peer status'));
+    await tester.tap(find.byTooltip('Close connection status'));
     await tester.pumpAndSettle();
 
     // The shell flipped _showPeerStatus back to false and the drawer
@@ -169,9 +115,9 @@ void main() {
       'DmScreen and the rail is GONE; leaving returns to the rail',
       (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'bob-1', peer: 'Bob')]);
+      ..seedSessions([shellSession(sessionId: 'bob-1', peer: 'Bob')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(400, 800));
 
     // Mobile single-pane: the rail renders ALONE (no welcome pane -- the
     // chat branch is offstage).
@@ -217,9 +163,9 @@ void main() {
       'desktop (1200x900): closing a DM routes to /chat so the inline '
       'NewSessionPanel reappears while the rail STAYS mounted', (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'frank-1', peer: 'Frank')]);
+      ..seedSessions([shellSession(sessionId: 'frank-1', peer: 'Frank')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // Open Frank's DM. Desktop two-pane: rail STAYS, chat pane swaps to
     // the DM (the welcome pane is replaced).
@@ -254,9 +200,9 @@ void main() {
       'tapping the Chat tile switches the inline step (no routing); Back '
       'returns to the menu', (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'dave-1', peer: 'Dave')]);
+      ..seedSessions([shellSession(sessionId: 'dave-1', peer: 'Dave')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
 
     // The welcome pane renders beside the rail (chat branch preloaded).
     expect(find.byType(ChatPaneWelcome), findsOneWidget);
@@ -266,9 +212,9 @@ void main() {
     // (onboardTitle "Start a conversation") + the four tiles (Start:
     // chat/group, Join: join/channel).
     expect(find.byType(OnboardMenu), findsOneWidget);
-    expect(find.text('Start a conversation'), findsOneWidget);
-    expect(find.text('New private chat'), findsOneWidget);
-    expect(find.text('New group'), findsOneWidget);
+    expect(_onboardTitle(), findsOneWidget);
+    expect(find.text('Start a private chat'), findsOneWidget);
+    expect(find.text('Create a group'), findsOneWidget);
 
     // The bare EmptyState CTA is GONE on desktop (mobile-only now).
     expect(find.byIcon(Icons.chat_outlined), findsNothing);
@@ -278,20 +224,20 @@ void main() {
             'Create an invite or paste one to start your first encrypted conversation.'),
         findsNothing);
 
-    // Tap the Chat tile (onboardTileChatTitle "New private chat"). The
+    // Tap the Chat tile (onboardTileChatTitle "Start a private chat"). The
     // desktop NewSessionPanel switches its IndexedStack to the chat step
     // INLINE (no context.go): ChatCreateStep wrapped in OnboardStepBody
     // renders the step title (l.onboardTileChatTitle) + a Back button.
     // ChatCreateScreen does NOT mount -- the step is inline, the rail
     // stays, no routing happened.
-    await tester.tap(find.text('New private chat'));
+    await tester.tap(find.text('Start a private chat'));
     await tester.pumpAndSettle();
 
     // No routing: ChatCreateScreen does NOT mount (the step is inline).
     expect(find.byType(ChatCreateScreen), findsNothing);
     // The chat step body (ChatCreateStep) is now the active IndexedStack
     // child, so it is on-stage. The menu tile carrying the same
-    // "New private chat" text is offstage (skipOffstage default skips it),
+    // "Start a private chat" text is offstage (skipOffstage default skips it),
     // so find.text(l.onboardTileChatTitle) resolves to exactly the visible
     // step title (OnboardStepBody headlineSmall).
     final chatTitle =
@@ -304,12 +250,12 @@ void main() {
     // The menu re-renders (onboardTitle "Start a conversation" findsOne).
     // The chat step body (ChatCreateStep) goes offstage inside the
     // IndexedStack, so find.byType skips it (skipOffstage default). The
-    // menu tile "New private chat" re-shows, so find.text(chatTitle) is
+    // menu tile "Start a private chat" re-shows, so find.text(chatTitle) is
     // NOT usable as the "step gone" signal -- the type check is.
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Start a conversation'), findsOneWidget);
+    expect(_onboardTitle(), findsOneWidget);
     expect(find.byType(ChatCreateStep), findsNothing);
   });
 
@@ -319,9 +265,9 @@ void main() {
   testWidgets('mobile (400x800): ChatPaneWelcome embeds NewSessionPanel inline',
       (tester) async {
     final gw = ScriptableGateway()
-      ..seedSessions([_session(sessionId: 'erin-1', peer: 'Erin')]);
+      ..seedSessions([shellSession(sessionId: 'erin-1', peer: 'Erin')]);
 
-    await _pumpApp(tester, gateway: gw, physical: const Size(400, 800));
+    await pumpShellApp(tester, gateway: gw, physical: const Size(400, 800));
 
     // Mobile single-pane: the chat branch is offstage (rail is active),
     // so navigate to /chat to mount ChatPaneWelcome as the active branch.
@@ -332,8 +278,53 @@ void main() {
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(OnboardMenu), findsOneWidget);
-    expect(find.text('Start a conversation'), findsOneWidget);
-    expect(find.text('New private chat'), findsOneWidget);
+    expect(_onboardTitle(), findsOneWidget);
+    expect(find.text('Start a private chat'), findsOneWidget);
     expect(find.byType(ChatCreateScreen), findsNothing);
+  });
+
+  // The DM is a pushed route in the chat branch; its ModalBarrier blocks the
+  // semantics of everything painted before it in the shell.
+  testWidgets(
+      'desktop (1200x900): with a DM open, screen readers still reach the '
+      'rail and the titlebar', (tester) async {
+    final handle = tester.ensureSemantics();
+    final gw = ScriptableGateway()
+      ..seedSessions([shellSession(sessionId: 'gina-1', peer: 'Gina')]);
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
+
+    await tester.tap(find.text('Gina'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DmScreen), findsOneWidget);
+
+    expect(
+        find.bySemanticsLabel(RegExp('Start a conversation')), findsOneWidget);
+    expect(find.semantics.byLabel(RegExp('Connection status')), findsOne);
+    handle.dispose();
+  });
+
+  testWidgets(
+      'desktop (1200x900): the shell drawer words a failed read for people, '
+      'not with the runtime message', (tester) async {
+    final gw = ScriptableGateway()
+      ..seedSessions([shellSession(sessionId: 'hana-1', peer: 'Hana')])
+      ..failAlways(
+        GatewayMethod.poll,
+        error: const ConversationBridgeError(
+          kind: ConversationBridgeErrorKind.unavailable,
+          message: 'moss: socket closed',
+        ),
+      );
+    await pumpShellApp(tester, gateway: gw, physical: const Size(1200, 900));
+    await tester.tap(find.text('Hana'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Connection status'));
+    await tester.pumpAndSettle();
+
+    Finder inDrawer(String text) => find.descendant(
+        of: find.byType(PeerStatusDrawer), matching: find.textContaining(text));
+    expect(inDrawer('Mosh could not reach the network.'), findsWidgets);
+    expect(inDrawer('moss: socket closed'), findsNothing);
   });
 }
