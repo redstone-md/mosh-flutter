@@ -315,6 +315,13 @@ class _VoiceComposerState extends State<VoiceComposer> {
       duration: const Duration(milliseconds: 180),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeOutCubic,
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: Alignment.centerLeft,
+        children: <Widget>[
+          ...previousChildren.map((child) => IgnorePointer(child: child)),
+          if (currentChild != null) currentChild,
+        ],
+      ),
       child: KeyedSubtree(
         key: ValueKey<_Phase>(_phase),
         child: switch (_phase) {

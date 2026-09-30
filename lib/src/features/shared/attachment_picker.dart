@@ -139,7 +139,7 @@ class AttachmentPicker extends StatelessWidget {
       onPressed: disabled ? null : _pick,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-      visualDensity: VisualDensity.compact,
+      visualDensity: VisualDensity.standard,
     );
   }
 }
