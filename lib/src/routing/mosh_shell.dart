@@ -114,21 +114,23 @@ class _MoshShellState extends ConsumerState<MoshShell> {
       children: <Widget>[
         Column(
           children: <Widget>[
-            // Shared desktop titlebar. Sits ABOVE the rail+chat row,
-            // full window width.
-            MoshTitleBar(
-              onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+            // Each pane is its own semantics container: a pushed chat route
+            // brings a ModalBarrier whose BlockSemantics would otherwise hide
+            // the titlebar and the rail from screen readers.
+            _SemanticsPane(
+              child: MoshTitleBar(
+                onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+              ),
             ),
             Expanded(
               child: Row(
                 children: <Widget>[
-                  // Branch A (the rail). Fixed width so the chat pane gets
-                  // the rest.
-                  SizedBox(width: kRailWidth, child: widget.children[0]),
+                  SizedBox(
+                    width: kRailWidth,
+                    child: _SemanticsPane(child: widget.children[0]),
+                  ),
                   const VerticalDivider(width: 1, thickness: 1),
-                  // Branch B (the chat). Expanded so it fills the remaining
-                  // width.
-                  Expanded(child: widget.children[1]),
+                  Expanded(child: _SemanticsPane(child: widget.children[1])),
                 ],
               ),
             ),
@@ -202,6 +204,18 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     if (active == null) return;
     invalidateConversation(ref.invalidate, active.conversation);
   }
+}
+
+/// A shell pane as its own semantics container, so a modal barrier inside
+/// one pane blocks only that pane's semantics.
+class _SemanticsPane extends StatelessWidget {
+  const _SemanticsPane({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      Semantics(container: true, explicitChildNodes: true, child: child);
 }
 
 /// Mobile shell -- the go_router default _IndexedStackedRouteBranchContainer
