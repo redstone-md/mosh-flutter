@@ -82,6 +82,12 @@ jobs:
       # ADR 0035: upload the separate debug files (Rust PDB/dSYM, runner)
       # so Sentry symbolicates native crashes and Rust panics. Release tags
       # only; a fork without the token skips it.
+      # Installed in its own step so npm's download and install scripts never
+      # see the token; only the pinned sentry-cli binary runs with it.
+      - name: Install sentry-cli
+        if: inputs.upload-debug-files
+        run: npm install --global @sentry/cli@3.8.0
+
       - name: Upload debug files to Sentry
         if: inputs.upload-debug-files
         shell: bash
@@ -91,7 +97,7 @@ jobs:
           SENTRY_PROJECT: flutter
         run: |
           if [ -z "$SENTRY_AUTH_TOKEN" ]; then echo "No SENTRY_AUTH_TOKEN; skipping."; exit 0; fi
-          npx --yes @sentry/cli@3.8.0 debug-files upload build/macos
+          sentry-cli debug-files upload build/macos
 
       # create-dmg lays out the installer window (icon positions,
       # Applications symlink, background) via AppleScript; the formula is
