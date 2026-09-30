@@ -69,6 +69,7 @@ void main() {
       ('labelSmall', t.labelSmall),
     ]) {
       expect(style!.height, isNotNull, reason: '$name height');
+      expect(style.letterSpacing, isNotNull, reason: '$name letter-spacing');
       expect(style.fontFamily, 'Inter Tight', reason: '$name family');
     }
     // Headings descend and outweigh the body.
