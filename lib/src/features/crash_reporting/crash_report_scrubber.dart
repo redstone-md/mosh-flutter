@@ -70,6 +70,7 @@ class CrashReportScrubber {
     }
     for (final image in event.debugMeta?.images ?? const <DebugImage>[]) {
       image
+        ..name = _scrubOrNull(image.name)
         ..codeFile = _scrubOrNull(image.codeFile)
         ..debugFile = _scrubOrNull(image.debugFile);
     }
