@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/shared/focus_ring.dart';
 
 /// Which rail-item variant a row is: the tint and the active ring both
 /// follow from it.
@@ -91,62 +92,66 @@ class RailItem extends StatelessWidget {
           onTap: onTap,
           // `.rail-item:hover { background: var(--bg-3) }`.
           hoverColor: MoshColors.bg3,
-          child: Container(
-            // A floor, not a fixed height: large text grows the row.
-            constraints: const BoxConstraints(minHeight: kRailItemHeight),
-            padding: const EdgeInsetsDirectional.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              // `inset 0 0 0 2px <accent>` — an inside ring, so a border
-              // rather than a Flutter (outset-only) BoxShadow.
-              border: active ? Border.all(color: kind.ring, width: 2) : null,
-            ),
-            child: Row(
-              children: <Widget>[
-                IconTheme.merge(
-                  data: IconThemeData(color: kind.accent, size: 18),
-                  child: leading,
-                ),
-                const SizedBox(width: 10), // `.rail-item { gap: 10px }`
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          height: 1.1,
-                          color: MoshColors.fg1,
-                        ),
-                      ),
-                      if (subtitle.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: 2), // `.rail-text { gap: 2px }`
+          child: FocusRing(
+            radius: radius,
+            child: Container(
+              // A floor, not a fixed height: large text grows the row.
+              constraints: const BoxConstraints(minHeight: kRailItemHeight),
+              padding: const EdgeInsetsDirectional.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                // `inset 0 0 0 2px <accent>` — an inside ring, so a border
+                // rather than a Flutter (outset-only) BoxShadow.
+                border: active ? Border.all(color: kind.ring, width: 2) : null,
+              ),
+              child: Row(
+                children: <Widget>[
+                  IconTheme.merge(
+                    data: IconThemeData(color: kind.accent, size: 18),
+                    child: leading,
+                  ),
+                  const SizedBox(width: 10), // `.rail-item { gap: 10px }`
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
                         Text(
-                          subtitle,
+                          title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 12.5,
                             height: 1.1,
-                            color: MoshColors.fg4,
+                            color: MoshColors.fg1,
                           ),
                         ),
+                        if (subtitle.isNotEmpty) ...<Widget>[
+                          const SizedBox(
+                              height: 2), // `.rail-text { gap: 2px }`
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              height: 1.1,
+                              color: MoshColors.fg4,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                if (trailing != null) ...<Widget>[
-                  const SizedBox(width: 10),
-                  trailing!,
+                  if (trailing != null) ...<Widget>[
+                    const SizedBox(width: 10),
+                    trailing!,
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -183,41 +188,45 @@ class RailSettingsButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(12);
+    // The fill lives on the Material so the InkWell's hover, press and
+    // focus ink paint above it instead of under an opaque Container.
     return Semantics(
       button: true,
-      label: label,
-      child: InkWell(
+      child: Material(
+        color: MoshColors.bg2,
         borderRadius: radius,
-        onTap: onTap,
-        hoverColor: MoshColors.bg2,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: kRailButtonHeight),
-          padding: const EdgeInsetsDirectional.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            color: MoshColors.bg2,
-          ),
-          child: Row(
-            children: <Widget>[
-              const Icon(Icons.settings_outlined,
-                  size: 18, color: MoshColors.fg2),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: MoshColors.fg2,
-                  ),
-                ),
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          hoverColor: MoshColors.bg3,
+          child: FocusRing(
+            radius: radius,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: kRailButtonHeight),
+              padding: const EdgeInsetsDirectional.symmetric(
+                horizontal: 12,
+                vertical: 6,
               ),
-            ],
+              child: Row(
+                children: <Widget>[
+                  const Icon(Icons.settings_outlined,
+                      size: 18, color: MoshColors.fg2),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: MoshColors.fg2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -243,42 +252,44 @@ class RailNewButton extends StatelessWidget {
     final radius = BorderRadius.circular(12);
     return Semantics(
       button: true,
-      label: label,
       child: InkWell(
         borderRadius: radius,
         onTap: onTap,
         // `.rail-new:hover { background: var(--moss-glow) }`.
         hoverColor: MoshColors.mossGlow,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: kRailButtonHeight),
-          padding: const EdgeInsetsDirectional.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(
-              color: MoshColors.moss.withValues(alpha: 0.35),
-              width: 1.5,
+        child: FocusRing(
+          radius: radius,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: kRailButtonHeight),
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: 12,
+              vertical: 6,
             ),
-          ),
-          child: Row(
-            children: <Widget>[
-              const Icon(Icons.add, size: 18, color: MoshColors.moss),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: MoshColors.fg1,
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(
+                color: MoshColors.moss.withValues(alpha: 0.35),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                const Icon(Icons.add, size: 18, color: MoshColors.moss),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: MoshColors.fg1,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
