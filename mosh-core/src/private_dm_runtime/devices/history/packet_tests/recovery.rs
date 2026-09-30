@@ -157,10 +157,7 @@ fn cursors_replays_and_conflicts() {
     f.receive(&packet).unwrap();
     assert_eq!(text(&f, "first-copy")[0].body, "First recovered text");
     assert_eq!(text(&f, "second-copy")[0].body, "Second recovered text");
-    assert_eq!(
-        f.snapshot().history_sync,
-        Some(DmHistorySyncState::Complete)
-    );
+    assert_eq!(f.history_sync(), Some(DmHistorySyncState::Complete));
     let recovered: Vec<_> = f
         .snapshot()
         .messages
@@ -278,24 +275,15 @@ fn original_author_epoch_order_and_restart() {
     assert!(f.receive(&epoch_packet(&f, foreign)).is_err());
     let first_packet = epoch_packet(&f, first);
     f.receive(&first_packet).unwrap();
-    assert_eq!(
-        f.snapshot().history_sync,
-        Some(DmHistorySyncState::WaitingForSource)
-    );
+    assert_eq!(f.history_sync(), Some(DmHistorySyncState::WaitingForSource));
     f.runtime.rehydrate();
     assert!(f.receive(&first_packet).is_err());
     f.receive(&future).unwrap();
-    assert_eq!(
-        f.snapshot().history_sync,
-        Some(DmHistorySyncState::Importing)
-    );
+    assert_eq!(f.history_sync(), Some(DmHistorySyncState::Importing));
     let terminal = DeviceMessage::RecoveryBatch(batch(&f, 0, 0, Vec::new()));
     let terminal = f.packet(&f.source, terminal);
     f.receive(&terminal).unwrap();
-    assert_eq!(
-        f.snapshot().history_sync,
-        Some(DmHistorySyncState::Complete)
-    );
+    assert_eq!(f.history_sync(), Some(DmHistorySyncState::Complete));
 }
 
 fn live_text_is_durable_before_observation_or_completion() {
@@ -346,10 +334,7 @@ fn live_text_is_durable_before_observation_or_completion() {
         f.receive(&packet).unwrap();
         f.runtime.rehydrate();
         assert_eq!(text(&f, "live-before-tail").len(), 1);
-        assert_eq!(
-            f.snapshot().history_sync,
-            Some(DmHistorySyncState::Complete)
-        );
+        assert_eq!(f.history_sync(), Some(DmHistorySyncState::Complete));
     }
 }
 
