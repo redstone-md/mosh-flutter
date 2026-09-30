@@ -156,6 +156,8 @@ jobs:
           key: cargokit-windows-debug-${{ hashFiles('mosh-core/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: cargokit-windows-debug-
 
+      - uses: ./.github/actions/media-kit-windows
+
       # Debug on purpose: `flutter test -d windows` needs the VM service,
       # which a release build strips. Builds mosh.exe and deploys
       # mosh_core.dll so the test runs against the real Rust backend.

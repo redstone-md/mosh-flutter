@@ -1,0 +1,21 @@
+name: Prefetch media_kit Windows archives
+description: >-
+  media_kit_libs_windows_video downloads libmpv and ANGLE at CMake time with
+  one unretried download, so a truncated file fails the Windows build
+  ("Integrity check failed"). Restore the archives from cache, else fetch
+  them with retries and the plugin's own MD5; CMake then finds verified
+  archives and skips its download. Run after `flutter pub get`.
+
+runs:
+  using: composite
+  steps:
+    # Keyed on the lockfile (the plugin version pins the archives). A stale
+    # restore is safe: the script and CMake both re-check the MD5.
+    - uses: actions/cache@v4
+      with:
+        path: build/windows/x64/*.7z
+        key: media-kit-windows-${{ hashFiles('pubspec.lock') }}
+        restore-keys: media-kit-windows-
+
+    - shell: bash
+      run: node scripts/media-kit-prefetch.mjs build/windows/x64
