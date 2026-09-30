@@ -1234,3 +1234,4 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/Features/field-log.md - the field log: sink, rotation policy, kinds vocabulary (Mermaid flowchart).
 - docs/ADR/0027-attachments-ride-moss-streams.md - attachment chunks ride moss streams on direct DMs: carrier swap with the room wire fallback, reserved inbox channel, DM-only scope.
 - docs/ADR/0028-durable-attachment-offers.md - attachment manifests in encrypted history, sender and receiver restoration after restart.
+- docs/ADR/0035-opt-in-crash-reporting.md - opt-in Sentry crash reporting: consent file with scrub salt, no-DSN-no-reporting, scrubbed events, threat model.
