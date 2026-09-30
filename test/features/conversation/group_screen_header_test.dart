@@ -57,8 +57,8 @@ void main() {
     );
     await _pumpGroup(tester, snapshot);
 
-    // Admin-pill: crown icon (Icons.workspace_premium) + the "admin" label.
-    expect(find.byIcon(Icons.workspace_premium), findsOneWidget);
+    // Admin-pill: crown icon (Icons.workspace_premium_outlined) + the "admin" label.
+    expect(find.byIcon(Icons.workspace_premium_outlined), findsOneWidget);
     expect(find.text('admin'), findsWidgets);
 
     // Subtitle (en): "admin · 2 members · MLS Active".
@@ -86,7 +86,7 @@ void main() {
     await _pumpGroup(tester, snapshot);
 
     // No admin-pill (crown icon absent from the AppBar actions).
-    expect(find.byIcon(Icons.workspace_premium), findsNothing);
+    expect(find.byIcon(Icons.workspace_premium_outlined), findsNothing);
 
     // Subtitle (en): "2 members · MLS Active" (no "admin · " prefix).
     expect(find.text('2 members · MLS Active'), findsOneWidget);
