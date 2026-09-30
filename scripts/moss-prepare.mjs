@@ -33,7 +33,7 @@ await ensureMossCheckout();
 try {
   await mkdir(TARGET_DIR, { recursive: true });
 
-  if (process.platform === "darwin") {
+  if (process.platform === "darwin" && process.env.MOSH_MACOS_UNIVERSAL !== "false") {
     await buildUniversalLibrary();
   } else {
     buildHostLibrary();

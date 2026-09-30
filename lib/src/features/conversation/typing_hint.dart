@@ -36,23 +36,40 @@ class TypingHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (names.isEmpty) return const SizedBox.shrink();
-    final l = AppLocalizations.of(context)!;
-    final label = typingLabel ?? l.typingHint;
-    final text = names.length == 1
-        ? label(names.first)
-        // A multi-typer group joins the names the same way the rail joins
-        // subtitles; the localized "and" keeps the word order per locale.
-        : '${names.join(', ')} ${l.typingHintAnd}';
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 11, color: MoshColors.fg3),
-        ),
-      ),
+    final l = AppLocalizations.of(context);
+    final String? text;
+    if (names.isNotEmpty) {
+      if (typingLabel != null) {
+        text = names.length == 1
+            ? typingLabel!(names.first)
+            : '${names.join(', ')} and others are typing…';
+      } else if (l != null) {
+        text = names.length == 1
+            ? l.typingHint(names.first)
+            : '${names.join(', ')} ${l.typingHintAnd}';
+      } else {
+        text = null;
+      }
+    } else {
+      text = null;
+    }
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.centerLeft,
+      child: text == null
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  text,
+                  style: const TextStyle(fontSize: 11, color: MoshColors.fg3),
+                ),
+              ),
+            ),
     );
   }
 }

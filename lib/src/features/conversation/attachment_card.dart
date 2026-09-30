@@ -37,7 +37,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, kLiveNumberFontFeatures;
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
@@ -46,6 +47,7 @@ import 'package:mosh/src/util/format.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/features/conversation/attachment_thumb.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
+import 'package:mosh/src/features/shared/optical_icon.dart';
 
 part 'attachment_card_branches.dart';
 
@@ -215,7 +217,8 @@ class _FileCardShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(10);
+    // Concentric radius: inner thumb 8 + vertical padding 8 = 16.
+    final radius = BorderRadius.circular(16);
     return Container(
       margin: const EdgeInsets.only(top: 6),
       constraints: BoxConstraints(
@@ -272,7 +275,11 @@ Widget _buildBar({
         meta,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 11, color: MoshColors.fg3),
+        style: const TextStyle(
+          fontSize: 11,
+          color: MoshColors.fg3,
+          fontFeatures: kLiveNumberFontFeatures,
+        ),
       ),
       // 4px tall moss progress bar on bg-3, shown while downloading.
       if (state == AttachmentState.downloading) ...[

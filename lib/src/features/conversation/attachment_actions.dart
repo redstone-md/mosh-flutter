@@ -144,8 +144,8 @@ class _ActionIcon extends StatelessWidget {
         tooltip: tooltip,
         onPressed: onPressed,
         visualDensity: VisualDensity.compact,
-        splashRadius: 16,
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        splashRadius: 20,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
         padding: EdgeInsets.zero,
       ),
     );
