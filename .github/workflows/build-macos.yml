@@ -70,7 +70,9 @@ jobs:
         run: bash scripts/opus-prepare-macos.sh
 
       - name: Build macOS app (release)
-        run: flutter build macos --release
+        # ADR 0035: the Sentry DSN (a public repo variable) enables opt-in
+        # crash reporting; without it the build cannot report at all.
+        run: flutter build macos --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
 
       # create-dmg lays out the installer window (icon positions,
       # Applications symlink, background) via AppleScript; the formula is

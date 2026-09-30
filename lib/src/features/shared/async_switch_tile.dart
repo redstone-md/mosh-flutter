@@ -1,0 +1,114 @@
+/// A settings switch whose value lives behind an async read and write
+/// (the Rust-side setting files).
+///
+/// The row stays disabled until the read lands, so a default-value flicker
+/// cannot fire a write the user never asked for, and again while a write is
+/// in flight, so overlapping writes cannot land out of order. A failed write
+/// rolls the switch back and shows the error inline.
+library;
+
+import 'package:flutter/material.dart';
+
+class AsyncSwitchTile extends StatefulWidget {
+  const AsyncSwitchTile({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.read,
+    required this.write,
+    this.enabled = true,
+  });
+
+  final String title;
+  final String subtitle;
+  final Future<bool> Function() read;
+  final Future<void> Function(bool value) write;
+
+  /// False greys the row out regardless of the stored value.
+  final bool enabled;
+
+  @override
+  State<AsyncSwitchTile> createState() => _AsyncSwitchTileState();
+}
+
+class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
+  bool? _value;
+  String? _error;
+  bool _writing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final value = await widget.read();
+      if (!mounted) return;
+      setState(() {
+        _value = value;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.toString());
+    }
+  }
+
+  Future<void> _set(bool value) async {
+    final previous = _value;
+    setState(() {
+      _value = value;
+      _error = null;
+      _writing = true;
+    });
+    try {
+      await widget.write(value);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _value = previous;
+        _error = error.toString();
+      });
+    } finally {
+      if (mounted) setState(() => _writing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Settings cards paint their own background, so the tile gets a
+    // transparent Material of its own — ListTile's ink splashes would
+    // otherwise be invisible under it.
+    return Material(
+      type: MaterialType.transparency,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(widget.title),
+            subtitle: Text(
+              widget.subtitle,
+              style: const TextStyle(fontSize: 11.5, height: 1.5),
+            ),
+            value: _value ?? false,
+            onChanged:
+                widget.enabled && _value != null && !_writing ? _set : null,
+          ),
+          if (_error != null)
+            Text(
+              _error!,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

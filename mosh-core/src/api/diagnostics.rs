@@ -267,6 +267,26 @@ fn peer_rtt_ms(peer_moss_id: Option<&str>) -> Option<u64> {
     let nanos = node.peer_rtt_ns(peer_moss_id)?;
     Some(nanos / NANOS_PER_MS)
 }
+
+/// The crash-reporting scrub salt when the user opted in, `None` when not
+/// (ADR 0035). A file read, like `read_receipts_enabled`: the reporter asks
+/// early in launch, before any runtime exists.
+pub fn crash_reporting_salt() -> Option<String> {
+    crate::crash_reporting::salt(&crate::api::shared_runtime::resolved_data_dir())
+}
+
+/// Opt in to crash reporting; returns the install's scrub salt.
+pub fn enable_crash_reporting() -> Result<String, String> {
+    crate::crash_reporting::enable(&crate::api::shared_runtime::resolved_data_dir())
+        .map_err(|error| error.to_string())
+}
+
+/// Opt out of crash reporting; forgets the scrub salt.
+pub fn disable_crash_reporting() -> Result<(), String> {
+    crate::crash_reporting::disable(&crate::api::shared_runtime::resolved_data_dir())
+        .map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
