@@ -51,6 +51,15 @@ Future<String> enableCrashReporting() =>
 Future<void> disableCrashReporting() =>
     RustLib.instance.api.crateApiDiagnosticsDisableCrashReporting();
 
+/// Start capturing Rust panics while crash reporting is on. Each panic
+/// arrives on `sink` as Sentry event JSON; Dart scrubs and sends it.
+Stream<String> startPanicReporting({required String dsn}) =>
+    RustLib.instance.api.crateApiDiagnosticsStartPanicReporting(dsn: dsn);
+
+/// Stop capturing Rust panics (crash reporting switched off).
+Future<void> stopPanicReporting() =>
+    RustLib.instance.api.crateApiDiagnosticsStopPanicReporting();
+
 /// Aggregate frontend/runtime identity snapshot, one row of `app_diagnostics`.
 class AppDiagnostics {
   final String appName;
