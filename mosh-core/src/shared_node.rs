@@ -149,8 +149,10 @@ fn drop_ref(state: &mut SharedNodeState) {
 const STREAM_HANDLER_CONTEXT: &str = "stream-handler";
 const MAX_START_ATTEMPTS: usize = 3;
 
-/// Starts on `listen_port`, reallocating after a bind collision. Even port 0
-/// can collide: default Moss Masq binds TCP first, then UDP on that port.
+/// Starts on `listen_port`, reallocating after a bind collision. Port 0 is
+/// never handed to Moss: default Moss Masq binds TCP first, then UDP on that
+/// port, so an OS-picked TCP port can already be taken for UDP. A probed
+/// [`dual_protocol_port`] closes that window instead of retrying into it.
 /// A busy port used to keep the node down for the whole process: every
 /// saved chat was dropped at startup and every new one failed with "could not
 /// reach the network". Peers find the node through the trackers, so the port
@@ -169,7 +171,10 @@ fn start_with_port_fallback<T>(
     listen_port: u16,
     mut start: impl FnMut(u16) -> Result<T, MossFfiError>,
 ) -> Result<T, MossFfiError> {
-    let mut port = listen_port;
+    let mut port = match listen_port {
+        0 => dual_protocol_port(),
+        port => port,
+    };
     let mut result = start(port);
     for _ in 1..MAX_START_ATTEMPTS {
         let Err(error) = &result else {
@@ -184,10 +189,24 @@ fn start_with_port_fallback<T>(
             &port.to_string(),
             &format!("listen port busy ({error}); starting on a free port"),
         );
-        port = 0;
+        port = dual_protocol_port();
         result = start(port);
     }
     result
+}
+
+/// A port currently free for both TCP and UDP (their port spaces are
+/// separate), or 0 to let Moss pick when no probe succeeds. Released before
+/// Moss binds it, so a racer can still take it; the start retry covers that.
+fn dual_protocol_port() -> u16 {
+    (0..MAX_START_ATTEMPTS)
+        .find_map(|_| {
+            let tcp = std::net::TcpListener::bind(("0.0.0.0", 0)).ok()?;
+            let port = tcp.local_addr().ok()?.port();
+            std::net::UdpSocket::bind(("0.0.0.0", port)).ok()?;
+            Some(port)
+        })
+        .unwrap_or(0)
 }
 
 fn start_node_on(
@@ -221,7 +240,17 @@ fn start_node_on(
         );
     }
     clear_event_log();
-    node.start()?;
+    if let Err(error) = node.start() {
+        if let Some(reason) = node.last_error() {
+            dlog::write(
+                LogLevel::Warn,
+                kinds::CONNECT,
+                &listen_port.to_string(),
+                &format!("moss start failed ({error}): {reason}"),
+            );
+        }
+        return Err(error);
+    }
     Ok(node)
 }
 
@@ -255,7 +284,18 @@ mod tests {
         })
         .unwrap();
         assert_eq!(node, 42);
-        assert_eq!(ports, [12345, 0, 0]);
+        assert_eq!(ports[0], 12345);
+        assert!(ports[1..].iter().all(|port| *port != 12345));
+    }
+
+    /// Moss binds TCP and then UDP on the same number, so the fallback port
+    /// must be free for both.
+    #[test]
+    fn the_fallback_port_binds_for_tcp_and_udp() {
+        let port = dual_protocol_port();
+        assert_ne!(port, 0);
+        let _tcp = std::net::TcpListener::bind(("0.0.0.0", port)).expect("TCP free");
+        std::net::UdpSocket::bind(("0.0.0.0", port)).expect("UDP free");
     }
 
     #[test]
