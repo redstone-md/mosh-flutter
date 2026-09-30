@@ -4,6 +4,37 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **One name per action.** The rail button, the empty-state button and the
+  mobile title all say "Start a conversation"; the tiles start with a verb
+  ("Start a private chat", "Create a group"). "Peer status" is now
+  "Connection status".
+- **Secondary text is readable.** Muted text meets WCAG AA contrast on
+  every surface, and rail subtitles no longer use the disabled grey.
+- **Text fields have a visible edge,** and a solid moss edge on focus.
+- **Text grows without clipping.** Rail rows, the title bar and the
+  state pill grow with the system text size; long onboarding
+  descriptions wrap instead of being cut; truncated rail names show in
+  full on hover.
+
+### Fixed
+- **Screen readers reach the rail and the title bar on desktop,** and hear
+  each row's name once.
+- **Keyboard focus is visible** on every rail row, the Settings and
+  Connection status buttons and the onboarding tiles.
+- **The connection-status drawer works from the keyboard:** focus moves
+  in, Tab stays inside, Escape closes it and focus returns to the button
+  that opened it.
+- **Errors say what happened and what to do,** instead of showing raw
+  runtime text. A failed invite dismiss shows a message instead of doing
+  nothing, and accepting an invite opens the new chat even if the dismiss
+  step fails.
+- **Reduced motion turns off the tap ripple.**
+- **Russian copy:** grammar fixes, no English fragments ("Reason:",
+  "Organization").
+
 ## [0.10.1] - 2026-09-29
 
 ### Changed
