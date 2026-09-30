@@ -206,7 +206,7 @@ void main() {
         ),
       );
       expect(find.byIcon(Icons.add), findsOneWidget);
-      expect(find.text('new group name'), findsOneWidget);
+      expect(find.text('e.g. Design review'), findsOneWidget);
     },
   );
 

@@ -288,8 +288,8 @@ class _RailList extends ConsumerWidget {
 
 /// Empty state for the sessions list. Reuses the
 /// `chatNoSessionTitle` + `chatNoSessionBody` welcome, with the
-/// `chatStartCta` ("New private chat") button mirroring onboarding's Chat
-/// tile -- both open the existing `NewSessionPanel` flow.
+/// `shellNewSession` button, the same action and label as the rail's
+/// start button.
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onStart});
 
@@ -320,7 +320,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onStart,
               icon: const Icon(Icons.add),
-              label: Text(l.chatStartCta),
+              label: Text(l.shellNewSession),
             ),
           ],
         ),

@@ -119,7 +119,14 @@ void main() {
     await pumpSessions(tester, gateway, bridge);
 
     expect(find.text('Welcome to Mosh.'), findsOneWidget);
-    expect(find.text('New private chat'), findsOneWidget);
+    // The rail button carries the same label; the CTA is the FilledButton.
+    expect(
+      find.ancestor(
+        of: find.text('Start a conversation'),
+        matching: find.bySubtype<FilledButton>(),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -171,7 +178,7 @@ void main() {
     expect(
       rowSemantics
           .map((s) => s.properties.label)
-          .contains('Open session with Alice'),
+          .contains('Open chat with Alice'),
       isTrue,
     );
 
@@ -191,11 +198,11 @@ void main() {
         error: Exception('boom-listSessions'));
     await pumpSessions(tester, gateway, bridge);
 
-    expect(find.text('Could not load sessions.'), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Unable to load conversations'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
     final callsBefore = bridge.countOf(BridgeMethod.listSessions);
 
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
 
     // refresh() re-ran the bridge query (the count must increase, even if

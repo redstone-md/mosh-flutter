@@ -1,8 +1,8 @@
 {
   "@@locale": "ru",
   "shellProductName": "MOSH",
-  "shellWindowSubtitle": "Приватные DM · OpenMLS поверх Moss",
-  "shellNewSession": "Новая",
+  "shellWindowSubtitle": "OpenMLS поверх Moss",
+  "shellNewSession": "Начать разговор",
   "shellCloseSession": "Закрыть сессию",
   "shellNoActive": "Нет активной сессии",
   "setupSectionTitle": "Настройка сессии",
@@ -50,8 +50,7 @@
   "chatCryptoFooter": "OpenMLS seal · ciphertext через gossip Moss",
   "chatNoSessionTitle": "Добро пожаловать в Mosh.",
   "chatNoSessionBody": "Создайте приглашение или вставьте его, чтобы начать первый зашифрованный разговор.",
-  "chatStartCta": "Новый приватный чат",
-  "stateIdle": "Простой",
+  "stateIdle": "Неактивно",
   "stateWaiting": "Ожидание",
   "stateReady": "Подключено",
   "dmStateWaiting": "Ожидание собеседника",
@@ -63,8 +62,9 @@
   "transportMesh": "через сеть",
   "sessionsListTitle": "Диалоги",
   "backToConversations": "К диалогам",
-  "sessionsError": "Не удалось загрузить сессии.",
+  "sessionsError": "Не удалось загрузить разговоры",
   "sessionsRetry": "Повторить",
+  "sessionsLoading": "Загрузка разговоров",
   "cryptoNoticeTitle": "Сквозное шифрование",
   "cryptoNoticeBody": "OpenMLS защищает содержимое сообщений. Moss переносит ciphertext через публичные трекеры и суперузы для NAT punching — метаданные обнаружения peer-ов НЕ скрываются.",
   "groupCreateCardTitle": "Создать приватную группу",
@@ -88,21 +88,21 @@
   "groupCopyInviteDone": "Приглашение скопировано",
   "groupUntitled": "Приватная группа",
   "onboardTitle": "Начать разговор",
-  "onboardSubtitle": "Выберите способ подключения. Приватные чаты и группы сквозь зашифрованы; публичные каналы открыты.",
-  "onboardIdentityHint": "Так вас видят собеседники",
+  "onboardSubtitle": "Выберите способ подключения. Приватные чаты и группы защищены сквозным шифрованием, публичные каналы открыты.",
+  "onboardIdentityHint": "Это имя видят собеседники",
   "onboardStartLabel": "Начать",
   "onboardJoinLabel": "Присоединиться",
   "onboardBack": "Назад",
   "onboardAdvancedToggle": "Расширенные настройки подключения",
   "onboardAboutToggle": "Как Mosh вас защищает",
-  "onboardTileChatTitle": "Новый приватный чат",
+  "onboardTileChatTitle": "Начать приватный чат",
   "onboardTileChatDesc": "Один на один, сквозное шифрование",
-  "onboardTileGroupTitle": "Новая группа",
+  "onboardTileGroupTitle": "Создать группу",
   "onboardTileGroupDesc": "Зашифрованная группа — вы админ",
   "onboardTileJoinTitle": "Присоединиться по ссылке",
-  "onboardTileJoinDesc": "Вставьте приглашение, отправленное другом",
-  "onboardTileChannelTitle": "Зайти в публичный канал",
-  "onboardTileChannelDesc": "Открытая broadcast-комната, вход по имени",
+  "onboardTileJoinDesc": "Вставьте приглашение от собеседника",
+  "onboardTileChannelTitle": "Войти в публичный канал",
+  "onboardTileChannelDesc": "Открытая комната трансляции, вход по имени",
   "onboardChatStepBody": "Создайте одноразовую ссылку-приглашение и отправьте её одному человеку через любой доверенный канал.",
   "onboardChatCreate": "Создать ссылку-приглашение",
   "onboardChatRecreate": "Заменить ссылку-приглашение",
@@ -356,7 +356,7 @@
   "@diagRttUnknown": {
     "description": "Value of the Peer RTT row when no round-trip time is known for the counterpart"
   },
-  "peerStatusTitle": "Статус пиров",
+  "peerStatusTitle": "Статус подключения",
   "@peerStatusTitle": {
     "description": "Title of the Peer status drawer shown as a modal overlay on the DM screen"
   },
@@ -364,11 +364,11 @@
   "@refreshStatus": {
     "description": "Tooltip/aria-label of the refresh button in the Peer status drawer"
   },
-  "closePeerStatus": "Закрыть статус пиров",
+  "closePeerStatus": "Закрыть статус подключения",
   "@closePeerStatus": {
     "description": "Tooltip/aria-label of the close button in the Peer status drawer"
   },
-  "openPeerStatus": "Открыть статус пиров",
+  "openPeerStatus": "Открыть статус подключения",
   "@openPeerStatus": {
     "description": "Tooltip of the AppBar action that opens the Peer status drawer on the DM screen"
   },
@@ -503,7 +503,7 @@
       }
     }
   },
-  "openSessionAria": "Открыть сессию с {name}",
+  "openSessionAria": "Открыть чат с {name}",
   "@openSessionAria": {
     "description": "Screen-reader label for the Open-session rail-item row, with the peer label (React aria-label `Open session with ${label}`, SessionRail.tsx)",
     "placeholders": {
@@ -595,7 +595,7 @@
   "chatActionErrorPersistence": "Не удалось сохранить зашифрованную историю. Повтор не поможет; перезапустите Mosh.",
   "chatActionErrorNeedsRejoin": "Этот разговор рассинхронизирован, в него нужно войти заново.",
   "chatActionErrorRevoked": "Ваше участие в этом разговоре отозвано.",
-  "chatActionErrorInternal": "Что-то пошло не так: {detail}",
+  "chatActionErrorInternal": "Не удалось выполнить действие. Если ошибка повторяется, перезапустите Mosh. Подробности: {detail}",
  "dialogCancel": "Отмена",
   "@dialogCancel": {
     "description": "Универсальная подпись «Отмена» для кнопки-крестика и бледной кнопки отмены в общем ConfirmDialog (React: инлайн-значение 'Cancel'; close-flow и другие деструктивные сценарии передают локализованную подпись отмены из этого ключа)"
@@ -765,8 +765,9 @@
   "orgMemberDmHint": "Написать",
   "orgYouBadge": "вы",
   "orgAdminBadge": "Админ организации",
-  "orgNewGroup": "Новая группа организации",
-  "orgNewGroupPlaceholder": "название новой группы",
+  "orgNewGroup": "Создать группу",
+  "orgNewGroupPlaceholder": "например, Дизайн-ревью",
+  "orgNewGroupLabel": "Название группы",
   "orgAcceptDmAria": "Принять приглашение к чату от {name}",
   "orgDismissDmAria": "Отклонить приглашение от {name}",
   "orgAcceptGroupAria": "Принять приглашение в группу от {name}",
