@@ -43,6 +43,7 @@ import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart' show kRailWidth;
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -181,9 +182,9 @@ class _MoshShellState extends ConsumerState<MoshShell> {
     return ref.watch(groupSnapshotProvider(active!.arg)).value;
   }
 
-  // A runtime error string for the active snapshot
-  // (`async.hasError ? async.error.toString() : null`), or null when the
-  // active family is loading/data or no conversation is open.
+  // What the drawer says about a failed read of the active snapshot, worded
+  // from the error's kind (never the runtime's raw message), or null when
+  // the active family is loading/data or no conversation is open.
   String? _activeDrawerError(WidgetRef ref) {
     final active = ref.watch(activeConversationProvider);
     if (active == null) return null;
@@ -193,7 +194,10 @@ class _MoshShellState extends ConsumerState<MoshShell> {
         ref.watch(channelSnapshotProvider(active.arg)),
       ConversationKind.group => ref.watch(groupSnapshotProvider(active.arg)),
     };
-    return async.hasError ? async.error.toString() : null;
+    final error = async.error;
+    if (error == null) return null;
+    return ConversationActionError.of(error)
+        .describe(AppLocalizations.of(context)!);
   }
 
   // Invalidates the active conversation's snapshot family entry so a
