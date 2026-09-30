@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   dmg:
-    name: macOS DMG (release, universal, self-signed)
+    name: macOS DMG (release, ${{ inputs.universal && 'universal' || 'arm64' }}, self-signed)
     runs-on: macos-latest
     timeout-minutes: 60
     outputs:
