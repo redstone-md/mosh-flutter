@@ -3,6 +3,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
@@ -119,4 +120,17 @@ void main() {
       expect(_contrast(ink, surface), greaterThanOrEqualTo(4.5));
     });
   }
+
+  testWidgets('hovering a truncated row shows its full title and subtitle',
+      (tester) async {
+    await _pumpRail(tester, _row());
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: tester.getCenter(find.text('Alice')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('Alice\nConnected', findRichText: true), findsOneWidget);
+  });
 }

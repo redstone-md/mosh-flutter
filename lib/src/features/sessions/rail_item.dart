@@ -58,7 +58,13 @@ extension on RailItemKind {
 
 /// One rail row. [leading] is the avatar (DMs, offers) or the 18px glyph
 /// (channels, groups); [title]/[subtitle] fill `.rail-text`; [trailing]
-/// carries the unread badge and, for offers, the dismiss control.
+/// carries the unread badge. [action] is a second control (the offer's
+/// dismiss X) laid out beside the row's tap target, never inside it, so
+/// assistive tech sees two sibling buttons instead of one nested in the
+/// other.
+///
+/// The tap target is one button whose name is the visible text, unless
+/// [semanticLabel] replaces it.
 class RailItem extends StatelessWidget {
   const RailItem({
     super.key,
@@ -67,6 +73,8 @@ class RailItem extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.trailing,
+    this.action,
+    this.semanticLabel,
     this.active = false,
     this.onTap,
   });
@@ -76,6 +84,8 @@ class RailItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget? trailing;
+  final Widget? action;
+  final String? semanticLabel;
   final bool active;
   final VoidCallback? onTap;
 
@@ -90,43 +100,66 @@ class RailItem extends StatelessWidget {
       child: Material(
         color: kind.background,
         borderRadius: radius,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: onTap,
-          // An overlay, not an opaque fill, so the channel and group tints
-          // still show through on hover.
-          hoverColor: _kHoverOverlay,
-          child: FocusRing(
-            radius: radius,
-            child: Container(
-              // A floor, not a fixed height: large text grows the row.
-              constraints: const BoxConstraints(minHeight: kRailItemHeight),
-              padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                // `inset 0 0 0 2px <accent>` — an inside ring, so a border
-                // rather than a Flutter (outset-only) BoxShadow.
-                border: active ? Border.all(color: kind.ring, width: 2) : null,
-              ),
-              child: Row(
-                children: <Widget>[
-                  IconTheme.merge(
+        // Clips the tap target's ink to the row's corners when [action]
+        // shares the row.
+        clipBehavior: Clip.antiAlias,
+        child: DecoratedBox(
+          // `inset 0 0 0 2px <accent>`: painted over the row, so it neither
+          // moves the content nor needs an (outset-only) BoxShadow.
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: active ? Border.all(color: kind.ring, width: 2) : null,
+          ),
+          child: Row(
+            children: <Widget>[
+              Expanded(child: _tapTarget(radius)),
+              if (action case final action?) action,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tapTarget(BorderRadius radius) {
+    return Semantics(
+      container: true,
+      button: true,
+      selected: active,
+      label: semanticLabel,
+      excludeSemantics: semanticLabel != null,
+      child: InkWell(
+        onTap: onTap,
+        // An overlay, not an opaque fill, so the channel and group tints
+        // still show through on hover.
+        hoverColor: _kHoverOverlay,
+        child: FocusRing(
+          radius: radius,
+          child: Container(
+            // A floor, not a fixed height: large text grows the row.
+            constraints: const BoxConstraints(minHeight: kRailItemHeight),
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            child: Row(
+              children: <Widget>[
+                ExcludeSemantics(
+                  child: IconTheme.merge(
                     data: IconThemeData(color: kind.accent, size: 18),
                     child: leading,
                   ),
-                  const SizedBox(width: 10), // `.rail-item { gap: 10px }`
-                  Expanded(
-                    child: _RailText(title: title, subtitle: subtitle),
-                  ),
-                  if (trailing != null) ...<Widget>[
-                    const SizedBox(width: 10),
-                    trailing!,
-                  ],
+                ),
+                const SizedBox(width: 10), // `.rail-item { gap: 10px }`
+                Expanded(
+                  child: _RailText(title: title, subtitle: subtitle),
+                ),
+                if (trailing case final trailing?) ...<Widget>[
+                  const SizedBox(width: 10),
+                  trailing,
                 ],
-              ),
+              ],
             ),
           ),
         ),
@@ -146,26 +179,33 @@ class _RailText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final styles = ListTileTheme.of(context);
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: styles.titleTextStyle,
-        ),
-        if (subtitle.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 2), // `.rail-text { gap: 2px }`
+    // Both lines ellipsize; the tooltip is the path to the full values. It
+    // stays out of the semantics tree, which already reads both lines.
+    return Tooltip(
+      message: subtitle.isEmpty ? title : '$title\n$subtitle',
+      waitDuration: const Duration(milliseconds: 500),
+      excludeFromSemantics: true,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
           Text(
-            subtitle,
+            title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: styles.subtitleTextStyle,
+            style: styles.titleTextStyle,
           ),
+          if (subtitle.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 2), // `.rail-text { gap: 2px }`
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: styles.subtitleTextStyle,
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

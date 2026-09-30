@@ -163,31 +163,46 @@ void main() {
     expect(find.text('Waiting for your contact'), findsOneWidget);
     expect(find.text('Contact is offline'), findsOneWidget);
 
-    // Accessibility: the Alice row exposes the expected semantics label.
-    // The two-pane StatefulShellRoute (mosh_shell.dart) lays the rail + chat
-    // branches out as two live Navigators on desktop, and two simultaneous
-    // ModalRoutes change the merged-semantics tree enough that
-    // find.bySemanticsLabel no longer resolves the row's label (the node
-    // ends up non-leaf with an empty label). The row's Semantics widget
-    // still carries the label in its properties, so assert on the widget
-    // directly -- layout-independent and pins the row semantics label
-    // the bySemanticsLabel check was guarding.
-    final rowSemantics = tester.widgetList<Semantics>(
-      find.ancestor(of: find.text('Alice'), matching: find.byType(Semantics)),
-    );
-    expect(
-      rowSemantics
-          .map((s) => s.properties.label)
-          .contains('Open chat with Alice'),
-      isTrue,
-    );
-
     // Tapping the Alice row navigates to /dm/<aliceId>. The DM screen's
     // composer placeholder is a stable sentinel that the router pushed it.
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
 
     expect(find.text('Write a message\u2026'), findsOneWidget);
+  });
+
+  testWidgets('a DM row has one accessible name: the visible label and state',
+      (tester) async {
+    final (gateway, bridge) = _scriptedPair();
+    bridge.seedSessions([
+      _session(
+          sessionId: 'alice-a11y',
+          displayName: 'me',
+          peerDisplayName: 'Alice',
+          state: DmSessionState.connected),
+    ]);
+    await pumpSessions(tester, gateway, bridge);
+
+    expect(
+      tester.getSemantics(find.text('Alice')),
+      isSemantics(label: 'Alice\nConnected', isButton: true),
+    );
+  });
+
+  testWidgets('the offer dismiss button is not nested in the accept button',
+      (tester) async {
+    final (gateway, bridge) = _channelOfferBridge();
+    await pumpSessions(tester, gateway, bridge);
+
+    final accept = tester.getSemantics(find.text('alpha-peer'));
+    expect(
+      accept,
+      isSemantics(label: 'Accept chat invite from alpha-peer', isButton: true),
+    );
+    final dismiss = tester.getSemantics(find.byTooltip('Dismiss invite'));
+    for (var node = dismiss.parent; node != null; node = node.parent) {
+      expect(node, isNot(same(accept)));
+    }
   });
 
   testWidgets(
@@ -305,8 +320,8 @@ void main() {
     await pumpSessions(tester, gateway, bridge, useRouter: true);
 
     // One row shape: the offer row stops hand-rolling a `ListTile` and is a
-    // `RailItem` like every other row, with the dismiss X in its trailing
-    // slot next to the accept button.
+    // `RailItem` like every other row, with the dismiss X in its action
+    // slot beside the accept button.
     final offerRow = tester.widget<RailItem>(find.ancestor(
       of: find.byTooltip('Dismiss invite'),
       matching: find.byType(RailItem),
