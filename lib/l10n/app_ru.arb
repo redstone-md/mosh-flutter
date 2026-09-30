@@ -485,33 +485,6 @@
   "@diagDash": {
     "description": "Fallback value for the group Label row when the group has no label (mirrors React's null dash fallback)"
   },
-  "openChannelAria": "Открыть канал {name}",
-  "@openChannelAria": {
-    "description": "Screen-reader label for the Open-channel rail-item row, with the channel name",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "openGroupAria": "Открыть группу {label}",
-  "@openGroupAria": {
-    "description": "Screen-reader label for the Open-group rail-item row, with the group label",
-    "placeholders": {
-      "label": {
-        "type": "String"
-      }
-    }
-  },
-  "openSessionAria": "Открыть чат с {name}",
-  "@openSessionAria": {
-    "description": "Screen-reader label for the Open-session rail-item row, with the peer label (React aria-label `Open session with ${label}`, SessionRail.tsx)",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "membersCount": "{count, plural, one {{count} участник} few {{count} участника} many {{count} участников} other {{count} участников}}",
   "@membersCount": {
     "description": "Subtitle for the GroupScreen AppBar subtitle and the group rail-item showing the member count. ICU MessageFormat plural (Russian: one '1 участник' / few '2 участника' / many '5 участников'); corrects the prior naive binary plural that rendered '2 участников' instead of '2 участника'. The 'count' placeholder is int.",
