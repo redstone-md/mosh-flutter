@@ -185,8 +185,11 @@ jobs:
         with:
           rust-cache-key: desktop
 
-      - name: Build device-link native test library
-        run: cargo build --manifest-path mosh-core/Cargo.toml
+      # The lib is what flutter_tester loads; the device_link_flow test binary
+      # is the peer NativePeer spawns from target/debug/deps. rust-core runs
+      # the tests themselves, so only build them here.
+      - name: Build device-link native test library and peer
+        run: cargo build --manifest-path mosh-core/Cargo.toml --lib --test device_link_flow
 
       - name: Native peer pipe regression
         run: flutter test native_test/native_peer_io_test.dart
