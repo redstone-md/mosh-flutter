@@ -12,12 +12,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
+
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/rust/api/conversation_bridge.dart'
+    show ConversationBridgeError, ConversationBridgeErrorKind;
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -225,6 +229,26 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listSessions), greaterThan(callsBefore));
   });
 
+  testWidgets('the error state words a list failure and announces it',
+      (tester) async {
+    const error = ConversationBridgeError(
+      kind: ConversationBridgeErrorKind.unavailable,
+      message: 'dm runtime unavailable: node down',
+    );
+    final (gateway, bridge) = _scriptedPair();
+    bridge.failAlways(BridgeMethod.listSessions, error: error);
+    await pumpSessions(tester, gateway, bridge);
+
+    final reason =
+        AppLocalizations.of(tester.element(find.byType(SessionsScreen)))!
+            .chatActionErrorUnavailable;
+    expect(find.text(reason), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text(reason)),
+      isSemantics(isLiveRegion: true),
+    );
+  });
+
 // Unread-badge rendering: a row whose
 // unread count > 0 shows the numeral; a row with count 0 shows no badge.
 // The DM entry of `conversationListProvider` (via a seeded bridge) and
@@ -344,6 +368,28 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listSessions), sessionCallsBeforeAccept);
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 0);
     expect(find.text('Write a message\u2026'), findsNothing);
+  });
+
+  testWidgets(
+      'an accepted offer still opens its DM when the follow-up dismiss fails',
+      (tester) async {
+    final (gateway, bridge) = _channelOfferBridge();
+    gateway.failAlways(
+      GatewayMethod.dismissDmOffer,
+      error: const ConversationBridgeError(
+        kind: ConversationBridgeErrorKind.unavailable,
+        message: 'dm runtime unavailable: node down',
+      ),
+    );
+    await pumpSessions(tester, gateway, bridge, useRouter: true);
+    final l = AppLocalizations.of(tester.element(find.byType(SessionsScreen)))!;
+
+    await tester.tap(find.text('alpha-peer'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Write a message\u2026'), findsOneWidget);
+    // Both shell panes host a Scaffold, and the messenger toasts in each.
+    expect(find.text(l.chatActionErrorUnavailable), findsWidgets);
   });
 
   // Regression (CodeAnt PR #17): pull-to-refresh only re-read the DM list,
