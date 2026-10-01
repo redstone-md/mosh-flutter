@@ -24,7 +24,7 @@ inside the name row also separates the name and subtitle unnecessarily.
    The shared measurement helper mirrors `Text`'s bold/line-height/letter/word
    spacing accessibility overrides as well as locale and text scaling.
 3. Compose a compact header identity, preserving the fingerprint as its own
-   41px action outside the clickable identity. Clicking the identity opens
+   24px action beside the nickname. Clicking the identity opens
    existing details. Order actions call, search, menu; keep invitation copy in
    the menu and admin role once.
 4. Verify text/timestamp separation, grouping, selection/copy, keyboard and
@@ -50,6 +50,8 @@ caller-visible cases. No dependency, Rust, bridge, storage or schema change.
   actual read receipts retain the existing accent and localized semantics.
 - The group admin role appears once in its status line. The public-channel
   header explicitly labels the kind without implying encryption or membership.
+- The nickname lock uses a 12px glyph and a 24px hover/tap target with 4px
+  corners. Its glyph follows the name line; the name/details target stays 41px.
 - DM rows use their header identity; group/channel sender names, fingerprint
   actions and protection labels remain on the first message of each block.
 

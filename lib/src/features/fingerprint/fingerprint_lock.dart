@@ -15,9 +15,11 @@ import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 /// opens the security dialog (audit 2026-09-21 hit-areas).
 const double _lockTapInset = 13;
 
-/// Lock icon size -- small enough to read as a suffix of the name, not
-/// as a header action.
+/// Standalone lock icon size.
 const double _lockIconSize = 15;
+
+/// A quieter suffix on the nickname, inside a compact 24px target.
+const double _inlineLockIconSize = 12;
 
 /// The emoji quartet size inside the dialog.
 const double _dialogEmojiSize = 34;
@@ -61,15 +63,15 @@ class FingerprintLock extends StatelessWidget {
         child: InkWell(
           onTap: () => showFingerprintDialog(context,
               fingerprint: fingerprint, hint: hint),
-          borderRadius: MoshShapes.control,
+          borderRadius: besideName ? MoshShapes.embedded : MoshShapes.control,
           child: Padding(
-            // Keep the 41px target while placing the glyph on the name line.
+            // Align the inline glyph with the name's first line.
             padding: besideName
-                ? const EdgeInsetsDirectional.fromSTEB(6, 3, 20, 23)
+                ? const EdgeInsetsDirectional.fromSTEB(6, 4, 6, 8)
                 : const EdgeInsets.all(_lockTapInset),
             child: Icon(
               Icons.lock,
-              size: _lockIconSize,
+              size: besideName ? _inlineLockIconSize : _lockIconSize,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
