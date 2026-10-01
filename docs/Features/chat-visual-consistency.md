@@ -70,9 +70,27 @@ Avatars and voice play remain circles because they are identity and transport
 controls, rather than rectangular fields. Progress bars retain their small
 end caps. Modal geometry remains owned by the existing modal components.
 
-Search uses the theme's full field-border state recipe, avoiding a local
-default border with a different radius from the focused and disabled borders.
+Search retains the theme's focused and disabled borders. Its resting edge is
+quieter, with the same 8px radius in every state.
 The composer input stays borderless when disabled as well as when enabled.
+
+## List controls
+
+The creation row has a 48px minimum height, a 32px plus and a 14px/600 label.
+Its 40px leading slot aligns the plus with the search icon; both labels share
+a 52px leading inset. Search has a 40px minimum height and a quiet
+resting edge, retaining the theme's 8px corners and visible focus border.
+The shortcut is secondary 11px text.
+
+Type filters retain Material single-selection, keyboard focus and hover
+feedback. Their 32px surfaces are borderless when inactive; selection uses
+the existing type tint or a neutral fill for All, plus stronger text. Inactive
+glyphs keep their type hue with reduced saturation. Native targets are 40px
+on desktop and 48px on mobile. The targets' invisible insets are included in
+the 8px search/filter gap and 12px filter/list gap. Large text can grow the
+controls, and filters remain horizontally scrollable at narrow widths. A 2px
+focus outline sits outside the surface without changing its size; the scroller
+reserves 2px at each horizontal edge so that outline stays visible.
 
 ## Embedded files and voice
 

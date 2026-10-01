@@ -27,6 +27,9 @@ const double kRailListGap = 4;
 /// Padding around the rail and gap between its sections.
 const double kRailPadding = 12;
 
+/// Shared leading slot for the creation button and search icon.
+const double kRailLeadingWidth = 40;
+
 /// Width of the expanded rail pane.
 const double kRailWidth = 348;
 
@@ -303,9 +306,8 @@ class RailSettingsButton extends StatelessWidget {
   }
 }
 
-/// The "New chat" button at the top of the rail: full width,
-/// at least 40px tall, radius 8, and a 12.5px/700 fg-1 label.
-/// The circular moss plus keeps creation visible above the search.
+/// Full-width creation action with a 48px minimum height and 8px corners.
+/// Its 32px plus and 14px label align with the search icon and input text.
 class RailNewButton extends StatelessWidget {
   const RailNewButton({super.key, required this.label, this.onTap});
 
@@ -326,30 +328,32 @@ class RailNewButton extends StatelessWidget {
           child: FocusRing(
             radius: radius,
             child: Container(
-              constraints: const BoxConstraints(minHeight: 56),
-              padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: radius,
               ),
               child: Row(
                 children: <Widget>[
-                  const CircleAvatar(
-                      radius: 19,
-                      backgroundColor: MoshColors.moss,
-                      child:
-                          Icon(Icons.add, size: 23, color: MoshColors.mossInk)),
-                  const SizedBox(width: 10),
+                  const SizedBox(
+                    width: kRailLeadingWidth,
+                    child: Center(
+                      child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: MoshColors.moss,
+                          child: Icon(Icons.add,
+                              size: 20, color: MoshColors.mossInk)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Flexible(
                     child: Text(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                         color: MoshColors.fg1,
                       ),
                     ),
