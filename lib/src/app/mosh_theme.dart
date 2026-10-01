@@ -56,7 +56,7 @@ class MoshColors {
   static const Color dmAccent = moss;
   static const Color groupAccent = Color(0xFFB49BE0);
   static const Color channelAccent = info;
-  static const Color outgoingMessage = Color(0xFF25472D);
+  static const Color outgoingMessage = Color(0xFF273D2D);
 
   // Role tokens built on the primitives above. Components read these
   // instead of re-deriving an alpha at the call site.
@@ -262,7 +262,7 @@ ThemeData buildMoshTheme() {
       minVerticalPadding: 6,
       contentPadding: EdgeInsets.symmetric(horizontal: 12),
       shape: RoundedRectangleBorder(
-        borderRadius: MoshShapes.message,
+        borderRadius: MoshShapes.conversationRow,
       ),
       selectedColor: MoshColors.fg1,
       selectedTileColor: MoshColors.mossGlow,

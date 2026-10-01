@@ -17,7 +17,7 @@ import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
-import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_header_title.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
 
@@ -78,33 +78,12 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final fingerprint = s?.fingerprint ?? '';
     return ConversationAppBar(
       avatarName: s == null ? widget.sessionId : peerLabel(l, s),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Peer name with the fingerprint lock beside it (the lock
-          // renders nothing while the fingerprint is empty). A null
-          // snapshot (not loaded yet) keeps the bare sessionId.
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(s == null ? widget.sessionId : peerLabel(l, s),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-              ),
-              FingerprintLock(
-                fingerprint: fingerprint,
-                hint: l.inviteFingerprintHint,
-              ),
-            ],
-          ),
-          SizedBox(height: chatSubtitleGap(context)),
-          Text(status,
-              style: chatSubtitleStyle(context),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-        ],
+      title: ConversationHeaderTitle(
+        name: s == null ? widget.sessionId : peerLabel(l, s),
+        subtitle: status,
       ),
+      identityAction: FingerprintLock(
+          fingerprint: fingerprint, hint: l.inviteFingerprintHint),
       onOpenPeerStatus: widget.onOpenPeerStatus,
       onRequestLeave: widget.onLeave,
       filter: widget.filter,
@@ -114,9 +93,9 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       leaveMenuLabel: l.deleteChatConfirm,
       leaveMenuIcon: Icons.delete_outline,
       inlineActions: [
-        // Start-call button, between the kebab and the peer-status button.
+        // Primary action precedes search and the menu in every header.
         IconButton(
-          icon: const Icon(Icons.phone_outlined, size: 18),
+          icon: const Icon(Icons.phone_outlined, size: 20),
           tooltip: l.callStart,
           onPressed: widget.onStartCall,
         ),

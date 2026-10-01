@@ -902,6 +902,10 @@ Chat corner geometry is owned by `app/mosh_shapes.dart` and reused by the theme
 and feature components. `ConversationKindStyle` and `ConversationKindAvatar`
 share type accents, glyphs and labels across rail, filters, header and details.
 See [Chat visual consistency](Features/chat-visual-consistency.md).
+The shared message text/footer components use actual paragraph metrics to
+reserve inline metadata space while keeping selection on ordinary `Text`.
+The header identity and fingerprint have independent focus/tap boundaries.
+See [Bubble/header polish](Features/chat-message-header-polish.md).
 
 ## Settings
 

@@ -42,6 +42,10 @@ ScriptableGateway _gateway() {
             body: 'Привет! Проверим, что всё работает.',
             sentAtMs: now),
         TestMessages.dm(
+            fromDevice: 'Alice',
+            body: 'Как выглядит новая версия?',
+            sentAtMs: now + BigInt.one),
+        TestMessages.dm(
             fromDevice: 'me',
             body: 'Да, отлично. Сейчас отправлю файл.',
             attachment: testAttachment(attachmentId: 'sample-file'),
@@ -65,6 +69,11 @@ ScriptableGateway _gateway() {
                 fromFingerprint: 'alice',
                 body: 'Привет! Проверим, что всё работает.',
                 sentAtMs: now),
+            TestMessages.group(
+                fromDevice: 'Alice',
+                fromFingerprint: 'alice',
+                body: 'Как выглядит новая версия?',
+                sentAtMs: now + BigInt.one),
             TestMessages.group(
                 fromDevice: 'me',
                 fromFingerprint: 'self',

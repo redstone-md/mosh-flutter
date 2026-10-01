@@ -12,7 +12,7 @@ import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
 /// The shortened fingerprint chip in a multi-party sender meta: mono 10px
-/// fg-4 text on a bg-2 rounded-4 background.
+/// fg-3 text on a bg-2 rounded-4 background.
 class DeviceFingerprintChip extends StatelessWidget {
   const DeviceFingerprintChip({super.key, required this.fingerprint});
 
@@ -31,7 +31,7 @@ class DeviceFingerprintChip extends StatelessWidget {
         style: const TextStyle(
           fontFamily: 'monospace',
           fontSize: 10,
-          color: MoshColors.fg4,
+          color: MoshColors.fg3,
         ),
       ),
     );

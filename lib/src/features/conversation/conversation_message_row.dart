@@ -8,6 +8,8 @@ import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_message_footer.dart';
+import 'package:mosh/src/features/conversation/conversation_message_text.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
 import 'package:mosh/src/features/conversation/call_log_entry.dart';
@@ -32,6 +34,7 @@ class ConversationMessageRow extends StatelessWidget {
     required this.l,
     this.attachmentView,
     this.peer,
+    this.continuesBelow = false,
   });
 
   final ConversationMessage message;
@@ -40,6 +43,7 @@ class ConversationMessageRow extends StatelessWidget {
   /// Whether this row continues the previous sender's block. A continuation
   /// row drops the meta and indents under the first row's avatar.
   final bool grouped;
+  final bool continuesBelow;
 
   final AttachmentView? attachmentView;
 
@@ -97,41 +101,62 @@ class ConversationMessageRow extends StatelessWidget {
                           color: message.own
                               ? MoshColors.outgoingMessage
                               : MoshColors.bg2,
-                          borderRadius: MoshShapes.message,
+                          borderRadius: _corners,
                         ),
-                        child: _body(),
+                        child: _body(context),
                       ),
                     ),
                   ],
                 )),
       );
 
-  Widget _body() => Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!grouped && !message.own)
-                ConversationSenderMeta(
-                  fromDevice: message.fromDevice,
-                  fromFingerprint: message.fromFingerprint,
-                  sentAtMs: message.sentAtMs,
-                  showTime: false,
-                  showMlsBadge: kind != ConversationKind.channel,
-                  peer: peer,
-                ),
-              if (message.body.isNotEmpty)
+  BorderRadiusDirectional get _corners {
+    final outer = MoshShapes.message.topLeft;
+    final join = MoshShapes.embedded.topLeft;
+    return BorderRadiusDirectional.only(
+      topStart: !message.own && grouped ? join : outer,
+      bottomStart: !message.own && continuesBelow ? join : outer,
+      topEnd: message.own && grouped ? join : outer,
+      bottomEnd: message.own && continuesBelow ? join : outer,
+    );
+  }
+
+  Widget _body(BuildContext context) {
+    final footer = ConversationMessageFooter(message: message, kind: kind);
+    final textOnly = message.body.isNotEmpty &&
+        message.attachment == null &&
+        message.callEvent == null &&
+        !message.canRetry;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!grouped && !message.own && kind != ConversationKind.dm)
+              ConversationSenderMeta(
+                fromDevice: message.fromDevice,
+                fromFingerprint: message.fromFingerprint,
+                sentAtMs: message.sentAtMs,
+                showTime: false,
+                showMlsBadge: kind != ConversationKind.channel,
+                peer: peer,
+              ),
+            if (message.body.isNotEmpty)
+              if (textOnly)
+                ConversationMessageText(body: message.body, footer: footer)
+              else
                 Text(message.body, style: kMessageBodyStyle),
-              SelectionContainer.disabled(child: _trailing()),
-            ],
-          ),
-          SelectionContainer.disabled(
-              child: _MessageFooter(message: message, kind: kind)),
-        ],
-      );
+            SelectionContainer.disabled(child: _trailing()),
+          ],
+        ),
+        if (!textOnly && footer.measure(context).height > 0)
+          Padding(padding: const EdgeInsets.only(top: 4), child: footer),
+      ],
+    );
+  }
 
   /// Attachment and call controls remain outside text selection.
   Widget _trailing() {
@@ -159,33 +184,6 @@ class ConversationMessageRow extends StatelessWidget {
             l: l.toFailedMessageRetryL10n(),
           ),
       ],
-    );
-  }
-}
-
-class _MessageFooter extends StatelessWidget {
-  const _MessageFooter({required this.message, required this.kind});
-  final ConversationMessage message;
-  final ConversationKind kind;
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = AppLocalizations.of(context)!.localeName;
-    final time = formatClock(message.sentAtMs, locale: locale);
-    final full = formatClockFull(message.sentAtMs, locale: locale);
-    return Padding(
-      padding: const EdgeInsets.only(top: 5),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (time != null && full != null)
-          Tooltip(message: full, child: Text(time, style: kMessageTimeStyle)),
-        if (message.own && kind == ConversationKind.dm) ...[
-          const SizedBox(width: 5),
-          DeliveryTicks(
-              status: message.deliveryStatus,
-              read: message.read == true,
-              compact: true),
-        ],
-      ]),
     );
   }
 }

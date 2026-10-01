@@ -23,16 +23,18 @@ import 'package:mosh/src/rust/conversation/attachments.dart'
 /// How long a gap can be before the next message starts a new block.
 const Duration conversationGroupWindow = Duration(minutes: 5);
 
-/// A message plus whether it continues the block above it.
+/// A message and its existing sender-block boundaries on both sides.
 @immutable
 class GroupedConversationMessage {
   const GroupedConversationMessage({
     required this.message,
     required this.grouped,
+    this.continuesBelow = false,
   });
 
   final ConversationMessage message;
   final bool grouped;
+  final bool continuesBelow;
 
   @override
   bool operator ==(Object other) =>
@@ -40,10 +42,11 @@ class GroupedConversationMessage {
       other is GroupedConversationMessage &&
           runtimeType == other.runtimeType &&
           message == other.message &&
-          grouped == other.grouped;
+          grouped == other.grouped &&
+          continuesBelow == other.continuesBelow;
 
   @override
-  int get hashCode => Object.hash(message, grouped);
+  int get hashCode => Object.hash(message, grouped, continuesBelow);
 }
 
 /// Works out the block boundaries, oldest first. The first message never
@@ -58,6 +61,8 @@ List<GroupedConversationMessage> groupConversationMessages(
     grouped.add(GroupedConversationMessage(
       message: messages[i],
       grouped: i > 0 && _continuesBlock(messages[i - 1], messages[i]),
+      continuesBelow: i + 1 < messages.length &&
+          _continuesBlock(messages[i], messages[i + 1]),
     ));
   }
   return grouped;
@@ -215,6 +220,7 @@ class _ConversationMessageListViewState
       message: row.message,
       kind: kind,
       grouped: row.grouped,
+      continuesBelow: row.continuesBelow,
       attachmentView: view,
       peer: widget.peer,
       busy: callbacks.busy,

@@ -121,7 +121,7 @@ void main() {
 
   group('what the kind changes', () {
     testWidgets(
-        'a DM shows no fingerprint chip and no delivery state on a '
+        'a DM shows no redundant sender meta or delivery state on a '
         'message from someone else', (tester) async {
       await _pumpRow(
         tester,
@@ -130,11 +130,9 @@ void main() {
       );
 
       expect(find.byType(DeviceFingerprintChip), findsNothing);
-      expect(find.text('MLS'), findsOneWidget);
+      expect(find.byType(ConversationSenderMeta), findsNothing);
       expect(find.textContaining('delivered'), findsNothing);
-      // Dropping the chip must drop its gap with it, or the DM name sits
-      // twice as far from the badge as it should.
-      expect(_metaGaps(tester), 1);
+      expect(_metaGaps(tester), 0);
     });
 
     testWidgets('a channel keeps one gap per part it shows', (tester) async {

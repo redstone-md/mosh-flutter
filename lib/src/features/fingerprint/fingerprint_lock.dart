@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 
 /// The lock tap area's inset: the 15px glyph plus 13px on every side keeps
@@ -58,7 +59,7 @@ class FingerprintLock extends StatelessWidget {
         child: InkWell(
           onTap: () => showFingerprintDialog(context,
               fingerprint: fingerprint, hint: hint),
-          borderRadius: BorderRadius.circular(_lockIconSize + _lockTapInset),
+          borderRadius: MoshShapes.control,
           child: Padding(
             // Symmetric 13px sides: the 15px glyph gets a 41x41 tap box.
             // Chat headers are 70px (54 compact), so the box fits the title
