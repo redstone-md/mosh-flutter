@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 /// Shared geometry for chat surfaces and their controls.
 abstract final class MoshShapes {
   static const messageRadius = 16.0;
+  static const messageHorizontalInset = 12.0;
   static const attachmentInset = 8.0;
+  static const attachmentFooterInset = messageHorizontalInset - attachmentInset;
 
   static const control = BorderRadius.all(Radius.circular(8));
   static const conversationRow = BorderRadius.all(Radius.circular(12));
@@ -19,6 +21,7 @@ abstract final class MoshShapes {
 
   static const controlShape = RoundedRectangleBorder(borderRadius: control);
   // The text's leading and the 2px-lower timestamp need less space above.
-  static const messagePadding = EdgeInsets.fromLTRB(12, 8, 12, 10);
+  static const messagePadding = EdgeInsets.fromLTRB(
+      messageHorizontalInset, 8, messageHorizontalInset, 10);
   static const composerPadding = EdgeInsets.all(8);
 }
