@@ -58,11 +58,11 @@ void main() {
   setUpAll(() => initializeDateFormatting());
 
   testWidgets(
-      'the delivered ticks keep the meta grey while no receipt has landed',
+      'unread delivered ticks use the readable outgoing-bubble foreground',
       (tester) async {
     await _pumpRow(tester, message: _ownMessage(read: null));
     final icon = deliveredIcon(tester);
-    expect(icon.color, MoshColors.fg3);
+    expect(icon.color, MoshColors.fg2);
   });
 
   testWidgets('the read receipt changes the color of the SAME delivered ticks',

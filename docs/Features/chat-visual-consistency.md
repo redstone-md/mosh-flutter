@@ -4,6 +4,9 @@
 
 The follow-up to the chat redesign addresses the user's reported corner-radius
 drift, displaced voice play icon, and indistinguishable conversation types.
+The subsequent approved [bubble and header polish](chat-message-header-polish.md)
+evolves message geometry and header rhythm; the current shape table below
+includes that follow-up.
 
 1. Reuse the Material theme and existing message, attachment and avatar widgets.
    Put shared corner geometry in one token file and type cues in one component.
@@ -34,8 +37,8 @@ remain checks on a real device.
   shadows or decorative gradients.
 - Typography: existing Mosh theme; message text stays at 14px, previews and
   metadata use the existing smaller steps and foreground levels.
-- Spacing: 4px base, 8px message inset and composer control inset. The waveform
-  takes the remaining space, while play retains its 40px hit target.
+- Spacing: 4px base, 12px/10px message insets and 8px composer control inset.
+  The waveform takes the remaining space, while play retains its 40px hit target.
 
 ## Shape ownership
 
@@ -45,9 +48,10 @@ these tokens instead of choosing their own corner radius.
 | Element | Radius | Relationship |
 | --- | ---: | --- |
 | Search, settings, filters, standard buttons | 8px | One shape across states |
-| Messages and conversation rows | 12px | Stable when selected or grouped |
+| Conversation rows | 12px | Stable in selected and unselected states |
+| Message outside corners | 16px | 4px joins on the sender side of a series |
 | Composer control group | 16px | 8px control corner plus 8px inset |
-| Embedded media and file icon surfaces | 4px | 12px message corner minus 8px inset |
+| Embedded media and file icon surfaces | 4px | 16px message corner minus 12px horizontal inset |
 
 The message-search segment uses its outer 8px corner minus its 3px inset.
 Avatars and voice play remain circles because they are identity and transport
@@ -88,7 +92,7 @@ localized tooltip/type labels and channel-name prefixes communicate the type
 without relying on color. These accents do not imply a connection or encryption
 state; runtime protection indicators continue to read actual snapshots.
 
-## Verification
+## Initial consistency verification
 
 - `flutter analyze --no-pub`: no issues.
 - Full widget/unit suite with branch coverage: 989 passed, 5 skipped by the
@@ -100,6 +104,8 @@ state; runtime protection indicators continue to read actual snapshots.
   within a 224px message, including the centered 40px play target.
 - Changed Dart files are formatted and `git diff --check` is clean.
 - Windows rendering, native recording and playback require device evaluation.
+
+Current bubble/header verification is recorded in the follow-up document.
 
 Existing declarative theme/composer/rail widget trees and screenshot fixture
 builders exceed the 50-line function limit. Their existing boundaries stay

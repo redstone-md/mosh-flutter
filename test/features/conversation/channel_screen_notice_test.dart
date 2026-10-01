@@ -6,6 +6,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/channel_screen.dart';
+import 'package:mosh/src/features/conversation/conversation_banners.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import '../../support/message_builders.dart';
 import '../../support/pump.dart';
@@ -35,7 +36,11 @@ void main() {
     ]);
 
     // The banner title + body (en ARB values) render as Text nodes.
-    expect(find.text('Public channel'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(ConversationBanners),
+            matching: find.text('Public channel')),
+        findsOneWidget);
     expect(
       find.text(
         'Not end-to-end encrypted. Anyone who joins this channel can read messages. Your device fingerprint is shown next to each message you publish.',

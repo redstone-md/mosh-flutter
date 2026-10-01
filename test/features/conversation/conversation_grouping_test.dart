@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 import '../../support/conversation_cases.dart';
 
@@ -199,7 +200,8 @@ void main() {
   });
 
   for (final testCase in conversationCases()) {
-    testWidgets('${testCase.label}: two grouped messages show one sender meta',
+    testWidgets(
+        '${testCase.label}: grouped messages show sender meta only for multi-party chats',
         (tester) async {
       await pumpConversation(
         tester,
@@ -213,14 +215,15 @@ void main() {
       expect(find.text('first'), findsOneWidget);
       expect(find.text('second'), findsOneWidget);
 
-      // The sender name shows once, not once per row. Scoped to the rows,
-      // because a DM also shows the peer name in its header.
+      // Multi-party chats identify the block once; a DM uses its header identity.
       expect(
         find.descendant(
           of: find.byType(ConversationMessageRow),
           matching: find.text('peer'),
         ),
-        findsOneWidget,
+        testCase.target.kind == ConversationKind.dm
+            ? findsNothing
+            : findsOneWidget,
       );
 
       // The clock is local and locale-aware, so build the expectation the

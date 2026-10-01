@@ -48,6 +48,9 @@ Flutter chat list, messages and details for DMs, private groups and public chann
 The follow-up [Chat visual consistency](chat-visual-consistency.md) records the
 shared corner geometry, embedded attachment simplification and conversation
 type cues requested after the first Windows evaluation.
+The next [bubble/header polish](chat-message-header-polish.md) adds connected
+sender-series corners, inline time where it fits, and the shared clickable
+header identity with invitation actions in the menu.
 
 Tests cover recency, filtering, known names, runtime protection, file actions,
 details toggling and Escape, keyboard navigation, local date boundaries, bubble

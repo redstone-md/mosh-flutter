@@ -82,7 +82,7 @@ class RailItem extends StatelessWidget {
     // The radius stays 12 in every state; the active ring is an inset
     // border and must not move the outer geometry (audit 2026-09-21:
     // radius jumped 12 -> 14 when a row was selected).
-    const radius = MoshShapes.message;
+    const radius = MoshShapes.conversationRow;
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
       child: Material(

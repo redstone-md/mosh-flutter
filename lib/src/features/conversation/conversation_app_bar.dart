@@ -35,13 +35,14 @@ class ConversationAppBar extends StatelessWidget
     this.leadingActions = const [],
     this.menuActions = const [],
     this.inlineActions = const [],
+    this.identityAction,
   });
 
-  /// The AppBar `title:` widget (usually a two-line Column: name + lock,
-  /// then the status subtitle).
+  /// The name and short status, normally a `ConversationHeaderTitle`.
   final Widget title;
   final String? avatarName;
   final ConversationKind kind;
+  final Widget? identityAction;
 
   final VoidCallback onOpenPeerStatus;
   final VoidCallback onRequestLeave;
@@ -68,8 +69,7 @@ class ConversationAppBar extends StatelessWidget
   /// leave item.
   final List<ChatHeaderMenuAction> menuActions;
 
-  /// Kind-specific `actions:` widgets rendered between the kebab and the
-  /// peer-status button.
+  /// Kind-specific primary actions, rendered before search and the menu.
   final List<Widget> inlineActions;
 
   @override
@@ -93,54 +93,88 @@ class ConversationAppBar extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final compact = MediaQuery.sizeOf(context).width <= 640;
     return IconButtonTheme(
         data: IconButtonThemeData(
             style: IconButton.styleFrom(
+          fixedSize: const Size.square(40),
           minimumSize: const Size.square(40),
           shape: MoshShapes.controlShape,
           padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
+          visualDensity: VisualDensity.standard,
         )),
         child: AppBar(
           toolbarHeight: chatHeaderHeight(context),
           titleTextStyle: chatTitleStyle(context),
           leading: railBackButton(context),
+          leadingWidth: 48,
+          titleSpacing: compact ? 8 : 22,
           title: LayoutBuilder(
-              builder: (context, constraints) => Row(children: [
-                    if (avatarName != null && constraints.maxWidth >= 120) ...[
-                      ConversationKindAvatar(
-                          kind: kind, name: avatarName!, radius: 20),
-                      const SizedBox(width: 12),
-                    ],
-                    Expanded(child: title),
-                  ])),
+              builder: (context, constraints) =>
+                  _identity(l, compact, constraints.maxWidth)),
           actions: [
-            ...leadingActions,
-            MobileSearchToggle(
-              open: mobileSearchOpen,
-              onToggle: onToggleMobileSearch,
-              l: l,
-            ),
-            ChatHeaderMenu(
-              l: l,
-              actions: [
-                _filterAction(l),
-                ...menuActions,
-                ChatHeaderMenuAction(
-                  label: leaveMenuLabel,
-                  icon: leaveMenuIcon,
-                  danger: true,
-                  onSelect: onRequestLeave,
-                ),
-              ],
-            ),
-            ...inlineActions,
-            IconButton(
-              icon: const Icon(Icons.info_outline, size: 20),
-              tooltip: l.chatDetailsTitle,
-              onPressed: onOpenPeerStatus,
-            ),
+            Padding(
+                padding: EdgeInsets.only(right: compact ? 8 : 16),
+                child:
+                    Row(mainAxisSize: MainAxisSize.min, children: _actions(l))),
           ],
         ));
+  }
+
+  Widget _identity(AppLocalizations l, bool compact, double width) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+              child: Tooltip(
+            message: l.chatDetailsTitle,
+            child: InkWell(
+              key: const ValueKey('conversation-header-details'),
+              borderRadius: MoshShapes.control,
+              onTap: onOpenPeerStatus,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (avatarName != null && width >= 112) ...[
+                    ConversationKindAvatar(
+                        kind: kind,
+                        name: avatarName!,
+                        radius: compact ? 16 : 20),
+                    SizedBox(width: compact ? 8 : 12),
+                  ],
+                  Flexible(child: title),
+                ]),
+              ),
+            ),
+          )),
+          if (identityAction case final action?) action,
+        ],
+      );
+
+  List<Widget> _actions(AppLocalizations l) {
+    final actions = [
+      ...leadingActions,
+      ...inlineActions,
+      MobileSearchToggle(
+          open: mobileSearchOpen, onToggle: onToggleMobileSearch, l: l),
+      ChatHeaderMenu(l: l, actions: [
+        ChatHeaderMenuAction(
+            label: l.chatDetailsTitle,
+            icon: Icons.info_outline,
+            onSelect: onOpenPeerStatus),
+        _filterAction(l),
+        ...menuActions,
+        ChatHeaderMenuAction(
+            label: leaveMenuLabel,
+            icon: leaveMenuIcon,
+            danger: true,
+            onSelect: onRequestLeave),
+      ]),
+    ];
+    return [
+      for (var i = 0; i < actions.length; i++) ...[
+        if (i > 0) const SizedBox(width: 4),
+        SizedBox.square(dimension: 40, child: actions[i]),
+      ],
+    ];
   }
 }
