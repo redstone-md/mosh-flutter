@@ -11,6 +11,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/conversation_action_error.dart'
     show ConversationActionError;
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 import 'package:mosh/src/features/sessions/sessions_rail_list.dart';
 import 'package:mosh/src/features/sessions/sessions_list_controls.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
@@ -71,7 +73,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                 onSearch: (value) => setState(() => _query = value),
                 onKind: (value) => setState(() => _kind = value),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: isMobileBreakpoint(context) ? 4 : 8),
               Expanded(
                 child: async.when(
                   loading: () => Center(
