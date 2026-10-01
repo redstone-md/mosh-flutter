@@ -51,7 +51,7 @@ void main() {
         findsOneWidget);
     expect(
       find.text(
-        'Not end-to-end encrypted. Anyone who joins this channel can read messages. Your device fingerprint is shown next to each message you publish.',
+        'End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.',
       ),
       findsOneWidget,
     );

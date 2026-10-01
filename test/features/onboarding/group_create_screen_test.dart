@@ -28,8 +28,7 @@ import 'package:mosh/src/state/gateway_provider.dart'
     show bridgeFacadeProvider, gatewayProvider;
 import '../../support/pump.dart';
 
-const _groupStepBody =
-    'Spin up an MLS-encrypted group. You admit members and stay the admin.';
+const _groupStepBody = 'Create a group with end-to-end encryption.';
 
 /// Stubs the flutter/services clipboard channel so the auto-copy on create
 /// does not hang the test waiting on a real platform channel.
