@@ -126,13 +126,31 @@ class AttachmentCard extends StatelessWidget {
     final failed = state == AttachmentState.failed;
     final canOpen = state == AttachmentState.available &&
         (view?.localPath?.isNotEmpty ?? false);
+    final footer = messageFooter;
     final bar = _buildBar(
       l: l,
       fileName: descriptor.fileName,
       totalSize: descriptor.totalSize,
       state: state,
       percent: percent,
-      messageFooter: messageFooter,
+      action: !outgoing && state != AttachmentState.available
+          ? AttachmentActions(
+              descriptor: descriptor,
+              state: state,
+              outgoing: outgoing,
+              busy: busy,
+              onDownload: onDownload,
+              onCancel: onCancel,
+              l: l,
+            )
+          : null,
+      messageFooter: footer == null
+          ? null
+          : Padding(
+              padding: const EdgeInsetsDirectional.only(
+                  end: MoshShapes.attachmentFooterInset),
+              child: footer,
+            ),
     );
     return _FileCardShell(
       failed: failed,
@@ -151,18 +169,6 @@ class AttachmentCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(child: bar),
-            if (!outgoing && state != AttachmentState.available) ...[
-              const SizedBox(width: 10),
-              AttachmentActions(
-                descriptor: descriptor,
-                state: state,
-                outgoing: outgoing,
-                busy: busy,
-                onDownload: onDownload,
-                onCancel: onCancel,
-                l: l,
-              ),
-            ],
           ],
         ),
       ),
@@ -256,6 +262,7 @@ Widget _buildBar({
   required BigInt totalSize,
   required AttachmentState state,
   required int percent,
+  Widget? action,
   Widget? messageFooter,
 }) {
   final size = formatBytes(totalSize);
@@ -264,29 +271,41 @@ Widget _buildBar({
   // every other state appends " \u00b7 {label}".
   final meta =
       state == AttachmentState.available ? size : '$size \u00b7 $stateLabel';
+  final name = Text(
+    fileName,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
+  );
+  final metadata = Text(
+    meta,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(
+        fontSize: 11,
+        color: MoshColors.fg3,
+        fontFeatures: kLiveNumberFontFeatures),
+  );
+  // A transfer button shares the label's height instead of adding a tall
+  // second line beneath the filename.
+  final details = action == null
+      ? metadata
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [name, const SizedBox(height: 2), metadata],
+        );
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(
-        fileName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
-      ),
-      // 2px between name and meta.
-      const SizedBox(height: 2),
-      Row(children: [
-        Expanded(
-            child: Text(
-          meta,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-              fontSize: 11,
-              color: MoshColors.fg3,
-              fontFeatures: kLiveNumberFontFeatures),
-        )),
+      if (action == null) ...[name, const SizedBox(height: 2)],
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Expanded(child: details),
+        if (action case final control?) ...[
+          const SizedBox(width: 8),
+          control,
+        ],
         if (messageFooter case final footer?) ...[
           const SizedBox(width: 8),
           footer,

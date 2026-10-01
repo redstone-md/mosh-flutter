@@ -59,6 +59,11 @@ equal 8px insets and 8px inner corners. Image previews clip separately from
 their captions, so all four corners remain rounded. Captions add only an 8px
 gap above their text, leaving the bubble to provide the bottom inset once.
 Text and voice messages retain their optical insets and series joins.
+Text, files and media share a 12px trailing inset for time and delivery marks.
+Files add the remaining 4px inside their 8px bubble inset; media captions use
+that same 4px trailing inset. Preview geometry keeps its uniform 8px inset.
+Transfer controls precede time in the metadata row, preserving that inset
+while a download or retry action is visible.
 
 The message-search segment uses its outer 8px corner minus its 3px inset.
 Avatars and voice play remain circles because they are identity and transport

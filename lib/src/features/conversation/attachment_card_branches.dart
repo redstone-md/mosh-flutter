@@ -136,36 +136,29 @@ class _MediaPreviewCard extends StatelessWidget {
               ),
             ),
           ),
-          // Bar row: info (expanding) + actions to its right. The media
-          // bubble owns the bottom inset; the bar only adds a gap above it.
+          // Controls precede time in the metadata row so its trailing
+          // position stays fixed. The bubble supplies the bottom inset.
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: _buildBar(
-                    l: l,
-                    fileName: descriptor.fileName,
-                    totalSize: descriptor.totalSize,
-                    state: state,
-                    percent: percent,
-                    messageFooter: messageFooter,
-                  ),
-                ),
-                if (!outgoing && state != AttachmentState.available) ...[
-                  const SizedBox(width: 10),
-                  AttachmentActions(
-                    descriptor: descriptor,
-                    state: state,
-                    outgoing: outgoing,
-                    busy: busy,
-                    onDownload: onDownload,
-                    onCancel: onCancel,
-                    l: l,
-                  ),
-                ],
-              ],
+            padding: const EdgeInsetsDirectional.fromSTEB(
+                10, 8, MoshShapes.attachmentFooterInset, 0),
+            child: _buildBar(
+              l: l,
+              fileName: descriptor.fileName,
+              totalSize: descriptor.totalSize,
+              state: state,
+              percent: percent,
+              messageFooter: messageFooter,
+              action: !outgoing && state != AttachmentState.available
+                  ? AttachmentActions(
+                      descriptor: descriptor,
+                      state: state,
+                      outgoing: outgoing,
+                      busy: busy,
+                      onDownload: onDownload,
+                      onCancel: onCancel,
+                      l: l,
+                    )
+                  : null,
             ),
           ),
         ],
