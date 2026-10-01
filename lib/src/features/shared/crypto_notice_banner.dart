@@ -1,26 +1,10 @@
-// Shared crypto notice banner for the channel + group chat screens. The
-// public (channel) and group (encrypted) variants differ only in the icon
-// (`Icons.lock` for group, `Icons.hash` for public) and the i18n strings.
-// This single DRY widget parameterizes the icon + accent + strings so the
-// channel (public) and group (encrypted) variants are just different ctor
-// call sites.
-//
-// Position: the banner sits at the TOP of the body Column, ABOVE
-// ConversationTools, and is NOT part of the message list.
-//
-// Accessibility: the banner is wrapped in `Semantics(label: title,
-// container: true, excludeSemantics: true)` so the screen reader announces
-// the whole banner as one labeled unit (the title) rather than reading the
-// icon + title + body as three separate nodes.
-//
-// Styling: a flex row with a tinted background, a 32x32 rounded icon
-// container, a bold title, and a muted body. The accent (border +
-// icon-tint + icon-foreground) is passed in so the group variant uses the
-// moss-glow green and the public variant uses the info blue. Material
-// widgets (Container/Row) so it reads as a notice banner, not a chat bubble.
+// Shared informational/status banner above conversation tools. Persistence
+// belongs to its caller; the close action is optional and separately
+// accessible from the title/body announcement.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/l10n/app_localizations.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
@@ -29,9 +13,7 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 /// `accent` drives the border color, the icon-container background, and
 /// the icon foreground color.
 ///
-/// The whole section is wrapped in a `Semantics(container: true,
-/// excludeSemantics: true, label: title)` so a screen reader announces the
-/// banner as one unit labeled by the title.
+/// The title and body are one semantic node; the close button is another.
 class CryptoNoticeBanner extends StatelessWidget {
   const CryptoNoticeBanner({
     super.key,
@@ -39,6 +21,8 @@ class CryptoNoticeBanner extends StatelessWidget {
     required this.title,
     required this.body,
     required this.accent,
+    this.onDismiss,
+    this.dismissing = false,
   });
 
   /// The icon glyph (`Icons.lock` for group, `Icons.hash` for public).
@@ -55,6 +39,9 @@ class CryptoNoticeBanner extends StatelessWidget {
   /// foreground. Group = moss green, public = info blue.
   final Color accent;
 
+  final Future<void> Function()? onDismiss;
+  final bool dismissing;
+
   @override
   Widget build(BuildContext context) {
     // The group and public variants differ only in the third
@@ -63,11 +50,9 @@ class CryptoNoticeBanner extends StatelessWidget {
     final border = accent.withValues(alpha: 0.18);
     final iconBg = accent.withValues(alpha: 0.14);
     return Semantics(
-      label: title,
       container: true,
-      excludeSemantics: true,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+        margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: bg,
@@ -80,7 +65,8 @@ class CryptoNoticeBanner extends StatelessWidget {
           children: [
             // A 32x32 rounded tinted square holding
             // the 18px icon, centered.
-            Container(
+            ExcludeSemantics(
+                child: Container(
               width: 32,
               height: 32,
               alignment: Alignment.center,
@@ -89,34 +75,47 @@ class CryptoNoticeBanner extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, size: 18, color: accent),
-            ),
+            )),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title: 12.5px/700, fg-1.
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: MoshColors.fg1,
+              child: Semantics(
+                label: '$title. $body',
+                excludeSemantics: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title: 12.5px/700, fg-1.
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: MoshColors.fg1,
+                      ),
                     ),
-                  ),
-                  // Body: fg-3, 11.5px/1.5, 3px top margin.
-                  const SizedBox(height: 3),
-                  Text(
-                    body,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      height: 1.5,
-                      color: MoshColors.fg3,
+                    // Body: fg-3, 11.5px/1.5, 3px top margin.
+                    const SizedBox(height: 3),
+                    Text(
+                      body,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        height: 1.5,
+                        color: MoshColors.fg3,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+            if (onDismiss != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: dismissing ? null : onDismiss,
+                tooltip: AppLocalizations.of(context)!.dialogClose,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close, size: 18, color: MoshColors.fg3),
+              ),
+            ],
           ],
         ),
       ),

@@ -257,6 +257,10 @@
     "description": "Screen-reader label for the sessions list while it loads"
   },
   "cryptoNoticeTitle": "End-to-end encrypted",
+  "noticeDismissFailed": "Could not save the dismissed notice. Try again.",
+  "@noticeDismissFailed": {
+    "description": "Shown when saving a permanently dismissed conversation notice fails"
+  },
   "@cryptoNoticeTitle": {
     "description": "Lock tooltip in the chat header, and the title of the end-to-end encryption notice"
   },

@@ -34,14 +34,20 @@ Flutter chat list, messages and details for DMs, private groups and public chann
 - Message search opens from the header. Closing it or changing conversations
   clears the query so a hidden search cannot suppress messages. The shared action menu exposes files,
   existing kind actions and the confirmed leave flow on desktop and mobile.
-- Details consume the same snapshot as the chat. Protection reflects actual DM
-  and group states, revocation and rejoin requirements. Public channels explicitly
-  show their public-channel notice and known authors, with no invented roster or
-  MLS protection. Groups show actual roster identities when available; unresolved
+- Details consume the same snapshot as the chat, showing participants, files and
+  expandable connection diagnostics. Public channels show their known authors,
+  with no invented roster. Groups show actual roster identities when available; unresolved
   identities remain shortened identifiers. Existing diagnostics expand on demand.
 - Shared files are deduplicated by attachment ID and reuse `AttachmentActions` and
   controller callbacks for download, cancellation, retry and opening. Updating
   any conversation also refreshes its kind's list for current previews.
+- The public-channel and encrypted-group information notices can be closed.
+  Each kind stays hidden across all conversations, app restarts, locale and copy
+  changes on this installation. Stable marker files in the application data
+  directory contain no conversation data. Dismissal hides the banner only after
+  the marker is flushed; a failed save leaves it visible and reports the error.
+  Hidden notices reserve no space or flash during loading. Visible notices have
+  equal 14px margins above and below, with a separately accessible close button.
 
 ## Checks and limits
 
