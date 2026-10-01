@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/conversation/conversation_banners.dart';
 import 'package:mosh/src/features/conversation/conversation_details_model.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_diagnostics_content.dart';
@@ -169,11 +170,11 @@ void main() {
           bridgeFacadeProvider.overrideWithValue(
               ScriptableBridge(conversations: gateway.conversations)),
         ]);
-    await tester.ensureVisible(find.byTooltip(l.attachmentOpen));
-    await tester.tap(find.byTooltip(l.attachmentOpen));
+    await tester.ensureVisible(find.text(file.fileName));
+    await tester.tap(find.text(file.fileName));
     expect(opened, view);
   });
-  testWidgets('details explicitly warn about revocation and group rejoin',
+  testWidgets('conversation banners warn about revocation and group rejoin',
       (tester) async {
     final cases = <(ConversationSnapshot, String)>[
       (
@@ -198,18 +199,20 @@ void main() {
       ),
     ];
     for (final (snapshot, warning) in cases) {
+      final gateway = ScriptableGateway();
       await pumpScreen(
-          tester,
-          Scaffold(
-              body: SizedBox(
-            width: 320,
-            child: ConversationDetailsPanel(
-                target: snapshot.target,
-                async: AsyncData(snapshot),
-                onClose: () {},
-                onOpenAttachment: (_, view) {}),
-          )));
-      expect(find.text(warning), findsOneWidget);
+        tester,
+        Scaffold(
+          body:
+              ConversationBanners(target: snapshot.target, snapshot: snapshot),
+        ),
+        overrides: [
+          gatewayProvider.overrideWithValue(gateway),
+          bridgeFacadeProvider.overrideWithValue(
+              ScriptableBridge(conversations: gateway.conversations)),
+        ],
+      );
+      expect(find.textContaining(warning), findsOneWidget);
     }
   });
 }
