@@ -39,10 +39,11 @@ caller-visible cases. No dependency, Rust, bridge, storage or schema change.
 
 ## Shape and contrast rules
 
-- List rows retain 12px corners; messages use 16px outside corners and 4px
-  directional joins. Composer 16px and controls 8px follow the documented role
-  scale. File and media messages use equal 8px insets and derive their inner
-  corners from the bubble; the normal inner radius is 8px.
+- List rows retain 12px corners; text and voice messages use 16px outside
+  corners and 4px directional joins. Composer 16px and controls 8px follow the
+  documented role scale. File and media messages keep all four 16px bubble
+  corners, with equal 8px insets and 8px inner corners. Preview captions leave
+  the bottom inset to the bubble.
 - Outgoing bubble surface is `#273D2D`, a subdued moss tint. Body text clears
   10.04:1, outgoing time clears 5.22:1, and incoming time clears 4.97:1.
   Normal outgoing delivery marks share its brighter secondary foreground;

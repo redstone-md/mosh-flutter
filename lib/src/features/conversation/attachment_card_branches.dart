@@ -19,7 +19,6 @@ class _MediaPreviewCard extends StatelessWidget {
     required this.onCancel,
     required this.onOpen,
     this.messageFooter,
-    required this.borderRadius,
   });
 
   final AttachmentDescriptor descriptor;
@@ -27,7 +26,6 @@ class _MediaPreviewCard extends StatelessWidget {
   final bool own;
   final bool busy;
   final Widget? messageFooter;
-  final BorderRadius borderRadius;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
   final void Function(AttachmentDescriptor descriptor) onOpen;
@@ -59,7 +57,6 @@ class _MediaPreviewCard extends StatelessWidget {
     return _FileCardShell(
       failed: failed,
       media: true,
-      borderRadius: borderRadius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -81,14 +78,9 @@ class _MediaPreviewCard extends StatelessWidget {
                   minHeight: kAttachmentPreviewMinHeight,
                   maxHeight: kAttachmentPreviewMaxHeight,
                 ),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: MoshColors.line,
-                  // The caption separates the image's lower corners from
-                  // the bubble's lower corners, so these stay rounded.
-                  borderRadius: borderRadius.copyWith(
-                    bottomLeft: MoshShapes.attachment.bottomLeft,
-                    bottomRight: MoshShapes.attachment.bottomRight,
-                  ),
+                  borderRadius: MoshShapes.attachment,
                 ),
                 child: Stack(
                   alignment: Alignment.center,
@@ -145,9 +137,9 @@ class _MediaPreviewCard extends StatelessWidget {
             ),
           ),
           // Bar row: info (expanding) + actions to its right. The media
-          // shell itself has no padding, so the bar carries it.
+          // bubble owns the bottom inset; the bar only adds a gap above it.
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [

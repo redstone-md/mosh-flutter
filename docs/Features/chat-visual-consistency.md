@@ -50,14 +50,15 @@ these tokens instead of choosing their own corner radius.
 | --- | ---: | --- |
 | Search, settings, filters, standard buttons | 8px | One shape across states |
 | Conversation rows | 12px | Stable in selected and unselected states |
-| Message outside corners | 16px | 4px joins on the sender side of a series |
+| Message outside corners | 16px | Text/voice use 4px joins on the sender side; file/media retain 16px |
 | Composer control group | 16px | 8px control corner plus 8px inset |
 | Media and file icon surfaces | 8px | 16px message corner minus a uniform 8px inset |
 
-File and media messages use equal 8px insets on all sides. Inner corners follow
-the actual bubble corners, clamped to zero at tighter sender-series joins.
-Image previews clip separately from their captions, so their lower corners
-also remain rounded. Text and voice messages retain their optical insets.
+File and media messages keep 16px corners even within a sender series, with
+equal 8px insets and 8px inner corners. Image previews clip separately from
+their captions, so all four corners remain rounded. Captions add only an 8px
+gap above their text, leaving the bubble to provide the bottom inset once.
+Text and voice messages retain their optical insets and series joins.
 
 The message-search segment uses its outer 8px corner minus its 3px inset.
 Avatars and voice play remain circles because they are identity and transport
