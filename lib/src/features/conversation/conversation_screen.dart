@@ -126,6 +126,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     // unread lifecycle at the conversation now on screen.
     if (widget.target != oldWidget.target) {
       _mobileSearchOpen = false;
+      _showPeerStatus = null;
       _search = '';
       _filter = ConversationFilter.all;
       _markActive();

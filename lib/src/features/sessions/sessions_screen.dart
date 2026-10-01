@@ -1,6 +1,6 @@
 /// Unified recent chats with local search and kind filters.
-/// Riverpod owns the per-kind lists; DM loading/error drives the rail while
-/// other kinds remain independently refreshable. Creation and settings stay pinned.
+/// Riverpod owns independently loaded per-kind lists. Loading and errors stay
+/// inside the rail, alongside available chats. Creation and settings stay pinned.
 library;
 
 import 'package:flutter/material.dart';
@@ -40,8 +40,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    // The DM entry drives the rail's loading/error states; the other
-    // kinds degrade to no rows inside [SessionsRailList].
     final async = ref.watch(conversationListProvider(ConversationKind.dm));
 
     // The rail carries NO header of
@@ -75,17 +73,21 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
               ),
               SizedBox(height: isMobileBreakpoint(context) ? 4 : 8),
               Expanded(
-                child: async.when(
-                  loading: () => Center(
-                    child: CircularProgressIndicator(
-                      semanticsLabel: l.sessionsLoading,
+                child: SessionsRailList(
+                  dmSessions: sessionsOf(async.value),
+                  query: _query,
+                  kind: _kind,
+                  status: async.when<Widget?>(
+                    loading: () => SizedBox(
+                      height: kRailItemHeight,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          semanticsLabel: l.sessionsLoading,
+                        ),
+                      ),
                     ),
-                  ),
-                  error: (e, _) => _ErrorState(error: e, ref: ref),
-                  data: (list) => SessionsRailList(
-                    dmSessions: sessionsOf(list),
-                    query: _query,
-                    kind: _kind,
+                    error: (e, _) => _ErrorState(error: e, ref: ref),
+                    data: (_) => null,
                   ),
                 ),
               ),
@@ -106,9 +108,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 }
 
 /// Error state with a Retry button that re-runs the DM entry's refresh.
-/// Scrollable: in a short window the fixed rows (gear included) can leave
-/// the Expanded slot under the error column's natural height, and a
-/// clipped Retry button is worse than a scroll.
+/// Shares the rail's scroll area so Retry stays reachable in short windows.
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.error, required this.ref});
 
@@ -122,47 +122,45 @@ class _ErrorState extends StatelessWidget {
     // Only a bridge failure has a worded reason. Anything else would show
     // raw exception text, so the title and Try again stand alone.
     final reason = ConversationActionError.of(error);
-    return SingleChildScrollView(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // One live region, so a screen reader announces the failure
-              // and its reason together when the list fails to load.
-              Semantics(
-                liveRegion: true,
-                container: true,
-                child: Column(
-                  children: [
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // One live region, so a screen reader announces the failure
+            // and its reason together when the list fails to load.
+            Semantics(
+              liveRegion: true,
+              container: true,
+              child: Column(
+                children: [
+                  Text(
+                    l.sessionsError,
+                    style: theme.textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  if (reason.kind != null) ...[
+                    const SizedBox(height: 8),
                     Text(
-                      l.sessionsError,
-                      style: theme.textTheme.titleMedium,
+                      reason.describe(l),
                       textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall,
                     ),
-                    if (reason.kind != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        reason.describe(l),
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
-              const SizedBox(height: 18),
-              FilledButton(
-                onPressed: () => ref
-                    .read(
-                      conversationListProvider(ConversationKind.dm).notifier,
-                    )
-                    .refresh(),
-                child: Text(l.sessionsRetry),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              onPressed: () => ref
+                  .read(
+                    conversationListProvider(ConversationKind.dm).notifier,
+                  )
+                  .refresh(),
+              child: Text(l.sessionsRetry),
+            ),
+          ],
         ),
       ),
     );

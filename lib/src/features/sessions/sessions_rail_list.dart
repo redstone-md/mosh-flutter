@@ -29,11 +29,17 @@ import 'package:mosh/src/state/unread_lifecycle_provider.dart';
 
 /// Invitations, then recent conversations, then the existing org sections.
 class SessionsRailList extends ConsumerWidget {
-  const SessionsRailList(
-      {super.key, required this.dmSessions, this.query = '', this.kind});
+  const SessionsRailList({
+    super.key,
+    required this.dmSessions,
+    this.query = '',
+    this.kind,
+    this.status,
+  });
   final List<SessionSnapshot> dmSessions;
   final String query;
   final ConversationKind? kind;
+  final Widget? status;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,7 +47,7 @@ class SessionsRailList extends ConsumerWidget {
     final orgs = ref.watch(orgsProvider).value ?? const <OrgSnapshot>[];
     final offers = ref.watch(pendingDmOffersProvider);
     final entries = _entries(ref);
-    if (offers.isEmpty && entries.isEmpty && orgs.isEmpty) {
+    if (status == null && offers.isEmpty && entries.isEmpty && orgs.isEmpty) {
       return _EmptyState(onStart: () => openNewSessionAction(context, ref));
     }
     final visible = recentRailEntries(entries, l, query: query, kind: kind);
@@ -55,6 +61,7 @@ class SessionsRailList extends ConsumerWidget {
       child: ListView(
           padding: const EdgeInsetsDirectional.only(end: 12),
           children: [
+            if (status case final status?) status,
             ..._offers(context, ref, offers, l),
             for (final entry in visible)
               entry.buildRow(context, _chrome(ref, entry)),

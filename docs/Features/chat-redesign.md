@@ -22,11 +22,14 @@ Flutter chat list, messages and details for DMs, private groups and public chann
   actions remain below. Search and kind selection live in `SessionsScreen`;
   Riverpod still owns server snapshots. Ctrl+K (Cmd+K on macOS) focuses list search,
   returning to the list first on mobile.
+- DM loading and errors stay inside the scrollable list with a retry action.
+  Loaded groups, channels and invitations remain visible and filterable.
 - Desktop keeps list and chat together above 580px. The list grows from 268px to
   348px. At window widths of at least 1280px, details occupy a 320px third column
   and open initially. The header information button toggles them. Smaller windows
   use the existing focus-trapped overlay, including Escape and focus restoration;
-  mobile keeps one navigation pane. An explicit details choice survives resizing.
+  mobile keeps one navigation pane. An explicit details choice survives resizing
+  and resets to the width's default when another conversation opens.
 - Incoming bubbles are left aligned; outgoing bubbles are right aligned. Sender
   actions remain on incoming rows. Each dated message shows a time; adjacent
   messages across a local date boundary start a fresh sender block. DM delivery
@@ -40,7 +43,8 @@ Flutter chat list, messages and details for DMs, private groups and public chann
   identities remain shortened identifiers. Existing diagnostics expand on demand.
 - Shared files are deduplicated by attachment ID and reuse `AttachmentActions` and
   controller callbacks for download, cancellation, retry and opening. Updating
-  any conversation also refreshes its kind's list for current previews.
+  any conversation also refreshes its kind's list for current previews. Their
+  icon backgrounds are 40px squares with centered glyphs.
 - The public-channel and encrypted-group information notices can be closed.
   Each kind stays hidden across all conversations, app restarts, locale and copy
   changes on this installation. Stable marker files in the application data
@@ -80,6 +84,11 @@ Physical Windows/Android runtime verification remains separate from widget tests
 
 ## Verification results
 
+- PR #39 follow-up: `gen-l10n` succeeds, analysis is clean, and the full Flutter
+  suite passes (1008 tests, 5 existing native-library skips). The three stale UI
+  checks now exercise row opening, conversation warnings and current link guidance.
+  Added checks cover DM loading/error recovery and details reset across chats.
+  Follow-up production changes have 34/34 covered lines and 8/8 covered branches.
 - `flutter analyze --no-pub`: no issues.
 - `flutter test --no-pub --branch-coverage`: 986 passed, 5 skipped by existing
   native-library gates (four require Windows DLLs; one requires libmpv).
