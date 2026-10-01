@@ -70,12 +70,14 @@ class AttachmentCard extends StatelessWidget {
     required this.onDownload,
     required this.onCancel,
     required this.onOpen,
+    this.messageFooter,
   });
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
   final bool own;
   final bool busy;
+  final Widget? messageFooter;
 
   /// Fires `Gateway.downloadAttachment`; the screen invalidates the session
   /// provider so the downloading state re-renders.
@@ -100,6 +102,7 @@ class AttachmentCard extends StatelessWidget {
         onDownload: onDownload,
         playLabel: l.voiceMessagePlayLabel,
         pauseLabel: l.voiceMessagePauseLabel,
+        messageFooter: messageFooter,
       );
     }
     // Images can also preview their downloaded file when no thumbnail arrived.
@@ -112,6 +115,7 @@ class AttachmentCard extends StatelessWidget {
         onDownload: onDownload,
         onCancel: onCancel,
         onOpen: onOpen,
+        messageFooter: messageFooter,
       );
     }
 
@@ -128,6 +132,7 @@ class AttachmentCard extends StatelessWidget {
       totalSize: descriptor.totalSize,
       state: state,
       percent: percent,
+      messageFooter: messageFooter,
     );
     return _FileCardShell(
       failed: failed,
@@ -248,6 +253,7 @@ Widget _buildBar({
   required BigInt totalSize,
   required AttachmentState state,
   required int percent,
+  Widget? messageFooter,
 }) {
   final size = formatBytes(totalSize);
   final stateLabel = _attachmentStateLabel(l, state, percent);
@@ -267,16 +273,22 @@ Widget _buildBar({
       ),
       // 2px between name and meta.
       const SizedBox(height: 2),
-      Text(
-        meta,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 11,
-          color: MoshColors.fg3,
-          fontFeatures: kLiveNumberFontFeatures,
-        ),
-      ),
+      Row(children: [
+        Expanded(
+            child: Text(
+          meta,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+              fontSize: 11,
+              color: MoshColors.fg3,
+              fontFeatures: kLiveNumberFontFeatures),
+        )),
+        if (messageFooter case final footer?) ...[
+          const SizedBox(width: 8),
+          footer,
+        ],
+      ]),
       // 4px tall moss progress bar on bg-3, shown while downloading.
       if (state == AttachmentState.downloading) ...[
         const SizedBox(height: 4),

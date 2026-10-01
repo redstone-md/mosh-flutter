@@ -52,15 +52,18 @@ class SessionsRailList extends ConsumerWidget {
           ref.read(orgsProvider.notifier).refresh(),
         ]);
       },
-      child: ListView(children: [
-        ..._offers(context, ref, offers, l),
-        for (final entry in visible)
-          entry.buildRow(context, _chrome(ref, entry)),
-        if (visible.isEmpty && entries.isNotEmpty)
-          Padding(
-              padding: const EdgeInsets.all(24), child: Text(l.chatListEmpty)),
-        ..._orgSections(context, ref, orgs, l),
-      ]),
+      child: ListView(
+          padding: const EdgeInsetsDirectional.only(end: 12),
+          children: [
+            ..._offers(context, ref, offers, l),
+            for (final entry in visible)
+              entry.buildRow(context, _chrome(ref, entry)),
+            if (visible.isEmpty && entries.isNotEmpty)
+              Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(l.chatListEmpty)),
+            ..._orgSections(context, ref, orgs, l),
+          ]),
     );
   }
 

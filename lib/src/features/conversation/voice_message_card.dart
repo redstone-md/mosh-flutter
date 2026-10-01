@@ -24,6 +24,8 @@ import 'package:mosh/src/features/shared/contextual_icon_switcher.dart';
 import 'package:mosh/src/features/shared/press_scale.dart';
 
 import 'package:mosh/src/rust/conversation/attachments.dart';
+import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/util/format.dart' show formatBytes;
 
 /// Decode the base64 peaks. Malformed -> flat zeros, never fatal.
 Uint8List _peaksFromBase64(String? b64) {
@@ -52,6 +54,7 @@ class VoiceMessageCard extends StatefulWidget {
     required this.onDownload,
     required this.playLabel,
     required this.pauseLabel,
+    this.messageFooter,
   });
 
   final AttachmentDescriptor descriptor;
@@ -61,6 +64,7 @@ class VoiceMessageCard extends StatefulWidget {
 
   final String playLabel;
   final String pauseLabel;
+  final Widget? messageFooter;
 
   @override
   State<VoiceMessageCard> createState() => _VoiceMessageCardState();
@@ -228,43 +232,61 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
           ),
           const SizedBox(width: 8),
           Flexible(
-            child: VoiceWaveform(
-              peaks: peaks,
-              progress: progress,
-              played: theme.colorScheme.primary,
-              unplayed: theme.colorScheme.onSurfaceVariant,
-              onSeekRatio: _seek,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                VoiceWaveform(
+                    peaks: peaks,
+                    progress: progress,
+                    played: theme.colorScheme.primary,
+                    unplayed: theme.colorScheme.onSurfaceVariant,
+                    onSeekRatio: _seek,
+                    displayHeight: 22),
+                const SizedBox(height: 2),
+                Row(children: [
+                  Expanded(
+                      child: VoiceCardTimeLabel(
+                          ms: showMs, totalSize: widget.descriptor.totalSize)),
+                  if (widget.messageFooter case final footer?) ...[
+                    const SizedBox(width: 8),
+                    footer,
+                  ],
+                ]),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          // `.voice-message-time { font-size: 12px; opacity: 0.75 }`. Live
-          // number -> tabular figures so the label does not reflow while
-          // playback ticks (audit 2026-09-21).
-          VoiceCardTimeLabel(ms: showMs),
         ],
       ),
     );
   }
 }
 
-/// `.voice-message-time` -- the card's live m:ss label, extracted so the
-/// format and the tabular figures are testable without the media_kit native
-/// library (the card falls back where the player is unavailable). Tabular
-/// figures: the digits change while playback ticks, and proportional
-/// numerals reflow the label (audit 2026-09-21).
+/// Live duration and optional file size beneath the wave, with tabular figures.
 class VoiceCardTimeLabel extends StatelessWidget {
-  const VoiceCardTimeLabel({super.key, required this.ms});
+  const VoiceCardTimeLabel({super.key, required this.ms, this.totalSize});
 
-  /// The moment to render: playback position while playing/seeked, else the
-  /// clip's full duration.
+  /// Playback position while playing/seeked, otherwise the full duration.
   final int ms;
+  final BigInt? totalSize;
 
   @override
   Widget build(BuildContext context) {
+    final size = totalSize;
+    final time = formatVoiceClock(ms);
+    final sizeText = size == null
+        ? null
+        : formatBytes(size,
+            decimalPlaces: 1,
+            locale: AppLocalizations.of(context)?.localeName ?? 'en');
+    final label =
+        sizeText == null ? time : '${time.padLeft(5, '0')} · $sizeText';
     return Opacity(
       opacity: 0.75,
       child: Text(
-        formatVoiceClock(ms),
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 12,
           color: MoshColors.fg1,
@@ -287,6 +309,7 @@ class VoiceWaveform extends StatelessWidget {
     required this.played,
     required this.unplayed,
     required this.onSeekRatio,
+    this.displayHeight,
   });
 
   static const double width = 168;
@@ -296,6 +319,7 @@ class VoiceWaveform extends StatelessWidget {
   final double progress;
   final Color played;
   final Color unplayed;
+  final double? displayHeight;
 
   /// Called with the tapped position as a 0..1 fraction of the wave width.
   final ValueChanged<double> onSeekRatio;
@@ -314,7 +338,7 @@ class VoiceWaveform extends StatelessWidget {
         },
         child: SizedBox(
           width: width,
-          height: height,
+          height: displayHeight ?? height,
           child: CustomPaint(
             painter: _WaveformPainter(
               peaks: peaks,

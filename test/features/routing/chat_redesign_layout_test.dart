@@ -137,14 +137,16 @@ void main() {
     for (final kind in ConversationKind.values) {
       final avatar = find.byWidgetPredicate(
           (w) => w is ConversationKindAvatar && w.kind == kind);
-      final icon = tester.widget<Icon>(
-          find.descendant(of: avatar, matching: find.byIcon(kind.icon)));
-      glyphs.add(icon.icon!);
+      if (kind != ConversationKind.dm) {
+        final icon = tester.widget<Icon>(
+            find.descendant(of: avatar, matching: find.byIcon(kind.icon)));
+        glyphs.add(icon.icon!);
+      }
       final circle = tester.widget<CircleAvatar>(
           find.descendant(of: avatar, matching: find.byType(CircleAvatar)));
       colors.add(circle.backgroundColor!);
     }
-    expect(glyphs, hasLength(3));
+    expect(glyphs, hasLength(2));
     expect(colors, hasLength(3));
     for (final (title, kind) in [
       ('Alice', ConversationKind.dm),

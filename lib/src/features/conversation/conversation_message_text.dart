@@ -27,7 +27,7 @@ class ConversationMessageText extends StatelessWidget {
               _measure(context, style, constraints.maxWidth, footerSize);
           return SizedBox(
             width: layout.width,
-            child: Stack(children: [
+            child: Stack(clipBehavior: Clip.none, children: [
               Padding(
                 padding: EdgeInsets.only(
                     bottom: layout.below ? footerSize.height + 4 : 0),
