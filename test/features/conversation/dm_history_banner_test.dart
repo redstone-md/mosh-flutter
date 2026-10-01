@@ -31,7 +31,7 @@ void main() {
               : findsNothing);
       expect(
           find.text(
-              'Waiting for a participant with the missing messages to come online. Recovery will resume automatically.'),
+              'Waiting for a participant to come online to restore messages.'),
           state == DmHistorySyncState.waitingForSource
               ? findsOneWidget
               : findsNothing);
