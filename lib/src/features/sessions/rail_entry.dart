@@ -34,7 +34,7 @@ import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show SessionSnapshot;
+    show SessionSnapshot, DmSessionState;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 import 'package:mosh/src/state/dm_offer_providers.dart' show PendingDmOffer;
 import 'package:mosh/src/util/format.dart' show shorten;
@@ -162,7 +162,10 @@ final class DmRailEntry extends RailEntry {
     final label = peerLabel(l, session);
     return RailItem(
       kind: RailItemKind.dm,
-      leading: ConversationKindAvatar(kind: ref.kind, name: label),
+      leading: ConversationKindAvatar(
+          kind: ref.kind,
+          name: label,
+          online: session.state == DmSessionState.connected),
       title: label,
       timestamp: timestamp(context),
       subtitle: revokedOrgName != null

@@ -27,18 +27,20 @@ extension ConversationKindStyle on ConversationKind {
       };
 }
 
-/// Keeps personal initials while giving each conversation type a stable cue.
+/// Personal initials with actual connection presence; groups/channels use type glyphs.
 class ConversationKindAvatar extends StatelessWidget {
   const ConversationKindAvatar({
     super.key,
     required this.kind,
     required this.name,
     this.radius = 24,
+    this.online = false,
   });
 
   final ConversationKind kind;
   final String name;
   final double radius;
+  final bool online;
 
   @override
   Widget build(BuildContext context) => Tooltip(
@@ -47,21 +49,23 @@ class ConversationKindAvatar extends StatelessWidget {
             ? Stack(
                 children: [
                   Avatar(name: name, radius: radius),
-                  PositionedDirectional(
-                    bottom: 0,
-                    end: 0,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: kind.accent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: MoshColors.bg0, width: 2),
-                      ),
-                      child:
-                          Icon(kind.icon, size: 10, color: MoshColors.mossInk),
+                  if (online)
+                    PositionedDirectional(
+                      bottom: 0,
+                      end: 0,
+                      child: Tooltip(
+                          message: AppLocalizations.of(context)!.stateReady,
+                          child: Container(
+                            width: radius <= 20 ? 10 : 12,
+                            height: radius <= 20 ? 10 : 12,
+                            decoration: BoxDecoration(
+                              color: kind.accent,
+                              shape: BoxShape.circle,
+                              border:
+                                  Border.all(color: MoshColors.bg0, width: 2),
+                            ),
+                          )),
                     ),
-                  ),
                 ],
               )
             : CircleAvatar(

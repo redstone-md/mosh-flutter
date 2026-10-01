@@ -52,7 +52,7 @@ void main() {
     final time = tester.getRect(find.byType(VoiceCardTimeLabel));
     final wave = tester.getRect(find.byType(VoiceWaveform));
     expect(time.right, lessThanOrEqualTo(card.right));
-    expect(wave.right, lessThan(time.left));
+    expect(wave.bottom, lessThan(time.top));
     expect(wave.width, greaterThan(0));
     await tester.tapAt(Offset(wave.right - 1, wave.center.dy));
     await tester.pump();

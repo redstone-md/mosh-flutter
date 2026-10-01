@@ -11,6 +11,8 @@ import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show DmSessionState;
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 
 /// The same content is docked on desktop and placed in the modal on mobile.
@@ -72,7 +74,6 @@ class ConversationDetailsPanel extends ConsumerWidget {
       children: [
         _profile(context, model),
         const SizedBox(height: 28),
-        _protection(model, l),
         _participants(model, l),
         _Section(
             title: l.chatDetailsFiles, child: _files(ref, snapshot, model, l)),
@@ -102,7 +103,14 @@ class ConversationDetailsPanel extends ConsumerWidget {
   Widget _profile(BuildContext context, ConversationDetailsModel model) =>
       Column(children: [
         ConversationKindAvatar(
-            kind: target.kind, name: model.title, radius: 38),
+            kind: target.kind,
+            name: model.title,
+            radius: 38,
+            online: switch (model.snapshot) {
+              DmConversation(:final source) =>
+                source.state == DmSessionState.connected,
+              _ => false,
+            }),
         const SizedBox(height: 14),
         Text(model.title,
             textAlign: TextAlign.center,
@@ -112,25 +120,6 @@ class ConversationDetailsPanel extends ConsumerWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall),
       ]);
-
-  Widget _protection(ConversationDetailsModel model, AppLocalizations l) =>
-      _Section(
-          title: l.chatDetailsProtection,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(model.protection,
-                  style: TextStyle(
-                      color: model.needsAttention
-                          ? MoshColors.danger
-                          : model.snapshot is ChannelConversation
-                              ? MoshColors.fg2
-                              : MoshColors.moss,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              Text(model.protectionBody),
-            ],
-          ));
 
   Widget _participants(ConversationDetailsModel model, AppLocalizations l) =>
       _Section(

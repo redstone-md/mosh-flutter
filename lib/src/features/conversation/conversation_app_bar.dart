@@ -31,6 +31,7 @@ class ConversationAppBar extends StatelessWidget
     required this.leaveMenuLabel,
     required this.leaveMenuIcon,
     this.avatarName,
+    this.peerOnline = false,
     this.kind = ConversationKind.dm,
     this.leadingActions = const [],
     this.menuActions = const [],
@@ -40,6 +41,7 @@ class ConversationAppBar extends StatelessWidget
   /// The name and short status, normally a `ConversationHeaderTitle`.
   final Widget title;
   final String? avatarName;
+  final bool peerOnline;
   final ConversationKind kind;
 
   final VoidCallback onOpenPeerStatus;
@@ -135,6 +137,7 @@ class ConversationAppBar extends StatelessWidget
                       child: ConversationKindAvatar(
                           kind: kind,
                           name: avatarName!,
+                          online: peerOnline,
                           radius: compact ? 16 : 20),
                     )),
               ),

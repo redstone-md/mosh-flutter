@@ -123,6 +123,7 @@ class ConversationMessageRow extends StatelessWidget {
 
   Widget _body(BuildContext context) {
     final footer = ConversationMessageFooter(message: message, kind: kind);
+    final hasFooter = footer.measure(context).height > 0;
     final textOnly = message.body.isNotEmpty &&
         message.attachment == null &&
         message.callEvent == null &&
@@ -149,17 +150,18 @@ class ConversationMessageRow extends StatelessWidget {
                 ConversationMessageText(body: message.body, footer: footer)
               else
                 Text(message.body, style: kMessageBodyStyle),
-            SelectionContainer.disabled(child: _trailing()),
+            SelectionContainer.disabled(
+                child: _trailing(hasFooter ? footer : null)),
           ],
         ),
-        if (!textOnly && footer.measure(context).height > 0)
+        if (!textOnly && message.attachment == null && hasFooter)
           Padding(padding: const EdgeInsets.only(top: 4), child: footer),
       ],
     );
   }
 
   /// Attachment and call controls remain outside text selection.
-  Widget _trailing() {
+  Widget _trailing(Widget? footer) {
     final attachment = message.attachment;
     final callEvent = message.callEvent;
     return Column(
@@ -175,6 +177,7 @@ class ConversationMessageRow extends StatelessWidget {
             onDownload: onAttachmentDownload,
             onCancel: onAttachmentCancel,
             onOpen: onAttachmentOpen,
+            messageFooter: footer,
           ),
         if (callEvent != null) CallLogEntry(event: callEvent, l: l),
         if (message.canRetry)

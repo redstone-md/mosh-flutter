@@ -33,9 +33,6 @@ import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/state/conversation_providers.dart';
 
-/// The gap around the DM's "messages are end-to-end encrypted" line.
-const EdgeInsets _cryptoFooterPadding = EdgeInsets.fromLTRB(16, 4, 16, 8);
-
 /// Who is typing, from the async snapshot: nobody while a poll is in
 /// flight or failed — the hint is a decoration, never a load signal.
 List<String> typingNamesOf(ConversationSnapshot? snapshot) =>
@@ -109,7 +106,6 @@ class ConversationScreenBody extends ConsumerWidget {
               Expanded(child: _messages(async, state, controller, l)),
               TypingHint(names: typingNamesOf(async.value)),
               _composer(l, state, controller, _revoked(async.value)),
-              if (_isDm) _cryptoFooter(context, l),
             ],
           ),
           if (chrome.showPeerStatus && !detailsDocked)
@@ -227,14 +223,6 @@ class ConversationScreenBody extends ConsumerWidget {
         voicePermissionDeniedLabel: l.voicePermissionDenied,
         onSendVoice: controller.sendVoice,
         onVoiceError: onVoiceError,
-      );
-
-  Widget _cryptoFooter(BuildContext context, AppLocalizations l) => Padding(
-        padding: _cryptoFooterPadding,
-        child: Text(
-          l.chatCryptoFooter,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
       );
 }
 

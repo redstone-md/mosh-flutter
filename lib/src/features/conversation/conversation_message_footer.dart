@@ -53,22 +53,24 @@ class ConversationMessageFooter extends StatelessWidget {
     final clock = _clock(context);
     final full = formatClockFull(message.sentAtMs,
         locale: AppLocalizations.of(context)!.localeName);
-    return SelectionContainer.disabled(
-      child: SizedBox.fromSize(
-        size: measure(context),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (clock != null && full != null)
-            Tooltip(message: full, child: Text(clock, style: _timeStyle)),
-          if (_hasTicks) ...[
-            if (clock != null) const SizedBox(width: 5),
-            DeliveryTicks(
-                status: message.deliveryStatus,
-                read: message.read == true,
-                color: _timeStyle.color,
-                compact: true),
-          ],
-        ]),
-      ),
-    );
+    return Transform.translate(
+        offset: const Offset(0, 2),
+        child: SelectionContainer.disabled(
+          child: SizedBox.fromSize(
+            size: measure(context),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (clock != null && full != null)
+                Tooltip(message: full, child: Text(clock, style: _timeStyle)),
+              if (_hasTicks) ...[
+                if (clock != null) const SizedBox(width: 5),
+                DeliveryTicks(
+                    status: message.deliveryStatus,
+                    read: message.read == true,
+                    color: _timeStyle.color,
+                    compact: true),
+              ],
+            ]),
+          ),
+        ));
   }
 }

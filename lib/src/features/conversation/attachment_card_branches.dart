@@ -21,12 +21,14 @@ class _MediaPreviewCard extends StatelessWidget {
     required this.onDownload,
     required this.onCancel,
     required this.onOpen,
+    this.messageFooter,
   });
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
   final bool own;
   final bool busy;
+  final Widget? messageFooter;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
   final void Function(AttachmentDescriptor descriptor) onOpen;
@@ -149,6 +151,7 @@ class _MediaPreviewCard extends StatelessWidget {
                     totalSize: descriptor.totalSize,
                     state: state,
                     percent: percent,
+                    messageFooter: messageFooter,
                   ),
                 ),
                 const SizedBox(width: 10),

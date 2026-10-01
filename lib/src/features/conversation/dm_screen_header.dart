@@ -20,6 +20,8 @@ import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
 import 'package:mosh/src/features/conversation/conversation_header_title.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show DmSessionState;
 
 /// The DmScreen AppBar header: peer display name (+ fingerprint lock),
 /// the connection status subtitle, and the call button.
@@ -77,6 +79,7 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final status = s == null ? '' : dmStateSentence(l, s.state, s.transport);
     final fingerprint = s?.fingerprint ?? '';
     return ConversationAppBar(
+      peerOnline: s?.state == DmSessionState.connected,
       avatarName: s == null ? widget.sessionId : peerLabel(l, s),
       title: ConversationHeaderTitle(
         name: s == null ? widget.sessionId : peerLabel(l, s),
