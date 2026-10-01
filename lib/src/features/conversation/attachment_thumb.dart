@@ -21,13 +21,11 @@ class AttachmentOpenTarget extends StatelessWidget {
     required this.label,
     required this.onOpen,
     required this.child,
-    this.borderRadius = MoshShapes.attachment,
   });
 
   final String label;
   final VoidCallback? onOpen;
   final Widget child;
-  final BorderRadius borderRadius;
 
   @override
   Widget build(BuildContext context) => onOpen == null
@@ -37,7 +35,9 @@ class AttachmentOpenTarget extends StatelessWidget {
           child: Material(
               type: MaterialType.transparency,
               child: InkWell(
-                  borderRadius: borderRadius, onTap: onOpen, child: child)));
+                  borderRadius: MoshShapes.attachment,
+                  onTap: onOpen,
+                  child: child)));
 }
 
 class AttachmentThumb extends StatelessWidget {
@@ -47,14 +47,12 @@ class AttachmentThumb extends StatelessWidget {
     required this.viewable,
     required this.failed,
     required this.onOpen,
-    this.borderRadius = MoshShapes.attachment,
   });
 
   final AttachmentDescriptor descriptor;
   final bool viewable;
   final bool failed;
   final void Function(AttachmentDescriptor descriptor)? onOpen;
-  final BorderRadius borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -75,10 +73,10 @@ class AttachmentThumb extends StatelessWidget {
         child: PressScale(
           child: Material(
             color: surface,
-            borderRadius: borderRadius,
+            borderRadius: MoshShapes.attachment,
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              borderRadius: borderRadius,
+              borderRadius: MoshShapes.attachment,
               onTap: onOpenPressed,
               hoverColor: MoshColors.fg1.withValues(alpha: 0.14),
               child: SizedBox(
@@ -104,7 +102,7 @@ class AttachmentThumb extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: borderRadius,
+        borderRadius: MoshShapes.attachment,
       ),
       child: Icon(
         failed

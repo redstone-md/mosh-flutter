@@ -17,19 +17,6 @@ abstract final class MoshShapes {
       BorderRadius.all(Radius.circular(messageRadius - attachmentInset));
   static const attachmentPadding = EdgeInsets.all(attachmentInset);
 
-  /// Insets each actual bubble corner, including its tighter series joins.
-  static BorderRadius attachmentCorners(BorderRadius outer) {
-    Radius inset(Radius radius) =>
-        (radius - const Radius.circular(attachmentInset))
-            .clamp(minimum: Radius.zero);
-    return BorderRadius.only(
-      topLeft: inset(outer.topLeft),
-      topRight: inset(outer.topRight),
-      bottomLeft: inset(outer.bottomLeft),
-      bottomRight: inset(outer.bottomRight),
-    );
-  }
-
   static const controlShape = RoundedRectangleBorder(borderRadius: control);
   // The text's leading and the 2px-lower timestamp need less space above.
   static const messagePadding = EdgeInsets.fromLTRB(12, 8, 12, 10);

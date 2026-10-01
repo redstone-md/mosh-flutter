@@ -96,8 +96,7 @@ class ConversationMessageRow extends StatelessWidget {
                       child: Container(
                         key: ValueKey(
                             'message-bubble-${message.messageId ?? message.body}'),
-                        padding: message.attachment != null &&
-                                message.attachment!.voice == null
+                        padding: _hasRectangularAttachment
                             ? MoshShapes.attachmentPadding
                             : MoshShapes.messagePadding,
                         decoration: BoxDecoration(
@@ -115,13 +114,19 @@ class ConversationMessageRow extends StatelessWidget {
 
   BorderRadiusDirectional get _corners {
     final outer = MoshShapes.message.topLeft;
-    final join = MoshShapes.embedded.topLeft;
+    final join =
+        _hasRectangularAttachment ? outer : MoshShapes.embedded.topLeft;
     return BorderRadiusDirectional.only(
       topStart: !message.own && grouped ? join : outer,
       bottomStart: !message.own && continuesBelow ? join : outer,
       topEnd: message.own && grouped ? join : outer,
       bottomEnd: message.own && continuesBelow ? join : outer,
     );
+  }
+
+  bool get _hasRectangularAttachment {
+    final attachment = message.attachment;
+    return attachment != null && attachment.voice == null;
   }
 
   Widget _body(BuildContext context) {
@@ -156,7 +161,7 @@ class ConversationMessageRow extends StatelessWidget {
             if (message.body.isNotEmpty && message.attachment != null)
               const SizedBox(height: 6),
             SelectionContainer.disabled(
-                child: _trailing(context, hasFooter ? footer : null)),
+                child: _trailing(hasFooter ? footer : null)),
           ],
         ),
         if (!textOnly && message.attachment == null && hasFooter)
@@ -166,7 +171,7 @@ class ConversationMessageRow extends StatelessWidget {
   }
 
   /// Attachment and call controls remain outside text selection.
-  Widget _trailing(BuildContext context, Widget? footer) {
+  Widget _trailing(Widget? footer) {
     final attachment = message.attachment;
     final callEvent = message.callEvent;
     return Column(
@@ -183,8 +188,6 @@ class ConversationMessageRow extends StatelessWidget {
             onCancel: onAttachmentCancel,
             onOpen: onAttachmentOpen,
             messageFooter: footer,
-            borderRadius: MoshShapes.attachmentCorners(
-                _corners.resolve(Directionality.of(context))),
           ),
         if (callEvent != null) CallLogEntry(event: callEvent, l: l),
         if (message.canRetry)
