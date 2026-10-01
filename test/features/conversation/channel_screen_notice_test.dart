@@ -3,21 +3,28 @@
 // banner renders with the localized title + body so a regression that drops
 // the banner (or wires it in the wrong slot) fails. Overrides
 // `channelSnapshotProvider` so the native cdylib is not involved.
+import 'dart:io';
+
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/channel_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_banners.dart';
+import 'package:mosh/src/features/conversation/conversation_notice_preferences.dart';
+import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 
 void main() {
-  // The banner is always shown for a channel, so a channel with messages is
-  // enough to assert it appears alongside the list. Resolves the localized
-  // en strings via AppLocalizations so the test pins the exact ARB values.
+  // A fresh installation shows the notice, then remembers closing it in
+  // a new scope and a different channel using the actual preference files.
   testWidgets('channel screen renders the public-channel notice banner',
       (tester) async {
     const name = 'chan-notice';
+    final directory = Directory.systemTemp.createTempSync('mosh-notices-');
+    addTearDown(() => directory.deleteSync(recursive: true));
+    final store = ConversationNoticeStore(directory);
     final snapshot = TestSnapshots.channel(
       name: name,
       deviceFingerprint: 'fp-me',
@@ -32,6 +39,7 @@ void main() {
     );
 
     await pumpScreen(tester, const ChannelScreen(name: name), overrides: [
+      conversationNoticeStoreProvider.overrideWithValue(store),
       channelSnapshotProvider(name).overrideWith((ref) async => snapshot),
     ]);
 
@@ -49,5 +57,23 @@ void main() {
     );
     // The message body still renders (banner did not displace the list).
     expect(find.text('hi'), findsOneWidget);
+    expect(find.byTooltip('Close'), findsOneWidget);
+    final banner =
+        tester.widget<CryptoNoticeBanner>(find.byType(CryptoNoticeBanner));
+    await tester.runAsync(() => banner.onDismiss!());
+    await tester.pumpAndSettle();
+    expect(find.byType(CryptoNoticeBanner), findsNothing);
+    expect(store.read(), {ConversationNoticeKind.publicChannel});
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    const otherName = 'another-channel';
+    await pumpScreen(tester, const ChannelScreen(name: otherName), overrides: [
+      conversationNoticeStoreProvider
+          .overrideWithValue(ConversationNoticeStore(directory)),
+      channelSnapshotProvider(otherName).overrideWith((ref) async =>
+          TestSnapshots.channel(
+              name: otherName, deviceFingerprint: 'fp-me', messages: const [])),
+    ]);
+    expect(find.byType(CryptoNoticeBanner), findsNothing);
   });
 }

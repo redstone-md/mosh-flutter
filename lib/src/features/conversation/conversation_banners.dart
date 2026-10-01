@@ -4,8 +4,8 @@
 /// messages are public. A group says they are encrypted and can add a
 /// rejoin warning and an "add the missing org members" prompt.
 ///
-/// Channel and group notices come from the target, so they appear from the
-/// first frame and stay if a read fails. History progress and group rejoin
+/// Channel and group notices come from the target and remember dismissal
+/// across conversations and app restarts. History progress and group rejoin
 /// warnings wait for their runtime snapshot.
 library;
 
@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/features/conversation/conversation_notice_preferences.dart';
+import 'package:mosh/src/features/conversation/dismissible_conversation_notice.dart';
 import 'package:mosh/src/features/conversation/group_rejoin_needed_error.dart';
 import 'package:mosh/src/features/org/org_add_missing_banner.dart';
 import 'package:mosh/src/features/shared/crypto_notice_banner.dart';
@@ -58,7 +60,8 @@ class ConversationBanners extends StatelessWidget {
           if (loaded is DmConversation && !loaded.revoked)
             _historyBanner(l, loaded.source.historySync),
         ]),
-      ConversationKind.channel => CryptoNoticeBanner(
+      ConversationKind.channel => DismissibleConversationNotice(
+          kind: ConversationNoticeKind.publicChannel,
           icon: Icons.tag,
           title: l.channelNoticeTitle,
           body: l.channelNoticeBody,
@@ -67,7 +70,8 @@ class ConversationBanners extends StatelessWidget {
       ConversationKind.group => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CryptoNoticeBanner(
+            DismissibleConversationNotice(
+              kind: ConversationNoticeKind.encryptedGroup,
               icon: Icons.lock,
               title: l.groupNoticeTitle,
               body: l.groupNoticeBody,
