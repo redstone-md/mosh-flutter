@@ -6,6 +6,7 @@
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/channel_screen.dart';
@@ -17,6 +18,17 @@ import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 
 void main() {
+  setUp(() {
+    // Mounting a chat creates its recorder; this test exercises notices.
+    const channel = MethodChannel('com.llfbandit.record/messages');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'create' || call.method == 'dispose') return null;
+      throw StateError('Unexpected recorder call: ${call.method}');
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+  });
   // A fresh installation shows the notice, then remembers closing it in
   // a new scope and a different channel using the actual preference files.
   testWidgets('channel screen renders the public-channel notice banner',
@@ -75,5 +87,7 @@ void main() {
               name: otherName, deviceFingerprint: 'fp-me', messages: const [])),
     ]);
     expect(find.byType(CryptoNoticeBanner), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
   });
 }
