@@ -4,10 +4,9 @@
 // viewable MIME thumb button or non-viewable file/error icon, and progress
 // bar while downloading.
 //
-// IMAGE preview branch (in scope): when the descriptor carries a non-empty
-// `thumbnailB64` AND the mime is image/* or video/*, render the decoded
-// thumbnail as a tappable `Image.memory` preview above the SAME bar the
-// file card uses (name + meta + progress + actions).
+// IMAGE preview branch: use the local image when available, otherwise the
+// descriptor's image/video thumbnail. The preview opens above the same bar
+// the file card uses (name + meta + progress + actions).
 //
 // Media viewing and external opening are dispatched by the owning screen;
 // this card only emits the shared onOpen callback.
@@ -33,6 +32,7 @@
 // "available".
 
 import 'dart:convert';
+import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -48,7 +48,6 @@ import 'package:mosh/src/util/format.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/features/conversation/attachment_thumb.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
-import 'package:mosh/src/features/shared/optical_icon.dart';
 
 part 'attachment_card_branches.dart';
 
@@ -103,7 +102,7 @@ class AttachmentCard extends StatelessWidget {
         pauseLabel: l.voiceMessagePauseLabel,
       );
     }
-    // Image/video-with-thumbnail takes the media branch.
+    // Images can also preview their downloaded file when no thumbnail arrived.
     if (_hasPreview) {
       return _MediaPreviewCard(
         descriptor: descriptor,
@@ -161,11 +160,11 @@ class AttachmentCard extends StatelessWidget {
     );
   }
 
-  /// `hasPreview = thumbnail non-empty && (image/* || video/*)`.
-  /// Image/video-with-thumbnail take the media branch; everything else
+  /// Local images and image/video-with-thumbnail take the media branch; everything else
   /// (audio, pdf, ...) takes the file-card branch. Audio remains viewable in
   /// that branch and receives the open thumb button there.
   bool get _hasPreview {
+    if (_localImagePreview(descriptor, view) != null) return true;
     final thumb = descriptor.thumbnailB64;
     if (thumb == null || thumb.isEmpty) return false;
     final mime = descriptor.mime;
@@ -178,6 +177,17 @@ class AttachmentCard extends StatelessWidget {
         mime.startsWith('video/') ||
         mime.startsWith('audio/');
   }
+}
+
+String? _localImagePreview(
+    AttachmentDescriptor descriptor, AttachmentView? view) {
+  final path = view?.localPath;
+  return descriptor.mime.startsWith('image/') &&
+          view?.state == AttachmentState.available &&
+          path != null &&
+          path.isNotEmpty
+      ? path
+      : null;
 }
 
 /// Max width of the file card.
@@ -195,7 +205,7 @@ const double kAttachmentPreviewMaxHeight = 260;
 /// collapses to a zero-height box that swallows the open tap.
 const double kAttachmentPreviewMinHeight = 120;
 
-/// Embedded content shares the message's 8px inset. Files are flat rows;
+/// Embedded content shares the message surface. Files are flat rows;
 /// media has a clipped 4px surface. Failed transfers keep a visible edge.
 class _FileCardShell extends StatelessWidget {
   const _FileCardShell({
@@ -219,13 +229,8 @@ class _FileCardShell extends StatelessWidget {
       clipBehavior: media ? Clip.antiAlias : Clip.none,
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: media ? MoshColors.bg2 : null,
         borderRadius: MoshShapes.embedded,
-        border: failed
-            ? Border.all(color: MoshColors.danger)
-            : media
-                ? Border.all(color: MoshColors.line)
-                : null,
+        border: failed ? Border.all(color: MoshColors.danger) : null,
       ),
       child: child,
     );

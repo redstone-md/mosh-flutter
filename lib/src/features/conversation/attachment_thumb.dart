@@ -3,11 +3,10 @@ import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-import 'package:mosh/src/features/shared/optical_icon.dart';
 import 'package:mosh/src/features/shared/press_scale.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
-/// The file-card leading surface: a 40px rounded square in bg3/fg3.
+/// A 40px leading icon with a light tint over the bubble's own surface.
 ///
 /// Viewable MIME types keep an open affordance even when no thumbnail exists;
 /// other files remain a decorative file/error icon. The outer semantics node
@@ -32,6 +31,10 @@ class AttachmentThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final surface = MoshColors.fg1.withValues(alpha: 0.08);
+    final icon = descriptor.mime.startsWith('image/')
+        ? Icons.image_outlined
+        : Icons.play_arrow;
     if (viewable) {
       void onOpenPressed() => onOpen(descriptor);
       return Semantics(
@@ -43,20 +46,18 @@ class AttachmentThumb extends StatelessWidget {
         onTap: onOpenPressed,
         child: PressScale(
           child: Material(
-            color: MoshColors.bg3,
+            color: surface,
             borderRadius: MoshShapes.embedded,
             child: InkWell(
               borderRadius: MoshShapes.embedded,
               onTap: onOpenPressed,
-              // `.attachment-thumb-button { color: var(--moss) }` with a
-              // --bg-4 hover.
-              hoverColor: MoshColors.bg4,
-              child: const SizedBox(
+              hoverColor: MoshColors.fg1.withValues(alpha: 0.14),
+              child: SizedBox(
                 width: kAttachmentThumbSize,
                 height: kAttachmentThumbSize,
                 child: Center(
-                  child: OpticalIcon(
-                    icon: Icons.play_arrow,
+                  child: Icon(
+                    icon,
                     size: 20,
                     color: MoshColors.moss,
                   ),
@@ -73,13 +74,13 @@ class AttachmentThumb extends StatelessWidget {
       height: kAttachmentThumbSize,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: MoshColors.bg3,
+        color: surface,
         borderRadius: MoshShapes.embedded,
       ),
       child: Icon(
         failed ? Icons.error_outline : Icons.insert_drive_file_outlined,
         size: 20,
-        color: failed ? MoshColors.danger : MoshColors.fg3,
+        color: failed ? MoshColors.danger : MoshColors.fg2,
       ),
     );
   }

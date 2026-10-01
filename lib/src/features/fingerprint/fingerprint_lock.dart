@@ -39,6 +39,7 @@ class FingerprintLock extends StatelessWidget {
     super.key,
     required this.fingerprint,
     required this.hint,
+    this.besideName = false,
   });
 
   /// The session fingerprint the dialog shows.
@@ -46,6 +47,7 @@ class FingerprintLock extends StatelessWidget {
 
   /// The compare hint shown inside the dialog.
   final String hint;
+  final bool besideName;
 
   @override
   Widget build(BuildContext context) {
@@ -61,10 +63,10 @@ class FingerprintLock extends StatelessWidget {
               fingerprint: fingerprint, hint: hint),
           borderRadius: MoshShapes.control,
           child: Padding(
-            // Symmetric 13px sides: the 15px glyph gets a 41x41 tap box.
-            // Chat headers are 70px (54 compact), so the box fits the title
-            // row.
-            padding: const EdgeInsets.all(_lockTapInset),
+            // Keep the 41px target while placing the glyph on the name line.
+            padding: besideName
+                ? const EdgeInsetsDirectional.fromSTEB(6, 3, 20, 23)
+                : const EdgeInsets.all(_lockTapInset),
             child: Icon(
               Icons.lock,
               size: _lockIconSize,

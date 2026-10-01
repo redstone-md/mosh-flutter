@@ -81,9 +81,12 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       title: ConversationHeaderTitle(
         name: s == null ? widget.sessionId : peerLabel(l, s),
         subtitle: status,
+        onOpenDetails: widget.onOpenPeerStatus,
+        nameAction: FingerprintLock(
+            fingerprint: fingerprint,
+            hint: l.inviteFingerprintHint,
+            besideName: true),
       ),
-      identityAction: FingerprintLock(
-          fingerprint: fingerprint, hint: l.inviteFingerprintHint),
       onOpenPeerStatus: widget.onOpenPeerStatus,
       onRequestLeave: widget.onLeave,
       filter: widget.filter,

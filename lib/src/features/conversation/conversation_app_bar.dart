@@ -35,14 +35,12 @@ class ConversationAppBar extends StatelessWidget
     this.leadingActions = const [],
     this.menuActions = const [],
     this.inlineActions = const [],
-    this.identityAction,
   });
 
   /// The name and short status, normally a `ConversationHeaderTitle`.
   final Widget title;
   final String? avatarName;
   final ConversationKind kind;
-  final Widget? identityAction;
 
   final VoidCallback onOpenPeerStatus;
   final VoidCallback onRequestLeave;
@@ -124,29 +122,26 @@ class ConversationAppBar extends StatelessWidget
   Widget _identity(AppLocalizations l, bool compact, double width) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Flexible(
-              child: Tooltip(
-            message: l.chatDetailsTitle,
-            child: InkWell(
-              key: const ValueKey('conversation-header-details'),
-              borderRadius: MoshShapes.control,
-              onTap: onOpenPeerStatus,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  if (avatarName != null && width >= 112) ...[
-                    ConversationKindAvatar(
-                        kind: kind,
-                        name: avatarName!,
-                        radius: compact ? 16 : 20),
-                    SizedBox(width: compact ? 8 : 12),
-                  ],
-                  Flexible(child: title),
-                ]),
+          if (avatarName != null && width >= 112) ...[
+            Semantics(
+              label: l.chatDetailsTitle,
+              button: true,
+              child: InkWell(
+                onTap: onOpenPeerStatus,
+                customBorder: const CircleBorder(),
+                child: SizedBox.square(
+                    dimension: 40,
+                    child: Center(
+                      child: ConversationKindAvatar(
+                          kind: kind,
+                          name: avatarName!,
+                          radius: compact ? 16 : 20),
+                    )),
               ),
             ),
-          )),
-          if (identityAction case final action?) action,
+            SizedBox(width: compact ? 8 : 12),
+          ],
+          Flexible(child: title),
         ],
       );
 

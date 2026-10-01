@@ -25,6 +25,7 @@ class ChannelScreen extends StatelessWidget {
           avatarName: '#$name',
           title: ConversationHeaderTitle(
               name: '#$name',
+              onOpenDetails: chrome.onOpenPeerStatus,
               subtitle: AppLocalizations.of(context)!.channelNoticeTitle),
           onOpenPeerStatus: chrome.onOpenPeerStatus,
           onRequestLeave: () => chrome.onRequestLeave(),
