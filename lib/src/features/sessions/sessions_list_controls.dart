@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
@@ -36,6 +37,7 @@ class SessionsListControls extends StatelessWidget {
       ConversationKind.channel: l.chatListChannels,
     };
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
           key: const ValueKey('chat-list-search'),
@@ -57,7 +59,6 @@ class SessionsListControls extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodySmall,
                         )),
                   ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
           ),
         ),
         const SizedBox(height: 12),
@@ -65,20 +66,32 @@ class SessionsListControls extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              for (final entry in labels.entries)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(entry.value),
-                    selected: entry.key == kind,
-                    showCheckmark: false,
-                    onSelected: (_) => onKind(entry.key),
-                  ),
-                ),
+              for (final entry in labels.entries) _filterChip(context, entry),
             ],
           ),
         ),
       ],
     );
   }
+
+  Widget _filterChip(
+          BuildContext context, MapEntry<ConversationKind?, String> entry) =>
+      Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: ChoiceChip(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+          labelStyle: Theme.of(context).textTheme.labelMedium,
+          avatarBoxConstraints:
+              const BoxConstraints.tightFor(width: 16, height: 16),
+          avatar: entry.key == null
+              ? null
+              : Icon(entry.key!.icon, size: 16, color: entry.key!.accent),
+          label: Text(entry.value),
+          selectedColor: entry.key?.tint,
+          selected: entry.key == kind,
+          showCheckmark: false,
+          onSelected: (_) => onKind(entry.key),
+        ),
+      );
 }

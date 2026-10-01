@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/peer_status_drawer.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
+import 'package:mosh/src/features/shared/conversation_kind_style.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
+import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
 import '../../support/message_builders.dart';
@@ -17,6 +22,18 @@ import 'shell_harness.dart';
 
 ScriptableGateway _gateway() {
   final now = BigInt.from(DateTime(2026, 10, 1, 14, 32).millisecondsSinceEpoch);
+  final voice = AttachmentDescriptor(
+    attachmentId: 'sample-voice',
+    contentHash: 'voice-hash',
+    fileName: 'voice.m4a',
+    mime: 'audio/mp4',
+    totalSize: BigInt.from(4096),
+    voice: VoiceMeta(
+      durationMs: 4200,
+      peaksB64: base64Encode(
+          Uint8List.fromList(List.generate(64, (i) => 30 + (i * 37) % 200))),
+    ),
+  );
   return ScriptableGateway()
     ..seedSessions([
       TestSnapshots.dm(sessionId: 'alice', peerDisplayName: 'Alice', messages: [
@@ -29,6 +46,11 @@ ScriptableGateway _gateway() {
             body: 'Да, отлично. Сейчас отправлю файл.',
             attachment: testAttachment(attachmentId: 'sample-file'),
             sentAtMs: now + BigInt.one),
+        TestMessages.dm(
+            fromDevice: 'Alice',
+            body: '',
+            attachment: voice,
+            sentAtMs: now + BigInt.two),
       ])
     ])
     ..seedGroups([
@@ -47,6 +69,7 @@ ScriptableGateway _gateway() {
                 fromDevice: 'me',
                 fromFingerprint: 'self',
                 body: 'Да, отлично. Сейчас отправлю файл.',
+                attachment: testAttachment(attachmentId: 'group-file'),
                 sentAtMs: now + BigInt.one),
             TestMessages.group(
                 fromDevice: 'Bob',
@@ -91,6 +114,43 @@ Future<void> _screenshot(WidgetTester tester, String name) async {
 }
 
 void main() {
+  testWidgets(
+      'conversation types have distinct cues in rail, filter and header',
+      (tester) async {
+    await pumpShellApp(tester,
+        gateway: _gateway(), physical: const Size(1536, 900));
+    final avatars = tester.widgetList<ConversationKindAvatar>(find.descendant(
+        of: find.byType(SessionsScreen),
+        matching: find.byType(ConversationKindAvatar)));
+    expect(avatars.map((a) => a.kind).toSet(), ConversationKind.values.toSet());
+    final glyphs = <IconData>{};
+    final colors = <Color>{};
+    for (final kind in ConversationKind.values) {
+      final avatar = find.byWidgetPredicate(
+          (w) => w is ConversationKindAvatar && w.kind == kind);
+      final icon = tester.widget<Icon>(
+          find.descendant(of: avatar, matching: find.byIcon(kind.icon)));
+      glyphs.add(icon.icon!);
+      final circle = tester.widget<CircleAvatar>(
+          find.descendant(of: avatar, matching: find.byType(CircleAvatar)));
+      colors.add(circle.backgroundColor!);
+    }
+    expect(glyphs, hasLength(3));
+    expect(colors, hasLength(3));
+    for (final (title, kind) in [
+      ('Alice', ConversationKind.dm),
+      ('Design team', ConversationKind.group),
+      ('#general', ConversationKind.channel),
+    ]) {
+      await _open(tester, title);
+      final avatar = tester.widget<ConversationKindAvatar>(find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(ConversationKindAvatar)));
+      expect(avatar.kind, kind);
+    }
+    final chips = tester.widgetList<ChoiceChip>(find.byType(ChoiceChip));
+    expect(chips.where((c) => c.avatar is Icon), hasLength(3));
+  });
   setUp(() {
     const channel = MethodChannel('com.llfbandit.record/messages');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

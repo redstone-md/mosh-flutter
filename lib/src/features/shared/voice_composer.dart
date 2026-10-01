@@ -366,11 +366,9 @@ class _VoiceComposerState extends State<VoiceComposer> {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            // Toggles the preview play state with contextual cross-fade
-            // and optical centering.
+            // Toggles the preview play state with a centered cross-fade.
             icon: ContextualIconSwitcher(
               icon: _previewPlaying ? Icons.pause : Icons.play_arrow,
-              offset: _previewPlaying ? Offset.zero : const Offset(1.5, 0),
               size: 24,
             ),
             tooltip: widget.playLabel,

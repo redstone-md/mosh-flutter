@@ -187,26 +187,21 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
         ? _position.inMilliseconds
         : durationMs;
     final playLabel = _playing ? widget.pauseLabel : widget.playLabel;
-    // 12% gray rounded pill, 280px max width, 8px gaps.
+    // Flat embedded player. The message bubble owns the surrounding surface.
     final enabled = !(widget.busy && widget.view?.localPath == null);
     return Container(
       constraints: const BoxConstraints(maxWidth: 280),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF7F7F7F).withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 40x40 hit target with tactile press scale, optical alignment,
+          // 40x40 hit target with tactile press scale, centered glyph,
           // and contextual icon cross-fade.
           Opacity(
             opacity: enabled ? 1 : 0.65,
             child: PressScale(
               enabled: enabled,
               child: Material(
-                color: const Color(0xFF4F8CFF),
+                color: theme.colorScheme.primary,
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),
@@ -221,9 +216,8 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
                           icon: _playing
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
-                          offset: _playing ? Offset.zero : const Offset(1.5, 0),
                           size: 18,
-                          color: Colors.white,
+                          color: theme.colorScheme.onPrimary,
                         ),
                       ),
                     ),
@@ -233,12 +227,14 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
             ),
           ),
           const SizedBox(width: 8),
-          VoiceWaveform(
-            peaks: peaks,
-            progress: progress,
-            played: theme.colorScheme.primary,
-            unplayed: theme.colorScheme.onSurfaceVariant,
-            onSeekRatio: _seek,
+          Flexible(
+            child: VoiceWaveform(
+              peaks: peaks,
+              progress: progress,
+              played: theme.colorScheme.primary,
+              unplayed: theme.colorScheme.onSurfaceVariant,
+              onSeekRatio: _seek,
+            ),
           ),
           const SizedBox(width: 8),
           // `.voice-message-time { font-size: 12px; opacity: 0.75 }`. Live

@@ -15,6 +15,8 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ConversationKind;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
@@ -102,6 +104,7 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
     // the second line of a two-line `title:` Column.
     return LayoutBuilder(
         builder: (context, constraints) => ConversationAppBar(
+              kind: ConversationKind.group,
               avatarName: async.value?.label ?? l.groupUntitled,
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -4,11 +4,13 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/conversation/chat_header_menu.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
-import 'package:mosh/src/features/shared/avatar.dart';
+import 'package:mosh/src/features/shared/conversation_kind_style.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 // Re-exported so a kind header needs only this one import to build its
 // kebab items.
@@ -29,6 +31,7 @@ class ConversationAppBar extends StatelessWidget
     required this.leaveMenuLabel,
     required this.leaveMenuIcon,
     this.avatarName,
+    this.kind = ConversationKind.dm,
     this.leadingActions = const [],
     this.menuActions = const [],
     this.inlineActions = const [],
@@ -38,6 +41,7 @@ class ConversationAppBar extends StatelessWidget
   /// then the status subtitle).
   final Widget title;
   final String? avatarName;
+  final ConversationKind kind;
 
   final VoidCallback onOpenPeerStatus;
   final VoidCallback onRequestLeave;
@@ -93,6 +97,7 @@ class ConversationAppBar extends StatelessWidget
         data: IconButtonThemeData(
             style: IconButton.styleFrom(
           minimumSize: const Size.square(40),
+          shape: MoshShapes.controlShape,
           padding: EdgeInsets.zero,
           visualDensity: VisualDensity.compact,
         )),
@@ -103,7 +108,8 @@ class ConversationAppBar extends StatelessWidget
           title: LayoutBuilder(
               builder: (context, constraints) => Row(children: [
                     if (avatarName != null && constraints.maxWidth >= 120) ...[
-                      Avatar(name: avatarName!, radius: 20),
+                      ConversationKindAvatar(
+                          kind: kind, name: avatarName!, radius: 20),
                       const SizedBox(width: 12),
                     ],
                     Expanded(child: title),

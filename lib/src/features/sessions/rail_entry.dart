@@ -16,7 +16,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -28,6 +27,7 @@ import 'package:mosh/src/features/sessions/rail_item.dart'
     show RailItem, RailItemKind;
 import 'package:mosh/src/features/sessions/rail_activity.dart';
 import 'package:mosh/src/features/shared/avatar.dart' show Avatar;
+import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
@@ -129,8 +129,7 @@ List<RailEntry> recentRailEntries(
 }
 
 /// One DM session row: an avatar with the label's initials via
-/// [avatarInitials] (background colour a stable hash of the label, so two
-/// sessions with the same peer match), the label as title (falling back
+/// [avatarInitials] and a personal-chat badge, the label as title (falling back
 /// peer -> own display -> raw session id, the same chain `dm_screen` uses),
 /// the localized state label as subtitle -- or, when this DM's linked peer
 /// is no longer in the org roster, the revoked badge -- an `UnreadBadge`
@@ -163,7 +162,7 @@ final class DmRailEntry extends RailEntry {
     final label = peerLabel(l, session);
     return RailItem(
       kind: RailItemKind.dm,
-      leading: Avatar(name: label, radius: 24),
+      leading: ConversationKindAvatar(kind: ref.kind, name: label),
       title: label,
       timestamp: timestamp(context),
       subtitle: revokedOrgName != null
@@ -204,11 +203,7 @@ final class ChannelRailEntry extends RailEntry {
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     return RailItem(
       kind: RailItemKind.channel,
-      leading: const CircleAvatar(
-          radius: 24,
-          backgroundColor: MoshColors.avatarSurface,
-          foregroundColor: MoshColors.fg1,
-          child: Icon(Icons.tag)),
+      leading: ConversationKindAvatar(kind: ref.kind, name: channel.name),
       title: '#${channel.name}',
       timestamp: timestamp(context),
       // An empty topic yields no subtitle line ([RailItem] hides it).
@@ -248,12 +243,7 @@ final class GroupRailEntry extends RailEntry {
     final label = group.label ?? shorten(group.groupId, 6);
     return RailItem(
       kind: RailItemKind.group,
-      leading: const CircleAvatar(
-        radius: 24,
-        backgroundColor: MoshColors.avatarSurface,
-        foregroundColor: MoshColors.fg1,
-        child: Icon(Icons.group_outlined),
-      ),
+      leading: ConversationKindAvatar(kind: ref.kind, name: label),
       title: label,
       timestamp: timestamp(context),
       // `memberCount` is a `BigInt`; narrowing to `int` is safe for

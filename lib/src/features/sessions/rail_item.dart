@@ -2,6 +2,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/features/shared/conversation_kind_style.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/focus_ring.dart';
@@ -30,15 +34,12 @@ const double kRailWidth = 348;
 final Color _kHoverOverlay = Colors.white.withValues(alpha: 0.03);
 
 extension on RailItemKind {
-  /// The glyph colour, and the colour of the active inset ring.
-  Color get accent => switch (this) {
-        RailItemKind.dm => MoshColors.fg2,
-        RailItemKind.channel => MoshColors.info,
-        RailItemKind.group => MoshColors.moss,
+  ConversationKind get conversationKind => switch (this) {
+        RailItemKind.dm => ConversationKind.dm,
+        RailItemKind.channel => ConversationKind.channel,
+        RailItemKind.group => ConversationKind.group,
       };
-
-  Color get ring =>
-      this == RailItemKind.channel ? MoshColors.info : MoshColors.moss;
+  Color get accent => conversationKind.accent;
 }
 
 /// One rail row. [leading] is the avatar (DMs, offers) or the 18px glyph
@@ -81,26 +82,28 @@ class RailItem extends StatelessWidget {
     // The radius stays 12 in every state; the active ring is an inset
     // border and must not move the outer geometry (audit 2026-09-21:
     // radius jumped 12 -> 14 when a row was selected).
-    final radius = BorderRadius.circular(12);
+    const radius = MoshShapes.message;
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
       child: Material(
-        color: active ? MoshColors.mossGlow : Colors.transparent,
+        color: active ? kind.conversationKind.tint : Colors.transparent,
         borderRadius: radius,
         // Clips the tap target's ink to the row's corners when [action]
         // shares the row.
         clipBehavior: Clip.antiAlias,
         child: DecoratedBox(
-          // `inset 0 0 0 2px <accent>`: painted over the row, so it neither
+          // Painted over the row, so the selection edge neither
           // moves the content nor needs an (outset-only) BoxShadow.
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             borderRadius: radius,
-            border: active ? Border.all(color: kind.ring, width: 2) : null,
+            border: active
+                ? Border.all(color: kind.accent.withValues(alpha: 0.4))
+                : null,
           ),
           child: Row(
             children: <Widget>[
-              Expanded(child: _tapTarget(radius)),
+              Expanded(child: _tapTarget(context, radius)),
               if (action case final action?) action,
             ],
           ),
@@ -109,12 +112,14 @@ class RailItem extends StatelessWidget {
     );
   }
 
-  Widget _tapTarget(BorderRadius radius) {
+  Widget _tapTarget(BuildContext context, BorderRadius radius) {
+    final l = AppLocalizations.of(context);
     return Semantics(
       container: true,
       button: true,
       selected: active,
-      label: semanticLabel,
+      label:
+          semanticLabel ?? (l == null ? null : kind.conversationKind.label(l)),
       excludeSemantics: semanticLabel != null,
       // Excluding the children drops the InkWell's own tap action, so the
       // labelled row carries it here or a screen reader cannot activate it.
@@ -236,7 +241,7 @@ class RailDivider extends StatelessWidget {
 }
 
 /// The gear button pinned at the bottom of the rail: full width, at least
-/// 40px tall, radius 12, a settings glyph and a 12.5px/600 fg-2 label.
+/// 40px tall, radius 8, a settings glyph and a 12.5px/600 fg-2 label.
 /// Opens the Discord-like settings screen (AppRoutes.settings).
 class RailSettingsButton extends StatelessWidget {
   const RailSettingsButton({super.key, required this.label, this.onTap});
@@ -246,7 +251,7 @@ class RailSettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(12);
+    const radius = MoshShapes.control;
     // The fill lives on the Material so the InkWell's hover, press and
     // focus ink paint above it instead of under an opaque Container.
     return Semantics(
@@ -298,12 +303,8 @@ class RailSettingsButton extends StatelessWidget {
   }
 }
 
-/// The dashed moss "New chat" button at the top of the rail: full width,
-/// at least 40px tall, radius 12, a 1.5px dashed moss border at 35% alpha,
-/// a moss plus glyph and a 12.5px/700 fg-1 label.
-///
-/// Flutter has no dashed border primitive; a 1.5px solid moss border at the
-/// same alpha is the closest single-widget equivalent and keeps the row
+/// The "New chat" button at the top of the rail: full width,
+/// at least 40px tall, radius 8, and a 12.5px/700 fg-1 label.
 /// The circular moss plus keeps creation visible above the search.
 class RailNewButton extends StatelessWidget {
   const RailNewButton({super.key, required this.label, this.onTap});
@@ -313,7 +314,7 @@ class RailNewButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(12);
+    const radius = MoshShapes.control;
     return Semantics(
       button: true,
       child: PressScale(

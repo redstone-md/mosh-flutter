@@ -36,6 +36,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;
@@ -117,7 +118,6 @@ class AttachmentCard extends StatelessWidget {
 
     // File branch.
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final outgoing = view?.direction == 'outgoing' || (view == null && own);
     final state = view?.state ??
         (outgoing ? AttachmentState.available : AttachmentState.offered);
@@ -132,7 +132,6 @@ class AttachmentCard extends StatelessWidget {
     );
     return _FileCardShell(
       failed: failed,
-      theme: theme,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -196,29 +195,21 @@ const double kAttachmentPreviewMaxHeight = 260;
 /// collapses to a zero-height box that swallows the open tap.
 const double kAttachmentPreviewMinHeight = 120;
 
-/// Card shell: 6px top margin, 8px/10px padding, hairline border, 10px
-/// radius, bg-2 fill, 360px max width. A failed transfer recolours the
-/// BORDER (not the fill) to danger.
-///
-/// The media variant drops the padding and clips the corners: the preview
-/// bleeds to the card edge, so the padding moves onto the bar.
+/// Embedded content shares the message's 8px inset. Files are flat rows;
+/// media has a clipped 4px surface. Failed transfers keep a visible edge.
 class _FileCardShell extends StatelessWidget {
   const _FileCardShell({
     required this.failed,
-    required this.theme,
     required this.child,
     this.media = false,
   });
 
   final bool failed;
-  final ThemeData theme;
   final Widget child;
   final bool media;
 
   @override
   Widget build(BuildContext context) {
-    // Concentric radius: inner thumb 8 + vertical padding 8 = 16.
-    final radius = BorderRadius.circular(16);
     return Container(
       margin: const EdgeInsets.only(top: 6),
       constraints: BoxConstraints(
@@ -226,15 +217,15 @@ class _FileCardShell extends StatelessWidget {
       ),
       width: media ? kAttachmentMediaWidth : null,
       clipBehavior: media ? Clip.antiAlias : Clip.none,
-      padding: media
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: MoshColors.bg2,
-        borderRadius: radius,
-        border: Border.all(
-          color: failed ? MoshColors.danger : MoshColors.line,
-        ),
+        color: media ? MoshColors.bg2 : null,
+        borderRadius: MoshShapes.embedded,
+        border: failed
+            ? Border.all(color: MoshColors.danger)
+            : media
+                ? Border.all(color: MoshColors.line)
+                : null,
       ),
       child: child,
     );

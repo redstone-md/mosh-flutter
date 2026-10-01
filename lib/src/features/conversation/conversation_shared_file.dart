@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
@@ -36,8 +37,7 @@ class ConversationSharedFile extends StatelessWidget {
           width: 40,
           height: 46,
           decoration: BoxDecoration(
-              color: MoshColors.mossGlow,
-              borderRadius: BorderRadius.circular(10)),
+              color: MoshColors.mossGlow, borderRadius: MoshShapes.control),
           child: const Icon(Icons.insert_drive_file_outlined,
               color: MoshColors.moss300, size: 23),
         ),

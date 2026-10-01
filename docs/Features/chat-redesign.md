@@ -45,6 +45,10 @@ Flutter chat list, messages and details for DMs, private groups and public chann
 
 ## Checks and limits
 
+The follow-up [Chat visual consistency](chat-visual-consistency.md) records the
+shared corner geometry, embedded attachment simplification and conversation
+type cues requested after the first Windows evaluation.
+
 Tests cover recency, filtering, known names, runtime protection, file actions,
 details toggling and Escape, keyboard navigation, local date boundaries, bubble
 alignment and existing send/leave/attachment behavior. Layout tests exercise all

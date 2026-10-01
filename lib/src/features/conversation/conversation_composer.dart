@@ -14,6 +14,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/attachment_picker.dart';
@@ -121,13 +122,13 @@ class ConversationComposer extends StatelessWidget {
         valueListenable: controller,
         builder: (context, value, _) {
           final enabled = !sending && !disabled && value.text.trim().isNotEmpty;
-          // The composer box: bordered bg-2 pill, min 54px tall.
+          // The control group uses 16px corners around 8px control corners.
           return Container(
             constraints: const BoxConstraints(minHeight: 54),
-            padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
+            padding: MoshShapes.composerPadding,
             decoration: BoxDecoration(
               color: MoshColors.bg2,
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: MoshShapes.composer,
               border: Border.all(color: MoshColors.line),
             ),
             child: Row(
@@ -199,6 +200,7 @@ class ConversationComposer extends StatelessWidget {
                         filled: false,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
@@ -207,7 +209,7 @@ class ConversationComposer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: kComposerGap),
-                // Moss 32px circular send button, dropping to bg-3/fg-4 when
+                // Moss 32px send button, dropping to bg-3/fg-4 when
                 // disabled. The painted square is 32x32; the theme's M3
                 // padded tap target makes the button's LAYOUT box 40-48px
                 // (density adjusted), so the >=40px tap floor and the
@@ -224,9 +226,7 @@ class ConversationComposer extends StatelessWidget {
                         fixedSize: const Size.square(kComposerButtonSize),
                         minimumSize: const Size.square(kComposerButtonSize),
                         padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+                        shape: MoshShapes.controlShape,
                         disabledBackgroundColor: MoshColors.bg3,
                         disabledForegroundColor: MoshColors.fg4,
                       ),

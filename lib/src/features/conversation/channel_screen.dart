@@ -7,7 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
-import 'package:mosh/src/gateway/conversation_target.dart' show ChannelTarget;
+import 'package:mosh/src/gateway/conversation_target.dart'
+    show ChannelTarget, ConversationKind;
 
 class ChannelScreen extends StatelessWidget {
   const ChannelScreen({super.key, required this.name});
@@ -19,6 +20,7 @@ class ChannelScreen extends StatelessWidget {
   Widget build(BuildContext context) => ConversationScreen(
         target: ChannelTarget(name),
         header: (context, chrome) => ConversationAppBar(
+          kind: ConversationKind.channel,
           avatarName: '#$name',
           title: Text('#$name'),
           onOpenPeerStatus: chrome.onOpenPeerStatus,
