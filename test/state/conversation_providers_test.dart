@@ -156,7 +156,7 @@ void main() {
   });
 
   group('refreshConversation', () {
-    test('re-reads the snapshot, and the rail list of a DM only', () async {
+    test('re-reads the snapshot and the matching recent-chat list', () async {
       final gateway = ScriptableGateway();
       _seedOneOfEachKind(gateway);
       final (container, bridge) = _container(gateway);
@@ -194,12 +194,11 @@ void main() {
         expect(gateway.countOf(GatewayMethod.poll), beforePolls + 1,
             reason: '${c.target} re-read its snapshot');
 
-        // The rail-list half: only a DM's row carries its last message.
+        // Every kind shows a preview; refreshing one kind leaves other lists alone.
         for (final other in _kindCases) {
           // Reading a list re-runs it only when the refresh invalidated it.
           await container.read(conversationListProvider(other.kind).future);
-          final reRead = c.kind == ConversationKind.dm &&
-              other.kind == ConversationKind.dm;
+          final reRead = c.kind == other.kind;
           expect(bridge.countOf(other.listMethod),
               beforeLists[other.kind]! + (reRead ? 1 : 0),
               reason: 'the ${other.kind.name} list after a '

@@ -32,7 +32,7 @@ void main() {
 
     expect(find.text('typed while offline'), findsOneWidget);
     expect(find.byIcon(Icons.schedule), findsOneWidget);
-    expect(find.text('queued'), findsOneWidget);
+    expect(find.byTooltip('queued'), findsOneWidget);
     expect(find.text('Retry'), findsNothing);
     expect(find.text('Failed to send'), findsNothing);
   });

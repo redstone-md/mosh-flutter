@@ -825,5 +825,19 @@
   "settingsSectionPrivacy": "Приватность",
   "settingsCrashReportsTitle": "Отправлять отчёты о сбоях",
   "settingsCrashReportsSubtitle": "По умолчанию выключено. Когда включено, сбои и ошибки уходят в Sentry: стектрейсы, типы ошибок, версия приложения и ОС. Никогда: сообщения, контакты, ключи, приглашения и IP-адреса; идентификаторы заменяются хешами. Отчёт о нативном сбое также содержит снимок памяти стеков потоков.",
-  "settingsCrashReportsUnavailable": "Эта сборка не умеет отправлять отчёты о сбоях."
+  "settingsCrashReportsUnavailable": "Эта сборка не умеет отправлять отчёты о сбоях.",
+  "chatListSearch": "Поиск чатов",
+  "chatListPersonal": "Личные",
+  "chatListGroups": "Группы",
+  "chatListChannels": "Каналы",
+  "chatListYou": "Вы",
+  "chatListInvitations": "Приглашения",
+  "chatListEmpty": "Подходящих чатов нет",
+  "chatDetailsTitle": "Сведения о беседе",
+  "chatDetailsFiles": "Общие файлы",
+  "chatDetailsNoFiles": "Общих файлов пока нет",
+  "chatDetailsParticipants": "Участники",
+  "chatDetailsDiagnostics": "Сведения о соединении",
+  "chatDetailsProtection": "Защита беседы",
+  "chatDetailsKnownAuthors": "Известные авторы"
 }

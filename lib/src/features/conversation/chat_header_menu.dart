@@ -1,23 +1,9 @@
-// Mobile-only kebab menu for the three conversation headers. A
-// vertical-dots button opens a dropdown of `ChatHeaderMenuAction`s. This
-// widget self-gates: it renders `SizedBox.shrink()` on desktop and the real
-// `PopupMenuButton` on mobile. The caller does not gate -- it always mounts
-// `ChatHeaderMenu` in the AppBar `actions:` row.
-//
-// `PopupMenuButton` owns open/close + outside-click + Escape-to-close
-// behavior. A constant vertical-dots kebab is used (no adaptive variant is
-// available here); iOS would prefer a horizontal ellipsis.
-//
-// The filter toggle is NOT built here -- each screen builds its own action
-// list (filter toggle first, then the per-screen actions) and hands the
-// whole list to this widget.
-
+/// Conversation action menu. Flutter handles focus, dismissal and Escape.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/conversation/conversation_tools.dart';
 
 /// One entry in the mobile kebab menu: an immutable value with a `label`,
 /// an `icon`, an `onSelect` callback, and optional `disabled` + `danger`
@@ -39,10 +25,7 @@ class ChatHeaderMenuAction {
   final bool danger;
 }
 
-/// Mobile-only kebab menu rendering `actions` in a `PopupMenuButton`.
-/// Self-gates on the mobile breakpoint (`isMobileBreakpoint`,
-/// conversation_tools.dart) so it collapses to `SizedBox.shrink()` on
-/// desktop. The tooltip is `l.chatMoreActions`.
+/// Shared action menu on desktop and mobile.
 class ChatHeaderMenu extends StatelessWidget {
   const ChatHeaderMenu({
     super.key,
@@ -55,9 +38,6 @@ class ChatHeaderMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Self-gate: on desktop the standalone desktop-only close/leave button
-    // (gated by the caller on `!isMobileBreakpoint`) takes over.
-    if (!isMobileBreakpoint(context)) return const SizedBox.shrink();
     return PopupMenuButton<ChatHeaderMenuAction>(
       icon: const Icon(Icons.more_vert),
       tooltip: l.chatMoreActions,

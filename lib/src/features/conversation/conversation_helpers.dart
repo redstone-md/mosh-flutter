@@ -34,18 +34,20 @@ double chatHeaderHeight(BuildContext context) =>
     _isCompactChatHeader(context) ? 54 : 70;
 
 /// Chat title: 15px/700, 14px on a narrow header.
-TextStyle chatTitleStyle(BuildContext context) => TextStyle(
-      fontSize: _isCompactChatHeader(context) ? 14 : 15,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.3,
-      color: MoshColors.fg1,
-    );
+TextStyle chatTitleStyle(BuildContext context) =>
+    Theme.of(context).textTheme.titleMedium!.copyWith(
+          fontSize: _isCompactChatHeader(context) ? 14 : 15,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+          color: MoshColors.fg1,
+        );
 
 /// Chat subtitle: 12px fg-3, 11px on a narrow header.
-TextStyle chatSubtitleStyle(BuildContext context) => TextStyle(
-      fontSize: _isCompactChatHeader(context) ? 11 : 12,
-      color: MoshColors.fg3,
-    );
+TextStyle chatSubtitleStyle(BuildContext context) =>
+    Theme.of(context).textTheme.bodySmall!.copyWith(
+          fontSize: _isCompactChatHeader(context) ? 11 : 12,
+          color: MoshColors.fg3,
+        );
 
 /// The gap under the title: 4px, 2px when compact.
 double chatSubtitleGap(BuildContext context) =>
@@ -92,12 +94,17 @@ const TextStyle kMessageBodyStyle =
 /// landed, so the delivered marks read as "seen". The label stays
 /// "delivered"; the color carries the read fact.
 class DeliveryTicks extends StatelessWidget {
-  const DeliveryTicks({super.key, required this.status, this.read = false});
+  const DeliveryTicks(
+      {super.key,
+      required this.status,
+      this.read = false,
+      this.compact = false});
 
   final MessageDeliveryStatus? status;
 
   /// Whether the counterpart's read receipt has landed on this message.
   final bool read;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +120,22 @@ class DeliveryTicks extends StatelessWidget {
       MessageDeliveryStatus.failed || null => null,
     };
     if (label == null) return const SizedBox.shrink();
+    if (compact) {
+      final icon = switch (status) {
+        MessageDeliveryStatus.delivered => Icons.done_all,
+        MessageDeliveryStatus.sent => Icons.check,
+        MessageDeliveryStatus.queued => Icons.schedule,
+        _ => Icons.more_horiz,
+      };
+      return Semantics(
+          label: label,
+          excludeSemantics: true,
+          child: Tooltip(
+              message: label,
+              child: Icon(icon,
+                  size: 15,
+                  color: read ? MoshColors.moss300 : MoshColors.fg3)));
+    }
     // The read receipt changes the COLOR of the same glyphs, never adds a
     // third tick: the delivered marks carry the theme's accent instead of
     // the faint fg-4, exactly like a "seen" mark.
@@ -142,6 +165,10 @@ class DeliveryTicks extends StatelessWidget {
     );
   }
 }
+
+DateTime? messageDate(BigInt? sentAtMs) => sentAtMs == null
+    ? null
+    : DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
 
 /// Locale-aware HH:mm clock for the sender-meta row. Formats the epoch in
 /// the LOCAL timezone via `intl`'s `DateFormat.Hm(locale)` so the

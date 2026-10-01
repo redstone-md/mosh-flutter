@@ -1,21 +1,5 @@
-// Widget tests for the DmScreen responsive desktop<->mobile breakpoint
-// switch: on narrow widths the desktop `ConversationTools` row is hidden
-// and the `MobileSearchToggle` header button + `MobileConversationSearch`
-// panel + `MobileConversationFilterNotice` strip are shown.
-//
-// Cases:
-//   1. Desktop width (600): the desktop `ConversationTools` row renders and
-//      the `MobileSearchToggle` header button is absent.
-//   2. Mobile width (400): the `MobileSearchToggle` header button renders
-//      and the desktop `ConversationTools` row is absent; tapping the toggle
-//      opens `MobileConversationSearch`.
-//   3. Changing `sessionId` closes an open mobile search panel --
-//      `didUpdateWidget` resets `_mobileSearchOpen` to false.
-//
-// Uses the same fake-gateway-free snapshot-override idiom as
-// `conversation_tools_test.dart` (override `activeSessionProvider` so the
-// native cdylib is not involved; no send happens so no gateway override is
-// needed).
+// Header search on desktop and mobile, query lifecycle, and toolbar sizing.
+// Snapshot overrides keep these layout tests independent of the native runtime.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -62,14 +46,15 @@ Future<void> _pumpDm(
         ]);
 
 void main() {
-  testWidgets(
-      'desktop width (600): desktop ConversationTools row present, '
-      'MobileSearchToggle absent', (tester) async {
+  testWidgets('desktop width (600): header search opens the desktop tools',
+      (tester) async {
     await _pumpDm(tester, sessionId: 'sess-desktop', width: 600);
-    // Desktop: the full ConversationTools row (search TextField +
-    // SegmentedButton) renders; the mobile header toggle does not.
+    // Search stays behind the header button until opened.
+    expect(find.byType(ConversationTools), findsNothing);
+    expect(find.byType(MobileSearchToggle), findsOneWidget);
+    await tester.tap(find.byType(MobileSearchToggle));
+    await tester.pumpAndSettle();
     expect(find.byType(ConversationTools), findsOneWidget);
-    expect(find.byType(MobileSearchToggle), findsNothing);
     expect(find.byType(MobileConversationSearch), findsNothing);
   });
 
@@ -108,6 +93,39 @@ void main() {
     // The toggle is still rendered (still mobile width) and back to the
     // closed-state tooltip.
     expect(find.byType(MobileSearchToggle), findsOneWidget);
+  });
+
+  testWidgets('closing message search clears the query before hiding it',
+      (tester) async {
+    await _pumpDm(tester, sessionId: 'search-close', width: 800);
+    await tester.tap(find.byType(MobileSearchToggle));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'needle');
+    await tester.pumpAndSettle();
+    expect(
+        tester.widget<ConversationTools>(find.byType(ConversationTools)).search,
+        'needle');
+    await tester.tap(find.byType(MobileSearchToggle));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(MobileSearchToggle));
+    await tester.pumpAndSettle();
+    expect(
+        tester.widget<ConversationTools>(find.byType(ConversationTools)).search,
+        '');
+  });
+
+  testWidgets('another conversation starts with an empty message search',
+      (tester) async {
+    await _pumpDm(tester, sessionId: 'search-a', width: 800);
+    await tester.tap(find.byType(MobileSearchToggle));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'needle');
+    await _pumpDm(tester, sessionId: 'search-b', width: 800);
+    await tester.tap(find.byType(MobileSearchToggle));
+    await tester.pumpAndSettle();
+    expect(
+        tester.widget<ConversationTools>(find.byType(ConversationTools)).search,
+        '');
   });
 
   // Regression (CodeAnt PR #17): the kind headers report

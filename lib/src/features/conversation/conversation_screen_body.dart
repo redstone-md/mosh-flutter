@@ -45,6 +45,7 @@ class ConversationScreenBody extends ConsumerWidget {
   const ConversationScreenBody({
     super.key,
     required this.target,
+    this.detailsDocked = false,
     required this.chrome,
     required this.composer,
     required this.onSend,
@@ -56,6 +57,7 @@ class ConversationScreenBody extends ConsumerWidget {
   });
 
   final AnyConversationTarget target;
+  final bool detailsDocked;
 
   /// The search text, the filter and the two panels, owned by the screen.
   final ConversationChrome chrome;
@@ -110,10 +112,12 @@ class ConversationScreenBody extends ConsumerWidget {
               if (_isDm) _cryptoFooter(context, l),
             ],
           ),
-          if (chrome.showPeerStatus)
+          if (chrome.showPeerStatus && !detailsDocked)
             Positioned.fill(
               child: ConversationPeerStatus(
                 async: async,
+                target: target,
+                onOpenAttachment: onOpenAttachment,
                 onRefresh: controller.refresh,
                 onClose: chrome.onClosePeerStatus,
               ),

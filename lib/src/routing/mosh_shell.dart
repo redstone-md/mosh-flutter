@@ -37,6 +37,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
+import 'package:mosh/src/features/sessions/sessions_list_controls.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
@@ -100,7 +104,24 @@ class _MoshShellState extends ConsumerState<MoshShell> {
   bool _showPeerStatus = false;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+              _focusSearch,
+          const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+              _focusSearch,
+        },
+        child: _panes(context),
+      );
+
+  void _focusSearch() {
+    if (isMobileBreakpoint(context)) context.go(AppRoutes.sessions);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(chatListSearchFocusProvider).requestFocus();
+    });
+  }
+
+  Widget _panes(BuildContext context) {
     // Desktop: rail + chat side-by-side, both ALWAYS visible (the rail
     // stays while a DM is open). Mobile: the go_router default
     // IndexedStack container, so only the active branch shows while the
@@ -150,7 +171,8 @@ class _MoshShellState extends ConsumerState<MoshShell> {
           child: Row(
             children: <Widget>[
               SizedBox(
-                width: kRailWidth,
+                width: (MediaQuery.sizeOf(context).width * 0.28)
+                    .clamp(268.0, kRailWidth),
                 child: _SemanticsPane(child: widget.children[0]),
               ),
               const VerticalDivider(width: 1, thickness: 1),

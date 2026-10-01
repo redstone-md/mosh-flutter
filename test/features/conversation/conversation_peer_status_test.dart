@@ -8,6 +8,7 @@ import 'package:mosh/src/features/conversation/conversation_peer_status.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
 
 import '../../support/pump.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 void main() {
   testWidgets('a bridge error shows its kind sentence, not the runtime text',
@@ -16,6 +17,8 @@ void main() {
       tester,
       Scaffold(
         body: ConversationPeerStatus(
+          target: const DmTarget('test'),
+          onOpenAttachment: (_, view) {},
           async: AsyncValue.error(
             const ConversationBridgeError(
               kind: ConversationBridgeErrorKind.unavailable,

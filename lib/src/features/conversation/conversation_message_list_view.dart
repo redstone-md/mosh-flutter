@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_date_divider.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
@@ -69,6 +70,9 @@ bool _continuesBlock(
   if (previousMs == null || currentMs == null) return false;
   if (previous.senderKey != current.senderKey) return false;
   if (currentMs < previousMs) return false;
+  if (!DateUtils.isSameDay(messageDate(previousMs), messageDate(currentMs))) {
+    return false;
+  }
   return currentMs - previousMs <=
       BigInt.from(conversationGroupWindow.inMilliseconds);
 }
@@ -178,8 +182,19 @@ class _ConversationMessageListViewState
         padding: kChatScrollPadding,
         reverse: true,
         itemCount: rows.length,
-        itemBuilder: (context, index) =>
-            _buildRow(context, rows[index], kind, l),
+        itemBuilder: (context, index) {
+          final date = messageDate(rows[index].message.sentAtMs);
+          final previous = index + 1 < rows.length
+              ? messageDate(rows[index + 1].message.sentAtMs)
+              : null;
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (date != null && !DateUtils.isSameDay(date, previous))
+                  ConversationDateDivider(date: date),
+                _buildRow(context, rows[index], kind, l),
+              ]);
+        },
       ),
     );
   }

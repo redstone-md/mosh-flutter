@@ -1667,5 +1667,19 @@
   "settingsCrashReportsUnavailable": "This build cannot send crash reports.",
   "@settingsCrashReportsUnavailable": {
     "description": "Subtitle of the crash-reporting switch in a build without a Sentry DSN"
-  }
+  },
+  "chatListSearch": "Search chats",
+  "chatListPersonal": "Personal",
+  "chatListGroups": "Groups",
+  "chatListChannels": "Channels",
+  "chatListYou": "You",
+  "chatListInvitations": "Invitations",
+  "chatListEmpty": "No matching chats",
+  "chatDetailsTitle": "Conversation details",
+  "chatDetailsFiles": "Shared files",
+  "chatDetailsNoFiles": "No shared files yet",
+  "chatDetailsParticipants": "Participants",
+  "chatDetailsDiagnostics": "Connection details",
+  "chatDetailsProtection": "Conversation protection",
+  "chatDetailsKnownAuthors": "Known authors"
 }
