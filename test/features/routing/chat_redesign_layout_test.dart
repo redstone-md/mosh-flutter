@@ -124,6 +124,28 @@ Future<void> _screenshot(WidgetTester tester, String name) async {
 }
 
 void main() {
+  testWidgets('details choice survives resizing and resets for another chat',
+      (tester) async {
+    final gateway = _gateway()
+      ..seedSessions([
+        TestSnapshots.dm(sessionId: 'alice', peerDisplayName: 'Alice'),
+        TestSnapshots.dm(sessionId: 'bob', peerDisplayName: 'Bob'),
+      ]);
+    await pumpShellApp(tester,
+        gateway: gateway, physical: const Size(1536, 900));
+    await _open(tester, 'Alice');
+    await tester.tap(find.descendant(
+        of: find.byType(ConversationDetailsPanel),
+        matching: find.byIcon(Icons.close)));
+    await tester.pumpAndSettle();
+
+    tester.view.physicalSize = const Size(1280, 900);
+    await tester.pumpAndSettle();
+    expect(find.byType(ConversationDetailsPanel), findsNothing);
+    await _open(tester, 'Bob');
+    expect(find.byKey(const ValueKey('conversation-details-docked')),
+        findsOneWidget);
+  });
   testWidgets(
       'conversation types have distinct cues in rail, filter and header',
       (tester) async {
