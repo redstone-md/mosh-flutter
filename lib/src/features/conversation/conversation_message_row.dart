@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
@@ -91,13 +92,12 @@ class ConversationMessageRow extends StatelessWidget {
                       child: Container(
                         key: ValueKey(
                             'message-bubble-${message.messageId ?? message.body}'),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
+                        padding: MoshShapes.messagePadding,
                         decoration: BoxDecoration(
                           color: message.own
-                              ? const Color(0xFF25472D)
+                              ? MoshColors.outgoingMessage
                               : MoshColors.bg2,
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: MoshShapes.message,
                         ),
                         child: _body(),
                       ),

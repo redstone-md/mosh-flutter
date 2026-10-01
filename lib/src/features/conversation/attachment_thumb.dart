@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -43,9 +44,9 @@ class AttachmentThumb extends StatelessWidget {
         child: PressScale(
           child: Material(
             color: MoshColors.bg3,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: MoshShapes.embedded,
             child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: MoshShapes.embedded,
               onTap: onOpenPressed,
               // `.attachment-thumb-button { color: var(--moss) }` with a
               // --bg-4 hover.
@@ -73,7 +74,7 @@ class AttachmentThumb extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: MoshColors.bg3,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: MoshShapes.embedded,
       ),
       child: Icon(
         failed ? Icons.error_outline : Icons.insert_drive_file_outlined,

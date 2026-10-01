@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/features/conversation/conversation_shared_file.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_details_model.dart';
@@ -100,7 +101,8 @@ class ConversationDetailsPanel extends ConsumerWidget {
 
   Widget _profile(BuildContext context, ConversationDetailsModel model) =>
       Column(children: [
-        Avatar(name: model.title, radius: 38),
+        ConversationKindAvatar(
+            kind: target.kind, name: model.title, radius: 38),
         const SizedBox(height: 14),
         Text(model.title,
             textAlign: TextAlign.center,

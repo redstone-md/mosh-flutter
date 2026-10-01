@@ -64,9 +64,7 @@ void main() {
   });
 
   testWidgets('the time label renders with tabular figures', (tester) async {
-    // The label is pumped directly: the card's fallback row overflows under
-    // the test font (Ahem glyphs are ~14px wide), and the label itself is
-    // the contract under test (extracted like MediaAudioTimeLabel).
+    // Exercise the timer's text styling independently of native playback.
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -93,10 +91,6 @@ void main() {
   // and the path arriving with a play queued does not throw -- the card
   // keeps rendering with the play affordance enabled.
   //
-  // Known artifact: the card's Row overflows by ~1px under the test font
-  // (Ahem glyphs; see the time-label test above). It is pre-existing and
-  // unrelated to this regression, so each pump drains the layout
-  // exception instead of failing on it.
   testWidgets(
       'tapping play before the download requests it, and the card '
       'survives the path arriving with the play queued', (tester) async {
@@ -127,14 +121,6 @@ void main() {
             ),
           ),
         );
-    void drainTestFontOverflow() {
-      final exception = tester.takeException();
-      if (exception != null) {
-        expect(exception.toString(), contains('RenderFlex overflowed'),
-            reason: 'only the known test-font overflow may surface');
-      }
-    }
-
     // Offered: tapping play queues the play and starts the download.
     await tester.pumpWidget(pumpCard(
       AttachmentView(
@@ -147,11 +133,11 @@ void main() {
       ),
     ));
     await tester.pump();
-    drainTestFontOverflow();
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.byIcon(Icons.play_arrow_rounded));
     await tester.pump();
-    drainTestFontOverflow();
+    expect(tester.takeException(), isNull);
     expect(downloaded, ['att-voice']);
 
     // Downloading (the real re-poll flips the view state): a second tap
@@ -167,10 +153,10 @@ void main() {
       ),
     ));
     await tester.pump();
-    drainTestFontOverflow();
+    expect(tester.takeException(), isNull);
     await tester.tap(find.byIcon(Icons.play_arrow_rounded));
     await tester.pump();
-    drainTestFontOverflow();
+    expect(tester.takeException(), isNull);
     expect(downloaded, ['att-voice']);
 
     // The local path arrives (download finished) with a play queued: the
@@ -186,7 +172,7 @@ void main() {
       ),
     ));
     await tester.pump();
-    drainTestFontOverflow();
+    expect(tester.takeException(), isNull);
     expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
   });
 }

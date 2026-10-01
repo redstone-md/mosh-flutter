@@ -34,7 +34,6 @@ class _MediaPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final outgoing = view?.direction == 'outgoing' || (view == null && own);
     final state = view?.state ??
         (outgoing ? AttachmentState.available : AttachmentState.offered);
@@ -57,7 +56,6 @@ class _MediaPreviewCard extends StatelessWidget {
 
     return _FileCardShell(
       failed: failed,
-      theme: theme,
       media: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
