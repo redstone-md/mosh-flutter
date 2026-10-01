@@ -140,7 +140,8 @@ class AttachmentCard extends StatelessWidget {
         label: l.attachmentOpenAria(descriptor.fileName),
         onOpen: canOpen ? () => onOpen(descriptor) : null,
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          // Keep metadata and inline time at the icon's lower edge.
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             AttachmentThumb(
               descriptor: descriptor,
