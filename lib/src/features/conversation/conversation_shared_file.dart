@@ -40,8 +40,9 @@ class ConversationSharedFile extends StatelessWidget {
         onOpen: canOpen ? () => actions.onOpen(file) : null,
         child: Row(children: [
           Container(
-            width: 40,
-            height: 46,
+            width: kAttachmentThumbSize,
+            height: kAttachmentThumbSize,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
                 color: MoshColors.mossGlow, borderRadius: MoshShapes.control),
             child: const Icon(Icons.insert_drive_file_outlined,
