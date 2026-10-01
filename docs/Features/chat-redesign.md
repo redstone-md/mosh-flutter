@@ -89,6 +89,8 @@ Physical Windows/Android runtime verification remains separate from widget tests
   checks now exercise row opening, conversation warnings and current link guidance.
   Added checks cover DM loading/error recovery and details reset across chats.
   Follow-up production changes have 34/34 covered lines and 8/8 covered branches.
+  Notice persistence checks stub recorder creation/disposal and unmount the chat
+  before restoring the plugin channel, keeping real file I/O independent of audio.
 - `flutter analyze --no-pub`: no issues.
 - `flutter test --no-pub --branch-coverage`: 986 passed, 5 skipped by existing
   native-library gates (four require Windows DLLs; one requires libmpv).
