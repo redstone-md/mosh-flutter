@@ -49,6 +49,7 @@ ScriptableGateway _gateway() {
             fromDevice: 'me',
             body: 'Да, отлично. Сейчас отправлю файл.',
             attachment: testAttachment(attachmentId: 'sample-file'),
+            read: true,
             sentAtMs: now + BigInt.one),
         TestMessages.dm(
             fromDevice: 'Alice',

@@ -1004,14 +1004,34 @@ fn read_state_survives_a_restart() {
     bob.set_read_receipts_enabled(true).expect("toggle on");
 
     let sent = alice
-        .send_message(&invite.session_id, "persist my read".to_string())
+        .send_attachment(
+            &invite.session_id,
+            "report.pdf".to_string(),
+            "application/pdf".to_string(),
+            vec![7; 1024],
+            None,
+            None,
+        )
         .expect("Alice should send");
+    let message_id = alice
+        .poll_session(&invite.session_id)
+        .expect("Alice snapshot")
+        .messages
+        .into_iter()
+        .find(|message| {
+            message
+                .attachment
+                .as_ref()
+                .is_some_and(|attachment| attachment.attachment_id == sent.attachment_id)
+        })
+        .and_then(|message| message.message_id)
+        .expect("attachment row id");
     bob.drain_inbound();
     bob.mark_viewed(&invite.session_id).expect("viewing passes");
     deliver_inbox(&net, ALICE_ID, BOB_ID, &invite);
     alice.drain_inbound();
     assert_eq!(
-        alice_message(&mut alice, &invite.session_id, &sent.message_id).read,
+        alice_message(&mut alice, &invite.session_id, &message_id).read,
         Some(true),
         "the settlement completes before the restart"
     );
@@ -1034,7 +1054,7 @@ fn read_state_survives_a_restart() {
     let message = view
         .messages
         .iter()
-        .find(|message| message.message_id.as_deref() == Some(sent.message_id.as_str()))
+        .find(|message| message.message_id.as_deref() == Some(message_id.as_str()))
         .expect("the message should rehydrate");
     assert_eq!(
         message.read,

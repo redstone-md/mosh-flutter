@@ -14,6 +14,32 @@ import 'package:mosh/src/rust/conversation/attachments.dart';
 /// semantics, while its tooltip remains a visual hint.
 const double kAttachmentThumbSize = 40;
 
+/// Available files use the whole row as their keyboard and pointer target.
+class AttachmentOpenTarget extends StatelessWidget {
+  const AttachmentOpenTarget({
+    super.key,
+    required this.label,
+    required this.onOpen,
+    required this.child,
+  });
+
+  final String label;
+  final VoidCallback? onOpen;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => onOpen == null
+      ? child
+      : Tooltip(
+          message: label,
+          child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                  borderRadius: MoshShapes.embedded,
+                  onTap: onOpen,
+                  child: child)));
+}
+
 class AttachmentThumb extends StatelessWidget {
   const AttachmentThumb({
     super.key,
@@ -26,7 +52,7 @@ class AttachmentThumb extends StatelessWidget {
   final AttachmentDescriptor descriptor;
   final bool viewable;
   final bool failed;
-  final void Function(AttachmentDescriptor descriptor) onOpen;
+  final void Function(AttachmentDescriptor descriptor)? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -35,8 +61,8 @@ class AttachmentThumb extends StatelessWidget {
     final icon = descriptor.mime.startsWith('image/')
         ? Icons.image_outlined
         : Icons.play_arrow;
-    if (viewable) {
-      void onOpenPressed() => onOpen(descriptor);
+    if (viewable && onOpen != null) {
+      void onOpenPressed() => onOpen!(descriptor);
       return Semantics(
         label: l.attachmentOpenAria(descriptor.fileName),
         button: true,
@@ -78,7 +104,11 @@ class AttachmentThumb extends StatelessWidget {
         borderRadius: MoshShapes.embedded,
       ),
       child: Icon(
-        failed ? Icons.error_outline : Icons.insert_drive_file_outlined,
+        failed
+            ? Icons.error_outline
+            : viewable
+                ? icon
+                : Icons.insert_drive_file_outlined,
         size: 20,
         color: failed ? MoshColors.danger : MoshColors.fg2,
       ),

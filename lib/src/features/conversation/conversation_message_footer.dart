@@ -20,11 +20,17 @@ class ConversationMessageFooter extends StatelessWidget {
   final ConversationMessage message;
   final ConversationKind kind;
 
+  // An authenticated read receipt also proves delivery, including files
+  // whose offer does not use the text outbox's delivery acknowledgements.
+  MessageDeliveryStatus? get _status => message.read == true
+      ? MessageDeliveryStatus.delivered
+      : message.deliveryStatus;
+
   bool get _hasTicks =>
       message.own &&
       kind == ConversationKind.dm &&
-      message.deliveryStatus != null &&
-      message.deliveryStatus != MessageDeliveryStatus.failed;
+      _status != null &&
+      _status != MessageDeliveryStatus.failed;
 
   String? _clock(BuildContext context) => formatClock(message.sentAtMs,
       locale: AppLocalizations.of(context)!.localeName);
@@ -64,7 +70,7 @@ class ConversationMessageFooter extends StatelessWidget {
               if (_hasTicks) ...[
                 if (clock != null) const SizedBox(width: 5),
                 DeliveryTicks(
-                    status: message.deliveryStatus,
+                    status: _status,
                     read: message.read == true,
                     color: _timeStyle.color,
                     compact: true),

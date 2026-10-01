@@ -14,19 +14,29 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
+import 'package:mosh/src/rust/conversation/attachments.dart';
 
 import '../../support/pump.dart';
 
 final BigInt _sentAt = BigInt.from(1700000000000);
 final AppLocalizations _l = lookupAppLocalizations(const Locale('en'));
 
-ConversationMessage _ownMessage({bool? read}) => ConversationMessage(
+ConversationMessage _ownMessage({bool? read, bool file = false}) =>
+    ConversationMessage(
       fromDevice: 'alice',
       fromFingerprint: null,
       body: 'hello',
       own: true,
       sentAtMs: _sentAt,
-      deliveryStatus: MessageDeliveryStatus.delivered,
+      attachment: file
+          ? AttachmentDescriptor(
+              attachmentId: 'read-file',
+              contentHash: 'hash',
+              fileName: 'report.pdf',
+              mime: 'application/pdf',
+              totalSize: BigInt.from(1024))
+          : null,
+      deliveryStatus: file ? null : MessageDeliveryStatus.delivered,
       read: read,
     );
 
@@ -67,7 +77,7 @@ void main() {
 
   testWidgets('the read receipt changes the color of the SAME delivered ticks',
       (tester) async {
-    await _pumpRow(tester, message: _ownMessage(read: true));
+    await _pumpRow(tester, message: _ownMessage(read: true, file: true));
 
     // Never a third tick: the visible text is still the delivered label,
     // and the row carries exactly one tick row.

@@ -7,11 +7,8 @@ part of 'attachment_card.dart';
 /// a tappable `Image.memory` (rounded, height-constrained) above the
 /// shared name+meta+progress bar + actions row.
 ///
-/// IN SCOPE: the onOpen tap (a `GestureDetector` opens the local file) and
-/// the actions row ([AttachmentActions] to the right of the bar). The
-/// video play-overlay is decorative (`Semantics(excludeSemantics: true)`);
-/// the wrapper uses the localized open attachment action as its semantics
-/// label.
+/// The preview opens media, with transfer controls alongside the caption.
+/// The video play-overlay is decorative; the wrapper labels the open action.
 class _MediaPreviewCard extends StatelessWidget {
   const _MediaPreviewCard({
     required this.descriptor,
@@ -154,18 +151,18 @@ class _MediaPreviewCard extends StatelessWidget {
                     messageFooter: messageFooter,
                   ),
                 ),
-                const SizedBox(width: 10),
-                AttachmentActions(
-                  descriptor: descriptor,
-                  view: view,
-                  state: state,
-                  outgoing: outgoing,
-                  busy: busy,
-                  onDownload: onDownload,
-                  onCancel: onCancel,
-                  onOpen: onOpen,
-                  l: l,
-                ),
+                if (!outgoing && state != AttachmentState.available) ...[
+                  const SizedBox(width: 10),
+                  AttachmentActions(
+                    descriptor: descriptor,
+                    state: state,
+                    outgoing: outgoing,
+                    busy: busy,
+                    onDownload: onDownload,
+                    onCancel: onCancel,
+                    l: l,
+                  ),
+                ],
               ],
             ),
           ),

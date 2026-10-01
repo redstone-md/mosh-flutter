@@ -113,7 +113,7 @@ class ConversationComposer extends StatelessWidget {
     final canSend = !sending && !disabled && controller.text.trim().isNotEmpty;
     // Composer chrome: bg-1 surface with a hairline top border.
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
       decoration: const BoxDecoration(
         color: MoshColors.bg1,
         border: Border(top: BorderSide(color: MoshColors.line)),

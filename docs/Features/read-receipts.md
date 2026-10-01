@@ -45,6 +45,12 @@ With the toggle on it receipts every counterpart message not yet receipted
 (a per-session in-memory id set stops re-sends while the process lives). With
 the toggle off it is a full no-op — no frame, no event.
 
+File and voice receipts use the attachment id from the encrypted manifest,
+which both peers share. Their local history message ids can differ. The sender
+maps that id to its own message row and persists the read flag with the existing
+session record. A confirmed read renders two ticks even without a text-outbox
+delivery status; a local file path alone never marks a message as read.
+
 ## Mixed-version tolerance
 
 An old client fails to decode the unknown `ReadReceipt` variant at
