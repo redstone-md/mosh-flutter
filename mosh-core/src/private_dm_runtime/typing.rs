@@ -90,23 +90,34 @@ impl PrivateDmSession {
     /// files the pinned `message_read` event, and notes the id so a restart
     /// does not re-ask. Unknown ids (a receipt for a message a restart
     /// already dropped) are ignored, exactly like the DeliveryAck.
-    pub(super) fn note_peer_read(&mut self, message_id: &str) {
-        if self.peer_read_ids.iter().any(|id| id == message_id) {
+    pub(super) fn note_peer_read(&mut self, receipt_id: &str) {
+        // File rows have local message ids on each peer. The encrypted
+        // manifest's attachment id is shared, including restored old rows.
+        let Some(message_id) = self.messages.iter().find_map(|message| {
+            (message.from_device == self.device_id
+                && (read_receipt_id(message) == Some(receipt_id)
+                    || message.message_id.as_deref() == Some(receipt_id)))
+            .then(|| message.message_id.clone())
+            .flatten()
+        }) else {
+            return;
+        };
+        if self.peer_read_ids.contains(&message_id) {
             return;
         }
-        let Some(message) = self.messages.find_mut(message_id) else {
+        let Some(message) = self.messages.find_mut(&message_id) else {
             return;
         };
         if message.from_device != self.device_id {
             return;
         }
-        self.peer_read_ids.push(message_id.to_string());
+        self.peer_read_ids.push(message_id.clone());
         if self.peer_read_ids.len() > READ_HISTORY_KEEP {
             self.peer_read_ids = prune_read_ids(&self.peer_read_ids);
         }
         message.read = Some(true);
         self.record_dirty = true;
-        push_read_event(&self.session_id, message_id, "peer-read");
+        push_read_event(&self.session_id, &message_id, "peer-read");
     }
 
     /// The user is looking at this DM: receipt every counterpart message
@@ -129,7 +140,7 @@ impl PrivateDmSession {
             .messages
             .iter()
             .filter(|message| self.message_needs_receipt(message))
-            .filter_map(|message| message.message_id.clone())
+            .filter_map(|message| read_receipt_id(message).map(str::to_string))
             .filter(|message_id| !self.sent_read_ids.contains(message_id))
             .collect();
         for message_id in unread {
@@ -183,4 +194,12 @@ impl PrivateDmSession {
         };
         self.route_send(ChannelKind::Control, &payload)
     }
+}
+
+fn read_receipt_id(message: &ChatMessage) -> Option<&str> {
+    message
+        .attachment
+        .as_ref()
+        .map(|attachment| attachment.attachment_id.as_str())
+        .or(message.message_id.as_deref())
 }

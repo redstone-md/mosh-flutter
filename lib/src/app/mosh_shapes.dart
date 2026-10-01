@@ -11,7 +11,7 @@ abstract final class MoshShapes {
   static const embedded = BorderRadius.all(Radius.circular(4));
 
   static const controlShape = RoundedRectangleBorder(borderRadius: control);
-  static const messagePadding =
-      EdgeInsets.symmetric(horizontal: 12, vertical: 10);
+  // The text's leading and the 2px-lower timestamp need less space above.
+  static const messagePadding = EdgeInsets.fromLTRB(12, 8, 12, 10);
   static const composerPadding = EdgeInsets.all(8);
 }

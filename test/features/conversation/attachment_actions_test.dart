@@ -26,13 +26,11 @@ void main() {
           builder: (context) => Scaffold(
             body: AttachmentActions(
               descriptor: _descriptor(),
-              view: null,
               state: AttachmentState.offered,
               outgoing: false,
               busy: true,
               onDownload: (_) {},
               onCancel: (_) {},
-              onOpen: (_) {},
               l: AppLocalizations.of(context)!,
             ),
           ),
@@ -49,13 +47,11 @@ void main() {
           builder: (context) => Scaffold(
             body: AttachmentActions(
               descriptor: _descriptor(),
-              view: null,
               state: AttachmentState.failed,
               outgoing: false,
               busy: true,
               onDownload: (_) {},
               onCancel: (_) {},
-              onOpen: (_) {},
               l: AppLocalizations.of(context)!,
             ),
           ),
@@ -72,13 +68,11 @@ void main() {
           builder: (context) => Scaffold(
             body: AttachmentActions(
               descriptor: _descriptor(),
-              view: null,
               state: AttachmentState.downloading,
               outgoing: false,
               busy: true,
               onDownload: (_) {},
               onCancel: (_) {},
-              onOpen: (_) {},
               l: AppLocalizations.of(context)!,
             ),
           ),

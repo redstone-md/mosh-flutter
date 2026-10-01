@@ -21,9 +21,8 @@
 // (`Semantics(excludeSemantics: true)`), the wrapper's image semantics
 // carries the label.
 //
-// ACTIONS ROW + onOpen tap (IN SCOPE): the 4-state machine lives in
-// [AttachmentActions] (attachment_actions.dart). The preview tap opens the
-// local file via `onOpen(descriptor)`.
+// Transfer controls live in [AttachmentActions]. Available files open by
+// tapping the row; media opens from its preview via `onOpen(descriptor)`.
 //
 // State derivation: `outgoing = view?.direction == "outgoing"`,
 // `state = view?.state ?? (outgoing ? "available" : "offered")`,
@@ -58,8 +57,7 @@ part 'attachment_card_branches.dart';
 /// message with no transfer state renders as `available`.
 ///
 /// Transfer-action callbacks (onDownload / onCancel / onOpen): all three
-/// are REQUIRED -- the DM screen always wires them. The Open button is
-/// disabled by [AttachmentActions] when `view.localPath == null`.
+/// are required. The file row opens only with a usable local path.
 class AttachmentCard extends StatelessWidget {
   const AttachmentCard({
     super.key,
@@ -126,6 +124,8 @@ class AttachmentCard extends StatelessWidget {
         (outgoing ? AttachmentState.available : AttachmentState.offered);
     final percent = _progressPercent(view);
     final failed = state == AttachmentState.failed;
+    final canOpen = state == AttachmentState.available &&
+        (view?.localPath?.isNotEmpty ?? false);
     final bar = _buildBar(
       l: l,
       fileName: descriptor.fileName,
@@ -136,31 +136,34 @@ class AttachmentCard extends StatelessWidget {
     );
     return _FileCardShell(
       failed: failed,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          AttachmentThumb(
-            descriptor: descriptor,
-            viewable: _isViewable,
-            failed: failed,
-            onOpen: onOpen,
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: bar),
-          // Info (expanding) + actions row to the right.
-          const SizedBox(width: 10),
-          AttachmentActions(
-            descriptor: descriptor,
-            view: view,
-            state: state,
-            outgoing: outgoing,
-            busy: busy,
-            onDownload: onDownload,
-            onCancel: onCancel,
-            onOpen: onOpen,
-            l: l,
-          ),
-        ],
+      child: AttachmentOpenTarget(
+        label: l.attachmentOpenAria(descriptor.fileName),
+        onOpen: canOpen ? () => onOpen(descriptor) : null,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            AttachmentThumb(
+              descriptor: descriptor,
+              viewable: _isViewable,
+              failed: failed,
+              onOpen: canOpen ? null : onOpen,
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: bar),
+            if (!outgoing && state != AttachmentState.available) ...[
+              const SizedBox(width: 10),
+              AttachmentActions(
+                descriptor: descriptor,
+                state: state,
+                outgoing: outgoing,
+                busy: busy,
+                onDownload: onDownload,
+                onCancel: onCancel,
+                l: l,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -226,7 +229,6 @@ class _FileCardShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 6),
       constraints: BoxConstraints(
         maxWidth: media ? kAttachmentMediaWidth : kAttachmentCardMaxWidth,
       ),

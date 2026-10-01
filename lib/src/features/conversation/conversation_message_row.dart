@@ -150,6 +150,8 @@ class ConversationMessageRow extends StatelessWidget {
                 ConversationMessageText(body: message.body, footer: footer)
               else
                 Text(message.body, style: kMessageBodyStyle),
+            if (message.body.isNotEmpty && message.attachment != null)
+              const SizedBox(height: 6),
             SelectionContainer.disabled(
                 child: _trailing(hasFooter ? footer : null)),
           ],
