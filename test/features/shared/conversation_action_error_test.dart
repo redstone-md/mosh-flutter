@@ -209,7 +209,9 @@ void main() {
       );
     await pumpConversation(tester, dm, gateway: gateway, useRouter: true);
 
-    await tester.tap(find.byIcon(dm.leaveIcon));
+    await tester.tap(find.byTooltip('More chat actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(dm.leaveConfirmLabel));
     await tester.pumpAndSettle();
     await tester.tap(find.text(dm.leaveConfirmLabel));
     await tester.pumpAndSettle();

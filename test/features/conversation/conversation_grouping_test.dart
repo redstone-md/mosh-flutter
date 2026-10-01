@@ -91,6 +91,19 @@ void main() {
       );
     });
 
+    test('messages across local midnight start separate blocks', () {
+      final before =
+          BigInt.from(DateTime(2026, 10, 1, 23, 59).millisecondsSinceEpoch);
+      final after =
+          BigInt.from(DateTime(2026, 10, 2, 0, 1).millisecondsSinceEpoch);
+      expect(
+          _groupedFlags([
+            _message(from: 'alice', body: 'before', sentAtMs: before),
+            _message(from: 'alice', body: 'after', sentAtMs: after),
+          ]),
+          [false, false]);
+    });
+
     test('another sender starts a new block', () {
       expect(
         _groupedFlags([

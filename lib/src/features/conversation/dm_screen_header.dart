@@ -77,6 +77,7 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final status = s == null ? '' : dmStateSentence(l, s.state, s.transport);
     final fingerprint = s?.fingerprint ?? '';
     return ConversationAppBar(
+      avatarName: s == null ? widget.sessionId : peerLabel(l, s),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -88,7 +89,8 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Flexible(
-                child: Text(s == null ? widget.sessionId : peerLabel(l, s)),
+                child: Text(s == null ? widget.sessionId : peerLabel(l, s),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               FingerprintLock(
                 fingerprint: fingerprint,
@@ -97,7 +99,10 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
             ],
           ),
           SizedBox(height: chatSubtitleGap(context)),
-          Text(status, style: chatSubtitleStyle(context)),
+          Text(status,
+              style: chatSubtitleStyle(context),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
       onOpenPeerStatus: widget.onOpenPeerStatus,
@@ -108,8 +113,6 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       onToggleMobileSearch: widget.onToggleMobileSearch,
       leaveMenuLabel: l.deleteChatConfirm,
       leaveMenuIcon: Icons.delete_outline,
-      desktopLeaveIcon: const Icon(Icons.close, size: 18),
-      desktopLeaveTooltip: l.shellCloseSession,
       inlineActions: [
         // Start-call button, between the kebab and the peer-status button.
         IconButton(

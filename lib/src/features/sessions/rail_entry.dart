@@ -16,6 +16,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -25,6 +26,7 @@ import 'package:mosh/src/features/conversation/peer_label.dart' show peerLabel;
 import 'package:mosh/src/features/conversation/dm_state.dart' show dmStateLabel;
 import 'package:mosh/src/features/sessions/rail_item.dart'
     show RailItem, RailItemKind;
+import 'package:mosh/src/features/sessions/rail_activity.dart';
 import 'package:mosh/src/features/shared/avatar.dart' show Avatar;
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
@@ -60,9 +62,70 @@ sealed class RailEntry {
   /// it is accepted.
   ConversationRef? get ref;
 
+  RailActivity get activity => const RailActivity();
+
+  String searchText(AppLocalizations l) => ref?.id ?? '';
+
+  String? preview(AppLocalizations l) {
+    final text = activity.text;
+    if (text == null) return null;
+    final prefix = activity.own
+        ? l.chatListYou
+        : ref?.kind == ConversationKind.dm
+            ? null
+            : activity.sender;
+    return prefix == null ? text : '$prefix: $text';
+  }
+
+  String? timestamp(BuildContext context) {
+    final at = activity.sentAtMs;
+    if (at == null) return null;
+    final date = DateTime.fromMillisecondsSinceEpoch(at.toInt()).toLocal();
+    final now = DateTime.now();
+    final sameDay =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    return sameDay
+        ? MaterialLocalizations.of(
+            context,
+          ).formatTimeOfDay(TimeOfDay.fromDateTime(date))
+        : MaterialLocalizations.of(context).formatShortDate(date);
+  }
+
   /// This row's widget. [chrome] is what the rail computed from [ref]; the
   /// row decides what to render with it.
   Widget buildRow(BuildContext context, RailRowChrome chrome);
+}
+
+List<RailEntry> recentRailEntries(
+  List<RailEntry> entries,
+  AppLocalizations l, {
+  String query = '',
+  ConversationKind? kind,
+}) {
+  final search = query.trim().toLowerCase();
+  final visible = entries
+      .where(
+        (entry) =>
+            (kind == null || entry.ref?.kind == kind) &&
+            entry.searchText(l).toLowerCase().contains(search),
+      )
+      .toList();
+  visible.sort((a, b) {
+    final aTime = a.activity.sentAtMs;
+    final bTime = b.activity.sentAtMs;
+    if (aTime != null && bTime != null) {
+      final result = bTime.compareTo(aTime);
+      if (result != 0) return result;
+    } else if (aTime != null) {
+      return -1;
+    } else if (bTime != null) {
+      return 1;
+    }
+    if (a.activity.text != null && b.activity.text == null) return -1;
+    if (b.activity.text != null && a.activity.text == null) return 1;
+    return (a.ref?.key ?? '').compareTo(b.ref?.key ?? '');
+  });
+  return visible;
 }
 
 /// One DM session row: an avatar with the label's initials via
@@ -73,9 +136,17 @@ sealed class RailEntry {
 /// is no longer in the org roster, the revoked badge -- an `UnreadBadge`
 /// when count > 0, and an onTap that navigates to the DM screen.
 final class DmRailEntry extends RailEntry {
-  const DmRailEntry(this.session, {this.revokedOrgName});
+  DmRailEntry(this.session, {this.revokedOrgName})
+      : activity = RailActivity.dm(session);
 
   final SessionSnapshot session;
+
+  @override
+  final RailActivity activity;
+
+  @override
+  String searchText(AppLocalizations l) =>
+      '${peerLabel(l, session)} ${activity.participantNames}';
 
   /// The org the peer left, when this DM is org-bound and the peer is no
   /// longer in the roster. The rail looks it up in
@@ -92,11 +163,12 @@ final class DmRailEntry extends RailEntry {
     final label = peerLabel(l, session);
     return RailItem(
       kind: RailItemKind.dm,
-      leading: Avatar(name: label),
+      leading: Avatar(name: label, radius: 24),
       title: label,
+      timestamp: timestamp(context),
       subtitle: revokedOrgName != null
           ? l.orgRevokedBadge(revokedOrgName!)
-          : dmStateLabel(l, session.state),
+          : preview(l) ?? dmStateLabel(l, session.state),
       // The expanded rail hides `.rail-dot`, so the badge stands alone.
       trailing: UnreadBadge(count: chrome.unreadCount),
       active: chrome.active,
@@ -113,9 +185,16 @@ final class DmRailEntry extends RailEntry {
 /// One channel row: leading `Icons.tag`, title `#<name>`, subtitle the
 /// topic, trailing `UnreadBadge`. `onTap` opens the channel screen.
 final class ChannelRailEntry extends RailEntry {
-  const ChannelRailEntry(this.channel);
+  ChannelRailEntry(this.channel) : activity = RailActivity.channel(channel);
 
   final ChannelSnapshot channel;
+
+  @override
+  final RailActivity activity;
+
+  @override
+  String searchText(AppLocalizations l) =>
+      '${channel.name} ${activity.participantNames}';
 
   @override
   ConversationRef get ref =>
@@ -125,10 +204,15 @@ final class ChannelRailEntry extends RailEntry {
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     return RailItem(
       kind: RailItemKind.channel,
-      leading: const Icon(Icons.tag),
+      leading: const CircleAvatar(
+          radius: 24,
+          backgroundColor: MoshColors.avatarSurface,
+          foregroundColor: MoshColors.fg1,
+          child: Icon(Icons.tag)),
       title: '#${channel.name}',
+      timestamp: timestamp(context),
       // An empty topic yields no subtitle line ([RailItem] hides it).
-      subtitle: channel.topic,
+      subtitle: preview(AppLocalizations.of(context)!) ?? channel.topic,
       trailing: UnreadBadge(count: chrome.unreadCount),
       active: chrome.active,
       onTap: () {
@@ -143,9 +227,16 @@ final class ChannelRailEntry extends RailEntry {
 /// (falling back to a shortened group id), subtitle the member count,
 /// trailing `UnreadBadge`. `onTap` opens the group screen.
 final class GroupRailEntry extends RailEntry {
-  const GroupRailEntry(this.group);
+  GroupRailEntry(this.group) : activity = RailActivity.group(group);
 
   final GroupSnapshot group;
+
+  @override
+  final RailActivity activity;
+
+  @override
+  String searchText(AppLocalizations l) =>
+      '${group.label ?? group.groupId} ${activity.participantNames}';
 
   @override
   ConversationRef get ref =>
@@ -157,11 +248,17 @@ final class GroupRailEntry extends RailEntry {
     final label = group.label ?? shorten(group.groupId, 6);
     return RailItem(
       kind: RailItemKind.group,
-      leading: const Icon(Icons.group_outlined),
+      leading: const CircleAvatar(
+        radius: 24,
+        backgroundColor: MoshColors.avatarSurface,
+        foregroundColor: MoshColors.fg1,
+        child: Icon(Icons.group_outlined),
+      ),
       title: label,
+      timestamp: timestamp(context),
       // `memberCount` is a `BigInt`; narrowing to `int` is safe for
       // realistic member counts.
-      subtitle: l.membersCount(group.memberCount.toInt()),
+      subtitle: preview(l) ?? l.membersCount(group.memberCount.toInt()),
       // The expanded rail hides `.rail-admin-crown` and `.rail-dot`
       // outright, so the badge is the only trailing element.
       trailing: UnreadBadge(count: chrome.unreadCount),
@@ -207,8 +304,11 @@ final class OfferRailEntry extends RailEntry {
           : l.onboardGroupInvite,
       semanticLabel: l.railOfferAccept(fromDevice),
       // Offer badge icon.
-      trailing: Icon(Icons.chat_bubble_outline,
-          size: 14, color: Theme.of(context).colorScheme.primary),
+      trailing: Icon(
+        Icons.chat_bubble_outline,
+        size: 14,
+        color: Theme.of(context).colorScheme.primary,
+      ),
       // Beside the accept target, not inside it: two sibling buttons.
       action: IconButton(
         icon: const Icon(Icons.close, size: 16),

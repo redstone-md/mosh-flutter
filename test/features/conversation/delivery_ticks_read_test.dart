@@ -51,12 +51,8 @@ Future<void> _pumpRow(
       ),
     );
 
-Text deliveredText(WidgetTester tester) {
-  final label = _l.deliveryDelivered;
-  return tester.widget<Text>(
-    find.text(label),
-  );
-}
+Icon deliveredIcon(WidgetTester tester) =>
+    tester.widget<Icon>(find.byIcon(Icons.done_all));
 
 void main() {
   setUpAll(() => initializeDateFormatting());
@@ -65,8 +61,8 @@ void main() {
       'the delivered ticks keep the meta grey while no receipt has landed',
       (tester) async {
     await _pumpRow(tester, message: _ownMessage(read: null));
-    final text = deliveredText(tester);
-    expect(text.style?.color, MoshColors.fg4);
+    final icon = deliveredIcon(tester);
+    expect(icon.color, MoshColors.fg3);
   });
 
   testWidgets('the read receipt changes the color of the SAME delivered ticks',
@@ -76,10 +72,10 @@ void main() {
     // Never a third tick: the visible text is still the delivered label,
     // and the row carries exactly one tick row.
     final label = _l.deliveryDelivered;
-    expect(find.text(label), findsOneWidget);
+    expect(find.byTooltip(label), findsOneWidget);
 
-    final text = deliveredText(tester);
-    expect(text.style?.color, MoshColors.moss);
+    final icon = deliveredIcon(tester);
+    expect(icon.color, MoshColors.moss300);
   });
 
   testWidgets('the ticks render nothing on a counterpart message',

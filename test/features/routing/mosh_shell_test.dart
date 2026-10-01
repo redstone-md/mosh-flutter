@@ -179,7 +179,9 @@ void main() {
     // Leave the DM (Icons.close -> ConfirmDialog -> "Delete chat"). On
     // desktop the screen's _leave routes to /chat, so branch B swaps back
     // to its initialLocation -- the inline NewSessionPanel reappears.
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byTooltip('More chat actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete chat'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete chat'));
     await tester.pumpAndSettle();

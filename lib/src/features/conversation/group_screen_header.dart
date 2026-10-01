@@ -100,82 +100,100 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
     );
     // Flutter `AppBar` has no `subtitle:` slot, so the subtitle renders as
     // the second line of a two-line `title:` Column.
-    return ConversationAppBar(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Group label with the fingerprint lock beside it. The lock
-          // shows the group's `creator_fingerprint` -- the same value
-          // every member reads -- and renders nothing while the snapshot
-          // has not resolved or the fingerprint is empty.
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(async.maybeWhen(
-                  data: (group) => group.label ?? l.groupUntitled,
-                  orElse: () => widget.groupId,
-                )),
+    return LayoutBuilder(
+        builder: (context, constraints) => ConversationAppBar(
+              avatarName: async.value?.label ?? l.groupUntitled,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Group label with the fingerprint lock beside it. The lock
+                  // shows the group's `creator_fingerprint` -- the same value
+                  // every member reads -- and renders nothing while the snapshot
+                  // has not resolved or the fingerprint is empty.
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                            async.maybeWhen(
+                              data: (group) => group.label ?? l.groupUntitled,
+                              orElse: () => widget.groupId,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      FingerprintLock(
+                        fingerprint: async.maybeWhen(
+                          data: (group) => group.creatorFingerprint,
+                          orElse: () => '',
+                        ),
+                        hint: l.groupFingerprintHint,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: chatSubtitleGap(context)),
+                  Text(
+                    async.maybeWhen(
+                      data: (group) => _groupSubtitle(group, l),
+                      orElse: () => '',
+                    ),
+                    style: chatSubtitleStyle(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              FingerprintLock(
-                fingerprint: async.maybeWhen(
-                  data: (group) => group.creatorFingerprint,
-                  orElse: () => '',
-                ),
-                hint: l.groupFingerprintHint,
-              ),
-            ],
-          ),
-          SizedBox(height: chatSubtitleGap(context)),
-          Text(
-            async.maybeWhen(
-              data: (group) => _groupSubtitle(group, l),
-              orElse: () => '',
-            ),
-            style: chatSubtitleStyle(context),
-          ),
-        ],
-      ),
-      onOpenPeerStatus: widget.onOpenPeerStatus,
-      onRequestLeave: widget.onLeave,
-      filter: widget.filter,
-      onFilter: widget.onFilter,
-      mobileSearchOpen: widget.mobileSearchOpen,
-      onToggleMobileSearch: widget.onToggleMobileSearch,
-      leaveMenuLabel: l.groupLeaveLabel,
-      leaveMenuIcon: Icons.logout,
-      desktopLeaveIcon: const Icon(Icons.logout),
-      desktopLeaveTooltip: l.groupLeaveLabel,
-      leadingActions: [
-        // The admin-pill badge, shown only if is_admin. `Icons.
-        // workspace_premium_outlined` matches the admin crown the rail uses.
-        if (async.maybeWhen(
-          data: (group) => group.isAdmin,
-          orElse: () => false,
-        ))
-          _AdminPill(label: l.groupAdminBadge),
-        // Copy-invite ghost icon button: copies `invite_uri`, shows a
-        // check ~1.6s then reverts; only when inviteUri != null.
-        if (hasInvite)
-          IconButton(
-            icon: Icon(_inviteCopied ? Icons.check : Icons.copy, size: 14),
-            tooltip: _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
-            onPressed: () => _copyInvite(async.value?.inviteUri),
-          ),
-      ],
-      menuActions: [
-        // Kebab copy-invite (only when inviteUri != null; label flips to
-        // "Invite copied" for 1600ms via the SAME `_copyInvite` +
-        // `_inviteCopied` state the desktop IconButton uses).
-        if (hasInvite)
-          ChatHeaderMenuAction(
-            label: _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
-            icon: _inviteCopied ? Icons.check : Icons.copy,
-            onSelect: () => _copyInvite(async.value?.inviteUri),
-          ),
-      ],
-    );
+              onOpenPeerStatus: widget.onOpenPeerStatus,
+              onRequestLeave: widget.onLeave,
+              filter: widget.filter,
+              onFilter: widget.onFilter,
+              mobileSearchOpen: widget.mobileSearchOpen,
+              onToggleMobileSearch: widget.onToggleMobileSearch,
+              leaveMenuLabel: l.groupLeaveLabel,
+              leaveMenuIcon: Icons.logout,
+              leadingActions: [
+                // The admin-pill badge, shown only if is_admin. `Icons.
+                // workspace_premium_outlined` matches the admin crown the rail uses.
+                if (async.maybeWhen(
+                  data: (group) => group.isAdmin,
+                  orElse: () => false,
+                ))
+                  if (constraints.maxWidth >= 450)
+                    _AdminPill(label: l.groupAdminBadge)
+                  else
+                    Tooltip(
+                        message: l.groupAdminBadge,
+                        child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            child: Icon(Icons.workspace_premium_outlined,
+                                size: 18))),
+                // Copy-invite ghost icon button: copies `invite_uri`, shows a
+                // check ~1.6s then reverts; only when inviteUri != null.
+                if (hasInvite && constraints.maxWidth >= 450)
+                  IconButton(
+                    icon: Icon(_inviteCopied ? Icons.check : Icons.copy,
+                        size: 14),
+                    tooltip: _inviteCopied
+                        ? l.groupCopyInviteDone
+                        : l.groupCopyInvite,
+                    onPressed: () => _copyInvite(async.value?.inviteUri),
+                  ),
+              ],
+              menuActions: [
+                // Kebab copy-invite (only when inviteUri != null; label flips to
+                // "Invite copied" for 1600ms via the SAME `_copyInvite` +
+                // `_inviteCopied` state the desktop IconButton uses).
+                if (hasInvite)
+                  ChatHeaderMenuAction(
+                    label: _inviteCopied
+                        ? l.groupCopyInviteDone
+                        : l.groupCopyInvite,
+                    icon: _inviteCopied ? Icons.check : Icons.copy,
+                    onSelect: () => _copyInvite(async.value?.inviteUri),
+                  ),
+              ],
+            ));
   }
 }
 

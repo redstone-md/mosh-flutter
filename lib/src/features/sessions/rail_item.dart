@@ -1,14 +1,4 @@
-// The rail row chrome.
-//
-// A rail row is at least 48px tall (large text grows it), radius 12, with
-// 12px side padding and a 10px gap, holding a leading avatar/icon, a
-// two-line text block (the theme's list-row title over its fg-2 subtitle)
-// and the unread badge. Active is an inset 2px accent ring.
-//
-// The per-kind tints: a DM row is plain bg-2 with fg-2 glyphs, a channel
-// row is channelTint (info at 10%) with info, and a group row is moss-glow
-// with moss. The active ring follows the tint (info for channels, moss
-// otherwise). Hover is a light wash over the tint, not a replacement.
+/// Shared rail rows: avatar, preview, time, unread badge and active highlight.
 library;
 
 import 'package:flutter/material.dart';
@@ -22,30 +12,24 @@ import 'package:mosh/src/features/shared/press_scale.dart';
 enum RailItemKind { dm, channel, group }
 
 /// Minimum height of one rail row; large text grows it.
-const double kRailItemHeight = 48;
+const double kRailItemHeight = 72;
 
 /// Minimum height of the pinned New chat and Settings buttons.
 const double kRailButtonHeight = 40;
 
 /// Vertical gap between rail rows.
-const double kRailListGap = 8;
+const double kRailListGap = 4;
 
 /// Padding around the rail and gap between its sections.
 const double kRailPadding = 12;
 
 /// Width of the expanded rail pane.
-const double kRailWidth = 268;
+const double kRailWidth = 348;
 
 /// Hover wash over any row tint: about one bg step lighter on bg2.
 final Color _kHoverOverlay = Colors.white.withValues(alpha: 0.03);
 
 extension on RailItemKind {
-  Color get background => switch (this) {
-        RailItemKind.dm => MoshColors.bg2,
-        RailItemKind.channel => MoshColors.channelTint,
-        RailItemKind.group => MoshColors.mossGlow,
-      };
-
   /// The glyph colour, and the colour of the active inset ring.
   Color get accent => switch (this) {
         RailItemKind.dm => MoshColors.fg2,
@@ -74,6 +58,7 @@ class RailItem extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.trailing,
+    this.timestamp,
     this.action,
     this.semanticLabel,
     this.active = false,
@@ -85,6 +70,7 @@ class RailItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget? trailing;
+  final String? timestamp;
   final Widget? action;
   final String? semanticLabel;
   final bool active;
@@ -99,7 +85,7 @@ class RailItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
       child: Material(
-        color: kind.background,
+        color: active ? MoshColors.mossGlow : Colors.transparent,
         borderRadius: radius,
         // Clips the tap target's ink to the row's corners when [action]
         // shares the row.
@@ -157,7 +143,11 @@ class RailItem extends StatelessWidget {
                 ),
                 const SizedBox(width: 10), // `.rail-item { gap: 10px }`
                 Expanded(
-                  child: _RailText(title: title, subtitle: subtitle),
+                  child: _RailText(
+                    title: title,
+                    subtitle: subtitle,
+                    timestamp: timestamp,
+                  ),
                 ),
                 if (trailing case final trailing?) ...<Widget>[
                   const SizedBox(width: 10),
@@ -175,10 +165,15 @@ class RailItem extends StatelessWidget {
 /// The row's title over its optional subtitle, in the theme's list-row
 /// styles (the subtitle is fg2, which clears 4.5:1 on every row tint).
 class _RailText extends StatelessWidget {
-  const _RailText({required this.title, required this.subtitle});
+  const _RailText({
+    required this.title,
+    required this.subtitle,
+    this.timestamp,
+  });
 
   final String title;
   final String subtitle;
+  final String? timestamp;
 
   @override
   Widget build(BuildContext context) {
@@ -193,11 +188,24 @@ class _RailText extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: styles.titleTextStyle,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: styles.titleTextStyle,
+                ),
+              ),
+              if (timestamp != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  timestamp!,
+                  style: const TextStyle(fontSize: 11, color: MoshColors.fg3),
+                ),
+              ],
+            ],
           ),
           if (subtitle.isNotEmpty) ...<Widget>[
             const SizedBox(height: 2), // `.rail-text { gap: 2px }`
@@ -222,10 +230,7 @@ class RailDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
-      child: Container(
-        height: 1,
-        color: MoshColors.lineStrong,
-      ),
+      child: Container(height: 1, color: MoshColors.lineStrong),
     );
   }
 }
@@ -264,8 +269,11 @@ class RailSettingsButton extends StatelessWidget {
                 ),
                 child: Row(
                   children: <Widget>[
-                    const Icon(Icons.settings_outlined,
-                        size: 18, color: MoshColors.fg2),
+                    const Icon(
+                      Icons.settings_outlined,
+                      size: 18,
+                      color: MoshColors.fg2,
+                    ),
                     const SizedBox(width: 10),
                     Flexible(
                       child: Text(
@@ -296,7 +304,7 @@ class RailSettingsButton extends StatelessWidget {
 ///
 /// Flutter has no dashed border primitive; a 1.5px solid moss border at the
 /// same alpha is the closest single-widget equivalent and keeps the row
-/// reading as an outlined affordance rather than a filled one.
+/// The circular moss plus keeps creation visible above the search.
 class RailNewButton extends StatelessWidget {
   const RailNewButton({super.key, required this.label, this.onTap});
 
@@ -317,21 +325,21 @@ class RailNewButton extends StatelessWidget {
           child: FocusRing(
             radius: radius,
             child: Container(
-              constraints: const BoxConstraints(minHeight: kRailButtonHeight),
+              constraints: const BoxConstraints(minHeight: 56),
               padding: const EdgeInsetsDirectional.symmetric(
                 horizontal: 12,
                 vertical: 6,
               ),
               decoration: BoxDecoration(
                 borderRadius: radius,
-                border: Border.all(
-                  color: MoshColors.moss.withValues(alpha: 0.35),
-                  width: 1.5,
-                ),
               ),
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.add, size: 18, color: MoshColors.moss),
+                  const CircleAvatar(
+                      radius: 19,
+                      backgroundColor: MoshColors.moss,
+                      child:
+                          Icon(Icons.add, size: 23, color: MoshColors.mossInk)),
                   const SizedBox(width: 10),
                   Flexible(
                     child: Text(

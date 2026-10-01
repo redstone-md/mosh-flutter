@@ -17,7 +17,9 @@ void main() {
       await pumpConversation(tester, testCase,
           gateway: gateway, useRouter: true);
 
-      await tester.tap(find.byIcon(testCase.leaveIcon));
+      await tester.tap(find.byTooltip('More chat actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(testCase.leaveConfirmLabel));
       await tester.pumpAndSettle();
 
       expect(find.text(testCase.leaveTitle), findsOneWidget);
@@ -30,7 +32,9 @@ void main() {
       await pumpConversation(tester, testCase,
           gateway: gateway, useRouter: true);
 
-      await tester.tap(find.byIcon(testCase.leaveIcon));
+      await tester.tap(find.byTooltip('More chat actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(testCase.leaveConfirmLabel));
       await tester.pumpAndSettle();
       await tester.tap(find.text(testCase.leaveConfirmLabel));
       await tester.pumpAndSettle();
@@ -43,7 +47,9 @@ void main() {
       await pumpConversation(tester, testCase,
           gateway: gateway, useRouter: true);
 
-      await tester.tap(find.byIcon(testCase.leaveIcon));
+      await tester.tap(find.byTooltip('More chat actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(testCase.leaveConfirmLabel));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();

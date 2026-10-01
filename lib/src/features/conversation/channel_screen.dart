@@ -19,7 +19,8 @@ class ChannelScreen extends StatelessWidget {
   Widget build(BuildContext context) => ConversationScreen(
         target: ChannelTarget(name),
         header: (context, chrome) => ConversationAppBar(
-          title: Text(name),
+          avatarName: '#$name',
+          title: Text('#$name'),
           onOpenPeerStatus: chrome.onOpenPeerStatus,
           onRequestLeave: () => chrome.onRequestLeave(),
           filter: chrome.filter,
@@ -28,8 +29,6 @@ class ChannelScreen extends StatelessWidget {
           onToggleMobileSearch: chrome.onToggleMobileSearch,
           leaveMenuLabel: AppLocalizations.of(context)!.channelLeaveLabel,
           leaveMenuIcon: Icons.logout,
-          desktopLeaveIcon: const Icon(Icons.logout),
-          desktopLeaveTooltip: AppLocalizations.of(context)!.channelLeaveLabel,
         ),
       );
 }

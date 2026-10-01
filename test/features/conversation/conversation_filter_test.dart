@@ -157,8 +157,9 @@ void main() {
       expect(find.text('hello'), findsOneWidget);
       expect(find.text('see this'), findsOneWidget);
 
-      // The search box is the first text field on the screen; the composer
-      // is the other one.
+      await tester.tap(find.byTooltip('Search messages'));
+      await tester.pumpAndSettle();
+      // The opened search precedes the composer.
       await tester.enterText(find.byType(TextField).first, 'report');
       await tester.pumpAndSettle();
 

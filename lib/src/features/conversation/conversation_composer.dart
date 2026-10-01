@@ -121,13 +121,13 @@ class ConversationComposer extends StatelessWidget {
         valueListenable: controller,
         builder: (context, value, _) {
           final enabled = !sending && !disabled && value.text.trim().isNotEmpty;
-          // The composer box: bordered bg-2 rounded container, min 46px tall.
+          // The composer box: bordered bg-2 pill, min 54px tall.
           return Container(
-            constraints: const BoxConstraints(minHeight: 46),
-            padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+            constraints: const BoxConstraints(minHeight: 54),
+            padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
             decoration: BoxDecoration(
               color: MoshColors.bg2,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(color: MoshColors.line),
             ),
             child: Row(
@@ -207,7 +207,7 @@ class ConversationComposer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: kComposerGap),
-                // Moss 32x32 rounded square, dropping to bg-3/fg-4 when
+                // Moss 32px circular send button, dropping to bg-3/fg-4 when
                 // disabled. The painted square is 32x32; the theme's M3
                 // padded tap target makes the button's LAYOUT box 40-48px
                 // (density adjusted), so the >=40px tap floor and the
@@ -225,7 +225,7 @@ class ConversationComposer extends StatelessWidget {
                         minimumSize: const Size.square(kComposerButtonSize),
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         disabledBackgroundColor: MoshColors.bg3,
                         disabledForegroundColor: MoshColors.fg4,
