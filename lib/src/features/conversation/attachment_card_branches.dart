@@ -39,14 +39,15 @@ class _MediaPreviewCard extends StatelessWidget {
         (outgoing ? AttachmentState.available : AttachmentState.offered);
     final percent = _progressPercent(view);
     final failed = state == AttachmentState.failed;
-    final thumb = descriptor.thumbnailB64!;
+    final thumb = descriptor.thumbnailB64;
+    final localPath = _localImagePreview(descriptor, view);
     // A malformed server thumbnail must never take the conversation down:
     // base64Decode throws during build, which errorBuilder cannot catch.
     // Empty bytes on decode failure -> Image.memory's decode fails ->
     // errorBuilder renders the broken-image fallback.
     var bytes = Uint8List(0);
     try {
-      bytes = Uint8List.fromList(base64Decode(thumb));
+      if (thumb != null) bytes = base64Decode(thumb);
     } catch (_) {
       // malformed thumbnail: broken-image fallback below
     }
@@ -70,8 +71,7 @@ class _MediaPreviewCard extends StatelessWidget {
             button: true,
             child: GestureDetector(
               onTap: () => onOpen(descriptor),
-              // Full-width bg-0 preview box; the shell already clips the
-              // corners.
+              // The bubble supplies the surface beneath transparent images.
               child: Container(
                 width: double.infinity,
                 constraints: const BoxConstraints(
@@ -79,17 +79,19 @@ class _MediaPreviewCard extends StatelessWidget {
                   maxHeight: kAttachmentPreviewMaxHeight,
                 ),
                 decoration: const BoxDecoration(
-                  color: MoshColors.bg0,
-                  border: Border(bottom: BorderSide(color: MoshColors.line)),
+                  color: MoshColors.line,
                 ),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Image.memory(
+                    Image(
                       // Empty only when the base64 thumbnail was
                       // malformed; the errorBuilder renders the
                       // broken-image fallback in that case.
-                      bytes,
+                      image: localPath != null
+                          ? ResizeImage.resizeIfNeeded(
+                              640, null, FileImage(File(localPath)))
+                          : MemoryImage(bytes),
                       width: double.infinity,
                       fit: BoxFit.cover,
                       gaplessPlayback: true,
@@ -97,7 +99,7 @@ class _MediaPreviewCard extends StatelessWidget {
                         height: kAttachmentPreviewMinHeight,
                         width: double.infinity,
                         child: ColoredBox(
-                          color: MoshColors.bg3,
+                          color: MoshColors.line,
                           child: Icon(
                             Icons.broken_image_outlined,
                             size: 32,
@@ -120,8 +122,8 @@ class _MediaPreviewCard extends StatelessWidget {
                             color: MoshColors.bg0.withValues(alpha: 0.62),
                           ),
                           child: const Center(
-                            child: OpticalIcon(
-                              icon: Icons.play_arrow,
+                            child: Icon(
+                              Icons.play_arrow,
                               size: 24,
                               color: Colors.white,
                             ),

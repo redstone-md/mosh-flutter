@@ -103,10 +103,11 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
       title: ConversationHeaderTitle(
         name: group == null ? widget.groupId : group.label ?? l.groupUntitled,
         subtitle: group == null ? '' : _groupSubtitle(group, l),
-      ),
-      identityAction: FingerprintLock(
-        fingerprint: group?.creatorFingerprint ?? '',
-        hint: l.groupFingerprintHint,
+        onOpenDetails: widget.onOpenPeerStatus,
+        nameAction: FingerprintLock(
+            fingerprint: group?.creatorFingerprint ?? '',
+            hint: l.groupFingerprintHint,
+            besideName: true),
       ),
       onOpenPeerStatus: widget.onOpenPeerStatus,
       onRequestLeave: widget.onLeave,

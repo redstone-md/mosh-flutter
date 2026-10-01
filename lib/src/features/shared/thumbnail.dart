@@ -9,7 +9,8 @@
 // preview".
 //
 // Output: a base64-encoded JPEG (no `data:` prefix). The 320px max-edge +
-// 70% quality. Aspect is preserved via `copyResize` (width-only
+// 70% quality, shrinking further to fit the 32 KiB base64 manifest limit.
+// Aspect is preserved via `copyResize` (width-only
 // resize auto-computes height).
 library;
 
@@ -18,7 +19,7 @@ import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:image/image.dart' as img
-    show decodeImage, decodeNamedImage, copyResize, encodeJpg;
+    show Image, decodeImage, decodeNamedImage, copyResize, encodeJpg;
 import 'package:media_kit/media_kit.dart';
 import 'package:mime/mime.dart' show lookupMimeType;
 
@@ -27,6 +28,9 @@ const int _thumbnailMaxEdge = 320;
 
 /// JPEG quality (0-100); 70 of 100.
 const int _jpegQuality = 70;
+
+// The attachment manifest discards previews larger than this wire limit.
+const int _thumbnailMaxBase64 = 32 * 1024;
 
 /// Generates a base64-encoded JPEG thumbnail for an image or video file, or
 /// null for other types / decode failures.
@@ -53,30 +57,31 @@ Future<String?> createThumbnail(Uint8List bytes, String fileName) async {
 }
 
 /// Image branch. Returns null for
-/// non-images / decode failures (never fatal). Behavior-identical to the
-/// pre-video-branch implementation (byte-identical output).
+/// non-images / decode failures (never fatal).
 Future<String?> _createImageThumbnail(Uint8List bytes, String fileName) async {
   try {
-    final decoded = img.decodeNamedImage(fileName, bytes);
+    final decoded =
+        img.decodeNamedImage(fileName, bytes) ?? img.decodeImage(bytes);
     if (decoded == null) return null;
-    // Scale: the longest edge
-    // becomes MAX, the other scales by the same factor. copyResize with only
-    // width set auto-computes height to preserve aspect -- so resize by the
-    // LONGER dimension: width=MAX for landscape/square, height=MAX for
-    // portrait (so the 320 edge is the portrait height).
-    final w = decoded.width;
-    final h = decoded.height;
-    final resized = w >= h
-        ? img.copyResize(decoded, width: _thumbnailMaxEdge)
-        : img.copyResize(decoded, height: _thumbnailMaxEdge);
-    final jpeg = img.encodeJpg(resized, quality: _jpegQuality);
-    return base64Encode(jpeg);
+    return _encodeThumbnail(decoded);
   } catch (_) {
     // Never fatal -- resolve null on any decode failure. `catch (_)` on
     // purpose: a corrupt or oversized bitmap throws a RangeError, an Error,
     // not an Exception, and that used to escape as an uncaught async error.
     return null;
   }
+}
+
+/// Keep detailed images within the manifest limit instead of losing the preview.
+String? _encodeThumbnail(img.Image decoded) {
+  for (final edge in [_thumbnailMaxEdge, 240, 160, 80]) {
+    final resized = decoded.width >= decoded.height
+        ? img.copyResize(decoded, width: edge)
+        : img.copyResize(decoded, height: edge);
+    final encoded = base64Encode(img.encodeJpg(resized, quality: _jpegQuality));
+    if (encoded.length <= _thumbnailMaxBase64) return encoded;
+  }
+  return null;
 }
 
 /// Video branch. Seeks to 10% of the
@@ -151,13 +156,7 @@ Future<String?> _createVideoThumbnail(Uint8List bytes) async {
     //    bytes returned by screenshot().
     final decoded = img.decodeImage(frame);
     if (decoded == null) return null;
-    final w = decoded.width;
-    final h = decoded.height;
-    final resized = w >= h
-        ? img.copyResize(decoded, width: _thumbnailMaxEdge)
-        : img.copyResize(decoded, height: _thumbnailMaxEdge);
-    final jpeg = img.encodeJpg(resized, quality: _jpegQuality);
-    return base64Encode(jpeg);
+    return _encodeThumbnail(decoded);
   } on Exception {
     // media_kit native backend unavailable / decode failure -- never fatal.
     return null;
