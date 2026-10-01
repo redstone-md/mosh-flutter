@@ -61,7 +61,7 @@ class CryptoNoticeBanner extends StatelessWidget {
           border: Border.all(color: border, width: 1),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // A 32x32 rounded tinted square holding
             // the 18px icon, centered.
