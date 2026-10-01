@@ -96,7 +96,10 @@ class ConversationMessageRow extends StatelessWidget {
                       child: Container(
                         key: ValueKey(
                             'message-bubble-${message.messageId ?? message.body}'),
-                        padding: MoshShapes.messagePadding,
+                        padding: message.attachment != null &&
+                                message.attachment!.voice == null
+                            ? MoshShapes.attachmentPadding
+                            : MoshShapes.messagePadding,
                         decoration: BoxDecoration(
                           color: message.own
                               ? MoshColors.outgoingMessage
@@ -153,7 +156,7 @@ class ConversationMessageRow extends StatelessWidget {
             if (message.body.isNotEmpty && message.attachment != null)
               const SizedBox(height: 6),
             SelectionContainer.disabled(
-                child: _trailing(hasFooter ? footer : null)),
+                child: _trailing(context, hasFooter ? footer : null)),
           ],
         ),
         if (!textOnly && message.attachment == null && hasFooter)
@@ -163,7 +166,7 @@ class ConversationMessageRow extends StatelessWidget {
   }
 
   /// Attachment and call controls remain outside text selection.
-  Widget _trailing(Widget? footer) {
+  Widget _trailing(BuildContext context, Widget? footer) {
     final attachment = message.attachment;
     final callEvent = message.callEvent;
     return Column(
@@ -180,6 +183,8 @@ class ConversationMessageRow extends StatelessWidget {
             onCancel: onAttachmentCancel,
             onOpen: onAttachmentOpen,
             messageFooter: footer,
+            borderRadius: MoshShapes.attachmentCorners(
+                _corners.resolve(Directionality.of(context))),
           ),
         if (callEvent != null) CallLogEntry(event: callEvent, l: l),
         if (message.canRetry)

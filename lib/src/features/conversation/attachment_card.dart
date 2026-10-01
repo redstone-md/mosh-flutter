@@ -69,6 +69,7 @@ class AttachmentCard extends StatelessWidget {
     required this.onCancel,
     required this.onOpen,
     this.messageFooter,
+    this.borderRadius = MoshShapes.attachment,
   });
 
   final AttachmentDescriptor descriptor;
@@ -76,6 +77,7 @@ class AttachmentCard extends StatelessWidget {
   final bool own;
   final bool busy;
   final Widget? messageFooter;
+  final BorderRadius borderRadius;
 
   /// Fires `Gateway.downloadAttachment`; the screen invalidates the session
   /// provider so the downloading state re-renders.
@@ -114,6 +116,7 @@ class AttachmentCard extends StatelessWidget {
         onCancel: onCancel,
         onOpen: onOpen,
         messageFooter: messageFooter,
+        borderRadius: borderRadius,
       );
     }
 
@@ -136,9 +139,11 @@ class AttachmentCard extends StatelessWidget {
     );
     return _FileCardShell(
       failed: failed,
+      borderRadius: borderRadius,
       child: AttachmentOpenTarget(
         label: l.attachmentOpenAria(descriptor.fileName),
         onOpen: canOpen ? () => onOpen(descriptor) : null,
+        borderRadius: borderRadius,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -147,6 +152,11 @@ class AttachmentCard extends StatelessWidget {
               viewable: _isViewable,
               failed: failed,
               onOpen: canOpen ? null : onOpen,
+              // The icon's right edge sits beside text, inside the row.
+              borderRadius: borderRadius.copyWith(
+                topRight: MoshShapes.attachment.topRight,
+                bottomRight: MoshShapes.attachment.bottomRight,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(child: bar),
@@ -214,16 +224,18 @@ const double kAttachmentPreviewMaxHeight = 260;
 const double kAttachmentPreviewMinHeight = 120;
 
 /// Embedded content shares the message surface. Files are flat rows;
-/// media has a clipped 4px surface. Failed transfers keep a visible edge.
+/// media clips to the bubble's inset corners. Failed transfers keep an edge.
 class _FileCardShell extends StatelessWidget {
   const _FileCardShell({
     required this.failed,
     required this.child,
+    required this.borderRadius,
     this.media = false,
   });
 
   final bool failed;
   final Widget child;
+  final BorderRadius borderRadius;
   final bool media;
 
   @override
@@ -236,7 +248,7 @@ class _FileCardShell extends StatelessWidget {
       clipBehavior: media ? Clip.antiAlias : Clip.none,
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(
-        borderRadius: MoshShapes.embedded,
+        borderRadius: borderRadius,
         border: failed ? Border.all(color: MoshColors.danger) : null,
       ),
       child: child,

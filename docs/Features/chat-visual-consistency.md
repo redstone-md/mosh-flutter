@@ -37,7 +37,8 @@ remain checks on a real device.
   shadows or decorative gradients.
 - Typography: existing Mosh theme; message text stays at 14px, previews and
   metadata use the existing smaller steps and foreground levels.
-- Spacing: 4px base, 12px/10px message insets and 8px composer control inset.
+- Spacing: 4px base, 12px horizontal text insets, 8px file/media insets and
+  8px composer control inset.
   The waveform takes the remaining space, while play retains its 40px hit target.
 
 ## Shape ownership
@@ -51,7 +52,12 @@ these tokens instead of choosing their own corner radius.
 | Conversation rows | 12px | Stable in selected and unselected states |
 | Message outside corners | 16px | 4px joins on the sender side of a series |
 | Composer control group | 16px | 8px control corner plus 8px inset |
-| Embedded media and file icon surfaces | 4px | 16px message corner minus 12px horizontal inset |
+| Media and file icon surfaces | 8px | 16px message corner minus a uniform 8px inset |
+
+File and media messages use equal 8px insets on all sides. Inner corners follow
+the actual bubble corners, clamped to zero at tighter sender-series joins.
+Image previews clip separately from their captions, so their lower corners
+also remain rounded. Text and voice messages retain their optical insets.
 
 The message-search segment uses its outer 8px corner minus its 3px inset.
 Avatars and voice play remain circles because they are identity and transport

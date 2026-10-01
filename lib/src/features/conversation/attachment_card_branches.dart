@@ -19,6 +19,7 @@ class _MediaPreviewCard extends StatelessWidget {
     required this.onCancel,
     required this.onOpen,
     this.messageFooter,
+    required this.borderRadius,
   });
 
   final AttachmentDescriptor descriptor;
@@ -26,6 +27,7 @@ class _MediaPreviewCard extends StatelessWidget {
   final bool own;
   final bool busy;
   final Widget? messageFooter;
+  final BorderRadius borderRadius;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
   final void Function(AttachmentDescriptor descriptor) onOpen;
@@ -57,6 +59,7 @@ class _MediaPreviewCard extends StatelessWidget {
     return _FileCardShell(
       failed: failed,
       media: true,
+      borderRadius: borderRadius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -73,12 +76,19 @@ class _MediaPreviewCard extends StatelessWidget {
               // The bubble supplies the surface beneath transparent images.
               child: Container(
                 width: double.infinity,
+                clipBehavior: Clip.antiAlias,
                 constraints: const BoxConstraints(
                   minHeight: kAttachmentPreviewMinHeight,
                   maxHeight: kAttachmentPreviewMaxHeight,
                 ),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: MoshColors.line,
+                  // The caption separates the image's lower corners from
+                  // the bubble's lower corners, so these stay rounded.
+                  borderRadius: borderRadius.copyWith(
+                    bottomLeft: MoshShapes.attachment.bottomLeft,
+                    bottomRight: MoshShapes.attachment.bottomRight,
+                  ),
                 ),
                 child: Stack(
                   alignment: Alignment.center,
