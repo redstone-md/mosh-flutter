@@ -922,8 +922,8 @@ the last section for the application launch, without writing it to disk. Only
 the wide sidebar restores its content; narrow entries always start at the list.
 
 The [redesign](Features/settings-redesign.md) delivers the frame, Sound,
-Devices and Connection. Privacy and About keep their existing presentation
-until their individual redesign stages. Settings use the existing titlebar's
+Devices, Connection and Privacy. About keeps its existing presentation until
+its redesign stage. Settings use the existing titlebar's
 brand variant; conversation status remains owned by the hidden chat shell.
 
 ```mermaid
@@ -973,6 +973,15 @@ network inventory. An unavailable adapter or failed enumeration falls back to
 default routing with a log entry and retains the saved choice. Explicit process
 overrides take precedence. Saving or clearing consent affects the next launch;
 it does not rebind a running node.
+
+Privacy uses SettingsToggleCard for crash reporting and read receipts. The
+existing AsyncSwitchTile still owns async reads, pending-write guards and
+rollback; CrashReporting owns SDK consent and cleanup (ADR 0035). Card details
+use distinct PageStorage keys and never mount or toggle the reporting controls.
+The native stack-memory caveat stays visible outside report details. Short
+summaries move below switch rows in narrow or enlarged-text layouts; a stable
+Flexible child keeps switch state alive when the card header changes direction.
+A build without reporting availability disables only the crash-report switch.
 
 Audio selectors keep disconnected saved devices visible without overwriting
 the preference. Enumeration errors offer retry and the system default. A

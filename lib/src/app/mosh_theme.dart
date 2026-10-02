@@ -311,11 +311,12 @@ ThemeData buildMoshTheme() {
     bottomSheetTheme: MoshMenuTheme.sheet(_moshColorScheme),
     switchTheme: SwitchThemeData(
       // M3 uses primaryContainer on hover/focus/press, matching our track.
-      thumbColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) &&
-                  !states.contains(WidgetState.disabled)
-              ? MoshColors.mossInk
-              : null),
+      thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? null
+              : states.contains(WidgetState.selected)
+                  ? MoshColors.mossInk
+                  : MoshColors.fg2),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(

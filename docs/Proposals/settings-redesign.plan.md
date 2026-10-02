@@ -77,3 +77,24 @@ the current node until restart, and startup fallback for unavailable hardware.
 No dependency, schema or public bridge change is needed. First reproduce with
 separate saved/runtime states and independent native processes, then verify
 Flutter, real Moss startup, Rust formatting/tests/clippy and Android arm64.
+
+## Privacy screen
+
+Use two shared toggle cards for crash reporting and read receipts. Reuse
+SettingsSurface, SettingsIcon and AsyncSwitchTile; keep the existing reporter,
+bridge reads/writes, default-off consent, pending guards and rollback.
+Keep short explanations beside switches, collapse longer details with Material
+ExpansionTile, and keep the native stack-memory warning outside the disclosure.
+Persist each disclosure with a separate PageStorage key.
+
+The task is choosing what leaves this device. Switches lead the hierarchy;
+the icon plates, graphite surfaces, moss accent and muted explanatory text
+follow the approved Mosh settings. Use 20px card padding and 16px card gaps,
+theme title/body styles and existing rounded surfaces. Adapt the icon/toggle
+header for phones and enlarged text instead of squeezing the explanation.
+
+Check existing SDK and receipt write seams, missing reporting availability,
+loading/error/rollback, disclosure independence and section return. Inspect
+desktop, Android-size and 320px/enlarged-text captures. Run formatting, Flutter
+analysis/tests/changed-line coverage and an Android arm64 debug build. No
+native APIs, schemas, dependencies or reporting data flows change here.
