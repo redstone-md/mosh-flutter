@@ -4,6 +4,32 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-10-02
+
+### Added
+- Separate settings screen with Sound, Devices, Connection, Privacy and About.
+  Desktop uses a sidebar; phones and narrow windows open the section list first.
+- Android camera scanning for device linking, with QR image and link imports
+  available as alternatives.
+
+### Changed
+- Device linking starts with a QR on the trusted device. The new device scans
+  it and displays a code, which the trusted device confirms before granting access.
+  Existing linked devices retain their identities and history. Create a new QR
+  when starting a new pairing; old-format invitations are no longer accepted.
+- Selection menus use rounded desktop popovers and mobile sheets.
+- Read receipts now live in Privacy alongside optional crash reporting.
+- Connection settings focus on VPN bypass, with a saved on/off switch and
+  adapter selection. About shows the installed version and build directly.
+- Settings cards share consistent icon spacing and text alignment.
+
+### Fixed
+- VPN bypass restores the saved adapter after restarting the app.
+- Reopening settings preserves the selected desktop section and the chat's
+  scroll position and draft. Narrow windows always return to the section list.
+- Connection disclosures retain their state when reopened or refreshed.
+- Switch thumbs remain visible on hover.
+
 ## [0.13.0] - 2026-10-02
 
 ### Added
