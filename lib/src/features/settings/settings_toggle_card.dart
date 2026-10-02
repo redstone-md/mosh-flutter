@@ -6,14 +6,12 @@ import 'settings_card.dart';
 class SettingsToggleCard extends StatelessWidget {
   const SettingsToggleCard({
     required PageStorageKey<String> key,
-    required this.icon,
     required this.toggle,
     required this.detailsTitle,
     required this.details,
     this.notice,
   }) : super(key: key);
 
-  final IconData icon;
   final Widget toggle;
   final String detailsTitle;
   final String details;
@@ -25,7 +23,10 @@ class SettingsToggleCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _header(context),
+            ListTileTheme(
+              data: SettingsCardHeader.layout(context),
+              child: toggle,
+            ),
             if (notice != null) ...[
               const SizedBox(height: 16),
               const Divider(height: 1),
@@ -38,32 +39,11 @@ class SettingsToggleCard extends StatelessWidget {
         ),
       );
 
-  Widget _header(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-          final stacked = constraints.maxWidth < 360 * textScale;
-          return Flex(
-            direction: stacked ? Axis.vertical : Axis.horizontal,
-            crossAxisAlignment:
-                stacked ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-            children: [
-              SettingsIcon(icon),
-              SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),
-              Flexible(
-                flex: stacked ? 0 : 1,
-                fit: FlexFit.tight,
-                child: toggle,
-              ),
-            ],
-          );
-        },
-      );
-
   Widget _notice(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const Icon(Icons.info_outline, size: 20),
-          const SizedBox(width: 12),
+          const SizedBox(width: SettingsCardHeader.iconTextGap),
           Expanded(
               child:
                   Text(notice!, style: Theme.of(context).textTheme.bodySmall)),

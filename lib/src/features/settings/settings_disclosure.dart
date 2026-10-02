@@ -38,23 +38,26 @@ class _SettingsDisclosureState extends State<SettingsDisclosure> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return SettingsSurface(
-      child: ExpansionTile(
-        leading: SettingsIcon(widget.icon),
-        title: Text(widget.title, style: text.titleMedium),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(widget.summary, style: text.bodySmall),
+      child: ListTileTheme(
+        data: SettingsCardHeader.layout(context),
+        child: ExpansionTile(
+          leading: SettingsIcon(widget.icon),
+          title: Text(widget.title, style: text.titleMedium),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(widget.summary, style: text.bodySmall),
+          ),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          shape: const Border(),
+          collapsedShape: const Border(),
+          visualDensity: VisualDensity.standard,
+          maintainState: true,
+          onExpansionChanged: (expanded) {
+            if (expanded && !_visited) setState(() => _visited = true);
+          },
+          children: [if (_visited) widget.child],
         ),
-        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        shape: const Border(),
-        collapsedShape: const Border(),
-        visualDensity: VisualDensity.standard,
-        maintainState: true,
-        onExpansionChanged: (expanded) {
-          if (expanded && !_visited) setState(() => _visited = true);
-        },
-        children: [if (_visited) widget.child],
       ),
     );
   }

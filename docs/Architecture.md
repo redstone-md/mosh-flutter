@@ -974,13 +974,22 @@ default routing with a log entry and retains the saved choice. Explicit process
 overrides take precedence. Saving or clearing consent affects the next launch;
 it does not rebind a running node.
 
+SettingsCardHeader shares Connection's native ListTile geometry across all
+five sections: 44px icon plate, 10px icon/text gap, centered leading icon and
+4px between title and description. A scoped standard visual density prevents
+the global compact theme from reducing that gap. Ordinary cards group title
+and description above their controls. Expansion and switch headers reuse the same scoped
+ListTile theme with native leading/secondary slots. Settings navigation and
+device rows use the same gap; SettingsIcon has one implementation in the
+header module and is re-exported from settings_card.dart.
+
 Privacy uses SettingsToggleCard for crash reporting and read receipts. The
 existing AsyncSwitchTile still owns async reads, pending-write guards and
 rollback; CrashReporting owns SDK consent and cleanup (ADR 0035). Card details
 use distinct PageStorage keys and never mount or toggle the reporting controls.
-The native stack-memory caveat stays visible outside report details. Short
-summaries move below switch rows in narrow or enlarged-text layouts; a stable
-Flexible child keeps switch state alive when the card header changes direction.
+The native stack-memory caveat stays visible outside report details. Titles
+and summaries wrap together in the native switch tile; the same switch
+instance survives window resizing.
 A build without reporting availability disables only the crash-report switch.
 
 About reads the installed package version and build number using the existing

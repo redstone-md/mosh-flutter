@@ -67,7 +67,7 @@ class _DeviceRow extends StatelessWidget {
       ),
       child: Row(children: [
         const Icon(Icons.devices_outlined, size: 24),
-        const SizedBox(width: 12),
+        const SizedBox(width: SettingsCardHeader.iconTextGap),
         Expanded(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

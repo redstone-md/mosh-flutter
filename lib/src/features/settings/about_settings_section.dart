@@ -33,22 +33,10 @@ class AboutSettingsSection extends ConsumerWidget {
   Widget _identity(
       BuildContext context, AppLocalizations l, AsyncValue<PackageInfo> info) {
     final text = Theme.of(context).textTheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SettingsIcon(Icons.verified_user),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Mosh', style: text.headlineSmall),
-              const SizedBox(height: 4),
-              Text(_version(l, info), style: text.bodySmall),
-            ],
-          ),
-        ),
-      ],
+    return SettingsCardHeader(
+      icon: Icons.verified_user,
+      title: Text('Mosh', style: text.headlineSmall),
+      subtitle: Text(_version(l, info), style: text.bodySmall),
     );
   }
 
