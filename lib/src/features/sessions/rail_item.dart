@@ -245,7 +245,7 @@ class RailDivider extends StatelessWidget {
 
 /// The gear button pinned at the bottom of the rail: full width, at least
 /// 40px tall, radius 8, a settings glyph and a 12.5px/600 fg-2 label.
-/// Opens the Discord-like settings screen (AppRoutes.settings).
+/// Opens standalone settings (AppRoutes.settings).
 class RailSettingsButton extends StatelessWidget {
   const RailSettingsButton({super.key, required this.label, this.onTap});
 

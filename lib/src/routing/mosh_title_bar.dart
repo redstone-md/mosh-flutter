@@ -47,17 +47,21 @@ const IconData _kPeerStatusIcon = Icons.electrical_services_outlined;
 class MoshTitleBar extends ConsumerWidget {
   const MoshTitleBar({super.key, required this.onOpenPeerStatus});
 
+  /// Settings retain window branding without the hidden chat's live status.
+  const MoshTitleBar.brand({super.key}) : onOpenPeerStatus = null;
+
   /// Invoked when the "Peer status" button is tapped -- the shell flips
   /// its `_showPeerStatus` and rebuilds to mount the Positioned.fill
   /// PeerStatusDrawer over the whole shell. Owned by the shell, not this
   /// titlebar, so the shell rebuilds when it flips (a titlebar-owned
   /// toggle would no-op).
-  final VoidCallback onOpenPeerStatus;
+  final VoidCallback? onOpenPeerStatus;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final activeKey = ref.watch(activeConversationProvider);
+    final activeKey =
+        onOpenPeerStatus == null ? null : ref.watch(activeConversationProvider);
     // The Material carries the bar fill, so the Peer status button's ink
     // paints above it. The shell mounts the titlebar ABOVE the branch
     // Scaffolds, so there is no other Material to draw on.
@@ -108,22 +112,24 @@ class MoshTitleBar extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(width: 14),
-        Flexible(
-            child: Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  compact
-                      ? IconButton(
-                          tooltip: l.peerStatusTitle,
-                          icon: const Icon(_kPeerStatusIcon, size: 18),
-                          style: _focusRingStyle,
-                          onPressed: onOpenPeerStatus,
-                        )
-                      : _PeerStatusButton(onTap: onOpenPeerStatus),
-                  const SizedBox(width: 14),
-                  Flexible(child: _StatePillSlot(activeKey: activeKey)),
-                ]))),
+        if (onOpenPeerStatus != null) ...[
+          const SizedBox(width: 14),
+          Flexible(
+              child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    compact
+                        ? IconButton(
+                            tooltip: l.peerStatusTitle,
+                            icon: const Icon(_kPeerStatusIcon, size: 18),
+                            style: _focusRingStyle,
+                            onPressed: onOpenPeerStatus,
+                          )
+                        : _PeerStatusButton(onTap: onOpenPeerStatus!),
+                    const SizedBox(width: 14),
+                    Flexible(child: _StatePillSlot(activeKey: activeKey)),
+                  ]))),
+        ],
       ],
     );
   }

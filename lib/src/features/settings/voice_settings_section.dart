@@ -1,32 +1,16 @@
-// The Voice & Video settings section: the input-device (mic) and
-// output-device (speaker) pickers plus a test-ringtone button.
-//
-// The input dropdown enumerates through `record`'s `listInputDevices` (the
-// same seam the capture path uses); the output dropdown through mosh-core's
-// cpal `list_outputDevices`. Picks persist via the shared
-// `audioDevicePicksProvider` (one Rust-side write for both), and the
-// capture/playback/ringtone paths read them at start time, so a change takes
-// effect on the next call or recording without a restart.
-//
-// The test button plays the real two-tone ringtone through the picked
-// output (the same `voiceCallRingtoneStart` the call modals use) for ~1.5 s,
-// so a user can confirm the speaker choice the way Discord's "Test Video"
-// does for cameras.
-library;
-
 import 'dart:async' show Timer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/shared/field.dart' show Field;
-import 'package:mosh/src/features/voice_call/cpal_ringtone.dart'
-    show CpalRingtonePlayer;
-import 'package:mosh/src/state/audio_device_picks_provider.dart'
-    show audioDevicePicksProvider, inputDevicesProvider, outputDevicesProvider;
+import 'package:mosh/src/features/voice_call/ringtone_player.dart';
+import 'package:mosh/src/state/audio_device_picks_provider.dart';
+import 'package:mosh/src/state/voice_call_orchestrator_provider.dart'
+    show ringtonePlayerProvider;
 
-/// How long the test ringtone plays before it is stopped.
+import 'audio_device_picker.dart';
+import 'settings_card.dart';
+
 const Duration kTestRingtoneDuration = Duration(milliseconds: 1500);
 
 class VoiceSettingsSection extends ConsumerStatefulWidget {
@@ -38,99 +22,126 @@ class VoiceSettingsSection extends ConsumerStatefulWidget {
 }
 
 class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
-  Timer? _ringtoneStopTimer;
+  Timer? _stopTimer;
+  RingtoneHandle? _ringtone;
+  String? _error;
 
   @override
   void dispose() {
-    _ringtoneStopTimer?.cancel();
+    _stopTest();
     super.dispose();
   }
 
-  void _playTestRingtone() {
-    _ringtoneStopTimer?.cancel();
-    final handle = const CpalRingtonePlayer().start();
-    _ringtoneStopTimer = Timer(kTestRingtoneDuration, handle.stop);
+  void _stopTest() {
+    _stopTimer?.cancel();
+    _stopTimer = null;
+    _ringtone?.stop();
+    _ringtone = null;
+  }
+
+  void _toggleTest() {
+    if (_ringtone != null) {
+      setState(_stopTest);
+      return;
+    }
+    try {
+      final handle = ref.read(ringtonePlayerProvider).start();
+      setState(() {
+        _error = null;
+        _ringtone = handle;
+      });
+      _stopTimer = Timer(kTestRingtoneDuration, () => setState(_stopTest));
+    } catch (_) {
+      setState(
+          () => _error = AppLocalizations.of(context)!.settingsSoundTestError);
+    }
+  }
+
+  void _save({String? input, String? output}) {
+    try {
+      ref
+          .read(audioDevicePicksProvider.notifier)
+          .set(inputDeviceId: input, outputDeviceId: output);
+      setState(() => _error = null);
+    } catch (_) {
+      setState(
+          () => _error = AppLocalizations.of(context)!.settingsAudioSaveError);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final picks = ref.watch(audioDevicePicksProvider);
-
-    // The device lists are server state (hardware sets), read through the
-    // two FutureProviders; loading renders a disabled dropdown, an error an
-    // empty list with a hint — a broken enumerator must not blank the
-    // section.
-    final inputs = ref.watch(inputDevicesProvider).value ?? const [];
-    final outputs = ref.watch(outputDevicesProvider).value ?? const [];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Field(
-          label: l.settingsInputDeviceLabel,
-          hint: l.settingsInputDeviceHint,
-          child: DropdownButtonFormField<String?>(
-            initialValue: picks.inputDeviceId,
-            isExpanded: true,
-            items: <DropdownMenuItem<String?>>[
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Text(l.settingsDeviceDefault),
-              ),
-              for (final device in inputs)
-                DropdownMenuItem<String?>(
-                  value: device.id,
-                  child: Text(
-                    device.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-            ],
-            onChanged: (picked) => ref
-                .read(audioDevicePicksProvider.notifier)
-                .set(
-                    inputDeviceId: picked,
-                    outputDeviceId: picks.outputDeviceId),
-          ),
-        ),
+      children: [
+        _microphone(l, picks),
         const SizedBox(height: 16),
-        Field(
-          label: l.settingsOutputDeviceLabel,
-          hint: l.settingsOutputDeviceHint,
-          child: DropdownButtonFormField<String?>(
-            initialValue: picks.outputDeviceId,
-            isExpanded: true,
-            items: <DropdownMenuItem<String?>>[
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Text(l.settingsDeviceDefault),
-              ),
-              for (final device in outputs)
-                DropdownMenuItem<String?>(
-                  value: device.id,
-                  child: Text(
-                    device.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-            ],
-            onChanged: (picked) => ref
-                .read(audioDevicePicksProvider.notifier)
-                .set(
-                    inputDeviceId: picks.inputDeviceId, outputDeviceId: picked),
-          ),
-        ),
-        const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed: _playTestRingtone,
-          icon: const Icon(Icons.volume_up_outlined, size: 18),
-          label: Text(l.settingsTestRingtone),
-        ),
+        _speakers(l, picks),
+        const SizedBox(height: 24),
+        _testButton(l),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Semantics(
+              liveRegion: true,
+              child:
+                  Text(_error!, style: Theme.of(context).textTheme.bodySmall)),
+        ],
+        const SizedBox(height: 24),
+        Text(l.settingsAudioAppliesAutomatically,
+            style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }
+
+  Widget _microphone(AppLocalizations l, AudioDevicePicks picks) {
+    final inputs = ref.watch(inputDevicesProvider).whenData((devices) => [
+          for (final device in devices) (id: device.id, label: device.label),
+        ]);
+    return SettingsCard(
+      icon: Icons.mic_none_outlined,
+      title: l.settingsInputDeviceLabel,
+      hint: l.settingsInputDeviceHint,
+      child: AudioDevicePicker(
+        label: l.settingsInputDeviceLabel,
+        devices: inputs,
+        preferredId: picks.inputDeviceId,
+        onChanged: (id) => _save(input: id, output: picks.outputDeviceId),
+        onRefresh: () => ref.invalidate(inputDevicesProvider),
+      ),
+    );
+  }
+
+  Widget _speakers(AppLocalizations l, AudioDevicePicks picks) {
+    final outputs = ref.watch(outputDevicesProvider).whenData((devices) => [
+          for (final device in devices) (id: device.id, label: device.name),
+        ]);
+    return SettingsCard(
+      icon: Icons.volume_up_outlined,
+      title: l.settingsOutputDeviceLabel,
+      hint: l.settingsOutputDeviceHint,
+      child: AudioDevicePicker(
+        label: l.settingsOutputDeviceLabel,
+        devices: outputs,
+        preferredId: picks.outputDeviceId,
+        onChanged: (id) => _save(input: picks.inputDeviceId, output: id),
+        onRefresh: () => ref.invalidate(outputDevicesProvider),
+      ),
+    );
+  }
+
+  Widget _testButton(AppLocalizations l) => FilledButton.icon(
+        onPressed: _toggleTest,
+        icon: Icon(
+            _ringtone == null ? Icons.volume_up_outlined : Icons.stop_outlined,
+            size: 20),
+        label: Text(_ringtone == null
+            ? l.settingsTestRingtone
+            : l.settingsStopTestRingtone),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(44),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      );
 }

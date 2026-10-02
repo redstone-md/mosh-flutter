@@ -53,8 +53,7 @@ class AppRoutes {
 
   static const String group = '/group';
 
-  /// The Discord-like settings screen (Voice & Video / Connection /
-  /// About), opened by the gear at the rail bottom.
+  /// Standalone settings above the preserved chat route.
   static const String settings = '/settings';
 
   /// Chat-create step route. Reached from the onboarding Chat tile.
@@ -94,6 +93,11 @@ final GoRouter appRouter = GoRouter(
   // longer the initial location.
   initialLocation: AppRoutes.sessions,
   routes: <RouteBase>[
+    GoRoute(
+      path: AppRoutes.settings,
+      builder: (BuildContext context, GoRouterState state) =>
+          const SettingsScreen(),
+    ),
     GoRoute(
       path: AppRoutes.onboarding,
       builder: (BuildContext context, GoRouterState state) =>
@@ -222,14 +226,6 @@ final GoRouter appRouter = GoRouter(
                 final groupId = state.pathParameters['groupId']!;
                 return GroupScreen(groupId: groupId);
               },
-            ),
-            GoRoute(
-              // Settings. Same branch as the chat so the rail stays
-              // visible beside it on desktop; the gear at the rail bottom
-              // context.go's here. Full-screen on mobile.
-              path: AppRoutes.settings,
-              builder: (BuildContext context, GoRouterState state) =>
-                  const SettingsScreen(),
             ),
           ],
         ),

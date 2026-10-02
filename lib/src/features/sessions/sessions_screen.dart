@@ -97,7 +97,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
               const SizedBox(height: kRailPadding),
               RailSettingsButton(
                 label: l.settingsGearLabel,
-                onTap: () => context.go(AppRoutes.settings),
+                onTap: () => context.push(AppRoutes.settings),
               ),
             ],
           ),
