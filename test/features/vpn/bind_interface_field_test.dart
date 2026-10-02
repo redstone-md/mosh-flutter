@@ -65,6 +65,27 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('adapter choice stays local until Bind applies the selected NIC',
+      (tester) async {
+    final gateway = _bindGateway(interfaces: [
+      _iface(name: 'eth0', ipv4: '192.168.1.5'),
+      _iface(name: 'eth1', ipv4: '192.168.1.6'),
+    ]);
+    await _pump(tester, gateway: gateway);
+    await tester.tap(find.text('eth0 - 192.168.1.5'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('eth1 - 192.168.1.6'));
+    await tester.pumpAndSettle();
+    expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 0);
+    await tester.tap(find.text('Bind'));
+    await tester.pumpAndSettle();
+    expect(
+        gateway
+            .lastCall(BridgeMethod.setVpnBypassConsent)
+            ?.arg<String?>('interfaceName'),
+        'eth1');
+  });
+
   testWidgets(
     'unbound: shows the unbound body + Bind button',
     (tester) async {

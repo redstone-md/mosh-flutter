@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_menu_theme.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
 // Mosh Flutter theme: the canonical dark `ThemeData` for the app. Every
@@ -304,6 +305,10 @@ ThemeData buildMoshTheme() {
         side: BorderSide(color: MoshColors.lineStrong),
       ),
     ),
+    menuTheme: MoshMenuTheme.panel(_moshColorScheme),
+    menuButtonTheme:
+        MoshMenuTheme.items(_moshColorScheme, _moshTextTheme().bodyMedium),
+    bottomSheetTheme: MoshMenuTheme.sheet(_moshColorScheme),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: MoshColors.moss,

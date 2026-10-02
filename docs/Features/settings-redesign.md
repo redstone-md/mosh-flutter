@@ -22,8 +22,8 @@ and About retain their existing controls until their redesign stages.
 - Shared Mosh colors, shapes, focus rings and Material controls supply the
   visual style. Longer hardware names truncate inside selectors; explanations
   wrap and the entire section scrolls for narrow windows or larger text.
-  Dropdowns and action menus share 12px corners, a raised background and
-  clipped contents so focus and hover fills stay within the rounded menu.
+  Selection popovers and action menus share 12px corners, a raised background
+  and clipped contents so focus and hover fills stay within the rounded menu.
 
 ## Sound
 
@@ -37,6 +37,43 @@ and About retain their existing controls until their redesign stages.
 - The existing ringtone player provides the speaker test. Stop, the 1.5-second
   timer and section disposal release the handle. Playback errors are visible
   and can be retried. No additional microphone test or video controls appear.
+
+## Adaptive menus
+
+The user approved trying this pattern after reviewing the rounded legacy
+dropdowns. Microphone, speaker and adapter choices now use one controlled
+`MoshSelect`. Desktop opens a Material `MenuAnchor` beneath the field with a
+6px gap; Android, iOS and windows below 600px use a titled bottom sheet. The
+chat action menu uses the same popover rows on all platforms.
+
+Panels have 12px corners, 4px internal padding and 8px row corners. Rows and
+choice buttons are at least 44px high before text scaling. The current choice
+has a muted green background and checkmark; hover, focus, disabled and danger
+states use the shared theme. Long names wrap in the choices while the closed
+field stays compact. Scrollable menus and sheets keep larger lists bounded.
+
+Material owns keyboard navigation, overlay positioning, dismissal and focus
+return. Closing the sheet applies nothing; choosing System default still
+applies the real nullable value. The field displays the persisted selection,
+including after a failed save. Adapter selection stays local until Bind is
+pressed. No dependency or native contract changes are required.
+
+Interaction tests cover desktop placement/current-choice indication, keyboard
+selection and Escape, mobile dismissal, nullable choices, unavailable devices,
+long names at 320px, disabled chat actions and adapter application. Open Sound
+menus were inspected at 1000×844 and 390×844 with the production theme.
+
+Menu-trial verification: Flutter analysis and formatting are clean; the full
+suite passes 1041 tests with five existing native-library skips. Changed
+production executable line coverage is 172/173 (99.4%); changed branch coverage
+is 44/44 (100%). The Android arm64 debug APK builds. Physical desktop/phone
+review determines whether to keep this pattern or try the alternative.
+
+The existing `mosh_theme.dart` exceeds the 400-line file limit because it holds
+the palette and declarative theme configuration. New menu recipes live in
+`mosh_menu_theme.dart`; handlers remain below 50 lines. Declarative widget trees
+and test registration functions retain the nesting/length exception described
+above; individual interaction test bodies remain small.
 
 ## Checks and limits
 
@@ -123,3 +160,9 @@ Devices also changes `lib/src/features/device_link/`, generated bridge files,
 `mosh-core/src/device_link/`, `mosh-core/src/api/device_link.rs`, `pubspec.yaml`
 and its lockfile. Device-link tests, the Android linked-DM scenario and pairing
 documentation follow the new direction.
+
+The menu trial adds `lib/src/app/mosh_select.dart`, `mosh_menu_item.dart` and
+`mosh_menu_theme.dart`, and updates `mosh_theme.dart`, `audio_device_picker.dart`,
+`bind_interface_field.dart` and `chat_header_menu.dart`. Interaction tests are
+in `test/app/dropdown_menu_test.dart` and `chat_header_menu_test.dart`; existing
+Sound, adapter and shell tests follow the shared controls.

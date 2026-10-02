@@ -135,7 +135,7 @@ void main() {
     // context.go('/sessions')). On MOBILE the standalone close button is
     // desktop-only; the leave entry point is
     // the mobile kebab menu's "Delete chat" item. Open the kebab
-    // (Icons.more_vert, ChatHeaderMenu's PopupMenuButton trigger), tap
+    // (Icons.more_vert, ChatHeaderMenu's action-menu trigger), tap
     // "Delete chat" from the dropdown -> ConfirmDialog -> tap the dialog's
     // "Delete chat" confirm button. The rail returns. (The menu closes
     // when its item is selected, so `find.text('Delete chat')` resolves
