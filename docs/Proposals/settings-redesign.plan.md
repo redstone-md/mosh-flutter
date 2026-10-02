@@ -31,8 +31,9 @@ connectivity.
    Reject legacy QR imports while preserving existing identities, history and
    already committed delivery/receipt records. Reuse independent keys,
    signed rosters, atomic admission and acknowledgement mechanisms.
-3. Connection: automatic discovery, collapsible VPN adapter controls and real
-   runtime diagnostics. Remove manual host/port and incoming-port fields.
+3. Connection: automatic discovery and collapsible VPN adapter controls.
+   Remove manual host/port and incoming-port fields. The user's screen review
+   removes the diagnostics/status block; version information stays in About.
 4. Privacy: crash reporting and read receipts, both off by default. Explain
    the native minidump memory caveat and preserve consent/error handling.
 5. About: actual build version and accurate private-chat/group versus public
