@@ -281,8 +281,7 @@
   },
   "settingsAboutVersionLoading": "Reading version…",
   "settingsAboutVersionUnavailable": "Version unavailable",
-  "settingsAboutProtectionDetailsTitle": "More about protection",
-  "settingsAboutProtectionDetails": "Moss delivers messages through a network of nodes. Participants in public channels can read their messages. Discovery uses public trackers and network nodes, so it does not hide peer addresses or connection metadata. Encrypting private message content does not make connections anonymous.",
+  "settingsAboutNetworkBody": "Moss delivers messages through a network of nodes. Public trackers are used to discover nodes.",
   "groupCreateCardTitle": "Create private group",
   "@groupCreateCardTitle": {
     "description": "Title of the create-group card"

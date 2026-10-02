@@ -103,15 +103,15 @@ native APIs, schemas, dependencies or reporting data flows change here.
 
 Use one SettingsSurface for the Mosh identity and real installed-package
 version/build number from the existing package_info_plus dependency. Keep
-version and the private-chat/group versus public-channel distinction visible;
-collapse the longer explanation of Moss discovery and metadata limits.
-Use a separate disclosure storage key. Keep the existing 44px icon plate,
-graphite surface, moss shield, title/body styles and 20px card padding.
+version and the private-chat/group versus public-channel distinction visible.
+Per local copy review, show the short Moss delivery/public-tracker explanation
+directly in the card. Keep the existing 44px icon plate, graphite surface,
+moss shield, title/body styles and 20px card padding.
 
 Move package loading from widget-owned callbacks to a feature-local Riverpod
 FutureProvider. Show loading/unavailable text without invented version values
 or unhandled plugin errors; reopening can retry a failed read. Do not add
 licences, changelog, updater or status controls. Check platform metadata,
-loading/error/empty values, disposal during loading, independent disclosure
-and section return, desktop and Russian narrow/enlarged-text layouts. Run
+loading/error/empty values, disposal during loading and section return,
+desktop and Russian narrow/enlarged-text layouts. Run
 Flutter formatting, analysis, tests/coverage and an Android arm64 debug build.

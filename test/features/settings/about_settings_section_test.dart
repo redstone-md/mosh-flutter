@@ -112,43 +112,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('About restores details and scroll independently on return',
-      (tester) async {
-    tester.view.physicalSize = const Size(1200, 500);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final container = ProviderContainer(overrides: [
-      ...settingsAudioOverrides(),
-      appPackageInfoProvider.overrideWith((ref) async => _package()),
-    ]);
-    addTearDown(container.dispose);
-    container
-        .read(settingsSectionProvider.notifier)
-        .select(SettingsSection.about);
-    await pumpScreen(
-        tester, Theme(data: buildMoshTheme(), child: const SettingsScreen()),
-        container: container);
-    final details = find.text('More about protection');
-    await tester.ensureVisible(details);
-    await tester.tap(details);
-    await tester.pumpAndSettle();
-    final scroller = find.descendant(
-        of: find.byType(SettingsContent), matching: find.byType(Scrollable));
-    final position = tester.state<ScrollableState>(scroller).position;
-    final offset = position.maxScrollExtent / 2;
-    expect(offset, greaterThan(0));
-    position.jumpTo(offset);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sound'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('About'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('public trackers'), findsOneWidget);
-    expect(tester.state<ScrollableState>(scroller).position.pixels, offset);
-    expect(find.text('Version 9.8.7-dev · build 42'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
   for (final (width, scale) in [(390.0, 1.0), (320.0, 2.0)]) {
     testWidgets('Russian About at $width and scale $scale wraps and scrolls',
         (tester) async {
@@ -157,11 +120,8 @@ void main() {
           size: Size(width, 844),
           scale: scale,
           locale: const Locale('ru'));
-      final details = find.text('Подробнее о защите');
-      await tester.ensureVisible(details);
-      await tester.tap(details);
-      await tester.pumpAndSettle();
-      final body = find.textContaining('публичные трекеры');
+      final ru = lookupAppLocalizations(const Locale('ru'));
+      final body = find.text(ru.settingsAboutNetworkBody);
       await tester.ensureVisible(body);
       expect(body, findsOneWidget);
       expect(find.textContaining('Версия 9.8.7-dev'), findsOneWidget);
