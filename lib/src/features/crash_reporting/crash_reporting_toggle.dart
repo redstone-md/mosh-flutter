@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/settings/settings_toggle_card.dart';
+import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/features/shared/async_switch_tile.dart';
 
 import 'crash_reporting.dart';
@@ -20,11 +21,11 @@ class CrashReportingToggle extends ConsumerWidget {
     final reporting = ref.watch(crashReportingProvider);
     return SettingsToggleCard(
       key: const PageStorageKey('privacy-crash-details'),
-      icon: Icons.bug_report_outlined,
       notice: l.settingsCrashReportsNativeWarning,
       detailsTitle: l.settingsCrashReportsDetailsTitle,
       details: l.settingsCrashReportsDetails,
       toggle: AsyncSwitchTile(
+        secondary: const SettingsIcon(Icons.bug_report_outlined),
         title: l.settingsCrashReportsTitle,
         subtitle: reporting.available
             ? l.settingsCrashReportsSubtitle

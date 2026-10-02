@@ -26,6 +26,33 @@ Read receipts have moved to Privacy.
   Selection popovers and action menus share 12px corners, a raised background
   and clipped contents so focus and hover fills stay within the rounded menu.
 
+## Card headers
+
+Connection is the reference for all five settings sections. The shared
+SettingsCardHeader uses native ListTile geometry with a 44px icon plate,
+10px icon/text gap, centered leading icon and 4px between title and description.
+Its scoped theme uses standard visual density so the global compact theme
+cannot reduce the actual gap to 6px. The same theme supplies ExpansionTile
+and SwitchListTile headers.
+Sound and device card descriptions are grouped with their titles, with
+controls below. About retains its brand typography inside the same header.
+The navigation and device rows read the same icon/text gap constant.
+
+Privacy switches place their icon in the native secondary slot. Titles and
+summaries wrap together at narrow widths, using the same instance during
+resize. The previous separate Row/Flex header layouts are removed. SettingsIcon
+is moved into the header module and re-exported for existing callers.
+
+Shared-header verification: formatting is clean across 450 Dart files and
+Flutter analysis reports no issues. The full suite passes 1075 tests with five
+existing native-library skips. Changed executable lines are 42/42 and branches
+8/8, intersecting LCOV with added/modified production lines. Fifteen temporary
+production-themed captures cover all five sections at 1200px, 390px and 320px
+with doubled text at 320px; preview checks pass without overflows. Android
+arm64 debug APK builds successfully. The captures use
+test fonts and fake platform data, so physical-device appearance still needs
+local review.
+
 ## Sound
 
 - Microphone and speaker cards consume the existing Riverpod device providers
@@ -300,20 +327,13 @@ without a reporting destination keeps the crash-report switch disabled and
 explains its availability. Read receipts keep their independent bridge write
 and mutual-receipt rule.
 
-The shared card adapts its icon/toggle header to narrow windows and enlarged
-text. It keeps the same Flexible child across layouts so a resize during a
-pending write cannot recreate the switch or trigger another consent read.
-Long summaries move below the switch row at narrow content widths. Errors
-use theme text styles and a live semantics region. Consent, SDK lifecycle,
+The shared card uses the native secondary slot to keep its icon beside the
+switch's title/summary. A resize during a pending write does not recreate the
+switch or trigger another consent read. Errors use theme text styles and
+a live semantics region. Consent, SDK lifecycle,
 default values, write guards and rollback are unchanged.
 The shared switch theme uses fg2 for an enabled, off thumb so it remains
 distinct from the dark track; selected thumbs retain mossInk.
-
-Horizontal opt-in headers center the icon beside the switch's title/summary
-block. Narrow stacked headers retain start alignment. This shared adjustment
-applies to both crash reporting and read receipts. Formatting and analysis
-are clean; 20 existing Privacy, async-switch, receipt and reporting checks pass.
-Desktop and narrow production-themed captures were inspected.
 
 Widget checks use the real CrashReporting controller with ScriptableBridge
 storage and a local SDK in test/support/privacy.dart. They cover missing
@@ -324,7 +344,7 @@ and 320px with doubled text.
 Card/tile widget trees and test registration use the existing declarative-tree
 exception; interaction bodies and handlers remain below 50 lines.
 
-Privacy verification: formatting is clean across 447 Dart files; Flutter
+Initial Privacy verification: formatting is clean across 447 Dart files; Flutter
 analysis reports no issues. The full suite passes 1067 tests with five existing
 native-library skips. Changed production executable lines are 77/77 (100%);
 changed branches are 16/16 (100%), intersecting LCOV with added/modified Dart

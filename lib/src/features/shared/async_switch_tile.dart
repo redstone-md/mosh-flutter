@@ -17,6 +17,7 @@ class AsyncSwitchTile extends StatefulWidget {
     required this.read,
     required this.write,
     this.enabled = true,
+    this.secondary,
   });
 
   final String title;
@@ -26,6 +27,7 @@ class AsyncSwitchTile extends StatefulWidget {
 
   /// False greys the row out regardless of the stored value.
   final bool enabled;
+  final Widget? secondary;
 
   @override
   State<AsyncSwitchTile> createState() => _AsyncSwitchTileState();
@@ -84,7 +86,8 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
     // otherwise be invisible under it.
     return LayoutBuilder(builder: (context, constraints) {
       final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-      final separateSummary = constraints.maxWidth < 360 * textScale;
+      final separateSummary =
+          widget.secondary == null && constraints.maxWidth < 360 * textScale;
       return Material(
         type: MaterialType.transparency,
         child: Column(
@@ -115,12 +118,16 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
   Widget _tile(BuildContext context, bool separateSummary) => SwitchListTile(
         contentPadding: EdgeInsets.zero,
         dense: true,
+        secondary: widget.secondary,
         title:
             Text(widget.title, style: Theme.of(context).textTheme.titleMedium),
         subtitle: separateSummary
             ? null
-            : Text(widget.subtitle,
-                style: Theme.of(context).textTheme.bodySmall),
+            : Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(widget.subtitle,
+                    style: Theme.of(context).textTheme.bodySmall),
+              ),
         value: _value ?? false,
         onChanged: widget.enabled && _value != null && !_writing ? _set : null,
       );

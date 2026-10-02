@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/settings/settings_toggle_card.dart';
+import 'package:mosh/src/features/settings/settings_card.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 
@@ -32,10 +33,10 @@ class ReadReceiptsToggle extends ConsumerWidget {
     final BridgeFacade facade = bridge ?? ref.read(bridgeFacadeProvider);
     return SettingsToggleCard(
       key: const PageStorageKey('privacy-read-receipt-details'),
-      icon: Icons.done_all,
       detailsTitle: l.settingsReadReceiptsDetailsTitle,
       details: l.settingsReadReceiptsDetails,
       toggle: AsyncSwitchTile(
+        secondary: const SettingsIcon(Icons.done_all),
         title: l.settingsReadReceiptsTitle,
         subtitle: l.settingsReadReceiptsSubtitle,
         read: facade.readReceiptsEnabled,

@@ -115,3 +115,16 @@ licences, changelog, updater or status controls. Check platform metadata,
 loading/error/empty values, disposal during loading and section return,
 desktop and Russian narrow/enlarged-text layouts. Run
 Flutter formatting, analysis, tests/coverage and an Android arm64 debug build.
+
+## Shared header geometry
+
+Per local review, Connection is the reference for icon/text spacing and
+alignment across all five settings pages. Share its native ListTile geometry:
+44px icon plate, 10px icon/text gap, centered leading icon, and 4px between
+title and description. SettingsCardHeader owns the scoped ListTile theme and
+ordinary headers; expansion and switch headers use the same theme with native
+leading/secondary slots. Sound and device card descriptions join the title in
+the header, with controls below. The settings navigation and device rows use
+the same gap. Keep switch instances mounted during resizing; check consent,
+device-link actions, selectors, section return and desktop/narrow/enlarged-text
+captures. Run Flutter analysis/tests/coverage and Android arm64 debug build.

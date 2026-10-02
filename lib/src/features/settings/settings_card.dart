@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
+import 'settings_card_header.dart';
+export 'settings_card_header.dart' show SettingsCardHeader, SettingsIcon;
+
 /// A setting and its explanation share a surface; controls keep theme geometry.
 class SettingsCard extends StatelessWidget {
   const SettingsCard({
@@ -21,30 +24,24 @@ class SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingsSurface(
       padding: const EdgeInsets.all(20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SettingsIcon(icon),
-          const SizedBox(width: 16),
-          Expanded(child: _content(context)),
+          SettingsCardHeader(
+            icon: icon,
+            title: Semantics(
+              header: true,
+              child:
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+            ),
+            subtitle: Text(hint, style: Theme.of(context).textTheme.bodySmall),
+          ),
+          const SizedBox(height: 12),
+          child,
         ],
       ),
     );
   }
-
-  Widget _content(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Semantics(
-              header: true,
-              child:
-                  Text(title, style: Theme.of(context).textTheme.titleMedium)),
-          const SizedBox(height: 12),
-          child,
-          const SizedBox(height: 12),
-          Text(hint, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      );
 }
 
 /// Shared card material keeps ink, borders and clipping consistent.
@@ -66,21 +63,5 @@ class SettingsSurface extends StatelessWidget {
             side: BorderSide(color: MoshColors.line)),
         clipBehavior: Clip.antiAlias,
         child: Padding(padding: padding, child: child),
-      );
-}
-
-class SettingsIcon extends StatelessWidget {
-  const SettingsIcon(this.icon, {super.key});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: 44,
-        height: 44,
-        decoration: const BoxDecoration(
-            color: MoshColors.mossGlow,
-            borderRadius: MoshShapes.conversationRow),
-        child: Icon(icon, color: MoshColors.moss, size: 24),
       );
 }

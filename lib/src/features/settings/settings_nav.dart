@@ -5,6 +5,7 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 
 import 'settings_navigation.dart';
+import 'settings_card_header.dart';
 
 /// The same keyboard-accessible section rows serve the sidebar and narrow list.
 class SettingsNav extends StatelessWidget {
@@ -90,7 +91,7 @@ class _SectionRow extends StatelessWidget {
                 Icon(section.icon,
                     size: 22,
                     color: selected ? MoshColors.moss : MoshColors.fg2),
-                const SizedBox(width: 12),
+                const SizedBox(width: SettingsCardHeader.iconTextGap),
                 Expanded(
                   child: Text(section.label(AppLocalizations.of(context)!),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
