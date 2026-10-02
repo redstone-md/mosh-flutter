@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 
 // Mosh Flutter theme: the canonical dark `ThemeData` for the app. Every
 // color lives in [MoshColors] below. Font family names are wired here but
@@ -50,6 +51,12 @@ class MoshColors {
   static const Color warn = Color(0xFFE8B65A);
   static const Color danger = Color(0xFFE86A5A);
   static const Color info = Color(0xFF6CB7E8);
+
+  /// Conversation type accents, used with distinct glyphs, never as status.
+  static const Color dmAccent = moss;
+  static const Color groupAccent = Color(0xFFB49BE0);
+  static const Color channelAccent = info;
+  static const Color outgoingMessage = Color(0xFF273D2D);
 
   // Role tokens built on the primitives above. Components read these
   // instead of re-deriving an alpha at the call site.
@@ -255,7 +262,7 @@ ThemeData buildMoshTheme() {
       minVerticalPadding: 6,
       contentPadding: EdgeInsets.symmetric(horizontal: 12),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderRadius: MoshShapes.conversationRow,
       ),
       selectedColor: MoshColors.fg1,
       selectedTileColor: MoshColors.mossGlow,
@@ -290,7 +297,24 @@ ThemeData buildMoshTheme() {
       style: FilledButton.styleFrom(
         backgroundColor: MoshColors.moss,
         foregroundColor: MoshColors.mossInk,
+        shape: MoshShapes.controlShape,
       ),
+    ),
+    outlinedButtonTheme: const OutlinedButtonThemeData(
+      style:
+          ButtonStyle(shape: WidgetStatePropertyAll(MoshShapes.controlShape)),
+    ),
+    textButtonTheme: const TextButtonThemeData(
+      style:
+          ButtonStyle(shape: WidgetStatePropertyAll(MoshShapes.controlShape)),
+    ),
+    iconButtonTheme: const IconButtonThemeData(
+      style:
+          ButtonStyle(shape: WidgetStatePropertyAll(MoshShapes.controlShape)),
+    ),
+    chipTheme: const ChipThemeData(
+      shape: MoshShapes.controlShape,
+      side: BorderSide(color: MoshColors.line),
     ),
     iconTheme: const IconThemeData(color: MoshColors.fg2),
   );
@@ -298,7 +322,7 @@ ThemeData buildMoshTheme() {
 
 /// The `.field input` border recipe: 1px solid, 8px radius.
 OutlineInputBorder _fieldBorder(Color color) => OutlineInputBorder(
-      borderRadius: const BorderRadius.all(Radius.circular(8)),
+      borderRadius: MoshShapes.control,
       borderSide: BorderSide(color: color),
     );
 

@@ -23,8 +23,8 @@ const double kMessageMetaGap = 8;
 /// avatar.
 const double messageAvatarSize = 32;
 
-/// Chat headers are compact under 640px wide: 54px min-height, a 14px
-/// title and an 11px subtitle 2px under it (vs 15px/12px at 4px).
+/// Chat headers are compact under 640px wide: 54px min-height, a 15px
+/// title and an 11px subtitle (vs 16px/12px), with a shared 4px gap.
 bool _isCompactChatHeader(BuildContext context) =>
     MediaQuery.sizeOf(context).width <= 640;
 
@@ -33,23 +33,26 @@ bool _isCompactChatHeader(BuildContext context) =>
 double chatHeaderHeight(BuildContext context) =>
     _isCompactChatHeader(context) ? 54 : 70;
 
-/// Chat title: 15px/700, 14px on a narrow header.
-TextStyle chatTitleStyle(BuildContext context) => TextStyle(
-      fontSize: _isCompactChatHeader(context) ? 14 : 15,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.3,
-      color: MoshColors.fg1,
-    );
+/// Chat title: 16px/600, 15px on a narrow header.
+TextStyle chatTitleStyle(BuildContext context) =>
+    Theme.of(context).textTheme.titleMedium!.copyWith(
+          fontSize: _isCompactChatHeader(context) ? 15 : 16,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+          letterSpacing: 0,
+          color: MoshColors.fg1,
+        );
 
 /// Chat subtitle: 12px fg-3, 11px on a narrow header.
-TextStyle chatSubtitleStyle(BuildContext context) => TextStyle(
-      fontSize: _isCompactChatHeader(context) ? 11 : 12,
-      color: MoshColors.fg3,
-    );
+TextStyle chatSubtitleStyle(BuildContext context) =>
+    Theme.of(context).textTheme.bodySmall!.copyWith(
+          fontSize: _isCompactChatHeader(context) ? 11 : 12,
+          height: 1.2,
+          color: MoshColors.fg3,
+        );
 
-/// The gap under the title: 4px, 2px when compact.
-double chatSubtitleGap(BuildContext context) =>
-    _isCompactChatHeader(context) ? 2 : 4;
+/// The gap under the title: 4px at every width.
+double chatSubtitleGap(BuildContext context) => 4;
 
 /// Gap from avatar to body in a message row.
 const double kMessageRowGap = 12;
@@ -59,9 +62,12 @@ const double kMessageRowGap = 12;
 const EdgeInsets kChatScrollPadding =
     EdgeInsets.symmetric(horizontal: 22, vertical: 16);
 
-/// Vertical lead-in for a message row: a continuation sits 6px under its
+/// Vertical lead-in for a message row: a continuation sits 4px under its
 /// predecessor (grouped), a fresh sender 12px under.
-double messageRowSpacing(bool grouped) => grouped ? 6 : 12;
+double messageRowSpacing(bool grouped) => grouped ? 4 : 12;
+
+/// Compact delivery marks share a measured footer with the timestamp.
+const double kCompactDeliverySize = 15;
 
 /// Sender name in a message meta row: 13px bold fg-1.
 const TextStyle kMessageMetaNameStyle = TextStyle(
@@ -92,12 +98,22 @@ const TextStyle kMessageBodyStyle =
 /// landed, so the delivered marks read as "seen". The label stays
 /// "delivered"; the color carries the read fact.
 class DeliveryTicks extends StatelessWidget {
-  const DeliveryTicks({super.key, required this.status, this.read = false});
+  const DeliveryTicks(
+      {super.key,
+      required this.status,
+      this.read = false,
+      this.compact = false,
+      this.color});
 
   final MessageDeliveryStatus? status;
 
   /// Whether the counterpart's read receipt has landed on this message.
   final bool read;
+  final bool compact;
+
+  /// Normal compact glyph tone; tinted bubbles need a brighter foreground.
+  /// The authenticated read state still uses the existing receipt accent.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +129,22 @@ class DeliveryTicks extends StatelessWidget {
       MessageDeliveryStatus.failed || null => null,
     };
     if (label == null) return const SizedBox.shrink();
+    if (compact) {
+      final icon = switch (status) {
+        MessageDeliveryStatus.delivered => Icons.done_all,
+        MessageDeliveryStatus.sent => Icons.check,
+        MessageDeliveryStatus.queued => Icons.schedule,
+        _ => Icons.more_horiz,
+      };
+      return Semantics(
+          label: label,
+          excludeSemantics: true,
+          child: Tooltip(
+              message: label,
+              child: Icon(icon,
+                  size: kCompactDeliverySize,
+                  color: read ? MoshColors.moss300 : color ?? MoshColors.fg3)));
+    }
     // The read receipt changes the COLOR of the same glyphs, never adds a
     // third tick: the delivered marks carry the theme's accent instead of
     // the faint fg-4, exactly like a "seen" mark.
@@ -142,6 +174,10 @@ class DeliveryTicks extends StatelessWidget {
     );
   }
 }
+
+DateTime? messageDate(BigInt? sentAtMs) => sentAtMs == null
+    ? null
+    : DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
 
 /// Locale-aware HH:mm clock for the sender-meta row. Formats the epoch in
 /// the LOCAL timezone via `intl`'s `DateFormat.Hm(locale)` so the
@@ -252,11 +288,11 @@ class MlsBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    // Monospace 13px in the window's fg-1, like a bare inline code span.
+    // Quiet protocol metadata beneath the sender's stronger name.
     const style = TextStyle(
       fontFamily: 'monospace',
-      fontSize: 13,
-      color: MoshColors.fg1,
+      fontSize: 11,
+      color: MoshColors.fg3,
     );
     return Semantics(
       label: l.mlsBadgeLabel,

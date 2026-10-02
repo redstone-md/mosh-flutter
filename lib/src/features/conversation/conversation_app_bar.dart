@@ -1,43 +1,22 @@
-/// The AppBar skeleton every conversation kind (DM, channel, group) shares:
-/// the rail back button, the mobile search toggle, the kebab menu (filter
-/// toggle + leave), the peer-status button, and the desktop-only leave
-/// button. Each kind passes its title plus its kind-specific buttons; the
-/// mobile-vs-desktop action placement (search + leave in the kebab on
-/// mobile, leave inline on desktop) lives HERE, once, instead of in each
-/// header.
+/// Shared conversation header with identity, search, kind actions and details.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/conversation/chat_header_menu.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
+import 'package:mosh/src/features/shared/conversation_kind_style.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 // Re-exported so a kind header needs only this one import to build its
 // kebab items.
 export 'package:mosh/src/features/conversation/chat_header_menu.dart'
     show ChatHeaderMenuAction;
 
-/// The conversation AppBar: one shared skeleton, kind-specific slots.
-///
-/// The `actions:` row, in order:
-///   1. [leadingActions] -- kind badges/buttons left of everything else
-///      (the group's admin-pill + copy-invite).
-///   2. the mobile search toggle, mobile only.
-///   3. [ChatHeaderMenu] -- the filter toggle first, then [menuActions],
-///      then the leave item (danger) built from [leaveMenuLabel] +
-///      [leaveMenuIcon]. Self-gates: renders nothing on desktop.
-///   4. [inlineActions] -- kind buttons between the kebab and the
-///      peer-status button (the DM's call button).
-///   5. the peer-status button.
-///   6. the desktop leave button ([desktopLeaveIcon] +
-///      [desktopLeaveTooltip]), desktop only; on mobile the kebab's leave
-///      item is the entry point instead.
-///
-/// The `leading:` is the shared [railBackButton] (mobile-only back to the
-/// rail) and the `title:` is whatever [title] widget the kind builds.
 class ConversationAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const ConversationAppBar({
@@ -51,16 +30,19 @@ class ConversationAppBar extends StatelessWidget
     required this.onToggleMobileSearch,
     required this.leaveMenuLabel,
     required this.leaveMenuIcon,
-    required this.desktopLeaveIcon,
-    required this.desktopLeaveTooltip,
+    this.avatarName,
+    this.peerOnline = false,
+    this.kind = ConversationKind.dm,
     this.leadingActions = const [],
     this.menuActions = const [],
     this.inlineActions = const [],
   });
 
-  /// The AppBar `title:` widget (usually a two-line Column: name + lock,
-  /// then the status subtitle).
+  /// The name and short status, normally a `ConversationHeaderTitle`.
   final Widget title;
+  final String? avatarName;
+  final bool peerOnline;
+  final ConversationKind kind;
 
   final VoidCallback onOpenPeerStatus;
   final VoidCallback onRequestLeave;
@@ -79,10 +61,6 @@ class ConversationAppBar extends StatelessWidget
   final String leaveMenuLabel;
   final IconData leaveMenuIcon;
 
-  /// The desktop-only leave button: its icon + tooltip.
-  final Widget desktopLeaveIcon;
-  final String desktopLeaveTooltip;
-
   /// Kind-specific `actions:` widgets rendered first (before the search
   /// toggle).
   final List<Widget> leadingActions;
@@ -91,8 +69,7 @@ class ConversationAppBar extends StatelessWidget
   /// leave item.
   final List<ChatHeaderMenuAction> menuActions;
 
-  /// Kind-specific `actions:` widgets rendered between the kebab and the
-  /// peer-status button.
+  /// Kind-specific primary actions, rendered before search and the menu.
   final List<Widget> inlineActions;
 
   @override
@@ -116,46 +93,86 @@ class ConversationAppBar extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final mobile = isMobileBreakpoint(context);
-    return AppBar(
-      toolbarHeight: chatHeaderHeight(context),
-      titleTextStyle: chatTitleStyle(context),
-      leading: railBackButton(context),
-      title: title,
-      actions: [
-        ...leadingActions,
-        if (mobile)
-          MobileSearchToggle(
-            open: mobileSearchOpen,
-            onToggle: onToggleMobileSearch,
-            l: l,
-          ),
-        ChatHeaderMenu(
-          l: l,
+    final compact = MediaQuery.sizeOf(context).width <= 640;
+    return IconButtonTheme(
+        data: IconButtonThemeData(
+            style: IconButton.styleFrom(
+          fixedSize: const Size.square(40),
+          minimumSize: const Size.square(40),
+          shape: MoshShapes.controlShape,
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.standard,
+        )),
+        child: AppBar(
+          toolbarHeight: chatHeaderHeight(context),
+          titleTextStyle: chatTitleStyle(context),
+          leading: railBackButton(context),
+          leadingWidth: 48,
+          titleSpacing: compact ? 8 : 22,
+          title: LayoutBuilder(
+              builder: (context, constraints) =>
+                  _identity(l, compact, constraints.maxWidth)),
           actions: [
-            _filterAction(l),
-            ...menuActions,
-            ChatHeaderMenuAction(
-              label: leaveMenuLabel,
-              icon: leaveMenuIcon,
-              danger: true,
-              onSelect: onRequestLeave,
-            ),
+            Padding(
+                padding: EdgeInsets.only(right: compact ? 8 : 16),
+                child:
+                    Row(mainAxisSize: MainAxisSize.min, children: _actions(l))),
           ],
-        ),
-        ...inlineActions,
-        IconButton(
-          icon: const Icon(Icons.electrical_services, size: 18),
-          tooltip: l.openPeerStatus,
-          onPressed: onOpenPeerStatus,
-        ),
-        if (!mobile)
-          IconButton(
-            icon: desktopLeaveIcon,
-            tooltip: desktopLeaveTooltip,
-            onPressed: onRequestLeave,
-          ),
+        ));
+  }
+
+  Widget _identity(AppLocalizations l, bool compact, double width) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (avatarName != null && width >= 112) ...[
+            Semantics(
+              label: l.chatDetailsTitle,
+              button: true,
+              child: InkWell(
+                onTap: onOpenPeerStatus,
+                customBorder: const CircleBorder(),
+                child: SizedBox.square(
+                    dimension: 40,
+                    child: Center(
+                      child: ConversationKindAvatar(
+                          kind: kind,
+                          name: avatarName!,
+                          online: peerOnline,
+                          radius: compact ? 16 : 20),
+                    )),
+              ),
+            ),
+            SizedBox(width: compact ? 8 : 12),
+          ],
+          Flexible(child: title),
+        ],
+      );
+
+  List<Widget> _actions(AppLocalizations l) {
+    final actions = [
+      ...leadingActions,
+      ...inlineActions,
+      MobileSearchToggle(
+          open: mobileSearchOpen, onToggle: onToggleMobileSearch, l: l),
+      ChatHeaderMenu(l: l, actions: [
+        ChatHeaderMenuAction(
+            label: l.chatDetailsTitle,
+            icon: Icons.info_outline,
+            onSelect: onOpenPeerStatus),
+        _filterAction(l),
+        ...menuActions,
+        ChatHeaderMenuAction(
+            label: leaveMenuLabel,
+            icon: leaveMenuIcon,
+            danger: true,
+            onSelect: onRequestLeave),
+      ]),
+    ];
+    return [
+      for (var i = 0; i < actions.length; i++) ...[
+        if (i > 0) const SizedBox(width: 4),
+        SizedBox.square(dimension: 40, child: actions[i]),
       ],
-    );
+    ];
   }
 }

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
@@ -123,6 +124,8 @@ void main() {
     expect(copied.single, contains('first message'));
     expect(copied.single, contains('second message'));
     expect(copied.single, isNot(contains('Retry')));
+    expect(copied.single, isNot(contains(formatClock(_sentAt, locale: 'en')!)));
+    expect(copied.single, isNot(contains('\uFFFC')));
   }, variant: TargetPlatformVariant.desktop());
 
   testWidgets('the copy shortcut on a focused message copies its body',

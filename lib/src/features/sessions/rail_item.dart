@@ -1,17 +1,11 @@
-// The rail row chrome.
-//
-// A rail row is at least 48px tall (large text grows it), radius 12, with
-// 12px side padding and a 10px gap, holding a leading avatar/icon, a
-// two-line text block (the theme's list-row title over its fg-2 subtitle)
-// and the unread badge. Active is an inset 2px accent ring.
-//
-// The per-kind tints: a DM row is plain bg-2 with fg-2 glyphs, a channel
-// row is channelTint (info at 10%) with info, and a group row is moss-glow
-// with moss. The active ring follows the tint (info for channels, moss
-// otherwise). Hover is a light wash over the tint, not a replacement.
+/// Shared rail rows: avatar, preview, time, unread badge and active highlight.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/features/shared/conversation_kind_style.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/focus_ring.dart';
@@ -22,39 +16,33 @@ import 'package:mosh/src/features/shared/press_scale.dart';
 enum RailItemKind { dm, channel, group }
 
 /// Minimum height of one rail row; large text grows it.
-const double kRailItemHeight = 48;
+const double kRailItemHeight = 72;
 
 /// Minimum height of the pinned New chat and Settings buttons.
 const double kRailButtonHeight = 40;
 
 /// Vertical gap between rail rows.
-const double kRailListGap = 8;
+const double kRailListGap = 4;
 
 /// Padding around the rail and gap between its sections.
 const double kRailPadding = 12;
 
+/// Shared leading slot for the creation button and search icon.
+const double kRailLeadingWidth = 40;
+
 /// Width of the expanded rail pane.
-const double kRailWidth = 268;
+const double kRailWidth = 348;
 
 /// Hover wash over any row tint: about one bg step lighter on bg2.
 final Color _kHoverOverlay = Colors.white.withValues(alpha: 0.03);
 
 extension on RailItemKind {
-  Color get background => switch (this) {
-        RailItemKind.dm => MoshColors.bg2,
-        RailItemKind.channel => MoshColors.channelTint,
-        RailItemKind.group => MoshColors.mossGlow,
+  ConversationKind get conversationKind => switch (this) {
+        RailItemKind.dm => ConversationKind.dm,
+        RailItemKind.channel => ConversationKind.channel,
+        RailItemKind.group => ConversationKind.group,
       };
-
-  /// The glyph colour, and the colour of the active inset ring.
-  Color get accent => switch (this) {
-        RailItemKind.dm => MoshColors.fg2,
-        RailItemKind.channel => MoshColors.info,
-        RailItemKind.group => MoshColors.moss,
-      };
-
-  Color get ring =>
-      this == RailItemKind.channel ? MoshColors.info : MoshColors.moss;
+  Color get accent => conversationKind.accent;
 }
 
 /// One rail row. [leading] is the avatar (DMs, offers) or the 18px glyph
@@ -74,6 +62,7 @@ class RailItem extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.trailing,
+    this.timestamp,
     this.action,
     this.semanticLabel,
     this.active = false,
@@ -85,6 +74,7 @@ class RailItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget? trailing;
+  final String? timestamp;
   final Widget? action;
   final String? semanticLabel;
   final bool active;
@@ -95,26 +85,28 @@ class RailItem extends StatelessWidget {
     // The radius stays 12 in every state; the active ring is an inset
     // border and must not move the outer geometry (audit 2026-09-21:
     // radius jumped 12 -> 14 when a row was selected).
-    final radius = BorderRadius.circular(12);
+    const radius = MoshShapes.conversationRow;
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
       child: Material(
-        color: kind.background,
+        color: active ? kind.conversationKind.tint : Colors.transparent,
         borderRadius: radius,
         // Clips the tap target's ink to the row's corners when [action]
         // shares the row.
         clipBehavior: Clip.antiAlias,
         child: DecoratedBox(
-          // `inset 0 0 0 2px <accent>`: painted over the row, so it neither
+          // Painted over the row, so the selection edge neither
           // moves the content nor needs an (outset-only) BoxShadow.
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             borderRadius: radius,
-            border: active ? Border.all(color: kind.ring, width: 2) : null,
+            border: active
+                ? Border.all(color: kind.accent.withValues(alpha: 0.4))
+                : null,
           ),
           child: Row(
             children: <Widget>[
-              Expanded(child: _tapTarget(radius)),
+              Expanded(child: _tapTarget(context, radius)),
               if (action case final action?) action,
             ],
           ),
@@ -123,12 +115,14 @@ class RailItem extends StatelessWidget {
     );
   }
 
-  Widget _tapTarget(BorderRadius radius) {
+  Widget _tapTarget(BuildContext context, BorderRadius radius) {
+    final l = AppLocalizations.of(context);
     return Semantics(
       container: true,
       button: true,
       selected: active,
-      label: semanticLabel,
+      label:
+          semanticLabel ?? (l == null ? null : kind.conversationKind.label(l)),
       excludeSemantics: semanticLabel != null,
       // Excluding the children drops the InkWell's own tap action, so the
       // labelled row carries it here or a screen reader cannot activate it.
@@ -157,7 +151,11 @@ class RailItem extends StatelessWidget {
                 ),
                 const SizedBox(width: 10), // `.rail-item { gap: 10px }`
                 Expanded(
-                  child: _RailText(title: title, subtitle: subtitle),
+                  child: _RailText(
+                    title: title,
+                    subtitle: subtitle,
+                    timestamp: timestamp,
+                  ),
                 ),
                 if (trailing case final trailing?) ...<Widget>[
                   const SizedBox(width: 10),
@@ -175,10 +173,15 @@ class RailItem extends StatelessWidget {
 /// The row's title over its optional subtitle, in the theme's list-row
 /// styles (the subtitle is fg2, which clears 4.5:1 on every row tint).
 class _RailText extends StatelessWidget {
-  const _RailText({required this.title, required this.subtitle});
+  const _RailText({
+    required this.title,
+    required this.subtitle,
+    this.timestamp,
+  });
 
   final String title;
   final String subtitle;
+  final String? timestamp;
 
   @override
   Widget build(BuildContext context) {
@@ -193,11 +196,24 @@ class _RailText extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: styles.titleTextStyle,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: styles.titleTextStyle,
+                ),
+              ),
+              if (timestamp != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  timestamp!,
+                  style: const TextStyle(fontSize: 11, color: MoshColors.fg3),
+                ),
+              ],
+            ],
           ),
           if (subtitle.isNotEmpty) ...<Widget>[
             const SizedBox(height: 2), // `.rail-text { gap: 2px }`
@@ -222,16 +238,13 @@ class RailDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: kRailListGap),
-      child: Container(
-        height: 1,
-        color: MoshColors.lineStrong,
-      ),
+      child: Container(height: 1, color: MoshColors.lineStrong),
     );
   }
 }
 
 /// The gear button pinned at the bottom of the rail: full width, at least
-/// 40px tall, radius 12, a settings glyph and a 12.5px/600 fg-2 label.
+/// 40px tall, radius 8, a settings glyph and a 12.5px/600 fg-2 label.
 /// Opens the Discord-like settings screen (AppRoutes.settings).
 class RailSettingsButton extends StatelessWidget {
   const RailSettingsButton({super.key, required this.label, this.onTap});
@@ -241,7 +254,7 @@ class RailSettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(12);
+    const radius = MoshShapes.control;
     // The fill lives on the Material so the InkWell's hover, press and
     // focus ink paint above it instead of under an opaque Container.
     return Semantics(
@@ -264,8 +277,11 @@ class RailSettingsButton extends StatelessWidget {
                 ),
                 child: Row(
                   children: <Widget>[
-                    const Icon(Icons.settings_outlined,
-                        size: 18, color: MoshColors.fg2),
+                    const Icon(
+                      Icons.settings_outlined,
+                      size: 18,
+                      color: MoshColors.fg2,
+                    ),
                     const SizedBox(width: 10),
                     Flexible(
                       child: Text(
@@ -290,13 +306,8 @@ class RailSettingsButton extends StatelessWidget {
   }
 }
 
-/// The dashed moss "New chat" button at the top of the rail: full width,
-/// at least 40px tall, radius 12, a 1.5px dashed moss border at 35% alpha,
-/// a moss plus glyph and a 12.5px/700 fg-1 label.
-///
-/// Flutter has no dashed border primitive; a 1.5px solid moss border at the
-/// same alpha is the closest single-widget equivalent and keeps the row
-/// reading as an outlined affordance rather than a filled one.
+/// Full-width creation action with a 48px minimum height and 8px corners.
+/// Its 32px plus and 14px label align with the search icon and input text.
 class RailNewButton extends StatelessWidget {
   const RailNewButton({super.key, required this.label, this.onTap});
 
@@ -305,7 +316,7 @@ class RailNewButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(12);
+    const radius = MoshShapes.control;
     return Semantics(
       button: true,
       child: PressScale(
@@ -317,30 +328,32 @@ class RailNewButton extends StatelessWidget {
           child: FocusRing(
             radius: radius,
             child: Container(
-              constraints: const BoxConstraints(minHeight: kRailButtonHeight),
-              padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: radius,
-                border: Border.all(
-                  color: MoshColors.moss.withValues(alpha: 0.35),
-                  width: 1.5,
-                ),
               ),
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.add, size: 18, color: MoshColors.moss),
-                  const SizedBox(width: 10),
+                  const SizedBox(
+                    width: kRailLeadingWidth,
+                    child: Center(
+                      child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: MoshColors.moss,
+                          child: Icon(Icons.add,
+                              size: 20, color: MoshColors.mossInk)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Flexible(
                     child: Text(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                         color: MoshColors.fg1,
                       ),
                     ),

@@ -39,6 +39,8 @@ void main() {
       ),
     ]);
 
+    await tester.tap(find.byTooltip('More chat actions'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.logout));
     await tester.pumpAndSettle();
 

@@ -12,7 +12,7 @@
 import 'package:mosh/src/rust/channel_runtime/types.dart'
     show ChannelMessage, ChannelSnapshot;
 import 'package:mosh/src/rust/conversation/attachments.dart'
-    show AttachmentDescriptor;
+    show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/outbound_delivery.dart'
     show MessageDeliveryStatus;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
@@ -132,6 +132,7 @@ class TestSnapshots {
     required String sessionId,
     String displayName = 'me',
     List<ChatMessage> messages = const [],
+    List<AttachmentView> attachments = const [],
     String meshId = 'testmesh',
     String role = 'inviter',
     String peerDisplayName = '',
@@ -161,7 +162,7 @@ class TestSnapshots {
         inviteUri: inviteUri,
         fingerprint: fingerprint,
         messages: messages,
-        attachments: const [],
+        attachments: attachments,
         mesh: null,
         events: const [],
         pendingCall: pendingCall,

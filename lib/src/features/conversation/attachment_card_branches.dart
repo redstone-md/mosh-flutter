@@ -7,11 +7,8 @@ part of 'attachment_card.dart';
 /// a tappable `Image.memory` (rounded, height-constrained) above the
 /// shared name+meta+progress bar + actions row.
 ///
-/// IN SCOPE: the onOpen tap (a `GestureDetector` opens the local file) and
-/// the actions row ([AttachmentActions] to the right of the bar). The
-/// video play-overlay is decorative (`Semantics(excludeSemantics: true)`);
-/// the wrapper uses the localized open attachment action as its semantics
-/// label.
+/// The preview opens media, with transfer controls alongside the caption.
+/// The video play-overlay is decorative; the wrapper labels the open action.
 class _MediaPreviewCard extends StatelessWidget {
   const _MediaPreviewCard({
     required this.descriptor,
@@ -21,12 +18,14 @@ class _MediaPreviewCard extends StatelessWidget {
     required this.onDownload,
     required this.onCancel,
     required this.onOpen,
+    this.messageFooter,
   });
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
   final bool own;
   final bool busy;
+  final Widget? messageFooter;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
   final void Function(AttachmentDescriptor descriptor) onOpen;
@@ -34,20 +33,20 @@ class _MediaPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final outgoing = view?.direction == 'outgoing' || (view == null && own);
     final state = view?.state ??
         (outgoing ? AttachmentState.available : AttachmentState.offered);
     final percent = _progressPercent(view);
     final failed = state == AttachmentState.failed;
-    final thumb = descriptor.thumbnailB64!;
+    final thumb = descriptor.thumbnailB64;
+    final localPath = _localImagePreview(descriptor, view);
     // A malformed server thumbnail must never take the conversation down:
     // base64Decode throws during build, which errorBuilder cannot catch.
     // Empty bytes on decode failure -> Image.memory's decode fails ->
     // errorBuilder renders the broken-image fallback.
     var bytes = Uint8List(0);
     try {
-      bytes = Uint8List.fromList(base64Decode(thumb));
+      if (thumb != null) bytes = base64Decode(thumb);
     } catch (_) {
       // malformed thumbnail: broken-image fallback below
     }
@@ -57,7 +56,6 @@ class _MediaPreviewCard extends StatelessWidget {
 
     return _FileCardShell(
       failed: failed,
-      theme: theme,
       media: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,26 +70,29 @@ class _MediaPreviewCard extends StatelessWidget {
             button: true,
             child: GestureDetector(
               onTap: () => onOpen(descriptor),
-              // Full-width bg-0 preview box; the shell already clips the
-              // corners.
+              // The bubble supplies the surface beneath transparent images.
               child: Container(
                 width: double.infinity,
+                clipBehavior: Clip.antiAlias,
                 constraints: const BoxConstraints(
                   minHeight: kAttachmentPreviewMinHeight,
                   maxHeight: kAttachmentPreviewMaxHeight,
                 ),
                 decoration: const BoxDecoration(
-                  color: MoshColors.bg0,
-                  border: Border(bottom: BorderSide(color: MoshColors.line)),
+                  color: MoshColors.line,
+                  borderRadius: MoshShapes.attachment,
                 ),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Image.memory(
+                    Image(
                       // Empty only when the base64 thumbnail was
                       // malformed; the errorBuilder renders the
                       // broken-image fallback in that case.
-                      bytes,
+                      image: localPath != null
+                          ? ResizeImage.resizeIfNeeded(
+                              640, null, FileImage(File(localPath)))
+                          : MemoryImage(bytes),
                       width: double.infinity,
                       fit: BoxFit.cover,
                       gaplessPlayback: true,
@@ -99,7 +100,7 @@ class _MediaPreviewCard extends StatelessWidget {
                         height: kAttachmentPreviewMinHeight,
                         width: double.infinity,
                         child: ColoredBox(
-                          color: MoshColors.bg3,
+                          color: MoshColors.line,
                           child: Icon(
                             Icons.broken_image_outlined,
                             size: 32,
@@ -122,8 +123,8 @@ class _MediaPreviewCard extends StatelessWidget {
                             color: MoshColors.bg0.withValues(alpha: 0.62),
                           ),
                           child: const Center(
-                            child: OpticalIcon(
-                              icon: Icons.play_arrow,
+                            child: Icon(
+                              Icons.play_arrow,
                               size: 24,
                               color: Colors.white,
                             ),
@@ -135,35 +136,29 @@ class _MediaPreviewCard extends StatelessWidget {
               ),
             ),
           ),
-          // Bar row: info (expanding) + actions to its right. The media
-          // shell itself has no padding, so the bar carries it.
+          // Controls precede time in the metadata row so its trailing
+          // position stays fixed. The bubble supplies the bottom inset.
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: _buildBar(
-                    l: l,
-                    fileName: descriptor.fileName,
-                    totalSize: descriptor.totalSize,
-                    state: state,
-                    percent: percent,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                AttachmentActions(
-                  descriptor: descriptor,
-                  view: view,
-                  state: state,
-                  outgoing: outgoing,
-                  busy: busy,
-                  onDownload: onDownload,
-                  onCancel: onCancel,
-                  onOpen: onOpen,
-                  l: l,
-                ),
-              ],
+            padding: const EdgeInsetsDirectional.fromSTEB(
+                10, 8, MoshShapes.attachmentFooterInset, 0),
+            child: _buildBar(
+              l: l,
+              fileName: descriptor.fileName,
+              totalSize: descriptor.totalSize,
+              state: state,
+              percent: percent,
+              messageFooter: messageFooter,
+              action: !outgoing && state != AttachmentState.available
+                  ? AttachmentActions(
+                      descriptor: descriptor,
+                      state: state,
+                      outgoing: outgoing,
+                      busy: busy,
+                      onDownload: onDownload,
+                      onCancel: onCancel,
+                      l: l,
+                    )
+                  : null,
             ),
           ),
         ],

@@ -1,13 +1,14 @@
 /// Pure UI-helper: text formatting utilities.
 ///
-/// Two trivial functions, no Intl/NumberFormat/DateTime usage, so no
-/// locale-aware formatting is required here. Kept free of Flutter widget
-/// dependencies for unit testing; `readableError` imports
+/// Byte counts preserve the compact default format; optional locale and
+/// precision support voice-message metadata. Kept free of Flutter widget
+/// dependencies; `readableError` imports
 /// `PlatformException` from `package:flutter/services.dart` to special-case
 /// method-channel errors.
 library;
 
 import 'package:flutter/services.dart' show PlatformException;
+import 'package:intl/intl.dart' show NumberFormat;
 
 /// Ellipsizes `value` to a `head…tail` form when it exceeds `head * 2 + 1`
 /// characters, otherwise returns it unchanged. An empty value renders as
@@ -45,18 +46,25 @@ String readableError(Object? error) {
 ///
 /// Rule: `total < 1024` -> `"{total} B"`; otherwise divide by 1024 through
 /// the units `["KB", "MB", "GB"]`, choosing `value >= 10 ? 0 : 1` decimal
-/// places. Kept pure (no Flutter deps) so it is unit-testable.
-String formatBytes(BigInt total) {
+/// places. Callers can opt into a locale and a fixed decimal precision.
+String formatBytes(BigInt total, {int? decimalPlaces, String? locale}) {
+  final russian = locale?.startsWith('ru') == true;
   if (total < BigInt.from(1024)) {
-    return '$total B';
+    return '$total ${russian ? 'Б' : 'B'}';
   }
-  const units = ['KB', 'MB', 'GB'];
+  final units = russian ? ['КБ', 'МБ', 'ГБ'] : ['KB', 'MB', 'GB'];
   var value = total.toDouble() / 1024;
   var unit = 0;
   while (value >= 1024 && unit < units.length - 1) {
     value /= 1024;
     unit += 1;
   }
-  final decimals = value >= 10 ? 0 : 1;
-  return '${value.toStringAsFixed(decimals)} ${units[unit]}';
+  final decimals = decimalPlaces ?? (value >= 10 ? 0 : 1);
+  final formatted = locale == null
+      ? value.toStringAsFixed(decimals)
+      : (NumberFormat.decimalPattern(locale)
+            ..minimumFractionDigits = decimals
+            ..maximumFractionDigits = decimals)
+          .format(value);
+  return '$formatted ${units[unit]}';
 }

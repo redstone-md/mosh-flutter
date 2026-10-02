@@ -1,6 +1,5 @@
 // The attachment card inside a message, over all three conversation kinds:
-// what it shows for each transfer state, and what its one action button
-// does.
+// Transfer controls and opening a local file from the card itself.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -150,7 +149,7 @@ void main() {
         ],
       );
 
-      await tester.tap(_action());
+      await tester.tap(find.text('report.pdf'));
       await tester.pump();
 
       expect(launcher.paths, ['/tmp/report.pdf']);
@@ -176,7 +175,7 @@ void main() {
         ],
       );
 
-      await tester.tap(_action());
+      await tester.tap(find.text('report.pdf'));
       await tester.pump();
 
       expect(find.text('launcher failed'), findsOneWidget);
@@ -199,7 +198,7 @@ void main() {
         ],
       );
 
-      expect(_actionEnabled(tester), isFalse);
+      expect(_action(), findsNothing);
     });
   }
 }

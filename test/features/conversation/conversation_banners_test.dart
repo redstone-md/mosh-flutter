@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/src/features/conversation/channel_screen.dart';
+import 'package:mosh/src/features/conversation/conversation_banners.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
@@ -53,7 +54,11 @@ void main() {
           .overrideWith((ref) => Completer<ChannelSnapshot>().future),
     );
 
-    expect(find.text('Public channel'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(ConversationBanners),
+            matching: find.text('Public channel')),
+        findsOneWidget);
   });
 
   testWidgets('the group notice is there before the first read lands',

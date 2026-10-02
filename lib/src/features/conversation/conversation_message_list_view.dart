@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_date_divider.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
@@ -22,16 +23,18 @@ import 'package:mosh/src/rust/conversation/attachments.dart'
 /// How long a gap can be before the next message starts a new block.
 const Duration conversationGroupWindow = Duration(minutes: 5);
 
-/// A message plus whether it continues the block above it.
+/// A message and its existing sender-block boundaries on both sides.
 @immutable
 class GroupedConversationMessage {
   const GroupedConversationMessage({
     required this.message,
     required this.grouped,
+    this.continuesBelow = false,
   });
 
   final ConversationMessage message;
   final bool grouped;
+  final bool continuesBelow;
 
   @override
   bool operator ==(Object other) =>
@@ -39,10 +42,11 @@ class GroupedConversationMessage {
       other is GroupedConversationMessage &&
           runtimeType == other.runtimeType &&
           message == other.message &&
-          grouped == other.grouped;
+          grouped == other.grouped &&
+          continuesBelow == other.continuesBelow;
 
   @override
-  int get hashCode => Object.hash(message, grouped);
+  int get hashCode => Object.hash(message, grouped, continuesBelow);
 }
 
 /// Works out the block boundaries, oldest first. The first message never
@@ -57,6 +61,8 @@ List<GroupedConversationMessage> groupConversationMessages(
     grouped.add(GroupedConversationMessage(
       message: messages[i],
       grouped: i > 0 && _continuesBlock(messages[i - 1], messages[i]),
+      continuesBelow: i + 1 < messages.length &&
+          _continuesBlock(messages[i], messages[i + 1]),
     ));
   }
   return grouped;
@@ -69,6 +75,9 @@ bool _continuesBlock(
   if (previousMs == null || currentMs == null) return false;
   if (previous.senderKey != current.senderKey) return false;
   if (currentMs < previousMs) return false;
+  if (!DateUtils.isSameDay(messageDate(previousMs), messageDate(currentMs))) {
+    return false;
+  }
   return currentMs - previousMs <=
       BigInt.from(conversationGroupWindow.inMilliseconds);
 }
@@ -178,8 +187,19 @@ class _ConversationMessageListViewState
         padding: kChatScrollPadding,
         reverse: true,
         itemCount: rows.length,
-        itemBuilder: (context, index) =>
-            _buildRow(context, rows[index], kind, l),
+        itemBuilder: (context, index) {
+          final date = messageDate(rows[index].message.sentAtMs);
+          final previous = index + 1 < rows.length
+              ? messageDate(rows[index + 1].message.sentAtMs)
+              : null;
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (date != null && !DateUtils.isSameDay(date, previous))
+                  ConversationDateDivider(date: date),
+                _buildRow(context, rows[index], kind, l),
+              ]);
+        },
       ),
     );
   }
@@ -200,6 +220,7 @@ class _ConversationMessageListViewState
       message: row.message,
       kind: kind,
       grouped: row.grouped,
+      continuesBelow: row.continuesBelow,
       attachmentView: view,
       peer: widget.peer,
       busy: callbacks.busy,

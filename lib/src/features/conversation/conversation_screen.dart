@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_chrome.dart';
+import 'package:mosh/src/features/conversation/conversation_details_panel.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart'
     show chatHeaderHeight;
@@ -64,7 +65,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
   bool _mobileSearchOpen = false;
-  bool _showPeerStatus = false;
+  bool? _showPeerStatus;
+
+  bool get _detailsDocked => MediaQuery.sizeOf(context).width >= 1280;
+  bool get _detailsOpen => _showPeerStatus ?? _detailsDocked;
 
   AnyConversationTarget get _target => widget.target;
 
@@ -122,6 +126,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     // unread lifecycle at the conversation now on screen.
     if (widget.target != oldWidget.target) {
       _mobileSearchOpen = false;
+      _showPeerStatus = null;
+      _search = '';
+      _filter = ConversationFilter.all;
       _markActive();
     }
   }
@@ -223,11 +230,16 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         filter: _filter,
         onFilter: (value) => setState(() => _filter = value),
         mobileSearchOpen: _mobileSearchOpen,
-        onToggleMobileSearch: () =>
-            setState(() => _mobileSearchOpen = !_mobileSearchOpen),
-        onCloseMobileSearch: () => setState(() => _mobileSearchOpen = false),
-        showPeerStatus: _showPeerStatus,
-        onOpenPeerStatus: () => setState(() => _showPeerStatus = true),
+        onToggleMobileSearch: () => setState(() {
+          if (_mobileSearchOpen) _search = '';
+          _mobileSearchOpen = !_mobileSearchOpen;
+        }),
+        onCloseMobileSearch: () => setState(() {
+          _search = '';
+          _mobileSearchOpen = false;
+        }),
+        showPeerStatus: _detailsOpen,
+        onOpenPeerStatus: () => setState(() => _showPeerStatus = !_detailsOpen),
         onClosePeerStatus: () => setState(() => _showPeerStatus = false),
         onRequestLeave: _requestLeave,
       );
@@ -243,7 +255,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     );
     _listenViewed();
     final chrome = _chrome;
-    return Scaffold(
+    final chat = Scaffold(
       // The wrapper aligns the header's preferredSize with the toolbar the
       // ConversationAppBar actually renders (54px under the 640px
       // breakpoint, 70px above it). The kind headers report kToolbarHeight
@@ -256,6 +268,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       ),
       body: ConversationScreenBody(
         target: _target,
+        detailsDocked: _detailsDocked,
         chrome: chrome,
         composer: _composer,
         onSend: _send,
@@ -266,6 +279,21 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         onAttachmentPickError: _onAttachmentPickError,
       ),
     );
+    if (!_detailsDocked || !_detailsOpen) return chat;
+    return Row(children: [
+      Expanded(child: chat),
+      const VerticalDivider(width: 1),
+      SizedBox(
+        width: 320,
+        child: ConversationDetailsPanel(
+          key: const ValueKey('conversation-details-docked'),
+          target: _target,
+          async: ref.watch(conversationSnapshotProvider(_target)),
+          onClose: chrome.onClosePeerStatus,
+          onOpenAttachment: _openAttachment,
+        ),
+      ),
+    ]);
   }
 
   void _resolvePendingOpen(ConversationSnapshot? snapshot) {

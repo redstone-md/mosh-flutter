@@ -44,7 +44,7 @@ void main() {
     expect(find.text('Join a public channel'), findsOneWidget);
     expect(
       find.text(
-        'Public channels are not end-to-end encrypted \u2014 anyone who knows the name can read along.',
+        'End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.',
       ),
       findsOneWidget,
     );

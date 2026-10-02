@@ -12,7 +12,7 @@ import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
 /// The shortened fingerprint chip in a multi-party sender meta: mono 10px
-/// fg-4 text on a bg-2 rounded-4 background.
+/// fg-3 text on a bg-2 rounded-4 background.
 class DeviceFingerprintChip extends StatelessWidget {
   const DeviceFingerprintChip({super.key, required this.fingerprint});
 
@@ -31,7 +31,7 @@ class DeviceFingerprintChip extends StatelessWidget {
         style: const TextStyle(
           fontFamily: 'monospace',
           fontSize: 10,
-          color: MoshColors.fg4,
+          color: MoshColors.fg3,
         ),
       ),
     );
@@ -59,6 +59,7 @@ class ConversationSenderMeta extends StatelessWidget {
     this.fromFingerprint,
     this.peer,
     this.showMlsBadge = true,
+    this.showTime = true,
   });
 
   final String fromDevice;
@@ -79,6 +80,7 @@ class ConversationSenderMeta extends StatelessWidget {
   /// Whether the [MlsBadge] follows the name. A channel hides it; a group
   /// and a DM show it.
   final bool showMlsBadge;
+  final bool showTime;
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +106,7 @@ class ConversationSenderMeta extends StatelessWidget {
             const SizedBox(width: kMessageMetaGap),
             const MlsBadge(),
           ],
-          if (clock != null && full != null) ...[
+          if (showTime && clock != null && full != null) ...[
             const SizedBox(width: kMessageMetaGap),
             Tooltip(
               message: full,

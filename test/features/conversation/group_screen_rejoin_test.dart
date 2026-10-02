@@ -24,12 +24,11 @@ void main() {
   // The title ARB value ("Group out of sync") has NO trailing period; the
   // widget appends it. The title + "." + " " + body render as a single
   // `Text.rich`, so its `toPlainText()` is the concatenation "Group out of
-  // sync. This group missed...". `find.text` matches a `Text.rich` by its
+  // sync. The group is...". `find.text` matches a `Text.rich` by its
   // span's `toPlainText()`, so we assert on the full string (the bold span
   // carries the appended period).
-  const expectedInlineError =
-      'Group out of sync. This group missed membership changes that could '
-      'not be replayed. Ask an admin to re-invite you from the roster.';
+  const expectedInlineError = 'Group out of sync. The group is out of sync. '
+      'Ask an administrator to invite you again.';
   testWidgets(
       'needsRejoin=true renders the rejoin-needed inline-error (title + body)',
       (tester) async {
