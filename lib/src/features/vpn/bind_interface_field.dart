@@ -48,8 +48,6 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
   Future<void> _refresh() async {
     setState(() {
       _loading = true;
-      _stateKnown = false;
-      _error = null;
     });
     try {
       final results = await Future.wait([
@@ -61,12 +59,18 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
       final bind = (results[1] as VpnBypassConsent?)?.interface_;
       setState(() {
         _interfaces = list;
+        _error = null;
         _stateKnown = true;
         _current = bind != null && bind.isNotEmpty ? bind : null;
         _picked = _current ?? defaultBypassAdapter(list);
       });
     } catch (_) {
-      if (mounted) setState(() => _error = widget.l.bindAdapterReadError);
+      if (mounted) {
+        setState(() {
+          _stateKnown = false;
+          _error = widget.l.bindAdapterReadError;
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

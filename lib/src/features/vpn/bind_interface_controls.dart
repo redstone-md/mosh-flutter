@@ -55,7 +55,7 @@ class BindInterfaceControls extends StatelessWidget {
                   : l.bindAdapterBoundBody(current!),
               style: text.bodyMedium),
         ],
-        if (!loading) ...[
+        if (!loading || stateKnown || error != null) ...[
           const SizedBox(height: 16),
           if (stateKnown)
             _pickerRow(context, candidates)
@@ -138,13 +138,13 @@ class BindInterfaceControls extends StatelessWidget {
         for (final iface in candidates)
           MoshSelectOption(iface.name, adapterLabel(iface)),
       ],
-      onChanged: busy || current != null ? null : onPick,
+      onChanged: loading || busy || current != null ? null : onPick,
     );
   }
 
   Widget _refresh() => IconButton(
         tooltip: l.settingsRefreshDevices,
-        onPressed: busy ? null : onRefresh,
+        onPressed: loading || busy ? null : onRefresh,
         icon: const Icon(Icons.refresh, size: 20),
         style: IconButton.styleFrom(
           minimumSize: const Size(44, 44),
