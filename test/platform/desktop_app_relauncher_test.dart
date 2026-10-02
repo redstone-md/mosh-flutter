@@ -141,9 +141,9 @@ void main() {
 
       await tester.tap(find.text('If a VPN gets in the way'));
       await tester.pumpAndSettle();
-      final bind = find.text('Bind');
-      await tester.ensureVisible(bind);
-      await tester.tap(bind);
+      final apply = find.text('Apply');
+      await tester.ensureVisible(apply);
+      await tester.tap(apply);
       await tester.pumpAndSettle();
 
       expect(relauncher.events, ['spawn', 'terminate']);
