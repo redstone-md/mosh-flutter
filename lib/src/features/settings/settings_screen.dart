@@ -22,13 +22,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  late bool _showSection;
-
-  @override
-  void initState() {
-    super.initState();
-    _showSection = ref.read(settingsSectionProvider) != null;
-  }
+  bool _showSection = false;
 
   void _select(SettingsSection section) {
     ref.read(settingsSectionProvider.notifier).select(section);

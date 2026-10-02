@@ -163,6 +163,26 @@ void main() {
     expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
   });
 
+  testWidgets('reopening narrow settings starts at the section list',
+      (tester) async {
+    _size(tester, const Size(390, 844));
+    await _route(tester, AppRoutes.sessions);
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sound'));
+    await tester.pumpAndSettle();
+    expect(find.text('Microphone'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Back to chats'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Microphone'), findsNothing);
+    expect(find.text('Sound'), findsOneWidget);
+    expect(find.text('Devices'), findsOneWidget);
+  });
+
   testWidgets('the onboarding menu keeps creation separate from settings',
       (tester) async {
     await pumpScreen(

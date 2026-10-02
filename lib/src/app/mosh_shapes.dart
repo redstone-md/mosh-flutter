@@ -9,6 +9,7 @@ abstract final class MoshShapes {
 
   static const control = BorderRadius.all(Radius.circular(8));
   static const conversationRow = BorderRadius.all(Radius.circular(12));
+  static const menu = BorderRadius.all(Radius.circular(12));
   static const message = BorderRadius.all(Radius.circular(messageRadius));
   static const composer = BorderRadius.all(Radius.circular(16));
 

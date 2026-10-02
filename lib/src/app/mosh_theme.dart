@@ -203,6 +203,7 @@ ThemeData buildMoshTheme() {
     dividerColor: MoshColors.line, // hairline
     splashColor: MoshColors.mossGlow,
     highlightColor: MoshColors.mossGlow,
+    focusColor: MoshColors.mossGlow,
     // Chrome is sized in 10.5–15px steps; the Material defaults (16px
     // titles, 14px body) render every surface a step too large.
     // VisualDensity.compact takes the same step out of the Material
@@ -291,6 +292,16 @@ ThemeData buildMoshTheme() {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
+      ),
+    ),
+    popupMenuTheme: const PopupMenuThemeData(
+      color: MoshColors.bg2,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: MoshColors.bg0,
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: MoshShapes.menu,
+        side: BorderSide(color: MoshColors.lineStrong),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
