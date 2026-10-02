@@ -20,7 +20,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -183,25 +183,18 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
               children: [
                 // Adapter dropdown.
                 Expanded(
-                  child: DropdownButton<String>(
-                    borderRadius: MoshShapes.menu,
-                    dropdownColor: theme.popupMenuTheme.color,
+                  child: MoshSelect<String>(
+                    label: l.bindAdapterTitle,
                     value: candidates.any((i) => i.name == _picked)
                         ? _picked
                         : candidates.first.name,
-                    items: candidates
-                        .map((iface) => DropdownMenuItem(
-                              value: iface.name,
-                              child: Text(adapterLabel(iface),
-                                  overflow: TextOverflow.ellipsis),
-                            ))
+                    options: candidates
+                        .map((iface) =>
+                            MoshSelectOption(iface.name, adapterLabel(iface)))
                         .toList(),
                     onChanged: _busy
                         ? null
-                        : (v) {
-                            if (v != null) setState(() => _picked = v);
-                          },
-                    isExpanded: true,
+                        : (value) => setState(() => _picked = value),
                   ),
                 ),
                 const SizedBox(width: 8),

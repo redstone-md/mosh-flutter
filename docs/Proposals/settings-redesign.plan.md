@@ -52,3 +52,12 @@ Reuse Riverpod audio enumeration/persistence and the existing ringtone seam.
 No Rust API, storage or dependency changes belong to the first screen. Audio
 hardware and native window behaviour still need the user's local dev build.
 Record verification and the first-screen implementation in the feature guide.
+
+## Menu review follow-up
+
+The user approved trying adaptive selection menus on 2026-10-02: a styled
+Material MenuAnchor popover on desktop and a titled bottom sheet on phones
+and narrow windows. Reuse the same theme/rows for chat actions. Preserve
+controlled choices, hardware/error handling and adapter application. Verify
+keyboard focus/dismissal, long names and nullable default selection, then
+publish on the same branch for local review before choosing another pattern.

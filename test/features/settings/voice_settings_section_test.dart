@@ -3,11 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/settings/voice_settings_section.dart';
+import 'package:mosh/src/features/settings/audio_device_picker.dart';
 import 'package:mosh/src/state/audio_device_picks_provider.dart';
 import 'package:record/record.dart' show InputDevice;
 
 import '../../support/pump.dart';
 import '../../support/settings.dart';
+
+Finder get _pickers => find.descendant(
+    of: find.byType(AudioDevicePicker), matching: find.byType(OutlinedButton));
 
 void main() {
   testWidgets('unplugged saved devices leave the system default usable',
@@ -22,7 +26,7 @@ void main() {
     expect(find.text('Device unavailable'), findsWidgets);
     expect(picks.state.inputDeviceId, 'missing-mic');
     expect(picks.state.outputDeviceId, 'missing-speaker');
-    await tester.tap(find.byType(DropdownButton<String>).last);
+    await tester.tap(_pickers.last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('System default').last);
     await tester.pumpAndSettle();
@@ -48,12 +52,12 @@ void main() {
     final picks = MemoryAudioPicks();
     await pumpScreen(tester, const Scaffold(body: VoiceSettingsSection()),
         overrides: settingsAudioOverrides(picks: picks));
-    await tester.tap(find.byType(DropdownButton<String>).last);
+    await tester.tap(_pickers.last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Desk speakers').last);
     await tester.pumpAndSettle();
     expect(picks.state.outputDeviceId, 'speaker');
-    await tester.tap(find.byType(DropdownButton<String>).first);
+    await tester.tap(_pickers.first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('USB microphone').last);
     await tester.pumpAndSettle();
@@ -66,7 +70,7 @@ void main() {
     final picks = MemoryAudioPicks()..failWrite = true;
     await pumpScreen(tester, const Scaffold(body: VoiceSettingsSection()),
         overrides: settingsAudioOverrides(picks: picks));
-    await tester.tap(find.byType(DropdownButton<String>).last);
+    await tester.tap(_pickers.last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Desk speakers').last);
     await tester.pumpAndSettle();
@@ -74,13 +78,12 @@ void main() {
     expect(find.text('Could not save the device selection. Try again.'),
         findsOneWidget);
     expect(
-        tester
-            .widget<DropdownButton<String>>(
-                find.byType(DropdownButton<String>).last)
-            .value,
-        isNull);
+        find.descendant(
+            of: find.byType(AudioDevicePicker).last,
+            matching: find.text('System default')),
+        findsOneWidget);
     picks.failWrite = false;
-    await tester.tap(find.byType(DropdownButton<String>).last);
+    await tester.tap(_pickers.last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Desk speakers').last);
     await tester.pumpAndSettle();
@@ -138,18 +141,12 @@ void main() {
         overrides: [
           ...settingsAudioOverrides(inputs: () => inputs.future),
         ]);
-    final picker = tester.widget<DropdownButton<String>>(
-        find.byType(DropdownButton<String>).first);
-    expect(picker.onChanged, isNull);
+    final picker = tester.widget<OutlinedButton>(_pickers.first);
+    expect(picker.onPressed, isNull);
     expect(find.text('Loading devices…'), findsOneWidget);
     inputs.complete([const InputDevice(id: 'mic', label: 'USB microphone')]);
     await tester.pumpAndSettle();
-    expect(
-        tester
-            .widget<DropdownButton<String>>(
-                find.byType(DropdownButton<String>).first)
-            .onChanged,
-        isNotNull);
+    expect(tester.widget<OutlinedButton>(_pickers.first).onPressed, isNotNull);
     expect(find.text('Loading devices…'), findsNothing);
   });
 
@@ -167,7 +164,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(reads, 2);
     expect(find.text('Refresh devices'), findsNothing);
-    await tester.tap(find.byType(DropdownButton<String>).first);
+    await tester.tap(_pickers.first);
     await tester.pumpAndSettle();
     expect(find.text('USB microphone'), findsOneWidget);
   });
