@@ -1232,9 +1232,9 @@
   "@settingsTitle": {
     "description": "AppBar title of the settings screen reached from the rail gear"
   },
-  "settingsSectionVoice": "Voice & Video",
+  "settingsSectionVoice": "Sound",
   "@settingsSectionVoice": {
-    "description": "Left-nav label of the Voice & Video settings section"
+    "description": "Navigation label of the Sound settings section"
   },
   "settingsSectionConnection": "Connection",
   "@settingsSectionConnection": {
@@ -1250,15 +1250,15 @@
   },
   "settingsInputDeviceLabel": "Microphone",
   "@settingsInputDeviceLabel": {
-    "description": "Field label of the input-device dropdown in the Voice & Video settings section"
+    "description": "Field label of the input-device dropdown in Sound settings"
   },
   "settingsInputDeviceHint": "The microphone used for voice messages and calls. Applies from the next recording.",
   "@settingsInputDeviceHint": {
     "description": "Hint under the input-device dropdown"
   },
-  "settingsOutputDeviceLabel": "Speaker",
+  "settingsOutputDeviceLabel": "Speakers",
   "@settingsOutputDeviceLabel": {
-    "description": "Field label of the output-device dropdown in the Voice & Video settings section"
+    "description": "Field label of the output-device dropdown in Sound settings"
   },
   "settingsOutputDeviceHint": "Where call audio and ringtones play. Applies from the next call.",
   "@settingsOutputDeviceHint": {
@@ -1270,7 +1270,7 @@
   },
   "settingsTestRingtone": "Play test sound",
   "@settingsTestRingtone": {
-    "description": "Button label in the Voice & Video section; plays the call ringtone on the picked speaker"
+    "description": "Sound settings: plays the call ringtone on the selected speakers"
   },
   "voiceMessagePlayLabel": "Play voice message",
   "@voiceMessagePlayLabel": {
@@ -1688,5 +1688,49 @@
   "chatDetailsParticipants": "Participants",
   "chatDetailsDiagnostics": "Connection details",
   "chatDetailsProtection": "Conversation protection",
-  "chatDetailsKnownAuthors": "Known authors"
+  "chatDetailsKnownAuthors": "Known authors",
+  "settingsBackToChats": "Back to chats",
+  "@settingsBackToChats": {
+    "description": "Closes settings and restores the chat screen"
+  },
+  "settingsBackToSections": "Back to settings sections",
+  "@settingsBackToSections": {
+    "description": "Narrow settings toolbar: returns from a section to the section list"
+  },
+  "settingsStopTestRingtone": "Stop test sound",
+  "@settingsStopTestRingtone": {
+    "description": "Stops the currently playing speaker test"
+  },
+  "settingsDevicesLoading": "Loading devices…",
+  "@settingsDevicesLoading": {
+    "description": "Hardware enumeration in progress below an audio selector"
+  },
+  "settingsDeviceUnavailable": "Device unavailable",
+  "@settingsDeviceUnavailable": {
+    "description": "Audio selector label for a saved device missing from the device list"
+  },
+  "settingsDeviceUnavailableHint": "Reconnect this device or choose another one.",
+  "@settingsDeviceUnavailableHint": {
+    "description": "Explanation below an unavailable saved audio device"
+  },
+  "settingsDevicesLoadError": "Could not load audio devices. Try again or select the system default.",
+  "@settingsDevicesLoadError": {
+    "description": "Audio hardware enumeration failed; retry and default selection are available"
+  },
+  "settingsRefreshDevices": "Refresh devices",
+  "@settingsRefreshDevices": {
+    "description": "Retries audio hardware enumeration after failure"
+  },
+  "settingsSoundTestError": "Could not play test sound. Check your speakers and try again.",
+  "@settingsSoundTestError": {
+    "description": "Speaker test playback failed"
+  },
+  "settingsAudioSaveError": "Could not save the device selection. Try again.",
+  "@settingsAudioSaveError": {
+    "description": "Audio preference write failed; the previous selection remains active"
+  },
+  "settingsAudioAppliesAutomatically": "Changes are saved automatically.",
+  "@settingsAudioAppliesAutomatically": {
+    "description": "Audio settings footer explaining immediate preference persistence"
+  }
 }

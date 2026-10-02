@@ -909,22 +909,33 @@ See [Bubble/header polish](Features/chat-message-header-polish.md).
 
 ## Settings
 
-The settings surface is a route, not a modal: `/settings`
-(`AppRoutes.settings`), opened by the gear pinned under the rail's list
-(`RailSettingsButton`). It lives in `lib/src/features/settings/`, one file
-per section; the screen file owns only the frame (section enum, nav,
-content switch, the mobile single-column degradation).
+The rail gear pushes `/settings` (`AppRoutes.settings`) above the chat shell.
+Returning pops the route, preserving the open conversation, scroll position
+and draft. A direct settings entry returns to the chat list. Settings live in
+`lib/src/features/settings/`: the screen owns responsive list/detail navigation,
+while section selection, sidebar, content scroller and audio controls are
+separate modules. At 800px and above the sidebar stays beside the selected
+section; narrower windows use a list followed by the selected section. Back
+and Escape return to that list before closing settings. Riverpod remembers
+the last section for the application launch, without writing it to disk.
+
+The first [redesign stage](Features/settings-redesign.md) delivers the frame
+and Sound. Devices, Connection, Privacy and About keep their existing controls
+until their individual redesign stages. Settings use the existing titlebar's
+brand variant; conversation status remains owned by the hidden chat shell.
 
 ```mermaid
 flowchart TD
-    Gear["RailSettingsButton (rail bottom)"] -->|context.go /settings| Route["/settings route"]
+    Gear["RailSettingsButton (rail bottom)"] -->|context.push /settings| Route["/settings above chat shell"]
     Route --> Screen["SettingsScreen"]
-    Screen --> Voice["Voice & Video"]
+    Screen --> Voice["Sound"]
+    Screen --> Devices["Devices: device-link provider"]
     Screen --> Conn["Connection"]
+    Screen --> Privacy["Privacy: crash-reporting consent"]
     Screen --> About["About"]
     Voice --> Input["mic picker: record listInputDevices"]
     Voice --> Output["speaker picker: mosh-core list_output_devices"]
-    Voice --> Test["Play test sound: voiceCallRingtoneStart"]
+    Voice --> Test["RingtonePlayer: native CPAL binding"]
     Conn --> InviteFlow["inviteFlowProvider: staticPeer / listenPort"]
     Conn --> Bind["BindInterfaceField + ReadReceiptsToggle"]
     Output --> Store["audio-devices.json (data dir)"]
@@ -941,6 +952,12 @@ inside mosh-core at stream start (`resolve_output_device`), where an
 unknown or unplugged id degrades to the system default with a log line,
 never a failed call. The advanced connection controls moved here from the
 onboarding menu's Advanced disclosure, which no longer exists.
+
+Audio selectors keep disconnected saved devices visible without overwriting
+the preference. Enumeration errors offer retry and the system default. A
+failed save keeps the previously persisted selection. The test sound uses the
+existing ringtone seam and stops after 1.5 seconds, on explicit stop or when
+the section is disposed.
 
 ## Voice Call Module
 
