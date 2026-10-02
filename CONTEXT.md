@@ -8,6 +8,12 @@ The initial Mosh setup presented once on a new installation before entering
 conversations. It covers the user's name, device linking and network preferences.
 _Avoid_: onboarding menu, conversation launcher.
 
+## Mosh display name
+
+A user-chosen name shown to conversation participants. It is a label, distinct
+from the stable Mosh user id and device identity.
+_Avoid_: username, account id.
+
 ## Organization (org)
 
 A signed membership document (roster), not a server or infrastructure. An
