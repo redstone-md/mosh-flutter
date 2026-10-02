@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/crash_reporting/crash_reporting_toggle.dart';
 import 'package:mosh/src/features/device_link/devices_settings_section.dart';
+import 'package:mosh/src/features/shared/read_receipts_toggle.dart';
 
 import 'about_settings_section.dart';
 import 'connection_settings_section.dart';
@@ -51,7 +52,14 @@ class SettingsContent extends StatelessWidget {
         SettingsSection.sound => const VoiceSettingsSection(),
         SettingsSection.devices => const DevicesSettingsSection(),
         SettingsSection.connection => const ConnectionSettingsSection(),
-        SettingsSection.privacy => const CrashReportingToggle(),
+        SettingsSection.privacy => const Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CrashReportingToggle(),
+              SizedBox(height: 16),
+              ReadReceiptsToggle(),
+            ],
+          ),
         SettingsSection.about => const AboutSettingsSection(),
       };
 }

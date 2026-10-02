@@ -2,8 +2,9 @@
 
 The [approved plan](../Proposals/settings-redesign.plan.md) is delivered on
 `feat/settings-redesign`, one screen per local development-build review.
-The settings frame, Sound and Devices are implemented. Connection, Privacy
-and About retain their existing controls until their redesign stages.
+The settings frame, Sound, Devices and Connection are implemented. Privacy
+and About retain their existing presentation until their redesign stages.
+Read receipts have moved to Privacy.
 
 ## Navigation
 
@@ -40,8 +41,8 @@ and About retain their existing controls until their redesign stages.
 
 ## Adaptive menus
 
-The user approved trying this pattern after reviewing the rounded legacy
-dropdowns. Microphone, speaker and adapter choices now use one controlled
+The user accepted this pattern after reviewing an isolated inline alternative.
+Microphone, speaker and adapter choices now use one controlled
 `MoshSelect`. Desktop opens a Material `MenuAnchor` beneath the field with a
 6px gap; Android, iOS and windows below 600px use a titled bottom sheet. The
 chat action menu uses the same popover rows on all platforms.
@@ -67,7 +68,7 @@ Menu-trial verification: Flutter analysis and formatting are clean; the full
 suite passes 1041 tests with five existing native-library skips. Changed
 production executable line coverage is 172/173 (99.4%); changed branch coverage
 is 44/44 (100%). The Android arm64 debug APK builds. Physical desktop/phone
-review determines whether to keep this pattern or try the alternative.
+review remains useful for platform-specific behavior.
 
 The existing `mosh_theme.dart` exceeds the 400-line file limit because it holds
 the palette and declarative theme configuration. New menu recipes live in
@@ -141,7 +142,55 @@ Devices verification on 2026-10-02:
 - Desktop and narrow captures were inspected at 1200×950 and 360×950. Physical
   Android camera scanning and native Windows behavior need the local dev build.
 
-The next screen is Connection, after the user's Devices review.
+## Connection
+
+Automatic discovery replaces the editable host/port and incoming-port fields.
+The discovery card explains the public trackers' access to network metadata;
+longer discovery details collapse. The existing read-receipt switch now lives
+beside crash reporting in Privacy, with its persistence, default-off state and
+mutual rule unchanged.
+
+The VPN and Diagnostics cards load their controls on first expansion and retain
+local state when collapsed. They reuse the Sound card's material, icon badge and
+adaptive selector. The adapter form uses the existing interface inventory,
+physical-adapter filter and consent write. Choosing a name remains local until
+Bind is pressed; Release clears the stored override, including when the saved
+adapter has disappeared. Selecting another adapter requires releasing the
+existing override first, as before.
+
+The LAN IP and VPN bypass warning stays beside the controls. A saved adapter is
+labelled as saved, rather than as a live connection. Windows invokes the scoped
+relauncher after a successful write, even if the user has left the section.
+Other platforms show instructions to fully close and reopen Mosh. Returning
+relaunch callbacks release the busy state; a failed save or restart shows a
+localized error. Read errors can be retried.
+
+Diagnostics reuse the existing Riverpod native-runtime and Moss-library
+providers and diagnostic rows. They display actual library availability,
+filename, loading mode, version and optional field-log path. These values do
+not claim that any chat is connected. Refresh reads both providers again.
+The chat's diagnostics remain the place for its route and connection state.
+
+New production files remain below 200 lines. The declarative
+`BindInterfaceControls.build` and `ConnectionDiagnostics.build` methods exceed
+50 lines to keep their small forms readable; their handlers remain below the
+limit. Declarative widget nesting uses the existing settings exception.
+
+Connection verification on 2026-10-02:
+
+- Formatting and Flutter analysis are clean. The full Flutter suite passes
+  1050 tests with the same five native-library skips. The final focused
+  settings, adapter, relaunch and read-receipt suite passes 48 tests.
+- Changed production executable line coverage is 193/193 (100%); changed
+  branch coverage is 50/51 (98%). Counts intersect added/modified lines
+  with the final focused LCOV report.
+- Production-themed captures were inspected at 1200×1100 and 390×1050.
+  The layout test also covers 320px with doubled text. The Android arm64
+  debug APK builds successfully.
+- Windows process relaunch and actual VPN routing still require a local
+  development build. This stage changes no native API, dependency or storage.
+
+The next screen is Privacy, after the user's Connection review.
 
 ## Changed files
 
@@ -166,3 +215,12 @@ The menu trial adds `lib/src/app/mosh_select.dart`, `mosh_menu_item.dart` and
 `bind_interface_field.dart` and `chat_header_menu.dart`. Interaction tests are
 in `test/app/dropdown_menu_test.dart` and `chat_header_menu_test.dart`; existing
 Sound, adapter and shell tests follow the shared controls.
+
+Connection adds `connection_diagnostics.dart`, `settings_disclosure.dart` and
+`bind_interface_controls.dart`. It updates `connection_settings_section.dart`,
+`settings_card.dart`, `settings_content.dart`, `bind_interface_field.dart`,
+`read_receipts_toggle.dart`, `desktop_app_relauncher.dart` and both ARB files.
+Tests cover lazy reads, collapse preservation, actual diagnostic values,
+loading/error/retry, unavailable adapters, repeated apply/release, restart
+failure, disposal during a write, the receipt's Privacy write path and 320px
+layout with doubled text.

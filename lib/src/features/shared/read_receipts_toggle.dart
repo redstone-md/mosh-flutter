@@ -3,7 +3,7 @@
 ///
 /// Off by default and symmetric — a user who does not send receipts does
 /// not see others' — so the row carries the contract in its subtitle and
-/// needs no confirmation dialog. Mounted in the Connection settings section.
+/// needs no confirmation dialog. Mounted in the Privacy settings section.
 library;
 
 import 'package:flutter/material.dart';

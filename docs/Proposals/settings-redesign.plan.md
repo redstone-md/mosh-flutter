@@ -61,3 +61,4 @@ and narrow windows. Reuse the same theme/rows for chat actions. Preserve
 controlled choices, hardware/error handling and adapter application. Verify
 keyboard focus/dismissal, long names and nullable default selection, then
 publish on the same branch for local review before choosing another pattern.
+The user accepted this pattern after comparing a standalone inline example.
