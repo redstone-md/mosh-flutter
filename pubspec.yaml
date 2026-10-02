@@ -108,6 +108,8 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+  assets:
+    - assets/onboarding/
 
 flutter_rust_bridge:
   rust_input: crate::api
