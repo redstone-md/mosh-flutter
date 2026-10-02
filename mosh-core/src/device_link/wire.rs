@@ -10,17 +10,24 @@ use super::qr::PairingQr;
 use super::roster::{invalid, public_key, DeviceRoster};
 use super::types::{DeviceDescriptor, Result};
 
-pub(crate) const WIRE_PREFIX: &[u8] = b"mosh-device-link-v1\0";
+pub(crate) const WIRE_PREFIX: &[u8] = b"mosh-device-link-v2\0";
+const LEGACY_WIRE_PREFIX: &[u8] = b"mosh-device-link-v1\0";
 pub(crate) const ROSTER_NOTICE_PREFIX: &[u8] = b"mosh-device-roster-notice-v1\0";
 pub(crate) const MAX_PACKET_BYTES: usize = 64 * 1024;
-const SIGN_CONTEXT: &[u8] = b"mosh-device-packet-v1\0";
+const SIGN_CONTEXT: &[u8] = b"mosh-device-packet-v2\0";
+const LEGACY_SIGN_CONTEXT: &[u8] = b"mosh-device-packet-v1\0";
 const NONCE_BYTES: usize = 12;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) enum LinkMessage {
+    Join {
+        device: DeviceDescriptor,
+    },
     Offer {
         roster: DeviceRoster,
         trusted: DeviceDescriptor,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        joining: Option<DeviceDescriptor>,
     },
     Ready {
         offer_hash: String,
@@ -42,7 +49,13 @@ struct SignedMessage {
 }
 
 fn context(qr: &PairingQr, signer: &str) -> Result<Vec<u8>> {
-    let mut context = SIGN_CONTEXT.to_vec();
+    qr.validate_stored()?;
+    let mut context = if qr.is_current() {
+        SIGN_CONTEXT
+    } else {
+        LEGACY_SIGN_CONTEXT
+    }
+    .to_vec();
     context.extend(qr.digest()?);
     context.extend(signer.as_bytes());
     Ok(context)
@@ -75,7 +88,7 @@ pub(crate) fn seal(qr: &PairingQr, key: &SigningKey, message: LinkMessage) -> Re
             },
         )
         .map_err(|_| invalid())?;
-    let mut packet = WIRE_PREFIX.to_vec();
+    let mut packet = prefix(qr).to_vec();
     packet.extend(nonce);
     packet.extend(ciphertext);
     if packet.len() > MAX_PACKET_BYTES {
@@ -88,7 +101,7 @@ pub(crate) fn open(qr: &PairingQr, packet: &[u8]) -> Result<(String, LinkMessage
     if packet.len() > MAX_PACKET_BYTES {
         return Err(invalid());
     }
-    let body = packet.strip_prefix(WIRE_PREFIX).ok_or_else(invalid)?;
+    let body = packet.strip_prefix(prefix(qr)).ok_or_else(invalid)?;
     if body.len() <= NONCE_BYTES {
         return Err(invalid());
     }
@@ -114,5 +127,15 @@ pub(crate) fn open(qr: &PairingQr, packet: &[u8]) -> Result<(String, LinkMessage
 
 /// Route pairing independently of the attachment stream, which has another owner.
 pub fn is_device_link_packet(bytes: &[u8]) -> bool {
-    bytes.starts_with(WIRE_PREFIX) || bytes.starts_with(ROSTER_NOTICE_PREFIX)
+    bytes.starts_with(WIRE_PREFIX)
+        || bytes.starts_with(LEGACY_WIRE_PREFIX)
+        || bytes.starts_with(ROSTER_NOTICE_PREFIX)
+}
+
+fn prefix(qr: &PairingQr) -> &'static [u8] {
+    if qr.is_current() {
+        WIRE_PREFIX
+    } else {
+        LEGACY_WIRE_PREFIX
+    }
 }

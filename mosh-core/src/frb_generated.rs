@@ -52,7 +52,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -947063131;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 768977963;
 
 // Section: executor
 
@@ -312,6 +312,39 @@ fn wire__crate__api__audio_devices__audio_output_device_id_impl(
                     Result::<_, ()>::Ok(crate::api::audio_devices::audio_output_device_id())?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__device_link__begin_link_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "begin_link",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::device_link::types::DeviceLinkError>((move || {
+                    let output_ok = crate::api::device_link::begin_link()?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
         },
     )
 }
@@ -770,40 +803,6 @@ fn wire__crate__api__private_dm__create_invite_impl(
         },
     )
 }
-fn wire__crate__api__device_link__create_qr_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "create_qr",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_device_name = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::device_link::types::DeviceLinkError>((move || {
-                    let output_ok = crate::api::device_link::create_qr(api_device_name)?;
-                    Ok(output_ok)
-                })(
-                ))
-            }
-        },
-    )
-}
 fn wire__crate__api__vpn__detect_vpn_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1227,40 +1226,6 @@ fn wire__crate__api__org__group_invite_members_impl(
         },
     )
 }
-fn wire__crate__api__device_link__import_qr_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "import_qr",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_uri = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::device_link::types::DeviceLinkError>((move || {
-                    let output_ok = crate::api::device_link::import_qr(api_uri)?;
-                    Ok(output_ok)
-                })(
-                ))
-            }
-        },
-    )
-}
 fn wire__crate__api__channel__join_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1329,6 +1294,41 @@ fn wire__crate__api__private_group__join_group_impl(
                         Ok(output_ok)
                     })(),
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__device_link__join_link_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "join_link",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_uri = <String>::sse_decode(&mut deserializer);
+            let api_device_name = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::device_link::types::DeviceLinkError>((move || {
+                    let output_ok = crate::api::device_link::join_link(api_uri, api_device_name)?;
+                    Ok(output_ok)
+                })(
+                ))
             }
         },
     )
@@ -3489,9 +3489,23 @@ impl SseDecode for crate::device_link::types::DeviceLinkPhase {
     }
 }
 
+impl SseDecode for crate::device_link::types::DeviceLinkRole {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::device_link::types::DeviceLinkRole::Authorizing,
+            1 => crate::device_link::types::DeviceLinkRole::Joining,
+            _ => unreachable!("Invalid variant for DeviceLinkRole: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::device_link::types::DeviceLinkSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_role =
+            <Option<crate::device_link::types::DeviceLinkRole>>::sse_decode(deserializer);
         let mut var_revoked = <bool>::sse_decode(deserializer);
         let mut var_revocations =
             <Vec<crate::device_link::types::DeviceRevocationStatus>>::sse_decode(deserializer);
@@ -3509,6 +3523,7 @@ impl SseDecode for crate::device_link::types::DeviceLinkSnapshot {
         let mut var_error =
             <Option<crate::device_link::types::DeviceLinkErrorKind>>::sse_decode(deserializer);
         return crate::device_link::types::DeviceLinkSnapshot {
+            role: var_role,
             revoked: var_revoked,
             revocations: var_revocations,
             user_id: var_userId,
@@ -4389,6 +4404,19 @@ impl SseDecode for Option<crate::device_link::types::DeviceLinkErrorKind> {
     }
 }
 
+impl SseDecode for Option<crate::device_link::types::DeviceLinkRole> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::device_link::types::DeviceLinkRole>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::private_dm_runtime::contracts::DmDeviceRevocationState> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4931,31 +4959,31 @@ fn pde_ffi_dispatcher_primary_impl(
         3 => wire__crate__api__private_dm__accept_invite_impl(port, ptr, rust_vec_len, data_len),
         4 => wire__crate__api__diagnostics__app_diagnostics_impl(port, ptr, rust_vec_len, data_len),
         5 => wire__crate__api__device_link__approve_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__private_dm__call_accept_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__private_dm__call_decline_impl(port, ptr, rust_vec_len, data_len),
-        10 => {
+        8 => wire__crate__api__device_link__begin_link_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__private_dm__call_accept_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__private_dm__call_decline_impl(port, ptr, rust_vec_len, data_len),
+        11 => {
             wire__crate__api__private_dm__call_drain_frames_impl(port, ptr, rust_vec_len, data_len)
         }
-        11 => wire__crate__api__private_dm__call_end_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__private_dm__call_send_frame_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__private_dm__call_start_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__device_link__cancel_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__conversation__cancel_attachment_impl(
+        12 => wire__crate__api__private_dm__call_end_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__private_dm__call_send_frame_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__private_dm__call_start_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__device_link__cancel_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__conversation__cancel_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        16 => wire__crate__api__diagnostics__crash_reporting_salt_impl(
+        17 => wire__crate__api__diagnostics__crash_reporting_salt_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        17 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__device_link__create_qr_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__org__create_group_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__private_group__create_group_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__private_dm__create_invite_impl(port, ptr, rust_vec_len, data_len),
         21 => wire__crate__api__vpn__detect_vpn_impl(port, ptr, rust_vec_len, data_len),
         22 => wire__crate__api__diagnostics__disable_crash_reporting_impl(
             port,
@@ -4993,9 +5021,9 @@ fn pde_ffi_dispatcher_primary_impl(
         30 => wire__crate__api__vpn__get_bind_interface_impl(port, ptr, rust_vec_len, data_len),
         31 => wire__crate__api__vpn__get_vpn_bypass_consent_impl(port, ptr, rust_vec_len, data_len),
         32 => wire__crate__api__org__group_invite_members_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__device_link__import_qr_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__channel__join_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__private_group__join_group_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__device_link__join_link_impl(port, ptr, rust_vec_len, data_len),
         36 => wire__crate__api__org__join_org_impl(port, ptr, rust_vec_len, data_len),
         37 => wire__crate__api__conversation__leave_impl(port, ptr, rust_vec_len, data_len),
         38 => wire__crate__api__org__leave_org_impl(port, ptr, rust_vec_len, data_len),
@@ -5833,9 +5861,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::device_link::types::DeviceLinkPhas
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::device_link::types::DeviceLinkRole {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Authorizing => 0.into_dart(),
+            Self::Joining => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::device_link::types::DeviceLinkRole
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::device_link::types::DeviceLinkRole>
+    for crate::device_link::types::DeviceLinkRole
+{
+    fn into_into_dart(self) -> crate::device_link::types::DeviceLinkRole {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::device_link::types::DeviceLinkSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.role.into_into_dart().into_dart(),
             self.revoked.into_into_dart().into_dart(),
             self.revocations.into_into_dart().into_dart(),
             self.user_id.into_into_dart().into_dart(),
@@ -7348,9 +7398,26 @@ impl SseEncode for crate::device_link::types::DeviceLinkPhase {
     }
 }
 
+impl SseEncode for crate::device_link::types::DeviceLinkRole {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::device_link::types::DeviceLinkRole::Authorizing => 0,
+                crate::device_link::types::DeviceLinkRole::Joining => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::device_link::types::DeviceLinkSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::device_link::types::DeviceLinkRole>>::sse_encode(self.role, serializer);
         <bool>::sse_encode(self.revoked, serializer);
         <Vec<crate::device_link::types::DeviceRevocationStatus>>::sse_encode(
             self.revocations,
@@ -8013,6 +8080,16 @@ impl SseEncode for Option<crate::device_link::types::DeviceLinkErrorKind> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::device_link::types::DeviceLinkErrorKind>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::device_link::types::DeviceLinkRole> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::device_link::types::DeviceLinkRole>::sse_encode(value, serializer);
         }
     }
 }

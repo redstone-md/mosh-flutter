@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -9,22 +8,12 @@ import 'package:mosh/src/features/device_link/device_link_qr.dart';
 import 'package:mosh/src/features/device_link/qr_image.dart';
 
 import '../../support/pump.dart';
+import '../../support/device_link_fixture.dart';
 
 void main() {
   testWidgets('a real rendered pairing QR can be imported from a desktop image',
       (tester) async {
-    final link = 'mosh://device-link/${base64Url.encode(utf8.encode(jsonEncode({
-              'version': 1,
-              'id': 'a' * 32,
-              'expires_at': 1790555000,
-              'device': {
-                'device_id': 'b' * 64,
-                'signing_public_key': 'c' * 64,
-                'moss_peer_id': 'd' * 64,
-                'name': 'Second desktop',
-              },
-              'secret': List.generate(32, (index) => index + 1),
-            }))).replaceAll('=', '')}';
+    final link = deviceLinkQrFixture();
     const imageKey = ValueKey('rendered device QR');
     await pumpScreen(
         tester,

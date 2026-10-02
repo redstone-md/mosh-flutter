@@ -12,11 +12,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<DeviceLinkSnapshot> snapshot() =>
     RustLib.instance.api.crateApiDeviceLinkSnapshot();
 
-Future<DeviceLinkSnapshot> createQr({required String deviceName}) =>
-    RustLib.instance.api.crateApiDeviceLinkCreateQr(deviceName: deviceName);
+Future<DeviceLinkSnapshot> beginLink() =>
+    RustLib.instance.api.crateApiDeviceLinkBeginLink();
 
-Future<DeviceLinkSnapshot> importQr({required String uri}) =>
-    RustLib.instance.api.crateApiDeviceLinkImportQr(uri: uri);
+Future<DeviceLinkSnapshot> joinLink(
+        {required String uri, required String deviceName}) =>
+    RustLib.instance.api
+        .crateApiDeviceLinkJoinLink(uri: uri, deviceName: deviceName);
 
 Future<DeviceLinkSnapshot> approve({required String confirmationCode}) =>
     RustLib.instance.api

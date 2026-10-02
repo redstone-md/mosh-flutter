@@ -1,4 +1,7 @@
 mod actions;
+mod exchange;
+#[cfg(test)]
+mod legacy_tests;
 mod receive;
 mod revocation;
 mod service;
@@ -11,92 +14,12 @@ use super::qr::PairingQr;
 use super::roster::DeviceRoster;
 use super::transport::LinkTransport;
 use super::types::{
-    DeviceDescriptor, DeviceLinkError, DeviceLinkErrorKind, DeviceLinkPhase, DeviceLinkSnapshot,
-    Result,
+    DeviceDescriptor, DeviceLinkError, DeviceLinkErrorKind, DeviceLinkPhase,
+    DeviceLinkRole as Role, DeviceLinkSnapshot, Result,
 };
 use crate::persistence::Persistence;
 use crate::shared_node::SharedMossNode;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Role {
-    Joining,
-    Trusted,
-}
-
-struct Exchange {
-    qr: PairingQr,
-    role: Role,
-    trusted: Option<DeviceDescriptor>,
-    base: Option<DeviceRoster>,
-    packet: Option<Vec<u8>>,
-    last_send: Option<Instant>,
-    last_response: Instant,
-}
-
-impl Exchange {
-    fn awaits_adopted_approval(&self, identity: &DeviceIdentity) -> bool {
-        identity.record.pending.as_ref().is_some_and(|pending| {
-            pending.qr.id == self.qr.id
-                && identity
-                    .roster()
-                    .verifies_addition(&pending.base, &self.qr.device, &pending.trusted.device_id)
-                    .is_ok()
-        })
-    }
-
-    fn check_offer(
-        &self,
-        signer: &str,
-        roster: &DeviceRoster,
-        trusted: &DeviceDescriptor,
-    ) -> Result<()> {
-        use super::roster::invalid;
-        let devices = roster.devices()?;
-        if signer != trusted.signing_public_key
-            || !devices.contains(trusted)
-            || devices.iter().any(|d| {
-                d.device_id == self.qr.device.device_id
-                    || d.moss_peer_id == self.qr.device.moss_peer_id
-            })
-        {
-            return Err(invalid());
-        }
-        if let Some(known) = &self.trusted {
-            if known != trusted
-                || self.base.as_ref().ok_or_else(invalid)?.digest()? != roster.digest()?
-            {
-                return Err(invalid());
-            }
-        }
-        Ok(())
-    }
-
-    fn resume(pending: &PendingJoin, identity: &DeviceIdentity) -> Result<Self> {
-        let packet = super::wire::seal(
-            &pending.qr,
-            &identity.key(),
-            super::wire::LinkMessage::Ready {
-                offer_hash: pending.base.digest()?,
-            },
-        )?;
-        Ok(Self {
-            qr: pending.qr.clone(),
-            role: Role::Joining,
-            trusted: Some(pending.trusted.clone()),
-            base: Some(pending.base.clone()),
-            packet: Some(packet),
-            last_send: None,
-            last_response: Instant::now(),
-        })
-    }
-
-    fn peer(&self) -> Option<&str> {
-        match self.role {
-            Role::Trusted => Some(&self.qr.device.moss_peer_id),
-            Role::Joining => self.trusted.as_ref().map(|d| d.moss_peer_id.as_str()),
-        }
-    }
-}
+use exchange::Exchange;
 
 pub struct DeviceLinkRuntime {
     identity: DeviceIdentity,
@@ -148,10 +71,18 @@ impl DeviceLinkRuntime {
             Some(e) if e.trusted.is_some() && e.base.is_some() => Some(e.qr.code(
                 &e.base.as_ref().unwrap().digest()?,
                 e.trusted.as_ref().unwrap(),
+                e.joining.as_ref().unwrap(),
             )?),
             _ => None,
         };
         Ok(DeviceLinkSnapshot {
+            role: exchange.map(|e| e.role).or_else(|| {
+                self.identity
+                    .record
+                    .delivery
+                    .as_ref()
+                    .map(|_| Role::Authorizing)
+            }),
             revoked: self.identity.revoked()?,
             revocations: self.identity.revocations()?,
             user_id: self.identity.roster().user_id(),
@@ -159,12 +90,15 @@ impl DeviceLinkRuntime {
             devices: self.identity.roster().devices()?,
             can_join: self.identity.can_join()?,
             phase: self.phase,
-            qr_uri: joining.map(|e| e.qr.uri()).transpose()?,
+            qr_uri: exchange
+                .filter(|e| e.role == Role::Authorizing && self.phase == DeviceLinkPhase::ShowingQr)
+                .map(|e| e.qr.uri())
+                .transpose()?,
             expires_at: exchange.map(|e| e.qr.expires_at),
             confirmation_code,
-            pending_device: exchange.map(|e| match e.role {
-                Role::Trusted => e.qr.device.clone(),
-                Role::Joining => e.trusted.clone().unwrap_or_else(|| e.qr.device.clone()),
+            pending_device: exchange.and_then(|e| match e.role {
+                Role::Authorizing => e.joining.clone(),
+                Role::Joining => e.trusted.clone(),
             }),
             error: self.error,
         })

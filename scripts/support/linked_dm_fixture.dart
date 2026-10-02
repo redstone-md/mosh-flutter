@@ -67,8 +67,9 @@ final class LinkedDmFixture {
           'contact' => contact,
           _ => throw const FormatException('Unknown fixture installation'),
         };
-        if (data['action'] == 'import') qr = data['argument'] as String;
-        return peer.ask(data);
+        final result = await peer.ask(data);
+        if (data['action'] == 'qr') qr = result['qr_uri'] as String;
+        return result;
       case 'save-phone':
         phone = data;
         return {};
@@ -86,7 +87,7 @@ final class LinkedDmFixture {
       case 'revoke':
         return original.ask({'action': 'revoke', 'argument': data['device']});
       case 'old-qr':
-        return original.ask({'action': 'import', 'argument': qr});
+        return {'uri': qr};
       default:
         throw const FormatException('Unknown fixture operation');
     }

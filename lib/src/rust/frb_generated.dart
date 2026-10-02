@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -947063131;
+  int get rustContentHash => 768977963;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -139,6 +139,8 @@ abstract class RustLibApi extends BaseApi {
   String? crateApiAudioDevicesAudioInputDeviceId();
 
   String? crateApiAudioDevicesAudioOutputDeviceId();
+
+  Future<DeviceLinkSnapshot> crateApiDeviceLinkBeginLink();
 
   Future<void> crateApiPrivateDmCallAccept(
       {required String sessionId, required String callId});
@@ -184,9 +186,6 @@ abstract class RustLibApi extends BaseApi {
   Future<InviteCreated> crateApiPrivateDmCreateInvite(
       {required StartSessionRequest request});
 
-  Future<DeviceLinkSnapshot> crateApiDeviceLinkCreateQr(
-      {required String deviceName});
-
   Future<VpnDetection> crateApiVpnDetectVpn();
 
   Future<void> crateApiDiagnosticsDisableCrashReporting();
@@ -219,13 +218,14 @@ abstract class RustLibApi extends BaseApi {
       required String groupId,
       required List<String> memberPeerIds});
 
-  Future<DeviceLinkSnapshot> crateApiDeviceLinkImportQr({required String uri});
-
   Future<ChannelSnapshot> crateApiChannelJoin(
       {required JoinChannelRequest request});
 
   Future<GroupSnapshot> crateApiPrivateGroupJoinGroup(
       {required JoinGroupRequest request});
+
+  Future<DeviceLinkSnapshot> crateApiDeviceLinkJoinLink(
+      {required String uri, required String deviceName});
 
   Future<OrgSnapshot> crateApiOrgJoinOrg({required JoinOrgRequest request});
 
@@ -592,6 +592,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DeviceLinkSnapshot> crateApiDeviceLinkBeginLink() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 8, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_device_link_snapshot,
+        decodeErrorData: sse_decode_device_link_error,
+      ),
+      constMeta: kCrateApiDeviceLinkBeginLinkConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDeviceLinkBeginLinkConstMeta =>
+      const TaskConstMeta(
+        debugName: "begin_link",
+        argNames: [],
+      );
+
+  @override
   Future<void> crateApiPrivateDmCallAccept(
       {required String sessionId, required String callId}) {
     return handler.executeNormal(NormalTask(
@@ -600,7 +624,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(sessionId, serializer);
         sse_encode_String(callId, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 8, port: port_);
+            funcId: 9, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -630,7 +654,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(callId, serializer);
         sse_encode_String(reason, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 9, port: port_);
+            funcId: 10, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -657,7 +681,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(sessionId, serializer);
         sse_encode_String(callId, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 10, port: port_);
+            funcId: 11, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_list_prim_u_8_strict,
@@ -687,7 +711,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(callId, serializer);
         sse_encode_String(reason, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 11, port: port_);
+            funcId: 12, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -716,7 +740,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(callId, serializer);
         sse_encode_list_prim_u_8_loose(frame, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 12, port: port_);
+            funcId: 13, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -741,7 +765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(sessionId, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 13, port: port_);
+            funcId: 14, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_call_started,
@@ -764,7 +788,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 14, port: port_);
+            funcId: 15, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_device_link_snapshot,
@@ -791,7 +815,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_box_autoadd_bridge_conversation_ref(reference, serializer);
         sse_encode_String(attachmentId, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 15, port: port_);
+            funcId: 16, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -815,7 +839,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 16, port: port_);
+            funcId: 17, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_opt_String,
@@ -851,7 +875,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_16(listenPort, serializer);
         sse_encode_opt_String(staticPeer, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 17, port: port_);
+            funcId: 18, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_group_created,
@@ -890,7 +914,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_create_group_request(request, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 18, port: port_);
+            funcId: 19, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_group_created,
@@ -916,7 +940,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_start_session_request(request, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 19, port: port_);
+            funcId: 20, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_invite_created,
@@ -932,31 +956,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "create_invite",
         argNames: ["request"],
-      );
-
-  @override
-  Future<DeviceLinkSnapshot> crateApiDeviceLinkCreateQr(
-      {required String deviceName}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(deviceName, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 20, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_device_link_snapshot,
-        decodeErrorData: sse_decode_device_link_error,
-      ),
-      constMeta: kCrateApiDeviceLinkCreateQrConstMeta,
-      argValues: [deviceName],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateApiDeviceLinkCreateQrConstMeta => const TaskConstMeta(
-        debugName: "create_qr",
-        argNames: ["deviceName"],
       );
 
   @override
@@ -1269,30 +1268,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<DeviceLinkSnapshot> crateApiDeviceLinkImportQr({required String uri}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(uri, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 33, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_device_link_snapshot,
-        decodeErrorData: sse_decode_device_link_error,
-      ),
-      constMeta: kCrateApiDeviceLinkImportQrConstMeta,
-      argValues: [uri],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateApiDeviceLinkImportQrConstMeta => const TaskConstMeta(
-        debugName: "import_qr",
-        argNames: ["uri"],
-      );
-
-  @override
   Future<ChannelSnapshot> crateApiChannelJoin(
       {required JoinChannelRequest request}) {
     return handler.executeNormal(NormalTask(
@@ -1300,7 +1275,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_join_channel_request(request, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 34, port: port_);
+            funcId: 33, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_channel_snapshot,
@@ -1325,7 +1300,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_join_group_request(request, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 35, port: port_);
+            funcId: 34, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_group_snapshot,
@@ -1341,6 +1316,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "join_group",
         argNames: ["request"],
+      );
+
+  @override
+  Future<DeviceLinkSnapshot> crateApiDeviceLinkJoinLink(
+      {required String uri, required String deviceName}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(uri, serializer);
+        sse_encode_String(deviceName, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 35, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_device_link_snapshot,
+        decodeErrorData: sse_decode_device_link_error,
+      ),
+      constMeta: kCrateApiDeviceLinkJoinLinkConstMeta,
+      argValues: [uri, deviceName],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDeviceLinkJoinLinkConstMeta => const TaskConstMeta(
+        debugName: "join_link",
+        argNames: ["uri", "deviceName"],
       );
 
   @override
@@ -2792,6 +2793,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviceLinkRole dco_decode_box_autoadd_device_link_role(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_device_link_role(raw);
+  }
+
+  @protected
   DmDeviceRevocationState dco_decode_box_autoadd_dm_device_revocation_state(
       dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -3104,24 +3111,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviceLinkRole dco_decode_device_link_role(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DeviceLinkRole.values[raw as int];
+  }
+
+  @protected
   DeviceLinkSnapshot dco_decode_device_link_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return DeviceLinkSnapshot(
-      revoked: dco_decode_bool(arr[0]),
-      revocations: dco_decode_list_device_revocation_status(arr[1]),
-      userId: dco_decode_String(arr[2]),
-      ownDeviceId: dco_decode_String(arr[3]),
-      devices: dco_decode_list_device_descriptor(arr[4]),
-      canJoin: dco_decode_bool(arr[5]),
-      phase: dco_decode_device_link_phase(arr[6]),
-      qrUri: dco_decode_opt_String(arr[7]),
-      expiresAt: dco_decode_opt_box_autoadd_u_64(arr[8]),
-      confirmationCode: dco_decode_opt_String(arr[9]),
-      pendingDevice: dco_decode_opt_box_autoadd_device_descriptor(arr[10]),
-      error: dco_decode_opt_box_autoadd_device_link_error_kind(arr[11]),
+      role: dco_decode_opt_box_autoadd_device_link_role(arr[0]),
+      revoked: dco_decode_bool(arr[1]),
+      revocations: dco_decode_list_device_revocation_status(arr[2]),
+      userId: dco_decode_String(arr[3]),
+      ownDeviceId: dco_decode_String(arr[4]),
+      devices: dco_decode_list_device_descriptor(arr[5]),
+      canJoin: dco_decode_bool(arr[6]),
+      phase: dco_decode_device_link_phase(arr[7]),
+      qrUri: dco_decode_opt_String(arr[8]),
+      expiresAt: dco_decode_opt_box_autoadd_u_64(arr[9]),
+      confirmationCode: dco_decode_opt_String(arr[10]),
+      pendingDevice: dco_decode_opt_box_autoadd_device_descriptor(arr[11]),
+      error: dco_decode_opt_box_autoadd_device_link_error_kind(arr[12]),
     );
   }
 
@@ -3664,6 +3678,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return raw == null
         ? null
         : dco_decode_box_autoadd_device_link_error_kind(raw);
+  }
+
+  @protected
+  DeviceLinkRole? dco_decode_opt_box_autoadd_device_link_role(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_device_link_role(raw);
   }
 
   @protected
@@ -4385,6 +4405,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviceLinkRole sse_decode_box_autoadd_device_link_role(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_device_link_role(deserializer));
+  }
+
+  @protected
   DmDeviceRevocationState sse_decode_box_autoadd_dm_device_revocation_state(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -4721,9 +4748,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviceLinkRole sse_decode_device_link_role(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DeviceLinkRole.values[inner];
+  }
+
+  @protected
   DeviceLinkSnapshot sse_decode_device_link_snapshot(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_role = sse_decode_opt_box_autoadd_device_link_role(deserializer);
     var var_revoked = sse_decode_bool(deserializer);
     var var_revocations =
         sse_decode_list_device_revocation_status(deserializer);
@@ -4740,6 +4775,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_error =
         sse_decode_opt_box_autoadd_device_link_error_kind(deserializer);
     return DeviceLinkSnapshot(
+        role: var_role,
         revoked: var_revoked,
         revocations: var_revocations,
         userId: var_userId,
@@ -5524,6 +5560,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviceLinkRole? sse_decode_opt_box_autoadd_device_link_role(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_device_link_role(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   DmDeviceRevocationState?
       sse_decode_opt_box_autoadd_dm_device_revocation_state(
           SseDeserializer deserializer) {
@@ -6279,6 +6327,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_device_link_role(
+      DeviceLinkRole self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_device_link_role(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_dm_device_revocation_state(
       DmDeviceRevocationState self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -6556,9 +6611,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_device_link_role(
+      DeviceLinkRole self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_device_link_snapshot(
       DeviceLinkSnapshot self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_device_link_role(self.role, serializer);
     sse_encode_bool(self.revoked, serializer);
     sse_encode_list_device_revocation_status(self.revocations, serializer);
     sse_encode_String(self.userId, serializer);
@@ -7152,6 +7215,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_device_link_error_kind(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_device_link_role(
+      DeviceLinkRole? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_device_link_role(self, serializer);
     }
   }
 

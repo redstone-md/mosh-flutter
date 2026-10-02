@@ -1,11 +1,18 @@
 # Device linking
 
-Open Settings, Devices on both desktops. On the fresh desktop, enter its name
-and choose Link this desktop to an existing user. On the trusted desktop,
-import an image of that QR or paste its link. Read the 12-character code from
-the fresh desktop and enter it on the trusted desktop to approve the device.
-Both desktops must stay online until the trusted desktop shows Device linked.
-The QR expires after five minutes. Keep it private.
+Open Settings → Devices on both installations. On the trusted device, choose
+**Link another device → Create linking QR**. On the new installation, choose
+**Connect this device** and scan that QR with the Android camera, choose its
+image, or paste its private link. The new device displays a 12-character code.
+Enter it on the trusted device and approve. Keep both online until the trusted
+device shows Device linked. The invitation is single-use and expires after five
+minutes. Keep it private.
+
+The Android scanner uses bundled `mobile_scanner`, so scanning does not require
+a model download. Camera permission is requested only when opening the scanner;
+returning to the form always leaves image/link import available. The plugin owns
+camera startup, background pause, foreground return and disposal. Desktop uses
+image/link import. No platform or online status is inferred from device names.
 
 The QR renderer uses whole pixel modules so a desktop screenshot stays
 readable. The importer decodes its image off the UI thread and rejects files
@@ -13,8 +20,10 @@ over 10 MiB or images over 16 megapixels.
 
 ```mermaid
 flowchart TD
-    Fresh[Fresh desktop creates QR] --> Import[Trusted desktop imports QR]
-    Import --> Proof[Encrypted exchange and device-key proof]
+    Trusted[Trusted device creates v2 QR] --> Import[New device scans or imports QR]
+    Import --> Join[New device sends its signed independent descriptor]
+    Join --> Freeze[Trusted device freezes the first candidate]
+    Freeze --> Proof[Encrypted signed roster offer and device-key proof]
     Proof --> Code[Fresh desktop shows code]
     Code --> Approve[Trusted user enters code and approves]
     Approve --> Save[Save signed device list on both desktops]
@@ -59,8 +68,8 @@ flowchart TD
 The removed desktop keeps already received history readable and cannot send
 or request new sync in those DMs. This does not erase its local history. Old
 QRs, approvals and signed roster prefixes cannot restore access. Request
-access again on that desktop to obtain a fresh QR; the trusted desktop must
-approve its new code. Its old history stays under its own storage key, and
+access again on that desktop and scan a fresh QR from an authorized device;
+the authorized device must approve its new code. Its old history stays under its own storage key, and
 its DM joins use new MLS keys. Retained conversations cannot be used to join
 a different user. See [ADR 0033](../ADR/0033-dm-device-revocation.md).
 
@@ -68,7 +77,9 @@ a different user. See [ADR 0033](../ADR/0033-dm-device-revocation.md).
 
 Wrong codes do not authorize a device. Expired, cancelled, substituted and
 replayed requests cannot add another device. A whole replaced QR names a
-different device; approve only a code read from the intended desktop.
+different authorizer; read it only from your trusted device. Approve only a code
+read from the intended new installation. After the first valid join request, a
+second scanner cannot replace the candidate, obtain its code or gain access.
 An interrupted exchange reports a connection error. An unused QR needs to be
 created again after restart. Once both desktops have exchanged their proof,
 the new desktop restores that pending request until its five-minute expiry.
@@ -80,7 +91,7 @@ If the new desktop never receives that approval before its request expires,
 the trusted desktop keeps the approved entry and reports incomplete delivery.
 It cannot silently undo a signed authorization.
 Cancellation records that request until expiry, so losing its rejection packet
-does not let the trusted desktop accept that QR again. Starting a conversation
+does not let either installation reuse the consumed invitation. Starting a conversation
 on a desktop waiting to join cancels its pending request and keeps its own user.
 The online trusted desktop receives that rejection and cannot approve its code.
 
@@ -89,6 +100,12 @@ It is never published through gossip. The local record uses the installation's
 existing encrypted redb store. See [ADR 0029](../ADR/0029-private-desktop-device-linking.md)
 for the exact authorization and verification rules.
 
+New imports require v2. Older QR invitations are rejected with instructions to
+create one on the trusted device. Existing identities, rosters and history keep
+their formats. Authenticated v1 pending exchanges restore only their pinned peer
+and base roster until expiry; already committed v1 deliveries and receipts can
+finish after either side upgrades. No fresh v1 request can be started or imported.
+
 ## Tests
 
 - `node scripts/moss-test.mjs --test device_link_flow`
@@ -96,6 +113,13 @@ for the exact authorization and verification rules.
   keys and databases. It checks approval, refusal, QR mutation/replay, restart
   and an existing text DM with a third installation. Automatic discovery uses
   a real local tracker. The wrapper installs its pinned tool outside the repo.
+- `node scripts/moss-test.mjs --test device_link_invitation` checks candidate
+  freezing against another real scanner, with a fresh-invitation positive control,
+  and rejection of v1 invitations without changing the installation's identity.
+- `node scripts/moss-test.mjs --lib an_already_approved_v1_delivery` checks old
+  persisted pending exchanges, approval delivery and duplicate receipts using
+  independent processes and a separately encoded v1 fixture. Fixtures are test
+  only; no private persistence method is exposed through production APIs.
 - `cargo test --manifest-path mosh-core/Cargo.toml --test device_link_identity`
   proves persistent identity and unchanged old history/transport records.
 - `cargo test --manifest-path mosh-core/Cargo.toml device_link::protocol_tests`
@@ -104,6 +128,14 @@ for the exact authorization and verification rules.
 - `cargo test --manifest-path mosh-core/Cargo.toml --lib fresh_approval_completes`
   proves a signed roster notice arriving before the matching fresh approval
   cannot interrupt that approval or revive a consumed request after removal.
+- `node scripts/moss-test.mjs --lib another_identity_owner_can_remove` verifies
+  authorizer removal during QR display, approval entry and committed delivery.
+  A separate identity owner writes the signed removal through the same encrypted
+  CAS boundary used by DM adoption.
+- `node scripts/moss-test.mjs --lib a_late_approval_cannot_restore` verifies
+  Add notice → newer Remove → delayed Approved, both through notices and when
+  DM commits the removal before its duplicate notice. A delayed approval cannot
+  roll back that signed removal; a pinned prior removal still permits fresh rejoin.
 - `flutter test test/features/device_link/qr_image_test.dart` renders a real
   QR and decodes its image with the desktop importer.
 - After `cargo build` and the real-process tests above,
@@ -118,6 +150,13 @@ for the exact authorization and verification rules.
 - `flutter test native_test/native_peer_io_test.dart` checks the test helper
   with a real subprocess: background stdout must not prevent progress between
   requests, and exiting before a reply must report the existing EOF error.
+
+- `flutter test test/features/device_link` checks both role choices, eligibility,
+  approval controls, actual full-size QR rendering/decoding and 320/800-pixel
+  layouts with enlarged text. Camera hardware is substituted at the plugin's
+  public platform seam only, to check empty/repeated captures, permission denial,
+  unsupported cameras, background return and exit. Authorization still uses the
+  real native bridge in the UI probe.
 
 New production code requires 80% line coverage; branch coverage is required
 where the toolchain provides it. Windows/macOS installers need their own

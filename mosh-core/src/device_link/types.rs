@@ -87,6 +87,13 @@ pub enum DeviceLinkPhase {
     Failed,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[frb(non_opaque)]
+pub enum DeviceLinkRole {
+    Authorizing,
+    Joining,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[frb(non_opaque)]
 pub struct DeviceRevocationStatus {
@@ -104,6 +111,7 @@ pub enum DeviceRevocationState {
 #[derive(Debug, Clone, Serialize)]
 #[frb(non_opaque)]
 pub struct DeviceLinkSnapshot {
+    pub role: Option<DeviceLinkRole>,
     pub revoked: bool,
     pub revocations: Vec<DeviceRevocationStatus>,
     pub user_id: String,
