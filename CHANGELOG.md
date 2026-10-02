@@ -4,6 +4,39 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-10-02
+
+### Added
+- **One recent chat list.** Personal chats, groups and channels share search,
+  previews and type filters, with distinct group and channel colors and icons.
+- **Conversation details on desktop and mobile.** Wide windows show participants,
+  shared files and expandable connection diagnostics beside the chat; smaller
+  windows use the existing accessible overlay.
+- **Remembered notice dismissal.** Public-channel and encrypted-group notices
+  stay hidden after closing them, including across chats and app restarts.
+
+### Changed
+- **Consistent chat geometry.** Message bubbles, previews, attachment icons,
+  search, filters and the composer use coordinated corners and balanced spacing.
+- **Inline message metadata.** Text, attachments and voice messages show time
+  and delivery/read indicators inside the content layout. Voice duration and
+  file size share one metadata line.
+- **Simpler conversation headers.** A smaller encryption lock sits beside the
+  name, connection status sits on the right, and personal avatars show presence.
+- **Cleaner file actions and wording.** Available files open from the whole row.
+  Shared-file icons are square. Technical footers and the redundant protection
+  section are removed; security and history guidance use simpler wording.
+
+### Fixed
+- **Downloaded image previews.** Images without a supplied thumbnail can preview
+  their local file; play overlays are reserved for video.
+- **Attachment read receipts.** Receipts use the shared attachment ID rather than
+  a message ID generated independently on each peer.
+- **Independent list loading.** Loaded groups, channels and invitations remain
+  accessible while personal chats load or fail, with a retry action in the list.
+- **Details state between chats.** A new conversation starts with the appropriate
+  details layout; resizing preserves the current conversation's explicit choice.
+
 ## [0.12.0] - 2026-09-30
 
 ### Added
