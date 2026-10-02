@@ -14,6 +14,17 @@ Status: design interview in progress. Implementation has not started.
   green light and thin orbits. Keep text, buttons and forms in Flutter.
 - Write copy that matches real privacy guarantees. Public Moss trackers prevent
   promising absence of metadata.
+- Require a display name, restore it after restart, and allow editing in Settings.
+  Use initials for the avatar. Name changes apply to new conversations; existing
+  conversations keep their names.
+- Offer "This is my first device" and "Connect to an existing profile". The
+  first choice continues setup; the second reuses QR/image/link import and
+  approval on the trusted installation.
+- Use automatic networking by default. Choosing a physical adapter is optional
+  and explains that it routes Mosh traffic around the VPN. Explain any required
+  restart before applying it.
+- Skip setup on existing installations with conversations or linked devices.
+- Hold an incoming conversation invitation until setup finishes, then reopen it.
 
 ## Existing behavior and components
 
@@ -32,11 +43,9 @@ appear above any route and must be coordinated with the wizard's network step.
 
 ## Open decisions
 
-- Name requirements, avatar scope and the meaning of changing a saved name.
-- Device-link skip path and recovery during a pending exchange.
-- Automatic network selection versus choosing a physical adapter.
-- First-run detection for existing installations, interrupted setup and invite
-  links received before setup is complete.
+- Restoring progress after interrupted setup.
+- Leaving a pending device-link exchange to continue as the first device.
+- Finishing setup when applying the network choice requires restart.
 
 ## Planned checks
 
