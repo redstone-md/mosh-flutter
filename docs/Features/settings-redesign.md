@@ -56,7 +56,7 @@ field stays compact. Scrollable menus and sheets keep larger lists bounded.
 Material owns keyboard navigation, overlay positioning, dismissal and focus
 return. Closing the sheet applies nothing; choosing System default still
 applies the real nullable value. The field displays the persisted selection,
-including after a failed save. Adapter selection stays local until Bind is
+including after a failed save. Adapter selection stays local until Apply is
 pressed. No dependency or native contract changes are required.
 
 Interaction tests cover desktop placement/current-choice indication, keyboard
@@ -144,18 +144,19 @@ Devices verification on 2026-10-02:
 
 ## Connection
 
-Automatic discovery replaces the editable host/port and incoming-port fields.
-The discovery card explains the public trackers' access to network metadata;
-longer discovery details collapse. The existing read-receipt switch now lives
-beside crash reporting in Privacy, with its persistence, default-off state and
-mutual rule unchanged.
+Connection contains only the collapsible VPN adapter controls. Automatic
+discovery continues without a card or editable host/port fields. The existing
+read-receipt switch now lives beside crash reporting in Privacy, with its
+persistence, default-off state and mutual rule unchanged.
 
 The VPN card loads its controls on first expansion and retains local state
 when collapsed. It reuses the Sound card's material, icon badge and
 adaptive selector. The adapter form uses the existing interface inventory,
 physical-adapter filter and consent write. Choosing a name remains local until
-Bind is pressed; Release clears the stored override, including when the saved
-adapter has disappeared. Selecting another adapter requires releasing the
+Apply is pressed; Reset clears the stored override, including when the saved
+adapter has disappeared. Both actions use neutral outlined buttons. A refresh
+icon beside the selector replaces the separate text action and retains its
+tooltip and 44px target. Selecting another adapter requires resetting the
 existing override first, as before.
 
 The LAN IP and VPN bypass warning stays beside the controls. A saved adapter is
@@ -169,17 +170,19 @@ Per the user's screen review, Connection has no diagnostics/status card or
 refresh-status action. Version information stays in About. Chat diagnostics
 keep their existing providers and runtime details.
 
-The discovery details and VPN disclosure each use a stable PageStorage key.
-Their expansion booleans cannot overwrite the section scroller's numeric
-offset. Restoring an open VPN disclosure also mounts its controls. A regression
-test first reproduced the exact bool-to-double cast on leaving and returning;
-the fix preserves independent disclosure state and scroll position on desktop
-and narrow list/detail navigation.
+The VPN disclosure uses a stable PageStorage key. Its expansion boolean cannot
+overwrite the section scroller's numeric offset. Restoring an open VPN
+disclosure also mounts its controls. Each shared selector owns a separate
+PageStorage bucket: the MenuAnchor popup's internal scroll view must not read
+the enclosing disclosure's boolean as a numeric offset. Regression tests use
+the real SettingsScreen with an explicit Windows theme to exercise the desktop
+popup rather than the test environment's default Android sheet. They cover
+opening, choosing, scrolling, leaving and returning alongside section scroll
+restoration and narrow Back navigation.
 
-New production files remain below 200 lines. The declarative
-`BindInterfaceControls.build` method exceeds
-50 lines to keep its small form readable; its handlers remain below the
-limit. Declarative widget nesting uses the existing settings exception.
+New production files remain below 200 lines. Adapter presentation is split
+into the picker row, selector and action; each method remains below 50 lines.
+Declarative widget nesting uses the existing settings exception.
 
 Initial Connection verification on 2026-10-02:
 
@@ -202,12 +205,28 @@ Connection review follow-up:
 - Removed the diagnostics card, its refresh action, widget and unused
   translations at the user's request. Version information stays in About.
 - Six regression checks cover the exact reopening crash, restored controls,
-  independent disclosures, scroll offset and narrow Back navigation.
+  disclosure state, scroll offset and narrow Back navigation.
   Full Flutter suite: 1051 passed, five existing native-library skips.
   Analysis and formatting are clean. Changed executable lines: 5/5;
   changed branches: 1/1, from full-suite LCOV against `e76d3ad`.
 - Updated desktop and narrow captures were inspected. Android arm64 debug
   APK builds successfully.
+
+Adapter-menu and button review follow-up:
+
+- Removed the discovery card and its unused translations. Apply/Reset now
+  use neutral outlined buttons; refreshing the adapter list uses an icon
+  beside the selector. Native application and restart behavior are unchanged.
+- Reproduced the exact bool-to-double cast when opening the desktop adapter
+  menu. Isolating the shared selector's PageStorage fixes opening, selection,
+  popup scrolling and subsequent section return.
+- Formatting and analysis are clean; the full Flutter suite passes 1051 tests
+  with five existing native-library skips. Changed executable lines: 55/56
+  (98.2%); branches: 10/10 (100%), against `9abb99e`.
+- Production-themed captures were inspected at 1200×800 and 390×844,
+  including the desktop popup and Android sheet. The Android arm64 debug
+  APK builds successfully. Windows relaunch and physical VPN routing still
+  need the user's local development-build review.
 
 ## Changed files
 

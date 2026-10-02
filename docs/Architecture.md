@@ -938,7 +938,6 @@ flowchart TD
     Voice --> Input["mic picker: record listInputDevices"]
     Voice --> Output["speaker picker: mosh-core list_output_devices"]
     Voice --> Test["RingtonePlayer: native CPAL binding"]
-    Conn --> Discovery["Automatic discovery"]
     Conn --> Bind["Lazy BindInterfaceField: saved adapter + restart"]
     Output --> Store["audio-devices.json (data dir)"]
     Input --> Store
@@ -957,9 +956,13 @@ Connection has no editable host/port fields. Its VPN override mounts on first
 expansion. Saved adapter choices require a restart;
 Windows relaunches automatically, other platforms show manual instructions.
 Read receipts live in Privacy.
-Connection has no status or diagnostics block; version information stays in
-About. Stable disclosure storage keys keep expansion state separate from
-the section's scroll offset and restore open controls on return.
+Connection contains only the collapsible VPN override; automatic discovery
+continues without a settings card. Version information stays in About.
+Stable disclosure storage keys keep expansion state separate from the section's
+scroll offset and restore open controls on return. Each shared selector owns a
+PageStorage bucket, so its desktop popup cannot read or overwrite the enclosing
+disclosure's boolean state. Apply and Reset use neutral outlined buttons;
+refreshing the interface list uses an icon beside the selector.
 
 Audio selectors keep disconnected saved devices visible without overwriting
 the preference. Enumeration errors offer retry and the system default. A

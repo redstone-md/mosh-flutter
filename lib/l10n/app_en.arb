@@ -1420,13 +1420,13 @@
   "@bindAdapterSelectAria": {
     "description": "aria-label for the adapter DropdownButton (React BindInterfaceField.tsx select aria-label)"
   },
-  "bindAdapterRelease": "Release",
+  "bindAdapterRelease": "Reset",
   "@bindAdapterRelease": {
-    "description": "Button label when bound; releasing clears the override (React BindInterfaceField.tsx btn-ghost when enabled)"
+    "description": "Button label for resetting the saved adapter override"
   },
-  "bindAdapterBind": "Bind",
+  "bindAdapterBind": "Apply",
   "@bindAdapterBind": {
-    "description": "Button label when unbound; binds to the picked adapter (React BindInterfaceField.tsx btn-primary when !enabled)"
+    "description": "Button label for applying the selected adapter"
   },
   "bindAdapterSaving": "Saving…",
   "@bindAdapterSaving": {
@@ -1745,11 +1745,6 @@
   "deviceLinkStepRead": "Read QR",
   "deviceLinkStepApprove": "Confirm code",
   "deviceLinkStepFinish": "Link devices",
-  "settingsDiscoveryTitle": "Automatic discovery",
-  "settingsDiscoveryBody": "Mosh finds peers automatically. There are no addresses or ports to configure.",
-  "settingsDiscoveryHint": "Discovery uses public trackers, which can see network metadata.",
-  "settingsDiscoveryDetailsTitle": "How it works",
-  "settingsDiscoveryDetails": "Moss discovers peers and establishes a route automatically. If a VPN interferes, choose a physical network adapter below. Connection details are available in each chat.",
   "settingsVpnTitle": "If a VPN gets in the way",
   "settingsVpnSummary": "Choose an adapter to route Mosh around a VPN.",
   "bindAdapterAutoRestart": "Mosh restarts after applying or clearing this choice.",

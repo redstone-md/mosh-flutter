@@ -57,22 +57,16 @@ ScriptableBridge _bridge() => ScriptableBridge()
   ]);
 
 void main() {
-  testWidgets(
-      'disclosures load on demand and discovery has public metadata copy',
+  testWidgets('VPN interfaces load only when their controls are opened',
       (tester) async {
     final bridge = _bridge();
     await _pump(tester, bridge);
-    expect(find.text('Automatic discovery'), findsOneWidget);
-    expect(find.textContaining('public trackers'), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.listInterfaces), 0);
     expect(bridge.countOf(BridgeMethod.nativeRuntimeStatus), 0);
     expect(bridge.countOf(BridgeMethod.mossLibraryInfo), 0);
-    await _open(tester, 'How it works');
-    expect(find.textContaining('establishes a route automatically'),
-        findsOneWidget);
     await _open(tester, 'If a VPN gets in the way');
     expect(bridge.countOf(BridgeMethod.listInterfaces), 1);
-    expect(find.text('Bind'), findsOneWidget);
+    expect(find.text('Apply'), findsOneWidget);
     expect(bridge.countOf(BridgeMethod.nativeRuntimeStatus), 0);
   });
 
@@ -84,8 +78,8 @@ void main() {
     await _open(tester, 'If a VPN gets in the way');
     expect(find.textContaining('After saving, close Mosh completely'),
         findsOneWidget);
-    await tester.ensureVisible(find.text('Bind'));
-    await tester.tap(find.text('Bind'));
+    await tester.ensureVisible(find.text('Apply'));
+    await tester.tap(find.text('Apply'));
     await tester.pumpAndSettle();
     expect(
         bridge
@@ -126,8 +120,8 @@ void main() {
     final bridge = _bridge();
     await _pump(tester, bridge, textScale: 2);
     await _open(tester, 'If a VPN gets in the way');
-    await tester.ensureVisible(find.text('Refresh devices'));
-    expect(find.text('Bind'), findsOneWidget);
+    await tester.ensureVisible(find.byTooltip('Refresh devices'));
+    expect(find.text('Apply'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

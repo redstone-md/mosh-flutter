@@ -37,6 +37,8 @@ class MoshSelect<T> extends StatefulWidget {
 
 class _MoshSelectState<T> extends State<MoshSelect<T>> {
   final _focus = FocusNode();
+  // Overlay scroll views must not read a surrounding disclosure's bool state.
+  final _menuStorage = PageStorageBucket();
 
   @override
   void dispose() {
@@ -53,29 +55,32 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
         theme.platform == TargetPlatform.iOS;
     return LayoutBuilder(builder: (context, constraints) {
       final width = math.min(constraints.maxWidth, 440.0);
-      return MenuAnchor(
-        childFocusNode: _focus,
-        consumeOutsideTap: true,
-        clipBehavior: Clip.antiAlias,
-        alignmentOffset: const Offset(0, 6),
-        style: MenuStyle(
-          minimumSize: WidgetStatePropertyAll(Size(width, 0)),
-          maximumSize: WidgetStatePropertyAll(
-              Size(width, math.min(360, size.height * 0.6))),
+      return PageStorage(
+        bucket: _menuStorage,
+        child: MenuAnchor(
+          childFocusNode: _focus,
+          consumeOutsideTap: true,
+          clipBehavior: Clip.antiAlias,
+          alignmentOffset: const Offset(0, 6),
+          style: MenuStyle(
+            minimumSize: WidgetStatePropertyAll(Size(width, 0)),
+            maximumSize: WidgetStatePropertyAll(
+                Size(width, math.min(360, size.height * 0.6))),
+          ),
+          menuChildren: [
+            for (final option in widget.options)
+              _item(option, () => widget.onChanged?.call(option.value)),
+          ],
+          builder: (context, controller, _) => _button(theme, () {
+            if (sheet) {
+              _openSheet();
+            } else if (controller.isOpen) {
+              controller.close();
+            } else {
+              controller.open();
+            }
+          }),
         ),
-        menuChildren: [
-          for (final option in widget.options)
-            _item(option, () => widget.onChanged?.call(option.value)),
-        ],
-        builder: (context, controller, _) => _button(theme, () {
-          if (sheet) {
-            _openSheet();
-          } else if (controller.isOpen) {
-            controller.close();
-          } else {
-            controller.open();
-          }
-        }),
       );
     });
   }

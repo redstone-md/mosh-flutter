@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_select.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
 
 import 'bypass_adapter.dart';
@@ -52,9 +53,12 @@ class BindInterfaceControls extends StatelessWidget {
         if (loading)
           Text(l.settingsDevicesLoading, style: text.bodySmall)
         else ...[
-          if (candidates.isEmpty)
-            Text(l.bindAdapterNoNic, style: text.bodySmall),
-          if (candidates.isNotEmpty || current != null) _controls(candidates),
+          _pickerRow(context, candidates),
+          if (candidates.isNotEmpty || current != null) ...[
+            const SizedBox(height: 12),
+            Align(
+                alignment: AlignmentDirectional.centerStart, child: _action()),
+          ],
           if (error != null) ...[
             const SizedBox(height: 12),
             Semantics(
@@ -63,19 +67,8 @@ class BindInterfaceControls extends StatelessWidget {
                     style: text.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.error))),
           ],
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton.icon(
-              style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 44),
-                  visualDensity: VisualDensity.standard),
-              onPressed: busy ? null : onRefresh,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: Text(l.settingsRefreshDevices),
-            ),
-          ),
         ],
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         Text(l.bindAdapterHint, style: text.bodySmall),
         const SizedBox(height: 8),
         Semantics(
@@ -92,42 +85,55 @@ class BindInterfaceControls extends StatelessWidget {
     );
   }
 
-  Widget _controls(List<NetworkInterfaceInfo> candidates) {
-    const style = ButtonStyle(
-        minimumSize: WidgetStatePropertyAll(Size(0, 44)),
-        visualDensity: VisualDensity.standard);
+  Widget _pickerRow(
+          BuildContext context, List<NetworkInterfaceInfo> candidates) =>
+      Row(children: [
+        Expanded(
+            child: candidates.isEmpty && current == null
+                ? Text(l.bindAdapterNoNic,
+                    style: Theme.of(context).textTheme.bodySmall)
+                : _selector(candidates)),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: l.settingsRefreshDevices,
+          onPressed: busy ? null : onRefresh,
+          icon: const Icon(Icons.refresh, size: 20),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(44, 44),
+            visualDensity: VisualDensity.standard,
+            foregroundColor: MoshColors.fg2,
+          ),
+        ),
+      ]);
+
+  Widget _selector(List<NetworkInterfaceInfo> candidates) {
     final missing =
         current != null && !candidates.any((iface) => iface.name == current);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        MoshSelect<String>(
-          label: l.bindAdapterTitle,
-          value: current ?? picked,
-          options: [
-            if (missing)
-              MoshSelectOption(current!, l.bindAdapterUnavailable(current!),
-                  enabled: false),
-            for (final iface in candidates)
-              MoshSelectOption(iface.name, adapterLabel(iface)),
-          ],
-          onChanged: busy || current != null ? null : onPick,
-        ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: current != null
-              ? TextButton(
-                  style: style,
-                  onPressed: busy ? null : onApply,
-                  child:
-                      Text(busy ? l.bindAdapterSaving : l.bindAdapterRelease))
-              : FilledButton(
-                  style: style,
-                  onPressed: busy || picked.isEmpty ? null : onApply,
-                  child: Text(busy ? l.bindAdapterSaving : l.bindAdapterBind)),
-        ),
+    return MoshSelect<String>(
+      label: l.bindAdapterTitle,
+      value: current ?? picked,
+      options: [
+        if (missing)
+          MoshSelectOption(current!, l.bindAdapterUnavailable(current!),
+              enabled: false),
+        for (final iface in candidates)
+          MoshSelectOption(iface.name, adapterLabel(iface)),
       ],
+      onChanged: busy || current != null ? null : onPick,
     );
   }
+
+  Widget _action() => OutlinedButton(
+        onPressed: busy || (current == null && picked.isEmpty) ? null : onApply,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 44),
+          visualDensity: VisualDensity.standard,
+          foregroundColor: MoshColors.fg1,
+        ),
+        child: Text(busy
+            ? l.bindAdapterSaving
+            : current != null
+                ? l.bindAdapterRelease
+                : l.bindAdapterBind),
+      );
 }

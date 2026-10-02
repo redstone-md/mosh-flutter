@@ -1,6 +1,6 @@
 // Tests for `BindInterfaceField` (lib/src/features/vpn/
 // bind_interface_field.dart). Asserts the bound/unbound head copy, the
-// no-NIC hint, the Bind/Release button label swap + onAccept, and the
+// no-NIC hint, the Apply/Reset button label swap + onAccept, and the
 // error branch.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,11 +73,11 @@ void main() {
       interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
     )..hold(BridgeMethod.listInterfaces);
     await _pump(tester, gateway: gateway, settle: false);
-    expect(find.text('Bind'), findsNothing);
+    expect(find.text('Apply'), findsNothing);
     expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 0);
     gateway.release(BridgeMethod.listInterfaces);
     await tester.pumpAndSettle();
-    expect(find.text('Bind'), findsOneWidget);
+    expect(find.text('Apply'), findsOneWidget);
   });
 
   testWidgets('read failure offers refresh and recovers without writing',
@@ -87,10 +87,10 @@ void main() {
     )..failNext(BridgeMethod.getBindInterface);
     await _pump(tester, gateway: gateway);
     expect(find.text('Could not read network state'), findsOneWidget);
-    await tester.tap(find.text('Refresh devices'));
+    await tester.tap(find.byTooltip('Refresh devices'));
     await tester.pumpAndSettle();
     expect(find.text('Could not read network state'), findsNothing);
-    expect(find.text('Bind'), findsOneWidget);
+    expect(find.text('Apply'), findsOneWidget);
     expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 0);
   });
 
@@ -103,14 +103,15 @@ void main() {
     await _pump(tester, gateway: gateway, onAccept: () async {
       throw StateError('replacement could not start');
     });
-    await tester.tap(find.text('Bind'));
+    await tester.tap(find.text('Apply'));
     await tester.pumpAndSettle();
     expect(find.text('Saved adapter: eth0.'), findsOneWidget);
     expect(find.textContaining('Saved, but Mosh could not restart'),
         findsOneWidget);
     expect(
         tester
-            .widget<TextButton>(find.widgetWithText(TextButton, 'Release'))
+            .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, 'Reset'))
             .onPressed,
         isNotNull);
   });
@@ -122,11 +123,12 @@ void main() {
     )..hold(BridgeMethod.setVpnBypassConsent);
     var restarts = 0;
     await _pump(tester, gateway: gateway, onAccept: () async => restarts++);
-    await tester.tap(find.text('Bind'));
+    await tester.tap(find.text('Apply'));
     await tester.pump();
     expect(
         tester
-            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Saving…'))
+            .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, 'Saving…'))
             .onPressed,
         isNull);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -142,12 +144,12 @@ void main() {
       interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
     );
     await _pump(tester, gateway: gateway);
-    await tester.tap(find.text('Bind'));
+    await tester.tap(find.text('Apply'));
     await tester.pumpAndSettle();
-    final release =
-        tester.widget<TextButton>(find.widgetWithText(TextButton, 'Release'));
-    expect(release.onPressed, isNotNull);
-    await tester.tap(find.text('Release'));
+    final reset = tester
+        .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Reset'));
+    expect(reset.onPressed, isNotNull);
+    await tester.tap(find.text('Reset'));
     await tester.pumpAndSettle();
     expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 2);
     expect(
@@ -157,11 +159,11 @@ void main() {
         isNull);
   });
 
-  testWidgets('a disconnected saved adapter can still be released',
+  testWidgets('a disconnected saved adapter can still be reset',
       (tester) async {
     final gateway = _bindGateway(interfaces: [], bind: 'eth0');
     await _pump(tester, gateway: gateway);
-    await tester.tap(find.text('Release'));
+    await tester.tap(find.text('Reset'));
     await tester.pumpAndSettle();
     expect(
         gateway
@@ -177,10 +179,10 @@ void main() {
         bind: 'old-ethernet',
         interfaces: [_iface(name: 'wifi', ipv4: '192.168.1.8')]);
     await _pump(tester, gateway: gateway);
-    await tester.tap(find.text('Release'));
+    await tester.tap(find.text('Reset'));
     await tester.pumpAndSettle();
     expect(find.text('wifi - 192.168.1.8'), findsOneWidget);
-    await tester.tap(find.text('Bind'));
+    await tester.tap(find.text('Apply'));
     await tester.pumpAndSettle();
     expect(
         gateway
@@ -189,7 +191,7 @@ void main() {
         'wifi');
   });
 
-  testWidgets('adapter choice stays local until Bind applies the selected NIC',
+  testWidgets('adapter choice stays local until Apply saves the selected NIC',
       (tester) async {
     final gateway = _bindGateway(interfaces: [
       _iface(name: 'eth0', ipv4: '192.168.1.5'),
@@ -201,7 +203,7 @@ void main() {
     await tester.tap(find.text('eth1 - 192.168.1.6'));
     await tester.pumpAndSettle();
     expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 0);
-    await tester.tap(find.text('Bind'));
+    await tester.tap(find.text('Apply'));
     await tester.pumpAndSettle();
     expect(
         gateway
@@ -211,7 +213,7 @@ void main() {
   });
 
   testWidgets(
-    'unbound: shows the unbound body + Bind button',
+    'unbound: shows the unbound body + Apply button',
     (tester) async {
       final gateway = _bindGateway(
         bind: null,
@@ -222,13 +224,13 @@ void main() {
         find.text('Choose your network adapter, such as Ethernet or Wi-Fi.'),
         findsOneWidget,
       );
-      expect(find.text('Bind'), findsOneWidget);
-      expect(find.text('Release'), findsNothing);
+      expect(find.text('Apply'), findsOneWidget);
+      expect(find.text('Reset'), findsNothing);
     },
   );
 
   testWidgets(
-    'bound: shows the bound body + Release button + active line',
+    'bound: shows the bound body + Reset button + restart notice',
     (tester) async {
       final gateway = _bindGateway(
         bind: 'eth0',
@@ -236,14 +238,14 @@ void main() {
       );
       await _pump(tester, gateway: gateway);
       expect(find.text('Saved adapter: eth0.'), findsOneWidget);
-      expect(find.text('Release'), findsOneWidget);
-      expect(find.text('Bind'), findsNothing);
+      expect(find.text('Reset'), findsOneWidget);
+      expect(find.text('Apply'), findsNothing);
       expect(find.textContaining('restarts after applying'), findsOneWidget);
     },
   );
 
   testWidgets(
-    'no physical NIC: shows the no-NIC hint + no Bind button',
+    'no physical NIC: shows the no-NIC hint + no Apply button',
     (tester) async {
       final gateway = _bindGateway(
         bind: null,
@@ -266,12 +268,12 @@ void main() {
       ]);
       await _pump(tester, gateway: gateway);
       expect(find.text('No connected physical adapter found.'), findsOneWidget);
-      expect(find.text('Bind'), findsNothing);
+      expect(find.text('Apply'), findsNothing);
     },
   );
 
   testWidgets(
-    'Bind records the picked adapter + fires onAccept',
+    'Apply records the picked adapter + fires onAccept',
     (tester) async {
       final gateway = _bindGateway(
         bind: null,
@@ -285,7 +287,7 @@ void main() {
           acceptCount++;
         },
       );
-      await tester.tap(find.text('Bind'));
+      await tester.tap(find.text('Apply'));
       await tester.pumpAndSettle();
       expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
       expect(
@@ -298,7 +300,7 @@ void main() {
   );
 
   testWidgets(
-    'Release clears the override + fires onAccept',
+    'Reset clears the override + fires onAccept',
     (tester) async {
       final gateway = _bindGateway(
         bind: 'eth0',
@@ -312,7 +314,7 @@ void main() {
           acceptCount++;
         },
       );
-      await tester.tap(find.text('Release'));
+      await tester.tap(find.text('Reset'));
       await tester.pumpAndSettle();
       expect(gateway.countOf(BridgeMethod.setVpnBypassConsent), 1);
       expect(
@@ -333,7 +335,7 @@ void main() {
         failSetConsent: true,
       );
       await _pump(tester, gateway: gateway);
-      await tester.tap(find.text('Bind'));
+      await tester.tap(find.text('Apply'));
       await tester.pumpAndSettle();
       expect(find.text('Could not apply override'), findsOneWidget);
     },
