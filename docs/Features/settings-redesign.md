@@ -2,8 +2,8 @@
 
 The [approved plan](../Proposals/settings-redesign.plan.md) is delivered on
 `feat/settings-redesign`, one screen per local development-build review.
-Stage one implements the settings frame and Sound. The other four sections
-remain available with their existing controls pending their redesign stages.
+The settings frame, Sound and Devices are implemented. Connection, Privacy
+and About retain their existing controls until their redesign stages.
 
 ## Navigation
 
@@ -50,7 +50,8 @@ Production-themed widget captures were inspected at 1440×900 and 390×844,
 plus a 320×600 window with doubled text size. Local captures load Material icons
 and the Linux fallback font; they are temporary inspection artifacts.
 Native Windows/Android audio hardware and window behavior require the local
-development build. Rust APIs, dependencies and persisted schemas are unchanged.
+development build. Stage one leaves Rust APIs, dependencies and storage unchanged.
+Devices changes pairing APIs and saved exchange context as approved below.
 
 Declarative widget construction exceeds three levels of nesting in the frame
 and cards; control flow remains shallow and the trees are split by concern.
@@ -72,6 +73,39 @@ function limit; this stage moves route ownership and adds the branding variant.
   dropdown, then passed after the fixes. Full suite: 1019 passed, 5 existing
   native-library skips; analysis and formatting are clean.
 
+## Devices
+
+The signed roster shows device names, short identifiers, the current installation
+and actual removal progress. Two actions explain their roles before opening the
+pairing steps. The trusted installation creates a five-minute, single-use v2 QR;
+the new installation reads it and shows a confirmation code. The trusted
+installation enters that code before approving access.
+
+Android can scan with its camera using the bundled offline scanner. Image and
+link import are available everywhere, including after camera denial or failure.
+Existing removal confirmation and native authorization remain in use. See
+[device linking](device-linking.md) for the protocol, upgrade behavior and tests.
+
+Devices verification on 2026-10-02:
+
+- Flutter analysis and formatting are clean; the full suite passes 1032 tests
+  with the same five native-library skips. Responsive layout and camera plugin
+  tests cover enlarged text, permission failure, repeated capture and lifecycle.
+- The production-themed native UI probe passes with a separate real Moss process.
+  The full Rust suite, build, formatting and clippy pass. Binding regeneration
+  produces no drift. The Android arm64 debug APK builds with camera permission,
+  an optional camera hardware requirement and the bundled scanner model.
+- Changed Dart executable lines: 278/294 (94.6%); branches: 77/87 (88.5%).
+  Changed Rust executable lines: 256/272 (94.1%). This stable Rust toolchain does
+  not emit branch coverage. Generated bindings are excluded from these counts.
+- Standards and specification review findings are resolved, including descriptor
+  substitution and delayed approval after a newer signed removal. Native tests
+  cover committed v1 recovery, first-scanner ownership, replay and revocation.
+- Desktop and narrow captures were inspected at 1200×950 and 360×950. Physical
+  Android camera scanning and native Windows behavior need the local dev build.
+
+The next screen is Connection, after the user's Devices review.
+
 ## Changed files
 
 - `lib/src/features/settings/`: `settings_screen.dart`,
@@ -84,3 +118,8 @@ function limit; this stage moves route ownership and adds the branding variant.
   `voice_settings_section_test.dart`; `test/support/settings.dart`.
 - `docs/Architecture.md`, `docs/Proposals/settings-redesign.plan.md`,
   `docs/Features/settings-redesign.md`.
+
+Devices also changes `lib/src/features/device_link/`, generated bridge files,
+`mosh-core/src/device_link/`, `mosh-core/src/api/device_link.rs`, `pubspec.yaml`
+and its lockfile. Device-link tests, the Android linked-DM scenario and pairing
+documentation follow the new direction.

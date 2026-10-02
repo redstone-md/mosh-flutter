@@ -6,10 +6,11 @@ use sha2::{Digest, Sha256};
 use super::types::{DeviceDescriptor, DeviceLinkError, DeviceLinkErrorKind, Result};
 
 const QR_PREFIX: &str = "mosh://device-link/";
-const QR_VERSION: u32 = 1;
+const QR_VERSION: u32 = 2;
 pub(crate) const QR_LIFETIME_SECONDS: u64 = 300;
 const MAX_QR_BYTES: usize = 2048;
-const CODE_CONTEXT: &[u8] = b"mosh-device-code-v1\0";
+const CODE_CONTEXT: &[u8] = b"mosh-device-code-v2\0";
+const LEGACY_CODE_CONTEXT: &[u8] = b"mosh-device-code-v1\0";
 const CODE_HEX_CHARS: usize = 12;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -56,7 +57,23 @@ impl PairingQr {
     }
 
     fn validate(&self, now: u64) -> Result<()> {
-        if self.version != QR_VERSION
+        if !self.is_current() {
+            return Err(Self::invalid());
+        }
+        self.validate_stored()?;
+        if self.expires_at <= now || self.expires_at > now + QR_LIFETIME_SECONDS {
+            return Err(DeviceLinkError::new(DeviceLinkErrorKind::Expired));
+        }
+        Ok(())
+    }
+
+    pub fn is_current(&self) -> bool {
+        self.version == QR_VERSION
+    }
+
+    /// Legacy committed deliveries still use their original authenticated QR.
+    pub fn validate_stored(&self) -> Result<()> {
+        if !matches!(self.version, 1 | QR_VERSION)
             || self.id.len() != 32
             || hex::decode(&self.id).is_err()
             || self.secret == [0; 32]
@@ -64,9 +81,6 @@ impl PairingQr {
             return Err(Self::invalid());
         }
         self.device.validate().map_err(|_| Self::invalid())?;
-        if self.expires_at <= now || self.expires_at > now + QR_LIFETIME_SECONDS {
-            return Err(DeviceLinkError::new(DeviceLinkErrorKind::Expired));
-        }
         Ok(())
     }
 
@@ -74,12 +88,24 @@ impl PairingQr {
         Ok(Sha256::digest(serde_json::to_vec(self).map_err(|_| Self::invalid())?).to_vec())
     }
 
-    pub fn code(&self, offer_hash: &str, trusted: &DeviceDescriptor) -> Result<String> {
+    pub fn code(
+        &self,
+        offer_hash: &str,
+        trusted: &DeviceDescriptor,
+        joining: &DeviceDescriptor,
+    ) -> Result<String> {
         let mut hash = Sha256::new();
-        hash.update(CODE_CONTEXT);
+        hash.update(if self.is_current() {
+            CODE_CONTEXT
+        } else {
+            LEGACY_CODE_CONTEXT
+        });
         hash.update(self.digest()?);
         hash.update(offer_hash.as_bytes());
         hash.update(trusted.signing_public_key.as_bytes());
+        if self.is_current() {
+            hash.update(serde_json::to_vec(joining).map_err(|_| Self::invalid())?);
+        }
         Ok(hex::encode(hash.finalize())[..CODE_HEX_CHARS].to_uppercase())
     }
 

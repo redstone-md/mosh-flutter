@@ -98,6 +98,7 @@ flowchart LR
 ```mermaid
 classDiagram
     class DeviceLinkSnapshot {
+        role
         userId
         ownDeviceId
         devices
@@ -110,8 +111,8 @@ classDiagram
     }
     class DeviceLinkRuntime {
         snapshot()
-        createQr(name)
-        importQr(uri)
+        beginLink()
+        joinLink(uri, deviceName)
         approve(code)
         cancel()
         revoke(deviceId)
@@ -1270,3 +1271,19 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0027-attachments-ride-moss-streams.md - attachment chunks ride moss streams on direct DMs: carrier swap with the room wire fallback, reserved inbox channel, DM-only scope.
 - docs/ADR/0028-durable-attachment-offers.md - attachment manifests in encrypted history, sender and receiver restoration after restart.
 - docs/ADR/0035-opt-in-crash-reporting.md - opt-in Sentry crash reporting: consent file with scrub salt, no-DSN-no-reporting, scrubbed events, threat model.
+
+### Trusted-device QR (settings stage two)
+
+`beginLink()` creates a v2, five-minute invitation on the authorizing installation.
+`joinLink(uri, deviceName)` starts the eligible new installation with its own
+signed descriptor. The authorizer freezes the first candidate; its signed offer
+and the human confirmation code bind the trusted descriptor, candidate and base
+roster. Flutter reads the explicit snapshot role and displays sequential steps;
+only the active authorizing QR screen receives the invitation URI.
+
+The signed roster/CAS/delivery/receipt machinery is shared with the existing
+linking flow. New v1 imports are rejected. Already authenticated, pinned v1
+pending exchanges and committed deliveries/receipts can finish after upgrade.
+`mobile_scanner` owns Android camera lifecycle; image/link import and the existing
+bounded decoder remain the fallback. See [ADR 0029](ADR/0029-private-desktop-device-linking.md)
+and [device linking](Features/device-linking.md).

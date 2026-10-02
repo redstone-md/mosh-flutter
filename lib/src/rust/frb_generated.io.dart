@@ -203,6 +203,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       dynamic raw);
 
   @protected
+  DeviceLinkRole dco_decode_box_autoadd_device_link_role(dynamic raw);
+
+  @protected
   DmDeviceRevocationState dco_decode_box_autoadd_dm_device_revocation_state(
       dynamic raw);
 
@@ -304,6 +307,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceLinkPhase dco_decode_device_link_phase(dynamic raw);
+
+  @protected
+  DeviceLinkRole dco_decode_device_link_role(dynamic raw);
 
   @protected
   DeviceLinkSnapshot dco_decode_device_link_snapshot(dynamic raw);
@@ -484,6 +490,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DeviceLinkErrorKind? dco_decode_opt_box_autoadd_device_link_error_kind(
       dynamic raw);
+
+  @protected
+  DeviceLinkRole? dco_decode_opt_box_autoadd_device_link_role(dynamic raw);
 
   @protected
   DmDeviceRevocationState?
@@ -745,6 +754,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  DeviceLinkRole sse_decode_box_autoadd_device_link_role(
+      SseDeserializer deserializer);
+
+  @protected
   DmDeviceRevocationState sse_decode_box_autoadd_dm_device_revocation_state(
       SseDeserializer deserializer);
 
@@ -861,6 +874,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceLinkPhase sse_decode_device_link_phase(SseDeserializer deserializer);
+
+  @protected
+  DeviceLinkRole sse_decode_device_link_role(SseDeserializer deserializer);
 
   @protected
   DeviceLinkSnapshot sse_decode_device_link_snapshot(
@@ -1071,6 +1087,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceLinkErrorKind? sse_decode_opt_box_autoadd_device_link_error_kind(
+      SseDeserializer deserializer);
+
+  @protected
+  DeviceLinkRole? sse_decode_opt_box_autoadd_device_link_role(
       SseDeserializer deserializer);
 
   @protected
@@ -1350,6 +1370,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       DeviceLinkErrorKind self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_device_link_role(
+      DeviceLinkRole self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_dm_device_revocation_state(
       DmDeviceRevocationState self, SseSerializer serializer);
 
@@ -1475,6 +1499,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_device_link_phase(
       DeviceLinkPhase self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_device_link_role(
+      DeviceLinkRole self, SseSerializer serializer);
 
   @protected
   void sse_encode_device_link_snapshot(
@@ -1695,6 +1723,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_device_link_error_kind(
       DeviceLinkErrorKind? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_device_link_role(
+      DeviceLinkRole? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_dm_device_revocation_state(

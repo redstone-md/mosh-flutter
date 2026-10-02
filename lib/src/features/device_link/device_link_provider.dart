@@ -48,9 +48,9 @@ class DeviceLinkController extends AsyncNotifier<DeviceLinkSnapshot> {
     }
   }
 
-  Future<void> createQr(String name) =>
-      _act(() => api.createQr(deviceName: name));
-  Future<void> importQr(String uri) => _act(() => api.importQr(uri: uri));
+  Future<void> beginLink() => _act(api.beginLink);
+  Future<void> joinLink(String uri, String name) =>
+      _act(() => api.joinLink(uri: uri, deviceName: name));
   Future<void> approve(String code) =>
       _act(() => api.approve(confirmationCode: code));
   Future<void> cancel() => _act(api.cancel);

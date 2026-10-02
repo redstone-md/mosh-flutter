@@ -23,8 +23,11 @@ pub(super) fn run(dir: PathBuf) {
         let result = match command["action"].as_str().unwrap() {
             "shutdown" => break,
             "snapshot" => device_link::snapshot(),
-            "qr" => device_link::create_qr(argument),
-            "import" => device_link::import_qr(argument),
+            "qr" => device_link::begin_link(),
+            "import" => device_link::join_link(
+                argument,
+                command["name"].as_str().unwrap_or_default().into(),
+            ),
             "approve" => device_link::approve(argument),
             "cancel" => device_link::cancel(),
             "revoke" => device_link::revoke(argument),

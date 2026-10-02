@@ -12,10 +12,10 @@ fn an_offline_pairing_target_does_not_block_link_commands() {
     let mut joining = Peer::new();
     let carrier_id =
         carrier.ask(json!({"action":"snapshot"}))["devices"][0]["moss_peer_id"].clone();
-    trusted.connect(&carrier);
+    joining.connect(&carrier);
     let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
-        let network = trusted.ask(json!({"action":"network"}));
+        let network = joining.ask(json!({"action":"network"}));
         if network["peer_details"]
             .as_array()
             .unwrap()
@@ -27,12 +27,12 @@ fn an_offline_pairing_target_does_not_block_link_commands() {
         assert!(std::time::Instant::now() < until, "carrier must connect");
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let qr = joining.ask(json!({"action":"qr","argument":"Offline desktop"}));
-    joining.crash();
+    let qr = trusted.ask(json!({"action":"qr"}));
+    trusted.crash();
     carrier.crash();
 
     let started = std::time::Instant::now();
-    let pending = trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let pending = joining.ask(json!({"action":"import","argument":qr["qr_uri"]}));
     assert!(
         started.elapsed() < std::time::Duration::from_secs(2),
         "pairing discovery must retry outside the link command, elapsed {:?}",
@@ -40,8 +40,8 @@ fn an_offline_pairing_target_does_not_block_link_commands() {
     );
     assert_eq!(pending["phase"], "Connecting");
     assert_eq!(pending["devices"].as_array().unwrap().len(), 1);
-    trusted.ask(json!({"action":"cancel"}));
-    assert_eq!(trusted.ask(json!({"action":"snapshot"}))["phase"], "Failed");
+    joining.ask(json!({"action":"cancel"}));
+    assert_eq!(joining.ask(json!({"action":"snapshot"}))["phase"], "Failed");
 }
 
 #[test]
@@ -53,8 +53,14 @@ fn two_independent_desktops_link_only_after_trusted_approval() {
     let original = joining.ask(json!({"action":"snapshot"}));
     assert_ne!(before["user_id"], original["user_id"]);
     trusted.connect(&joining);
-    let qr = joining.ask(json!({"action":"qr","argument":"Second desktop"}));
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = trusted.ask(json!({"action":"qr"}));
+    assert_eq!(qr["role"], "Authorizing");
+    assert_eq!(qr["own_device_id"], before["own_device_id"]);
+    assert!(qr["confirmation_code"].is_null());
+    let scanning =
+        joining.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Second desktop"}));
+    assert_eq!(scanning["role"], "Joining");
+    assert!(scanning["qr_uri"].is_null());
     let pending = trusted.wait_phase("AwaitingApproval");
     let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     assert_eq!(pending["devices"].as_array().unwrap().len(), 1);
@@ -72,8 +78,8 @@ fn two_independent_desktops_link_only_after_trusted_approval() {
     assert_eq!(approved["own_device_id"], before["own_device_id"]);
     assert_eq!(approved["devices"].as_array().unwrap().len(), 2);
     assert_eq!(
-        trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}))["error"],
-        "InvalidQr"
+        joining.ask(json!({"action":"import","argument":qr["qr_uri"]}))["error"],
+        "Ineligible"
     );
     trusted.restart();
     joining.restart();
@@ -98,8 +104,8 @@ fn declining_an_outsider_and_replaying_a_qr_never_adds_a_device() {
     let mut trusted = Peer::new();
     let mut outsider = Peer::new();
     trusted.connect(&outsider);
-    let qr = outsider.ask(json!({"action":"qr","argument":"Stranger"}));
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = trusted.ask(json!({"action":"qr"}));
+    outsider.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Stranger"}));
     trusted.wait_phase("AwaitingApproval");
     trusted.ask(json!({"action":"cancel"}));
     assert_eq!(outsider.wait_phase("Failed")["error"], "Rejected");
@@ -111,7 +117,7 @@ fn declining_an_outsider_and_replaying_a_qr_never_adds_a_device() {
         1
     );
     assert_eq!(
-        trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}))["error"],
+        outsider.ask(json!({"action":"import","argument":qr["qr_uri"]}))["error"],
         "InvalidQr"
     );
     assert_eq!(trusted.ask(json!({"action":"snapshot"}))["phase"], "Failed");
@@ -132,7 +138,7 @@ fn expired_and_substituted_qr_requests_cannot_authorize_a_device() {
     let mut trusted = Peer::new();
     let mut joining = Peer::new();
     trusted.connect(&joining);
-    let qr = joining.ask(json!({"action":"qr","argument":"New desktop"}));
+    let qr = trusted.ask(json!({"action":"qr"}));
     let uri = qr["qr_uri"].as_str().unwrap();
     let mut contents: serde_json::Value = serde_json::from_slice(
         &URL_SAFE_NO_PAD
@@ -147,19 +153,19 @@ fn expired_and_substituted_qr_requests_cannot_authorize_a_device() {
     };
     let expired = encoded_qr(&expired);
     assert_eq!(
-        trusted.ask(json!({"action":"import","argument":expired}))["error"],
+        joining.ask(json!({"action":"import","argument":expired}))["error"],
         "Expired"
     );
     contents["device"]["name"] = json!("Changed after QR creation");
     let changed = encoded_qr(&contents);
-    trusted.ask(json!({"action":"import","argument":changed}));
+    joining.ask(json!({"action":"import","argument":changed}));
     std::thread::sleep(std::time::Duration::from_secs(1));
     assert_eq!(
-        trusted.ask(json!({"action":"snapshot"}))["phase"],
+        joining.ask(json!({"action":"snapshot"}))["phase"],
         "Connecting"
     );
     assert_eq!(
-        joining.ask(json!({"action":"snapshot"}))["phase"],
+        trusted.ask(json!({"action":"snapshot"}))["phase"],
         "ShowingQr"
     );
     assert_eq!(
@@ -196,13 +202,13 @@ fn pairing_preserves_a_real_existing_dm_and_its_counterpart_after_restart() {
     trusted.ask(json!({"action":"dm_send","argument":session,"body":"Before linking"}));
     let old_dm = counterpart.wait_dm_text(session, "Before linking");
     assert_eq!(
-        trusted.ask(json!({"action":"qr","argument":"Old desktop"}))["error"],
+        trusted.ask(json!({"action":"import","argument":"mosh://device-link/unused"}))["error"],
         "Ineligible"
     );
     let before = trusted.ask(json!({"action":"snapshot"}));
     trusted.connect(&joining);
-    let qr = joining.ask(json!({"action":"qr","argument":"Second desktop"}));
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = trusted.ask(json!({"action":"qr"}));
+    joining.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Second desktop"}));
     trusted.wait_phase("AwaitingApproval");
     let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     trusted.ask(json!({"action":"approve","argument":code}));
@@ -230,8 +236,8 @@ fn an_interrupted_approved_link_recovers_when_both_desktops_restart() {
     let mut trusted = Peer::new();
     let mut joining = Peer::new();
     trusted.connect(&joining);
-    let qr = joining.ask(json!({"action":"qr","argument":"Second desktop"}));
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = trusted.ask(json!({"action":"qr"}));
+    joining.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Second desktop"}));
     trusted.wait_phase("AwaitingApproval");
     let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     joining.stop();
@@ -268,8 +274,8 @@ fn public_bridge_links_independent_desktops_through_moss_discovery() {
     );
     joining.ask(json!({"action":"qr","argument":"Cancelled request"}));
     joining.ask(json!({"action":"cancel"}));
-    let qr = joining.ask(json!({"action":"qr","argument":"Independent desktop"}));
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = trusted.ask(json!({"action":"qr"}));
+    joining.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Independent desktop"}));
     trusted.wait_phase("AwaitingApproval");
     let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     assert_eq!(
@@ -297,8 +303,8 @@ fn cancelling_while_the_joining_desktop_is_offline_consumes_the_qr_after_restart
     let mut trusted = Peer::new();
     let mut joining = Peer::new();
     trusted.connect(&joining);
-    let qr = joining.ask(json!({"action":"qr","argument":"Offline desktop"}));
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = trusted.ask(json!({"action":"qr"}));
+    joining.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Offline desktop"}));
     trusted.wait_phase("AwaitingApproval");
     joining.wait_phase("AwaitingConfirmation");
     joining.stop();
@@ -333,8 +339,8 @@ fn a_new_dm_during_pairing_preserves_identity_and_clears_the_ineligible_request(
     let mut joining = Peer::new();
     trusted.connect(&joining);
     let before = joining.ask(json!({"action":"snapshot"}));
-    let qr = joining.ask(json!({"action":"qr","argument":"New desktop"}));
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = trusted.ask(json!({"action":"qr"}));
+    joining.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"New desktop"}));
     trusted.wait_phase("AwaitingApproval");
     let code = joining.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     let invite = joining.ask(json!({"action":"dm_invite"}));
