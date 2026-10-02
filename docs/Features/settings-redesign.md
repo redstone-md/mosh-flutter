@@ -274,6 +274,11 @@ VPN restart correction:
   Dart 2/2 and Rust 20/20. No changed Dart branches are reported; Rust branch
   instrumentation is unavailable on the pinned stable toolchain.
 
+Switch hover correction: the shared theme keeps enabled, selected thumbs in
+`mossInk` on hover, focus and press. Material's default used `primaryContainer`,
+which matches the green track in Mosh. No tests added or run for this small
+color fix, as requested; formatting and Flutter analysis are checked.
+
 ## Changed files
 
 - `lib/src/features/settings/`: `settings_screen.dart`,
