@@ -2,8 +2,8 @@
 
 The [approved plan](../Proposals/settings-redesign.plan.md) is delivered on
 `feat/settings-redesign`, one screen per local development-build review.
-The settings frame, Sound, Devices, Connection and Privacy are implemented.
-About retains its existing presentation until its redesign stage.
+The settings frame and all five sections are implemented: Sound, Devices,
+Connection, Privacy and About.
 Read receipts have moved to Privacy.
 
 ## Navigation
@@ -333,6 +333,43 @@ read_receipts_toggle.dart, async_switch_tile.dart, mosh_theme.dart and both ARB
 files. Tests live in privacy_settings_section_test.dart and test/support/privacy.dart.
 The architecture map, ADR 0035 and this guide describe the result. No native
 API, storage schema, dependency or reporting data flow changes.
+
+## About
+
+About uses one existing SettingsSurface with a moss shield plate, Mosh identity
+and the real installed version/build number. It reads package_info_plus through
+app_package_info_provider.dart, so command-line build overrides are reflected
+without a hardcoded version. Version loading and failure have visible localized
+text. A missing build number shows only the version; a missing version is
+unavailable. The provider auto-disposes on leaving About, letting a failed read
+retry on return. Successful package reads retain the plugin's own cache.
+
+The short protection summary explicitly distinguishes OpenMLS private chats
+and groups from public channels without end-to-end encryption. Longer Moss
+delivery and public-discovery metadata limits live in a Material ExpansionTile
+with its own PageStorage key. It preserves expansion independently of the
+section scroll position. Brand and version remain outside this disclosure.
+No global security/connectivity status, licence, changelog or updater action
+is introduced. Existing theme text, card padding and shapes wrap on phones
+and enlarged text. Declarative widget-tree nesting uses the existing exception;
+methods and interaction test bodies remain below 50 lines.
+
+About verification: formatting is clean across 449 Dart files and Flutter
+analysis reports no issues. The full suite passes 1076 tests with five existing
+native-library skips. Changed production executable lines are 35/35 (100%);
+changed branches are 9/9 (100%), intersecting LCOV with added/modified Dart
+lines. Nine focused About checks cover the plugin API with mock metadata,
+version/build overrides, missing values, loading/failure, disposal, retry on return, disclosure
+and scroll persistence, and Russian narrow/enlarged-text layouts. Captures were
+inspected at 1200×800, 390×844 and 320×844 with doubled text, including loaded,
+loading, unavailable and expanded states. Physical Windows/Android review
+remains separate from widget layout verification. The Android arm64 debug APK
+builds successfully.
+
+Changed files are about_settings_section.dart, app_package_info_provider.dart,
+both localization ARBs and about_settings_section_test.dart. The plan,
+architecture map and this guide describe the result. No Rust API, schema or
+dependency changes.
 
 ## Changed files
 

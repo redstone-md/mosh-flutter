@@ -98,3 +98,20 @@ loading/error/rollback, disclosure independence and section return. Inspect
 desktop, Android-size and 320px/enlarged-text captures. Run formatting, Flutter
 analysis/tests/changed-line coverage and an Android arm64 debug build. No
 native APIs, schemas, dependencies or reporting data flows change here.
+
+## About screen
+
+Use one SettingsSurface for the Mosh identity and real installed-package
+version/build number from the existing package_info_plus dependency. Keep
+version and the private-chat/group versus public-channel distinction visible;
+collapse the longer explanation of Moss discovery and metadata limits.
+Use a separate disclosure storage key. Keep the existing 44px icon plate,
+graphite surface, moss shield, title/body styles and 20px card padding.
+
+Move package loading from widget-owned callbacks to a feature-local Riverpod
+FutureProvider. Show loading/unavailable text without invented version values
+or unhandled plugin errors; reopening can retry a failed read. Do not add
+licences, changelog, updater or status controls. Check platform metadata,
+loading/error/empty values, disposal during loading, independent disclosure
+and section return, desktop and Russian narrow/enlarged-text layouts. Run
+Flutter formatting, analysis, tests/coverage and an Android arm64 debug build.
