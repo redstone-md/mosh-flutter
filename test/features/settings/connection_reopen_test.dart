@@ -5,6 +5,7 @@ import 'package:mosh/src/features/settings/settings_screen.dart';
 import 'package:mosh/src/features/settings/settings_content.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
+import 'package:mosh/src/rust/vpn_consent.dart';
 
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
@@ -102,7 +103,7 @@ void main() {
   testWidgets('returning to Connection shows the saved bypass switch on',
       (tester) async {
     final bridge = ScriptableBridge()
-      ..seedBindInterface('Ethernet')
+      ..seedVpnConsent(const VpnBypassConsent(interface_: 'Ethernet', index: 1))
       ..seedInterfaces([_iface('Ethernet', '192.168.1.5')]);
     await _pump(tester, bridge: bridge);
     await _tap(tester, 'If a VPN gets in the way');

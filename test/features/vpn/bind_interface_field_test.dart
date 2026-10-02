@@ -1,5 +1,5 @@
 // Tests for `BindInterfaceField` (lib/src/features/vpn/
-// bind_interface_field.dart). Asserts the bound/unbound head copy, the
+// bind_interface_field.dart). Asserts the saved adapter copy, the
 // no-NIC hint, the persisted bypass switch + onAccept, and the
 // error branch.
 import 'package:flutter/material.dart';
@@ -9,10 +9,11 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bind_interface_field.dart';
 import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
+import 'package:mosh/src/rust/vpn_consent.dart';
 import '../../support/pump.dart';
 
 /// A gateway with [interfaces] as the machine's NICs and [bind] as the one
-/// Mosh is bound to.
+/// saved for the next Mosh launch.
 ScriptableBridge _bindGateway({
   required List<NetworkInterfaceInfo> interfaces,
   String? bind,
@@ -20,7 +21,8 @@ ScriptableBridge _bindGateway({
 }) {
   final gateway = ScriptableBridge()
     ..seedInterfaces(interfaces)
-    ..seedBindInterface(bind);
+    ..seedVpnConsent(
+        bind == null ? null : VpnBypassConsent(interface_: bind, index: 0));
   if (failSetConsent) {
     gateway.failAlways(BridgeMethod.setVpnBypassConsent,
         error: Exception('boom'));
@@ -88,7 +90,7 @@ void main() {
       (tester) async {
     final gateway = _bindGateway(
       interfaces: [_iface(name: 'eth0', ipv4: '192.168.1.5')],
-    )..failNext(BridgeMethod.getBindInterface);
+    )..failNext(BridgeMethod.getVpnBypassConsent);
     await _pump(tester, gateway: gateway);
     expect(find.text('Could not read network state'), findsOneWidget);
     expect(find.text('State unavailable'), findsOneWidget);

@@ -66,3 +66,14 @@ controlled choices, hardware/error handling and adapter application. Verify
 keyboard focus/dismissal, long names and nullable default selection, then
 publish on the same branch for local review before choosing another pattern.
 The user accepted this pattern after comparing a standalone inline example.
+
+## VPN restart correction
+
+The local review found that the bypass switch read the current process binding
+instead of saved consent, and startup did not apply that consent to Moss.
+Read the existing consent API in settings; restore and resolve the saved
+adapter once before shared runtime nodes start. Preserve per-call overrides,
+the current node until restart, and startup fallback for unavailable hardware.
+No dependency, schema or public bridge change is needed. First reproduce with
+separate saved/runtime states and independent native processes, then verify
+Flutter, real Moss startup, Rust formatting/tests/clippy and Android arm64.
