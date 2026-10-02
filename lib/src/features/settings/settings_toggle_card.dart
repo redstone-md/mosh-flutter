@@ -44,7 +44,8 @@ class SettingsToggleCard extends StatelessWidget {
           final stacked = constraints.maxWidth < 360 * textScale;
           return Flex(
             direction: stacked ? Axis.vertical : Axis.horizontal,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                stacked ? CrossAxisAlignment.start : CrossAxisAlignment.center,
             children: [
               SettingsIcon(icon),
               SizedBox(width: stacked ? 0 : 16, height: stacked ? 12 : 0),

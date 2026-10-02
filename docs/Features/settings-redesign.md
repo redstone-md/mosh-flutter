@@ -309,6 +309,12 @@ default values, write guards and rollback are unchanged.
 The shared switch theme uses fg2 for an enabled, off thumb so it remains
 distinct from the dark track; selected thumbs retain mossInk.
 
+Horizontal opt-in headers center the icon beside the switch's title/summary
+block. Narrow stacked headers retain start alignment. This shared adjustment
+applies to both crash reporting and read receipts. Formatting and analysis
+are clean; 20 existing Privacy, async-switch, receipt and reporting checks pass.
+Desktop and narrow production-themed captures were inspected.
+
 Widget checks use the real CrashReporting controller with ScriptableBridge
 storage and a local SDK in test/support/privacy.dart. They cover missing
 reporting availability, pending/failed reads, SDK-start rollback, independent
