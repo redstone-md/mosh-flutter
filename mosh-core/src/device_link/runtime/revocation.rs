@@ -7,6 +7,8 @@ use crate::device_link::roster::{invalid, public_key};
 const NOTICE_CONTEXT: &[u8] = crate::device_link::wire::ROSTER_NOTICE_PREFIX;
 
 #[cfg(test)]
+mod reload_tests;
+#[cfg(test)]
 mod tests;
 
 #[derive(Serialize, Deserialize)]
@@ -131,11 +133,8 @@ impl DeviceLinkRuntime {
             }
             if notice.roster.digest()? != self.identity.roster().digest()? {
                 self.identity.adopt_roster(notice.roster.clone())?;
-                if self.identity.revoked()? {
-                    self.exchange = None;
-                    self.phase = DeviceLinkPhase::Idle;
-                }
             }
+            self.reconcile_removal()?;
             let ack =
                 RosterNotice::seal(&self.identity, &sender.moss_peer_id, notice.roster, true)?;
             let _ = self.transport.send(&sender.moss_peer_id, &ack);

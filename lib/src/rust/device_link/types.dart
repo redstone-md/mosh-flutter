@@ -84,7 +84,14 @@ enum DeviceLinkPhase {
   ;
 }
 
+enum DeviceLinkRole {
+  authorizing,
+  joining,
+  ;
+}
+
 class DeviceLinkSnapshot {
+  final DeviceLinkRole? role;
   final bool revoked;
   final List<DeviceRevocationStatus> revocations;
   final String userId;
@@ -99,6 +106,7 @@ class DeviceLinkSnapshot {
   final DeviceLinkErrorKind? error;
 
   const DeviceLinkSnapshot({
+    this.role,
     required this.revoked,
     required this.revocations,
     required this.userId,
@@ -115,6 +123,7 @@ class DeviceLinkSnapshot {
 
   @override
   int get hashCode =>
+      role.hashCode ^
       revoked.hashCode ^
       revocations.hashCode ^
       userId.hashCode ^
@@ -133,6 +142,7 @@ class DeviceLinkSnapshot {
       identical(this, other) ||
       other is DeviceLinkSnapshot &&
           runtimeType == other.runtimeType &&
+          role == other.role &&
           revoked == other.revoked &&
           revocations == other.revocations &&
           userId == other.userId &&

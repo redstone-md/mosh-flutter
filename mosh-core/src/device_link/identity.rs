@@ -12,6 +12,8 @@ use crate::persistence::Persistence;
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct LinkDelivery {
     pub qr: PairingQr,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub joining: Option<DeviceDescriptor>,
     pub packet: Vec<u8>,
     pub roster_hash: String,
 }
@@ -27,8 +29,22 @@ pub(crate) struct LinkReceipt {
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct PendingJoin {
     pub qr: PairingQr,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub joining: Option<DeviceDescriptor>,
     pub trusted: DeviceDescriptor,
     pub base: DeviceRoster,
+}
+
+impl LinkDelivery {
+    pub fn joining_device(&self) -> &DeviceDescriptor {
+        self.joining.as_ref().unwrap_or(&self.qr.device)
+    }
+}
+
+impl PendingJoin {
+    pub fn joining_device(&self) -> &DeviceDescriptor {
+        self.joining.as_ref().unwrap_or(&self.qr.device)
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -126,7 +142,10 @@ impl DeviceIdentity {
         }
         if let Some(pending) = &self.record.pending {
             let devices = pending.base.devices()?;
-            if pending.qr.device != *device
+            pending.qr.validate_stored()?;
+            if pending.joining_device() != device
+                || (pending.qr.is_current()
+                    && (pending.joining.is_none() || pending.qr.device != pending.trusted))
                 || (self.revoked()? && !pending.base.extends(self.roster())?)
                 || self.record.delivery.is_some()
                 || !devices.contains(&pending.trusted)
@@ -136,6 +155,18 @@ impl DeviceIdentity {
             {
                 return Err(invalid());
             }
+        }
+        if let Some(delivery) = &self.record.delivery {
+            delivery.qr.validate_stored()?;
+            if delivery.qr.is_current()
+                && (delivery.joining.is_none() || delivery.qr.device != *device)
+            {
+                return Err(invalid());
+            }
+            delivery.joining_device().validate()?;
+        }
+        if let Some(receipt) = &self.record.receipt {
+            receipt.qr.validate_stored()?;
         }
         Ok(())
     }

@@ -1,7 +1,7 @@
 # ADR 0029: private desktop device linking
 
 Date: 2026-09-28
-Status: Accepted for issue 23
+Status: Accepted for issue 23; pairing direction amended 2026-10-02
 
 ## Identity and compatibility
 
@@ -15,8 +15,8 @@ peer-ids or existing org authority. Existing DM records are untouched.
 classDiagram
     class DeviceLinkRuntime {
         snapshot()
-        createQr(name)
-        importQr(uri)
+        beginLink()
+        joinLink(uri, deviceName)
         approve(code)
         cancel()
         service()
@@ -64,9 +64,12 @@ removal and offline rollback rules before it changes membership.
 
 ## Pairing
 
-The new desktop creates a five-minute QR containing version, random request
-id, expiry, its public descriptor and a random 256-bit AES-GCM secret.
-The trusted desktop imports its image or URI. Moss stream 3 carries only
+The trusted desktop creates a five-minute v2 QR containing version, random
+request id, expiry, its public descriptor and a random 256-bit AES-GCM secret.
+The new installation scans it on Android or imports its image/URI. It sends a
+signed Join containing its independently generated device descriptor. The
+trusted desktop freezes the first valid candidate; another scanner cannot
+replace it. The signed Offer echoes the candidate and the trusted roster. Moss stream 3 carries only
 encrypted, signed pairing packets to the specific peer-id. The QR, version,
 request id, direction and signer are bound to packet authentication. Signing
 keys never leave their installation. The roster never enters gossip.
@@ -82,9 +85,11 @@ sequenceDiagram
     participant New as New desktop
     participant Trusted as Trusted desktop
     participant Disk as Each encrypted local store
-    New->>New: Create QR, independent key and peer-id
-    New-->>Trusted: QR via image or link
-    Trusted->>New: Encrypted signed offer and roster
+    Trusted->>Trusted: Create v2 QR with own public descriptor
+    Trusted-->>New: QR via camera, image or link
+    New->>Trusted: Encrypted signed Join with independent descriptor
+    Trusted->>Trusted: Freeze candidate
+    Trusted->>New: Signed offer, candidate and roster
     New->>Disk: Save authenticated request and trusted roster
     New->>New: Display transcript code
     New->>Trusted: Signed proof bound to offer
@@ -99,7 +104,8 @@ sequenceDiagram
 QR possession authenticates the initial exchange. The human checks the
 intended device by entering the code shown on that desktop. A forged packet
 or changed QR field cannot pass both signature and transcript checks.
-Replacing the whole QR creates a different request and a different code.
+The v2 transcript code binds both descriptors and the offered roster.
+Replacing the whole QR creates a different authorizer, request and code.
 Do not approve a code obtained anywhere except the intended desktop.
 
 Unused QR requests die on restart. Once the offer is authenticated, the new
@@ -176,3 +182,38 @@ Dart-to-Rust boundary.
   50 lines. It must show that rejection and wrong input never change the
   device list before successful approval. Extract screen-specific actions
   when another UI flow needs them; keep assertions with their user actions.
+
+## v1 upgrade recovery (2026-10-02)
+
+The new bridge replaces `createQr`/`importQr` with `beginLink`/`joinLink` and adds
+an optional authorizing/joining role to public snapshots. QR and pairing-wire
+formats are v2. The signed roster, device identities and conversation schemas
+retain their formats. Pending and delivery records add an optional candidate;
+v1 records resolve the candidate from the old QR descriptor.
+
+Fresh v1 imports are rejected. A saved authenticated v1 pending exchange resumes
+only its existing pinned authorizer and base until expiry, allowing a previously
+committed approval to arrive after upgrade. v1 signing contexts and packet
+prefixes remain readable solely through stored exchanges, deliveries and
+receipts. Duplicate old approvals acknowledge the durable saved roster; they
+cannot add another device or revive a removed installation. An independent
+legacy encoder under `cfg(test)` proves recovery without widening persistence
+visibility or adding test commands to the production bridge.
+
+Android uses `mobile_scanner` with its bundled model and internal lifecycle.
+Camera access starts only on the scan route; image/link import remains available.
+Flutter role forms, progress and roster presentation are separate widgets using
+existing settings surfaces, QR renderer and confirmation dialog.
+
+The candidate-freezing and v1 migration tests exceed 50 lines because each keeps
+the competing installation, positive control or repeated restart assertions in
+one end-to-end scenario. The shared test worker dispatch remains one owner of
+real installation state; it is not production code. Generated bridge code is
+excluded from hand-written file/type budgets.
+
+When another state owner adopts this installation's removal, the linking runtime
+reconciles its phase after reload. An authenticated joining exchange survives
+only while its pending context is still valid; a new own-removal clears that
+context and ends the exchange. A pinned earlier removal can still be followed
+by a newly confirmed addition. Approved rosters cannot roll back the locally
+saved removal chain, even if a delayed packet arrives after its Add notice.

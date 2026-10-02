@@ -87,6 +87,7 @@ dependencies:
   qr_flutter: ^4.1.0
   zxing2: ^0.2.4
   sentry_flutter: ^9.30.1
+  mobile_scanner: ^7.4.2
 
 # record_macos 2.1.1 with one patch (InputHelper.swift, getInputSampleRates):
 # a virtual audio driver that reports the sample-rate range 0...DBL_MAX made

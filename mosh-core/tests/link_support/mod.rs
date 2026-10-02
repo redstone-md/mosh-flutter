@@ -41,16 +41,17 @@ pub struct Peer {
     api: bool,
     manual_dm: bool,
     network_scope: u64,
+    worker: &'static str,
     pub port: u16,
 }
 
 impl Peer {
     pub fn new() -> Self {
-        Self::new_installation(false, false)
+        Self::new_installation(false, false, "independent_installation_process")
     }
 
     pub fn new_api() -> Self {
-        Self::new_installation(true, false)
+        Self::new_installation(true, false, "independent_installation_process")
     }
 
     #[allow(
@@ -58,24 +59,33 @@ impl Peer {
         reason = "Shared harness scheduling mode used by the DM admission tests."
     )]
     pub fn new_manual_dm() -> Self {
-        Self::new_installation(false, true)
+        Self::new_installation(false, true, "independent_installation_process")
     }
 
-    fn new_installation(api: bool, manual_dm: bool) -> Self {
+    #[allow(
+        dead_code,
+        reason = "Used by the core's independent legacy migration workers."
+    )]
+    pub fn new_with_worker(worker: &'static str) -> Self {
+        Self::new_installation(false, false, worker)
+    }
+
+    fn new_installation(api: bool, manual_dm: bool, worker: &'static str) -> Self {
         let dir = std::env::temp_dir().join(format!("mosh-link-flow-{}", rand::random::<u64>()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("storage-key.bin"), rand::random::<[u8; 32]>()).unwrap();
-        Self::start(dir, api, manual_dm, NETWORK_SCOPE.with(Cell::get))
+        Self::start(dir, api, manual_dm, NETWORK_SCOPE.with(Cell::get), worker)
     }
 
-    fn start(dir: PathBuf, api: bool, manual_dm: bool, network_scope: u64) -> Self {
+    fn start(
+        dir: PathBuf,
+        api: bool,
+        manual_dm: bool,
+        network_scope: u64,
+        worker: &'static str,
+    ) -> Self {
         let mut child = Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "independent_installation_process",
-                "--ignored",
-                "--nocapture",
-            ])
+            .args(["--exact", worker, "--ignored", "--nocapture"])
             .env("MOSH_LINK_TEST_DIR", &dir)
             .env("MOSH_LINK_TEST_PORT", "0")
             .env("MOSH_LINK_TEST_API", if api { "1" } else { "0" })
@@ -97,6 +107,7 @@ impl Peer {
             api,
             manual_dm,
             network_scope,
+            worker,
             port: 0,
         };
         peer.ask(json!({"action":"snapshot"}));
@@ -150,6 +161,7 @@ impl Peer {
             self.api,
             self.manual_dm,
             self.network_scope,
+            self.worker,
         );
         std::mem::swap(self, &mut replacement);
         // Keep this installation's persistent state; only the killed process is old.
@@ -198,6 +210,10 @@ impl Drop for Peer {
 }
 
 pub fn peer_process() {
+    peer_process_with(|_, _, _| None);
+}
+
+pub fn peer_process_with(extra: fn(&Persistence, &str, &Value) -> Option<Value>) {
     stdio::isolate_from_moss();
     let dir = PathBuf::from(std::env::var("MOSH_LINK_TEST_DIR").unwrap());
     if std::env::var("MOSH_LINK_TEST_API").as_deref() == Ok("1") {
@@ -227,7 +243,7 @@ pub fn peer_process() {
         let _ = service.lock().unwrap().service();
         std::thread::sleep(Duration::from_millis(100));
     });
-    serve(runtime, node, dm, store);
+    serve(runtime, node, dm, store, extra);
 }
 
 fn dm_runtime(
@@ -254,6 +270,7 @@ fn serve(
     node: Arc<mosh_core::moss_ffi::MossNode>,
     dm: Arc<Mutex<PrivateDmRuntime>>,
     store: Arc<Persistence>,
+    extra: fn(&Persistence, &str, &Value) -> Option<Value>,
 ) {
     for line in std::io::stdin().lock().lines() {
         let command: Value = serde_json::from_str(&line.unwrap()).unwrap();
@@ -262,6 +279,11 @@ fn serve(
             break;
         }
         let arg = command["argument"].as_str().unwrap_or_default().to_string();
+        if let Some(response) = extra(&store, action, &command) {
+            println!("{OUTPUT_PREFIX}{response}");
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
         if action.starts_with("protocol_") {
             let response = protocol::command(&store, &node, action, &arg, &command);
             println!("{OUTPUT_PREFIX}{response}");
@@ -294,8 +316,8 @@ fn serve(
                 std::io::stdout().flush().unwrap();
                 continue;
             }
-            "qr" => rt.create_qr(arg),
-            "import" => rt.import_qr(arg),
+            "qr" => rt.begin_link(),
+            "import" => rt.join_link(arg, command["name"].as_str().unwrap_or_default().into()),
             "approve" => rt.approve(arg),
             "cancel" => rt.cancel(),
             "revoke" => rt.revoke(arg),

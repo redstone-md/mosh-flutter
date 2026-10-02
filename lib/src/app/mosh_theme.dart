@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_menu_theme.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
 // Mosh Flutter theme: the canonical dark `ThemeData` for the app. Every
@@ -203,6 +204,7 @@ ThemeData buildMoshTheme() {
     dividerColor: MoshColors.line, // hairline
     splashColor: MoshColors.mossGlow,
     highlightColor: MoshColors.mossGlow,
+    focusColor: MoshColors.mossGlow,
     // Chrome is sized in 10.5–15px steps; the Material defaults (16px
     // titles, 14px body) render every surface a step too large.
     // VisualDensity.compact takes the same step out of the Material
@@ -292,6 +294,29 @@ ThemeData buildMoshTheme() {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
       ),
+    ),
+    popupMenuTheme: const PopupMenuThemeData(
+      color: MoshColors.bg2,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: MoshColors.bg0,
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: MoshShapes.menu,
+        side: BorderSide(color: MoshColors.lineStrong),
+      ),
+    ),
+    menuTheme: MoshMenuTheme.panel(_moshColorScheme),
+    menuButtonTheme:
+        MoshMenuTheme.items(_moshColorScheme, _moshTextTheme().bodyMedium),
+    bottomSheetTheme: MoshMenuTheme.sheet(_moshColorScheme),
+    switchTheme: SwitchThemeData(
+      // M3 uses primaryContainer on hover/focus/press, matching our track.
+      thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? null
+              : states.contains(WidgetState.selected)
+                  ? MoshColors.mossInk
+                  : MoshColors.fg2),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(

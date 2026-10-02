@@ -264,10 +264,24 @@
   "@cryptoNoticeTitle": {
     "description": "Lock tooltip in the chat header, and the title of the end-to-end encryption notice"
   },
-  "cryptoNoticeBody": "OpenMLS protects the content of your messages. Moss carries encrypted text through a network of nodes.",
+  "cryptoNoticeBody": "Personal chats and private groups use OpenMLS end-to-end encryption. Public channels do not use end-to-end encryption.",
   "@cryptoNoticeBody": {
-    "description": "Body of the end-to-end encryption notice (onboarding About card)"
+    "description": "Always-visible About summary distinguishing private conversations from public channels"
   },
+  "settingsAboutVersion": "Version {version}",
+  "@settingsAboutVersion": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "settingsAboutVersionBuild": "Version {version} · build {buildNumber}",
+  "@settingsAboutVersionBuild": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "buildNumber": { "type": "String" }
+    }
+  },
+  "settingsAboutVersionLoading": "Reading version…",
+  "settingsAboutVersionUnavailable": "Version unavailable",
+  "settingsAboutNetworkBody": "Moss delivers messages through a network of nodes. Public trackers are used to discover nodes.",
   "groupCreateCardTitle": "Create private group",
   "@groupCreateCardTitle": {
     "description": "Title of the create-group card"
@@ -1232,9 +1246,9 @@
   "@settingsTitle": {
     "description": "AppBar title of the settings screen reached from the rail gear"
   },
-  "settingsSectionVoice": "Voice & Video",
+  "settingsSectionVoice": "Sound",
   "@settingsSectionVoice": {
-    "description": "Left-nav label of the Voice & Video settings section"
+    "description": "Navigation label of the Sound settings section"
   },
   "settingsSectionConnection": "Connection",
   "@settingsSectionConnection": {
@@ -1250,15 +1264,15 @@
   },
   "settingsInputDeviceLabel": "Microphone",
   "@settingsInputDeviceLabel": {
-    "description": "Field label of the input-device dropdown in the Voice & Video settings section"
+    "description": "Field label of the input-device dropdown in Sound settings"
   },
   "settingsInputDeviceHint": "The microphone used for voice messages and calls. Applies from the next recording.",
   "@settingsInputDeviceHint": {
     "description": "Hint under the input-device dropdown"
   },
-  "settingsOutputDeviceLabel": "Speaker",
+  "settingsOutputDeviceLabel": "Speakers",
   "@settingsOutputDeviceLabel": {
-    "description": "Field label of the output-device dropdown in the Voice & Video settings section"
+    "description": "Field label of the output-device dropdown in Sound settings"
   },
   "settingsOutputDeviceHint": "Where call audio and ringtones play. Applies from the next call.",
   "@settingsOutputDeviceHint": {
@@ -1270,7 +1284,7 @@
   },
   "settingsTestRingtone": "Play test sound",
   "@settingsTestRingtone": {
-    "description": "Button label in the Voice & Video section; plays the call ringtone on the picked speaker"
+    "description": "Sound settings: plays the call ringtone on the selected speakers"
   },
   "voiceMessagePlayLabel": "Play voice message",
   "@voiceMessagePlayLabel": {
@@ -1399,20 +1413,20 @@
   },
   "bindAdapterTitle": "Network adapter",
   "@bindAdapterTitle": {
-    "description": "Title of the bind-interface field in the Advanced disclosure (React BindInterfaceField.tsx .bind-interface-head strong)"
+    "description": "Adapter selector label in Connection settings"
   },
-  "bindAdapterBoundBody": "Mosh is bound to {adapter}.",
+  "bindAdapterBoundBody": "Saved adapter: {adapter}.",
   "@bindAdapterBoundBody": {
-    "description": "Head body when Moss is currently bound to an adapter; {adapter} is the bound interface name (React BindInterfaceField.tsx `Moss is bound to ${current}.`)",
+    "description": "Saved adapter name, not a claim about an already running node",
     "placeholders": {
       "adapter": { "type": "String" }
     }
   },
-  "bindAdapterUnboundBody": "Use a physical NIC when a VPN blocks peer discovery.",
+  "bindAdapterUnboundBody": "Choose your network adapter, such as Ethernet or Wi-Fi.",
   "@bindAdapterUnboundBody": {
-    "description": "Head body when Moss is not bound (React BindInterfaceField.tsx default body)"
+    "description": "Explanation of the adapter choice when no override is saved"
   },
-  "bindAdapterNoNic": "No connected physical NIC detected.",
+  "bindAdapterNoNic": "No connected physical adapter found.",
   "@bindAdapterNoNic": {
  "description": "Hint shown when no physical NIC is available (React BindInterfaceField.tsx .bind-interface-hint)"
   },
@@ -1420,17 +1434,25 @@
   "@bindAdapterSelectAria": {
     "description": "aria-label for the adapter DropdownButton (React BindInterfaceField.tsx select aria-label)"
   },
-  "bindAdapterRelease": "Release",
-  "@bindAdapterRelease": {
-    "description": "Button label when bound; releasing clears the override (React BindInterfaceField.tsx btn-ghost when enabled)"
+  "bindAdapterToggle": "VPN bypass",
+  "@bindAdapterToggle": {
+    "description": "Switch controlling whether a physical adapter override is saved"
   },
-  "bindAdapterBind": "Bind",
-  "@bindAdapterBind": {
-    "description": "Button label when unbound; binds to the picked adapter (React BindInterfaceField.tsx btn-primary when !enabled)"
+  "bindAdapterEnabled": "On",
+  "@bindAdapterEnabled": {
+    "description": "VPN bypass has a saved adapter; pending restart is described separately"
   },
-  "bindAdapterSaving": "Restarting...",
+  "bindAdapterDisabled": "Off",
+  "@bindAdapterDisabled": {
+    "description": "VPN bypass has no saved adapter"
+  },
+  "bindAdapterUnknown": "State unavailable",
+  "@bindAdapterUnknown": {
+    "description": "VPN bypass state could not be read; the switch stays disabled"
+  },
+  "bindAdapterSaving": "Saving…",
   "@bindAdapterSaving": {
-    "description": "Button label while applying the bind/release + restarting (React BindInterfaceField.tsx busy)"
+    "description": "Switch status while saving the choice and invoking the relauncher"
   },
   "bindAdapterActive": "Every conversation uses {adapter}.",
   "@bindAdapterActive": {
@@ -1439,9 +1461,9 @@
       "adapter": { "type": "String" }
     }
   },
-  "bindAdapterHint": "Binding can expose your LAN IP to peers, trackers, and STUN. Mosh restarts to apply either choice.",
+  "bindAdapterHint": "Traffic can bypass your VPN. Your local IP may be visible to peers, trackers and STUN services.",
   "@bindAdapterHint": {
-    "description": "Hint under the controls (React BindInterfaceField.tsx .bind-interface-hint)"
+    "description": "Visible VPN bypass and local IP exposure warning"
   },
   "bindAdapterReadError": "Could not read network state",
   "@bindAdapterReadError": {
@@ -1593,18 +1615,20 @@
   "@settingsReadReceiptsTitle": {
     "description": "Settings row title for the app-level read-receipts toggle (one answer for every DM)"
   },
-  "settingsReadReceiptsSubtitle": "When on, you tell your DM counterparts when you open the conversation — and see theirs. Off by default; a user who does not send receipts does not see others'.",
+  "settingsReadReceiptsSubtitle": "Share when you read a personal chat and see your counterpart's receipts. Off by default.",
   "@settingsReadReceiptsSubtitle": {
-    "description": "Settings row body for the read-receipts toggle; explains the symmetric default-off contract"
+    "description": "Short summary beside the read-receipts switch, including its default-off state"
   },
+  "settingsReadReceiptsDetailsTitle": "How it works",
+  "settingsReadReceiptsDetails": "You send a receipt when you open a personal chat. Receipts are mutual: if you do not send them, you do not see others' receipts.",
   "settingsSectionDevices": "Devices",
   "deviceLinkUserId": "Mosh user",
   "deviceLinkThisDevice": "This device",
-  "deviceLinkHelp": "To add a device, open Mosh on it, go to Settings → Devices and choose Show linking QR. Then import that QR here.",
-  "deviceLinkJoinHelp": "To use this device under your existing Mosh user, show its QR and import it on a device where Mosh is already set up.",
-  "deviceLinkLinkOther": "Link another device to this one",
-  "deviceLinkQrHelp": "On your trusted device, open Settings → Devices and import this QR image or link. Keep both devices online.",
-  "deviceLinkConnecting": "Connecting to the new device…",
+  "deviceLinkHelp": "Open Mosh on the new device → Settings → Devices → Connect this device. Scan the QR shown here. Keep both devices online.",
+  "deviceLinkJoinHelp": "On the device you already use, open Settings → Devices → Link another device. Read its QR here, then show it your confirmation code.",
+  "deviceLinkLinkOther": "Link another device",
+  "deviceLinkQrHelp": "Scan this QR on the new device. You will confirm its code here before it gets access.",
+  "deviceLinkConnecting": "Connecting devices…",
   "deviceLinkApprovalHelp": "Enter the code shown on the device you want to link. Approve only a device you control.",
   "deviceLinkConfirmationHelp": "Enter this code on your trusted device to approve this device.",
   "deviceLinkDelivering": "Approval saved. Waiting for the new device to save its device list. Keep both devices online.",
@@ -1614,16 +1638,16 @@
   "deviceLinkExpires": "This QR expires after five minutes. Do not share it with anyone else.",
   "deviceLinkCopy": "Copy link",
   "deviceLinkDeviceName": "Name of this device",
-  "deviceLinkJoin": "Show linking QR",
+  "deviceLinkJoin": "Create linking QR",
   "deviceLinkImportImage": "Choose QR image",
-  "deviceLinkPasteLabel": "Or paste the link shown under that QR",
-  "deviceLinkImport": "Connect to new device",
+  "deviceLinkPasteLabel": "Paste the link from your trusted device",
+  "deviceLinkImport": "Connect",
   "deviceLinkCodeLabel": "Code from the new device",
   "deviceLinkApprove": "Approve device",
   "deviceLinkDecline": "Cancel link",
   "deviceLinkRetry": "Retry",
-  "deviceLinkInvalidQr": "This is not a valid device QR or link. Import a new one from the device you want to link.",
-  "deviceLinkExpired": "This device link expired. Create a new QR on the new device.",
+  "deviceLinkInvalidQr": "This QR or link is invalid or uses an older format. Create a new QR on your trusted device.",
+  "deviceLinkExpired": "This device link expired. Create a new QR on your trusted device.",
   "deviceLinkBusy": "Finish or cancel the current device link first.",
   "deviceLinkIneligible": "This device already has chats or linked devices. Use a fresh installation to join another user.",
   "deviceLinkCodeMismatch": "The code does not match. Read it from the new device and try again.",
@@ -1664,9 +1688,15 @@
   "@settingsCrashReportsTitle": {
     "description": "Title of the opt-in crash-reporting switch"
   },
-  "settingsCrashReportsSubtitle": "Off by default. When on, crashes and errors go to Sentry: stack traces, error types, app version and OS. Never messages, contacts, keys, invites or IP addresses; ids are replaced by hashes. A native crash report also includes a snapshot of thread stack memory.",
+  "settingsCrashReportsSubtitle": "Help fix errors in Mosh. Off by default.",
   "@settingsCrashReportsSubtitle": {
-    "description": "What the crash-reporting switch sends and never sends (ADR 0035)"
+    "description": "Short summary beside the opt-in crash-reporting switch"
+  },
+  "settingsCrashReportsDetailsTitle": "What is sent",
+  "settingsCrashReportsDetails": "Reports go to Sentry and contain stack traces, error types, the Mosh version and OS. Report metadata excludes messages, contacts, keys, invites and IP addresses; identifiers are replaced by hashes.",
+  "settingsCrashReportsNativeWarning": "Native crash reports can include thread stack memory with fragments of in-memory data. This memory is not scrubbed.",
+  "@settingsCrashReportsNativeWarning": {
+    "description": "Always-visible native minidump caveat outside the report-details disclosure (ADR 0035)"
   },
   "settingsCrashReportsUnavailable": "This build cannot send crash reports.",
   "@settingsCrashReportsUnavailable": {
@@ -1688,5 +1718,71 @@
   "chatDetailsParticipants": "Participants",
   "chatDetailsDiagnostics": "Connection details",
   "chatDetailsProtection": "Conversation protection",
-  "chatDetailsKnownAuthors": "Known authors"
+  "chatDetailsKnownAuthors": "Known authors",
+  "settingsBackToChats": "Back to chats",
+  "@settingsBackToChats": {
+    "description": "Closes settings and restores the chat screen"
+  },
+  "settingsBackToSections": "Back to settings sections",
+  "@settingsBackToSections": {
+    "description": "Narrow settings toolbar: returns from a section to the section list"
+  },
+  "settingsStopTestRingtone": "Stop test sound",
+  "@settingsStopTestRingtone": {
+    "description": "Stops the currently playing speaker test"
+  },
+  "settingsDevicesLoading": "Loading devices…",
+  "@settingsDevicesLoading": {
+    "description": "Hardware enumeration in progress below an audio selector"
+  },
+  "settingsDeviceUnavailable": "Device unavailable",
+  "@settingsDeviceUnavailable": {
+    "description": "Audio selector label for a saved device missing from the device list"
+  },
+  "settingsDeviceUnavailableHint": "Reconnect this device or choose another one.",
+  "@settingsDeviceUnavailableHint": {
+    "description": "Explanation below an unavailable saved audio device"
+  },
+  "settingsDevicesLoadError": "Could not load audio devices. Try again or select the system default.",
+  "@settingsDevicesLoadError": {
+    "description": "Audio hardware enumeration failed; retry and default selection are available"
+  },
+  "settingsRefreshDevices": "Refresh devices",
+  "@settingsRefreshDevices": {
+    "description": "Retries audio hardware enumeration after failure"
+  },
+  "settingsSoundTestError": "Could not play test sound. Check your speakers and try again.",
+  "@settingsSoundTestError": {
+    "description": "Speaker test playback failed"
+  },
+  "settingsAudioSaveError": "Could not save the device selection. Try again.",
+  "@settingsAudioSaveError": {
+    "description": "Audio preference write failed; the previous selection remains active"
+  },
+  "settingsAudioAppliesAutomatically": "Changes are saved automatically.",
+  "@settingsAudioAppliesAutomatically": {
+    "description": "Audio settings footer explaining immediate preference persistence"
+  },
+  "deviceLinkConnectThis": "Connect this device",
+  "deviceLinkDevicesTitle": "Your devices",
+  "deviceLinkDevicesHint": "Each device keeps its own keys. Linked devices share your Mosh user and conversations.",
+  "deviceLinkScan": "Scan QR with camera",
+  "deviceLinkScanHint": "Point the camera at the QR on your trusted device.",
+  "deviceLinkCameraDenied": "Allow camera access in Android settings, or return to choose a QR image or paste the link.",
+  "deviceLinkCameraUnavailable": "The camera is unavailable. Return to choose a QR image or paste the link.",
+  "deviceLinkCameraFallback": "Use an image or link",
+  "deviceLinkStepShow": "Show QR",
+  "deviceLinkStepRead": "Read QR",
+  "deviceLinkStepApprove": "Confirm code",
+  "deviceLinkStepFinish": "Link devices",
+  "settingsVpnTitle": "If a VPN gets in the way",
+  "settingsVpnSummary": "Choose an adapter to route Mosh around a VPN.",
+  "bindAdapterAutoRestart": "Mosh restarts after applying or clearing this choice.",
+  "bindAdapterManualRestart": "After saving, close Mosh completely and open it again to apply the change.",
+  "bindAdapterRestartNeeded": "Saved. Close Mosh completely and open it again to apply the change.",
+  "bindAdapterRestartError": "Saved, but Mosh could not restart. Close it completely and open it again.",
+  "bindAdapterUnavailable": "{adapter} (unavailable)",
+  "@bindAdapterUnavailable": {
+    "placeholders": {"adapter": {"type": "String"}}
+  }
 }

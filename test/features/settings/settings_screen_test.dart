@@ -1,201 +1,205 @@
-// The settings surface: the gear at the rail bottom opens /settings, the
-// screen renders its three sections, and the onboarding menu no longer
-// carries the Advanced/About disclosures (they moved into the settings).
-//
-// What is pinned here:
-//  1. The rail renders the gear (fixed below the list, always visible).
-//  2. Tapping it routes to /settings and the section nav renders.
-//  3. The Voice & Video section renders both device dropdowns with the
-//     "System default" entries (the enumerators degrade to empty lists in
-//     tests — the dropdowns must still render).
-//  4. A pick from the output dropdown writes the store (the picks
-//     provider state carries it).
-//  5. The Connection section renders the two advanced fields + the
-//     read-receipts toggle (the moved controls).
-//  6. The About section renders the crypto notice.
-//  7. The onboarding menu contains no Advanced/About disclosure anymore.
-//
-// The frb store calls are `#[frb(sync)]` over the cdylib — absent under
-// `flutter test` — so the picks provider is overridden with a plain
-// in-memory container; the settings screen itself reads it through the
-// same seam production does.
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:mosh/l10n/app_localizations.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mosh/src/features/conversation/conversation_composer.dart';
+import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/features/onboarding/onboard_menu.dart';
+import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
-import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
-import 'package:mosh/src/state/audio_device_picks_provider.dart'
-    show audioDevicePicksProvider, AudioDevicePicks, AudioDevicePicksNotifier;
+import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/routing/mosh_shell.dart';
+import 'package:mosh/src/state/gateway_provider.dart';
 
 import '../../support/pump.dart';
+import '../../support/message_builders.dart';
+import '../../support/scriptable_bridge.dart';
+import '../../support/scriptable_gateway.dart';
+import '../../support/settings.dart';
 
-/// A picks notifier stand-in: the real one calls the frb store, which is
-/// absent under `flutter test`. Same state shape.
-class _StubPicksNotifier extends AudioDevicePicksNotifier {
-  _StubPicksNotifier(this._picks);
-
-  final AudioDevicePicks _picks;
-
-  @override
-  AudioDevicePicks build() => _picks;
-
-  @override
-  void set({String? inputDeviceId, String? outputDeviceId}) {
-    state = AudioDevicePicks(
-      inputDeviceId: inputDeviceId,
-      outputDeviceId: outputDeviceId,
-    );
-  }
+void _size(WidgetTester tester, Size size) {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
 }
 
-Future<void> _pumpSettings(WidgetTester tester, {bool wide = true}) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        audioDevicePicksProvider
-            .overrideWith(() => _StubPicksNotifier(const AudioDevicePicks())),
-      ],
-      child: MaterialApp(
-        // The real router is not needed: the screen under test is mounted
-        // directly, sized wide/narrow for the two layouts.
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: SizedBox(
-          width: wide ? 1200 : 500,
-          child: const SettingsScreen(),
-        ),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
-/// Mounts the app's routes at [location] with the picks provider stubbed
-/// (the settings screen reads it on build; the frb store is absent under
-/// `flutter test`).
-Future<void> _pumpRouteStubbed(WidgetTester tester, String location) {
-  return pumpRoute(
-    tester,
-    location,
-    overrides: [
-      audioDevicePicksProvider
-          .overrideWith(() => _StubPicksNotifier(const AudioDevicePicks())),
-    ],
-  );
-}
+Future<GoRouter> _route(WidgetTester tester,
+        [String location = AppRoutes.settings]) =>
+    pumpRoute(tester, location, overrides: [
+      ...settingsAudioOverrides(),
+      gatewayProvider.overrideWithValue(ScriptableGateway()),
+    ]);
 
 void main() {
-  testWidgets('the rail gear renders and routes to /settings', (tester) async {
-    await _pumpRouteStubbed(tester, AppRoutes.sessions);
-
-    // The gear is in the rail (fixed below the list).
-    final gear = find.byIcon(Icons.settings_outlined);
-    expect(gear, findsOneWidget, reason: 'the settings gear must render');
-
-    await tester.tap(gear);
+  testWidgets('gear opens standalone settings and returns to preserved chats',
+      (tester) async {
+    _size(tester, const Size(1200, 850));
+    final router = await _route(tester, AppRoutes.sessions);
+    final railState = tester.state(find.byType(SessionsScreen));
+    await tester.enterText(find.byType(TextField).first, 'retained search');
+    await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
-
-    // /settings is active: the section nav + the voice section render.
-    expect(find.text('Voice & Video'), findsOneWidget);
-    expect(find.text('Connection'), findsOneWidget);
-    expect(find.text('About'), findsOneWidget);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byType(MoshShell), findsNothing);
+    expect(find.byType(SessionsScreen, skipOffstage: false), findsOneWidget);
+    expect(find.text('Microphone'), findsOneWidget);
+    await tester.tap(find.text('Back to chats'));
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
+    expect(tester.state(find.byType(SessionsScreen)), same(railState));
+    expect(find.text('retained search'), findsOneWidget);
   });
 
-  testWidgets('wide: the section nav renders and sections switch',
+  testWidgets('wide sidebar switches sections and remembers on reopening',
       (tester) async {
-    await _pumpSettings(tester, wide: true);
-
-    // Section nav on the left; Voice & Video is the initial section.
-    expect(find.text('Voice & Video'), findsOneWidget);
-    expect(find.text('Microphone'), findsOneWidget);
-    expect(find.text('Speaker'), findsOneWidget);
-    expect(find.text('System default'), findsWidgets,
-        reason: 'both dropdowns carry the default entry');
-
-    // Switch to About: the crypto notice renders.
+    _size(tester, const Size(1200, 850));
+    final router = await _route(tester, AppRoutes.sessions);
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Sound'), findsNWidgets(2));
+    expect(find.text('Devices'), findsOneWidget);
+    expect(find.text('Connection'), findsOneWidget);
+    expect(find.text('Privacy'), findsOneWidget);
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
-    expect(find.byType(SingleChildScrollView), findsWidgets);
+    expect(find.text('Microphone'), findsNothing);
+    router.pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('About'), findsNWidgets(2));
+    expect(find.text('Microphone'), findsNothing);
   });
 
-  testWidgets('narrow: the section picker is a dropdown', (tester) async {
-    await _pumpSettings(tester, wide: false);
-    // The narrow layout renders a DropdownButtonFormField for sections
-    // instead of the nav column.
-    expect(find.byType(DropdownButtonFormField<int>), findsNothing);
-    // The enum is private; assert by behavior: the initial voice section
-    // still renders its fields.
+  testWidgets('closing settings restores the open chat, scroll and draft',
+      (tester) async {
+    _size(tester, const Size(1200, 850));
+    final gateway = ScriptableGateway()
+      ..seedSessions([
+        TestSnapshots.dm(
+            sessionId: 'alice',
+            peerDisplayName: 'Alice',
+            messages: [
+              for (var i = 0; i < 40; i++)
+                TestMessages.dm(fromDevice: 'Alice', body: 'Message $i'),
+            ]),
+      ]);
+    final router = await pumpRoute(tester, AppRoutes.sessions, overrides: [
+      ...settingsAudioOverrides(),
+      gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(
+          ScriptableBridge(conversations: gateway.conversations)),
+    ]);
+    await tester.tap(find.descendant(
+        of: find.byType(SessionsScreen), matching: find.text('Alice')));
+    await tester.pumpAndSettle();
+    final composer = find.descendant(
+        of: find.byType(ConversationComposer),
+        matching: find.byType(TextField));
+    await tester.enterText(composer, 'retained draft');
+    final scrollFinder = find.descendant(
+        of: find.byType(ConversationMessageListView),
+        matching: find.byType(Scrollable));
+    final scroll = tester.state<ScrollableState>(scrollFinder);
+    scroll.position.jumpTo(180);
+    await tester.pump();
+    final offset = scroll.position.pixels;
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.byType(ConversationComposer), findsNothing);
+    await tester.tap(find.text('Back to chats'));
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path,
+        AppRoutes.dmFor('alice'));
+    expect(find.text('retained draft'), findsOneWidget);
+    expect(tester.state(scrollFinder), same(scroll));
+    expect(scroll.position.pixels, offset);
+  });
+
+  testWidgets('narrow sections open as details and Back returns to the list',
+      (tester) async {
+    _size(tester, const Size(390, 844));
+    await _route(tester);
+    expect(find.text('Sound'), findsOneWidget);
+    expect(find.text('Microphone'), findsNothing);
+    await tester.tap(find.text('Sound'));
+    await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsOneWidget);
-  });
-
-  testWidgets('the output dropdown writes the pick into the store',
-      (tester) async {
-    final picks = _StubPicksNotifier(const AudioDevicePicks());
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [audioDevicePicksProvider.overrideWith(() => picks)],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: const SizedBox(width: 1200, child: SettingsScreen()),
-        ),
-      ),
-    );
+    expect(find.text('Connection'), findsNothing);
+    await tester.tap(find.byTooltip('Back to settings sections'));
     await tester.pumpAndSettle();
-
-    // In tests the enumerators degrade to empty lists, so the default entry
-    // is the only one. Picking it (again) must still write the store —
-    // with null (the default IS the reset).
-    await tester.tap(find.text('System default').last);
-    await tester.pumpAndSettle();
-    expect(picks.state.outputDeviceId, isNull,
-        reason: 'the default entry persists as null');
-  });
-
-  testWidgets('the Connection section carries the moved controls',
-      (tester) async {
-    await _pumpRouteStubbed(tester, AppRoutes.settings);
-
-    // The settings screen renders (default test viewport is narrow, so
-    // the section dropdown shows). The connection label is present.
+    expect(find.text('Microphone'), findsNothing);
     expect(find.text('Connection'), findsOneWidget);
   });
 
-  testWidgets('the onboarding menu has no Advanced or About disclosure',
+  testWidgets('system Back and Escape unwind narrow detail before settings',
       (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: const Scaffold(
-            body: SingleChildScrollView(
-              child: OnboardMenu(
-                onPickChat: _noop,
-                onPickGroup: _noop,
-                onPickChannel: _noop,
-                onPickJoin: _noop,
-              ),
+    _size(tester, const Size(390, 844));
+    final router = await _route(tester, AppRoutes.sessions);
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sound'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Connection'), findsOneWidget);
+    await tester.tap(find.text('Sound'));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Connection'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
+    expect(find.byType(SessionsScreen), findsOneWidget);
+  });
+
+  testWidgets('direct settings entry can return to the chat list',
+      (tester) async {
+    _size(tester, const Size(1200, 850));
+    final router = await _route(tester);
+    await tester.tap(find.text('Back to chats'));
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, AppRoutes.sessions);
+  });
+
+  testWidgets('reopening narrow settings starts at the section list',
+      (tester) async {
+    _size(tester, const Size(390, 844));
+    await _route(tester, AppRoutes.sessions);
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sound'));
+    await tester.pumpAndSettle();
+    expect(find.text('Microphone'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Back to chats'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Microphone'), findsNothing);
+    expect(find.text('Sound'), findsOneWidget);
+    expect(find.text('Devices'), findsOneWidget);
+  });
+
+  testWidgets('the onboarding menu keeps creation separate from settings',
+      (tester) async {
+    await pumpScreen(
+        tester,
+        const Scaffold(
+          body: SingleChildScrollView(
+            child: OnboardMenu(
+              onPickChat: _noop,
+              onPickGroup: _noop,
+              onPickChannel: _noop,
+              onPickJoin: _noop,
             ),
           ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // The tiles remain; the disclosures are gone (the gear owns them).
-    expect(find.byIcon(Icons.settings), findsNothing,
-        reason: 'the Advanced disclosure moved to the settings screen');
-    expect(find.byIcon(Icons.verified_user), findsNothing,
-        reason: 'the About disclosure moved to the settings screen');
-    expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget,
-        reason: 'the Start tiles stay on the first-run surface');
+        ));
+    expect(find.byIcon(Icons.settings), findsNothing);
+    expect(find.byIcon(Icons.verified_user), findsNothing);
+    expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
   });
 }
 

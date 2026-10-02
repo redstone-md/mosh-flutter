@@ -5,6 +5,8 @@ color when the counterpart opens the conversation — proof a human saw it,
 never a third tick (see [[Read receipt]] in root `CONTEXT.md`). Reference:
 [Private DM](private-dm.md), [Architecture](../Architecture.md).
 
+The app-level switch lives in Settings → Privacy, beside crash reporting.
+
 ## Flow
 
 ```mermaid

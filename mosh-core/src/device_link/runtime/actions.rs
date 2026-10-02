@@ -4,29 +4,17 @@ use crate::device_link::roster::{invalid, MAX_NAME_CHARS};
 use crate::device_link::wire::{self, LinkMessage};
 
 impl DeviceLinkRuntime {
-    pub fn create_qr(&mut self, name: String) -> Result<DeviceLinkSnapshot> {
+    pub fn begin_link(&mut self) -> Result<DeviceLinkSnapshot> {
         self.service()?;
         self.ensure_idle()?;
-        if !self.identity.can_join()? {
-            return Err(DeviceLinkError::new(DeviceLinkErrorKind::Ineligible));
+        if self.identity.revoked()? {
+            return Err(invalid());
         }
-        let name = join_name(
-            &self.identity.device().name,
-            &name,
-            self.identity.revoked()?,
-        )?;
-        let mut record = self.identity.record.clone();
-        if !self.identity.revoked()? {
-            record.device.name = name.into();
-            record.roster = DeviceRoster::genesis(record.device.clone(), &self.identity.key())?;
-        }
-        record.pending = None;
-        record.receipt = None;
-        self.identity.update(record)?;
         self.exchange = Some(Exchange {
             qr: PairingQr::new(self.identity.device().clone(), now()),
-            role: Role::Joining,
-            trusted: None,
+            joining: None,
+            role: Role::Authorizing,
+            trusted: Some(self.identity.device().clone()),
             base: None,
             packet: None,
             last_send: None,
@@ -37,36 +25,34 @@ impl DeviceLinkRuntime {
         self.snapshot()
     }
 
-    pub fn import_qr(&mut self, uri: String) -> Result<DeviceLinkSnapshot> {
+    pub fn join_link(&mut self, uri: String, name: String) -> Result<DeviceLinkSnapshot> {
         self.service()?;
-        if self.identity.revoked()? {
-            return Err(invalid());
-        }
         self.ensure_idle()?;
-        let qr = PairingQr::parse(&uri, now())?;
-        if self.identity.record.consumed(&qr, now()) {
-            return Err(DeviceLinkError::new(DeviceLinkErrorKind::InvalidQr));
+        if !self.identity.can_join()? {
+            return Err(DeviceLinkError::new(DeviceLinkErrorKind::Ineligible));
         }
-        let existing = self.identity.roster().devices()?;
-        if existing
-            .iter()
-            .any(|d| d.device_id == qr.device.device_id || d.moss_peer_id == qr.device.moss_peer_id)
+        let qr = PairingQr::parse(&uri, now())?;
+        if self.identity.record.consumed(&qr, now())
+            || qr.device.device_id == self.identity.device().device_id
+            || qr.device.moss_peer_id == self.identity.device().moss_peer_id
         {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::InvalidQr));
         }
+        self.prepare_join_name(&name)?;
+        let joining = self.identity.device().clone();
         let packet = wire::seal(
             &qr,
             &self.identity.key(),
-            LinkMessage::Offer {
-                roster: self.identity.roster().clone(),
-                trusted: self.identity.device().clone(),
+            LinkMessage::Join {
+                device: joining.clone(),
             },
         )?;
         self.exchange = Some(Exchange {
+            trusted: Some(qr.device.clone()),
             qr,
-            role: Role::Trusted,
-            trusted: Some(self.identity.device().clone()),
-            base: Some(self.identity.roster().clone()),
+            joining: Some(joining),
+            role: Role::Joining,
+            base: None,
             packet: Some(packet),
             last_send: None,
             last_response: Instant::now(),
@@ -76,21 +62,35 @@ impl DeviceLinkRuntime {
         self.snapshot()
     }
 
+    fn prepare_join_name(&mut self, typed: &str) -> Result<()> {
+        let revoked = self.identity.revoked()?;
+        let name = join_name(&self.identity.device().name, typed, revoked)?;
+        let mut record = self.identity.record.clone();
+        if !revoked {
+            record.device.name = name.into();
+            record.roster = DeviceRoster::genesis(record.device.clone(), &self.identity.key())?;
+        }
+        record.pending = None;
+        self.identity.update(record)
+    }
+
     pub fn approve(&mut self, code: String) -> Result<DeviceLinkSnapshot> {
         self.service()?;
         let e = self.exchange.as_ref().ok_or_else(invalid)?;
-        if e.role != Role::Trusted || self.phase != DeviceLinkPhase::AwaitingApproval {
+        if e.role != Role::Authorizing || self.phase != DeviceLinkPhase::AwaitingApproval {
             return Err(invalid());
         }
         let base = e.base.as_ref().ok_or_else(invalid)?;
-        let expected = e.qr.code(&base.digest()?, self.identity.device())?;
+        let joining = e.joining.as_ref().ok_or_else(invalid)?;
+        let expected =
+            e.qr.code(&base.digest()?, self.identity.device(), joining)?;
         if code.trim().to_ascii_uppercase() != expected {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::CodeMismatch));
         }
         if base.digest()? != self.identity.roster().digest()? {
             return Err(invalid());
         }
-        let roster = base.extend(e.qr.device.clone(), &self.identity.key())?;
+        let roster = base.extend(joining.clone(), &self.identity.key())?;
         let packet = wire::seal(
             &e.qr,
             &self.identity.key(),
@@ -101,6 +101,7 @@ impl DeviceLinkRuntime {
         let mut record = self.identity.record.clone();
         record.delivery = Some(LinkDelivery {
             qr: e.qr.clone(),
+            joining: Some(joining.clone()),
             packet,
             roster_hash: roster.digest()?,
         });

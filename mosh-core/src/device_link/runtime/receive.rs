@@ -16,14 +16,27 @@ impl DeviceLinkRuntime {
         };
         let (signer, message) = wire::open(&e.qr, packet)?;
         match (e.role, message) {
-            (Role::Joining, LinkMessage::Offer { roster, trusted }) => {
-                self.offer(signer, roster, trusted)
+            (Role::Authorizing, LinkMessage::Join { device }) => self.join(signer, device),
+            (
+                Role::Joining,
+                LinkMessage::Offer {
+                    roster,
+                    trusted,
+                    joining,
+                },
+            ) => self.offer(signer, roster, trusted, joining),
+            (Role::Authorizing, LinkMessage::Ready { offer_hash }) => {
+                self.ready(signer, offer_hash)
             }
-            (Role::Trusted, LinkMessage::Ready { offer_hash }) => self.ready(signer, offer_hash),
             (Role::Joining, LinkMessage::Approved { roster }) => self.approved(signer, roster),
             (_, LinkMessage::Rejected) => {
                 let expected = match e.role {
-                    Role::Trusted => &e.qr.device.signing_public_key,
+                    Role::Authorizing => {
+                        let Some(joining) = &e.joining else {
+                            return Ok(());
+                        };
+                        &joining.signing_public_key
+                    }
                     Role::Joining => &e.trusted.as_ref().ok_or_else(invalid)?.signing_public_key,
                 };
                 if &signer == expected {
@@ -42,7 +55,7 @@ impl DeviceLinkRuntime {
         let Ok((signer, LinkMessage::Ack { roster_hash })) = wire::open(&d.qr, packet) else {
             return Ok(false);
         };
-        if signer != d.qr.device.signing_public_key || roster_hash != d.roster_hash {
+        if signer != d.joining_device().signing_public_key || roster_hash != d.roster_hash {
             return Err(invalid());
         }
         let mut record = self.identity.record.clone();
@@ -51,6 +64,47 @@ impl DeviceLinkRuntime {
         self.phase = DeviceLinkPhase::Linked;
         self.error = None;
         Ok(true)
+    }
+
+    fn join(&mut self, signer: String, device: DeviceDescriptor) -> Result<()> {
+        device.validate()?;
+        if signer != device.signing_public_key || self.identity.revoked()? {
+            return Err(invalid());
+        }
+        let e = self.exchange.as_mut().ok_or_else(invalid)?;
+        if let Some(frozen) = &e.joining {
+            if frozen != &device {
+                return Err(invalid());
+            }
+            e.last_send = None;
+            return Ok(());
+        }
+        if self
+            .identity
+            .roster()
+            .devices()?
+            .iter()
+            .any(|d| d.device_id == device.device_id || d.moss_peer_id == device.moss_peer_id)
+        {
+            return Err(invalid());
+        }
+        let base = self.identity.roster().clone();
+        let packet = wire::seal(
+            &e.qr,
+            &self.identity.key(),
+            LinkMessage::Offer {
+                roster: base.clone(),
+                trusted: self.identity.device().clone(),
+                joining: Some(device.clone()),
+            },
+        )?;
+        e.joining = Some(device);
+        e.base = Some(base);
+        e.packet = Some(packet);
+        e.last_send = None;
+        e.last_response = Instant::now();
+        self.phase = DeviceLinkPhase::Connecting;
+        Ok(())
     }
 
     fn receive_receipt(&mut self, packet: &[u8]) -> Result<bool> {
@@ -72,9 +126,10 @@ impl DeviceLinkRuntime {
         signer: String,
         roster: DeviceRoster,
         trusted: DeviceDescriptor,
+        joining: Option<DeviceDescriptor>,
     ) -> Result<()> {
         let e = self.exchange.as_ref().ok_or_else(invalid)?;
-        e.check_offer(&signer, &roster, &trusted)?;
+        e.check_offer(&signer, &roster, &trusted, &joining)?;
         if self.identity.revoked()? && !roster.extends(self.identity.roster())? {
             return Err(invalid());
         }
@@ -82,10 +137,11 @@ impl DeviceLinkRuntime {
             offer_hash: roster.digest()?,
         };
         let packet = wire::seal(&e.qr, &self.identity.key(), message)?;
-        if e.trusted.is_none() {
+        if e.base.is_none() {
             let mut record = self.identity.record.clone();
             record.pending = Some(PendingJoin {
                 qr: e.qr.clone(),
+                joining: e.joining.clone(),
                 trusted: trusted.clone(),
                 base: roster.clone(),
             });
@@ -104,7 +160,7 @@ impl DeviceLinkRuntime {
 
     fn ready(&mut self, signer: String, offer_hash: String) -> Result<()> {
         let e = self.exchange.as_mut().ok_or_else(invalid)?;
-        if signer != e.qr.device.signing_public_key
+        if signer != e.joining.as_ref().ok_or_else(invalid)?.signing_public_key
             || offer_hash != e.base.as_ref().ok_or_else(invalid)?.digest()?
         {
             return Err(invalid());
@@ -123,12 +179,15 @@ impl DeviceLinkRuntime {
         }
         roster.verifies_addition(
             e.base.as_ref().ok_or_else(invalid)?,
-            &e.qr.device,
+            e.joining.as_ref().ok_or_else(invalid)?,
             &trusted.device_id,
         )?;
         let hash = roster.digest()?;
         let already_adopted =
             e.awaits_adopted_approval(&self.identity) && hash == self.identity.roster().digest()?;
+        if self.identity.revoked()? && !roster.extends(self.identity.roster())? {
+            return Err(invalid());
+        }
         if !self.identity.can_join()? && !already_adopted {
             return Err(invalid());
         }

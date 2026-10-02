@@ -5,12 +5,13 @@ DM and continue it with the contact while the original desktop is off.
 Keep Android's app open for sending, receiving and visible recovery. Pairing
 and direct P2P sync are free and need no wallet.
 
-On the fresh phone, open Settings, Devices, give it a name and choose Link
-this device to an existing user. On the trusted desktop, import a screenshot
-of the phone's QR or privately copy its link into the Devices section. Read
-the code from that phone and enter it on the trusted desktop to approve.
-Keep both online until approval and initial history finish. No camera plugin
-is required. QR links expire after five minutes and must stay private.
+On the trusted desktop, open Settings → Devices → Link another device and
+create its QR. On the fresh phone, open Settings → Devices → Connect this device
+and scan that QR with the camera. Choosing its image or pasting its private link
+is also supported. Read the code from the phone and enter it on the trusted
+desktop to approve. Keep both online until approval and initial history finish.
+QR invitations expire after five minutes and must stay private. Android bundles
+its scanner model; camera permission is requested only when scanning.
 
 The phone keeps independent signing, Moss and MLS keys. Android Keystore
 protects its own storage key; PIN or biometric authentication is required.
@@ -31,7 +32,7 @@ confirmation are required to regain access. See [device removal](device-linking.
 
 ```mermaid
 flowchart LR
-    QR[Phone QR and human code] --> Link[Signed same-user roster]
+    QR[Desktop QR and phone code confirmed on desktop] --> Link[Signed same-user roster]
     Link --> History[Initial history from trusted desktop]
     History --> Open[Phone app open, independent text DM]
     Open --> Return[Foreground return or cold launch]

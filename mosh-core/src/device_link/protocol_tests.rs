@@ -79,10 +79,20 @@ fn removal_preserves_other_devices_and_refuses_a_revoked_authority() {
 fn signed_pairing_packets_are_encrypted_and_bound_to_the_whole_qr() {
     let joining_key = SigningKey::generate(&mut OsRng);
     let trusted_key = SigningKey::generate(&mut OsRng);
-    let qr = PairingQr::new(device(&joining_key), 1000);
     let trusted = device(&trusted_key);
+    let qr = PairingQr::new(trusted.clone(), 1000);
+    let joining = Some(device(&joining_key));
     let roster = DeviceRoster::genesis(trusted.clone(), &trusted_key).unwrap();
-    let mut packet = wire::seal(&qr, &trusted_key, LinkMessage::Offer { roster, trusted }).unwrap();
+    let mut packet = wire::seal(
+        &qr,
+        &trusted_key,
+        LinkMessage::Offer {
+            roster,
+            trusted,
+            joining,
+        },
+    )
+    .unwrap();
     let (signer, _) = wire::open(&qr, &packet).unwrap();
     assert_eq!(signer, hex::encode(trusted_key.verifying_key().as_bytes()));
     assert!(!packet.windows(signer.len()).any(|w| w == signer.as_bytes()));
@@ -112,4 +122,22 @@ fn expired_malformed_and_future_qrs_are_rejected_at_the_protocol_boundary() {
     for uri in ["invalid", "mosh://device-link/%", "mosh://device-link/e30"] {
         assert!(PairingQr::parse(uri, 1000).is_err());
     }
+}
+
+#[test]
+fn v2_confirmation_binds_the_whole_joining_descriptor() {
+    let trusted = device(&SigningKey::generate(&mut OsRng));
+    let joining = device(&SigningKey::generate(&mut OsRng));
+    let qr = PairingQr::new(trusted.clone(), 1000);
+    let code = qr.code("base-roster", &trusted, &joining).unwrap();
+    let mut renamed = joining.clone();
+    renamed.name = "A different installation name".into();
+    assert_ne!(code, qr.code("base-roster", &trusted, &renamed).unwrap());
+    let mut readdressed = joining.clone();
+    readdressed.moss_peer_id = "f".repeat(64);
+    assert_ne!(
+        code,
+        qr.code("base-roster", &trusted, &readdressed).unwrap()
+    );
+    assert_ne!(code, qr.code("another-roster", &trusted, &joining).unwrap());
 }

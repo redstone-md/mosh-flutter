@@ -38,9 +38,12 @@ class DesktopAppRelauncher {
   final DesktopProcessStarter _start;
   final DesktopProcessTerminator _terminate;
 
+  /// Whether this host can start a replacement and terminate this process.
+  bool get supported => _isWindows();
+
   /// Does nothing off Windows or when a test supplies an unsupported host.
   Future<void> relaunch() async {
-    if (!_isWindows()) return;
+    if (!supported) return;
 
     await _start(_executable, _arguments, ProcessStartMode.detached);
     _terminate(0);
