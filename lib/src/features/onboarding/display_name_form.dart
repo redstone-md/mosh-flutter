@@ -8,10 +8,12 @@ class DisplayNameForm extends StatefulWidget {
       {super.key,
       required this.initialName,
       required this.actionLabel,
-      required this.onSave});
+      required this.onSave,
+      this.compact = false});
   final String initialName;
   final String actionLabel;
   final Future<void> Function(String) onSave;
+  final bool compact;
 
   @override
   State<DisplayNameForm> createState() => _DisplayNameFormState();
@@ -67,7 +69,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                                 .labelMedium
                                 ?.copyWith(fontSize: 28))),
                     child: Avatar(name: _name.text, radius: 48))),
-            const SizedBox(height: 28),
+            SizedBox(height: widget.compact ? 16 : 28),
             TextFormField(
                 controller: _name,
                 enabled: !_busy,
@@ -85,7 +87,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                     counterText: '',
                     helperText: l.firstRunNameHint,
                     helperMaxLines: 3)),
-            const SizedBox(height: 24),
+            SizedBox(height: widget.compact ? 16 : 24),
             FilledButton(
                 onPressed: _busy ? null : _save,
                 child: Text(_busy ? l.firstRunSaving : widget.actionLabel)),

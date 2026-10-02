@@ -3,10 +3,12 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
 import 'first_run_profile.dart';
+import 'first_run_sizing.dart';
 
 class SetupProgress extends StatelessWidget {
-  const SetupProgress({super.key, required this.step});
+  const SetupProgress({super.key, required this.step, this.compact = false});
   final SetupStep step;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +26,7 @@ class SetupProgress extends StatelessWidget {
             if (index > 0)
               Expanded(
                   child: Padding(
-                      padding: const EdgeInsets.only(top: 20),
+                      padding: EdgeInsets.only(top: compact ? 16 : 20),
                       child: Divider(
                           color: index <= step.index
                               ? MoshColors.moss
@@ -39,8 +41,8 @@ class SetupProgress extends StatelessWidget {
     final done = index < step.index;
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Container(
-          width: 40,
-          height: 40,
+          width: compact ? 32 : 40,
+          height: compact ? 32 : 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -58,7 +60,7 @@ class SetupProgress extends StatelessWidget {
               ? const Icon(Icons.check, size: 18, color: MoshColors.moss)
               : Text('${index + 1}',
                   style: Theme.of(context).textTheme.titleMedium)),
-      const SizedBox(height: 10),
+      const SizedBox(height: 8),
       Text(label,
           textAlign: TextAlign.center,
           style: TextStyle(color: active ? MoshColors.fg1 : MoshColors.fg2)),
@@ -66,40 +68,48 @@ class SetupProgress extends StatelessWidget {
   }
 }
 
-/// Reference composition: two columns for name/network, centered device scene.
+/// A stable Flex preserves form state while switching to a single column.
 class SetupFrame extends StatelessWidget {
-  const SetupFrame({super.key, required this.step, required this.child});
+  const SetupFrame(
+      {super.key,
+      required this.step,
+      required this.sizing,
+      required this.child});
   final SetupStep step;
+  final SetupSizing sizing;
   final Widget child;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, size) {
-        final centered = step == SetupStep.device;
-        final illustration = _illustration(context, centered);
-        if (centered || size.maxWidth < 740) {
-          return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                illustration,
-                const SizedBox(height: 28),
-                Center(
-                    child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 520),
-                        child: child)),
-              ]);
-        }
-        return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: illustration),
-          Container(
-              width: 1,
-              height: 440,
-              margin: const EdgeInsets.symmetric(horizontal: 40),
-              color: MoshColors.line),
-          Expanded(child: child),
-        ]);
+        final devices = step == SetupStep.device;
+        final stacked =
+            size.maxWidth < 740 || devices && sizing.viewport.height >= 760;
+        final fit = stacked ? FlexFit.loose : FlexFit.tight;
+        return Flex(
+            direction: stacked ? Axis.vertical : Axis.horizontal,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: stacked
+                ? CrossAxisAlignment.stretch
+                : CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                  fit: fit,
+                  child: _illustration(context, devices,
+                      sizing.imageHeight(stacked: stacked, devices: devices))),
+              SizedBox(
+                  width: stacked ? 0 : sizing.columnGap,
+                  height: stacked ? sizing.sectionGap : 0),
+              Flexible(
+                  fit: fit,
+                  child: Center(
+                      heightFactor: 1,
+                      child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: child))),
+            ]);
       });
 
-  Widget _illustration(BuildContext context, bool centered) {
+  Widget _illustration(BuildContext context, bool devices, double imageHeight) {
     final l = AppLocalizations.of(context)!;
     final asset = switch (step) {
       SetupStep.name => 'welcome',
@@ -118,12 +128,10 @@ class SetupFrame extends StatelessWidget {
     };
     final text = Theme.of(context).textTheme;
     final image = Image.asset('assets/onboarding/$asset.png',
-        height: centered ? 220 : 340,
-        fit: BoxFit.contain,
-        excludeFromSemantics: true);
-    return Column(children: [
-      if (!centered) image,
-      if (!centered) const SizedBox(height: 16),
+        height: imageHeight, fit: BoxFit.contain, excludeFromSemantics: true);
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      if (!devices) image,
+      if (!devices) const SizedBox(height: 16),
       Semantics(
           header: true,
           child: Text(title,
@@ -134,10 +142,10 @@ class SetupFrame extends StatelessWidget {
           child: Text(body,
               textAlign: TextAlign.center,
               style: text.bodyLarge?.copyWith(color: MoshColors.fg2))),
-      if (centered) const SizedBox(height: 20),
-      if (centered) image,
+      if (devices) const SizedBox(height: 16),
+      if (devices) image,
       if (step == SetupStep.name) ...[
-        const SizedBox(height: 28),
+        SizedBox(height: sizing.compact ? 20 : 28),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           const Icon(Icons.lock_outline, size: 18, color: MoshColors.moss),
           const SizedBox(width: 8),

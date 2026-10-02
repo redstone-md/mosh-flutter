@@ -1,10 +1,5 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/deeplink/mosh_deep_link.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
@@ -15,6 +10,7 @@ import 'package:mosh/src/rust/device_link/types.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 
 import '../../support/first_run.dart';
+import '../../support/first_run_preview.dart';
 import '../../support/scriptable_device_link.dart';
 
 void main() {
@@ -232,43 +228,11 @@ void main() {
 
   testWidgets('desktop places the illustration beside the name form',
       (tester) async {
-    if (const bool.fromEnvironment('SETUP_PREVIEW')) {
-      await tester.runAsync(_loadPreviewFonts);
-    }
+    await prepareSetupPreview(tester);
     await FirstRunHarness(profile: const FirstRunProfile()).pump(tester);
-    if (const bool.fromEnvironment('SETUP_PREVIEW')) {
-      await tester.runAsync(() => precacheImage(
-          const AssetImage('assets/onboarding/welcome.png'),
-          tester.element(find.byType(FirstRunWizard))));
-      await tester.pump();
-    }
     final illustration = tester.getRect(find.byType(Image));
     final name = tester.getRect(find.byType(TextFormField));
     expect(illustration.right, lessThan(name.left));
-    if (!const bool.fromEnvironment('SETUP_PREVIEW')) return;
-    final boundary = tester.renderObject<RenderRepaintBoundary>(
-        find.byKey(const ValueKey('setup-preview')));
-    await tester.runAsync(() async {
-      final picture = await boundary.toImage();
-      final png = await picture.toByteData(format: ui.ImageByteFormat.png);
-      picture.dispose();
-      await Directory('build').create();
-      await File('build/first-run-preview.png')
-          .writeAsBytes(png!.buffer.asUint8List());
-    });
+    await saveSetupPreview(tester, 'first-run-preview');
   });
-}
-
-Future<void> _loadPreviewFonts() async {
-  const fonts = {
-    'Inter Tight': String.fromEnvironment('SETUP_FONT'),
-    'MaterialIcons': String.fromEnvironment('SETUP_ICONS'),
-  };
-  for (final entry in fonts.entries) {
-    if (entry.value.isEmpty) continue;
-    final loader = FontLoader(entry.key)
-      ..addFont(Future.value(
-          ByteData.sublistView(await File(entry.value).readAsBytes())));
-    await loader.load();
-  }
 }

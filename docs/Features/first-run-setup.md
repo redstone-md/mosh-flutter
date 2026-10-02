@@ -80,6 +80,25 @@ The card follows the reference's split composition for name and network; device
 linking uses the reference's centered illustration and form. At narrow widths,
 the illustration and form stack vertically. Setup's primary buttons are 52px.
 
+The card centers horizontally and vertically within the space below the title
+bar. `SetupSizing` reads that viewport's width and height, including the reduced
+height when a keyboard opens. It adjusts decorative image sizes, progress
+markers and spacing. Text and controls keep their native readable sizes; the
+layout never scales the entire form with a paint transform.
+
+Name and network use two columns when their content has at least 740px of width.
+The device step remains centered in tall windows and uses two columns in short,
+wide windows. Narrow windows stack the illustration and form. One stable `Flex`
+changes direction and fit, preserving unsaved form fields across resizing.
+The former fixed-height divider no longer sets a minimum card height.
+
+The scroll view gives its content the viewport's minimum height, following
+[Flutter's constrained scroll layout](https://docs.flutter.dev/cookbook/lists/spaced-items).
+It centers a card that fits, and scrolls larger content for small windows,
+enlarged text, keyboard input or expanded device-link states. Regression tests
+require all three default steps to fit at 1280×680 and 900×700 in Russian, and
+verify centering, image resizing, name preservation and keyboard access.
+
 The three illustrations are bundled in `assets/onboarding/` with their original
 RGBA transparency. Their generation prompts are recorded in
 [the asset notes](../../assets/onboarding/README.md).
@@ -115,3 +134,11 @@ Focused setup tests collected 98% line and 91% branch coverage for the new code
 using `--branch-coverage`. Tests cover all three steps with enlarged Russian text
 on desktop and narrow screens. Windows relaunch and Android camera behavior use the
 existing tested seams here; this change has not been exercised on native devices.
+
+Responsive layout validation on 2026-10-03: analysis found no issues and the full
+Flutter suite passed 1,135 tests with the same five skips. Nine regression cases
+cover short windows, vertical centering, illustration sizing, unsaved names
+during resizing and keyboard access. Changed production files collected 99.5%
+line and 98.4% branch coverage. Rendered previews were checked for all three
+steps in short desktop windows, a taller desktop window and a narrow phone
+viewport. The layout fix has not yet been checked on a physical Windows device.
