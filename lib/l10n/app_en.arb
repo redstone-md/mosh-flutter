@@ -1420,17 +1420,25 @@
   "@bindAdapterSelectAria": {
     "description": "aria-label for the adapter DropdownButton (React BindInterfaceField.tsx select aria-label)"
   },
-  "bindAdapterRelease": "Reset",
-  "@bindAdapterRelease": {
-    "description": "Button label for resetting the saved adapter override"
+  "bindAdapterToggle": "VPN bypass",
+  "@bindAdapterToggle": {
+    "description": "Switch controlling whether a physical adapter override is saved"
   },
-  "bindAdapterBind": "Apply",
-  "@bindAdapterBind": {
-    "description": "Button label for applying the selected adapter"
+  "bindAdapterEnabled": "On",
+  "@bindAdapterEnabled": {
+    "description": "VPN bypass has a saved adapter; pending restart is described separately"
+  },
+  "bindAdapterDisabled": "Off",
+  "@bindAdapterDisabled": {
+    "description": "VPN bypass has no saved adapter"
+  },
+  "bindAdapterUnknown": "State unavailable",
+  "@bindAdapterUnknown": {
+    "description": "VPN bypass state could not be read; the switch stays disabled"
   },
   "bindAdapterSaving": "Saving…",
   "@bindAdapterSaving": {
-    "description": "Button label while saving the choice and invoking the relauncher"
+    "description": "Switch status while saving the choice and invoking the relauncher"
   },
   "bindAdapterActive": "Every conversation uses {adapter}.",
   "@bindAdapterActive": {
