@@ -6,12 +6,12 @@ import 'settings_card.dart';
 /// Material owns expansion, keyboard handling and accessibility semantics.
 class SettingsDisclosure extends StatefulWidget {
   const SettingsDisclosure({
-    super.key,
+    required PageStorageKey<String> key,
     required this.icon,
     required this.title,
     required this.summary,
     required this.child,
-  });
+  }) : super(key: key);
 
   final IconData icon;
   final String title;
@@ -24,6 +24,15 @@ class SettingsDisclosure extends StatefulWidget {
 
 class _SettingsDisclosureState extends State<SettingsDisclosure> {
   bool _visited = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The disclosure key keeps this bool separate from the parent's offset.
+    // A restored open tile must also mount its lazily created controls.
+    _visited =
+        _visited || PageStorage.maybeOf(context)?.readState(context) == true;
+  }
 
   @override
   Widget build(BuildContext context) {

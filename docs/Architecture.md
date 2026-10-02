@@ -940,7 +940,6 @@ flowchart TD
     Voice --> Test["RingtonePlayer: native CPAL binding"]
     Conn --> Discovery["Automatic discovery"]
     Conn --> Bind["Lazy BindInterfaceField: saved adapter + restart"]
-    Conn --> Diagnostics["Lazy nativeRuntimeStatus + mossLibraryInfo"]
     Output --> Store["audio-devices.json (data dir)"]
     Input --> Store
     Store -->|resolve at start| Playback["call playback / ringtone (cpal)"]
@@ -954,10 +953,13 @@ paths (call capture and the voice composer); the output pick resolves
 inside mosh-core at stream start (`resolve_output_device`), where an
 unknown or unplugged id degrades to the system default with a log line,
 never a failed call. The onboarding Advanced disclosure no longer exists.
-Connection has no editable host/port fields. Its VPN override and library
-diagnostics mount on first expansion. Saved adapter choices require a restart;
+Connection has no editable host/port fields. Its VPN override mounts on first
+expansion. Saved adapter choices require a restart;
 Windows relaunches automatically, other platforms show manual instructions.
 Read receipts live in Privacy.
+Connection has no status or diagnostics block; version information stays in
+About. Stable disclosure storage keys keep expansion state separate from
+the section's scroll offset and restore open controls on return.
 
 Audio selectors keep disconnected saved devices visible without overwriting
 the preference. Enumeration errors offer retry and the system default. A

@@ -150,8 +150,8 @@ longer discovery details collapse. The existing read-receipt switch now lives
 beside crash reporting in Privacy, with its persistence, default-off state and
 mutual rule unchanged.
 
-The VPN and Diagnostics cards load their controls on first expansion and retain
-local state when collapsed. They reuse the Sound card's material, icon badge and
+The VPN card loads its controls on first expansion and retains local state
+when collapsed. It reuses the Sound card's material, icon badge and
 adaptive selector. The adapter form uses the existing interface inventory,
 physical-adapter filter and consent write. Choosing a name remains local until
 Bind is pressed; Release clears the stored override, including when the saved
@@ -165,18 +165,23 @@ Other platforms show instructions to fully close and reopen Mosh. Returning
 relaunch callbacks release the busy state; a failed save or restart shows a
 localized error. Read errors can be retried.
 
-Diagnostics reuse the existing Riverpod native-runtime and Moss-library
-providers and diagnostic rows. They display actual library availability,
-filename, loading mode, version and optional field-log path. These values do
-not claim that any chat is connected. Refresh reads both providers again.
-The chat's diagnostics remain the place for its route and connection state.
+Per the user's screen review, Connection has no diagnostics/status card or
+refresh-status action. Version information stays in About. Chat diagnostics
+keep their existing providers and runtime details.
+
+The discovery details and VPN disclosure each use a stable PageStorage key.
+Their expansion booleans cannot overwrite the section scroller's numeric
+offset. Restoring an open VPN disclosure also mounts its controls. A regression
+test first reproduced the exact bool-to-double cast on leaving and returning;
+the fix preserves independent disclosure state and scroll position on desktop
+and narrow list/detail navigation.
 
 New production files remain below 200 lines. The declarative
-`BindInterfaceControls.build` and `ConnectionDiagnostics.build` methods exceed
-50 lines to keep their small forms readable; their handlers remain below the
+`BindInterfaceControls.build` method exceeds
+50 lines to keep its small form readable; its handlers remain below the
 limit. Declarative widget nesting uses the existing settings exception.
 
-Connection verification on 2026-10-02:
+Initial Connection verification on 2026-10-02:
 
 - Formatting and Flutter analysis are clean. The full Flutter suite passes
   1050 tests with the same five native-library skips. The final focused
@@ -191,6 +196,18 @@ Connection verification on 2026-10-02:
   development build. This stage changes no native API, dependency or storage.
 
 The next screen is Privacy, after the user's Connection review.
+
+Connection review follow-up:
+
+- Removed the diagnostics card, its refresh action, widget and unused
+  translations at the user's request. Version information stays in About.
+- Six regression checks cover the exact reopening crash, restored controls,
+  independent disclosures, scroll offset and narrow Back navigation.
+  Full Flutter suite: 1051 passed, five existing native-library skips.
+  Analysis and formatting are clean. Changed executable lines: 5/5;
+  changed branches: 1/1, from full-suite LCOV against `e76d3ad`.
+- Updated desktop and narrow captures were inspected. Android arm64 debug
+  APK builds successfully.
 
 ## Changed files
 
@@ -216,11 +233,12 @@ The menu trial adds `lib/src/app/mosh_select.dart`, `mosh_menu_item.dart` and
 in `test/app/dropdown_menu_test.dart` and `chat_header_menu_test.dart`; existing
 Sound, adapter and shell tests follow the shared controls.
 
-Connection adds `connection_diagnostics.dart`, `settings_disclosure.dart` and
-`bind_interface_controls.dart`. It updates `connection_settings_section.dart`,
+Connection adds `settings_disclosure.dart` and `bind_interface_controls.dart`.
+The unused `connection_diagnostics.dart` was removed after the user's review.
+It updates `connection_settings_section.dart`,
 `settings_card.dart`, `settings_content.dart`, `bind_interface_field.dart`,
 `read_receipts_toggle.dart`, `desktop_app_relauncher.dart` and both ARB files.
-Tests cover lazy reads, collapse preservation, actual diagnostic values,
-loading/error/retry, unavailable adapters, repeated apply/release, restart
+Tests cover lazy adapter reads, collapse preservation, section reopening,
+scroll preservation, loading/error/retry, unavailable adapters, repeated apply/release, restart
 failure, disposal during a write, the receipt's Privacy write path and 320px
 layout with doubled text.
