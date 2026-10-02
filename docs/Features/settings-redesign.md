@@ -16,11 +16,14 @@ remain available with their existing controls pending their redesign stages.
   application launch. Restarting the application resets that choice.
 - Narrow windows and Android start with the section list. Selecting a section
   opens its detail view. The toolbar back button, system Back and Escape return
-  to the list before closing settings. Reopening returns to the last section.
+  to the list before closing settings. Every narrow entry starts at the list;
+  only the wide sidebar restores the last section's content.
   The explicit Back to chats action closes settings directly.
 - Shared Mosh colors, shapes, focus rings and Material controls supply the
   visual style. Longer hardware names truncate inside selectors; explanations
   wrap and the entire section scrolls for narrow windows or larger text.
+  Dropdowns and action menus share 12px corners, a raised background and
+  clipped contents so focus and hover fills stay within the rounded menu.
 
 ## Sound
 
@@ -63,6 +66,11 @@ function limit; this stage moves route ownership and adds the branding variant.
 - Changed production executable lines: 274/275 (99.6%); changed branches:
   83/88 (94.3%). Counts intersect LCOV with added/modified Dart lines.
 - `git diff --check`: clean.
+- Phone review follow-up: narrow reopening always starts with the section list.
+  Both audio/VPN dropdowns and the chat action menu use clipped 12px corners.
+  Regression checks first reproduced the automatic Sound entry and unclipped
+  dropdown, then passed after the fixes. Full suite: 1019 passed, 5 existing
+  native-library skips; analysis and formatting are clean.
 
 ## Changed files
 

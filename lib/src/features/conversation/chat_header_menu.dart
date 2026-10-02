@@ -39,6 +39,7 @@ class ChatHeaderMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<ChatHeaderMenuAction>(
+      clipBehavior: Clip.antiAlias,
       icon: const Icon(Icons.more_vert, size: 20),
       tooltip: l.chatMoreActions,
       // An empty menu would show a disabled-looking kebab with no items,

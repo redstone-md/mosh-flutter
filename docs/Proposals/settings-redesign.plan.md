@@ -10,7 +10,9 @@ Use the composition of the five settings references in `../mosh-redesign/`
 with Mosh's current palette, typography and shared shapes. Settings occupy a
 separate route above the preserved chat. Wide windows have a section sidebar;
 narrow windows and Android have a section list followed by a detail view.
-Remember the last section during the application launch, without disk storage.
+Remember the last section for the wide sidebar during the application launch,
+without disk storage. Per the phone review, every narrow settings entry starts
+at the section list, including after a section has been visited.
 
 The order is Sound, Devices, Connection, Privacy, About. Short explanations
 stay beside controls; longer details collapse. Consequential warnings remain

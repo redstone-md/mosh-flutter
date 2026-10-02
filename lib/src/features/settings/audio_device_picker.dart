@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
 typedef AudioDeviceOption = ({String id, String label});
@@ -65,10 +66,11 @@ class _AudioDevicePickerState extends State<AudioDevicePicker> {
                 value: widget.preferredId,
                 isExpanded: true,
                 isDense: true,
+                borderRadius: MoshShapes.menu,
                 hint: Text(l.settingsDeviceDefault,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 style: Theme.of(context).textTheme.bodyMedium,
-                dropdownColor: MoshColors.bg2,
+                dropdownColor: Theme.of(context).popupMenuTheme.color,
                 items: _items(l, options, missing),
                 onChanged: widget.devices.isLoading ? null : widget.onChanged,
               ),

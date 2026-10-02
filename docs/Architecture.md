@@ -917,7 +917,8 @@ while section selection, sidebar, content scroller and audio controls are
 separate modules. At 800px and above the sidebar stays beside the selected
 section; narrower windows use a list followed by the selected section. Back
 and Escape return to that list before closing settings. Riverpod remembers
-the last section for the application launch, without writing it to disk.
+the last section for the application launch, without writing it to disk. Only
+the wide sidebar restores its content; narrow entries always start at the list.
 
 The first [redesign stage](Features/settings-redesign.md) delivers the frame
 and Sound. Devices, Connection, Privacy and About keep their existing controls
