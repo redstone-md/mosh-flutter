@@ -247,6 +247,33 @@ VPN switch follow-up:
   Windows relaunch and physical VPN routing require local review;
   other platforms retain their existing manual-restart behavior.
 
+VPN restart correction:
+
+- The switch now reads `getVpnBypassConsent` instead of the process-local
+  `getBindInterface`. The previous tests seeded live binding, which concealed
+  the fresh-process reset. Four new widget checks reproduce both saved states
+  and both toggle directions after the widget is fully recreated.
+- Shared runtime startup now loads the same persisted consent before the
+  Moss node can start. Existing name/index resolution handles renamed adapters;
+  unavailable adapters fall back to default routing without clearing consent.
+  Explicit process overrides retain priority, and saving settings does not
+  change an already running node.
+- A real-process regression failed before the fix with a saved adapter and
+  an unbound new node. The native checks launch independent processes against
+  the same private data directory and exercise enable/restart/disable/restart,
+  renamed/unavailable adapters and explicit overrides using real Moss.
+- No bridge signatures, settings schema or dependencies changed. Actual
+  Windows process relaunch and routing through a physical VPN remain local
+  development-build checks.
+- Verification: Flutter analysis is clean; 1057 Flutter tests pass with five
+  existing native-library skips. The full native suite passes 471 tests,
+  with 18 ignored entries including the worker launched by the restart tests.
+  After consolidating the two routing fallbacks, all 435 native unit tests and
+  four restart checks pass again. Cargo build, formatting and Clippy are clean;
+  the Android arm64 debug APK builds. Changed executable lines are covered:
+  Dart 2/2 and Rust 20/20. No changed Dart branches are reported; Rust branch
+  instrumentation is unavailable on the pinned stable toolchain.
+
 ## Changed files
 
 - `lib/src/features/settings/`: `settings_screen.dart`,
@@ -280,3 +307,9 @@ Tests cover lazy adapter reads, collapse preservation, section reopening,
 scroll preservation, loading/error/retry, unavailable adapters, repeated switching, restart
 failure, disposal during a write, the receipt's Privacy write path and 320px
 layout with doubled text.
+
+The VPN restart correction updates `bind_interface_field.dart`,
+`mosh-core/src/api/shared_runtime.rs`, adapter and Connection tests, this
+document, the architecture map and ADR 0016. It adds
+`test/features/vpn/bind_interface_restart_test.dart` and
+`mosh-core/tests/vpn_bypass_restart.rs`.

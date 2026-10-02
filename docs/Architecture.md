@@ -961,11 +961,18 @@ continues without a settings card. Version information stays in About.
 Stable disclosure storage keys keep expansion state separate from the section's
 scroll offset and restore open controls on return. Each shared selector owns a
 PageStorage bucket, so its desktop popup cannot read or overwrite the enclosing
-disclosure's boolean state. The VPN bypass switch reads the saved adapter:
+disclosure's boolean state. The VPN bypass switch reads the saved adapter through
+`get_vpn_bypass_consent`, independently of the process-local binding:
 enabling saves the selected name, disabling clears it, and successful writes
 invoke the existing relauncher. Loading, unknown state and pending writes
 disable the switch; failed writes preserve its prior value. Refreshing the
 interface list uses an icon beside the selector.
+Shared runtime construction restores the saved adapter once, before the Moss
+node starts. It resolves the current name or stored index using the existing
+network inventory. An unavailable adapter or failed enumeration falls back to
+default routing with a log entry and retains the saved choice. Explicit process
+overrides take precedence. Saving or clearing consent affects the next launch;
+it does not rebind a running node.
 
 Audio selectors keep disconnected saved devices visible without overwriting
 the preference. Enumeration errors offer retry and the system default. A

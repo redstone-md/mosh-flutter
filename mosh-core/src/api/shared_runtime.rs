@@ -14,10 +14,11 @@
 // channel/group facades can read them without a private_dm dependency (the
 // knobs are platform-channel concerns, not DM-specific).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use crate::attachment_store::AttachmentStore;
+use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::moss_ffi::{set_moss_keystore, MossFfiRuntime};
 use crate::persistence::Persistence;
 use crate::shared_node::SharedMossNode;
@@ -164,6 +165,7 @@ fn construct_resources() -> Result<SharedResources, String> {
     let persistence = Arc::new(persistence);
     set_moss_keystore(persistence.clone());
     moss.install_keystore().map_err(|error| error.to_string())?;
+    restore_vpn_bypass(&data_dir);
     let shared_node = SharedMossNode::new(Arc::new(moss));
     let attachment_store =
         Arc::new(AttachmentStore::new(data_dir).map_err(|error| error.to_string())?);
@@ -172,4 +174,29 @@ fn construct_resources() -> Result<SharedResources, String> {
         attachment_store,
         persistence: Some(persistence),
     })
+}
+
+/// Restore the saved adapter once, before the shared node can start. A stale
+/// choice must not block startup, and explicit process overrides take priority.
+fn restore_vpn_bypass(data_dir: &Path) {
+    if crate::moss_ffi::current_bind_interface().is_some() {
+        return;
+    }
+    let Some(consent) = crate::vpn_consent::load(data_dir) else {
+        return;
+    };
+    let binding = crate::network_inventory::list_interfaces().and_then(|interfaces| {
+        crate::vpn_consent::resolve(&consent, &interfaces)
+            .map(|iface| iface.name.clone())
+            .ok_or_else(|| "saved VPN adapter unavailable".to_string())
+    });
+    match binding {
+        Ok(name) => crate::moss_ffi::set_bind_interface(Some(name)),
+        Err(error) => dlog::write(
+            LogLevel::Warn,
+            kinds::CONNECT,
+            "vpn-bypass",
+            &format!("VPN bypass unavailable; using default routing: {error}"),
+        ),
+    }
 }

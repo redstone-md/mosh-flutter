@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
+import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
 import 'bind_interface_controls.dart';
 import 'bypass_adapter.dart';
@@ -53,11 +54,11 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
     try {
       final results = await Future.wait([
         widget.bridge.listInterfaces(),
-        widget.bridge.getBindInterface(),
+        widget.bridge.getVpnBypassConsent(),
       ]);
       if (!mounted) return;
       final list = results[0] as List<NetworkInterfaceInfo>;
-      final bind = results[1] as String?;
+      final bind = (results[1] as VpnBypassConsent?)?.interface_;
       setState(() {
         _interfaces = list;
         _stateKnown = true;
