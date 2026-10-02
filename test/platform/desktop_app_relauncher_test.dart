@@ -139,9 +139,11 @@ void main() {
               )),
           overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
 
-      final bind = find.text('Bind');
-      await tester.ensureVisible(bind);
-      await tester.tap(bind);
+      await tester.tap(find.text('If a VPN gets in the way'));
+      await tester.pumpAndSettle();
+      final toggle = find.byType(SwitchListTile);
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
       await tester.pumpAndSettle();
 
       expect(relauncher.events, ['spawn', 'terminate']);

@@ -101,3 +101,8 @@ runtime handle. Initialization is idempotent under the OnceLock.
 - When S1.5 stubs channel/group/org, they reuse the same pattern with their
   own OnceLock per family, sharing the underlying MossFfiRuntime via the
   existing SharedMossNode mechanism.
+- Shared resource construction restores persisted VPN-bypass consent before
+  creating the shared node. It resolves the adapter against the current
+  inventory, preserves explicit process overrides and uses default routing
+  if the saved adapter is unavailable. Writes apply on the next process
+  launch, so settings reads use persisted consent rather than runtime binding.

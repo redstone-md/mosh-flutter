@@ -98,6 +98,7 @@ flowchart LR
 ```mermaid
 classDiagram
     class DeviceLinkSnapshot {
+        role
         userId
         ownDeviceId
         devices
@@ -110,8 +111,8 @@ classDiagram
     }
     class DeviceLinkRuntime {
         snapshot()
-        createQr(name)
-        importQr(uri)
+        beginLink()
+        joinLink(uri, deviceName)
         approve(code)
         cancel()
         revoke(deviceId)
@@ -909,24 +910,35 @@ See [Bubble/header polish](Features/chat-message-header-polish.md).
 
 ## Settings
 
-The settings surface is a route, not a modal: `/settings`
-(`AppRoutes.settings`), opened by the gear pinned under the rail's list
-(`RailSettingsButton`). It lives in `lib/src/features/settings/`, one file
-per section; the screen file owns only the frame (section enum, nav,
-content switch, the mobile single-column degradation).
+The rail gear pushes `/settings` (`AppRoutes.settings`) above the chat shell.
+Returning pops the route, preserving the open conversation, scroll position
+and draft. A direct settings entry returns to the chat list. Settings live in
+`lib/src/features/settings/`: the screen owns responsive list/detail navigation,
+while section selection, sidebar, content scroller and audio controls are
+separate modules. At 800px and above the sidebar stays beside the selected
+section; narrower windows use a list followed by the selected section. Back
+and Escape return to that list before closing settings. Riverpod remembers
+the last section for the application launch, without writing it to disk. Only
+the wide sidebar restores its content; narrow entries always start at the list.
+
+The [redesign](Features/settings-redesign.md) delivers the frame and all five
+sections: Sound, Devices, Connection, Privacy and About. Settings use the
+existing titlebar's brand variant; conversation status remains owned by the
+hidden chat shell.
 
 ```mermaid
 flowchart TD
-    Gear["RailSettingsButton (rail bottom)"] -->|context.go /settings| Route["/settings route"]
+    Gear["RailSettingsButton (rail bottom)"] -->|context.push /settings| Route["/settings above chat shell"]
     Route --> Screen["SettingsScreen"]
-    Screen --> Voice["Voice & Video"]
+    Screen --> Voice["Sound"]
+    Screen --> Devices["Devices: device-link provider"]
     Screen --> Conn["Connection"]
+    Screen --> Privacy["Privacy: crash reporting + read receipts"]
     Screen --> About["About"]
     Voice --> Input["mic picker: record listInputDevices"]
     Voice --> Output["speaker picker: mosh-core list_output_devices"]
-    Voice --> Test["Play test sound: voiceCallRingtoneStart"]
-    Conn --> InviteFlow["inviteFlowProvider: staticPeer / listenPort"]
-    Conn --> Bind["BindInterfaceField + ReadReceiptsToggle"]
+    Voice --> Test["RingtonePlayer: native CPAL binding"]
+    Conn --> Bind["Lazy BindInterfaceField: saved adapter + restart"]
     Output --> Store["audio-devices.json (data dir)"]
     Input --> Store
     Store -->|resolve at start| Playback["call playback / ringtone (cpal)"]
@@ -939,8 +951,59 @@ pick is consumed by Dart — `RecordConfig.device` into `record`'s capture
 paths (call capture and the voice composer); the output pick resolves
 inside mosh-core at stream start (`resolve_output_device`), where an
 unknown or unplugged id degrades to the system default with a log line,
-never a failed call. The advanced connection controls moved here from the
-onboarding menu's Advanced disclosure, which no longer exists.
+never a failed call. The onboarding Advanced disclosure no longer exists.
+Connection has no editable host/port fields. Its VPN override mounts on first
+expansion. Saved adapter choices require a restart;
+Windows relaunches automatically, other platforms show manual instructions.
+Read receipts live in Privacy.
+Connection contains only the collapsible VPN override; automatic discovery
+continues without a settings card. Version information stays in About.
+Stable disclosure storage keys keep expansion state separate from the section's
+scroll offset and restore open controls on return. Each shared selector owns a
+PageStorage bucket, so its desktop popup cannot read or overwrite the enclosing
+disclosure's boolean state. The VPN bypass switch reads the saved adapter through
+`get_vpn_bypass_consent`, independently of the process-local binding:
+enabling saves the selected name, disabling clears it, and successful writes
+invoke the existing relauncher. Loading, unknown state and pending writes
+disable the switch; failed writes preserve its prior value. Refreshing the
+interface list uses an icon beside the selector.
+Shared runtime construction restores the saved adapter once, before the Moss
+node starts. It resolves the current name or stored index using the existing
+network inventory. An unavailable adapter or failed enumeration falls back to
+default routing with a log entry and retains the saved choice. Explicit process
+overrides take precedence. Saving or clearing consent affects the next launch;
+it does not rebind a running node.
+
+SettingsCardHeader shares Connection's native ListTile geometry across all
+five sections: 44px icon plate, 10px icon/text gap, centered leading icon and
+4px between title and description. A scoped standard visual density prevents
+the global compact theme from reducing that gap. Ordinary cards group title
+and description above their controls. Expansion and switch headers reuse the same scoped
+ListTile theme with native leading/secondary slots. Settings navigation and
+device rows use the same gap; SettingsIcon has one implementation in the
+header module and is re-exported from settings_card.dart.
+
+Privacy uses SettingsToggleCard for crash reporting and read receipts. The
+existing AsyncSwitchTile still owns async reads, pending-write guards and
+rollback; CrashReporting owns SDK consent and cleanup (ADR 0035). Card details
+use distinct PageStorage keys and never mount or toggle the reporting controls.
+The native stack-memory caveat stays visible outside report details. Titles
+and summaries wrap together in the native switch tile; the same switch
+instance survives window resizing.
+A build without reporting availability disables only the crash-report switch.
+
+About reads the installed package version and build number using the existing
+package_info_plus plugin, behind a feature-local auto-disposed FutureProvider.
+Loading and unavailable states stay in the version row; leaving and returning
+retries a failed read. The card shows a short explanation of Moss delivery and
+public-tracker discovery directly below the summary of OpenMLS private
+chats/groups versus public channels without end-to-end encryption.
+
+Audio selectors keep disconnected saved devices visible without overwriting
+the preference. Enumeration errors offer retry and the system default. A
+failed save keeps the previously persisted selection. The test sound uses the
+existing ringtone seam and stops after 1.5 seconds, on explicit stop or when
+the section is disposed.
 
 ## Voice Call Module
 
@@ -1252,3 +1315,19 @@ first laid a route shell, then wired the OS deep-link into it.
 - docs/ADR/0027-attachments-ride-moss-streams.md - attachment chunks ride moss streams on direct DMs: carrier swap with the room wire fallback, reserved inbox channel, DM-only scope.
 - docs/ADR/0028-durable-attachment-offers.md - attachment manifests in encrypted history, sender and receiver restoration after restart.
 - docs/ADR/0035-opt-in-crash-reporting.md - opt-in Sentry crash reporting: consent file with scrub salt, no-DSN-no-reporting, scrubbed events, threat model.
+
+### Trusted-device QR (settings stage two)
+
+`beginLink()` creates a v2, five-minute invitation on the authorizing installation.
+`joinLink(uri, deviceName)` starts the eligible new installation with its own
+signed descriptor. The authorizer freezes the first candidate; its signed offer
+and the human confirmation code bind the trusted descriptor, candidate and base
+roster. Flutter reads the explicit snapshot role and displays sequential steps;
+only the active authorizing QR screen receives the invitation URI.
+
+The signed roster/CAS/delivery/receipt machinery is shared with the existing
+linking flow. New v1 imports are rejected. Already authenticated, pinned v1
+pending exchanges and committed deliveries/receipts can finish after upgrade.
+`mobile_scanner` owns Android camera lifecycle; image/link import and the existing
+bounded decoder remain the fallback. See [ADR 0029](ADR/0029-private-desktop-device-linking.md)
+and [device linking](Features/device-linking.md).

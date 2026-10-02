@@ -51,12 +51,12 @@ pub fn snapshot() -> Result<DeviceLinkSnapshot, DeviceLinkError> {
     with_runtime(DeviceLinkRuntime::snapshot)
 }
 
-pub fn create_qr(device_name: String) -> Result<DeviceLinkSnapshot, DeviceLinkError> {
-    with_runtime(|rt| rt.create_qr(device_name))
+pub fn begin_link() -> Result<DeviceLinkSnapshot, DeviceLinkError> {
+    with_runtime(DeviceLinkRuntime::begin_link)
 }
 
-pub fn import_qr(uri: String) -> Result<DeviceLinkSnapshot, DeviceLinkError> {
-    with_runtime(|rt| rt.import_qr(uri))
+pub fn join_link(uri: String, device_name: String) -> Result<DeviceLinkSnapshot, DeviceLinkError> {
+    with_runtime(|rt| rt.join_link(uri, device_name))
 }
 
 pub fn approve(confirmation_code: String) -> Result<DeviceLinkSnapshot, DeviceLinkError> {

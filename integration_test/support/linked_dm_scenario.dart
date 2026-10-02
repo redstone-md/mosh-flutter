@@ -21,11 +21,16 @@ final class LinkedDmScenario {
   Future<void> pair() async {
     final before = await identity();
     await ui.devices();
-    await ui.tap(find.text('Show linking QR'));
-    await ui.visible(find.text('Copy link'));
-    final qr = await identity();
-    expect(qr.qrUri, startsWith('mosh://device-link/'));
-    await control.peer('original', 'import', argument: qr.qrUri!);
+    await ui
+        .visible(find.widgetWithText(OutlinedButton, 'Connect this device'));
+    await ui.tap(find.widgetWithText(OutlinedButton, 'Connect this device'));
+    final qr = await control.peer('original', 'qr');
+    expect(qr['qr_uri'], startsWith('mosh://device-link/'));
+    await tester.enterText(
+        find.widgetWithText(
+            TextField, 'Paste the link from your trusted device'),
+        qr['qr_uri'] as String);
+    await ui.tap(find.byTooltip('Connect'));
     await ui.eventually(() async =>
         (await identity()).phase == DeviceLinkPhase.awaitingConfirmation);
     final proof = await identity();
@@ -138,7 +143,22 @@ final class LinkedDmScenario {
         throwsA(isA<ConversationBridgeError>().having((error) => error.kind,
             'kind', ConversationBridgeErrorKind.revoked))));
     final old = await control.ask('old-qr');
-    expect(old['error'], isNotNull);
+    final beforeReplay = await identity();
+    await tester.runAsync(() => expectLater(
+          link.joinLink(uri: old['uri'] as String, deviceName: ''),
+          throwsA(isA<DeviceLinkError>().having(
+              (e) => e.kind,
+              'kind',
+              isIn([
+                DeviceLinkErrorKind.invalidQr,
+                DeviceLinkErrorKind.expired
+              ]))),
+        ));
+    final afterReplay = await identity();
+    expect(afterReplay.revoked, isTrue);
+    expect(afterReplay.userId, beforeReplay.userId);
+    expect(afterReplay.ownDeviceId, beforeReplay.ownDeviceId);
+    expect(afterReplay.devices, beforeReplay.devices);
     await tester
         .runAsync(() => Future<void>.delayed(const Duration(seconds: 2)));
     final revoked = await snapshot();

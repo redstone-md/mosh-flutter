@@ -7,8 +7,8 @@ fn removal_is_durable_and_old_qr_cannot_restore_the_linked_installation() {
     let mut trusted = Peer::new();
     let mut linked = Peer::new();
     trusted.connect(&linked);
-    let qr = linked.ask(json!({"action":"qr","argument":"Removed desktop"}));
-    trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = trusted.ask(json!({"action":"qr"}));
+    linked.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Removed desktop"}));
     trusted.wait_phase("AwaitingApproval");
     let code = linked.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     trusted.ask(json!({"action":"approve","argument":code}));
@@ -45,16 +45,18 @@ fn removal_is_durable_and_old_qr_cannot_restore_the_linked_installation() {
     );
     assert_eq!(
         linked.ask(json!({"action":"import","argument":qr["qr_uri"]}))["error"],
-        "InvalidRoster"
+        "InvalidQr"
     );
-    let fresh = linked.ask(json!({"action":"qr","argument":"Fresh authorization"}));
+    let invitation = trusted.ask(json!({"action":"qr"}));
+    let fresh = linked.ask(
+        json!({"action":"import","argument":invitation["qr_uri"],"name":"Fresh authorization"}),
+    );
     assert_eq!(
         fresh["user_id"], before["user_id"],
         "retained identity must stay pinned until fresh permission"
     );
     assert_eq!(fresh["revoked"], true);
     trusted.connect(&linked);
-    trusted.ask(json!({"action":"import","argument":fresh["qr_uri"]}));
     trusted.wait_phase("AwaitingApproval");
     let code = linked.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     assert_eq!(linked.ask(json!({"action":"snapshot"}))["revoked"], true);
@@ -74,6 +76,6 @@ fn removal_is_durable_and_old_qr_cannot_restore_the_linked_installation() {
     assert_eq!(authorized["devices"].as_array().unwrap().len(), 2);
     assert_eq!(
         trusted.ask(json!({"action":"import","argument":qr["qr_uri"]}))["error"],
-        "InvalidQr"
+        "Ineligible"
     );
 }

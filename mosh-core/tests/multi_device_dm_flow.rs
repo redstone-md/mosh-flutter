@@ -31,8 +31,8 @@ fn wait_connected(peer: &mut Peer, contact: &mut Peer, session: &str) -> Value {
 
 fn pair(original: &mut Peer, linked: &mut Peer) {
     original.connect(linked);
-    let qr = linked.ask(json!({"action":"qr","argument":"Linked desktop"}));
-    original.ask(json!({"action":"import","argument":qr["qr_uri"]}));
+    let qr = original.ask(json!({"action":"qr"}));
+    linked.ask(json!({"action":"import","argument":qr["qr_uri"],"name":"Linked desktop"}));
     original.wait_phase("AwaitingApproval");
     let code = linked.wait_phase("AwaitingConfirmation")["confirmation_code"].clone();
     original.ask(json!({"action":"approve","argument":code}));

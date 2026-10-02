@@ -13,6 +13,7 @@ impl DeviceLinkRuntime {
     /// Drive pairing even while its settings section is closed.
     pub fn service(&mut self) -> Result<()> {
         self.identity.reload()?;
+        self.reconcile_removal()?;
         self.expire()?;
         for message in self.transport.drain() {
             // Unauthenticated traffic never changes consent or membership.
@@ -25,6 +26,30 @@ impl DeviceLinkRuntime {
         self.retry_exchange();
         self.retry_delivery();
         self.retry_roster();
+        Ok(())
+    }
+
+    /// DM adoption can save this device's removal before its roster notice arrives.
+    pub(super) fn reconcile_removal(&mut self) -> Result<()> {
+        let authorizing = self
+            .exchange
+            .as_ref()
+            .is_some_and(|e| e.role == Role::Authorizing);
+        let lost_pending_join = self.exchange.as_ref().is_some_and(|e| {
+            e.role == Role::Joining && e.base.is_some() && self.identity.record.pending.is_none()
+        });
+        if self.identity.revoked()?
+            && (authorizing
+                || lost_pending_join
+                || matches!(
+                    self.phase,
+                    DeviceLinkPhase::Delivering | DeviceLinkPhase::Linked
+                ))
+        {
+            self.exchange = None;
+            self.phase = DeviceLinkPhase::Idle;
+            self.error = None;
+        }
         Ok(())
     }
 
@@ -71,7 +96,7 @@ impl DeviceLinkRuntime {
         }
         let sent = self
             .transport
-            .send(&delivery.qr.device.moss_peer_id, &delivery.packet)
+            .send(&delivery.joining_device().moss_peer_id, &delivery.packet)
             .is_ok();
         self.delivery_last_send = Some(Instant::now());
         // Sending is insufficient proof. Require the signed durable-save ack.
