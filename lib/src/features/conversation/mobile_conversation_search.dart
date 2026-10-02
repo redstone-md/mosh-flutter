@@ -26,7 +26,7 @@ import 'package:mosh/src/features/conversation/conversation_tools.dart';
 /// icon button (rendered only on mobile by the host gating it behind
 /// [isMobileBreakpoint]).
 ///
-/// The icon is `Icons.search` at size 16. The tooltip/semantics flip
+/// The icon is `Icons.search` at size 20. The tooltip/semantics flip
 /// between [AppLocalizations.chatSearchPlaceholder] (closed) and
 /// [AppLocalizations.closeMessageSearch] (open). The open state tints the
 /// icon with `colorScheme.primary` as the active highlight.
@@ -48,7 +48,7 @@ class MobileSearchToggle extends StatelessWidget {
     return IconButton(
       icon: Icon(
         Icons.search,
-        size: 16,
+        size: 20,
         // Tint while the panel is open.
         color: open ? theme.colorScheme.primary : null,
       ),

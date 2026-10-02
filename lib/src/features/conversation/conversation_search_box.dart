@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -23,7 +24,7 @@ const EdgeInsets kConversationToolsMargin = EdgeInsets.fromLTRB(22, 12, 22, 0);
 /// Gap between the search box and the filter toggle.
 const double kConversationToolsGap = 10;
 
-/// The search field: a 34px pill at radius 8 on bg-2 behind a line border,
+/// The search field: a 34px control with 8px corners and a line border on bg2,
 /// holding an fg-3 glyph and a borderless 12.5px input. Focus swaps the
 /// border to a 45% moss tint over bg-0.
 class ConversationSearchBox extends StatefulWidget {
@@ -97,7 +98,7 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: _focused ? MoshColors.bg0 : MoshColors.bg2,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: MoshShapes.control,
           border: Border.all(
             color: _focused
                 ? MoshColors.moss.withValues(alpha: 0.45)
@@ -141,7 +142,7 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
 }
 
 /// The filter segment group: a 34px bordered bg-2 track with 3px of
-/// padding around two 26px radius-6 buttons at 11.5px/600. The selected one
+/// padding around two 28px radius-5 buttons at 11.5px/600. The selected one
 /// sits on bg-4 in fg-1; the other is fg-3.
 class ConversationFilterToggle extends StatelessWidget {
   const ConversationFilterToggle({
@@ -166,7 +167,7 @@ class ConversationFilterToggle extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           color: MoshColors.bg2,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: MoshShapes.control,
           border: Border.all(color: MoshColors.line),
         ),
         child: Row(
@@ -206,7 +207,8 @@ class _FilterSegment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Concentric radius: outer track 8 - 3 padding = 5.
-    final radius = BorderRadius.circular(5);
+    final radius =
+        MoshShapes.control - const BorderRadius.all(Radius.circular(3));
     final color = active ? MoshColors.fg1 : MoshColors.fg3;
     return Material(
       color: active ? MoshColors.bg4 : Colors.transparent,

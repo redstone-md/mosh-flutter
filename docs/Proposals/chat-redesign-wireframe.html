@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mosh — макет чатов</title>
+  <style>
+    :root{color-scheme:dark;--bg0:#0b0c0d;--bg1:#111315;--bg2:#16181b;--bg3:#1d2024;--text:#eceeea;--muted:#a8aeb0;--dim:#83888d;--line:rgba(255,255,255,.08);--moss:#b7d84a;--moss-pale:#d4eb7a;--moss-wash:rgba(183,216,74,.12);font-family:"Segoe UI",Inter,Arial,sans-serif}
+
+    *{box-sizing:border-box}
+    [hidden]{display:none!important}
+    html,body{margin:0;min-width:320px;height:100%;background:var(--bg0);color:var(--text)}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible{outline:2px solid var(--moss-pale);outline-offset:2px}
+    button:disabled{cursor:default;opacity:.45}
+    .icon{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+    .small-icon{width:16px;height:16px}
+    .app{height:100dvh;min-height:620px;display:flex;flex-direction:column;overflow:hidden}
+
+    .topbar{height:51px;flex:none;display:flex;align-items:center;gap:12px;padding:0 21px;border-bottom:1px solid var(--line);background:#0d1010}
+    .brand-mark{display:grid;place-items:center;width:21px;height:23px;color:var(--moss)}
+    .brand{font-size:14px;font-weight:750;letter-spacing:.02em}
+    .top-subtitle{font-size:12px;color:var(--dim);margin-left:9px}
+    .top-spacer{flex:1}
+    .demo-pill{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:20px;padding:5px 10px}
+    .network-pill{display:flex;align-items:center;gap:8px;padding:6px 13px;border-radius:20px;background:rgba(183,216,74,.08);color:var(--moss-pale);font-size:12px}
+    .status-dot{width:8px;height:8px;background:var(--moss);border-radius:50%;box-shadow:0 0 10px rgba(183,216,74,.4)}
+    .window-controls{display:flex;gap:20px;color:var(--dim);margin-left:20px;font-size:16px}
+
+    .workspace{min-height:0;flex:1;display:grid;grid-template-columns:348px minmax(360px,1fr) 352px;position:relative}
+    .workspace.details-closed{grid-template-columns:348px minmax(360px,1fr)}
+    .workspace.details-closed .details{display:none}
+    .rail,.conversation,.details{min-width:0;min-height:0}
+    .rail{background:#0b0e0e;border-right:1px solid var(--line);display:flex;flex-direction:column}
+    .rail-top{padding:18px 18px 0}
+    .new-chat{height:54px;width:100%;display:flex;align-items:center;gap:12px;padding:0 8px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);font-weight:650;text-align:left}
+    .new-chat-icon{display:grid;place-items:center;width:39px;height:39px;background:var(--moss);color:#122007;border-radius:50%;box-shadow:0 4px 18px rgba(183,216,74,.18)}
+    .new-chat .icon{width:20px;height:20px}
+    .search-wrap{height:45px;display:flex;align-items:center;gap:10px;margin-top:13px;padding:0 13px;border:1px solid var(--line);background:var(--bg2);border-radius:16px;color:var(--muted)}
+    .search-wrap input{min-width:0;flex:1;background:none;border:0;outline:none;color:var(--text);font-size:13px}
+    .search-wrap input::placeholder{color:var(--dim)}
+    .shortcut{font-size:11px;color:var(--dim)}
+    .filters{display:flex;gap:8px;overflow:auto;padding:16px 0 13px;scrollbar-width:none}
+    .filter{border:1px solid transparent;border-radius:20px;padding:8px 13px;background:var(--bg2);color:#c5c9c8;font-size:12px;white-space:nowrap}
+    .filter[aria-pressed="true"]{background:#303639;color:white;border-color:#4e5859}
+    .rail-scroll{min-height:0;overflow:auto;padding:0 9px 20px;scrollbar-color:#3a4141 transparent}
+    .section-label{font-size:11px;color:var(--dim);padding:12px 12px 7px}
+    .offer{display:flex;gap:11px;align-items:center;margin:0 2px 9px;padding:11px;border:1px solid rgba(183,216,74,.16);border-radius:14px;background:rgba(183,216,74,.045)}
+    .offer-body{min-width:0;flex:1}
+    .offer-title{font-size:12px;font-weight:650}
+    .offer-copy{font-size:11px;color:var(--muted);margin-top:3px}
+    .offer-action{border:1px solid rgba(183,216,74,.36);background:var(--moss-wash);color:var(--moss-pale);border-radius:9px;padding:6px 8px;font-size:11px}
+    .chat-list{display:flex;flex-direction:column;gap:3px}
+    .chat-item{width:100%;min-height:75px;display:flex;align-items:center;gap:12px;padding:9px 11px;border:1px solid transparent;border-radius:14px;background:transparent;color:var(--text);text-align:left}
+    .chat-item:hover{background:#191d1d}
+    .chat-item[aria-current="true"]{background:#202a25;border-color:rgba(183,216,74,.09)}
+    .avatar{width:51px;height:51px;flex:none;display:grid;place-items:center;border-radius:50%;background:linear-gradient(145deg,#29472a,#152819);color:#e2f6bb;font-size:19px;font-weight:550}
+    .avatar.group{background:linear-gradient(145deg,#2d4a28,#192b1d)}
+    .avatar.channel{background:linear-gradient(145deg,#24414a,#15272c);color:#b9e6f1}
+    .avatar.person{background:linear-gradient(145deg,#344536,#202c23)}
+    .avatar.large{width:72px;height:72px;font-size:25px}
+    .avatar .icon{width:26px;height:26px;stroke-width:2.2}
+    .chat-summary{flex:1;min-width:0}
+    .chat-summary-head{display:flex;gap:5px;align-items:center}
+    .chat-name{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:650}
+    .chat-time{font-size:11px;color:var(--dim);white-space:nowrap}
+    .chat-preview{display:flex;gap:5px;margin-top:5px;align-items:center;color:var(--muted);font-size:12px}
+    .chat-preview span:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .unread{display:grid;place-items:center;min-width:18px;height:18px;border-radius:12px;background:var(--moss);color:#101807;font-size:11px;font-weight:750}
+    .rail-bottom{margin-top:auto;padding:11px 18px 17px;border-top:1px solid var(--line)}
+    .settings{width:100%;height:52px;display:flex;gap:13px;align-items:center;padding:0 13px;border:1px solid var(--line);border-radius:14px;background:var(--bg2);color:var(--text);text-align:left;font-size:13px;font-weight:650}
+
+    .conversation{display:flex;flex-direction:column;background:radial-gradient(circle at 52% 40%,#101715 0%,#0b1010 60%,#0a0e0e 100%)}
+    .conversation-head{height:78px;flex:none;display:flex;align-items:center;gap:13px;padding:0 17px;border-bottom:1px solid var(--line);background:rgba(9,13,12,.58)}
+    .conversation-head .avatar{width:50px;height:50px}
+    .head-title{flex:1;min-width:0}
+    .head-name{font-size:16px;font-weight:700}
+    .head-subtitle{font-size:12px;color:var(--muted);margin-top:4px}
+    .head-actions{display:flex;gap:5px}
+    .icon-button{display:grid;place-items:center;width:39px;height:39px;border:0;border-radius:11px;background:none;color:#c3c9ca}
+    .icon-button:hover{background:#202725}
+    .icon-button[aria-pressed="true"]{color:var(--moss-pale);background:var(--moss-wash)}
+    .back-button{display:none}
+    .chat-search{flex:none;display:flex;gap:8px;align-items:center;padding:9px 20px;border-bottom:1px solid var(--line);background:var(--bg1)}
+    .chat-search[hidden]{display:none}
+    .chat-search input{width:100%;border:0;background:none;outline:none;color:var(--text);font-size:13px}
+    .messages{min-height:0;flex:1;overflow:auto;padding:24px 26px 15px;scrollbar-color:#3a4141 transparent}
+    .thread[hidden],.message[hidden]{display:none}
+    .date{width:max-content;margin:0 auto 18px;padding:8px 16px;border-radius:20px;background:#1b2222;color:#c7ccce;font-size:12px}
+    .event{width:max-content;max-width:90%;margin:8px auto;padding:8px 15px;border-radius:20px;background:#1a2020;color:#c8cece;text-align:center;font-size:12px}
+    .message{display:flex;gap:10px;align-items:flex-end;margin:15px 0}
+    .message.mine{justify-content:flex-end}
+    .message .avatar{width:39px;height:39px;font-size:15px}
+    .bubble{max-width:min(78%,430px);padding:11px 14px 9px;border:1px solid rgba(255,255,255,.035);border-radius:14px;background:linear-gradient(130deg,#1b2325,#1a2024);font-size:13px;line-height:1.48;box-shadow:0 2px 15px rgba(0,0,0,.08)}
+    .mine .bubble{background:linear-gradient(130deg,#223c27,#213a28);border-color:rgba(183,216,74,.07)}
+    .sender{color:#9cc4fa;font-weight:600;font-size:12px;margin-bottom:6px}
+    .bubble-text{white-space:pre-line}
+    .message-meta{display:flex;gap:5px;align-items:center;justify-content:flex-end;margin-top:5px;color:#b2b9b9;font-size:10px}
+    .ticks{color:var(--moss-pale);font-weight:700;font-size:13px}
+    .file-card{display:flex;align-items:center;gap:12px;min-width:260px}
+    .file-icon{width:43px;height:43px;display:grid;place-items:center;border-radius:11px;background:rgba(183,216,74,.13);color:var(--moss-pale)}
+    .file-name{font-size:12px;font-weight:650}
+    .file-meta{font-size:11px;color:var(--muted);margin-top:3px}
+    .composer-wrap{flex:none;padding:10px 16px 19px}
+    .composer{display:flex;align-items:center;gap:9px;min-height:63px;padding:7px 10px;border:1px solid #34403f;border-radius:28px;background:#14191a}
+    .composer input{flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--text);font-size:13px}
+    .composer input::placeholder{color:var(--dim)}
+    .composer .icon-button{width:35px;height:35px}
+    .composer-plus{display:grid;place-items:center;width:33px;height:33px;border:0;border-radius:50%;background:#899293;color:#101414}
+    .composer-note{height:13px;margin:5px 11px 0;color:var(--dim);font-size:10px}
+
+    .details{display:flex;flex-direction:column;overflow:auto;padding:21px 17px;background:#0d1112;border-left:1px solid var(--line);scrollbar-color:#3a4141 transparent}
+    .details-head{display:flex;gap:10px;align-items:flex-start}
+    .details-profile{flex:1;min-width:0;display:flex;gap:13px;align-items:center}
+    .details-name{font-size:17px;font-weight:700}
+    .details-subtitle{font-size:12px;color:var(--muted);margin-top:5px}
+    .detail-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:23px 0 4px}
+    .detail-tile{height:67px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1px solid #2e383a;border-radius:15px;background:var(--bg2);color:var(--text);font-size:12px}
+    .detail-tile:disabled{opacity:.45}
+    .details-section{padding:19px 8px;border-top:1px solid var(--line);margin-top:18px}
+    .details-section h2{display:flex;align-items:center;gap:7px;margin:0 0 12px;font-size:13px;font-weight:650}
+    .details-section h2 span{color:var(--dim);font-weight:400}
+    .security{display:flex;gap:11px;align-items:flex-start}
+    .security-icon{color:var(--moss);margin-top:2px}
+    .security strong{font-size:12px}
+    .security p,.small-copy{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+    .person-row{display:flex;gap:9px;align-items:center;padding:6px 0;font-size:12px}
+    .person-row .avatar{width:35px;height:35px;font-size:14px}
+    .person-row small{display:block;margin-top:3px;color:var(--dim);font-size:10px}
+    .details-file{display:flex;gap:10px;align-items:center;font-size:12px}
+    .details-file .file-icon{width:36px;height:36px;background:rgba(232,106,90,.16);color:#f29a8d}
+    .details-file small{display:block;margin-top:4px;color:var(--dim);font-size:10px}
+    .empty-line{font-size:12px;color:var(--dim)}
+
+    @media(max-width:1180px){.workspace,.workspace.details-closed{grid-template-columns:312px minmax(0,1fr)}
+    .details{display:none;position:absolute;top:0;right:0;bottom:0;width:min(352px,100%);z-index:5;box-shadow:-12px 0 30px rgba(0,0,0,.28)}
+    .workspace.details-open .details{display:flex}
+    .workspace.details-closed .details{display:none}
+    }
+
+    @media(max-width:720px){.topbar{padding:0 13px}
+    .top-subtitle,.window-controls{display:none}
+    .workspace,.workspace.details-closed{display:block}
+    .rail,.conversation{height:100%}
+    .conversation{display:none}
+    .workspace.chat-open .rail{display:none}
+    .workspace.chat-open .conversation{display:flex}
+    .details{width:100%}
+    .rail-top{padding-top:10px}
+    .back-button{display:grid}
+    .conversation-head{height:69px;padding:0 10px;gap:7px}
+    .conversation-head .avatar{width:40px;height:40px}
+    .head-name{font-size:14px}
+    .head-actions{gap:0}
+    .icon-button{width:34px;height:34px}
+    .messages{padding:17px 12px}
+    .bubble{max-width:calc(100vw - 80px)}
+    .composer-wrap{padding:8px 9px 12px}
+    .network-pill{padding:6px 9px;font-size:0}
+    .network-pill .status-dot{width:8px;height:8px}
+    }
+
+    @media(prefers-reduced-motion:no-preference){.chat-item,.filter,.icon-button,.detail-tile{transition:background-color .14s ease,border-color .14s ease}
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2.5 19c.4-3.7 2.5-5.5 6.5-5.5s6.1 1.8 6.5 5.5M16 5.4a3 3 0 0 1 0 5.4M17 13.7c2.5.4 4 2.1 4.4 5.3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="m7.3 3.2 3 3.7-1.5 2.5a16 16 0 0 0 5.8 5.8l2.5-1.5 3.7 3c.5.4.6 1.1.2 1.6l-1.1 1.8c-.6 1-1.8 1.4-2.9 1.1C9.6 19.2 4.8 14.4 2.8 7c-.3-1.1.1-2.3 1.1-2.9l1.8-1.1c.5-.4 1.2-.3 1.6.2Z"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.2h.01"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m14.5 5-7 7 7 7M8 12h13"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M5 2h9l5 5v15H5zM14 2v5h5M8 12h8M8 16h8"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="m8 12.5 6.7-6.7a3.3 3.3 0 0 1 4.7 4.7l-9 9a5 5 0 0 1-7-7l9-9"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V22M8 22h8"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M10 2h4l.6 2.3 1.8.8 2.1-1.2 2.8 2.8-1.2 2.1.8 1.8L23 11v4l-2.3.6-.8 1.8 1.2 2.1-2.8 2.8-2.1-1.2-1.8.8L14 24h-4l-.6-2.3-1.8-.8-2.1 1.2-2.8-2.8 1.2-2.1-.8-1.8L1 15v-4l2.3-.6.8-1.8-1.2-2.1 2.8-2.8 2.1 1.2 1.8-.8z" transform="translate(0 -1) scale(1 .91)"/></symbol>
+  </defs></svg>
+  <div class="app">
+    <header class="topbar"><div class="brand-mark"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2 21 6v6c0 5-3.2 8.4-9 10-5.8-1.6-9-5-9-10V6z" fill="currentColor" stroke="none"/></svg></div><span class="brand">MOSH</span><span class="top-subtitle">OpenMLS поверх Moss</span><span class="top-spacer"></span><span class="demo-pill">Интерактивный макет · пример данных</span><span class="network-pill"><span class="status-dot"></span>Сеть подключена</span><span class="window-controls" aria-hidden="true">−　□　×</span></header>
+    <main class="workspace" id="workspace">
+      <aside class="rail" aria-label="Список чатов">
+        <div class="rail-top"><button class="new-chat" type="button" title="В приложении откроет создание беседы"><span class="new-chat-icon"><svg class="icon"><use href="#i-plus"/></svg></span>Начать разговор</button><label class="search-wrap"><svg class="icon"><use href="#i-search"/></svg><input id="list-search" type="search" placeholder="Поиск чата" aria-label="Поиск чата"><span class="shortcut">Ctrl+K</span></label><div class="filters" role="group" aria-label="Фильтр чатов"><button class="filter" type="button" data-filter="all" aria-pressed="true">Все</button><button class="filter" type="button" data-filter="dm" aria-pressed="false">Личные</button><button class="filter" type="button" data-filter="group" aria-pressed="false">Группы</button><button class="filter" type="button" data-filter="channel" aria-pressed="false">Каналы</button></div></div>
+        <div class="rail-scroll"><div class="section-label">Приглашения · 1</div><div class="offer"><span class="avatar person" style="width:36px;height:36px;font-size:14px">Е</span><div class="offer-body"><div class="offer-title">Елена приглашает в чат</div><div class="offer-copy">Ожидает ответа</div></div><button class="offer-action" type="button" title="В макете приглашение не принимается">Открыть</button></div><div class="section-label">Недавние</div><div class="chat-list" id="chat-list">
+          <button class="chat-item" type="button" data-id="team" data-kind="group" aria-current="true"><span class="avatar group"><svg class="icon"><use href="#i-people"/></svg></span><span class="chat-summary"><span class="chat-summary-head"><span class="chat-name">Команда Mosh</span><span class="chat-time">14:32</span></span><span class="chat-preview"><span>Вы: Хорошо, сделаю.</span></span></span></button>
+          <button class="chat-item" type="button" data-id="alex" data-kind="dm" aria-current="false"><span class="avatar person">А</span><span class="chat-summary"><span class="chat-summary-head"><span class="chat-name">Алексей</span><span class="chat-time">12:18</span></span><span class="chat-preview"><span>Прикрепил изображение</span><span class="unread">2</span></span></span></button>
+          <button class="chat-item" type="button" data-id="release" data-kind="channel" aria-current="false"><span class="avatar channel">#</span><span class="chat-summary"><span class="chat-summary-head"><span class="chat-name"># release</span><span class="chat-time">10:04</span></span><span class="chat-preview"><span>Сборка готова к проверке</span></span></span></button>
+          <button class="chat-item" type="button" data-id="maria" data-kind="dm" aria-current="false"><span class="avatar person">М</span><span class="chat-summary"><span class="chat-summary-head"><span class="chat-name">Мария</span><span class="chat-time">Вчера</span></span><span class="chat-preview"><span>Спасибо! Тогда на связи.</span></span></span></button>
+        </div></div><div class="rail-bottom"><button class="settings" type="button" title="В приложении откроет настройки"><svg class="icon"><use href="#i-settings"/></svg>Настройки</button></div>
+      </aside>
+      <section class="conversation" aria-label="Переписка"><header class="conversation-head"><button class="icon-button back-button" id="back" type="button" aria-label="Назад к чатам"><svg class="icon"><use href="#i-back"/></svg></button><span class="avatar group" id="head-avatar"><svg class="icon"><use href="#i-people"/></svg></span><div class="head-title"><div class="head-name" id="head-name">Команда Mosh</div><div class="head-subtitle" id="head-subtitle">3 участника · закрытая группа</div></div><div class="head-actions"><button class="icon-button" id="chat-search-toggle" type="button" aria-label="Поиск в переписке" aria-pressed="false"><svg class="icon"><use href="#i-search"/></svg></button><button class="icon-button" id="call-button" type="button" aria-label="Позвонить" title="В макете звонок недоступен" disabled><svg class="icon"><use href="#i-phone"/></svg></button><button class="icon-button" id="details-toggle" type="button" aria-label="Сведения о беседе" aria-pressed="true"><svg class="icon"><use href="#i-info"/></svg></button></div></header><div class="chat-search" id="chat-search-row" hidden><svg class="icon small-icon"><use href="#i-search"/></svg><input id="message-search" type="search" placeholder="Поиск по текущей переписке" aria-label="Поиск по текущей переписке"><button class="icon-button" id="search-close" type="button" aria-label="Закрыть поиск"><svg class="icon small-icon"><use href="#i-close"/></svg></button></div>
+        <div class="messages" id="messages"><div class="thread" data-conversation="team"><div class="date">Сегодня</div><div class="event">Вы создали группу «Команда Mosh»</div><div class="event">Вы добавили участников</div><div class="message"><span class="avatar person">М</span><div class="bubble"><div class="sender">Мария</div><div class="bubble-text">Привет! Проверим, что всё работает.</div><div class="message-meta">14:28</div></div></div><div class="message mine"><div class="bubble"><div class="bubble-text">Привет! Да, всё отлично. Сейчас отправлю файл.</div><div class="message-meta">14:29 <span class="ticks">✓✓</span></div></div></div><div class="message mine"><div class="bubble"><div class="file-card"><span class="file-icon"><svg class="icon"><use href="#i-file"/></svg></span><span><span class="file-name">OpenMLS-demo.pdf</span><br><span class="file-meta">2,4 МБ · PDF</span></span></div><div class="message-meta">14:29 <span class="ticks">✓✓</span></div></div></div><div class="message"><span class="avatar person">А</span><div class="bubble"><div class="sender">Алексей</div><div class="bubble-text">Вижу, спасибо! Можно проверить доступ нового участника?</div><div class="message-meta">14:30</div></div></div><div class="message mine"><div class="bubble"><div class="bubble-text">Хорошо, сделаю.</div><div class="message-meta">14:32 <span class="ticks">✓✓</span></div></div></div></div>
+          <div class="thread" data-conversation="alex" hidden><div class="date">Сегодня</div><div class="message"><span class="avatar person">А</span><div class="bubble"><div class="sender">Алексей</div><div class="bubble-text">Привет! Получилось посмотреть сборку?</div><div class="message-meta">12:05</div></div></div><div class="message mine"><div class="bubble"><div class="bubble-text">Да, основные сценарии прошёл. Нашёл пару мелочей в чате.</div><div class="message-meta">12:11 <span class="ticks">✓✓</span></div></div></div><div class="message"><span class="avatar person">А</span><div class="bubble"><div class="sender">Алексей</div><div class="bubble-text">Спасибо. Прикрепил изображение с тем, что вижу у себя.</div><div class="message-meta">12:18</div></div></div></div>
+          <div class="thread" data-conversation="release" hidden><div class="date">Сегодня</div><div class="event">Публичный канал # release</div><div class="message"><span class="avatar channel">#</span><div class="bubble"><div class="sender">Мария</div><div class="bubble-text">Сборка готова к проверке. Отчёт прикрепила ниже.</div><div class="message-meta">10:04</div></div></div></div>
+          <div class="thread" data-conversation="maria" hidden><div class="date">Вчера</div><div class="message"><span class="avatar person">М</span><div class="bubble"><div class="sender">Мария</div><div class="bubble-text">Спасибо! Тогда на связи.</div><div class="message-meta">18:24</div></div></div></div></div>
+        <div class="composer-wrap"><div class="composer"><button class="composer-plus" type="button" title="В макете вложения не отправляются" aria-label="Добавить вложение"><svg class="icon"><use href="#i-plus"/></svg></button><input type="text" placeholder="Напишите сообщение..." aria-label="Текст сообщения"><button class="icon-button" type="button" title="В макете вложения не отправляются" aria-label="Прикрепить файл"><svg class="icon"><use href="#i-clip"/></svg></button><button class="icon-button" type="button" title="В макете голосовое сообщение не записывается" aria-label="Голосовое сообщение"><svg class="icon"><use href="#i-mic"/></svg></button></div><div class="composer-note">Макет интерфейса: отправка и звонки здесь не работают.</div></div>
+      </section>
+      <aside class="details" aria-label="Сведения о беседе"><div class="details-head"><div class="details-profile"><span class="avatar group large" id="detail-avatar"><svg class="icon"><use href="#i-people"/></svg></span><div><div class="details-name" id="detail-name">Команда Mosh</div><div class="details-subtitle" id="detail-subtitle">3 участника</div></div></div><button class="icon-button" id="details-close" type="button" aria-label="Закрыть сведения"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="detail-actions"><button class="detail-tile" id="members-jump" type="button"><svg class="icon"><use href="#i-people"/></svg>Участники</button><button class="detail-tile" id="files-jump" type="button"><svg class="icon"><use href="#i-file"/></svg>Файлы</button></div><section class="details-section"><div class="security"><svg class="icon security-icon"><use href="#i-lock"/></svg><div><strong id="security-title">Защита беседы</strong><p id="security-copy">Реальное состояние шифрования появится здесь из открытой беседы.</p></div></div></section><section class="details-section" id="members-section"><h2>Участники <span id="member-count">3</span></h2><div id="member-list"></div></section><section class="details-section" id="files-section"><h2>Общие файлы <span id="file-count">1</span></h2><div id="detail-files"></div></section></aside>
+    </main>
+  </div>
+  <script>
+    const chats = {
+      team: {
+        name: 'Команда Mosh', subtitle: '3 участника · закрытая группа',
+        detail: '3 участника', kind: 'group', avatar: 'people',
+        members: [['Вы', 'Администратор'], ['Мария', 'Участник'], ['Алексей', 'Участник']],
+        files: [['OpenMLS-demo.pdf', '2,4 МБ · сегодня, 14:29']],
+        security: 'Для закрытой группы приложение покажет подтверждённое состояние OpenMLS.'
+      },
+      alex: {
+        name: 'Алексей', subtitle: 'Личный чат', detail: 'Личный чат',
+        kind: 'person', avatar: 'А', members: [['Вы', ''], ['Алексей', '']], files: [],
+        security: 'Для личного чата приложение покажет подтверждённое состояние OpenMLS.'
+      },
+      release: {
+        name: '# release', subtitle: 'Публичный канал', detail: 'Публичный канал',
+        kind: 'channel', avatar: '#', members: [], files: [],
+        security: 'Для публичного канала приложение покажет его фактический режим защиты.'
+      },
+      maria: {
+        name: 'Мария', subtitle: 'Личный чат', detail: 'Личный чат',
+        kind: 'person', avatar: 'М', members: [['Вы', ''], ['Мария', '']], files: [],
+        security: 'Для личного чата приложение покажет подтверждённое состояние OpenMLS.'
+      }
+    };
+    const $ = id => document.getElementById(id);
+    const workspace = $('workspace');
+    let filter = 'all';
+
+    function avatarMarkup(value) {
+      return value === 'people'
+        ? '<svg class="icon"><use href="#i-people"/></svg>'
+        : value;
+    }
+
+    function renderMembers(members) {
+      $('member-count').textContent = members.length;
+      $('member-list').innerHTML = members.length
+        ? members.map(([name, role]) => `<div class="person-row"><span class="avatar person">${name[0]}</span><span>${name}${role ? `<small>${role}</small>` : ''}</span></div>`).join('')
+        : '<div class="empty-line">Участники канала не показаны в макете</div>';
+    }
+
+    function renderFiles(files) {
+      $('file-count').textContent = files.length;
+      $('detail-files').innerHTML = files.length
+        ? files.map(([name, meta]) => `<div class="details-file"><span class="file-icon"><svg class="icon"><use href="#i-file"/></svg></span><span>${name}<small>${meta}</small></span></div>`).join('')
+        : '<div class="empty-line">Общих файлов пока нет</div>';
+    }
+
+    function selectChat(id) {
+      const chat = chats[id];
+      document.querySelectorAll('.chat-item').forEach(item =>
+        item.setAttribute('aria-current', String(item.dataset.id === id)));
+      document.querySelectorAll('.thread').forEach(thread =>
+        thread.hidden = thread.dataset.conversation !== id);
+      $('head-name').textContent = $('detail-name').textContent = chat.name;
+      $('head-subtitle').textContent = chat.subtitle;
+      $('detail-subtitle').textContent = chat.detail;
+      for (const el of [$('head-avatar'), $('detail-avatar')]) {
+        el.className = `avatar ${chat.kind}${el.id === 'detail-avatar' ? ' large' : ''}`;
+        el.innerHTML = avatarMarkup(chat.avatar);
+      }
+      $('security-copy').textContent = chat.security;
+      renderMembers(chat.members);
+      renderFiles(chat.files);
+      $('call-button').hidden = chat.kind !== 'person';
+      $('message-search').value = '';
+      searchMessages();
+      workspace.classList.add('chat-open');
+      $('messages').scrollTop = $('messages').scrollHeight;
+    }
+
+    function filterChats() {
+      const query = $('list-search').value.trim().toLocaleLowerCase('ru');
+      document.querySelectorAll('.chat-item').forEach(item => {
+        item.hidden = (filter !== 'all' && item.dataset.kind !== filter)
+          || !item.textContent.toLocaleLowerCase('ru').includes(query);
+      });
+    }
+
+    function searchMessages() {
+      const query = $('message-search').value.trim().toLocaleLowerCase('ru');
+      document.querySelectorAll('.thread .message').forEach(message => {
+        message.hidden = !!query && !message.textContent.toLocaleLowerCase('ru').includes(query);
+      });
+    }
+
+    function setDetails(open) {
+      workspace.classList.toggle('details-closed', !open);
+      workspace.classList.toggle('details-open', open);
+      $('details-toggle').setAttribute('aria-pressed', String(open));
+    }
+
+    document.querySelectorAll('.chat-item').forEach(item =>
+      item.addEventListener('click', () => selectChat(item.dataset.id)));
+    document.querySelectorAll('.filter').forEach(button =>
+      button.addEventListener('click', () => {
+        filter = button.dataset.filter;
+        document.querySelectorAll('.filter').forEach(el =>
+          el.setAttribute('aria-pressed', String(el === button)));
+        filterChats();
+      }));
+    $('list-search').addEventListener('input', filterChats);
+    $('message-search').addEventListener('input', searchMessages);
+    $('back').addEventListener('click', () => workspace.classList.remove('chat-open'));
+    $('details-toggle').addEventListener('click', () =>
+      setDetails(workspace.classList.contains('details-closed')));
+    $('details-close').addEventListener('click', () => setDetails(false));
+    $('chat-search-toggle').addEventListener('click', () => {
+      const row = $('chat-search-row');
+      row.hidden = !row.hidden;
+      $('chat-search-toggle').setAttribute('aria-pressed', String(!row.hidden));
+      if (!row.hidden) $('message-search').focus();
+      else { $('message-search').value = ''; searchMessages(); }
+    });
+    $('search-close').addEventListener('click', () => $('chat-search-toggle').click());
+    $('members-jump').addEventListener('click', () =>
+      $('members-section').scrollIntoView({block: 'start', behavior: 'smooth'}));
+    $('files-jump').addEventListener('click', () =>
+      $('files-section').scrollIntoView({block: 'start', behavior: 'smooth'}));
+    document.addEventListener('keydown', event => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        workspace.classList.remove('chat-open');
+        $('list-search').focus();
+      }
+      if (event.key === 'Escape' && !$('chat-search-row').hidden)
+        $('chat-search-toggle').click();
+    });
+    if (innerWidth <= 1180) setDetails(false);
+    selectChat('team');
+    if (innerWidth <= 720) workspace.classList.remove('chat-open');
+  </script>
+</body>
+</html>

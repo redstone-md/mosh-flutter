@@ -17,9 +17,11 @@ import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
-import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_header_title.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
+import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
+    show DmSessionState;
 
 /// The DmScreen AppBar header: peer display name (+ fingerprint lock),
 /// the connection status subtitle, and the call button.
@@ -77,28 +79,16 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final status = s == null ? '' : dmStateSentence(l, s.state, s.transport);
     final fingerprint = s?.fingerprint ?? '';
     return ConversationAppBar(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Peer name with the fingerprint lock beside it (the lock
-          // renders nothing while the fingerprint is empty). A null
-          // snapshot (not loaded yet) keeps the bare sessionId.
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(s == null ? widget.sessionId : peerLabel(l, s)),
-              ),
-              FingerprintLock(
-                fingerprint: fingerprint,
-                hint: l.inviteFingerprintHint,
-              ),
-            ],
-          ),
-          SizedBox(height: chatSubtitleGap(context)),
-          Text(status, style: chatSubtitleStyle(context)),
-        ],
+      peerOnline: s?.state == DmSessionState.connected,
+      avatarName: s == null ? widget.sessionId : peerLabel(l, s),
+      title: ConversationHeaderTitle(
+        name: s == null ? widget.sessionId : peerLabel(l, s),
+        subtitle: status,
+        onOpenDetails: widget.onOpenPeerStatus,
+        nameAction: FingerprintLock(
+            fingerprint: fingerprint,
+            hint: l.inviteFingerprintHint,
+            besideName: true),
       ),
       onOpenPeerStatus: widget.onOpenPeerStatus,
       onRequestLeave: widget.onLeave,
@@ -108,12 +98,10 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
       onToggleMobileSearch: widget.onToggleMobileSearch,
       leaveMenuLabel: l.deleteChatConfirm,
       leaveMenuIcon: Icons.delete_outline,
-      desktopLeaveIcon: const Icon(Icons.close, size: 18),
-      desktopLeaveTooltip: l.shellCloseSession,
       inlineActions: [
-        // Start-call button, between the kebab and the peer-status button.
+        // Primary action precedes search and the menu in every header.
         IconButton(
-          icon: const Icon(Icons.phone_outlined, size: 18),
+          icon: const Icon(Icons.phone_outlined, size: 20),
           tooltip: l.callStart,
           onPressed: widget.onStartCall,
         ),

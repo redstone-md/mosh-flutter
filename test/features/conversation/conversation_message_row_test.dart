@@ -98,7 +98,8 @@ void main() {
       expect(find.byType(CircleAvatar), findsNothing);
     });
 
-    testWidgets('an own row shows the avatar too', (tester) async {
+    testWidgets('an own row is right aligned without redundant sender chrome',
+        (tester) async {
       await _pumpRow(
         tester,
         message: _message(
@@ -109,16 +110,18 @@ void main() {
         kind: ConversationKind.channel,
       );
 
-      expect(find.byType(CircleAvatar), findsOneWidget);
-      expect(find.text(avatarInitials('me')), findsOneWidget);
-      // The user's own name shows in the meta too, same as anyone else's.
-      expect(find.text('me'), findsOneWidget);
+      expect(find.byType(CircleAvatar), findsNothing);
+      expect(find.text('me'), findsNothing);
+      final bubble =
+          tester.getRect(find.byKey(const ValueKey('message-bubble-hi')));
+      expect(bubble.right,
+          tester.view.physicalSize.width / tester.view.devicePixelRatio);
     });
   });
 
   group('what the kind changes', () {
     testWidgets(
-        'a DM shows no fingerprint chip and no delivery state on a '
+        'a DM shows no redundant sender meta or delivery state on a '
         'message from someone else', (tester) async {
       await _pumpRow(
         tester,
@@ -127,11 +130,9 @@ void main() {
       );
 
       expect(find.byType(DeviceFingerprintChip), findsNothing);
-      expect(find.text('MLS'), findsOneWidget);
+      expect(find.byType(ConversationSenderMeta), findsNothing);
       expect(find.textContaining('delivered'), findsNothing);
-      // Dropping the chip must drop its gap with it, or the DM name sits
-      // twice as far from the badge as it should.
-      expect(_metaGaps(tester), 2);
+      expect(_metaGaps(tester), 0);
     });
 
     testWidgets('a channel keeps one gap per part it shows', (tester) async {
@@ -141,8 +142,8 @@ void main() {
         kind: ConversationKind.channel,
       );
 
-      // Name -> chip, chip -> time. No badge on a channel.
-      expect(_metaGaps(tester), 2);
+      // Name -> chip. Time lives in the bubble footer.
+      expect(_metaGaps(tester), 1);
     });
 
     testWidgets('a group keeps one gap per part it shows', (tester) async {
@@ -152,8 +153,8 @@ void main() {
         kind: ConversationKind.group,
       );
 
-      // Name -> chip, chip -> badge, badge -> time.
-      expect(_metaGaps(tester), 3);
+      // Name -> chip, chip -> badge. Time lives in the bubble footer.
+      expect(_metaGaps(tester), 2);
     });
 
     testWidgets('a DM shows the delivery state on an own message',
@@ -169,7 +170,8 @@ void main() {
         kind: ConversationKind.dm,
       );
 
-      expect(find.textContaining('delivered'), findsOneWidget);
+      expect(find.byIcon(Icons.done_all), findsOneWidget);
+      expect(find.byTooltip('✓✓ delivered'), findsOneWidget);
     });
 
     testWidgets('a channel shows the fingerprint chip and no MLS badge',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -29,9 +30,9 @@ void main() {
       bridgeFacadeProvider.overrideWithValue(bridge),
     ]);
     expect(find.text('Already received history'), findsOneWidget);
-    expect(find.text('This device was removed'), findsOneWidget);
-    expect(find.textContaining('Request a fresh link in Settings'),
-        findsOneWidget);
+    final l = lookupAppLocalizations(const Locale('en'));
+    expect(find.text(l.dmDeviceRevokedTitle), findsOneWidget);
+    expect(find.text(l.dmDeviceRevokedBody), findsOneWidget);
     final composer = find.byType(ConversationComposer);
     expect(
         tester

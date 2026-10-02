@@ -1,9 +1,5 @@
-// Attachment actions row. Extracted out of attachment_card.dart to keep that
-// file under the 500-line ceiling; the card's file/media branches still
-// compose [AttachmentActions] to the right of the shared name + meta +
-// progress bar. The 4-state machine (available/!outgoing
-// offered|cancelled/failed/downloading) and the empty `SizedBox.shrink`
-// fallback are intentional -- do NOT simplify.
+// Transfer controls for file and media cards. Available files open from
+// the card itself; this row only downloads, retries or cancels a transfer.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,9 +8,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
 /// The actions row. At most ONE `IconButton` renders, gated on `state` +
-/// `outgoing` (the outgoing sender only ever gets Open):
-///   - available              -> Open (Icons.open_in_new), disabled when
-///                               `view.localPath` is null or empty.
+/// `outgoing` (outgoing and available files have no transfer button):
 ///   - !outgoing && offered   -> Download (Icons.download).
 ///   - !outgoing && cancelled -> Retry-download (Icons.download, the same
 ///                               button with the "Retry download" label).
@@ -28,45 +22,26 @@ class AttachmentActions extends StatelessWidget {
   const AttachmentActions({
     super.key,
     required this.descriptor,
-    required this.view,
     required this.state,
     required this.outgoing,
     required this.busy,
     required this.onDownload,
     required this.onCancel,
-    required this.onOpen,
     required this.l,
   });
 
   final AttachmentDescriptor descriptor;
-  final AttachmentView? view;
   final AttachmentState state;
   final bool outgoing;
   final bool busy;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
-  final void Function(AttachmentDescriptor descriptor) onOpen;
   final AppLocalizations l;
 
   @override
   Widget build(BuildContext context) {
     final fileName = descriptor.fileName;
     final id = descriptor.attachmentId;
-    final localPath = view?.localPath;
-
-    // 1) available -> Open (disabled when no usable localPath).
-    if (state == AttachmentState.available) {
-      final onPressed = localPath == null || localPath.isEmpty
-          ? null
-          : () => onOpen(descriptor);
-      return _ActionIcon(
-        icon: Icons.open_in_new,
-        tooltip: l.attachmentOpen,
-        semanticsLabel: l.attachmentOpenAria(fileName),
-        onPressed: onPressed,
-      );
-    }
-
     // 2) !outgoing && (offered|cancelled) -> Download / Retry-download
     //    (cancelled reuses the button with the "Retry download" label).
     if (!outgoing &&

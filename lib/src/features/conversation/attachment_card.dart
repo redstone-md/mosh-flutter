@@ -4,10 +4,9 @@
 // viewable MIME thumb button or non-viewable file/error icon, and progress
 // bar while downloading.
 //
-// IMAGE preview branch (in scope): when the descriptor carries a non-empty
-// `thumbnailB64` AND the mime is image/* or video/*, render the decoded
-// thumbnail as a tappable `Image.memory` preview above the SAME bar the
-// file card uses (name + meta + progress + actions).
+// IMAGE preview branch: use the local image when available, otherwise the
+// descriptor's image/video thumbnail. The preview opens above the same bar
+// the file card uses (name + meta + progress + actions).
 //
 // Media viewing and external opening are dispatched by the owning screen;
 // this card only emits the shared onOpen callback.
@@ -22,9 +21,8 @@
 // (`Semantics(excludeSemantics: true)`), the wrapper's image semantics
 // carries the label.
 //
-// ACTIONS ROW + onOpen tap (IN SCOPE): the 4-state machine lives in
-// [AttachmentActions] (attachment_actions.dart). The preview tap opens the
-// local file via `onOpen(descriptor)`.
+// Transfer controls live in [AttachmentActions]. Available files open by
+// tapping the row; media opens from its preview via `onOpen(descriptor)`.
 //
 // State derivation: `outgoing = view?.direction == "outgoing"`,
 // `state = view?.state ?? (outgoing ? "available" : "offered")`,
@@ -33,9 +31,11 @@
 // "available".
 
 import 'dart:convert';
+import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;
@@ -47,7 +47,6 @@ import 'package:mosh/src/util/format.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/features/conversation/attachment_thumb.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
-import 'package:mosh/src/features/shared/optical_icon.dart';
 
 part 'attachment_card_branches.dart';
 
@@ -58,8 +57,7 @@ part 'attachment_card_branches.dart';
 /// message with no transfer state renders as `available`.
 ///
 /// Transfer-action callbacks (onDownload / onCancel / onOpen): all three
-/// are REQUIRED -- the DM screen always wires them. The Open button is
-/// disabled by [AttachmentActions] when `view.localPath == null`.
+/// are required. The file row opens only with a usable local path.
 class AttachmentCard extends StatelessWidget {
   const AttachmentCard({
     super.key,
@@ -70,12 +68,14 @@ class AttachmentCard extends StatelessWidget {
     required this.onDownload,
     required this.onCancel,
     required this.onOpen,
+    this.messageFooter,
   });
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
   final bool own;
   final bool busy;
+  final Widget? messageFooter;
 
   /// Fires `Gateway.downloadAttachment`; the screen invalidates the session
   /// provider so the downloading state re-renders.
@@ -100,9 +100,10 @@ class AttachmentCard extends StatelessWidget {
         onDownload: onDownload,
         playLabel: l.voiceMessagePlayLabel,
         pauseLabel: l.voiceMessagePauseLabel,
+        messageFooter: messageFooter,
       );
     }
-    // Image/video-with-thumbnail takes the media branch.
+    // Images can also preview their downloaded file when no thumbnail arrived.
     if (_hasPreview) {
       return _MediaPreviewCard(
         descriptor: descriptor,
@@ -112,61 +113,73 @@ class AttachmentCard extends StatelessWidget {
         onDownload: onDownload,
         onCancel: onCancel,
         onOpen: onOpen,
+        messageFooter: messageFooter,
       );
     }
 
     // File branch.
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final outgoing = view?.direction == 'outgoing' || (view == null && own);
     final state = view?.state ??
         (outgoing ? AttachmentState.available : AttachmentState.offered);
     final percent = _progressPercent(view);
     final failed = state == AttachmentState.failed;
+    final canOpen = state == AttachmentState.available &&
+        (view?.localPath?.isNotEmpty ?? false);
+    final footer = messageFooter;
     final bar = _buildBar(
       l: l,
       fileName: descriptor.fileName,
       totalSize: descriptor.totalSize,
       state: state,
       percent: percent,
+      action: !outgoing && state != AttachmentState.available
+          ? AttachmentActions(
+              descriptor: descriptor,
+              state: state,
+              outgoing: outgoing,
+              busy: busy,
+              onDownload: onDownload,
+              onCancel: onCancel,
+              l: l,
+            )
+          : null,
+      messageFooter: footer == null
+          ? null
+          : Padding(
+              padding: const EdgeInsetsDirectional.only(
+                  end: MoshShapes.attachmentFooterInset),
+              child: footer,
+            ),
     );
     return _FileCardShell(
       failed: failed,
-      theme: theme,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          AttachmentThumb(
-            descriptor: descriptor,
-            viewable: _isViewable,
-            failed: failed,
-            onOpen: onOpen,
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: bar),
-          // Info (expanding) + actions row to the right.
-          const SizedBox(width: 10),
-          AttachmentActions(
-            descriptor: descriptor,
-            view: view,
-            state: state,
-            outgoing: outgoing,
-            busy: busy,
-            onDownload: onDownload,
-            onCancel: onCancel,
-            onOpen: onOpen,
-            l: l,
-          ),
-        ],
+      child: AttachmentOpenTarget(
+        label: l.attachmentOpenAria(descriptor.fileName),
+        onOpen: canOpen ? () => onOpen(descriptor) : null,
+        child: Row(
+          // Keep metadata and inline time at the icon's lower edge.
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            AttachmentThumb(
+              descriptor: descriptor,
+              viewable: _isViewable,
+              failed: failed,
+              onOpen: canOpen ? null : onOpen,
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: bar),
+          ],
+        ),
       ),
     );
   }
 
-  /// `hasPreview = thumbnail non-empty && (image/* || video/*)`.
-  /// Image/video-with-thumbnail take the media branch; everything else
+  /// Local images and image/video-with-thumbnail take the media branch; everything else
   /// (audio, pdf, ...) takes the file-card branch. Audio remains viewable in
   /// that branch and receives the open thumb button there.
   bool get _hasPreview {
+    if (_localImagePreview(descriptor, view) != null) return true;
     final thumb = descriptor.thumbnailB64;
     if (thumb == null || thumb.isEmpty) return false;
     final mime = descriptor.mime;
@@ -179,6 +192,17 @@ class AttachmentCard extends StatelessWidget {
         mime.startsWith('video/') ||
         mime.startsWith('audio/');
   }
+}
+
+String? _localImagePreview(
+    AttachmentDescriptor descriptor, AttachmentView? view) {
+  final path = view?.localPath;
+  return descriptor.mime.startsWith('image/') &&
+          view?.state == AttachmentState.available &&
+          path != null &&
+          path.isNotEmpty
+      ? path
+      : null;
 }
 
 /// Max width of the file card.
@@ -196,45 +220,31 @@ const double kAttachmentPreviewMaxHeight = 260;
 /// collapses to a zero-height box that swallows the open tap.
 const double kAttachmentPreviewMinHeight = 120;
 
-/// Card shell: 6px top margin, 8px/10px padding, hairline border, 10px
-/// radius, bg-2 fill, 360px max width. A failed transfer recolours the
-/// BORDER (not the fill) to danger.
-///
-/// The media variant drops the padding and clips the corners: the preview
-/// bleeds to the card edge, so the padding moves onto the bar.
+/// Embedded content shares the message surface. Files are flat rows;
+/// media clips to the shared attachment corners. Failed transfers keep an edge.
 class _FileCardShell extends StatelessWidget {
   const _FileCardShell({
     required this.failed,
-    required this.theme,
     required this.child,
     this.media = false,
   });
 
   final bool failed;
-  final ThemeData theme;
   final Widget child;
   final bool media;
 
   @override
   Widget build(BuildContext context) {
-    // Concentric radius: inner thumb 8 + vertical padding 8 = 16.
-    final radius = BorderRadius.circular(16);
     return Container(
-      margin: const EdgeInsets.only(top: 6),
       constraints: BoxConstraints(
         maxWidth: media ? kAttachmentMediaWidth : kAttachmentCardMaxWidth,
       ),
       width: media ? kAttachmentMediaWidth : null,
       clipBehavior: media ? Clip.antiAlias : Clip.none,
-      padding: media
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: MoshColors.bg2,
-        borderRadius: radius,
-        border: Border.all(
-          color: failed ? MoshColors.danger : MoshColors.line,
-        ),
+        borderRadius: MoshShapes.attachment,
+        border: failed ? Border.all(color: MoshColors.danger) : null,
       ),
       child: child,
     );
@@ -252,6 +262,8 @@ Widget _buildBar({
   required BigInt totalSize,
   required AttachmentState state,
   required int percent,
+  Widget? action,
+  Widget? messageFooter,
 }) {
   final size = formatBytes(totalSize);
   final stateLabel = _attachmentStateLabel(l, state, percent);
@@ -259,28 +271,46 @@ Widget _buildBar({
   // every other state appends " \u00b7 {label}".
   final meta =
       state == AttachmentState.available ? size : '$size \u00b7 $stateLabel';
+  final name = Text(
+    fileName,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
+  );
+  final metadata = Text(
+    meta,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(
+        fontSize: 11,
+        color: MoshColors.fg3,
+        fontFeatures: kLiveNumberFontFeatures),
+  );
+  // A transfer button shares the label's height instead of adding a tall
+  // second line beneath the filename.
+  final details = action == null
+      ? metadata
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [name, const SizedBox(height: 2), metadata],
+        );
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(
-        fileName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12.5, color: MoshColors.fg1),
-      ),
-      // 2px between name and meta.
-      const SizedBox(height: 2),
-      Text(
-        meta,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 11,
-          color: MoshColors.fg3,
-          fontFeatures: kLiveNumberFontFeatures,
-        ),
-      ),
+      if (action == null) ...[name, const SizedBox(height: 2)],
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Expanded(child: details),
+        if (action case final control?) ...[
+          const SizedBox(width: 8),
+          control,
+        ],
+        if (messageFooter case final footer?) ...[
+          const SizedBox(width: 8),
+          footer,
+        ],
+      ]),
       // 4px tall moss progress bar on bg-3, shown while downloading.
       if (state == AttachmentState.downloading) ...[
         const SizedBox(height: 4),

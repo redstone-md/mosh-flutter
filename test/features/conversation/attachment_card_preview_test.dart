@@ -139,24 +139,25 @@ void main() {
 
     // No preview: no Image.memory in the tree.
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    expect(find.byIcon(Icons.image_outlined), findsOneWidget);
     // The thumb owns the accessible action; IconButton's visual tooltip is
     // excluded from semantics, so there is exactly one Open announcement.
     expect(find.bySemanticsLabel('Open photo2.png'), findsOneWidget);
     final thumbButton = find.ancestor(
-      of: find.byIcon(Icons.play_arrow),
+      of: find.byIcon(Icons.image_outlined),
       matching: find.byType(InkWell),
     );
     expect(thumbButton, findsOneWidget);
     // The thumb button is a fixed 40x40 square.
     expect(tester.getSize(thumbButton), const Size(40, 40));
     final semanticsHandle = tester.ensureSemantics();
-    final thumbSemantics =
-        tester.getSemantics(find.byIcon(Icons.play_arrow)).getSemanticsData();
+    final thumbSemantics = tester
+        .getSemantics(find.byIcon(Icons.image_outlined))
+        .getSemanticsData();
     expect(thumbSemantics.label, 'Open photo2.png');
     expect(thumbSemantics.hasAction(SemanticsAction.tap), isTrue);
     semanticsHandle.dispose();
-    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.tap(find.byIcon(Icons.image_outlined));
     expect(_openCount, 1);
     expect(_opened, descriptor);
     // The file name still renders.

@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 
 /// The lock tap area's inset: the 15px glyph plus 13px on every side keeps
@@ -14,9 +15,11 @@ import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 /// opens the security dialog (audit 2026-09-21 hit-areas).
 const double _lockTapInset = 13;
 
-/// Lock icon size -- small enough to read as a suffix of the name, not
-/// as a header action.
+/// Standalone lock icon size.
 const double _lockIconSize = 15;
+
+/// A quieter suffix on the nickname, inside a compact 24px target.
+const double _inlineLockIconSize = 12;
 
 /// The emoji quartet size inside the dialog.
 const double _dialogEmojiSize = 34;
@@ -38,6 +41,7 @@ class FingerprintLock extends StatelessWidget {
     super.key,
     required this.fingerprint,
     required this.hint,
+    this.besideName = false,
   });
 
   /// The session fingerprint the dialog shows.
@@ -45,6 +49,7 @@ class FingerprintLock extends StatelessWidget {
 
   /// The compare hint shown inside the dialog.
   final String hint;
+  final bool besideName;
 
   @override
   Widget build(BuildContext context) {
@@ -58,15 +63,15 @@ class FingerprintLock extends StatelessWidget {
         child: InkWell(
           onTap: () => showFingerprintDialog(context,
               fingerprint: fingerprint, hint: hint),
-          borderRadius: BorderRadius.circular(_lockIconSize + _lockTapInset),
+          borderRadius: besideName ? MoshShapes.embedded : MoshShapes.control,
           child: Padding(
-            // Symmetric 13px sides: the 15px glyph gets a 41x41 tap box.
-            // Chat headers are 70px (54 compact), so the box fits the title
-            // row.
-            padding: const EdgeInsets.all(_lockTapInset),
+            // Align the inline glyph with the name's first line.
+            padding: besideName
+                ? const EdgeInsetsDirectional.fromSTEB(6, 4, 6, 8)
+                : const EdgeInsets.all(_lockTapInset),
             child: Icon(
               Icons.lock,
-              size: _lockIconSize,
+              size: besideName ? _inlineLockIconSize : _lockIconSize,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),

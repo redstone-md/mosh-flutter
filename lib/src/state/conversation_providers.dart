@@ -76,9 +76,9 @@ final class GroupConversationList extends ConversationList {
 /// kinds -- the kind is the family arg, so each kind still carries its own
 /// `AsyncValue` and refreshes on its own.
 final conversationListProvider = AsyncNotifierProvider.family<
-    ConversationListNotifier, ConversationList, ConversationKind>(
-  ConversationListNotifier.new,
-);
+    ConversationListNotifier,
+    ConversationList,
+    ConversationKind>(ConversationListNotifier.new);
 
 class ConversationListNotifier extends AsyncNotifier<ConversationList> {
   ConversationListNotifier(this.kind);
@@ -97,7 +97,8 @@ class ConversationListNotifier extends AsyncNotifier<ConversationList> {
   Future<void> refresh() async {
     final startedUnder = ref;
     final next = await AsyncValue.guard(
-        () => _read(startedUnder.read(bridgeFacadeProvider)));
+      () => _read(startedUnder.read(bridgeFacadeProvider)),
+    );
     if (startedUnder.mounted) state = next;
   }
 
@@ -106,8 +107,9 @@ class ConversationListNotifier extends AsyncNotifier<ConversationList> {
   /// reads it once.
   Future<ConversationList> _read(BridgeFacade bridge) async => switch (kind) {
         ConversationKind.dm => DmConversationList(await bridge.listSessions()),
-        ConversationKind.channel =>
-          ChannelConversationList(await bridge.listChannels()),
+        ConversationKind.channel => ChannelConversationList(
+            await bridge.listChannels(),
+          ),
         ConversationKind.group =>
           GroupConversationList(await bridge.listGroups()),
       };
@@ -123,12 +125,11 @@ typedef ConversationInvalidator = void Function(ProviderOrFamily provider);
 /// Re-reads every kind's list, in parallel. The auto-poll loop and the org
 /// actions ask for all three, so they loop over the kinds instead of naming
 /// them one by one.
-Future<void> refreshConversationLists(ConversationReader read) => Future.wait(
-      <Future<void>>[
-        for (final kind in ConversationKind.values)
-          read(conversationListProvider(kind).notifier).refresh(),
-      ],
-    );
+Future<void> refreshConversationLists(ConversationReader read) =>
+    Future.wait(<Future<void>>[
+      for (final kind in ConversationKind.values)
+        read(conversationListProvider(kind).notifier).refresh(),
+    ]);
 
 /// Re-reads one conversation's snapshot. The one branch of this shape in the
 /// state layer: each kind keeps its own snapshot family, and this is where a
@@ -149,17 +150,13 @@ void invalidateConversation(
 
 /// [invalidateConversation] plus the rail list that shows this conversation.
 ///
-/// A DM's rail row carries its last message, so a DM re-reads its list too;
-/// a channel and a group row carry a name only, so their lists re-read with
-/// the rail ([refreshConversationLists]) and not on every send.
+/// Every rail row carries its last message, so a send updates its list too.
 void refreshConversation(
   ConversationInvalidator invalidate,
   ConversationRef conversation,
 ) {
   invalidateConversation(invalidate, conversation);
-  if (conversation.kind case ConversationKind.dm) {
-    invalidate(conversationListProvider(ConversationKind.dm));
-  }
+  invalidate(conversationListProvider(conversation.kind));
 }
 
 /// The DMs in [list], or none when it is another kind, is still loading, or

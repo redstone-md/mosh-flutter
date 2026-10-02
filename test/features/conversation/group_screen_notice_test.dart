@@ -13,9 +13,8 @@ import '../../support/message_builders.dart';
 import '../../support/pump.dart';
 
 void main() {
-  // The banner is always shown for a group, so a group with messages is
-  // enough to assert it appears alongside the list. Resolves the localized
-  // en ARB values via AppLocalizations so the test pins the exact strings.
+  // A group with messages on a fresh installation shows the notice
+  // alongside the list. The assertions pin its English copy.
   testWidgets('group screen renders the group encryption notice banner',
       (tester) async {
     const groupId = 'grp-notice';
@@ -40,7 +39,7 @@ void main() {
     expect(find.text('End-to-end encrypted group'), findsOneWidget);
     expect(
       find.text(
-        'OpenMLS protects message content. Only members the admin has admitted can decrypt. New members do not see prior history.',
+        'Messages are protected by end-to-end encryption. New members cannot see earlier messages.',
       ),
       findsOneWidget,
     );

@@ -175,7 +175,7 @@ void main() {
     expect(find.text('Write a message\u2026'), findsOneWidget);
   });
 
-  testWidgets('a DM row has one accessible name: the visible label and state',
+  testWidgets('a DM row has one accessible name: type, visible label and state',
       (tester) async {
     final (gateway, bridge) = _scriptedPair();
     bridge.seedSessions([
@@ -189,7 +189,7 @@ void main() {
 
     expect(
       tester.getSemantics(find.text('Alice')),
-      isSemantics(label: 'Alice\nConnected', isButton: true),
+      isSemantics(label: 'Personal chat\nAlice\nConnected', isButton: true),
     );
   });
 

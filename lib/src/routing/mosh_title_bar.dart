@@ -109,16 +109,21 @@ class MoshTitleBar extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: 14),
-        compact
-            ? IconButton(
-                tooltip: l.peerStatusTitle,
-                icon: const Icon(_kPeerStatusIcon, size: 18),
-                style: _focusRingStyle,
-                onPressed: onOpenPeerStatus,
-              )
-            : _PeerStatusButton(onTap: onOpenPeerStatus),
-        const SizedBox(width: 14),
-        Flexible(child: _StatePillSlot(activeKey: activeKey)),
+        Flexible(
+            child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  compact
+                      ? IconButton(
+                          tooltip: l.peerStatusTitle,
+                          icon: const Icon(_kPeerStatusIcon, size: 18),
+                          style: _focusRingStyle,
+                          onPressed: onOpenPeerStatus,
+                        )
+                      : _PeerStatusButton(onTap: onOpenPeerStatus),
+                  const SizedBox(width: 14),
+                  Flexible(child: _StatePillSlot(activeKey: activeKey)),
+                ]))),
       ],
     );
   }

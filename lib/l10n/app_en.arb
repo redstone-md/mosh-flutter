@@ -257,10 +257,14 @@
     "description": "Screen-reader label for the sessions list while it loads"
   },
   "cryptoNoticeTitle": "End-to-end encrypted",
+  "noticeDismissFailed": "Could not hide the notice. Try again.",
+  "@noticeDismissFailed": {
+    "description": "Shown when saving a permanently dismissed conversation notice fails"
+  },
   "@cryptoNoticeTitle": {
     "description": "Lock tooltip in the chat header, and the title of the end-to-end encryption notice"
   },
-  "cryptoNoticeBody": "OpenMLS protects message content. Moss carries ciphertext via public trackers + supernodes for NAT punching — peer discovery metadata is NOT hidden.",
+  "cryptoNoticeBody": "OpenMLS protects the content of your messages. Moss carries encrypted text through a network of nodes.",
   "@cryptoNoticeBody": {
     "description": "Body of the end-to-end encryption notice (onboarding About card)"
   },
@@ -312,7 +316,7 @@
   "@groupNoticeTitle": {
     "description": "Title of the group encryption notice"
   },
-  "groupNoticeBody": "OpenMLS protects message content. Only members the admin has admitted can decrypt. New members do not see prior history.",
+  "groupNoticeBody": "Messages are protected by end-to-end encryption. New members cannot see earlier messages.",
   "@groupNoticeBody": {
     "description": "Body of the group encryption notice"
   },
@@ -424,7 +428,7 @@
   "@onboardInviteReady": {
     "description": "Status shown when a chat invite is ready"
   },
-  "onboardGroupStepBody": "Spin up an MLS-encrypted group. You admit members and stay the admin.",
+  "onboardGroupStepBody": "Create a group with end-to-end encryption.",
   "@onboardGroupStepBody": {
     "description": "Body of the group step in onboarding"
   },
@@ -491,7 +495,7 @@
   "@onboardJoinConnect": {
     "description": "Button label to connect via a joined invite"
   },
-  "onboardChannelStepBody": "Public channels are not end-to-end encrypted — anyone who knows the name can read along.",
+  "onboardChannelStepBody": "End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.",
   "@onboardChannelStepBody": {
     "description": "Body of the channel step in onboarding"
   },
@@ -555,7 +559,7 @@
   "@channelNoticeTitle": {
     "description": "Title of the public-channel notice"
   },
-  "channelNoticeBody": "Not end-to-end encrypted. Anyone who joins this channel can read messages. Your device fingerprint is shown next to each message you publish.",
+  "channelNoticeBody": "End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.",
   "@channelNoticeBody": {
     "description": "Body of the public-channel notice"
   },
@@ -580,11 +584,11 @@
   "@orgAddMissing": {
     "description": "Button label to add missing members to a group"
   },
-  "orgMissingOne": "roster member not in this group",
+  "orgMissingOne": "member from the list is not in this group",
   "@orgMissingOne": {
     "description": "Status text for one missing roster member"
   },
-  "orgMissingMany": "roster members not in this group",
+  "orgMissingMany": "members from the list are not in this group",
   "@orgMissingMany": {
     "description": "Status text for several missing roster members"
   },
@@ -592,7 +596,7 @@
   "@orgRejoinNeededTitle": {
     "description": "Title of the rejoin-needed notice"
   },
-  "orgRejoinNeededBody": "This group missed membership changes that could not be replayed. Ask an admin to re-invite you from the roster.",
+  "orgRejoinNeededBody": "The group is out of sync. Ask an administrator to invite you again.",
   "@orgRejoinNeededBody": {
     "description": "Body of the rejoin-needed notice"
   },
@@ -1165,11 +1169,11 @@
   "@closeViewer": {
     "description": "Tooltip/aria-label of the close button in the shared MediaViewer (React inline 'Close viewer'; localized in the Flutter port)"
   },
-  "persistenceWarningUnavailableTitle": "Encrypted history unavailable",
+  "persistenceWarningUnavailableTitle": "History is not being saved",
   "@persistenceWarningUnavailableTitle": {
     "description": "Title of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch title)"
   },
-  "persistenceWarningUnavailableBody": "Messages still send, but private DM history and session continuity may be lost after restart.{reason}",
+  "persistenceWarningUnavailableBody": "You can keep messaging, but messages may be lost after restarting the app.{reason}",
   "@persistenceWarningUnavailableBody": {
     "description": "Body of the persistence warning when local history is not encrypted (React useRuntimePersistenceStatus unavailable branch body; {reason} is a leading space plus persistenceWarningReason, or empty)",
     "placeholders": {
@@ -1629,9 +1633,9 @@
   "deviceLinkStorageError": "The device list could not be saved. Check local storage and try again.",
   "deviceLinkUnavailable": "Device linking is unavailable. Check the connection and restart Mosh.",
   "dmHistoryWaitingTitle": "Waiting for message history",
-  "dmHistoryWaitingBody": "Waiting for a participant with the missing messages to come online. Recovery will resume automatically.",
+  "dmHistoryWaitingBody": "Waiting for a participant to come online to restore messages.",
   "dmHistoryImportingTitle": "Importing message history",
-  "dmHistoryImportingBody": "You can keep messaging while older messages arrive.",
+  "dmHistoryImportingBody": "You can keep messaging while older messages load.",
   "deviceLinkRemove": "Remove device",
   "deviceLinkRemoveTitle": "Remove {name}?",
   "@deviceLinkRemoveTitle": {
@@ -1649,9 +1653,9 @@
   "deviceLinkRevokedBody": "This device was removed. Received messages remain here. Request a fresh link and ask an authorized device to approve access.",
   "deviceLinkFreshJoin": "Request access again",
   "dmDeviceRevokedTitle": "This device was removed",
-  "dmDeviceRevokedBody": "Received messages remain readable. Sending and message recovery are disabled. Request a fresh link in Settings → Devices to regain access.",
-  "dmRemovalPendingTitle": "Device removal pending",
-  "dmRemovalPendingBody": "Future messages are protected after all remaining participants accept the removal epoch. Offline participants apply it when they reconnect.",
+  "dmDeviceRevokedBody": "Link this device again to continue sending and receiving messages.",
+  "dmRemovalPendingTitle": "Removing device",
+  "dmRemovalPendingBody": "Removal will finish when the other conversation participants come online and receive the update.",
   "settingsSectionPrivacy": "Privacy",
   "@settingsSectionPrivacy": {
     "description": "Left-nav label of the Privacy settings section"
@@ -1667,5 +1671,22 @@
   "settingsCrashReportsUnavailable": "This build cannot send crash reports.",
   "@settingsCrashReportsUnavailable": {
     "description": "Subtitle of the crash-reporting switch in a build without a Sentry DSN"
-  }
+  },
+  "chatListSearch": "Search chats",
+  "chatListPersonal": "Personal",
+  "chatListGroups": "Groups",
+  "chatListChannels": "Channels",
+  "conversationTypeDm": "Personal chat",
+  "conversationTypeGroup": "Group",
+  "conversationTypeChannel": "Channel",
+  "chatListYou": "You",
+  "chatListInvitations": "Invitations",
+  "chatListEmpty": "No matching chats",
+  "chatDetailsTitle": "Conversation details",
+  "chatDetailsFiles": "Shared files",
+  "chatDetailsNoFiles": "No shared files yet",
+  "chatDetailsParticipants": "Participants",
+  "chatDetailsDiagnostics": "Connection details",
+  "chatDetailsProtection": "Conversation protection",
+  "chatDetailsKnownAuthors": "Known authors"
 }

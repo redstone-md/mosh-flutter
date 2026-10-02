@@ -1,22 +1,15 @@
-/// One message row, for any kind of conversation.
-///
-/// The layout is the same everywhere: an avatar (a spacer on a continuation
-/// row), then the sender meta, the text, the attachment card, and whatever
-/// the message trails with. Only the meta and the text are selectable. Rows are always left-aligned; `own` only decides
-/// whether the delivery state and the Retry button show.
-///
-/// Three small parts follow the kind:
-///
-/// - a DM has no fingerprint chip in the meta and shows delivery ticks;
-/// - a channel hides the MLS badge;
-/// - only a DM can carry a call log entry.
+/// A message bubble with sender actions, attachments and delivery status.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/attachment_card.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
+import 'package:mosh/src/features/conversation/conversation_message_footer.dart';
+import 'package:mosh/src/features/conversation/conversation_message_text.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
 import 'package:mosh/src/features/conversation/call_log_entry.dart';
@@ -41,6 +34,7 @@ class ConversationMessageRow extends StatelessWidget {
     required this.l,
     this.attachmentView,
     this.peer,
+    this.continuesBelow = false,
   });
 
   final ConversationMessage message;
@@ -49,6 +43,7 @@ class ConversationMessageRow extends StatelessWidget {
   /// Whether this row continues the previous sender's block. A continuation
   /// row drops the meta and indents under the first row's avatar.
   final bool grouped;
+  final bool continuesBelow;
 
   final AttachmentView? attachmentView;
 
@@ -72,49 +67,111 @@ class ConversationMessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: EdgeInsets.only(top: messageRowSpacing(grouped)),
-        child: Row(
+        child: LayoutBuilder(
+            builder: (context, constraints) => Row(
+                  mainAxisAlignment: message.own
+                      ? MainAxisAlignment.end
+                      : MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!message.own) ...[
+                      if (grouped)
+                        const SizedBox(width: messageAvatarSize)
+                      else
+                        SelectionContainer.disabled(
+                            child: Avatar(
+                                name: message.fromDevice,
+                                radius: messageAvatarSize / 2)),
+                      const SizedBox(width: kMessageRowGap),
+                    ],
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                          maxWidth: (constraints.maxWidth * 0.78).clamp(
+                              0.0,
+                              (constraints.maxWidth -
+                                      (message.own
+                                          ? 0
+                                          : messageAvatarSize + kMessageRowGap))
+                                  .clamp(0.0, 520.0))),
+                      child: Container(
+                        key: ValueKey(
+                            'message-bubble-${message.messageId ?? message.body}'),
+                        padding: _hasRectangularAttachment
+                            ? MoshShapes.attachmentPadding
+                            : MoshShapes.messagePadding,
+                        decoration: BoxDecoration(
+                          color: message.own
+                              ? MoshColors.outgoingMessage
+                              : MoshColors.bg2,
+                          borderRadius: _corners,
+                        ),
+                        child: _body(context),
+                      ),
+                    ),
+                  ],
+                )),
+      );
+
+  BorderRadiusDirectional get _corners {
+    final outer = MoshShapes.message.topLeft;
+    final join =
+        _hasRectangularAttachment ? outer : MoshShapes.embedded.topLeft;
+    return BorderRadiusDirectional.only(
+      topStart: !message.own && grouped ? join : outer,
+      bottomStart: !message.own && continuesBelow ? join : outer,
+      topEnd: message.own && grouped ? join : outer,
+      bottomEnd: message.own && continuesBelow ? join : outer,
+    );
+  }
+
+  bool get _hasRectangularAttachment {
+    final attachment = message.attachment;
+    return attachment != null && attachment.voice == null;
+  }
+
+  Widget _body(BuildContext context) {
+    final footer = ConversationMessageFooter(message: message, kind: kind);
+    final hasFooter = footer.measure(context).height > 0;
+    final textOnly = message.body.isNotEmpty &&
+        message.attachment == null &&
+        message.callEvent == null &&
+        !message.canRetry;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // A continuation row leaves the avatar's width empty, so it
-            // lines up under the first row of the block.
-            if (grouped)
-              const SizedBox(width: messageAvatarSize)
-            else
-              SelectionContainer.disabled(
-                child: Avatar(
-                  name: message.fromDevice,
-                  radius: messageAvatarSize / 2,
-                ),
+            if (!grouped && !message.own && kind != ConversationKind.dm)
+              ConversationSenderMeta(
+                fromDevice: message.fromDevice,
+                fromFingerprint: message.fromFingerprint,
+                sentAtMs: message.sentAtMs,
+                showTime: false,
+                showMlsBadge: kind != ConversationKind.channel,
+                peer: peer,
               ),
-            const SizedBox(width: kMessageRowGap),
-            Expanded(child: _body()),
+            if (message.body.isNotEmpty)
+              if (textOnly)
+                ConversationMessageText(body: message.body, footer: footer)
+              else
+                Text(message.body, style: kMessageBodyStyle),
+            if (message.body.isNotEmpty && message.attachment != null)
+              const SizedBox(height: 6),
+            SelectionContainer.disabled(
+                child: _trailing(hasFooter ? footer : null)),
           ],
         ),
-      );
+        if (!textOnly && message.attachment == null && hasFooter)
+          Padding(padding: const EdgeInsets.only(top: 4), child: footer),
+      ],
+    );
+  }
 
-  /// The meta, the text, and whatever the message trails with.
-  Widget _body() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!grouped)
-            ConversationSenderMeta(
-              fromDevice: message.fromDevice,
-              fromFingerprint: message.fromFingerprint,
-              sentAtMs: message.sentAtMs,
-              showMlsBadge: kind != ConversationKind.channel,
-              peer: peer,
-            ),
-          if (message.body.isNotEmpty)
-            Text(message.body, style: kMessageBodyStyle),
-          // Cards, ticks and buttons are controls, not text: a selection
-          // skips them, so copied text never picks up their labels.
-          SelectionContainer.disabled(child: _trailing()),
-        ],
-      );
-
-  /// The attachment card, the call entry, the ticks and Retry.
-  Widget _trailing() {
+  /// Attachment and call controls remain outside text selection.
+  Widget _trailing(Widget? footer) {
     final attachment = message.attachment;
     final callEvent = message.callEvent;
     return Column(
@@ -130,11 +187,9 @@ class ConversationMessageRow extends StatelessWidget {
             onDownload: onAttachmentDownload,
             onCancel: onAttachmentCancel,
             onOpen: onAttachmentOpen,
+            messageFooter: footer,
           ),
         if (callEvent != null) CallLogEntry(event: callEvent, l: l),
-        if (message.own && kind == ConversationKind.dm)
-          DeliveryTicks(
-              status: message.deliveryStatus, read: message.read == true),
         if (message.canRetry)
           FailedMessageRetry(
             deliveryError: message.deliveryError,

@@ -862,9 +862,11 @@ The rail is one list of rows, not one list per conversation kind. It lives in
 and `org_actions.dart` / `sessions_rail_actions.dart` own what a tap does.
 
 A row is a `RailEntry`: the conversation it opens plus the chrome that
-conversation's kind wants. The screen builds one list of entries per paint
-(offers, sessions, groups, channels, then the orgs), and
-loops over it once — a `RailDivider` goes between two non-empty neighbours.
+conversation's kind wants. `sessions_rail_list.dart` builds entries from existing snapshots: invitations
+remain separate above one list of DMs, groups and channels ordered by their last
+text or attachment; organization sections remain below. `RailActivity` supplies
+previews and known participant names in one history scan. Local search and type
+filters narrow this list without fetching message history.
 The unread lookup, the active highlight and the clear-on-tap all come from
 `RailEntry.ref.key`, so the `kind:id` grammar is written once, by
 `ConversationRef`, and never by the screen.
@@ -889,6 +891,21 @@ count, whether this is the open conversation, and the hook that clears the
 badge. The offer row is the one row with no conversation behind it, so it gets
 zero, false and null — it renders the accept affordance and the dismiss X
 through the same `RailItem` every other row uses.
+
+Conversation details share one content widget between the docked third desktop
+column (window widths ≥1280px) and the existing modal focus boundary at narrower
+widths. Message bubbles, date boundaries and on-demand message search are shared
+across all three conversation kinds. See [Conversation redesign](Features/chat-redesign.md)
+for layout thresholds, runtime security/roster limits and verification.
+
+Chat corner geometry is owned by `app/mosh_shapes.dart` and reused by the theme
+and feature components. `ConversationKindStyle` and `ConversationKindAvatar`
+share type accents, glyphs and labels across rail, filters, header and details.
+See [Chat visual consistency](Features/chat-visual-consistency.md).
+The shared message text/footer components use actual paragraph metrics to
+reserve inline metadata space while keeping selection on ordinary `Text`.
+The header identity and fingerprint have independent focus/tap boundaries.
+See [Bubble/header polish](Features/chat-message-header-polish.md).
 
 ## Settings
 
