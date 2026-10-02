@@ -10,6 +10,7 @@ import 'first_run_layout.dart';
 import 'first_run_network_step.dart';
 import 'first_run_profile.dart';
 import 'first_run_provider.dart';
+import 'first_run_sizing.dart';
 
 class FirstRunWizard extends ConsumerStatefulWidget {
   const FirstRunWizard({super.key, required this.profile});
@@ -36,36 +37,42 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
         body: SafeArea(
             child: Column(children: [
           const MoshTitleBar.brand(),
-          Expanded(child: LayoutBuilder(builder: (context, size) {
-            final narrow = size.maxWidth < 800;
-            return SingleChildScrollView(
-              padding: EdgeInsets.all(narrow ? 16 : 32),
-              child: Center(
-                  child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1160),
-                child: Container(
-                  padding: EdgeInsets.all(narrow ? 20 : 40),
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: MoshColors.moss.withValues(alpha: .3)),
-                      gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color.alphaBlend(
-                                MoshColors.moss.withValues(alpha: .055),
-                                MoshColors.bg0),
-                            MoshColors.bg1,
-                            MoshColors.bg0
-                          ])),
-                  child: _content(context),
-                ),
-              )),
-            );
-          })),
+          Expanded(child: LayoutBuilder(builder: _viewport)),
         ])),
       ));
+
+  Widget _viewport(BuildContext context, BoxConstraints constraints) {
+    final sizing = SetupSizing(constraints.biggest);
+    return SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+        child: Padding(
+          padding: EdgeInsets.all(sizing.outerPadding),
+          child: Center(
+              child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1160),
+                  child: _card(context, sizing))),
+        ),
+      ),
+    );
+  }
+
+  Widget _card(BuildContext context, SetupSizing sizing) => Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(sizing.cardPadding),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: MoshColors.moss.withValues(alpha: .3)),
+          gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.alphaBlend(
+                    MoshColors.moss.withValues(alpha: .055), MoshColors.bg0),
+                MoshColors.bg1,
+                MoshColors.bg0
+              ])),
+      child: _content(context, sizing));
 
   ThemeData _setupTheme(ThemeData theme) => theme.copyWith(
       visualDensity: VisualDensity.standard,
@@ -76,15 +83,23 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
           style: theme.outlinedButtonTheme.style?.copyWith(
               minimumSize: const WidgetStatePropertyAll(Size(0, 48)))));
 
-  Widget _content(BuildContext context) => Column(children: [
-        ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: SetupProgress(step: widget.profile.step)),
-        const SizedBox(height: 40),
-        SetupFrame(step: widget.profile.step, child: _form(context)),
-      ]);
+  Widget _content(BuildContext context, SetupSizing sizing) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: SetupProgress(
+                        step: widget.profile.step, compact: sizing.compact))),
+            SizedBox(height: sizing.sectionGap),
+            SetupFrame(
+                step: widget.profile.step,
+                sizing: sizing,
+                child: _form(context, sizing)),
+          ]);
 
-  Widget _form(BuildContext context) {
+  Widget _form(BuildContext context, SetupSizing sizing) {
     final l = AppLocalizations.of(context)!;
     final controller = ref.read(firstRunProfileProvider.notifier);
     return switch (widget.profile.step) {
@@ -96,8 +111,9 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
                   style: Theme.of(context).textTheme.headlineSmall)),
           const SizedBox(height: 12),
           Text(l.firstRunNameBody),
-          const SizedBox(height: 24),
+          SizedBox(height: sizing.compact ? 16 : 24),
           DisplayNameForm(
+              compact: sizing.compact,
               initialName: widget.profile.displayName,
               actionLabel: l.firstRunContinue,
               onSave: (name) => controller.saveName(name, advance: true)),
