@@ -1399,20 +1399,20 @@
   },
   "bindAdapterTitle": "Network adapter",
   "@bindAdapterTitle": {
-    "description": "Title of the bind-interface field in the Advanced disclosure (React BindInterfaceField.tsx .bind-interface-head strong)"
+    "description": "Adapter selector label in Connection settings"
   },
-  "bindAdapterBoundBody": "Mosh is bound to {adapter}.",
+  "bindAdapterBoundBody": "Saved adapter: {adapter}.",
   "@bindAdapterBoundBody": {
-    "description": "Head body when Moss is currently bound to an adapter; {adapter} is the bound interface name (React BindInterfaceField.tsx `Moss is bound to ${current}.`)",
+    "description": "Saved adapter name, not a claim about an already running node",
     "placeholders": {
       "adapter": { "type": "String" }
     }
   },
-  "bindAdapterUnboundBody": "Use a physical NIC when a VPN blocks peer discovery.",
+  "bindAdapterUnboundBody": "Choose your network adapter, such as Ethernet or Wi-Fi.",
   "@bindAdapterUnboundBody": {
-    "description": "Head body when Moss is not bound (React BindInterfaceField.tsx default body)"
+    "description": "Explanation of the adapter choice when no override is saved"
   },
-  "bindAdapterNoNic": "No connected physical NIC detected.",
+  "bindAdapterNoNic": "No connected physical adapter found.",
   "@bindAdapterNoNic": {
  "description": "Hint shown when no physical NIC is available (React BindInterfaceField.tsx .bind-interface-hint)"
   },
@@ -1428,9 +1428,9 @@
   "@bindAdapterBind": {
     "description": "Button label when unbound; binds to the picked adapter (React BindInterfaceField.tsx btn-primary when !enabled)"
   },
-  "bindAdapterSaving": "Restarting...",
+  "bindAdapterSaving": "Saving…",
   "@bindAdapterSaving": {
-    "description": "Button label while applying the bind/release + restarting (React BindInterfaceField.tsx busy)"
+    "description": "Button label while saving the choice and invoking the relauncher"
   },
   "bindAdapterActive": "Every conversation uses {adapter}.",
   "@bindAdapterActive": {
@@ -1439,9 +1439,9 @@
       "adapter": { "type": "String" }
     }
   },
-  "bindAdapterHint": "Binding can expose your LAN IP to peers, trackers, and STUN. Mosh restarts to apply either choice.",
+  "bindAdapterHint": "Traffic can bypass your VPN. Your local IP may be visible to peers, trackers and STUN services.",
   "@bindAdapterHint": {
-    "description": "Hint under the controls (React BindInterfaceField.tsx .bind-interface-hint)"
+    "description": "Visible VPN bypass and local IP exposure warning"
   },
   "bindAdapterReadError": "Could not read network state",
   "@bindAdapterReadError": {
@@ -1744,5 +1744,29 @@
   "deviceLinkStepShow": "Show QR",
   "deviceLinkStepRead": "Read QR",
   "deviceLinkStepApprove": "Confirm code",
-  "deviceLinkStepFinish": "Link devices"
+  "deviceLinkStepFinish": "Link devices",
+  "settingsDiscoveryTitle": "Automatic discovery",
+  "settingsDiscoveryBody": "Mosh finds peers automatically. There are no addresses or ports to configure.",
+  "settingsDiscoveryHint": "Discovery uses public trackers, which can see network metadata.",
+  "settingsDiscoveryDetailsTitle": "How it works",
+  "settingsDiscoveryDetails": "Moss discovers peers and establishes a route automatically. If a VPN interferes, choose a physical network adapter below. Connection details are available in each chat.",
+  "settingsVpnTitle": "If a VPN gets in the way",
+  "settingsVpnSummary": "Choose an adapter to route Mosh around a VPN.",
+  "settingsConnectionDiagnosticsSummary": "Local Moss library availability and version.",
+  "settingsConnectionDiagnosticsHint": "These are local engine details. Check each chat for its connection status and route.",
+  "settingsConnectionDiagnosticsLoading": "Reading engine details…",
+  "settingsConnectionDiagnosticsError": "Could not read engine details. Try refreshing.",
+  "settingsMossAvailability": "Moss library",
+  "settingsMossAvailable": "Available",
+  "settingsMossUnavailable": "Unavailable",
+  "settingsMossLibraryName": "Library file",
+  "settingsMossLinkMode": "Library loading",
+  "bindAdapterAutoRestart": "Mosh restarts after applying or clearing this choice.",
+  "bindAdapterManualRestart": "After saving, close Mosh completely and open it again to apply the change.",
+  "bindAdapterRestartNeeded": "Saved. Close Mosh completely and open it again to apply the change.",
+  "bindAdapterRestartError": "Saved, but Mosh could not restart. Close it completely and open it again.",
+  "bindAdapterUnavailable": "{adapter} (unavailable)",
+  "@bindAdapterUnavailable": {
+    "placeholders": {"adapter": {"type": "String"}}
+  }
 }

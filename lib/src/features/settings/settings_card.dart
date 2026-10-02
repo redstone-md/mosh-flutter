@@ -19,25 +19,12 @@ class SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SettingsSurface(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: MoshColors.bg1,
-        border: Border.all(color: MoshColors.line),
-        borderRadius: MoshShapes.composer,
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: MoshColors.mossGlow,
-              borderRadius: MoshShapes.conversationRow,
-            ),
-            child: Icon(icon, color: MoshColors.moss, size: 24),
-          ),
+          SettingsIcon(icon),
           const SizedBox(width: 16),
           Expanded(child: _content(context)),
         ],
@@ -57,5 +44,43 @@ class SettingsCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(hint, style: Theme.of(context).textTheme.bodySmall),
         ],
+      );
+}
+
+/// Shared card material keeps ink, borders and clipping consistent.
+class SettingsSurface extends StatelessWidget {
+  const SettingsSurface({
+    super.key,
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: MoshColors.bg1,
+        shape: const RoundedRectangleBorder(
+            borderRadius: MoshShapes.composer,
+            side: BorderSide(color: MoshColors.line)),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(padding: padding, child: child),
+      );
+}
+
+class SettingsIcon extends StatelessWidget {
+  const SettingsIcon(this.icon, {super.key});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 44,
+        height: 44,
+        decoration: const BoxDecoration(
+            color: MoshColors.mossGlow,
+            borderRadius: MoshShapes.conversationRow),
+        child: Icon(icon, color: MoshColors.moss, size: 24),
       );
 }

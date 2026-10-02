@@ -921,8 +921,8 @@ and Escape return to that list before closing settings. Riverpod remembers
 the last section for the application launch, without writing it to disk. Only
 the wide sidebar restores its content; narrow entries always start at the list.
 
-The first [redesign stage](Features/settings-redesign.md) delivers the frame
-and Sound. Devices, Connection, Privacy and About keep their existing controls
+The [redesign](Features/settings-redesign.md) delivers the frame, Sound,
+Devices and Connection. Privacy and About keep their existing presentation
 until their individual redesign stages. Settings use the existing titlebar's
 brand variant; conversation status remains owned by the hidden chat shell.
 
@@ -933,13 +933,14 @@ flowchart TD
     Screen --> Voice["Sound"]
     Screen --> Devices["Devices: device-link provider"]
     Screen --> Conn["Connection"]
-    Screen --> Privacy["Privacy: crash-reporting consent"]
+    Screen --> Privacy["Privacy: crash reporting + read receipts"]
     Screen --> About["About"]
     Voice --> Input["mic picker: record listInputDevices"]
     Voice --> Output["speaker picker: mosh-core list_output_devices"]
     Voice --> Test["RingtonePlayer: native CPAL binding"]
-    Conn --> InviteFlow["inviteFlowProvider: staticPeer / listenPort"]
-    Conn --> Bind["BindInterfaceField + ReadReceiptsToggle"]
+    Conn --> Discovery["Automatic discovery"]
+    Conn --> Bind["Lazy BindInterfaceField: saved adapter + restart"]
+    Conn --> Diagnostics["Lazy nativeRuntimeStatus + mossLibraryInfo"]
     Output --> Store["audio-devices.json (data dir)"]
     Input --> Store
     Store -->|resolve at start| Playback["call playback / ringtone (cpal)"]
@@ -952,8 +953,11 @@ pick is consumed by Dart — `RecordConfig.device` into `record`'s capture
 paths (call capture and the voice composer); the output pick resolves
 inside mosh-core at stream start (`resolve_output_device`), where an
 unknown or unplugged id degrades to the system default with a log line,
-never a failed call. The advanced connection controls moved here from the
-onboarding menu's Advanced disclosure, which no longer exists.
+never a failed call. The onboarding Advanced disclosure no longer exists.
+Connection has no editable host/port fields. Its VPN override and library
+diagnostics mount on first expansion. Saved adapter choices require a restart;
+Windows relaunches automatically, other platforms show manual instructions.
+Read receipts live in Privacy.
 
 Audio selectors keep disconnected saved devices visible without overwriting
 the preference. Enumeration errors offer retry and the system default. A
