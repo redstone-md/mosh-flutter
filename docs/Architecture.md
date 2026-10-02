@@ -921,10 +921,10 @@ and Escape return to that list before closing settings. Riverpod remembers
 the last section for the application launch, without writing it to disk. Only
 the wide sidebar restores its content; narrow entries always start at the list.
 
-The [redesign](Features/settings-redesign.md) delivers the frame, Sound,
-Devices, Connection and Privacy. About keeps its existing presentation until
-its redesign stage. Settings use the existing titlebar's
-brand variant; conversation status remains owned by the hidden chat shell.
+The [redesign](Features/settings-redesign.md) delivers the frame and all five
+sections: Sound, Devices, Connection, Privacy and About. Settings use the
+existing titlebar's brand variant; conversation status remains owned by the
+hidden chat shell.
 
 ```mermaid
 flowchart TD
@@ -982,6 +982,15 @@ The native stack-memory caveat stays visible outside report details. Short
 summaries move below switch rows in narrow or enlarged-text layouts; a stable
 Flexible child keeps switch state alive when the card header changes direction.
 A build without reporting availability disables only the crash-report switch.
+
+About reads the installed package version and build number using the existing
+package_info_plus plugin, behind a feature-local auto-disposed FutureProvider.
+Loading and unavailable states stay in the version row; leaving and returning
+retries a failed read. A separately keyed disclosure explains Moss discovery
+and metadata limits without affecting section scroll. The always-visible
+summary distinguishes OpenMLS private chats/groups from public channels
+without end-to-end encryption. This is product information, not a runtime
+security indicator or connectivity status.
 
 Audio selectors keep disconnected saved devices visible without overwriting
 the preference. Enumeration errors offer retry and the system default. A

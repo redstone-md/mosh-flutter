@@ -264,10 +264,25 @@
   "@cryptoNoticeTitle": {
     "description": "Lock tooltip in the chat header, and the title of the end-to-end encryption notice"
   },
-  "cryptoNoticeBody": "OpenMLS protects the content of your messages. Moss carries encrypted text through a network of nodes.",
+  "cryptoNoticeBody": "Personal chats and private groups use OpenMLS end-to-end encryption. Public channels do not use end-to-end encryption.",
   "@cryptoNoticeBody": {
-    "description": "Body of the end-to-end encryption notice (onboarding About card)"
+    "description": "Always-visible About summary distinguishing private conversations from public channels"
   },
+  "settingsAboutVersion": "Version {version}",
+  "@settingsAboutVersion": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "settingsAboutVersionBuild": "Version {version} · build {buildNumber}",
+  "@settingsAboutVersionBuild": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "buildNumber": { "type": "String" }
+    }
+  },
+  "settingsAboutVersionLoading": "Reading version…",
+  "settingsAboutVersionUnavailable": "Version unavailable",
+  "settingsAboutProtectionDetailsTitle": "More about protection",
+  "settingsAboutProtectionDetails": "Moss delivers messages through a network of nodes. Participants in public channels can read their messages. Discovery uses public trackers and network nodes, so it does not hide peer addresses or connection metadata. Encrypting private message content does not make connections anonymous.",
   "groupCreateCardTitle": "Create private group",
   "@groupCreateCardTitle": {
     "description": "Title of the create-group card"
