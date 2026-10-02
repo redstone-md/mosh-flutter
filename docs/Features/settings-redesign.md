@@ -279,6 +279,12 @@ Switch hover correction: the shared theme keeps enabled, selected thumbs in
 which matches the green track in Mosh. No tests added or run for this small
 color fix, as requested; formatting and Flutter analysis are checked.
 
+Adapter refresh retains the last loaded controls while the request is pending,
+so the VPN card does not collapse and reopen. The picker, refresh button and
+switch are disabled until completion. Errors remain visible during retry and
+clear on success; a failed read still marks the state unknown. This small UI
+fix follows the same requested no-tests scope; format and analysis are checked.
+
 ## Changed files
 
 - `lib/src/features/settings/`: `settings_screen.dart`,
