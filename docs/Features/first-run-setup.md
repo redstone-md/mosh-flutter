@@ -40,6 +40,14 @@ different Mosh user. See [device linking](device-linking.md).
 The existing network settings save a physical adapter choice. The running node
 applies it after restart; Windows offers app relaunch. A global VPN prompt can
 appear above any route and must be coordinated with the wizard's network step.
+Automatic VPN/default-route detection currently works on Windows only. Other
+platforms must not claim that a VPN was detected; they require a manual app
+restart to apply a changed adapter.
+
+Reading the device-link snapshot starts Moss, even on a fresh installation, so
+the network step cannot claim that a saved adapter is already active. Existing
+conversation reads must succeed before an installation is classified as empty.
+Preserve restored joining and committed delivery states.
 
 ## Open decisions
 
