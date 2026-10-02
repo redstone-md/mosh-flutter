@@ -2,14 +2,15 @@
 /// persisted on the Rust side (read-receipts.json in the data dir).
 ///
 /// Off by default and symmetric — a user who does not send receipts does
-/// not see others' — so the row carries the contract in its subtitle and
-/// needs no confirmation dialog. Mounted in the Privacy settings section.
+/// not see others'. The card explains reciprocity in its details and needs
+/// no confirmation dialog. Mounted in the Privacy settings section.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/settings/settings_toggle_card.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart';
 import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 
@@ -29,11 +30,17 @@ class ReadReceiptsToggle extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final BridgeFacade facade = bridge ?? ref.read(bridgeFacadeProvider);
-    return AsyncSwitchTile(
-      title: l.settingsReadReceiptsTitle,
-      subtitle: l.settingsReadReceiptsSubtitle,
-      read: facade.readReceiptsEnabled,
-      write: (enabled) => facade.setReadReceiptsEnabled(enabled: enabled),
+    return SettingsToggleCard(
+      key: const PageStorageKey('privacy-read-receipt-details'),
+      icon: Icons.done_all,
+      detailsTitle: l.settingsReadReceiptsDetailsTitle,
+      details: l.settingsReadReceiptsDetails,
+      toggle: AsyncSwitchTile(
+        title: l.settingsReadReceiptsTitle,
+        subtitle: l.settingsReadReceiptsSubtitle,
+        read: facade.readReceiptsEnabled,
+        write: (enabled) => facade.setReadReceiptsEnabled(enabled: enabled),
+      ),
     );
   }
 }

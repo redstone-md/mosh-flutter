@@ -2,8 +2,8 @@
 
 The [approved plan](../Proposals/settings-redesign.plan.md) is delivered on
 `feat/settings-redesign`, one screen per local development-build review.
-The settings frame, Sound, Devices and Connection are implemented. Privacy
-and About retain their existing presentation until their redesign stages.
+The settings frame, Sound, Devices, Connection and Privacy are implemented.
+About retains its existing presentation until its redesign stage.
 Read receipts have moved to Privacy.
 
 ## Navigation
@@ -284,6 +284,55 @@ so the VPN card does not collapse and reopen. The picker, refresh button and
 switch are disabled until completion. Errors remain visible during retry and
 clear on success; a failed read still marks the state unknown. This small UI
 fix follows the same requested no-tests scope; format and analysis are checked.
+
+## Privacy
+
+Privacy presents crash reporting and read receipts as two opt-in cards using
+the existing settings surfaces, icon plates and async switch. Short summaries
+include the default-off behavior. Material ExpansionTile owns keyboard and
+expanded-state semantics for the longer explanations; each card has its own
+PageStorage key, independent of the section's scroll offset.
+
+The native stack-memory warning is outside the disclosure and remains visible
+when report details are closed. The text distinguishes scrubbed report
+metadata from native memory, which bypasses the scrubber (ADR 0035). A build
+without a reporting destination keeps the crash-report switch disabled and
+explains its availability. Read receipts keep their independent bridge write
+and mutual-receipt rule.
+
+The shared card adapts its icon/toggle header to narrow windows and enlarged
+text. It keeps the same Flexible child across layouts so a resize during a
+pending write cannot recreate the switch or trigger another consent read.
+Long summaries move below the switch row at narrow content widths. Errors
+use theme text styles and a live semantics region. Consent, SDK lifecycle,
+default values, write guards and rollback are unchanged.
+The shared switch theme uses fg2 for an enabled, off thumb so it remains
+distinct from the dark track; selected thumbs retain mossInk.
+
+Widget checks use the real CrashReporting controller with ScriptableBridge
+storage and a local SDK in test/support/privacy.dart. They cover missing
+reporting availability, pending/failed reads, SDK-start rollback, independent
+receipt writes and failures, disclosure independence, saved receipt state,
+section scroll/expansion return, resize during a write, and Russian at 390px
+and 320px with doubled text.
+Card/tile widget trees and test registration use the existing declarative-tree
+exception; interaction bodies and handlers remain below 50 lines.
+
+Privacy verification: formatting is clean across 447 Dart files; Flutter
+analysis reports no issues. The full suite passes 1067 tests with five existing
+native-library skips. Changed production executable lines are 77/77 (100%);
+changed branches are 16/16 (100%), intersecting LCOV with added/modified Dart
+lines. The Android arm64 debug APK builds. Production-themed captures were
+inspected at 1200×800, 390×844 and 320×844 with doubled text, including on,
+off, unavailable and expanded states. Native device behavior and delivery to
+Sentry remain for runtime review; widget checks substitute local SDK callbacks.
+
+Privacy changes settings_content.dart, adds privacy_settings_section.dart and
+settings_toggle_card.dart, and updates crash_reporting_toggle.dart,
+read_receipts_toggle.dart, async_switch_tile.dart, mosh_theme.dart and both ARB
+files. Tests live in privacy_settings_section_test.dart and test/support/privacy.dart.
+The architecture map, ADR 0035 and this guide describe the result. No native
+API, storage schema, dependency or reporting data flow changes.
 
 ## Changed files
 

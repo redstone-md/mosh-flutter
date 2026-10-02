@@ -64,8 +64,8 @@ ingest request itself carries the client's IP.
 
 - A native crash (segfault in Rust or FFI) is captured by the native SDK
   while reporting is on, and its minidump bypasses `beforeSend`: it carries
-  thread stack memory, which can hold fragments of in-memory data. The switch
-  subtitle says so.
+  thread stack memory, which can hold fragments of in-memory data. The Privacy
+  card keeps this warning visible outside the collapsible report details.
 - Crashes while reporting is off are not recorded for later sending.
 - A release built without the token (a fork) reports Rust frames as
   addresses. moss is stripped Go (`-s -w`), so its native frames stay

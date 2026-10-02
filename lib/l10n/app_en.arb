@@ -1601,10 +1601,12 @@
   "@settingsReadReceiptsTitle": {
     "description": "Settings row title for the app-level read-receipts toggle (one answer for every DM)"
   },
-  "settingsReadReceiptsSubtitle": "When on, you tell your DM counterparts when you open the conversation — and see theirs. Off by default; a user who does not send receipts does not see others'.",
+  "settingsReadReceiptsSubtitle": "Share when you read a personal chat and see your counterpart's receipts. Off by default.",
   "@settingsReadReceiptsSubtitle": {
-    "description": "Settings row body for the read-receipts toggle; explains the symmetric default-off contract"
+    "description": "Short summary beside the read-receipts switch, including its default-off state"
   },
+  "settingsReadReceiptsDetailsTitle": "How it works",
+  "settingsReadReceiptsDetails": "You send a receipt when you open a personal chat. Receipts are mutual: if you do not send them, you do not see others' receipts.",
   "settingsSectionDevices": "Devices",
   "deviceLinkUserId": "Mosh user",
   "deviceLinkThisDevice": "This device",
@@ -1672,9 +1674,15 @@
   "@settingsCrashReportsTitle": {
     "description": "Title of the opt-in crash-reporting switch"
   },
-  "settingsCrashReportsSubtitle": "Off by default. When on, crashes and errors go to Sentry: stack traces, error types, app version and OS. Never messages, contacts, keys, invites or IP addresses; ids are replaced by hashes. A native crash report also includes a snapshot of thread stack memory.",
+  "settingsCrashReportsSubtitle": "Help fix errors in Mosh. Off by default.",
   "@settingsCrashReportsSubtitle": {
-    "description": "What the crash-reporting switch sends and never sends (ADR 0035)"
+    "description": "Short summary beside the opt-in crash-reporting switch"
+  },
+  "settingsCrashReportsDetailsTitle": "What is sent",
+  "settingsCrashReportsDetails": "Reports go to Sentry and contain stack traces, error types, the Mosh version and OS. Report metadata excludes messages, contacts, keys, invites and IP addresses; identifiers are replaced by hashes.",
+  "settingsCrashReportsNativeWarning": "Native crash reports can include thread stack memory with fragments of in-memory data. This memory is not scrubbed.",
+  "@settingsCrashReportsNativeWarning": {
+    "description": "Always-visible native minidump caveat outside the report-details disclosure (ADR 0035)"
   },
   "settingsCrashReportsUnavailable": "This build cannot send crash reports.",
   "@settingsCrashReportsUnavailable": {

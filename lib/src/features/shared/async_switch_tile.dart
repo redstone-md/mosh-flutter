@@ -78,37 +78,50 @@ class _AsyncSwitchTileState extends State<AsyncSwitchTile> {
 
   @override
   Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
     // Settings cards paint their own background, so the tile gets a
     // transparent Material of its own — ListTile's ink splashes would
     // otherwise be invisible under it.
-    return Material(
-      type: MaterialType.transparency,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text(widget.title),
-            subtitle: Text(
-              widget.subtitle,
-              style: const TextStyle(fontSize: 11.5, height: 1.5),
-            ),
-            value: _value ?? false,
-            onChanged:
-                widget.enabled && _value != null && !_writing ? _set : null,
-          ),
-          if (_error != null)
-            Text(
-              _error!,
-              style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(context).colorScheme.error,
+    return LayoutBuilder(builder: (context, constraints) {
+      final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+      final separateSummary = constraints.maxWidth < 360 * textScale;
+      return Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _tile(context, separateSummary),
+            if (separateSummary)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(widget.subtitle, style: text.bodySmall),
               ),
-            ),
-        ],
-      ),
-    );
+            if (_error != null)
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  _error!,
+                  style: text.bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
+        ),
+      );
+    });
   }
+
+  Widget _tile(BuildContext context, bool separateSummary) => SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        title:
+            Text(widget.title, style: Theme.of(context).textTheme.titleMedium),
+        subtitle: separateSummary
+            ? null
+            : Text(widget.subtitle,
+                style: Theme.of(context).textTheme.bodySmall),
+        value: _value ?? false,
+        onChanged: widget.enabled && _value != null && !_writing ? _set : null,
+      );
 }
