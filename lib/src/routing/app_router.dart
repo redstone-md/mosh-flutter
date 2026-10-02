@@ -84,13 +84,12 @@ class AppRoutes {
 /// only declarative route -> screen mappings. `MoshApp` passes it to
 /// `MaterialApp.router` (which preserves locale/theme/localization wiring).
 final GoRouter appRouter = GoRouter(
-  // App opens directly inside the StatefulShellRoute (mosh_shell.dart):
+  // After FirstRunGate finishes, the app opens the StatefulShellRoute:
   // branch A (/sessions, the SessionRail) on the left and branch B
   // (/chat, ChatPaneWelcome with the inline NewSessionPanel) on the right
-  // on desktop, branch A alone on mobile -- no onboarding gate. The `/`
-  // onboarding route (OnboardingScreen with its tiles + the AppBar
-  // diagnostics action) remains reachable by navigation -- it is just no
-  // longer the initial location.
+  // on desktop, branch A alone on mobile. MoshApp defers mounting this
+  // router during first-run setup while retaining an incoming invite.
+  // The `/` conversation-launcher route remains reachable by navigation.
   initialLocation: AppRoutes.sessions,
   routes: <RouteBase>[
     GoRoute(
