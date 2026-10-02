@@ -986,11 +986,9 @@ A build without reporting availability disables only the crash-report switch.
 About reads the installed package version and build number using the existing
 package_info_plus plugin, behind a feature-local auto-disposed FutureProvider.
 Loading and unavailable states stay in the version row; leaving and returning
-retries a failed read. A separately keyed disclosure explains Moss discovery
-and metadata limits without affecting section scroll. The always-visible
-summary distinguishes OpenMLS private chats/groups from public channels
-without end-to-end encryption. This is product information, not a runtime
-security indicator or connectivity status.
+retries a failed read. The card shows a short explanation of Moss delivery and
+public-tracker discovery directly below the summary of OpenMLS private
+chats/groups versus public channels without end-to-end encryption.
 
 Audio selectors keep disconnected saved devices visible without overwriting
 the preference. Enumeration errors offer retry and the system default. A

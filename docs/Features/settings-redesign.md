@@ -345,16 +345,16 @@ unavailable. The provider auto-disposes on leaving About, letting a failed read
 retry on return. Successful package reads retain the plugin's own cache.
 
 The short protection summary explicitly distinguishes OpenMLS private chats
-and groups from public channels without end-to-end encryption. Longer Moss
-delivery and public-discovery metadata limits live in a Material ExpansionTile
-with its own PageStorage key. It preserves expansion independently of the
-section scroll position. Brand and version remain outside this disclosure.
+and groups from public channels without end-to-end encryption. Per the local
+copy review, a short explanation of Moss delivery and public-tracker discovery
+is visible directly in the card. The redundant public-channel sentence and
+separate anonymity warning were removed along with the protection disclosure.
 No global security/connectivity status, licence, changelog or updater action
 is introduced. Existing theme text, card padding and shapes wrap on phones
 and enlarged text. Declarative widget-tree nesting uses the existing exception;
 methods and interaction test bodies remain below 50 lines.
 
-About verification: formatting is clean across 449 Dart files and Flutter
+Initial About verification: formatting is clean across 449 Dart files and Flutter
 analysis reports no issues. The full suite passes 1076 tests with five existing
 native-library skips. Changed production executable lines are 35/35 (100%);
 changed branches are 9/9 (100%), intersecting LCOV with added/modified Dart
@@ -365,6 +365,15 @@ inspected at 1200×800, 390×844 and 320×844 with doubled text, including loade
 loading, unavailable and expanded states. Physical Windows/Android review
 remains separate from widget layout verification. The Android arm64 debug APK
 builds successfully.
+
+Copy-review follow-up removes the protection disclosure and its unused
+localization entries. Its obsolete expansion/scroll test is removed; the
+remaining eight About checks retain version/lifecycle/retry and narrow-layout
+coverage with the direct network paragraph. Formatting across 449 Dart files
+and analysis are clean. The full suite passes 1075 tests with five existing
+native-library skips. The one changed executable Dart line is covered;
+changed branch coverage is not applicable. Updated captures were inspected at
+1200px, 390px and 320px with doubled text.
 
 Changed files are about_settings_section.dart, app_package_info_provider.dart,
 both localization ARBs and about_settings_section_test.dart. The plan,

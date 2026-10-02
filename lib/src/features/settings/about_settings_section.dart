@@ -23,21 +23,8 @@ class AboutSettingsSection extends ConsumerWidget {
           _identity(context, l, info),
           const SizedBox(height: 20),
           Text(l.cryptoNoticeBody, style: text.bodySmall),
-          const SizedBox(height: 8),
-          ExpansionTile(
-            key: const PageStorageKey('about-protection-details'),
-            title: Text(l.settingsAboutProtectionDetailsTitle,
-                style: text.bodySmall),
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: const EdgeInsets.only(bottom: 4),
-            minTileHeight: 44,
-            visualDensity: VisualDensity.standard,
-            shape: const Border(),
-            collapsedShape: const Border(),
-            children: [
-              Text(l.settingsAboutProtectionDetails, style: text.bodySmall),
-            ],
-          ),
+          const SizedBox(height: 12),
+          Text(l.settingsAboutNetworkBody, style: text.bodySmall),
         ],
       ),
     );
