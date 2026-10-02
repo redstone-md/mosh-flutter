@@ -57,6 +57,17 @@ impl Installation {
         consent.index = index.unwrap_or(consent.index);
         vpn_consent::save(&dir, &consent).unwrap();
     }
+
+    fn save_unavailable_adapter(&self) {
+        vpn_consent::save(
+            &self.dir.join("mosh"),
+            &vpn_consent::VpnBypassConsent {
+                interface: "unavailable-adapter".into(),
+                index: u32::MAX,
+            },
+        )
+        .unwrap();
+    }
 }
 
 impl Drop for Installation {
@@ -66,6 +77,7 @@ impl Drop for Installation {
 }
 
 #[test]
+#[ignore = "requires a connected physical IPv4 adapter; run locally with --ignored"]
 fn saved_bypass_survives_process_restart() {
     let installation = Installation::new();
     installation.launch("enable");
@@ -75,6 +87,7 @@ fn saved_bypass_survives_process_restart() {
 }
 
 #[test]
+#[ignore = "requires a connected physical IPv4 adapter; run locally with --ignored"]
 fn a_renamed_saved_adapter_resolves_by_its_index_at_startup() {
     let installation = Installation::new();
     installation.launch("enable");
@@ -85,12 +98,12 @@ fn a_renamed_saved_adapter_resolves_by_its_index_at_startup() {
 #[test]
 fn an_unavailable_saved_adapter_does_not_prevent_real_moss_startup() {
     let installation = Installation::new();
-    installation.launch("enable");
-    installation.rewrite_adapter("unavailable-adapter", Some(u32::MAX));
+    installation.save_unavailable_adapter();
     installation.launch("unavailable");
 }
 
 #[test]
+#[ignore = "requires a connected physical IPv4 adapter; run locally with --ignored"]
 fn an_explicit_process_override_takes_precedence_over_saved_consent() {
     let installation = Installation::new();
     installation.launch("enable");
@@ -194,6 +207,7 @@ fn disable_after_start() {
 }
 
 fn assert_manual_override() {
+    assert!(vpn::get_vpn_bypass_consent().is_some());
     let manual = "explicit-process-override".to_string();
     moss_ffi::set_bind_interface(Some(manual.clone()));
     shared_runtime::ensure_shared_resources().unwrap();

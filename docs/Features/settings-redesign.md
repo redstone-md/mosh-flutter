@@ -289,6 +289,12 @@ VPN restart correction:
   an unbound new node. The native checks launch independent processes against
   the same private data directory and exercise enable/restart/disable/restart,
   renamed/unavailable adapters and explicit overrides using real Moss.
+- The three checks that enable a physical adapter require local hardware and
+  are explicitly ignored by default. Run them with
+  `node scripts/moss-test.mjs --test vpn_bypass_restart -- --ignored --skip restart_worker`.
+  Virtual CI runners still exercise unavailable saved adapters
+  with persisted consent and independent processes, without requiring
+  a physical NIC. The ordinary consent resolver tests cover name/index lookup.
 - No bridge signatures, settings schema or dependencies changed. Actual
   Windows process relaunch and routing through a physical VPN remain local
   development-build checks.
