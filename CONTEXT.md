@@ -2,6 +2,12 @@
 
 Glossary of domain terms. Definitions only — no implementation details.
 
+## First-run setup
+
+The initial Mosh setup presented once on a new installation before entering
+conversations. It covers the user's name, device linking and network preferences.
+_Avoid_: onboarding menu, conversation launcher.
+
 ## Organization (org)
 
 A signed membership document (roster), not a server or infrastructure. An
