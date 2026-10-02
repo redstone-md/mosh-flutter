@@ -99,6 +99,24 @@ void main() {
     expect(find.text('No connected physical adapter found.'), findsOneWidget);
   });
 
+  testWidgets('returning to Connection shows the saved bypass switch on',
+      (tester) async {
+    final bridge = ScriptableBridge()
+      ..seedBindInterface('Ethernet')
+      ..seedInterfaces([_iface('Ethernet', '192.168.1.5')]);
+    await _pump(tester, bridge: bridge);
+    await _tap(tester, 'If a VPN gets in the way');
+    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+        isTrue);
+    await _tap(tester, 'About');
+    await _tap(tester, 'Connection');
+    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+        isTrue);
+    expect(find.text('On'), findsOneWidget);
+    expect(bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Connection restores scroll offset alongside open disclosures',
       (tester) async {
     await _pump(tester, height: 400);

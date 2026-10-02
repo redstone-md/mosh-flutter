@@ -34,8 +34,9 @@ connectivity.
 3. Connection: collapsible VPN adapter controls. Remove manual host/port and
    incoming-port fields. The user's screen review removes discovery and
    diagnostics/status cards; automatic discovery continues without controls,
-   and version information stays in About. Use neutral outlined Apply/Reset
-   buttons and a refresh icon beside the adapter selector.
+   and version information stays in About. The user's follow-up replaces
+   Apply/Reset with a VPN bypass switch and explicit saved on/off state.
+   Keep the refresh icon beside the adapter selector and existing relaunch.
 4. Privacy: crash reporting and read receipts, both off by default. Explain
    the native minidump memory caveat and preserve consent/error handling.
 5. About: actual build version and accurate private-chat/group versus public

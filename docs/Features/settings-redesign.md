@@ -56,8 +56,8 @@ field stays compact. Scrollable menus and sheets keep larger lists bounded.
 Material owns keyboard navigation, overlay positioning, dismissal and focus
 return. Closing the sheet applies nothing; choosing System default still
 applies the real nullable value. The field displays the persisted selection,
-including after a failed save. Adapter selection stays local until Apply is
-pressed. No dependency or native contract changes are required.
+including after a failed save. Adapter selection stays local until the VPN
+bypass switch is enabled. No dependency or native contract changes are required.
 
 Interaction tests cover desktop placement/current-choice indication, keyboard
 selection and Escape, mobile dismissal, nullable choices, unavailable devices,
@@ -153,10 +153,13 @@ The VPN card loads its controls on first expansion and retains local state
 when collapsed. It reuses the Sound card's material, icon badge and
 adaptive selector. The adapter form uses the existing interface inventory,
 physical-adapter filter and consent write. Choosing a name remains local until
-Apply is pressed; Reset clears the stored override, including when the saved
-adapter has disappeared. Both actions use neutral outlined buttons. A refresh
-icon beside the selector replaces the separate text action and retains its
-tooltip and 44px target. Selecting another adapter requires resetting the
+the VPN bypass switch is enabled. Disabling the switch clears the stored
+override, including when the saved adapter has disappeared. Explicit On/Off
+text accompanies the switch, derived from the saved adapter rather than an
+assumption about a running node. Loading and read failures show their own state
+and disable changes; pending writes disable repeat taps. A failed write leaves
+the previous switch value intact. A refresh icon beside the selector retains
+its tooltip and 44px target. Selecting another adapter requires disabling the
 existing override first, as before.
 
 The LAN IP and VPN bypass warning stays beside the controls. A saved adapter is
@@ -181,7 +184,8 @@ opening, choosing, scrolling, leaving and returning alongside section scroll
 restoration and narrow Back navigation.
 
 New production files remain below 200 lines. Adapter presentation is split
-into the picker row, selector and action; each method remains below 50 lines.
+into the switch, picker row, selector and refresh control; methods remain
+below 50 lines.
 Declarative widget nesting uses the existing settings exception.
 
 Initial Connection verification on 2026-10-02:
@@ -228,6 +232,21 @@ Adapter-menu and button review follow-up:
   APK builds successfully. Windows relaunch and physical VPN routing still
   need the user's local development-build review.
 
+VPN switch follow-up:
+
+- Replaced Apply/Reset with the saved-state VPN bypass switch and explicit
+  On/Off text. Loading and unknown states disable it; failed writes preserve
+  the prior value. The existing successful-write relaunch remains in use.
+- Widget checks cover both directions, saved state after section return,
+  loading/read failure, duplicate taps, unavailable adapters and failed
+  writes/relaunch. Full Flutter suite: 1053 passed, five existing native-library
+  skips. Analysis and formatting are clean. Changed executable lines: 38/38;
+  changed branches: 10/10, against `96282bb`.
+- Both switch states were inspected in the production UI at 1200×800 and
+  390×844. The Android arm64 debug APK builds successfully.
+  Windows relaunch and physical VPN routing require local review;
+  other platforms retain their existing manual-restart behavior.
+
 ## Changed files
 
 - `lib/src/features/settings/`: `settings_screen.dart`,
@@ -258,6 +277,6 @@ It updates `connection_settings_section.dart`,
 `settings_card.dart`, `settings_content.dart`, `bind_interface_field.dart`,
 `read_receipts_toggle.dart`, `desktop_app_relauncher.dart` and both ARB files.
 Tests cover lazy adapter reads, collapse preservation, section reopening,
-scroll preservation, loading/error/retry, unavailable adapters, repeated apply/release, restart
+scroll preservation, loading/error/retry, unavailable adapters, repeated switching, restart
 failure, disposal during a write, the receipt's Privacy write path and 320px
 layout with doubled text.

@@ -961,8 +961,11 @@ continues without a settings card. Version information stays in About.
 Stable disclosure storage keys keep expansion state separate from the section's
 scroll offset and restore open controls on return. Each shared selector owns a
 PageStorage bucket, so its desktop popup cannot read or overwrite the enclosing
-disclosure's boolean state. Apply and Reset use neutral outlined buttons;
-refreshing the interface list uses an icon beside the selector.
+disclosure's boolean state. The VPN bypass switch reads the saved adapter:
+enabling saves the selected name, disabling clears it, and successful writes
+invoke the existing relauncher. Loading, unknown state and pending writes
+disable the switch; failed writes preserve its prior value. Refreshing the
+interface list uses an icon beside the selector.
 
 Audio selectors keep disconnected saved devices visible without overwriting
 the preference. Enumeration errors offer retry and the system default. A

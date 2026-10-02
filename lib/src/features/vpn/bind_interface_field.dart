@@ -33,6 +33,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
   String? _current;
   String _picked = '';
   bool _loading = true;
+  bool _stateKnown = false;
   bool _busy = false;
   bool _needsRestart = false;
   String? _error;
@@ -46,6 +47,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
   Future<void> _refresh() async {
     setState(() {
       _loading = true;
+      _stateKnown = false;
       _error = null;
     });
     try {
@@ -58,6 +60,7 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
       final bind = results[1] as String?;
       setState(() {
         _interfaces = list;
+        _stateKnown = true;
         _current = bind != null && bind.isNotEmpty ? bind : null;
         _picked = _current ?? defaultBypassAdapter(list);
       });
@@ -68,8 +71,8 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
     }
   }
 
-  Future<void> _apply() async {
-    final value = _current != null ? null : _picked;
+  Future<void> _setEnabled(bool enabled) async {
+    final value = enabled ? _picked : null;
     var saved = false;
     setState(() {
       _busy = true;
@@ -104,12 +107,13 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
         current: _current,
         picked: _picked,
         loading: _loading,
+        stateKnown: _stateKnown,
         busy: _busy,
         error: _error,
         needsRestart: _needsRestart,
         canRelaunch: widget.canRelaunch,
         onPick: (value) => setState(() => _picked = value),
-        onApply: _apply,
+        onToggle: _setEnabled,
         onRefresh: _refresh,
       );
 }
