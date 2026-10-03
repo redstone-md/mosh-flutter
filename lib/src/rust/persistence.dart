@@ -6,9 +6,7 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Runtime status snapshot for the persistence module. Canonical home for the
-/// readiness marker the diagnostics facade reports: backend id, database
-/// path, availability, at-rest encryption flag, and an optional error string.
+/// Persistence readiness reported by diagnostics.
 class PersistenceRuntimeStatus {
   final String backend;
   final String database;
