@@ -15,15 +15,15 @@
 //
 // On mount fetch consent + detectVpn + listNetworkInterfaces -- only ask
 // when `!consent && detection.vpn_owns_default_route`; pick
-// `defaultBypassAdapter(interfaces)`. Accept: `setVpnBypassConsent
+// `defaultBypassAdapter(saved.interfaces)`. Accept: `setVpnBypassConsent
 // (adapter)` + relaunch. Decline: `setVpnBypassConsent(null)` (clears any
 // prior answer) then hide.
 //
-// Flutter port: a `StatefulWidget` that fetches the network state in
+// The modal reads network state in
 // `initState`, renders a scrim `Stack` overlay + a danger-tinted `Dialog`
 // when it should ask, and `SizedBox.shrink()` otherwise (the host places
 // it in a `Stack`). `restartApp` is an injectable callback (`onAccept`)
-// so the modal remains testable. Production supplies the Windows-only
+// through the shared choice workflow. Production supplies the Windows-only
 // desktop relauncher; unsupported platforms use its safe no-op behavior.
 // The dialog uses a danger tint (#e5484d border + icon) + the 440px max
 // width.
@@ -31,13 +31,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'network_choice_provider.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/vpn/bypass_adapter.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
-import 'package:mosh/src/rust/api/vpn.dart' show VpnDetection;
-import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
-import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
 /// The two phases the modal cycles through.
 enum VpnConsentPhase { asking, saving }
@@ -46,7 +45,7 @@ enum VpnConsentPhase { asking, saving }
 ///
 /// Renders a scrim + dialog when it should ask, `SizedBox.shrink()`
 /// otherwise. The host places it in a `Stack` overlay.
-class VpnConsentModal extends StatefulWidget {
+class VpnConsentModal extends ConsumerStatefulWidget {
   const VpnConsentModal({
     super.key,
     required this.bridge,
@@ -70,16 +69,17 @@ class VpnConsentModal extends StatefulWidget {
   final Future<void> Function() onAccept;
 
   @override
-  State<VpnConsentModal> createState() => _VpnConsentModalState();
+  ConsumerState<VpnConsentModal> createState() => _VpnConsentModalState();
 }
 
-class _VpnConsentModalState extends State<VpnConsentModal> {
+class _VpnConsentModalState extends ConsumerState<VpnConsentModal> {
   // Null = still loading the network state; '' = decided not to ask;
   // non-empty = the adapter to suggest.
   String? _adapter;
   bool _loading = true;
   VpnConsentPhase _phase = VpnConsentPhase.asking;
   String? _error;
+  bool _retryRestart = false;
 
   @override
   void initState() {
@@ -93,19 +93,14 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
   Future<void> _loadNetworkState() async {
     String? adapter = '';
     try {
-      final results = await Future.wait([
-        widget.bridge.getVpnBypassConsent(),
-        widget.bridge.detectVpn(),
-        widget.bridge.listInterfaces(),
-      ]);
-      final consent = results[0] as VpnBypassConsent?;
-      final detection = results[1] as VpnDetection;
-      final interfaces = results[2] as List<NetworkInterfaceInfo>;
+      final (saved, vpnOwnsDefaultRoute) = await ref
+          .read(networkChoiceProvider(widget.bridge).notifier)
+          .readPrompt();
       // Only ask when the tunnel actually carries Mosh's traffic.
-      if (consent != null || !detection.vpnOwnsDefaultRoute) {
+      if (saved.adapter != null || !vpnOwnsDefaultRoute) {
         adapter = '';
       } else {
-        final pick = defaultBypassAdapter(interfaces);
+        final pick = defaultBypassAdapter(saved.interfaces);
         adapter = pick.isEmpty ? '' : pick;
       }
     } catch (_) {
@@ -126,17 +121,23 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
       _error = null;
     });
     try {
-      await widget.bridge.setVpnBypassConsent(interfaceName: _adapter);
-      await widget.onAccept();
+      await ref
+          .read(networkChoiceProvider(widget.bridge).notifier)
+          .apply(_adapter, restart: widget.onAccept);
       // onAccept relaunches; if it returns (test), stay saving so the
       // dialog does not flicker back to asking.
     } catch (err) {
       if (!mounted) return;
       setState(() {
         _phase = VpnConsentPhase.asking;
-        _error = err is Exception
-            ? err.toString()
-            : widget.l.vpnConsentErrorFallback;
+        _retryRestart = err is NetworkChoiceError &&
+            err.kind == NetworkChoiceFailure.restart;
+        _error = err is NetworkChoiceError &&
+                err.kind == NetworkChoiceFailure.restart
+            ? widget.l.bindAdapterRestartError
+            : err is NetworkChoiceError && err.cause is Exception
+                ? err.cause.toString()
+                : widget.l.vpnConsentErrorFallback;
       });
     }
   }
@@ -144,7 +145,7 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
   Future<void> _decline() async {
     setState(() => _phase = VpnConsentPhase.saving);
     try {
-      await widget.bridge.setVpnBypassConsent(interfaceName: null);
+      await ref.read(networkChoiceProvider(widget.bridge).notifier).clear();
     } catch (_) {
       // A failed decline clear is not fatal; the modal still hides.
     }
@@ -159,10 +160,16 @@ class _VpnConsentModalState extends State<VpnConsentModal> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_shouldAsk) return const SizedBox.shrink();
+    final choice = ref.watch(networkChoiceProvider(widget.bridge));
+    if (!_shouldAsk ||
+        choice.savedAdapter != null &&
+            _phase == VpnConsentPhase.asking &&
+            !_retryRestart) {
+      return const SizedBox.shrink();
+    }
     final theme = Theme.of(context);
     final danger = const Color(0xFFE5484D);
-    final saving = _phase == VpnConsentPhase.saving;
+    final saving = _phase == VpnConsentPhase.saving || choice.busy;
     return Material(
       type: MaterialType.transparency,
       child: Stack(

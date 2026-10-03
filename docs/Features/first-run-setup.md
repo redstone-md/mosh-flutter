@@ -75,6 +75,12 @@ controller. Native consent and persistence tests still use the real bridge and
 independent Moss nodes. Test fixtures drive refresh explicitly rather than
 starting background timers.
 
+Setup, Connection settings and the later VPN prompt share the network-choice
+workflow. It retains a saved choice after a restart failure, distinguishes
+save and restart errors, and retries restart without another consent write.
+Closing settings retains the restart instruction. Setup completion is still
+saved before restart or the manual-restart dialog.
+
 The existing network settings save a physical adapter choice. The running node
 applies it after restart; Windows offers app relaunch. A global VPN prompt can
 appear above any route on later launches. During the first-run launch, the wizard

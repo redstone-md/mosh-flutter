@@ -3,15 +3,16 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
-import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 
 import 'bind_interface_controls.dart';
 import 'bypass_adapter.dart';
+import 'network_choice_provider.dart';
 
-class BindInterfaceField extends StatefulWidget {
+class BindInterfaceField extends ConsumerStatefulWidget {
   const BindInterfaceField({
     super.key,
     required this.bridge,
@@ -26,17 +27,14 @@ class BindInterfaceField extends StatefulWidget {
   final bool canRelaunch;
 
   @override
-  State<BindInterfaceField> createState() => _BindInterfaceFieldState();
+  ConsumerState<BindInterfaceField> createState() => _BindInterfaceFieldState();
 }
 
-class _BindInterfaceFieldState extends State<BindInterfaceField> {
+class _BindInterfaceFieldState extends ConsumerState<BindInterfaceField> {
   List<NetworkInterfaceInfo> _interfaces = const [];
-  String? _current;
   String _picked = '';
   bool _loading = true;
   bool _stateKnown = false;
-  bool _busy = false;
-  bool _needsRestart = false;
   String? _error;
 
   @override
@@ -50,19 +48,15 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
       _loading = true;
     });
     try {
-      final results = await Future.wait([
-        widget.bridge.listInterfaces(),
-        widget.bridge.getVpnBypassConsent(),
-      ]);
+      final saved = await ref
+          .read(networkChoiceProvider(widget.bridge).notifier)
+          .readSaved();
       if (!mounted) return;
-      final list = results[0] as List<NetworkInterfaceInfo>;
-      final bind = (results[1] as VpnBypassConsent?)?.interface_;
       setState(() {
-        _interfaces = list;
+        _interfaces = saved.interfaces;
         _error = null;
         _stateKnown = true;
-        _current = bind != null && bind.isNotEmpty ? bind : null;
-        _picked = _current ?? defaultBypassAdapter(list);
+        _picked = saved.adapter ?? defaultBypassAdapter(saved.interfaces);
       });
     } catch (_) {
       if (mounted) {
@@ -78,47 +72,42 @@ class _BindInterfaceFieldState extends State<BindInterfaceField> {
 
   Future<void> _setEnabled(bool enabled) async {
     final value = enabled ? _picked : null;
-    var saved = false;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+    setState(() => _error = null);
+    final choice = ref.read(networkChoiceProvider(widget.bridge).notifier);
     try {
-      await widget.bridge.setVpnBypassConsent(interfaceName: value);
-      saved = true;
+      await choice.apply(value, restart: widget.onAccept,
+          complete: (restart) async {
+        if (mounted) {
+          setState(() => _picked = value ?? defaultBypassAdapter(_interfaces));
+        }
+        await restart();
+      });
+    } on NetworkChoiceError catch (error) {
       if (mounted) {
-        setState(() {
-          _current = value;
-          _picked = value ?? defaultBypassAdapter(_interfaces);
-          _needsRestart = true;
-        });
-      }
-      await widget.onAccept();
-    } catch (_) {
-      if (mounted) {
-        setState(() => _error = saved
+        setState(() => _error = error.kind == NetworkChoiceFailure.restart
             ? widget.l.bindAdapterRestartError
             : widget.l.bindAdapterApplyError);
       }
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) => BindInterfaceControls(
-        l: widget.l,
-        interfaces: _interfaces,
-        current: _current,
-        picked: _picked,
-        loading: _loading,
-        stateKnown: _stateKnown,
-        busy: _busy,
-        error: _error,
-        needsRestart: _needsRestart,
-        canRelaunch: widget.canRelaunch,
-        onPick: (value) => setState(() => _picked = value),
-        onToggle: _setEnabled,
-        onRefresh: _refresh,
-      );
+  Widget build(BuildContext context) {
+    final choice = ref.watch(networkChoiceProvider(widget.bridge));
+    return BindInterfaceControls(
+      l: widget.l,
+      interfaces: _interfaces,
+      current: choice.savedAdapter,
+      picked: _picked,
+      loading: _loading,
+      stateKnown: _stateKnown,
+      busy: choice.busy,
+      error: _error,
+      needsRestart: choice.needsRestart,
+      canRelaunch: widget.canRelaunch,
+      onPick: (value) => setState(() => _picked = value),
+      onToggle: _setEnabled,
+      onRefresh: _refresh,
+    );
+  }
 }

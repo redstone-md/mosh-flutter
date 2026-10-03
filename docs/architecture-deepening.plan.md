@@ -42,5 +42,7 @@ this plan and AGENTS.md. Use one atomic Conventional Commit per item.
   writes/dequeue; approved Rust Result contracts; real-store refusal/restart
   regressions. Full native run: 482 passed, 21 intentional skips. Review found
   and fixed post-publication DM file/voice errors; 113 DM tests passed afterward.
-- [ ] Saved network adapter choice
+- [x] Saved network adapter choice: shared durable choice, action ownership,
+  retained restart requirement and separate save/restart errors; 62 focused
+  tests passed, with 99.4% changed-line and 94.6% branch coverage.
 - [ ] Conversation attachments
