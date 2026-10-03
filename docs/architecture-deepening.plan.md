@@ -114,7 +114,7 @@ resolved. Neither axis has a remaining blocking issue.
 
 ## Changed files
 
-73 files relative to `80e3514`.
+73 architecture files at `724b410`, relative to `80e3514`.
 
 - [GLOSSARY.md](../GLOSSARY.md)
 - [docs/ADR/0029-private-desktop-device-linking.md](../docs/ADR/0029-private-desktop-device-linking.md)
