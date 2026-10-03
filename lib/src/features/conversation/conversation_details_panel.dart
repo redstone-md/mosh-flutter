@@ -6,6 +6,8 @@ import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/features/conversation/conversation_shared_file.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/conversation/conversation_details_model.dart';
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show chatHeaderHeight;
 import 'package:mosh/src/features/conversation/conversation_diagnostics_content.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
@@ -38,7 +40,8 @@ class ConversationDetailsPanel extends ConsumerWidget {
       child: Column(
         children: [
           SizedBox(
-            height: 70,
+            // Include the divider in the same height as the chat toolbar.
+            height: chatHeaderHeight(context) - 1,
             child: Row(children: [
               const SizedBox(width: 20),
               Expanded(child: Text(l.chatDetailsTitle)),

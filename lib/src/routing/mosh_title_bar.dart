@@ -3,7 +3,7 @@
 // peer-status button, so the titlebar is NOT mounted on mobile
 // (documented deviation in mosh_shell.dart).
 //
-// Layout: brand (shield icon + strong "MOSH" product name), subtitle,
+// Layout: brand (mesh M logo + strong "MOSH" product name), subtitle,
 // "Peer status" button (opens the PeerStatusDrawer for the active
 // conversation), then the live StatePill for the active conversation. The
 // subtitle and the pill ellipsize (full text in a tooltip); below
@@ -93,7 +93,8 @@ class MoshTitleBar extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     return Row(
       children: <Widget>[
-        const Icon(Icons.verified_user, size: 18, color: MoshColors.moss),
+        Image.asset('assets/branding/mosh-mark.png',
+            width: 18, height: 18, excludeFromSemantics: true),
         const SizedBox(width: 8),
         Text(
           l.shellProductName,

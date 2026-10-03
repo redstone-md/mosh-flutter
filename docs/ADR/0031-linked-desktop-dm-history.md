@@ -149,7 +149,7 @@ repeat delivery and restart. Signed packet tests use real cryptographic keys,
 redb and a real Moss node in an isolated worker process. They refuse outsiders,
 counterparts, unadmitted devices, changed packets, conflicting records and
 stale rosters. Widget tests observe the runtime status notices through
-`test/support/`. Results live in [the plan](../../dm-history-transfer.plan.md).
+`test/support/`. Results live in [the plan](../Archive/dm-history-transfer.plan.md).
 
 The existing runtime, session, contracts and persistence owners retain the
 size exceptions in ADR 0030. History operations live in small feature-local

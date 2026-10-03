@@ -67,7 +67,7 @@ class FingerprintLock extends StatelessWidget {
           child: Padding(
             // Align the inline glyph with the name's first line.
             padding: besideName
-                ? const EdgeInsetsDirectional.fromSTEB(6, 4, 6, 8)
+                ? const EdgeInsets.all(6)
                 : const EdgeInsets.all(_lockTapInset),
             child: Icon(
               Icons.lock,
