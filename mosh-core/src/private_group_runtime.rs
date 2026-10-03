@@ -741,7 +741,11 @@ impl ConversationSession for GroupSession {
         &self,
         persistence: &Persistence,
     ) -> Result<(), crate::persistence::PersistenceError> {
-        persistence.put_group_mls_snapshot(&self.group_id, &self.crypto.snapshot())
+        let record = serde_json::to_vec(&self.to_persisted_record())
+            .map_err(|error| crate::persistence::PersistenceError::Json(error.to_string()))?;
+        // Rejoining can replace the signer while an older record survives a
+        // refused close. The shared writer may repeat this same record safely.
+        persistence.put_group_transition(&self.group_id, &record, &self.crypto.snapshot())
     }
 
     /// Until the MLS group exists the record's group id is an empty

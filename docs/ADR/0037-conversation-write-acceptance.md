@@ -21,6 +21,13 @@ refusal does not prevent other conversations from saving. A refused atomic send
 blocks message-only tail writes for that conversation. Memory-only runtimes
 continue to treat persistence as successful.
 
+Group MLS snapshots and their restoring records share one encrypted redb
+transaction. Rejoining after a refused durable close can replace the local
+signer, so writing its snapshot first would invalidate the retained old record.
+A refused pair write leaves the earlier pair recoverable and remains pending
+for retry. This reuses the atomic writer used by DM device transitions without
+changing public contracts or database tables.
+
 DM send admission first persists the existing Pending state. If admission
 refuses, the attempt becomes Failed and only its failed-status save is retried.
 An uncertain Pending commit replays Failed through existing recovery, so a
@@ -42,7 +49,9 @@ it does not add a generic callback or another ConversationSession method.
 Tests use the encrypted redb store, MLS and real Moss. A test-only reversible
 table-type fault exercises actual write refusal. Checks cover admission,
 repair/reopen, deliberate retry, delivery and MLS settlement, record/tail
-retries and isolation of atomic sends. No production fault interface is added.
+retries and isolation of atomic sends. A real Welcome after a refused close and
+rejoin verifies recovery when either group record or snapshot storage refuses,
+before retrying. No production fault interface is added.
 
 A filesystem I/O failure can poison redb and require reopening the database.
 This decision does not add automatic database reopening. If the process exits
