@@ -6,8 +6,16 @@
 `public/favicon.svg`. Its geometry and colors are unchanged. It has a fixed
 lime background so it stays legible in GitHub's light and dark themes.
 
-The app titlebar uses `assets/branding/mosh-mark.png`, the same landing-page
-mark from `public/apple-touch-icon.png`, with its original pixels preserved.
+The app titlebar uses `assets/branding/mosh-mark.png`, a transparent 1024px
+export of this SVG. The outside corners have zero alpha, with no white matte.
+
+Run `dart run scripts/generate_app_icons.dart` after exporting a new master.
+The script uses the existing `image` dependency to generate the Windows ICO,
+macOS and iOS asset catalogs, and Android launcher images. Windows and macOS
+keep transparent corners; iOS uses a solid lime background for the system's
+icon mask. The macOS icon has padding matching the existing app-icon layout.
+Linux loads the bundled PNG when creating its window. No new dependency is
+required.
 
 ## Desktop screenshot
 
