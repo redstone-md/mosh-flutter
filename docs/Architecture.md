@@ -1022,6 +1022,15 @@ enabling saves the selected name, disabling clears it, and successful writes
 invoke the existing relauncher. Loading, unknown state and pending writes
 disable the switch; failed writes preserve its prior value. Refreshing the
 interface list uses an icon beside the selector.
+Settings, setup and the VPN prompt use `networkChoiceProvider`, scoped to the
+bridge lifetime. `NetworkChoiceController` serializes saving and restarting,
+keeps restart knowledge after the settings widget closes, and returns separate
+save/restart failures. Setup supplies its existing durable completion callback
+before restart. Settings reads only saved consent; setup also reads live binding.
+Prompt reads use current consent after parallel inspection, and obsolete
+controller lifetimes cannot publish state or release a replacement lock.
+Bridge calls begin through `Future.sync` so synchronous native startup errors
+are handled together with asynchronous failures.
 Shared runtime construction restores the saved adapter once, before the Moss
 node starts. It resolves the current name or stored index using the existing
 network inventory. An unavailable adapter or failed enumeration falls back to
