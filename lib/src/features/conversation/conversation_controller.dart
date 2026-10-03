@@ -210,18 +210,20 @@ class ConversationController extends Notifier<ConversationControllerState> {
 
   /// Builds the attachment card's actions for one row. [onOpen] goes back to
   /// the screen, which owns the viewer.
-  ConversationAttachmentCallbacks Function(AttachmentView? view)
-      attachmentCallbacks(
-    void Function(AttachmentDescriptor descriptor, AttachmentView? view) onOpen,
+  ConversationAttachmentCallbacks Function(AttachmentView? view,
+      {required bool own}) attachmentCallbacks(
+    void Function(
+            AttachmentDescriptor descriptor, AttachmentView? view, bool own)
+        onOpen,
   ) =>
-          (view) => ConversationAttachmentCallbacks(
-                busy: state.transferBusy,
-                onDownload: (id) =>
-                    _transferAttachment((g) => _downloadAttachment(g, id)),
-                onCancel: (id) =>
-                    _transferAttachment((g) => _cancelAttachment(g, id)),
-                onOpen: (descriptor) => onOpen(descriptor, view),
-              );
+      (view, {required bool own}) => ConversationAttachmentCallbacks(
+            busy: state.transferBusy,
+            onDownload: (id) =>
+                _transferAttachment((g) => _downloadAttachment(g, id)),
+            onCancel: (id) =>
+                _transferAttachment((g) => _cancelAttachment(g, id)),
+            onOpen: (descriptor) => onOpen(descriptor, view, own),
+          );
 
   /// Starts a transfer and re-reads the conversation when it settles. The
   /// progress shows up in the next poll, so nothing waits on the future; a
@@ -247,10 +249,12 @@ class ConversationController extends Notifier<ConversationControllerState> {
   /// and waits: the screen shows it once [resolvePendingOpen] says so.
   AttachmentOpenIntent openAttachment(
     AttachmentDescriptor descriptor,
-    AttachmentView? view,
-  ) {
-    final decision = ConversationAttachment(descriptor: descriptor, view: view)
-        .openPlan(target);
+    AttachmentView? view, {
+    required bool own,
+  }) {
+    final decision =
+        ConversationAttachment(descriptor: descriptor, view: view, own: own)
+            .openPlan(target);
     if (decision.wait) state = state.copyWith(pendingOpen: descriptor);
     if (decision.download) {
       _transferAttachment(

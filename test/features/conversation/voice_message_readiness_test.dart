@@ -49,12 +49,15 @@ class _RecordingPlayback extends PlatformPlayer {
 }
 
 Future<void> _pumpVoice(WidgetTester tester, Player player,
-        {String? path, AttachmentState state = AttachmentState.offered}) =>
+        {String? path,
+        AttachmentState state = AttachmentState.offered,
+        bool own = false}) =>
     pumpScreen(
         tester,
         Scaffold(
             body: VoiceMessageCard(
                 descriptor: _voice(),
+                own: own,
                 view: testAttachmentView(
                     attachmentId: 'voice', state: state, localPath: path),
                 busy: false,
@@ -64,6 +67,22 @@ Future<void> _pumpVoice(WidgetTester tester, Player player,
                 createPlayer: () => player)));
 
 void main() {
+  testWidgets(
+      'an own voice message still plays once its local file is available',
+      (tester) async {
+    final playback = _RecordingPlayback();
+    final player = Player(platformPlayer: playback);
+    await _pumpVoice(tester, player, own: true);
+    await _pumpVoice(tester, player,
+        own: true, path: '/tmp/voice.m4a', state: AttachmentState.available);
+
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pumpAndSettle();
+
+    expect(playback.events, ['open', 'play']);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'an empty local voice path requests download when play is pressed',
       (tester) async {

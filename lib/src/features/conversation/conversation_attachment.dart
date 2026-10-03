@@ -10,6 +10,8 @@ enum AttachmentTransferAction { download, retryDownload, retry, cancel }
 /// Interprets one attachment for message cards, the file index and opening.
 /// The runtime's failed/cancelled state takes precedence over cached paths.
 class ConversationAttachment {
+  /// [own] carries message ownership when no runtime transfer view exists.
+  /// A supplied view remains authoritative about direction and readiness.
   const ConversationAttachment({
     required this.descriptor,
     AttachmentView? view,

@@ -48,12 +48,14 @@ class VoiceMessageCard extends StatefulWidget {
     required this.onDownload,
     required this.playLabel,
     required this.pauseLabel,
+    this.own = false,
     this.messageFooter,
     this.createPlayer,
   });
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
+  final bool own;
   final bool busy;
   final void Function(String attachmentId) onDownload;
 
@@ -69,8 +71,8 @@ class VoiceMessageCard extends StatefulWidget {
 }
 
 class _VoiceMessageCardState extends State<VoiceMessageCard> {
-  ConversationAttachment get _attachment =>
-      ConversationAttachment(descriptor: widget.descriptor, view: widget.view);
+  ConversationAttachment get _attachment => ConversationAttachment(
+      descriptor: widget.descriptor, view: widget.view, own: widget.own);
   Player? _player;
   bool _playing = false;
   Duration _position = Duration.zero;
@@ -80,7 +82,6 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   // A play request survives download and load failure until playback succeeds.
   bool _playWhenReady = false;
 
-  /// setState only while the state is still alive.
   void _ifMounted(VoidCallback fn) {
     if (mounted) fn();
   }
@@ -114,7 +115,9 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     }
     final newPath = _attachment.localPath;
     final oldPath = ConversationAttachment(
-            descriptor: oldWidget.descriptor, view: oldWidget.view)
+            descriptor: oldWidget.descriptor,
+            view: oldWidget.view,
+            own: oldWidget.own)
         .localPath;
     if (newPath != null && newPath != oldPath) {
       unawaited(_open(newPath));
@@ -157,6 +160,7 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     final player = _player;
     final localPath = _attachment.localPath;
     if (localPath == null) {
+      if (_attachment.outgoing) return;
       _playWhenReady = true;
       _requestDownload();
       return;
@@ -189,23 +193,20 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     final voice = widget.descriptor.voice;
     final durationMs = voice?.durationMs ?? 0;
     final peaks = _peaksFromBase64(voice?.peaksB64);
-    // Progress clamps to 0..1; 0 when duration is unknown.
     final progress = durationMs > 0
         ? (math.min(1.0, _position.inMilliseconds / durationMs))
         : 0.0;
-    // Time shows position while playing/seeked, else the full duration.
     final showMs = (_playing || _position.inMilliseconds > 0)
         ? _position.inMilliseconds
         : durationMs;
     final playLabel = _playing ? widget.pauseLabel : widget.playLabel;
-    // Flat embedded player. The message bubble owns the surrounding surface.
-    final enabled = !(widget.busy && _attachment.localPath == null);
+    final enabled =
+        _attachment.localPath != null || !(widget.busy || _attachment.outgoing);
     return Container(
       constraints: const BoxConstraints(maxWidth: 280),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Centered glyph in a 40px hit target.
           Opacity(
             opacity: enabled ? 1 : 0.65,
             child: PressScale(

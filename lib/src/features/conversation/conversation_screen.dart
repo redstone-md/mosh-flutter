@@ -155,8 +155,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   /// Opens an attachment: in the app for media, in the desktop's own app for
   /// anything else.
-  void _openAttachment(AttachmentDescriptor descriptor, AttachmentView? view) {
-    switch (_controller.openAttachment(descriptor, view)) {
+  void _openAttachment(
+      AttachmentDescriptor descriptor, AttachmentView? view, bool own) {
+    switch (_controller.openAttachment(descriptor, view, own: own)) {
       case AttachmentExternalOpenIntent(:final localPath):
         unawaited(_openWithSystemApp(localPath));
       case AttachmentMediaOpenIntent(:final descriptor, :final src):
