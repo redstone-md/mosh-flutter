@@ -202,6 +202,11 @@ Verify first launch, subsequent launch, interrupted setup, name restoration,
 device-link success and failure, network save and restart, invite continuation,
 and narrow-window layout with focused tests using `test/support/`.
 
+Restored-step motion checks observe the first painted frame and an intermediate
+frame before settling animations. Pointer-blocking checks tap the outgoing
+Back action, whose accidental execution would navigate to a different step.
+Preview PNG exports support manual inspection; they do not compare pixel output.
+
 Run Dart formatting, `flutter analyze` and `flutter test --coverage`. The tests
 verify translucent pixels and transparent margins in all three image assets.
 Rust APIs, generated bridge bindings and native wire/storage formats are unchanged.
@@ -269,3 +274,10 @@ checks internal scrolling with 200% text in a small window. Persistent-shell,
 resize, keyboard and accessibility checks pass. Formatting and analysis are clean.
 Both changed production files collected 100% line and branch coverage. Desktop
 and phone previews were inspected; physical Windows verification remains pending.
+
+Motion-test review on 2026-10-03 strengthens restored-frame and outgoing-pointer
+checks. In an isolated worktree, the old checks passed with an unwanted initial
+entrance and with clickable outgoing controls; the revised checks rejected both
+faults. All 20 motion tests pass on the unchanged production behavior. The full
+Flutter suite passed 1,232 tests with five existing skips; formatting and analysis
+are clean.
