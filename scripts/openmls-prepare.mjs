@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { withSourceLock } from "./support/source-lock.mjs";
@@ -89,8 +89,12 @@ async function installSource(spec, archive, destination) {
   const staging = await mkdtemp(`${destination}.prepare-`);
   const backup = `${staging}.previous`;
   try {
-    run("tar", ["-xzf", archive, "--strip-components=1", "-C", staging]);
-    run("git", ["apply", "--no-index", path.join(patchDir, "mosh.patch")], staging);
+    // GNU tar treats a colon in an archive argument as a remote host (Windows drives).
+    const localArchive = path.join(staging, ".mosh-source.crate");
+    await copyFile(archive, localArchive);
+    run("tar", ["-xzf", path.basename(localArchive), "--strip-components=1"], staging);
+    await rm(localArchive);
+    run("git", ["-c", "core.autocrlf=false", "apply", "--no-index", path.join(patchDir, "mosh.patch")], staging);
     if (await sourceHash(staging) !== spec.sourceSha256) {
       throw new Error("Prepared OpenMLS sources differ from the verified Mosh source tree");
     }
