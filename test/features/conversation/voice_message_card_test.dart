@@ -83,13 +83,9 @@ void main() {
   // play (the queued player.play() start in didUpdateWidget) and requests
   // the download.
   //
-  // Limitation: the queued play's player.play() call is not exercised here.
-  // The player needs the media_kit native library, which is absent in test
-  // envs (the card already renders its fallback there); the queued-play
-  // start in didUpdateWidget is two lines in voice_message_card.dart. What
-  // IS pinned headless: the tap-while-offered path requests the download,
-  // and the path arriving with a play queued does not throw -- the card
-  // keeps rendering with the play affordance enabled.
+  // This test covers the native-unavailable fallback. The actual player
+  // calls, load failures and pending-play lifetime use media_kit's platform
+  // adapter in voice_message_readiness_test.dart.
   //
   testWidgets(
       'tapping play before the download requests it, and the card '

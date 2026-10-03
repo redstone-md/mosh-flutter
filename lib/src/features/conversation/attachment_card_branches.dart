@@ -11,9 +11,7 @@ part of 'attachment_card.dart';
 /// The video play-overlay is decorative; the wrapper labels the open action.
 class _MediaPreviewCard extends StatelessWidget {
   const _MediaPreviewCard({
-    required this.descriptor,
-    required this.view,
-    required this.own,
+    required this.attachment,
     required this.busy,
     required this.onDownload,
     required this.onCancel,
@@ -21,9 +19,7 @@ class _MediaPreviewCard extends StatelessWidget {
     this.messageFooter,
   });
 
-  final AttachmentDescriptor descriptor;
-  final AttachmentView? view;
-  final bool own;
+  final ConversationAttachment attachment;
   final bool busy;
   final Widget? messageFooter;
   final void Function(String attachmentId) onDownload;
@@ -33,13 +29,9 @@ class _MediaPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final outgoing = view?.direction == 'outgoing' || (view == null && own);
-    final state = view?.state ??
-        (outgoing ? AttachmentState.available : AttachmentState.offered);
-    final percent = _progressPercent(view);
-    final failed = state == AttachmentState.failed;
+    final descriptor = attachment.descriptor;
     final thumb = descriptor.thumbnailB64;
-    final localPath = _localImagePreview(descriptor, view);
+    final localPath = attachment.localImagePreview;
     // A malformed server thumbnail must never take the conversation down:
     // base64Decode throws during build, which errorBuilder cannot catch.
     // Empty bytes on decode failure -> Image.memory's decode fails ->
@@ -55,7 +47,7 @@ class _MediaPreviewCard extends StatelessWidget {
     final previewLabel = l.attachmentOpenAria(descriptor.fileName);
 
     return _FileCardShell(
-      failed: failed,
+      failed: attachment.failed,
       media: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,14 +137,11 @@ class _MediaPreviewCard extends StatelessWidget {
               l: l,
               fileName: descriptor.fileName,
               totalSize: descriptor.totalSize,
-              state: state,
-              percent: percent,
+              attachment: attachment,
               messageFooter: messageFooter,
-              action: !outgoing && state != AttachmentState.available
+              action: attachment.transferControl(busy: busy) != null
                   ? AttachmentActions(
-                      descriptor: descriptor,
-                      state: state,
-                      outgoing: outgoing,
+                      attachment: attachment,
                       busy: busy,
                       onDownload: onDownload,
                       onCancel: onCancel,

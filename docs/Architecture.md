@@ -574,6 +574,20 @@ header and the body one `ConversationChrome` -- the search text, the filter,
 the mobile search panel, the peer-status drawer and the leave action -- so
 neither holds a copy of the screen's state.
 
+`ConversationAttachment` interprets a descriptor and observed transfer state
+for message cards, the shared-file index and open actions. It owns direction,
+default state, usable paths, previews, bounded progress and allowed controls.
+An available transfer with a nonempty local path is ready; failed/cancelled
+transfers take precedence over stale cached paths. Unknown transfer size renders
+indeterminate progress on both surfaces. The controller owns pending opens and
+uses the same interpretation to wait, display or discard them.
+
+Voice cards use this readiness rule and media_kit's existing Player. A queued
+play request survives failed loading or playback and is consumed after success.
+A cancelled transfer or disposed card cannot start queued playback after a held
+load. Tests exercise actual Player calls through its recording PlatformPlayer
+adapter; native decoding remains a runtime check.
+
 The one thing a conversation does not own is the call a DM can carry. It
 declares what it needs from one in `conversation_call_binding.dart` and never
 imports the module that answers; see Voice Call Module below.
