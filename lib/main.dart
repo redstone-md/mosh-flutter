@@ -22,14 +22,13 @@ import 'package:mosh/src/features/lock/mosh_lock_screen.dart';
 import 'package:mosh/src/platform/app_data_dir.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
-import 'package:mosh/src/state/auto_poll_provider.dart';
+import 'package:mosh/src/features/onboarding/first_run_gate.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 import 'package:mosh/src/state/production_provider_overrides.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 import 'package:media_kit/media_kit.dart';
 import 'package:mosh/src/routing/app_router.dart';
 
-import 'package:mosh/src/features/vpn/vpn_consent_overlay.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/media_stream_server.dart';
 import 'package:window_manager/window_manager.dart' show windowManager;
@@ -262,34 +261,24 @@ class MoshApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Start the app-wide auto-poll loop. Mounted at the root, not in the
-    // shell, so a session created during onboarding starts draining its
-    // inbound queue immediately -- the MLS handshake only advances while
-    // something polls.
-    ref.watch(autoPollProvider);
     final app = MaterialApp.router(
       title: 'Mosh',
+      debugShowCheckedModeBanner: false,
       locale: ref.watch(localeProvider),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       // App dark palette, centralized in lib/src/app/mosh_theme.dart so
       // this stays a thin `MaterialApp.router` call.
       theme: moshThemeData,
-      // Route shell: home is OnboardingScreen; tiles reach invite-paste,
-      // diagnostics, and dm (via path param). MaterialApp.router hands
-      // navigation to appRouter.
+      // The setup gate defers mounting routes while retaining incoming links.
       routerConfig: appRouter,
-      // Top-level VPN-bypass consent overlay: wraps every route so the one
-      // question Mosh asks about the VPN can show above any screen. The
-      // modal self-gates to SizedBox.shrink() when there is nothing to
-      // ask.
       // Ink ripples are motion: with the platform's reduce-motion setting
       // on, every InkWell below drops its splash.
       builder: (context, child) => Theme(
         data: MediaQuery.disableAnimationsOf(context)
             ? Theme.of(context).copyWith(splashFactory: NoSplash.splashFactory)
             : Theme.of(context),
-        child: VpnConsentOverlay(child: child ?? const SizedBox()),
+        child: FirstRunGate(child: child ?? const SizedBox()),
       ),
     );
     return DesktopAppRelauncherScope(

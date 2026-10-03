@@ -145,6 +145,25 @@ flowchart TB
 ```
 
 `mosh-core/` is the built Rust runtime. `moss/` is the Moss Go shared library, pinned at `v0.9.0`. `lib/` is the Flutter + Dart frontend. `docs/` holds this map, the ADRs, the glossary, and the plan. The dead React/Tauri app is gone from this fork: nothing under the old `src/`/`src-tauri/` paths exists here (ADR 0013).
+
+## First-run setup
+
+`MoshApp` gates mounting the router through `FirstRunGate`. New installations
+complete name, optional device linking and optional network-interface setup
+before entering conversations. Saved completion or existing conversation/device
+history bypasses the wizard. An incoming invite stays in the router's memory
+until setup completes. Conversation auto-polling starts after this gate;
+device linking continues through its existing native service and provider.
+
+The feature-local `FirstRunStore` owns non-secret, versioned preferences in
+the application support directory: display name, saved step and completion.
+It restores the invite flow's default name and backs Settings' Profile section.
+Existing conversation names and identities retain their contracts. Device
+and network steps reuse existing runtime APIs. Adapter changes require restart;
+Windows can relaunch automatically after durable completion, other platforms
+request manual restart. See [ADR 0036](ADR/0036-first-run-gate-and-local-profile.md)
+and [first-run behavior](Features/first-run-setup.md).
+
 ## Gateway and Provider Layer (slice one)
 
 ```mermaid
