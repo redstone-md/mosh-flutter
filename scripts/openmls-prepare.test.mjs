@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
@@ -91,4 +91,19 @@ test("offline preparation without a cached archive fails clearly", async () => {
     prepareOpenMls({ destination: path.join(scratch, "absent"), cacheDir: path.join(scratch, "empty"), offline: true }),
     /Offline archive missing/,
   );
+});
+
+test("archive paths with drive-style colons are treated as local files", async () => {
+  const driveCache = path.join(scratch, process.platform === "win32" ? "drive-cache" : "D: archive cache");
+  await mkdir(driveCache);
+  await copyFile(path.join(cacheDir, "openmls-0.8.1.crate"), path.join(driveCache, "openmls-0.8.1.crate"));
+  const driveSource = path.join(scratch, "drive-source");
+  const originalDirectory = process.cwd();
+  try {
+    process.chdir(scratch);
+    await prepareOpenMls({ destination: driveSource, cacheDir: path.basename(driveCache), offline: true });
+  } finally {
+    process.chdir(originalDirectory);
+  }
+  assert.equal(await sourceHash(driveSource), await sourceHash(destination));
 });

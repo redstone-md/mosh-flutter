@@ -44,13 +44,13 @@ storage contracts. Dependency versions and schemas are unchanged.
 
 | Scope | Before | After | Reduction |
 | --- | ---: | ---: | ---: |
-| All tracked source, including local patches | 223,340 | 142,682 | 36.11% |
+| All tracked source, including local patches | 223,340 | 142,701 | 36.11% |
 | Dependency source and patches | 83,795 | 6,127 | 92.69% |
-| Application and tooling | 70,866 | 65,544 | 7.51% |
-| Tests | 45,170 | 47,509 | +2,339 lines |
-| First-party source and tests together | 116,036 | 113,053 | 2.57% |
+| Application and tooling | 70,866 | 65,548 | 7.5% |
+| Tests | 45,170 | 47,524 | +2,354 lines |
+| First-party source and tests together | 116,036 | 113,072 | 2.55% |
 | Generated bridge | 23,509 | 23,502 | 7 comment lines |
-| All tracked UTF-8 text, including docs/manifests | 262,151 | 176,206 | 32.78% |
+| All tracked UTF-8 text, including docs/manifests | 262,151 | 176,228 | 32.78% |
 
 The overall reduction exceeds 30%. Most of it replaces an upstream mirror with
 reproducible preparation; it does not shrink OpenMLS at runtime. The authored
@@ -95,14 +95,16 @@ Simplifications:
   (three cases) and strict all-target Clippy passes.
 - Fresh bridge regeneration followed by Rust formatting has zero drift; Rust
   signatures and generated wire code stay unchanged.
-- All 254 OpenMLS files reconstruct byte-for-byte. Eleven preparation/locking
+- All 254 OpenMLS files reconstruct byte-for-byte. Twelve preparation/locking
   tests pass, including local-edit preservation, partial/deleted manifest
   protection, damaged caches, offline rebuild, dead-process recovery and
-  multi-process exclusion.
+  multi-process exclusion and drive-style archive paths. The latter reproduced
+  the Windows setup failure before the extraction fix; all twelve cases also
+  pass with automatic CRLF conversion enabled in Git configuration.
 - Changed instrumented executable lines, including moved source: Flutter
   267/300 (89.0%); core Rust 4,180/4,876 (85.7%). Comment/blank lines, generated
-  bindings and tests are excluded. Preparation/locking coverage is 91.35% lines
-  and 84.21% branches. Flutter/LLVM line reports do not expose branch coverage
+  bindings and tests are excluded. Preparation/locking coverage is 91.51% lines
+  and 84.00% branches. Flutter/LLVM line reports do not expose branch coverage
   with the installed stable toolchains.
 - Independent standards and requirements reviews found two Escape parity
   regressions and source-preparation recovery/edit-protection issues. Regression
