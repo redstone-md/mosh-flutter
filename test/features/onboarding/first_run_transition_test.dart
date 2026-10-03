@@ -94,23 +94,22 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('reduce motion keeps the fade without any translation',
+  testWidgets(
+      'reduced motion allows Back on the next frame without translation',
       (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     final harness = await _pump(tester, SetupStep.device);
     await _go(tester, harness, SetupStep.network);
-    await tester.pump(const Duration(milliseconds: 40));
-    expect(_fade(tester), inExclusiveRange(0, 1));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(_fade(tester), 1);
     expect(_position(tester), Offset.zero);
-    await tester.pump(const Duration(milliseconds: 41));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 80));
-    expect(_fade(tester), inExclusiveRange(0, 1));
-    expect(_position(tester), Offset.zero);
-    await tester.pumpAndSettle();
     expect(_blocked(tester), isFalse);
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+    expect(harness.store.profile!.step, SetupStep.device);
+    expect(find.byType(FirstRunDeviceStep), findsOneWidget);
   });
 
   testWidgets('a return during exit retargets without remounting the form',

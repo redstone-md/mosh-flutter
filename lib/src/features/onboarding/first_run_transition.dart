@@ -151,8 +151,7 @@ class _SetupPanel extends StatefulWidget {
 
 class _SetupPanelState extends State<_SetupPanel>
     with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(
-      vsync: this, animationBehavior: AnimationBehavior.preserve)
+  late final _controller = AnimationController(vsync: this)
     ..addStatusListener(_settled);
   Animation<double> _opacity = const AlwaysStoppedAnimation(1);
   Animation<Offset> _position = const AlwaysStoppedAnimation(Offset.zero);
