@@ -24,11 +24,7 @@
 // Transfer controls live in [AttachmentActions]. Available files open by
 // tapping the row; media opens from its preview via `onOpen(descriptor)`.
 //
-// State derivation: `outgoing = view?.direction == "outgoing"`,
-// `state = view?.state ?? (outgoing ? "available" : "offered")`,
-// `percent = progressPercent(view)`, and the meta line shows
-// `formatBytes(total_size)` + (" \u00b7 " + stateLabel)` only when state !=
-// "available".
+// ConversationAttachment owns transfer interpretation and available actions.
 
 import 'dart:convert';
 import 'dart:io' show File;
@@ -45,6 +41,7 @@ import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/util/format.dart';
 
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
+import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/features/conversation/attachment_thumb.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
 
@@ -90,6 +87,8 @@ class AttachmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final attachment =
+        ConversationAttachment(descriptor: descriptor, view: view, own: own);
     // Voice messages render as their own card.
     if (descriptor.voice != null) {
       final l = AppLocalizations.of(context)!;
@@ -104,11 +103,9 @@ class AttachmentCard extends StatelessWidget {
       );
     }
     // Images can also preview their downloaded file when no thumbnail arrived.
-    if (_hasPreview) {
+    if (attachment.hasMediaPreview) {
       return _MediaPreviewCard(
-        descriptor: descriptor,
-        view: view,
-        own: own,
+        attachment: attachment,
         busy: busy,
         onDownload: onDownload,
         onCancel: onCancel,
@@ -119,25 +116,16 @@ class AttachmentCard extends StatelessWidget {
 
     // File branch.
     final l = AppLocalizations.of(context)!;
-    final outgoing = view?.direction == 'outgoing' || (view == null && own);
-    final state = view?.state ??
-        (outgoing ? AttachmentState.available : AttachmentState.offered);
-    final percent = _progressPercent(view);
-    final failed = state == AttachmentState.failed;
-    final canOpen = state == AttachmentState.available &&
-        (view?.localPath?.isNotEmpty ?? false);
+    final canOpen = attachment.localPath != null;
     final footer = messageFooter;
     final bar = _buildBar(
       l: l,
       fileName: descriptor.fileName,
       totalSize: descriptor.totalSize,
-      state: state,
-      percent: percent,
-      action: !outgoing && state != AttachmentState.available
+      attachment: attachment,
+      action: attachment.transferControl(busy: busy) != null
           ? AttachmentActions(
-              descriptor: descriptor,
-              state: state,
-              outgoing: outgoing,
+              attachment: attachment,
               busy: busy,
               onDownload: onDownload,
               onCancel: onCancel,
@@ -153,7 +141,7 @@ class AttachmentCard extends StatelessWidget {
             ),
     );
     return _FileCardShell(
-      failed: failed,
+      failed: attachment.failed,
       child: AttachmentOpenTarget(
         label: l.attachmentOpenAria(descriptor.fileName),
         onOpen: canOpen ? () => onOpen(descriptor) : null,
@@ -163,8 +151,8 @@ class AttachmentCard extends StatelessWidget {
           children: [
             AttachmentThumb(
               descriptor: descriptor,
-              viewable: _isViewable,
-              failed: failed,
+              viewable: attachment.viewable,
+              failed: attachment.failed,
               onOpen: canOpen ? null : onOpen,
             ),
             const SizedBox(width: 10),
@@ -174,35 +162,6 @@ class AttachmentCard extends StatelessWidget {
       ),
     );
   }
-
-  /// Local images and image/video-with-thumbnail take the media branch; everything else
-  /// (audio, pdf, ...) takes the file-card branch. Audio remains viewable in
-  /// that branch and receives the open thumb button there.
-  bool get _hasPreview {
-    if (_localImagePreview(descriptor, view) != null) return true;
-    final thumb = descriptor.thumbnailB64;
-    if (thumb == null || thumb.isEmpty) return false;
-    final mime = descriptor.mime;
-    return mime.startsWith('image/') || mime.startsWith('video/');
-  }
-
-  bool get _isViewable {
-    final mime = descriptor.mime;
-    return mime.startsWith('image/') ||
-        mime.startsWith('video/') ||
-        mime.startsWith('audio/');
-  }
-}
-
-String? _localImagePreview(
-    AttachmentDescriptor descriptor, AttachmentView? view) {
-  final path = view?.localPath;
-  return descriptor.mime.startsWith('image/') &&
-          view?.state == AttachmentState.available &&
-          path != null &&
-          path.isNotEmpty
-      ? path
-      : null;
 }
 
 /// Max width of the file card.
@@ -260,12 +219,14 @@ Widget _buildBar({
   required AppLocalizations l,
   required String fileName,
   required BigInt totalSize,
-  required AttachmentState state,
-  required int percent,
+  required ConversationAttachment attachment,
   Widget? action,
   Widget? messageFooter,
 }) {
   final size = formatBytes(totalSize);
+  final state = attachment.state;
+  final progress = attachment.progress;
+  final percent = progress?.percent ?? 0;
   final stateLabel = _attachmentStateLabel(l, state, percent);
   // The state label is omitted when state == "available" (size only);
   // every other state appends " \u00b7 {label}".
@@ -312,12 +273,12 @@ Widget _buildBar({
         ],
       ]),
       // 4px tall moss progress bar on bg-3, shown while downloading.
-      if (state == AttachmentState.downloading) ...[
+      if (progress != null) ...[
         const SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(2),
           child: LinearProgressIndicator(
-            value: percent / 100,
+            value: progress.fraction,
             minHeight: 4,
             backgroundColor: MoshColors.bg3,
             color: MoshColors.moss,
@@ -327,16 +288,6 @@ Widget _buildBar({
       ],
     ],
   );
-}
-
-/// 0 when no view or `chunkCount == 0`, else
-/// `min(100, completed / total * 100)`. BigInt math then `.toInt()`
-/// (percent fits 0..100 so the narrowing is safe).
-int _progressPercent(AttachmentView? view) {
-  if (view == null || view.chunkCount == BigInt.zero) return 0;
-  final raw = (view.completedChunks * BigInt.from(100)) ~/ view.chunkCount;
-  final clamped = raw > BigInt.from(100) ? BigInt.from(100) : raw;
-  return clamped.toInt();
 }
 
 /// Localized transfer-state label; the downloading label interpolates the
