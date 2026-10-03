@@ -16,6 +16,16 @@ pub fn clear_moss_keystore() {
     *MOSS_KEYSTORE.lock().expect("moss keystore lock poisoned") = None;
 }
 
+#[cfg(test)]
+pub(super) fn swap_test_keystore(
+    store: Option<Arc<dyn MossKeyStore>>,
+) -> Option<Arc<dyn MossKeyStore>> {
+    std::mem::replace(
+        &mut *MOSS_KEYSTORE.lock().unwrap_or_else(|p| p.into_inner()),
+        store,
+    )
+}
+
 pub(super) unsafe extern "C" fn on_moss_message(
     channel: *const c_char,
     _sender_id: *const u8,

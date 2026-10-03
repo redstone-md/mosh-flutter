@@ -1,17 +1,39 @@
 use super::*;
 
-#[test]
-fn keystore_callbacks_round_trip_identity() {
-    struct MemStore(Mutex<Option<Vec<u8>>>);
-    impl MossKeyStore for MemStore {
-        fn load_identity(&self) -> Option<Vec<u8>> {
-            self.0.lock().unwrap().clone()
-        }
-        fn save_identity(&self, bytes: &[u8]) {
-            *self.0.lock().unwrap() = Some(bytes.to_vec());
+struct MemStore(Mutex<Option<Vec<u8>>>);
+
+impl MossKeyStore for MemStore {
+    fn load_identity(&self) -> Option<Vec<u8>> {
+        self.0.lock().unwrap().clone()
+    }
+    fn save_identity(&self, bytes: &[u8]) {
+        *self.0.lock().unwrap() = Some(bytes.to_vec());
+    }
+}
+
+struct RestoreKeystore(Option<Arc<dyn MossKeyStore>>);
+
+impl Drop for RestoreKeystore {
+    fn drop(&mut self) {
+        let _ = callbacks::swap_test_keystore(self.0.take());
+    }
+}
+
+struct RestoreDebugRecordDir(Option<std::ffi::OsString>);
+
+impl Drop for RestoreDebugRecordDir {
+    fn drop(&mut self) {
+        match self.0.take() {
+            Some(value) => std::env::set_var("MOSH_DEBUG_RECORD_DIR", value),
+            None => std::env::remove_var("MOSH_DEBUG_RECORD_DIR"),
         }
     }
+}
 
+#[test]
+fn keystore_callbacks_round_trip_identity() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let _restore = RestoreKeystore(callbacks::swap_test_keystore(None));
     set_moss_keystore(Arc::new(MemStore(Mutex::new(None))));
 
     // Nothing stored yet: probe returns 0.
@@ -29,6 +51,34 @@ fn keystore_callbacks_round_trip_identity() {
     let read = unsafe { keystore_load(buffer.as_mut_ptr(), buffer.len() as u32) };
     assert_eq!(read, identity.len() as u32);
     assert_eq!(buffer, identity);
+}
+
+#[test]
+fn global_test_overrides_restore_nonempty_prior_state_on_unwind() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let _restore_store = RestoreKeystore(callbacks::swap_test_keystore(None));
+    let _restore_env = RestoreDebugRecordDir(std::env::var_os("MOSH_DEBUG_RECORD_DIR"));
+    set_moss_keystore(Arc::new(MemStore(Mutex::new(Some(vec![9; 40])))));
+    std::env::set_var("MOSH_DEBUG_RECORD_DIR", "prior recording directory");
+
+    let result = std::panic::catch_unwind(|| {
+        let _restore_store = RestoreKeystore(callbacks::swap_test_keystore(None));
+        let _restore_env = RestoreDebugRecordDir(std::env::var_os("MOSH_DEBUG_RECORD_DIR"));
+        set_moss_keystore(Arc::new(MemStore(Mutex::new(Some(vec![7; 40])))));
+        std::env::set_var("MOSH_DEBUG_RECORD_DIR", "temporary recording directory");
+        std::panic::resume_unwind(Box::new("exercise cleanup during unwinding"));
+    });
+    assert!(result.is_err());
+    assert_eq!(
+        std::env::var_os("MOSH_DEBUG_RECORD_DIR"),
+        Some("prior recording directory".into())
+    );
+    let mut buffer = [0; 40];
+    assert_eq!(
+        unsafe { keystore_load(buffer.as_mut_ptr(), buffer.len() as u32) },
+        40
+    );
+    assert_eq!(buffer, [9; 40]);
 }
 
 #[test]
@@ -114,6 +164,7 @@ fn node_config(port: u16, static_peer: Option<&str>) -> String {
 
 #[test]
 fn default_node_config_ships_no_axiom_keys() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let config = MossNodeConfig {
         listen_port: 42424,
         static_peer: None,
@@ -128,6 +179,8 @@ fn default_node_config_ships_no_axiom_keys() {
 
 #[test]
 fn node_config_debug_plane_is_env_gated() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let _restore = RestoreDebugRecordDir(std::env::var_os("MOSH_DEBUG_RECORD_DIR"));
     let config = MossNodeConfig {
         listen_port: 42424,
         static_peer: None,

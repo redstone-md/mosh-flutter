@@ -88,14 +88,31 @@ fn typing_frames(net: &Arc<MemoryNet>, peer_id: &str) -> usize {
         .count()
 }
 
-fn publish_to_bob(net: &Arc<MemoryNet>, invite: &InviteCreated, payload: &[u8]) {
-    net.endpoint(BOB_ID)
+fn publish_control_from(
+    net: &Arc<MemoryNet>,
+    invite: &InviteCreated,
+    publisher: &str,
+    receiver: &str,
+    payload: &[u8],
+) {
+    net.endpoint(publisher)
         .publish(
             &invite.mesh_id,
             &control_channel(&invite.session_id),
             payload,
         )
         .expect("a forged publish is still a publish");
+    // Observe the target inbox, then restore every frame for its runtime drain.
+    let wire = net.endpoint(receiver).drain();
+    assert!(
+        wire.iter().any(|frame| frame.payload == payload),
+        "the frame must reach the asserted receiver"
+    );
+    for frame in wire {
+        net.endpoint(publisher)
+            .publish(&invite.mesh_id, &frame.channel, &frame.payload)
+            .expect("the observed frames should return to the receiver");
+    }
 }
 
 // ---- Read receipts (#7) ----

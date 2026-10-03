@@ -154,34 +154,35 @@ fn typing_hint_expires_after_the_window_without_sleeping() {
 
 // A forged plaintext hint (garbage ciphertext) never raises Bob's hint: the
 // MLS decrypt is the only door. A replayed ciphertext minted by the group's
-// own member is equally dead — MLS cannot decrypt own messages.
+// receiving member is equally dead — MLS cannot decrypt own messages.
 #[test]
 fn forged_typing_indicator_does_not_set_the_hint() {
     let (net, mut alice, mut bob) = memory_pair();
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
+    let participant_id = alice.sessions[&invite.session_id].participant_id.clone();
 
     let forged = serde_json::to_vec(&ControlEnvelope::TypingIndicator {
         session_id: invite.session_id.clone(),
-        participant_id: "peer-participant".to_string(),
+        participant_id: participant_id.clone(),
         from_device: "Alice".to_string(),
         typing_ciphertext_b64: encode(b"not-an-mls-ciphertext"),
     })
     .expect("forged envelope should serialize");
-    publish_to_bob(&net, &invite, &forged);
+    publish_control_from(&net, &invite, ALICE_ID, BOB_ID, &forged);
     assert!(
         bob_hint(&mut bob, &invite.session_id).is_none(),
         "a hint that cannot decrypt must not stand"
     );
 
-    // A ciphertext minted by this very group member (MLS cannot decrypt own
-    // messages, so even this is rejected) — the DeliveryAck replay pattern.
+    // Bob's own ciphertext claims Alice in the envelope. It passes the
+    // participant routing guard, then fails MLS's own-message check on Bob.
     let self_minted = {
-        let session = alice
+        let session = bob
             .sessions
             .get_mut(&invite.session_id)
-            .expect("Alice session should exist");
+            .expect("Bob session should exist");
         let body = TypingBody {
             device: "Alice".to_string(),
             until_ms: now_ms() + TYPING_EXPIRY_MS,
@@ -189,19 +190,24 @@ fn forged_typing_indicator_does_not_set_the_hint() {
         let ciphertext = session
             .crypto
             .encrypt(&serde_json::to_vec(&body).expect("body should serialize"))
-            .expect("Alice should encrypt");
+            .expect("Bob should encrypt");
         serde_json::to_vec(&ControlEnvelope::TypingIndicator {
             session_id: invite.session_id.clone(),
-            participant_id: "peer-participant".to_string(),
+            participant_id,
             from_device: "Alice".to_string(),
             typing_ciphertext_b64: encode(&ciphertext),
         })
         .expect("self-minted envelope should serialize")
     };
-    publish_to_bob(&net, &invite, &self_minted);
+    publish_control_from(&net, &invite, ALICE_ID, BOB_ID, &self_minted);
     assert!(
         bob_hint(&mut bob, &invite.session_id).is_none(),
         "an MLS-unreadable hint is dropped, hint stays down"
+    );
+    alice.typing_signal(&invite.session_id).unwrap();
+    assert!(
+        bob_hint(&mut bob, &invite.session_id).is_some(),
+        "the receiver accepts a genuine peer hint after rejecting forgeries"
     );
 }
 
@@ -230,7 +236,7 @@ fn an_unknown_envelope_variant_is_dropped_by_the_drain() {
         "an unknown variant name must fail decode"
     );
 
-    publish_to_bob(&net, &invite, &bytes);
+    publish_control_from(&net, &invite, ALICE_ID, BOB_ID, &bytes);
     // The drain must neither error nor raise anything: the decode-drop is
     // the whole recovery, exactly as the mixed-version story promises.
     bob.drain_inbound();
