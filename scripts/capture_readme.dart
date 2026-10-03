@@ -1,4 +1,4 @@
-// Renders the shipping Flutter UI with fictional conversations, without Rust.
+// Renders the shipping Flutter UI with sample data, without Rust.
 // flutter test scripts/capture_readme.dart --dart-define=SETUP_PREVIEW=true
 import 'dart:convert';
 import 'dart:io';
@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/conversation/attachments.dart';
@@ -15,6 +16,7 @@ import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 import '../test/features/routing/shell_harness.dart';
+import '../test/support/first_run.dart';
 import '../test/support/first_run_preview.dart';
 import '../test/support/message_builders.dart';
 import '../test/support/scriptable_gateway.dart';
@@ -117,6 +119,22 @@ Future<void> _save(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('capture first-run setup with a sample display name',
+      (tester) async {
+    await prepareSetupPreview(tester);
+    final harness =
+        FirstRunHarness(profile: const FirstRunProfile(displayName: 'Alex'));
+    await harness.pump(tester, size: const Size(1280, 720));
+    expect(find.text('Choose your name'), findsOneWidget);
+    expect(find.text('Alex'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await saveSetupPreview(tester, 'readme-first-run');
+    await tester.runAsync(() =>
+        File('build/readme-first-run.png').copy('docs/assets/first-run.png'));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('capture the desktop UI with fictional chat data',
       (tester) async {
     const recorder = MethodChannel('com.llfbandit.record/messages');
