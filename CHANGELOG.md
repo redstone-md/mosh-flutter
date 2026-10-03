@@ -42,8 +42,7 @@ preferences before opening conversations.
   is currently available on Windows only.
 - An invitation is held only while the app stays open. If you close Mosh during
   setup, reopen the invitation after completing setup.
-- This release ships Windows and macOS builds. Physical Windows and Android
-  first-run verification remains pending.
+- This release ships Windows and macOS builds.
 
 ## [0.14.0] - 2026-10-02
 
