@@ -1,5 +1,11 @@
 # README visuals
 
+## Logo
+
+`mosh-mark.svg` is the existing Mosh mesh-node M from the landing page's
+`public/favicon.svg`. Its geometry and colors are unchanged. It has a fixed
+lime background so it stays legible in GitHub's light and dark themes.
+
 ## Desktop screenshot
 
 `chat-desktop.png` renders the real `MoshApp` at 1440 × 900 logical pixels,
@@ -18,6 +24,21 @@ flutter test scripts/capture_readme.dart --dart-define=SETUP_PREVIEW=true
 
 Inspect the PNG before committing it. The capture script is outside `test/`
 so normal test runs do not rewrite documentation images.
+
+## First-run screenshot
+
+`first-run.png` renders the real first-run gate and name step at 1280 × 720.
+The display name Alex is sample data. `FirstRunHarness` replaces disk and
+native services using the existing preview helpers; no network is used.
+
+To update this screenshot without recapturing the chat:
+
+```sh
+flutter test scripts/capture_readme.dart --dart-define=SETUP_PREVIEW=true --plain-name 'capture first-run'
+```
+
+The existing helper captures to `build/readme-first-run.png`; the script
+copies that image into this directory.
 
 ## Mesh illustration
 

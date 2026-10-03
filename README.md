@@ -1,41 +1,48 @@
+<p align="center">
+  <img src="docs/assets/mosh-mark.svg" alt="Mosh mesh-node logo" width="72" height="72">
+</p>
+
 <h1 align="center">Mosh</h1>
 
 <p align="center">
-  A desktop-first messenger with private conversations over a peer-to-peer network.
+  Private chats, groups and calls over a peer-to-peer network.<br>
+  Built for the desktop. Open source.
 </p>
 
 <p align="center">
   <a href="https://github.com/redstone-md/mosh-flutter/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/redstone-md/mosh-flutter?style=flat-square&color=B7D84A&labelColor=161819"></a>
-  <a href="https://github.com/redstone-md/mosh-flutter/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/redstone-md/mosh-flutter/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="LICENSE"><img alt="License: GPL v3" src="https://img.shields.io/badge/license-GPL_v3-B7D84A?style=flat-square&labelColor=161819"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/redstone-md/mosh-flutter/releases/latest">Download</a> ·
+  <a href="#download">Download</a> ·
+  <a href="#get-started">Get started</a> ·
   <a href="CHANGELOG.md">What's new</a> ·
-  <a href="docs/Architecture.md">Architecture</a> ·
-  <a href="https://github.com/redstone-md/mosh-flutter/issues">Report a bug</a>
+  <a href="#privacy">Privacy</a>
 </p>
 
 ![Mosh desktop showing a fictional conversation with Maya, a file, a voice note and conversation details](docs/assets/chat-desktop.png)
 
-<p align="center"><sub>Actual Flutter interface with fictional messages and simulated connection states. No personal conversation data.</sub></p>
+<p align="center"><sub>Desktop preview with sample messages and simulated connection states.</sub></p>
 
 ## Download
 
-Choose your build from the [latest release](https://github.com/redstone-md/mosh-flutter/releases/latest).
-Every download has a SHA-256 checksum alongside it.
+Open the [latest release](https://github.com/redstone-md/mosh-flutter/releases/latest)
+and choose the file for your platform.
 
 | Platform | Download | Installation |
 | --- | --- | --- |
-| Windows x64 | `mosh-<version>-setup.exe` | Run the installer. Installs for your user without an admin prompt and upgrades in place. |
-| macOS 12+ | `Mosh_<version>_universal.dmg` | Apple Silicon and Intel. Open the image and drag Mosh to Applications. |
+| Windows x64 | [Installer · .exe](https://github.com/redstone-md/mosh-flutter/releases/latest) | Run the installer. No admin access needed. |
+| macOS 12+ | [Disk image · .dmg](https://github.com/redstone-md/mosh-flutter/releases/latest) | Drag Mosh to Applications. Apple Silicon and Intel. |
 
-Android also supports linked text chats while the app is in the foreground.
-Published downloads currently cover Windows and macOS.
+Windows and macOS packages are available. Android supports linked text chats
+while the app is open; Android packages are not published yet.
 
 <details>
-<summary>First-launch warnings and download verification</summary>
+<summary>First launch and checksums</summary>
+
+Release files are named `mosh-<version>-setup.exe` and
+`Mosh_<version>_universal.dmg`. Each has a matching `.sha256` checksum.
 
 Mosh currently ships without a signature trusted by Windows or macOS. The
 macOS app has a self-signed signature and is not notarized. See the
@@ -59,56 +66,57 @@ shasum -a 256 -c Mosh_*_universal.dmg.sha256
 
 </details>
 
-## Inside Mosh
+## Chats, files and calls
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/assets/mesh-conversations.png" alt="Glass conversation bubbles connected through a peer mesh" width="420">
-      <h3>Private conversations over a mesh</h3>
-      <p>Private chats and groups use OpenMLS end-to-end encryption. Moss finds peers automatically, with no central message server or hostnames to enter.</p>
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/assets/linked-devices.png" alt="A glass laptop and phone connected by a lime-lit path" width="420">
-      <h3>Continue on another device</h3>
-      <p>Link with a QR and confirmation code. Continue text DMs and recover available history. Each installation keeps its own keys and encrypted local storage.</p>
-    </td>
-  </tr>
-</table>
+Mosh finds other devices automatically through the Moss network. Private
+chats and groups use end-to-end encryption. Messages travel without a central
+message server.
 
-- Share files, send voice notes and make encrypted one-to-one voice calls.
-- Search personal chats, groups and channels in one list, with conversation
-  details beside the chat on wide windows.
-- Set up your name, devices and network preferences once. Saved progress
-  resumes after restart, and Settings keeps these choices accessible.
-- Use the desktop sidebar or the compact phone layout, in English or Russian.
+![Glass conversation bubbles connected through a peer mesh](docs/assets/mesh-conversations.png)
 
-## Start a conversation
+- Send messages, share files and voice notes, and make one-to-one voice calls.
+- Keep personal chats, groups and public channels in one searchable list.
+- See participants and shared files beside your chat on a wide window.
+- Use English or Russian, with layouts for desktop and smaller screens.
 
-1. Open Mosh and choose a display name. Keep networking automatic unless you
-   need to route Mosh around a VPN.
-2. Choose **This is my first device**, or link an existing profile using the
-   trusted device's QR or private link and confirm the code on that device.
-3. Start a conversation and share its invitation with your contact. They open
-   it in Mosh to join.
+### Add another device
 
-Your name, devices and network preferences remain available in Settings.
-Existing installations with conversations or linked devices skip the setup
-wizard. Incoming conversation invitations wait until setup finishes.
+Link a new installation using a trusted device's QR or private link, then
+confirm the code. Continue your text chats and recover available history.
+Each installation keeps its own keys and encrypted local storage.
 
-[First-run guide](docs/Features/first-run-setup.md) ·
-[Device linking](docs/Features/device-linking.md) ·
-[Private chats](docs/Features/private-dm.md)
+![A glass laptop and phone connected by a lime-lit path](docs/assets/linked-devices.png)
 
-## Privacy you can inspect
+[How device linking works](docs/Features/device-linking.md)
 
-Private chats and groups are end-to-end encrypted. Public channels are signed
-and are not confidential. Peer discovery uses public trackers, so content
-encryption does not make network activity anonymous. Participants can see
-device associations.
+## Get started
 
-Message history is encrypted locally. Crash reporting is off by default and
-can be enabled in Privacy settings.
+1. Choose your display name.
+2. Select **This is my first device**, or link a device you already use.
+   Keep networking automatic unless you need to work around a VPN.
+3. Create a private chat and share its invitation. Your contact opens it in
+   Mosh to join.
+
+<p align="center">
+  <img src="docs/assets/first-run.png" alt="Mosh first-run setup showing the name step with Alex as the sample display name" width="800">
+  <br><sub>First-run setup, captured from the app with a sample name.</sub>
+</p>
+
+Setup saves your progress. Your name, devices and network preferences remain
+available in Settings. Existing installations with conversations or linked
+devices skip setup.
+
+[Setup guide](docs/Features/first-run-setup.md) ·
+[Private chat guide](docs/Features/private-dm.md)
+
+## Privacy
+
+- Private chats and groups are end-to-end encrypted. Public channels are
+  signed, but their messages are not confidential.
+- Discovery uses public trackers. Mosh does not provide anonymity, and
+  participants can see device associations.
+- Message history is encrypted locally. Crash reporting is off by default;
+  you can enable it in Privacy settings.
 
 <details>
 <summary>How local history keys are stored</summary>
@@ -122,6 +130,8 @@ limits are documented in the
 </details>
 
 ## Development
+
+![CI status](https://github.com/redstone-md/mosh-flutter/actions/workflows/ci.yml/badge.svg?branch=main)
 
 The app is Flutter and Riverpod over a Rust core, connected by
 `flutter_rust_bridge`. The core owns OpenMLS, Moss transport, persistence and
@@ -163,11 +173,14 @@ architectures.
 See [AGENTS.md](AGENTS.md) for checks and contribution constraints, and the
 [architecture map](docs/Architecture.md) for runtime boundaries.
 The [visual asset notes](docs/assets/README.md) explain how to regenerate the
-README screenshot and record the illustration prompt.
+screenshots and record the logo source and illustration prompts.
 
 </details>
 
-## License
+---
 
 [GNU GPL v3](LICENSE). Bundled Inter fonts use the
 [SIL Open Font License](assets/fonts/Inter-OFL.txt).
+
+[Report a bug](https://github.com/redstone-md/mosh-flutter/issues) ·
+[Architecture](docs/Architecture.md)
