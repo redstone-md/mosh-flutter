@@ -961,6 +961,10 @@ mod session;
 mod snapshot;
 mod typing;
 
+#[cfg(test)]
+#[path = "private_dm_runtime/write_coherence_tests.rs"]
+mod write_coherence_tests;
+
 impl ConversationSession for PrivateDmSession {
     type Message = ChatMessage;
     type Record = contracts::PersistedSession;
@@ -989,7 +993,14 @@ impl ConversationSession for PrivateDmSession {
         &self,
         persistence: &Persistence,
     ) -> Result<(), crate::persistence::PersistenceError> {
-        persistence.put_mls_snapshot(&self.session_id, &self.crypto.snapshot())
+        if !self.record_is_final() {
+            return persistence.put_mls_snapshot(&self.session_id, &self.crypto.snapshot());
+        }
+        let record = serde_json::to_vec(&self.to_persisted_record())
+            .map_err(|error| crate::persistence::PersistenceError::Json(error.to_string()))?;
+        // Receipt replay needs the accepted record and its receiver ratchet.
+        // The shared writer may safely repeat this same record afterward.
+        persistence.put_dm_transition(&self.session_id, &record, &self.crypto.snapshot())
     }
 
     /// Until the joiner processes the Welcome its record's group id is an
