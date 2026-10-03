@@ -134,7 +134,8 @@ impl MlsSessionCrypto {
         &mut self,
         bundle: CommitMessageBundle,
     ) -> Result<AddOutcome, MlsCryptoError> {
-        let serialized: Result<(Vec<u8>, Vec<u8>), MlsCryptoError> = (|| {
+        let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
+        let serialized: Result<AddOutcome, MlsCryptoError> = (|| {
             let commit_bytes = bundle.commit().to_bytes().map_err(MlsCryptoError::codec)?;
             let welcome_bytes = bundle
                 .to_welcome_msg()
@@ -143,13 +144,24 @@ impl MlsSessionCrypto {
                 })?
                 .to_bytes()
                 .map_err(MlsCryptoError::codec)?;
-            Ok((commit_bytes, welcome_bytes))
+            let tree_bytes = group
+                .pending_commit()
+                .ok_or(MlsCryptoError::NotReady)?
+                .export_ratchet_tree(self.provider.crypto(), group.export_ratchet_tree())
+                .map_err(MlsCryptoError::openmls)?
+                .ok_or(MlsCryptoError::NotReady)?
+                .tls_serialize_detached()
+                .map_err(MlsCryptoError::codec)?;
+            Ok(AddOutcome {
+                commit_bytes,
+                welcome_bytes,
+                tree_bytes,
+            })
         })();
-        let group = self.group.as_mut().ok_or(MlsCryptoError::NotReady)?;
         // On serialization failure drop the staged commit, or every later
         // commit-producing call on this group fails on the stale pending state.
-        let (commit_bytes, welcome_bytes) = match serialized {
-            Ok(pair) => pair,
+        let outcome = match serialized {
+            Ok(outcome) => outcome,
             Err(error) => {
                 let _ = group.clear_pending_commit(self.provider.storage());
                 return Err(error);
@@ -158,14 +170,7 @@ impl MlsSessionCrypto {
         group
             .merge_pending_commit(&self.provider)
             .map_err(MlsCryptoError::openmls)?;
-        Ok(AddOutcome {
-            commit_bytes,
-            welcome_bytes,
-            tree_bytes: group
-                .export_ratchet_tree()
-                .tls_serialize_detached()
-                .map_err(MlsCryptoError::codec)?,
-        })
+        Ok(outcome)
     }
 
     /// Credential identity inside a serialized KeyPackage. The admission

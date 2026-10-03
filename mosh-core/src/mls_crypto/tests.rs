@@ -190,6 +190,16 @@ fn replace_member_swaps_device_in_one_commit() {
     let kp = bob_new.key_package_bytes().unwrap();
 
     let outcome = admin.replace_member("peer-bob", &kp).unwrap();
+    assert_eq!(
+        outcome.tree_bytes,
+        admin
+            .group
+            .as_ref()
+            .unwrap()
+            .export_ratchet_tree()
+            .tls_serialize_detached()
+            .unwrap()
+    );
     carol.process_commit(&outcome.commit_bytes).unwrap();
     bob_new
         .join_welcome(&outcome.welcome_bytes, &outcome.tree_bytes)
