@@ -1,24 +1,25 @@
 use super::*;
 use crate::moss_ffi::{drain_received_messages, fail_next_test_publish, MOSS_TEST_LOCK};
 
+#[path = "../../tests/support/temp_directory.rs"]
+mod temp_directory;
+use temp_directory::TempDirectory;
+
 struct Fixture {
-    directory: std::path::PathBuf,
     store: Arc<Persistence>,
     runtime: ChannelRuntime,
     id: String,
+    directory: TempDirectory,
 }
 
 impl Fixture {
     fn new() -> Self {
         drain_received_messages();
-        let directory =
-            std::env::temp_dir().join(format!("mosh-channel-durable-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&directory);
-        std::fs::create_dir_all(&directory).unwrap();
+        let directory = TempDirectory::new("mosh-channel-durable");
         let store = Arc::new(
-            Persistence::open_with_dek(&directory.join("history.redb"), [57; 32]).unwrap(),
+            Persistence::open_with_dek(&directory.path().join("history.redb"), [57; 32]).unwrap(),
         );
-        let attachments = Arc::new(AttachmentStore::new(&directory).unwrap());
+        let attachments = Arc::new(AttachmentStore::new(directory.path()).unwrap());
         let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
         let mut runtime = ChannelRuntime::from_shared(moss, attachments, Some(store.clone()));
         let id = runtime
@@ -31,17 +32,11 @@ impl Fixture {
             .unwrap()
             .name;
         Self {
-            directory,
             store,
             runtime,
             id,
+            directory,
         }
-    }
-}
-
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.directory);
     }
 }
 
@@ -85,4 +80,12 @@ fn refused_storage_does_not_publish_and_retains_a_deliberate_retry() {
         .get_outbound_attempt(CHANNEL_HISTORY.outbound_scope, &fixture.id, &message_id)
         .unwrap()
         .is_none());
+    let path = fixture.directory.path().to_path_buf();
+    let released = Arc::downgrade(&fixture.store);
+    drop(fixture);
+    assert!(
+        released.upgrade().is_none(),
+        "database handles should close"
+    );
+    assert!(!path.exists(), "fixture directory should be removed");
 }
