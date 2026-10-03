@@ -8,22 +8,24 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _enabled = bool.fromEnvironment('SETUP_PREVIEW');
 
+/// Loads the bundled Inter weights and Material icons so previews render
+/// real glyphs instead of the test font.
 Future<void> prepareSetupPreview(WidgetTester tester) async {
   if (!_enabled) return;
   await tester.runAsync(() async {
-    const fonts = {
-      'Inter Tight': String.fromEnvironment('SETUP_FONT'),
-      'MaterialIcons': String.fromEnvironment('SETUP_ICONS'),
-    };
-    for (final entry in fonts.entries) {
-      if (entry.value.isEmpty) continue;
-      final loader = FontLoader(entry.key)
-        ..addFont(Future.value(
-            ByteData.sublistView(await File(entry.value).readAsBytes())));
-      await loader.load();
+    final inter = FontLoader('Inter');
+    for (final weight in ['Regular', 'Medium', 'SemiBold', 'Bold']) {
+      inter.addFont(_read('assets/fonts/Inter-$weight.ttf'));
     }
+    await inter.load();
+    await (FontLoader('MaterialIcons')
+          ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
+        .load();
   });
 }
+
+Future<ByteData> _read(String path) async =>
+    ByteData.sublistView(await File(path).readAsBytes());
 
 /// Capture the real Flutter tree only when the optional preview is requested.
 Future<void> saveSetupPreview(WidgetTester tester, String name) async {

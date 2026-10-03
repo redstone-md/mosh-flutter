@@ -70,7 +70,7 @@ void main() {
     ]) {
       expect(style!.height, isNotNull, reason: '$name height');
       expect(style.letterSpacing, isNotNull, reason: '$name letter-spacing');
-      expect(style.fontFamily, 'Inter Tight', reason: '$name family');
+      expect(style.fontFamily, 'Inter', reason: '$name family');
     }
     // Headings descend and outweigh the body.
     expect(t.headlineMedium!.fontSize, greaterThan(t.headlineSmall!.fontSize!));

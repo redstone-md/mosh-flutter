@@ -55,6 +55,17 @@ void main() {
     expect(task.style!.fontSize, greaterThan(welcome.style!.fontSize!));
   });
 
+  testWidgets('setup actions use the readable setup label, not the app label',
+      (tester) async {
+    await _pump(tester, SetupStep.name, const Size(1280, 680));
+    final label = tester.widget<DefaultTextStyle>(find
+        .ancestor(
+            of: find.text('Продолжить'),
+            matching: find.byType(DefaultTextStyle))
+        .first);
+    expect(label.style.fontSize, 15);
+  });
+
   testWidgets('device choices have equal emphasis before choosing',
       (tester) async {
     await _pump(tester, SetupStep.device, const Size(1280, 680));

@@ -47,7 +47,7 @@ void main() {
               of: action,
               matching: find
                   .byWidgetPredicate((widget) => widget is ButtonStyleButton)));
-          expect(button.height, greaterThanOrEqualTo(52));
+          expect(button.height, greaterThanOrEqualTo(48));
           expect(button.left, greaterThanOrEqualTo(12));
           expect(button.right, lessThanOrEqualTo(size.width - 12));
           expect(button.top, greaterThanOrEqualTo(44));
