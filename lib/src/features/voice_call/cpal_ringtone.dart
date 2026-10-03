@@ -1,7 +1,3 @@
-// Production RingtonePlayer backed by mosh-core's synchronous CPAL stream.
-
-library;
-
 import 'package:mosh/src/rust/api/audio_devices.dart' show audioOutputDeviceId;
 import 'package:mosh/src/rust/api/voice_call_ringtone.dart'
     show VoiceCallRingtone, voiceCallRingtoneStart, voiceCallRingtoneStop;

@@ -1,13 +1,3 @@
-// GroupScreen AppBar header. The AppBar skeleton (rail back button,
-// search, details identity and action menu) lives in the shared
-// ConversationAppBar; this header builds the group title/status and
-// the invitation menu action, and owns
-// the copy-invite ephemeral state (`_inviteCopied` + the 1600ms revert).
-//
-// Reads the group snapshot itself via `ref.watch(groupSnapshotProvider(
-// groupId))`, so the screen passes only the `groupId` + the two
-// screen-level callbacks ([onOpenPeerStatus] / [onLeave]).
-
 import 'dart:async' show Timer;
 
 import 'package:flutter/material.dart';
@@ -19,46 +9,22 @@ import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
-import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_chrome.dart';
 import 'package:mosh/src/features/conversation/conversation_app_bar.dart';
 import 'package:mosh/src/features/conversation/conversation_header_title.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_lock.dart';
 
-/// The GroupScreen AppBar header: the two-line title Column (group label +
-/// subtitle) plus the invitation menu action. Admin role appears once.
-/// Owns the copy-invite ephemeral state and reads the group snapshot
-/// itself, so it is self-contained.
-///
-/// ctor:
-///   - [groupId] -- the group identity; the title fallback when the
-///     snapshot has not resolved yet, and the family arg for the watch.
-///   - [onOpenPeerStatus] -- screen toggles `_showPeerStatus = true`.
-///   - [onLeave] -- screen's `_leave` (gateway.leave + nav back).
-///   - [mobileSearchOpen] + [onToggleMobileSearch] -- the mobile search
-///     panel open state, owned by the screen; forwarded to the shared
-///     ConversationAppBar.
-///   - [filter] + [onFilter] -- the conversation filter, owned by the
-///     screen; forwarded to the shared kebab's filter toggle.
 class GroupScreenHeader extends ConsumerStatefulWidget
     implements PreferredSizeWidget {
   const GroupScreenHeader({
     super.key,
+    required this.chrome,
     required this.groupId,
-    required this.onOpenPeerStatus,
-    required this.onLeave,
-    required this.mobileSearchOpen,
-    required this.onToggleMobileSearch,
-    required this.filter,
-    required this.onFilter,
   });
 
   final String groupId;
-  final VoidCallback onOpenPeerStatus;
-  final VoidCallback onLeave;
-  final bool mobileSearchOpen;
-  final VoidCallback onToggleMobileSearch;
-  final ConversationFilter filter;
-  final ValueChanged<ConversationFilter> onFilter;
+
+  final ConversationChrome chrome;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -98,23 +64,18 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
     final async = ref.watch(groupSnapshotProvider(widget.groupId));
     final group = async.value;
     return ConversationAppBar(
+      chrome: widget.chrome,
       kind: ConversationKind.group,
       avatarName: group?.label ?? l.groupUntitled,
       title: ConversationHeaderTitle(
         name: group == null ? widget.groupId : group.label ?? l.groupUntitled,
         subtitle: group == null ? '' : _groupSubtitle(group, l),
-        onOpenDetails: widget.onOpenPeerStatus,
+        onOpenDetails: widget.chrome.onOpenPeerStatus,
         nameAction: FingerprintLock(
             fingerprint: group?.creatorFingerprint ?? '',
             hint: l.groupFingerprintHint,
             besideName: true),
       ),
-      onOpenPeerStatus: widget.onOpenPeerStatus,
-      onRequestLeave: widget.onLeave,
-      filter: widget.filter,
-      onFilter: widget.onFilter,
-      mobileSearchOpen: widget.mobileSearchOpen,
-      onToggleMobileSearch: widget.onToggleMobileSearch,
       leaveMenuLabel: l.groupLeaveLabel,
       leaveMenuIcon: Icons.logout,
       menuActions: [

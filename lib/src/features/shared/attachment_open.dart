@@ -1,8 +1,3 @@
-// Immutable attachment-open intents shared by the DM, channel, and group
-// orchestration paths. Screens interpret these intents and own the UI or
-// platform side effect.
-library;
-
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
 sealed class AttachmentOpenIntent {

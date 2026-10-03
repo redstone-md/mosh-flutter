@@ -1,6 +1,3 @@
-/// Conversation action menu. Flutter handles focus, dismissal and Escape.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

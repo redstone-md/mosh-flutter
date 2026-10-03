@@ -1,22 +1,9 @@
-/// The [[Typing indicator]] hint: "the counterpart is typing" for a DM,
-/// "Alice is typing…" per member for a group. Renders nothing when nobody
-/// is typing, so callers mount it unconditionally under the message list.
-///
-/// The state comes from the snapshot the poll already cycles — the DM's
-/// `peerTypingUntilMs` and the group's `typingMembers`, each checked
-/// against the clock here so an expired hint disappears on the next
-/// rebuild without a timer. Channels never carry typing, so a channel
-/// snapshot renders nothing (no field to read).
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 
-/// This hint rides above the composer in the message pane, sized like the
-/// message-time row (11px fg-3) so it reads as meta, not a message.
 class TypingHint extends StatelessWidget {
   const TypingHint({
     super.key,

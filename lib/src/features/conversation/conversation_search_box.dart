@@ -1,14 +1,3 @@
-// The conversation search field and the filter segmented toggle, shared by
-// the desktop ConversationTools row and the mobile search panel.
-//
-// Both call sites previously built a `TextEditingController(text: search)`
-// inside `build`, which recreates the controller on every rebuild and drops
-// the caret back to offset 0. That was survivable while the screens only
-// rebuilt on keystrokes; with the snapshot poll running every second it
-// would fight the user mid-word. The box owns its controller and syncs it
-// from the incoming value only when the two actually differ.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 

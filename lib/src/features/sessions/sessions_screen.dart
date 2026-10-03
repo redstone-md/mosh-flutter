@@ -1,8 +1,3 @@
-/// Unified recent chats with local search and kind filters.
-/// Riverpod owns independently loaded per-kind lists. Loading and errors stay
-/// inside the rail, alongside available chats. Creation and settings stay pinned.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

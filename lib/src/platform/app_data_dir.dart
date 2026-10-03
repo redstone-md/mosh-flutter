@@ -1,40 +1,3 @@
-// M-5 (ADR 0010): bridge the platform's app-private data directory from Dart
-// to Rust so the encrypted redb history DB + the AttachmentStore live in the
-// platform's app-support directory instead of the temp/mosh fallback. This
-// makes persistence production-correct on a device (temp is cleared by the
-// OS) and lines up M-2 (persistence) + M-3 (DEK inject) with where the DB
-// actually lives.
-//
-// SINGLE SOURCE OF TRUTH IN DART: Dart computes the app_data_dir ONCE at
-// startup via `getApplicationSupportDirectory()` (path_provider) BEFORE
-// `runApp`. It hands the path to Rust via the frb `setAppDataDir(path)` call
-// (idempotent-once in Rust, mirroring `setHistoryDek`), AND keeps the path
-// locally in a module-level getter `appDataDir()` so `mobile_dek`'s
-// `_historyRedbPath()` reuses the SAME dir -- no divergence between the Dart
-// DB-exists check and the Rust open. Order matters: `setAppDataDirBridge()`
-// runs BEFORE `initMobileDek()` and before the first private-DM runtime
-// construct (which reads the dir), so both sides agree before either reads.
-//
-// PLATFORM SCOPE: runs on ALL platforms (Android/iOS/Windows/macOS/Linux).
-// path_provider works everywhere; desktop getting a real app-support dir is
-// strictly MORE correct than the temp fallback (temp was the desktop path
-// before M-5). No `Platform` gate in `main()`.
-//
-// FALLBACK: if `getApplicationSupportDirectory()` throws
-// (`MissingPlatformDirectoryException` -- e.g. a host without the plugin, or
-// a unit test that calls `resolveAppDataDir` without a registered platform
-// implementation), fall back to a `mosh` subdir under `Directory.systemTemp`
-// so the app still runs (mirrors the pre-M-5 behavior). The fallback is logged
-// via `debugPrint` so the cause is visible in a device log.
-//
-// TESTABILITY: the success branch (real `getApplicationSupportDirectory`) is
-// device/desktop-only -- it needs the path_provider platform implementation,
-// which `flutter test` does not register. `resolveAppDataDir` takes an
-// injected `supportDir` getter so the fallback branch is unit-testable on the
-// host with a hand fake that throws; the success branch is covered in
-// integration tests on a real device/desktop. See
-// `test/platform/app_data_dir_test.dart`.
-
 import 'dart:io' show Directory, Platform;
 
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -100,12 +63,6 @@ Future<String> resolveAppDataDir({
 /// (systemTemp is always non-empty on every platform).
 Future<void> setAppDataDirBridge() async {
   final String path = await resolveAppDataDir();
-  // Idempotent across main() re-runs in a live process: a fresh Dart isolate
-  // on Android activity recreation re-calls this bridge, and Rust's
-  // `set_app_data_dir` accepts the SAME path as a no-op (returns Ok) so the
-  // warm start does not crash main(). A DIFFERENT path still throws loudly
-  // (Rust side) to surface a real Dart-vs-Rust divergence. Slice-3 device-
-  // pass finding: the prior non-idempotent inject blank-screened warm starts.
   await api.setAppDataDir(path: path);
   _resolvedAppDataDir = path;
 }

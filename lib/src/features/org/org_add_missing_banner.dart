@@ -1,10 +1,3 @@
-/// The orgAddPrompt banner: "{count} {missingOne|missingMany}" plus an
-/// "Add to group" button the admin taps to invite the missing roster members
-/// in one click (spec §5). The button disables while the invite is in flight
-/// (busy). Renders nothing when count == 0 (the provider already returns
-/// null in that case; this widget is a pure render of the prompt).
-library;
-
 import 'package:flutter/material.dart';
 
 /// The banner. [count] is the number of missing roster members; [busy] gates

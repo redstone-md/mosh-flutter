@@ -20,120 +20,7 @@ import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart';
 import 'package:mosh/src/features/voice_call/voice_capture.dart';
 import 'package:mosh/src/features/voice_call/voice_playback.dart';
 
-const String KEY_B64 =
-    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; // 32 zero bytes
-const String PREFIX_B64 = 'AAAAAA=='; // 4 zero bytes
-
-/// A capture handle that records its `stop()` call.
-class _RecordingCaptureHandle implements VoiceCaptureHandle {
-  bool stopped = false;
-  @override
-  Future<void> stop() async {
-    stopped = true;
-  }
-}
-
-/// A capture factory that never fires onFrame (mirrors NoopVoiceCaptureFactory
-/// but with a recording handle so detach's stop() is observable).
-class _RecordingCaptureFactory implements VoiceCaptureFactory {
-  late _RecordingCaptureHandle handle;
-  @override
-  bool get isSupported => true;
-  @override
-  Future<VoiceCaptureHandle> start(
-      void Function(Uint8List opusFrame) onFrame) async {
-    handle = _RecordingCaptureHandle();
-    return handle;
-  }
-}
-
-/// A capture handle that fires a queued frame via a Timer and records stop.
-class _FiringCaptureHandle implements VoiceCaptureHandle {
-  _FiringCaptureHandle(this._onFrame, this._frames);
-  final void Function(Uint8List) _onFrame;
-  final List<Uint8List> _frames;
-  Timer? _timer;
-  int _i = 0;
-  bool stopped = false;
-
-  void start() {
-    _scheduleNext();
-  }
-
-  void _scheduleNext() {
-    if (_i >= _frames.length) return;
-    _timer = Timer(const Duration(milliseconds: 30), () {
-      if (stopped) return;
-      _onFrame(_frames[_i]);
-      _i++;
-      _scheduleNext();
-    });
-  }
-
-  @override
-  Future<void> stop() async {
-    stopped = true;
-    _timer?.cancel();
-    _timer = null;
-  }
-}
-
-/// A capture factory that fires `frames` on a 30ms cadence after start()
-/// returns, so tests can toggle mute / detach in between ticks. The handle
-/// is exposed for stop() observability.
-class _FiringCaptureFactory implements VoiceCaptureFactory {
-  _FiringCaptureFactory(this._frames);
-  final List<Uint8List> _frames;
-  _FiringCaptureHandle? handle;
-  @override
-  bool get isSupported => true;
-  @override
-  Future<VoiceCaptureHandle> start(
-      void Function(Uint8List opusFrame) onFrame) async {
-    final h = _FiringCaptureHandle(onFrame, _frames);
-    handle = h;
-    h.start();
-    return h;
-  }
-}
-
-/// A recording playback handle: records pushed frames + the stop() call.
-class _RecordingPlaybackHandle implements VoicePlaybackHandle {
-  final List<({BigInt seq, Uint8List payload})> received = [];
-  bool stopped = false;
-  @override
-  void pushFrame(BigInt seq, Uint8List opusFrame) {
-    received.add((seq: seq, payload: Uint8List.fromList(opusFrame)));
-  }
-
-  @override
-  Future<void> stop() async {
-    stopped = true;
-  }
-}
-
-/// A playback factory returning a recording handle (exposed for assertions).
-class _RecordingPlaybackFactory implements VoicePlaybackFactory {
-  _RecordingPlaybackHandle? handle;
-  @override
-  Future<VoicePlaybackHandle> start() async {
-    handle = _RecordingPlaybackHandle();
-    return handle!;
-  }
-}
-
-/// A playback factory whose start() throws -- drives attach's catch branch.
-class _FailingPlaybackFactory implements VoicePlaybackFactory {
-  final Object error;
-  _FailingPlaybackFactory(this.error);
-  @override
-  Future<VoicePlaybackHandle> start() async {
-    throw error;
-  }
-}
-
-/// Wires up a fresh orchestrator for an attach() call.
-VoiceCallOrchestrator _orchestrator() => VoiceCallOrchestrator();
+part 'voice_call_orchestrator_support.dart';
 
 void main() {
   group('voice_call_orchestrator', () {
@@ -143,8 +30,8 @@ void main() {
       await orchestrator.attach(
         sessionId: 's',
         callId: 'c',
-        keyB64: KEY_B64,
-        noncePrefixB64: PREFIX_B64,
+        keyB64: kKeyB64,
+        noncePrefixB64: kNoncePrefixB64,
         direction: 'caller',
         bridge: gateway,
         captureFactory: const NoopVoiceCaptureFactory(),
@@ -179,8 +66,8 @@ void main() {
       await orchestrator1.attach(
         sessionId: 's',
         callId: 'c',
-        keyB64: KEY_B64,
-        noncePrefixB64: PREFIX_B64,
+        keyB64: kKeyB64,
+        noncePrefixB64: kNoncePrefixB64,
         direction: 'caller',
         bridge: gateway1,
         captureFactory: capture1,
@@ -193,10 +80,10 @@ void main() {
       final call = gateway1.lastCall(BridgeMethod.callSendFrame)!;
       expect(call.arg<String>('sessionId'), 's');
       expect(call.arg<String>('callId'), 'c');
-      final key = await importCallKey(KEY_B64);
+      final key = await importCallKey(kKeyB64);
       final opened = await openFrame(
           key,
-          PREFIX_B64,
+          kNoncePrefixB64,
           gateway1
               .argValues<Uint8List>(BridgeMethod.callSendFrame, 'frame')
               .single);
@@ -214,8 +101,8 @@ void main() {
       await orchestrator2.attach(
         sessionId: 's',
         callId: 'c',
-        keyB64: KEY_B64,
-        noncePrefixB64: PREFIX_B64,
+        keyB64: kKeyB64,
+        noncePrefixB64: kNoncePrefixB64,
         direction: 'caller',
         bridge: gateway2,
         captureFactory: capture2,
@@ -242,8 +129,8 @@ void main() {
         await orchestrator.attach(
           sessionId: 's',
           callId: 'c',
-          keyB64: KEY_B64,
-          noncePrefixB64: PREFIX_B64,
+          keyB64: kKeyB64,
+          noncePrefixB64: kNoncePrefixB64,
           direction: direction,
           bridge: gateway,
           captureFactory: capture,
@@ -256,12 +143,12 @@ void main() {
         expect(gateway.countOf(BridgeMethod.callSendFrame), 3);
         await orchestrator.detach();
 
-        final key = await importCallKey(KEY_B64);
+        final key = await importCallKey(kKeyB64);
         final seqs = <BigInt>[];
         final highBits = <BigInt>[];
         for (final frame in gateway.argValues<Uint8List>(
             BridgeMethod.callSendFrame, 'frame')) {
-          final opened = await openFrame(key, PREFIX_B64, frame);
+          final opened = await openFrame(key, kNoncePrefixB64, frame);
           expect(opened, isNotNull);
           seqs.add(opened!.seq & SEQ_VALUE_MASK);
           highBits.add(opened.seq >> 63);
@@ -275,23 +162,23 @@ void main() {
     test('drained frames surface reordered to playback', () async {
       final gateway = ScriptableBridge();
       final playbackFactory = _RecordingPlaybackFactory();
-      final key = await importCallKey(KEY_B64);
+      final key = await importCallKey(kKeyB64);
       // Seal frames for seqs [3,1,2] with payloads [30,10,20]; deliver them
       // raw through the bridge; the jitter
       // buffer must reorder to [1,2,3] -> payloads [10,20,30].
-      final f1 = await sealFrame(key, PREFIX_B64, BigInt.one,
+      final f1 = await sealFrame(key, kNoncePrefixB64, BigInt.one,
           CALLER_DIRECTION_BIT, Uint8List.fromList([10]));
-      final f2 = await sealFrame(key, PREFIX_B64, BigInt.two,
+      final f2 = await sealFrame(key, kNoncePrefixB64, BigInt.two,
           CALLER_DIRECTION_BIT, Uint8List.fromList([20]));
-      final f3 = await sealFrame(key, PREFIX_B64, BigInt.from(3),
+      final f3 = await sealFrame(key, kNoncePrefixB64, BigInt.from(3),
           CALLER_DIRECTION_BIT, Uint8List.fromList([30]));
       gateway.seedCallFrames([f3, f1, f2]);
       final orchestrator = _orchestrator();
       await orchestrator.attach(
         sessionId: 's',
         callId: 'c',
-        keyB64: KEY_B64,
-        noncePrefixB64: PREFIX_B64,
+        keyB64: kKeyB64,
+        noncePrefixB64: kNoncePrefixB64,
         direction: 'caller',
         bridge: gateway,
         captureFactory: const NoopVoiceCaptureFactory(),
@@ -319,8 +206,8 @@ void main() {
       await orchestrator.attach(
         sessionId: 's',
         callId: 'c',
-        keyB64: KEY_B64,
-        noncePrefixB64: PREFIX_B64,
+        keyB64: kKeyB64,
+        noncePrefixB64: kNoncePrefixB64,
         direction: 'caller',
         bridge: gateway,
         captureFactory: const NoopVoiceCaptureFactory(),
@@ -349,8 +236,8 @@ void main() {
       await orchestrator.attach(
         sessionId: 's',
         callId: 'c',
-        keyB64: KEY_B64,
-        noncePrefixB64: PREFIX_B64,
+        keyB64: kKeyB64,
+        noncePrefixB64: kNoncePrefixB64,
         direction: 'caller',
         bridge: gateway,
         captureFactory: captureFactory,
@@ -377,8 +264,8 @@ void main() {
       await orchestrator.attach(
         sessionId: 's',
         callId: 'c',
-        keyB64: KEY_B64,
-        noncePrefixB64: PREFIX_B64,
+        keyB64: kKeyB64,
+        noncePrefixB64: kNoncePrefixB64,
         direction: 'caller',
         bridge: gateway,
         captureFactory: capture,
@@ -402,8 +289,8 @@ void main() {
       await orchestrator.attach(
         sessionId: 's',
         callId: 'c',
-        keyB64: KEY_B64,
-        noncePrefixB64: PREFIX_B64,
+        keyB64: kKeyB64,
+        noncePrefixB64: kNoncePrefixB64,
         direction: 'caller',
         bridge: gateway,
         captureFactory: const NoopVoiceCaptureFactory(),

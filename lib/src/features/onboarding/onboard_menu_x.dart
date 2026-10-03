@@ -1,10 +1,3 @@
-// Private leaf widgets of [OnboardMenu] (onboard_menu.dart): the
-// Start/Join section shells, the identity chip and the action tiles.
-// Part of onboard_menu.dart.
-//
-// Radii are concentric (outer = inner + inset): the chip is 18 around a
-// radius-8 field at a 10px inset; a tile is 20 around a radius-8 icon
-// plate at a 12px inset, the same pairing as PersistenceWarningBanner.
 part of 'onboard_menu.dart';
 
 /// A Start/Join section: a labelSmall heading followed by the section's

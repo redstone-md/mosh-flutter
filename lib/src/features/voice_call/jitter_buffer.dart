@@ -1,16 +1,3 @@
-// JitterBuffer -- a small in-memory reorder buffer for received
-// voice-call frames: it drains frames in seq order, pauses on a gap, and
-// once the buffered backlog exceeds `gapCap` frames it force-skips the
-// missing seq and resumes (cheap PLC). Pure, no I/O, unit-testable.
-//
-// `push` drops frames at or below the cursor; `drainReady` walks the
-// pending set in seq order, advances the cursor one drained frame at a
-// time, and -- when the backlog exceeds `gapCap` -- jumps the expected
-// seq forward to the lowest remaining pending key (it does NOT delete a
-// gap, since the gap was never in `pending`).
-
-library;
-
 import 'dart:typed_data';
 
 /// An immutable received frame held by [JitterBuffer].

@@ -1,7 +1,3 @@
-// Derives the persistence-status warning from `nativeRuntimeStatusProvider`.
-// Pure/testable: returns a structured `PersistenceWarning` (kind + raw
-// reason) and never touches BuildContext/AppLocalizations, so i18n stays in
-// the widget layer.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/rust/api/diagnostics.dart';

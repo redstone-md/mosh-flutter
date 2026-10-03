@@ -1,10 +1,3 @@
-/// The parts of a conversation screen the user can drive: the search text,
-/// the filter, the mobile search panel, the peer-status drawer, and leaving.
-///
-/// The screen owns these values. The header and the body both read them and
-/// call back, so neither has to hold a copy.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/features/conversation/conversation_tools.dart'

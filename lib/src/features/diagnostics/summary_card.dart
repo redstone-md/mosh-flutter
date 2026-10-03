@@ -1,10 +1,3 @@
-/// `SummaryCard` + `RuntimeError` widgets for the Diagnostics drawer.
-///
-/// Tone colors: ready = green (`MoshColors.moss`), waiting = amber
-/// (`warn`), error = red (`danger`), idle = grey (`fg3`, the default
-/// badge dot color). The tone also tints the section border (alpha).
-library;
-
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 

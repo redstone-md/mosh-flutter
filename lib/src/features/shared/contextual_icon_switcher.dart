@@ -1,5 +1,3 @@
-library;
-
 import 'package:flutter/material.dart';
 
 /// Contextual icon switcher that cross-fades and subtly scales when an icon

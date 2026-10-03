@@ -1,7 +1,3 @@
-/// Existing persisted VPN-bypass choice. A running node picks up changes
-/// only after restart; saved settings are never presented as live binding.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';

@@ -1,26 +1,3 @@
-/// Diagnostics-drawer section widgets.
-///
-/// Contains the `SessionDiagnostics` groups: the "Conversation details"
-/// group, the `MeshDiagnostics` "Moss network" group, and the `EventLog`
-/// "Moss events" group. Plus the shared primitives they need:
-///   - `DiagnosticsGroup`  -- the bordered group shell with an uppercase
-///     label header (reused by `NoActiveSession` here, by
-///     `MeshDiagnostics`, and by `EventLog`). Supports an optional
-///     `leading` icon widget.
-///   - `DiagnosticsRow`     -- a label + value row primitive. Named
-///     `DiagnosticsRow` to avoid clashing with Flutter's `Row`.
-///   - `DiagnosticsEmptyState` -- a bold title + a description span.
-///     Public so both `NoActiveSession` and `MeshDiagnostics`' "Mesh
-///     booting" state reuse it (small DRY win).
-///   - `NoActiveSession`    -- a `Session` group with an empty-state.
-///
-/// `MeshDiagnostics` and `EventLog` live in their own files
-/// (`mesh_diagnostics.dart` and `event_log.dart`) so this file stays
-/// under 500 lines. The `ChannelDiagnostics` / `GroupDiagnostics`
-/// sections now exist in `channel_group_diagnostics.dart`.
-/// `SessionDiagnostics` into `DiagnosticsScreen` is also a later atomic.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
@@ -30,6 +7,7 @@ import 'package:mosh/src/features/diagnostics/mesh_diagnostics.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart' show MossLibraryInfo;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
+import 'package:mosh/src/rust/conversation/mesh.dart';
 import 'package:mosh/src/util/format.dart';
 
 /// A bordered, rounded group shell with an uppercase label header, then
@@ -43,7 +21,8 @@ class DiagnosticsGroup extends StatelessWidget {
     super.key,
     required this.label,
     this.leading,
-    required this.children,
+    this.children = const [],
+    this.rows = const [],
   });
 
   /// The uppercase group-label header text (already localized by the
@@ -55,6 +34,7 @@ class DiagnosticsGroup extends StatelessWidget {
 
   /// The group body (rows, an empty-state, a mesh grid, etc.).
   final List<Widget> children;
+  final List<(String, String)> rows;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +52,8 @@ class DiagnosticsGroup extends StatelessWidget {
         children: [
           _GroupLabel(label: label, leading: leading),
           ...children,
+          for (final (label, value) in rows)
+            DiagnosticsRow(label: label, value: value),
         ],
       ),
     );
@@ -244,88 +226,80 @@ class DiagnosticsEmptyState extends StatelessWidget {
   }
 }
 
-/// Session diagnostics: the "Conversation details" group, then the
-/// `MeshDiagnostics` "Moss network" group, then the `EventLog` "Moss
-/// events" group, in that order.
-///
-/// The "Conversation details" group holds the Peer / MLS state /
-/// Transport / Peer id / Last connect / Role / Display / Session rows.
-/// The MLS-state and Transport values come from `dm_state.dart`, the same
-/// wording the header and the rail use, so "Connected" and "peer unknown"
-/// can never appear together. The Session value uses
-/// `shorten(session.sessionId, 14)` from `lib/src/util/format.dart`.
-///
-/// `EventLog` shows the last 40 session events newest-first, or the "No
-/// events yet" empty-state. The session's `mesh` may be `null` (mesh
-/// still booting); that case is handled by `MeshDiagnostics` itself (it
-/// renders the "Mesh booting" empty-state).
-class SessionDiagnostics extends StatelessWidget {
-  const SessionDiagnostics({
+/// A conversation's details, mesh and event log share one section layout.
+class ConversationDiagnosticsSections extends StatelessWidget {
+  const ConversationDiagnosticsSections({
     super.key,
-    required this.session,
+    required this.label,
+    required this.rows,
+    required this.mesh,
+    required this.events,
     this.libraryInfo,
+    this.peerMossId,
   });
 
-  final SessionSnapshot session;
+  final String label;
+  final List<(String, String)> rows;
+  final MeshInfo? mesh;
+  final List<SnapshotEvent> events;
+  final MossLibraryInfo? libraryInfo;
+  final String? peerMossId;
 
-  /// What the loaded moss library reports about itself (spec #5), read by
-  /// the drawer and handed down; `null` keeps the group's library rows off
-  /// the panel.
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DiagnosticsGroup(label: label, rows: rows),
+          MeshDiagnostics(
+              mesh: mesh, libraryInfo: libraryInfo, peerMossId: peerMossId),
+          EventLog(events: events),
+        ],
+      );
+}
+
+class SessionDiagnostics extends StatelessWidget {
+  const SessionDiagnostics(
+      {super.key, required this.session, this.libraryInfo});
+
+  final SessionSnapshot session;
   final MossLibraryInfo? libraryInfo;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final rows = <DiagnosticsRow>[
-      DiagnosticsRow(
-        label: l.diagRowPeer,
-        value: session.peerDisplayName.isNotEmpty
-            ? session.peerDisplayName
-            : l.diagPeerUnknown,
-      ),
-      DiagnosticsRow(
-        label: l.diagRowMlsState,
-        value: dmStateLabel(l, session.state),
-      ),
-      DiagnosticsRow(
-        label: l.diagRowTransport,
-        value: transportLabel(l, session.transport),
-      ),
-      DiagnosticsRow(
-        label: l.diagRowPeerId,
-        value: session.peerMossId == null
-            ? l.diagPeerIdUnknown
-            : shorten(session.peerMossId!, 8),
-      ),
-      DiagnosticsRow(
-        label: l.diagRowLastConnect,
-        value: switch (session.lastConnectOutcome) {
-          null => l.diagConnectNotYet,
-          ConnectOutcome.requested => l.diagConnectRequested,
-          ConnectOutcome.failed => l.diagConnectFailed,
-        },
-      ),
-      DiagnosticsRow(label: l.diagRowRole, value: session.role),
-      DiagnosticsRow(label: l.diagRowDisplay, value: session.displayName),
-      DiagnosticsRow(
-        label: l.diagSessionLabel,
-        value: shorten(session.sessionId, 14),
-      ),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        DiagnosticsGroup(
-          label: l.diagConversationDetails,
-          children: rows,
+    return ConversationDiagnosticsSections(
+      label: l.diagConversationDetails,
+      mesh: session.mesh,
+      events: session.events,
+      libraryInfo: libraryInfo,
+      peerMossId: session.peerMossId,
+      rows: [
+        (
+          l.diagRowPeer,
+          session.peerDisplayName.isNotEmpty
+              ? session.peerDisplayName
+              : l.diagPeerUnknown
         ),
-        MeshDiagnostics(
-          mesh: session.mesh,
-          libraryInfo: libraryInfo,
-          peerMossId: session.peerMossId,
+        (l.diagRowMlsState, dmStateLabel(l, session.state)),
+        (l.diagRowTransport, transportLabel(l, session.transport)),
+        (
+          l.diagRowPeerId,
+          session.peerMossId == null
+              ? l.diagPeerIdUnknown
+              : shorten(session.peerMossId!, 8)
         ),
-        EventLog(events: session.events),
+        (
+          l.diagRowLastConnect,
+          switch (session.lastConnectOutcome) {
+            null => l.diagConnectNotYet,
+            ConnectOutcome.requested => l.diagConnectRequested,
+            ConnectOutcome.failed => l.diagConnectFailed,
+          }
+        ),
+        (l.diagRowRole, session.role),
+        (l.diagRowDisplay, session.displayName),
+        (l.diagSessionLabel, shorten(session.sessionId, 14)),
       ],
     );
   }

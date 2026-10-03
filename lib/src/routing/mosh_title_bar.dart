@@ -1,23 +1,3 @@
-// Shared desktop titlebar. Renders full-window-width ABOVE the rail+chat
-// Row on desktop only; mobile screens already carry their own AppBar +
-// peer-status button, so the titlebar is NOT mounted on mobile
-// (documented deviation in mosh_shell.dart).
-//
-// Layout: brand (mesh M logo + strong "MOSH" product name), subtitle,
-// "Peer status" button (opens the PeerStatusDrawer for the active
-// conversation), then the live StatePill for the active conversation. The
-// subtitle and the pill ellipsize (full text in a tooltip); below
-// [_kCompactWidth], adjusted for text scaling, Peer status drops to its icon.
-//
-// State (all live): activeConversationKeyProvider -> key; the matching
-// snapshot family is watched for the live .state (activeSessionProvider /
-// channelSnapshotProvider / groupSnapshotProvider). Label mapper:
-// stateLabel() (features/diagnostics/state_label.dart) -- reused, DRY.
-//
-// Colors: MoshColors tokens; neutral pill chrome maps to
-// theme.surfaceContainerHighest / theme.dividerColor.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

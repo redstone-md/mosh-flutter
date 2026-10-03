@@ -1,18 +1,3 @@
-/// The "Moss events" diagnostics section.
-///
-/// `EventLog` -- a `DiagnosticsGroup` whose body is either a
-/// `DiagnosticsEmptyState` ("No events yet" + description) or a
-/// scrollable list of the last 40 events (newest first). Each event row
-/// is a time span + a strong column (the event name + an optional detail
-/// span). Reuses the shared primitives `DiagnosticsGroup` /
-/// `DiagnosticsEmptyState` (from `diagnostics_sections.dart`) and the
-/// pure helpers `formatTime` / `compactDetail` (from
-/// `diagnostics_helpers.dart`).
-///
-/// `ChannelDiagnostics` / `GroupDiagnostics` sections are still deferred
-/// (their contracts do not exist in the Flutter fork yet).
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

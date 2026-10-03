@@ -1,19 +1,3 @@
-// Mobile-only "back to the rail" control for the chat branch.
-//
-// The shell puts the rail (branch A) and the chat (branch B) in a
-// StatefulShellRoute. On desktop both panes are mounted side by side, so a
-// back control would be meaningless. On mobile only the ACTIVE branch
-// renders, and because each branch owns its own Navigator, branch B's route
-// stack is one deep -- `Navigator.canPop` is false, so `AppBar` implies no
-// leading arrow of its own. The result was a dead end: once branch B was
-// active, nothing on screen returned to the conversation list.
-//
-// A mobile shell solves the same problem with a hamburger that reopens
-// the rail as a drawer. The Flutter shell mounts no
-// titlebar on mobile, so the affordance lives on each chat pane's own
-// AppBar instead.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 

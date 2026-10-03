@@ -1,19 +1,3 @@
-// Slice-3 voice-call: incoming-call OS notification when the window is
-// unfocused. Fires an OS toast via flutter_local_notifications when a NEW
-// pendingCall appears AND the window is unfocused AND
-// notificationsReady() is true. The focus check is
-// window_manager.isFocused() (Windows/macOS; Linux is undocumented so the
-// gate always notifies there). The in-app IncomingCallModal is the user's
-// signal regardless.
-//
-// ADR 0010: notificationsReadyProvider is a FutureProvider<bool> that
-// initializes the plugin once at startup and resolves true/false. The
-// voice-call layer reads it via `ref.read(notificationsReadyProvider).value
-// == true`. The plugin instance is itself a Provider (flutterLocalNotificationsPluginProvider)
-// so tests inject a recording fake -- the same seam convention as
-// gatewayProvider / voiceCaptureFactoryProvider / voicePlaybackFactoryProvider.
-library;
-
 import 'dart:io' show Platform;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';

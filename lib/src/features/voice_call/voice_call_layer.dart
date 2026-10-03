@@ -1,23 +1,3 @@
-// VoiceCallLayer -- the pure renderer of the voice-call modals + overlay for
-// one DM session. It owns NO call state of its own: it reads the dialog the
-// orchestrator derived from the session snapshot (`voiceCallOrchestratorProvider
-// .dialog`) and shows exactly that one modal, and it routes every control
-// (accept / decline / hang up / mute) back to the orchestrator notifier.
-//
-// This layer is signaling-only: the audio transport lives in
-// `voice_call_orchestrator.dart`. The layer is a `ConsumerStatefulWidget`
-// placed in the DM body `Stack`; it routes through `showDialog` so the
-// modals get modal-route focus + scrim for free.
-//
-// Why one route record and not four `_open*For` fields: a session carries at
-// most one call (mosh-core builds all three call fields from one `CallState`
-// phase), so the UI owes the user at most one modal. Tracking four separate
-// "which modal is open" flags invited exactly the kind of re-mount / double
-// open bug this rewrite removes -- a single `_openCallId` + `_openKind` is the
-// one home for "what is on screen".
-
-library;
-
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';

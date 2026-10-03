@@ -60,10 +60,6 @@ void main(List<String> args) async {
     // MediaStreamLifecycleOwner.start stores the owner for this purpose.
     await MediaStreamLifecycleOwner.start();
   }
-  // Slice-3 media viewer: initialize media_kit (the Player/Video engine
-  // behind MediaViewer video + audio playback) before any Player is
-  // constructed. Idempotent; skipped harmlessly under `flutter test` (no
-  // MediaViewer is pumped there). Must run after WidgetsFlutterBinding.
   MediaKit.ensureInitialized();
   // Register the `mosh://` custom URL scheme with Windows so the OS
   // launches mosh.exe (URI as launch arg) for a `mosh://...` link. The

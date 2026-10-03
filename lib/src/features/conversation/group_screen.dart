@@ -1,7 +1,3 @@
-/// A private or org group. Everything but the header comes from the shared
-/// conversation screen.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
@@ -19,13 +15,8 @@ class GroupScreen extends StatelessWidget {
   Widget build(BuildContext context) => ConversationScreen(
         target: GroupTarget(groupId),
         header: (context, chrome) => GroupScreenHeader(
+          chrome: chrome,
           groupId: groupId,
-          onOpenPeerStatus: chrome.onOpenPeerStatus,
-          onLeave: chrome.onRequestLeave,
-          mobileSearchOpen: chrome.mobileSearchOpen,
-          onToggleMobileSearch: chrome.onToggleMobileSearch,
-          filter: chrome.filter,
-          onFilter: chrome.onFilter,
         ),
       );
 }

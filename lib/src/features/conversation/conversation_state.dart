@@ -1,7 +1,3 @@
-/// What one conversation screen is doing right now, and the results its
-/// controller hands back to the screen.
-library;
-
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor;

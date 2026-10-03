@@ -1,5 +1,3 @@
-library;
-
 import 'package:flutter/material.dart';
 
 /// Reusable tactile press-scale feedback.

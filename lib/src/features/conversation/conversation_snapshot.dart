@@ -1,14 +1,3 @@
-/// One view over the three conversation snapshots.
-///
-/// A DM, a channel and a group poll back three different generated types.
-/// The shared list, row, body and controller read this view instead, so
-/// there is one message shape and one snapshot shape in the UI.
-///
-/// The view is sealed: the fields every kind has sit on the base, and each
-/// kind keeps its own source snapshot. The header, the peer-status drawer
-/// and the kind-only banners read that source, so nothing needs a cast.
-library;
-
 import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:mosh/src/gateway/conversation_target.dart';

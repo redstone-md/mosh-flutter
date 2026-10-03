@@ -1,10 +1,3 @@
-/// Pure helpers for the Diagnostics drawer: `peerCount`, `natType`,
-/// `relayStatus`, `pathLabel`, `peerBreakdown`, and `relayBreakdown`
-/// (the `MeshDiagnostics` metric details), plus `formatTime` and
-/// `compactDetail` (the `EventLog` section helpers). `shorten` is reused
-/// from `lib/src/util/format.dart`.
-library;
-
 import 'dart:convert';
 
 import 'package:mosh/src/rust/conversation/mesh.dart';

@@ -1,14 +1,3 @@
-/// What a screen shows after a bridge action fails: the one classifier for a
-/// caught [ConversationBridgeError], wherever it is caught. The callers are
-/// listed once, in `docs/Architecture.md`.
-///
-/// A [ConversationBridgeError] from the seam is kept as its `kind`, and the
-/// screen picks the wording from that kind alone: the runtime's `message` is
-/// diagnostic text the UI never parses. Anything else that reaches the
-/// screen -- the call module's own sentences, a non-bridge exception -- is
-/// carried as ready-made text.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

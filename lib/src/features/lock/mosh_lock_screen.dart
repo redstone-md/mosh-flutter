@@ -1,23 +1,3 @@
-// Biometric-cancel retry UI. ADR 0011 wants fail-CLOSED when there is no
-// DEK, but the prior behavior -- `initMobileDek()`'s `PlatformException`
-// (BiometricPrompt cancel from `flutter_secure_storage`'s biometric
-// `read()`) propagating unhandled through `main()`'s `await`, so `runApp`
-// was never reached -- left a blank screen the user could not retry or
-// quit. `main()` now catches ONLY that `PlatformException` and runs a
-// `MoshLockScreen` instead; retry re-runs `initMobileDek` (re-prompting
-// biometric per ADR 0011), and on success the root swaps to `MoshApp`.
-//
-// SWAP MECHANISM: a top-level `ValueNotifier<Widget>` owned by `main()`
-// (`_appRoot` in `lib/main.dart`) that `runApp` mounts via
-// `ValueListenableBuilder`. `MoshLockScreen` is constructed by `main()`
-// with the success target (`nextApp`, the real `const MoshApp()`) and a
-// `swapTo` callback that flips the notifier; retry success calls
-// `widget.swapTo(widget.nextApp)`, re-rendering the whole tree under the
-// existing `ProviderScope`. Chosen over a root `FutureBuilder` because the
-// retry must own its own multi-attempt state (canceled / authenticating /
-// failed) without re-creating the tree on each attempt. `nextApp` is a
-// constructor arg (not an import of `MoshApp`) so this file stays free of
-// a `lib/main.dart` dependency and import cycle.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -139,16 +119,6 @@ class _MoshLockScreenState extends ConsumerState<MoshLockScreen> {
                   retryLabel: l.lockScreenRetry,
                   onRetry: _retry,
                 ),
-              // `BIOMETRIC_UNAVAILABLE`: the device has no enrolled
-              // PIN/pattern/password/biometric. NOT recoverable by Retry
-              // (re-prompting cannot mint a Keystore key without a device
-              // credential), so the body is message-only -- no Retry
-              // button. ADR 0011 fail-closed still holds; the UI just
-              // tells the user to set a screen lock. A Settings deep-link
-              // (android_intent_plus / url_launcher) is a follow-up: both
-              // are absent from pubspec today, and this atomic adds no
-              // new dep, so the message points at Settings -> Security
-              // in prose.
               LockState.insecureDevice => _LockBody(
                   icon: Icons.security_update_warning_outlined,
                   title: l.lockScreenInsecureDeviceTitle,

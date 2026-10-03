@@ -1,17 +1,3 @@
-// Shared FailedMessageRetry row -- rendered BELOW the message body (and
-// below the AttachmentCard) inside `message-body`, ONLY when the message is
-// an outbound failed+retryable message with a non-null `message_id`. The
-// channel + group message rows (`ChannelMessageRow` / `GroupMessageRow`)
-// gate it with that same condition in their build methods and pass the
-// localized strings + a `onRetry` callback; the DM row will reuse the same
-// widget later (deferred to a DM-side atomic).
-//
-// The `onRetry` callback is wired by the row screens to `Gateway.retry`:
-// frb `channel_api.retryMessage` / `group_api.retryMessage`. Tapping Retry
-// fires the seam then invalidates the conversation snapshot so the next
-// poll re-renders the row delivery status (the same pattern the
-// AttachmentCard download/cancel wiring uses).
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -105,12 +91,6 @@ class FailedMessageRetry extends StatelessWidget {
   }
 }
 
-/// Localized strings for [FailedMessageRetry]. An indirection rather than a
-/// direct `AppLocalizations` dependency so the widget's surface is minimal
-/// + testable without the full l10n delegate, and so the DM row (later
-/// atomic) can reuse the widget with the same narrow interface. The row
-/// screens build this from `AppLocalizations.of(context)!` via the
-/// [toFailedMessageRetryL10n] extension.
 class FailedMessageRetryL10n {
   const FailedMessageRetryL10n({
     required this.messageFailedToSend,

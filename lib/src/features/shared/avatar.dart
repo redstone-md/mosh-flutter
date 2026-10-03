@@ -1,17 +1,3 @@
-// Initials avatar.
-//
-// Every avatar is styled identically: a 32px circle on the
-// [MoshColors.avatarSurface] plate with bold fg-1 initials on the
-// labelMedium step -- there is no per-name tint. An earlier version had an
-// `avatarColor(name)` hash that painted every sender a different Material
-// hue, which is the most visible palette drift in the message list and the
-// rail. The initials are static text, so they read in text ink, not in the
-// moss accent that marks interactive/primary elements.
-//
-// `radius` stays a parameter because the org rows render a smaller circle;
-// everything else about the chrome is fixed here.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;

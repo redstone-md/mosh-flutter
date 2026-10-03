@@ -1,22 +1,3 @@
-// Embeddable channel-join step body: the `#`-prefixed channel-name
-// input, Join button, and InlineError. No frame, back affordance, or
-// title -- the caller wraps this in [OnboardStepFrame] (full screen) or
-// OnboardStepBody (inline, atomic #8).
-//
-// Join calls `bridge.joinChannel` with the entered name plus the
-// displayName/listenPort/staticPeer from [inviteFlowProvider] (ADR 0010:
-// one settings source for both flows), then navigates to the channel
-// screen on success. The name is ephemeral to this step visit, so the
-// controller stays widget-local.
-//
-// Navigation split (differs from atomic #4/#5): the SUCCESS navigation
-// (`context.go(AppRoutes.channelFor(name))`) stays INSIDE this step -- the
-// same destination for the full-screen route and the inline desktop panel.
-// Only `onBack` is injected: the caller decides where Back goes (route
-// screen -> AppRoutes.onboarding, inline panel -> back to menu). Hence
-// go_router + app_router stay imported here for the success hop.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,25 +14,8 @@ import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/session_providers.dart' show inviteFlowProvider;
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 
-/// Embeddable channel-join step body -- the step CONTENT only: body
-/// paragraph, `#`-prefixed name input, Join button, persistent
-/// [InlineError]. Caller wraps this in [OnboardStepFrame] (full-screen
-/// route, e.g. ChannelJoinScreen) or OnboardStepBody (inline, atomic #8).
-/// State stays in this widget (name/canJoin/busy/error are ephemeral UI).
-///
-/// [onBack] is reserved for the framing widget, which owns the Back
-/// button and wires it to this callback; the step body renders no back
-/// affordance itself. Unlike atomic #4/#5, this step KEEPS the success
-/// navigation (`context.go(AppRoutes.channelFor(name))`) inside itself
-/// because both the route screen and the inline panel land on the same
-/// channel destination. Only Back routing is delegated to the caller.
 class ChannelJoinStep extends ConsumerStatefulWidget {
-  const ChannelJoinStep({super.key, required this.onBack});
-
-  /// Back-navigation callback. The step body does not render a back
-  /// affordance itself; the framing widget owns the Back button and
-  /// wires it to this callback.
-  final VoidCallback onBack;
+  const ChannelJoinStep({super.key});
 
   @override
   ConsumerState<ChannelJoinStep> createState() => _ChannelJoinStepState();

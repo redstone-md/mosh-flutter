@@ -1,20 +1,3 @@
-// RecordVoiceCaptureFactory -- the real mic capture pipeline behind the
-// VoiceCaptureFactory seam. Captures 48 kHz mono PCM16 via the `record`
-// package (`AudioEncoder.pcm16bits` is universal -- record's native Opus
-// encoder is Android/iOS/Linux only, so the Opus encode happens in Rust
-// via mosh-core's `voice_call_opus_encode`), buffers each 20 ms frame
-// (1920 bytes = 960 i16 samples), encodes it to an Opus packet, and emits
-// the packet via `onFrame`. `echoCancel` / `noiseSuppress` / `autoGain`
-// request the platform's voice-processing DSP.
-//
-// The pure helper (`PcmFrameBuffer`) is exposed
-// public so the framing logic is unit-testable
-// without the native mic or the frb cdylib (neither is present under
-// `flutter test`); the real encode path is device-integration-validated
-// separately.
-
-library;
-
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:typed_data';

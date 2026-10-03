@@ -1,15 +1,3 @@
-// Voice-call orchestration wiring (ADR 0010/0013) -- the one home for the
-// live-call decisions: which dialog the session asks for (derived from its
-// snapshot), whether the mic is muted, and what went wrong. The layer only
-// renders what this notifier decides and routes every control action
-// (start / accept / decline / hang up / mute) back here, so a ring bug is
-// readable in one file instead of six. activeCall / pendingCall /
-// callSupported stay derived from activeSessionProvider by VoiceCallLayer.
-//
-// Call control is a Riverpod family by sessionId; audio transport is
-// Riverpod-free and lives in `voice_call_orchestrator.dart`.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
