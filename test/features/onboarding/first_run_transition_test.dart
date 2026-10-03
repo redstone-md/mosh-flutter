@@ -14,10 +14,15 @@ import '../../support/first_run_preview.dart';
 void main() {
   for (final step in SetupStep.values) {
     testWidgets('$step restores without an entrance animation', (tester) async {
-      await _pump(tester, step);
+      await _pump(tester, step, settle: false);
       expect(_fade(tester), 1);
       expect(_position(tester), Offset.zero);
       expect(_blocked(tester), isFalse);
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(_fade(tester), 1);
+      expect(_position(tester), Offset.zero);
+      expect(_blocked(tester), isFalse);
+      await tester.pumpAndSettle();
     });
   }
 
@@ -188,8 +193,6 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await _go(tester, harness, SetupStep.network);
       expect(find.semantics.byLabel('This is my first device'), findsNothing);
-      await tester.tap(find.text('This is my first device'),
-          warnIfMissed: false);
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
       expect(harness.store.profile!.step, SetupStep.network);
@@ -203,6 +206,18 @@ void main() {
     } finally {
       semantics.dispose();
     }
+  });
+
+  testWidgets('outgoing Back cannot change the active step', (tester) async {
+    final harness = await _pump(tester, SetupStep.device);
+    await _go(tester, harness, SetupStep.network);
+    final back = find.descendant(
+        of: _panel(tester, SetupStep.device), matching: find.text('Back'));
+    expect(back, findsOneWidget);
+    await tester.tap(back, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(harness.store.profile!.step, SetupStep.network);
+    expect(find.byType(FirstRunNetworkStep), findsOneWidget);
   });
 
   testWidgets('same-step edits, resizing and failed saves do not replay motion',
@@ -265,10 +280,10 @@ void main() {
 }
 
 Future<FirstRunHarness> _pump(WidgetTester tester, SetupStep step,
-    {Size size = const Size(1280, 680)}) async {
+    {Size size = const Size(1280, 680), bool settle = true}) async {
   final harness = FirstRunHarness(
       profile: FirstRunProfile(displayName: 'Yuna', step: step));
-  await harness.pump(tester, size: size);
+  await harness.pump(tester, size: size, settle: settle);
   return harness;
 }
 
