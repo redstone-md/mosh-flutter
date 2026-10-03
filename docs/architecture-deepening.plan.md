@@ -36,7 +36,8 @@ this plan and AGENTS.md. Use one atomic Conventional Commit per item.
 ## Progress
 
 - [x] Conversation refresh: notifier-owned ordering and caller-visible tests.
-- [ ] Device link workflow
+- [x] Device link workflow: shared action lock, proof-preserving errors,
+  cancellation policy and stale-lifetime guards; 234 focused tests passed.
 - [ ] Conversation durable writes
 - [ ] Saved network adapter choice
 - [ ] Conversation attachments

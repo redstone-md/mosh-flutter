@@ -49,7 +49,7 @@ class FirstRunHarness {
 
   final MemoryFirstRunStore store;
   final ScriptableBridge bridge;
-  ScriptableDeviceLink link;
+  final ScriptableDeviceLink link;
   late ProviderContainer container;
 
   Future<void> pump(
@@ -70,13 +70,8 @@ class FirstRunHarness {
       bridgeFacadeProvider.overrideWithValue(bridge),
       gatewayProvider.overrideWithValue(
           ScriptableGateway(conversations: bridge.conversations)),
-      deviceLinkProvider.overrideWith(() {
-        link = ScriptableDeviceLink(snapshot: link.current)
-          ..buildError = link.buildError
-          ..actionError = link.actionError
-          ..snapshotAfterCancel = link.snapshotAfterCancel;
-        return link;
-      }),
+      deviceLinkCommandsProvider.overrideWithValue(link),
+      deviceLinkPollIntervalProvider.overrideWithValue(null),
     ]);
     addTearDown(container.dispose);
     appRouter.go(AppRoutes.sessions);

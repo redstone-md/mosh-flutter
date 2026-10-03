@@ -155,14 +155,17 @@ Implementation commands and verification results are preserved in
 
 ## Dart bridge access
 
-The device-link provider calls its five typed generated bridge functions
-directly. This is a scoped exception to ADR 0025's shared facade rule.
+The device-link provider keeps its typed generated bridge commands inside the
+feature, through `DeviceLinkCommands`. This is a scoped exception to ADR 0025's
+shared facade rule.
 This feature must prove consent and persistence through the real bridge,
-database and independent Moss nodes. It uses no scripted bridge substitute.
+database and independent Moss nodes. These native proofs use no scripted bridge
+substitute. Flutter ordering tests replace only the feature-local commands and
+exercise the real controller, including acquisition, cancellation and polling.
 Adding its calls to the shared facade would also expand the scripted facade's
 contract, without improving this proof or hiding a decision.
 
-Keep these calls in the feature provider. Widgets consume that provider;
+Keep these calls local to the feature provider. Widgets consume that provider;
 Rust owns the identity, approval and storage rules. All existing facade
 callers continue to follow ADR 0025. The generated Rust API remains the sole
 Dart-to-Rust boundary.

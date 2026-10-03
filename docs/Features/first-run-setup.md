@@ -61,6 +61,20 @@ device choices; a failed cancellation retains the current flow for retry. A
 linked identity or committed delivery remains visible if approval wins the race.
 See [device linking](device-linking.md).
 
+The device-link controller owns one action lock shared by setup and Devices
+settings. It covers image selection and decoding, camera scanning, native
+commands and setup progress saves. Setup cannot continue independently or go
+Back while an import is pending. Cancellation and continuation use fresh native
+proof; committed delivery blocks navigation, and approval winning cancellation
+requires another deliberate Continue. Command failures retain the last proof
+and remain visible through polling until the next action starts. A provider
+rebuild or disposal discards results from the old controller lifetime.
+
+Flutter tests substitute feature-local native commands beneath the real
+controller. Native consent and persistence tests still use the real bridge and
+independent Moss nodes. Test fixtures drive refresh explicitly rather than
+starting background timers.
+
 The existing network settings save a physical adapter choice. The running node
 applies it after restart; Windows offers app relaunch. A global VPN prompt can
 appear above any route on later launches. During the first-run launch, the wizard
@@ -184,8 +198,8 @@ default shortened fade so controls become available on the next frame. The wizar
 precaches all three illustrations. Advancing the name form confirms its save
 by showing the device step; Settings retains its saved confirmation.
 
-Size exceptions: `_DisplayNameFormState.build` and `_FirstRunDeviceStepState.build`
-exceed the 50-line function budget because each declares one localized form.
+Size exception: `_DisplayNameFormState.build` exceeds the 50-line function
+budget because it declares one localized form.
 Protocol and persistence logic stay outside these builds; their containing types
 and files stay within the 200/400-line budgets. Layout, theme and step-heading
 logic are separate small components.

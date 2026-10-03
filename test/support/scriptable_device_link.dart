@@ -1,6 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mosh/src/features/device_link/device_link_provider.dart';
+import 'package:mosh/src/features/device_link/device_link_commands.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
+
+import 'scripted_calls.dart';
+
+enum DeviceLinkMethod { snapshot, beginLink, joinLink, approve, cancel, revoke }
 
 DeviceLinkSnapshot setupDeviceSnapshot({
   DeviceLinkPhase phase = DeviceLinkPhase.idle,
@@ -28,8 +31,9 @@ DeviceLinkSnapshot setupDeviceSnapshot({
               name: 'Desktop $index')),
     );
 
-/// Drives the existing device-link controller seam without native handles.
-class ScriptableDeviceLink extends DeviceLinkController {
+/// Script commands below the real Flutter workflow. Native proofs use real Rust.
+class ScriptableDeviceLink extends DeviceLinkCommands
+    with ScriptedEngine<DeviceLinkMethod> {
   ScriptableDeviceLink({DeviceLinkSnapshot? snapshot})
       : current = snapshot ?? setupDeviceSnapshot();
 
@@ -41,29 +45,57 @@ class ScriptableDeviceLink extends DeviceLinkController {
   int cancellations = 0;
 
   @override
-  Future<DeviceLinkSnapshot> build() async {
-    if (buildError != null) throw buildError!;
-    return current;
-  }
+  Future<DeviceLinkSnapshot> snapshot() =>
+      runScripted(DeviceLinkMethod.snapshot, {}, () {
+        if (buildError != null) throw buildError!;
+        return current;
+      });
 
   void publish(DeviceLinkSnapshot snapshot) {
     current = snapshot;
-    state = AsyncData(snapshot);
   }
 
   @override
-  Future<void> joinLink(String uri, String name) async {
-    if (actionError != null) throw actionError!;
-    imported.add(uri);
-    publish(setupDeviceSnapshot(
-        phase: DeviceLinkPhase.awaitingConfirmation,
-        role: DeviceLinkRole.joining));
-  }
+  Future<DeviceLinkSnapshot> joinLink(String uri, String name) =>
+      _command(DeviceLinkMethod.joinLink, {'uri': uri, 'name': name}, () {
+        imported.add(uri);
+        return setupDeviceSnapshot(
+            phase: DeviceLinkPhase.awaitingConfirmation,
+            role: DeviceLinkRole.joining);
+      });
 
   @override
-  Future<void> cancel() async {
-    if (actionError != null) throw actionError!;
-    cancellations++;
-    publish(snapshotAfterCancel ?? setupDeviceSnapshot());
-  }
+  Future<DeviceLinkSnapshot> cancel() =>
+      _command(DeviceLinkMethod.cancel, {}, () {
+        cancellations++;
+        return snapshotAfterCancel ?? setupDeviceSnapshot();
+      });
+
+  @override
+  Future<DeviceLinkSnapshot> beginLink() => _command(
+      DeviceLinkMethod.beginLink,
+      {},
+      () => setupDeviceSnapshot(
+          phase: DeviceLinkPhase.showingQr, role: DeviceLinkRole.authorizing));
+
+  @override
+  Future<DeviceLinkSnapshot> approve(String code) => _command(
+      DeviceLinkMethod.approve,
+      {'code': code},
+      () => setupDeviceSnapshot(
+          phase: DeviceLinkPhase.linked, canJoin: false, devices: 2));
+
+  @override
+  Future<DeviceLinkSnapshot> revoke(String deviceId) => _command(
+      DeviceLinkMethod.revoke,
+      {'deviceId': deviceId},
+      () => setupDeviceSnapshot(
+          canJoin: false, devices: current.devices.length - 1));
+
+  Future<DeviceLinkSnapshot> _command(DeviceLinkMethod method,
+          Map<String, Object?> args, DeviceLinkSnapshot Function() result) =>
+      runScripted(method, args, () {
+        if (actionError != null) throw actionError!;
+        return current = result();
+      });
 }
