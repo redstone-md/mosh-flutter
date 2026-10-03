@@ -41,6 +41,9 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
 
   Future<void> _finish() async {
     if (_saving || !_selectionAvailable) return;
+    final setup = ref.read(firstRunProfileProvider.notifier);
+    final relauncher = DesktopAppRelauncherScope.of(context);
+    final navigator = Navigator.of(context, rootNavigator: true);
     setState(() {
       _busy = true;
       _error = null;
@@ -48,16 +51,11 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
     try {
       await ref
           .read(networkChoiceProvider(ref.read(bridgeFacadeProvider)).notifier)
-          .apply(_picked, complete: (restart) async {
-        if (!mounted) return;
-        await ref.read(firstRunProfileProvider.notifier).finish(restart);
-      }, restart: () async {
-        if (!mounted) return;
-        final relauncher = DesktopAppRelauncherScope.of(context);
+          .apply(_picked, complete: setup.finish, restart: () async {
         if (relauncher.supported) {
           await relauncher.relaunch();
-        } else {
-          await _manualRestart();
+        } else if (navigator.mounted) {
+          await _manualRestart(navigator.context);
         }
       });
     } on NetworkChoiceError catch (error) {
@@ -72,10 +70,10 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
     }
   }
 
-  Future<void> _manualRestart() async {
-    final l = AppLocalizations.of(context)!;
+  Future<void> _manualRestart(BuildContext restartContext) async {
+    final l = AppLocalizations.of(restartContext)!;
     await showDialog<void>(
-        context: context,
+        context: restartContext,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
               title: Text(l.firstRunRestartTitle),
