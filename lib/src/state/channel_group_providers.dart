@@ -1,15 +1,3 @@
-// One channel's and one group's snapshot -- the server state the channel and
-// group screens read. The LISTS of channels and groups are not here:
-// [conversationListProvider] serves all three kinds, so the kind branch
-// lives in one module (`conversation_providers.dart`).
-//
-// Per ADR 0010: server/async state lives in a provider family (the
-// TanStack-Query analogue -- loading/data/error flows through `AsyncValue`).
-// Both providers consume the `gatewayProvider` seam (ADR 0013), never a
-// concrete `Gateway`, so the wired backend is a single provider swap and
-// both the test gateway and `RealBridgeGateway` satisfy this file.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart';

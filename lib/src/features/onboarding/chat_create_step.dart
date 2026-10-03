@@ -1,20 +1,3 @@
-// Embeddable chat-create step body: body, Create/Recreate button (label
-// flips once an invite exists), InlineError, InviteResult. No frame,
-// back affordance, or title -- the caller wraps this in
-// [OnboardStepFrame] (full screen) or OnboardStepBody (inline, atomic #8).
-//
-// State split (ADR 0010): the invite URI is server-derived state read from
-// `inviteFlowProvider.lastInvite` (the `create()` call stores it there).
-// Only the local `_busy` (create in flight) and `_copied` (just-copied)
-// flags are widget-local -- ephemeral UI state.
-//
-// `onBack` is injected: the step body renders no back affordance itself;
-// the framing widget owns the Back button and wires it to the callback
-// the caller passes here. The step does NOT context.go itself; the caller
-// decides routing (route for ChatCreateScreen, inline step-switch for the
-// chat-pane in atomic #8).
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,21 +14,8 @@ import 'package:mosh/src/state/conversation_providers.dart'
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 
-/// Embeddable chat-create step body -- the step CONTENT only: body
-/// paragraph, Create/Recreate button (label flips once
-/// `inviteFlowProvider.lastInvite` is set), persistent [InlineError], and
-/// the [InviteResult] card shown after the first successful create. Caller
-/// wraps this in [OnboardStepFrame] (full-screen route, e.g.
-/// ChatCreateScreen) or OnboardStepBody (inline, atomic #8). State stays
-/// in this widget (busy/copied/error are ephemeral UI); the invite URI is
-/// server-derived via the provider.
 class ChatCreateStep extends ConsumerStatefulWidget {
-  const ChatCreateStep({super.key, required this.onBack});
-
-  /// Back-navigation callback. The step body does not render a back
-  /// affordance itself; the framing widget owns the Back button and
-  /// wires it to this callback.
-  final VoidCallback onBack;
+  const ChatCreateStep({super.key});
 
   @override
   ConsumerState<ChatCreateStep> createState() => _ChatCreateStepState();

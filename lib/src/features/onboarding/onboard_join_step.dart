@@ -1,33 +1,3 @@
-// Embeddable invite-join step body. Renders the step CONTENT ONLY: body
-// paragraph, invite Semantics+TextField, live 3-state detection badge,
-// full-width primary Connect button (disabled until detection is valid),
-// inline error. NO frame, NO back affordance, NO title -- the caller
-// wraps this in [OnboardStepFrame] (full screen) or OnboardStepBody
-// (inline, atomic #8).
-//
-// Scope: the invite-join step UI + the acceptInvite/joinGroup/joinOrg
-// bridge-facade seams (slice-3). Live detection re-runs [detectInvite] on every
-// keystroke (the ported pure function; detection is NOT re-implemented
-// here). Connect is enabled for every detected kind (dm + group + org -- all
-// three have a wired bridge-facade seam). The detection badge is ok for any
-// detected kind, bad for unknown, neutral for empty.
-//
-// Navigation split (mirrors atomic #6 ChannelJoinStep): the SUCCESS
-// navigation stays INSIDE this step -- context.go(AppRoutes.groupFor(id))
-// for a group join and context.go(AppRoutes.sessions) for an org join
-// (both the route screen and the inline panel land on the same
-// destinations) and context.go(AppRoutes.dmFor(id)) for an accepted DM
-// invite (landing in the chat saves the rail hop). Only onBack is
-// injected: the caller decides where Back goes (route screen ->
-// AppRoutes.onboarding, inline panel -> back to menu). Hence go_router +
-// app_router stay imported here for the success hops.
-//
-// State split: only the text controller + live detection value + busy/
-// error are widget-local (ephemeral UI), which is why this is a
-// ConsumerStatefulWidget. The displayName/listenPort/staticPeer come from
-// [inviteFlowProvider] (ADR 0010: one settings source for both flows).
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show SemanticsValidationResult;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,42 +19,13 @@ import 'package:mosh/src/state/gateway_provider.dart' show bridgeFacadeProvider;
 import 'package:mosh/src/state/org_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
-/// Embeddable invite-join step body -- the step CONTENT only: body
-/// paragraph, invite Semantics+TextField, live 3-state detection badge
-/// ([_DetectBadge]), full-width primary Connect button, inline error
-/// text. The caller wraps this in [OnboardStepFrame] (full-screen route)
-/// or OnboardStepBody (inline, atomic #8); the split lets the same
-/// content compose into both frames. State stays in this widget
-/// (controller + live detection value + busy/error are ephemeral UI).
-///
-/// [onBack] is injected: the step renders no back affordance itself; the
-/// framing widget owns the Back button. Unlike atomic #4/#5, this step
-/// KEEPS the success navigation inside itself because both the route
-/// screen and the inline panel land on the same destinations: group ->
-/// context.go(AppRoutes.groupFor(id)), org -> context.go
-/// (AppRoutes.sessions), dm -> context.go(AppRoutes.dmFor(id)).
-/// Only Back routing is delegated to the caller.
-///
-/// [initialInviteUri] seeds the field on first build (the /join route
-/// passes the mosh:// URI here via state.extra). Null by default, so
-/// in-app navigation (no deep link) constructs the step with an empty
-/// field. The route wrapper ([InvitePasteScreen]) reads state.extra and
-/// forwards it here.
 class OnboardJoinStep extends ConsumerStatefulWidget {
   const OnboardJoinStep({
     super.key,
-    required this.onBack,
     this.initialInviteUri,
   });
 
-  /// Back-navigation callback. The step body does not render a back
-  /// affordance itself; the framing widget owns the Back button and
-  /// wires it to this callback.
-  final VoidCallback onBack;
-
-  /// Optional URI string to pre-fill into the invite field. The S2-3
-  /// deep-link intake passes the incoming mosh:// URI here via the /join
-  /// route's xtra. Null for in-app navigation (manual paste).
+  /// Seeds the input for a deep link; null leaves manual paste empty.
   final String? initialInviteUri;
 
   @override
@@ -145,9 +86,6 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
       };
 
   Future<void> _connect() async {
-    // Dispatch by kind: dm -> acceptInvite, group -> joinGroup, org ->
-    // joinOrg (all three slice-3 seams wired). Each helper joins via its
-    // seam, refreshes the list it lands on, and returns the destination.
     if (_busy) return;
     final kind = _detection.kind;
     if (!_detectedKinds.contains(kind)) return;

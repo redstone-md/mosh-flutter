@@ -1,35 +1,3 @@
-// VpnConsentModal: the one question Mosh asks about the VPN, shown when
-// the user has not answered AND a VPN owns the default route. It blocks
-// because the answer cannot be applied later: a node's bind interface is
-// fixed when the node is built, so a setting flipped mid-session changes
-// nothing until the next launch. Saying yes (accept) records the consent
-// + relaunches; saying no (decline) records nothing (a refusal is asked
-// again next launch -- a wrong yes is visible + reversible from advanced
-// settings, a remembered no silently strands someone whose network
-// changed).
-//
-// Structure: a dark scrim over the app, then a danger-tinted 440px-max
-// dialog -- warning icon, title, body (with the adapter name), caveat,
-// optional error, and a right-aligned decline ("Keep using the VPN") +
-// accept ("Route around the VPN" / "Restarting...") action row.
-//
-// On mount fetch consent + detectVpn + listNetworkInterfaces -- only ask
-// when `!consent && detection.vpn_owns_default_route`; pick
-// `defaultBypassAdapter(saved.interfaces)`. Accept: `setVpnBypassConsent
-// (adapter)` + relaunch. Decline: `setVpnBypassConsent(null)` (clears any
-// prior answer) then hide.
-//
-// The modal reads network state in
-// `initState`, renders a scrim `Stack` overlay + a danger-tinted `Dialog`
-// when it should ask, and `SizedBox.shrink()` otherwise (the host places
-// it in a `Stack`). `restartApp` is an injectable callback (`onAccept`)
-// through the shared choice workflow. Production supplies the Windows-only
-// desktop relauncher; unsupported platforms use its safe no-op behavior.
-// The dialog uses a danger tint (#e5484d border + icon) + the 440px max
-// width.
-
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'network_choice_provider.dart';

@@ -1,18 +1,3 @@
-// Slice-3 org-roster state surface. Backs the group screen's orgAddPrompt
-// banner (the admin's "+N not in group" one-click add, spec §5). Exposes:
-//   - orgsProvider: the polled list of joined orgs (listOrgs + pollOrg each).
-//   - offeredGroupInvitesProvider: in-memory map groupId -> offered peer-ids
-//     so the prompt neither miscounts pending invitees nor spams duplicate
-//     offers per click.
-//   - invitingGroupsProvider: groupIds with an in-flight invite (banner busy).
-//   - orgAddPromptProvider (family by groupId): the computed prompt or null.
-//
-// Per ADR 0010/0013: server state via AsyncNotifier, ephemeral invite state
-// via class-based Notifier (StateProvider is legacy in Riverpod v3). The org
-// reads are 1:1 bridge mirrors, so they go through bridgeFacadeProvider
-// (ADR 0025).
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
@@ -21,11 +6,6 @@ import 'package:mosh/src/state/channel_group_providers.dart'
     show groupSnapshotProvider;
 import 'package:mosh/src/state/gateway_provider.dart';
 
-/// Server state: the joined orgs. listOrgs then
-/// pollOrg each (the backend drains roster gossip on this cadence). A later
-/// atomic wires an interval poll; this atomic
-/// ships the one-shot read so the prompt renders on group-screen open + after
-/// an invite refreshes.
 final orgsProvider = AsyncNotifierProvider<OrgsNotifier, List<OrgSnapshot>>(
   OrgsNotifier.new,
 );

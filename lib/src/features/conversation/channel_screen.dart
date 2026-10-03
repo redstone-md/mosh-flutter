@@ -1,7 +1,3 @@
-/// A public channel. Everything but the title comes from the shared
-/// conversation screen and the shared conversation AppBar.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -21,18 +17,13 @@ class ChannelScreen extends StatelessWidget {
   Widget build(BuildContext context) => ConversationScreen(
         target: ChannelTarget(name),
         header: (context, chrome) => ConversationAppBar(
+          chrome: chrome,
           kind: ConversationKind.channel,
           avatarName: '#$name',
           title: ConversationHeaderTitle(
               name: '#$name',
               onOpenDetails: chrome.onOpenPeerStatus,
               subtitle: AppLocalizations.of(context)!.channelNoticeTitle),
-          onOpenPeerStatus: chrome.onOpenPeerStatus,
-          onRequestLeave: () => chrome.onRequestLeave(),
-          filter: chrome.filter,
-          onFilter: chrome.onFilter,
-          mobileSearchOpen: chrome.mobileSearchOpen,
-          onToggleMobileSearch: chrome.onToggleMobileSearch,
           leaveMenuLabel: AppLocalizations.of(context)!.channelLeaveLabel,
           leaveMenuIcon: Icons.logout,
         ),

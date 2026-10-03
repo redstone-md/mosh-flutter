@@ -1,12 +1,3 @@
-// Keyboard focus ring for custom InkWell controls.
-//
-// InkWell's own focus overlay is a faint fill (about 1.4:1 over bg2) that
-// reads the same as hover. Put [FocusRing] as the InkWell's child: it
-// listens to the InkWell's Focus node and draws a 2px [MoshColors.focusRing]
-// border while that node holds focus in keyboard (traditional) highlight
-// mode. Pointer focus draws nothing.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;

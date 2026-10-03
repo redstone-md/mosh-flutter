@@ -1,6 +1,3 @@
-/// A message bubble with sender actions, attachments and delivery status.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

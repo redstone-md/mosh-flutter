@@ -1,14 +1,3 @@
-// Opt-in crash reporting (ADR 0035).
-//
-// The consent lives in the Rust-side consent file (its salt), reports go to
-// Sentry, and every event passes the scrubber on the way out. Off by
-// default; a build without `--dart-define=SENTRY_DSN=...` cannot report at
-// all, so dev builds and forks never send anything.
-//
-// Rust panics are captured in the core (`panic_reporting.rs`) and arrive
-// here as event JSON, so they share this consent, scrubber and SDK.
-library;
-
 import 'dart:async' show FutureOr, StreamSubscription;
 import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory;

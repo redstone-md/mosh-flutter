@@ -1,15 +1,3 @@
-// VoiceCapture -- the seam between the call orchestrator and an actual
-// mic capture pipeline that encodes 48 kHz mono Opus and calls `onFrame`
-// per encoded chunk. To keep the orchestrator unit-testable without a
-// native audio backend, the orchestrator takes a [VoiceCaptureFactory]
-// and calls `start(onFrame)` to get a [VoiceCaptureHandle] it `stop()`s
-// on detach.
-//
-// The default [NoopVoiceCaptureFactory] never calls `onFrame`; the real
-// impl lands in a later atomic and is injected from the Riverpod wiring.
-
-library;
-
 import 'dart:typed_data';
 
 /// A handle to a started voice capture. The orchestrator holds this from

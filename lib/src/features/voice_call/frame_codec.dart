@@ -1,10 +1,3 @@
-/// Pure (non-crypto) byte-manipulation helpers for AES-GCM voice-call frames.
-///
-/// The wire frame is `[seq:u64 BE][ciphertext-with-tag]`; the AES-GCM nonce
-/// is `[nonce_prefix (4)][seq (8)]`. The high bit of `seq` distinguishes
-/// caller vs callee so the two participants never collide nonces while
-/// sharing one key. The AES-GCM seal/open + key import live elsewhere;
-/// only the synchronous, dependency-free helpers live here.
 library;
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 

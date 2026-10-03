@@ -1,20 +1,3 @@
-/// Pure diagnostics-summary builder for the Diagnostics drawer.
-///
-/// `diagnosticsSummary` has four branches: `session` (private DM),
-/// `channel` (public channel), `group` (private group), and the
-/// idle/error fallback. It accepts the four optional inputs (`session?`,
-/// `channel?`, `group?`, `error?`) and resolves them in that branch
-/// order: session -> channel -> group -> idle/error.
-///
-/// Pureness: the function takes `AppLocalizations l` (the localized copy
-/// seam) plus the runtime inputs and returns a fully-resolved
-/// `DiagnosticSummary`. It is deterministic given `l` -- the same `l` plus
-/// the same inputs always produce the same output, so it stays unit-testable
-/// (the tests construct an `AppLocalizations` from the en delegate via a
-/// localized `MaterialApp` harness and assert on the returned fields) --
-/// while keeping all user-facing strings flowing through ARB.
-library;
-
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/diagnostics/diagnostics_helpers.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';

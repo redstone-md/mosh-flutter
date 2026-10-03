@@ -1,7 +1,3 @@
-// Transfer controls for file and media cards. Available files open from
-// the card itself; this row only downloads, retries or cancels a transfer.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

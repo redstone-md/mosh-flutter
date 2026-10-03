@@ -1,10 +1,3 @@
-/// What the confirm dialog says before the user leaves a conversation.
-///
-/// The wording is the one thing about leaving that follows the kind: a DM is
-/// deleted, a channel and a group are left, and each names itself
-/// differently.
-library;
-
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';

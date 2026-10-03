@@ -1,22 +1,3 @@
-// Mobile conversation search/filter UI.
-//
-// Three surfaces on narrow widths (below [isMobileBreakpoint]):
-//   - `MobileSearchToggle` -- an icon button in the chat header `actions:`
-//     that opens/closes the mobile search panel (tinted while open).
-//   - `MobileConversationSearch` -- a search `TextField` that AUTOFOCUSES on
-//     mount + a close icon button that clears the query THEN closes.
-//   - `MobileConversationFilterNotice` -- a "Files + All reset" strip shown
-//     only while the attachments filter is active (nothing when filter ==
-//     all).
-//
-// This file holds ONLY the mobile surface; the desktop `ConversationTools`
-// row + the `ConversationFilter` enum + `filterMessages` + the
-// [isMobileBreakpoint] helper all live in `conversation_tools.dart`, which
-// re-exports this file so the three screens keep a single import. The trio is
-// pure presentation -- all search/filter state stays widget-local in the
-// host screen (`_search` / `_filter` / `_mobileSearchOpen`).
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

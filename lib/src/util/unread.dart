@@ -1,10 +1,3 @@
-/// Pure UI-helper: unread-message counting and conversation diffing.
-///
-/// Free of any Flutter or I/O dependency so it can be unit-tested in
-/// isolation; the one value type it borrows is [ConversationRef], the one
-/// owner of the key grammar.
-library;
-
 import 'package:mosh/src/gateway/conversation_target.dart';
 
 /// A conversation and its current total message count.

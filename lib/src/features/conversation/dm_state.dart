@@ -1,11 +1,3 @@
-/// How a DM's proven state and transport read on screen.
-///
-/// The runtime reports three states: nobody has joined yet, the contact is
-/// not reachable right now, or the contact has answered. The header, the
-/// rail badge, the title-bar pill and the diagnostics card all say the same
-/// thing about the same state, so the wording lives here once.
-library;
-
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show DmSessionState;

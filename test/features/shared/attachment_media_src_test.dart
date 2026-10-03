@@ -1,39 +1,12 @@
-// Unit tests for `attachment_media_src.dart` -- the pure helpers + the
-// [resolveMediaOpen] decision function. Pure-function tests: no widget
-// pump, no Gateway, no native cdylib -- the screen wiring stays thin and
-// is exercised by the per-screen attachment suites instead.
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:mosh/src/features/shared/attachment_media_src.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
-AttachmentDescriptor _descriptor({
-  required String attachmentId,
-  required String mime,
-}) =>
-    AttachmentDescriptor(
-      attachmentId: attachmentId,
-      contentHash: 'h-$attachmentId',
-      fileName: 'f-$attachmentId',
-      mime: mime,
-      totalSize: BigInt.zero,
-      thumbnailB64: null,
-      voice: null,
-    );
-
-AttachmentView _view({
-  required String attachmentId,
-  AttachmentState state = AttachmentState.available,
-  String? localPath,
-}) =>
-    AttachmentView(
-      attachmentId: attachmentId,
-      direction: 'incoming',
-      state: state,
-      completedChunks: BigInt.zero,
-      chunkCount: BigInt.one,
-      localPath: localPath,
-    );
+import 'package:mosh/src/features/shared/attachment_media_src.dart';
+import 'package:mosh/src/features/conversation/conversation_attachment.dart';
+import 'package:mosh/src/features/shared/attachment_open.dart';
+import 'package:mosh/src/features/shared/media_stream_server.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
+import '../../support/conversation_cases.dart';
 
 final _testMediaBaseUri = Uri(
   scheme: 'http',
@@ -142,103 +115,66 @@ void main() {
     });
   });
 
-  group('resolveMediaOpen', () {
-    test('already-downloaded view -> local file src, no download, no wait', () {
-      final d = _descriptor(attachmentId: 'a1', mime: 'image/png');
-      final v = _view(attachmentId: 'a1', localPath: '/tmp/mosh/a1.png');
-      final dec = resolveMediaOpen(
-        descriptor: d,
-        view: v,
-        kind: 'dm',
-        host: 'sess',
-      );
-      expect(dec.src, 'file:///tmp/mosh/a1.png');
-      expect(dec.download, isFalse);
-      expect(dec.wait, isFalse);
+  group('ConversationAttachment opening policy', () {
+    for (final mime in ['image/png', 'video/mp4']) {
+      test('$mime uses an available local path without downloading', () {
+        final attachment = ConversationAttachment(
+          descriptor: testAttachment(attachmentId: 'local', mime: mime),
+          view: testAttachmentView(
+            attachmentId: 'local',
+            state: AttachmentState.available,
+            localPath: '/tmp/local',
+          ),
+        );
+        final plan = attachment.openPlan(const DmTarget('session'));
+        expect(plan.intent, isA<AttachmentMediaOpenIntent>());
+        expect((plan.intent as AttachmentMediaOpenIntent).src,
+            'file:///tmp/local');
+        expect((plan.download, plan.wait), (false, false));
+      });
+    }
+
+    for (final path in [null, '']) {
+      test('image with path=$path waits for a download', () {
+        final plan = ConversationAttachment(
+          descriptor: testAttachment(attachmentId: 'image', mime: 'image/png'),
+          view: testAttachmentView(
+              attachmentId: 'image',
+              state: AttachmentState.offered,
+              localPath: path),
+        ).openPlan(const DmTarget('session'));
+        expect(plan.intent, isA<AttachmentNoopOpenIntent>());
+        expect((plan.download, plan.wait), (true, true));
+      });
+    }
+
+    test('a non-media file without a path cannot open', () {
+      final plan = ConversationAttachment(
+        descriptor: testAttachment(attachmentId: 'pdf'),
+      ).openPlan(const DmTarget('session'));
+      expect(plan.intent, isA<AttachmentNoopOpenIntent>());
+      expect((plan.download, plan.wait), (false, false));
     });
 
-    test('streamable + not downloaded -> stream src + download, no wait', () {
-      final d = _descriptor(attachmentId: 'a2', mime: 'video/mp4');
-      final dec = resolveMediaOpen(
-        descriptor: d,
-        view: null,
-        kind: 'channel',
-        host: 'general',
-        mediaBaseUri: _testMediaBaseUri,
-      );
-      expect(dec.src, 'http://127.0.0.1:12345/channel/general/a2');
-      expect(dec.download, isTrue);
-      expect(dec.wait, isFalse);
-    });
-
-    test('audio is streamable too', () {
-      final d = _descriptor(attachmentId: 'a3', mime: 'audio/mpeg');
-      final dec = resolveMediaOpen(
-        descriptor: d,
-        view: null,
-        kind: 'group',
-        host: 'g-1',
-        mediaBaseUri: _testMediaBaseUri,
-      );
-      expect(dec.src, 'http://127.0.0.1:12345/group/g-1/a3');
-      expect(dec.download, isTrue);
-      expect(dec.wait, isFalse);
-    });
-
-    test('image + not downloaded -> wait + download, no src', () {
-      final d = _descriptor(attachmentId: 'a4', mime: 'image/jpeg');
-      final dec = resolveMediaOpen(
-        descriptor: d,
-        view: null,
-        kind: 'dm',
-        host: 'sess',
-      );
-      expect(dec.src, isNull);
-      expect(dec.download, isTrue);
-      expect(dec.wait, isTrue);
-    });
-
-    test('other mime + not downloaded -> wait + download, no src', () {
-      final d = _descriptor(attachmentId: 'a5', mime: 'application/pdf');
-      final dec = resolveMediaOpen(
-        descriptor: d,
-        view: null,
-        kind: 'dm',
-        host: 'sess',
-      );
-      expect(dec.src, isNull);
-      expect(dec.download, isTrue);
-      expect(dec.wait, isTrue);
-    });
-
-    test('empty localPath is treated as not downloaded', () {
-      final d = _descriptor(attachmentId: 'a6', mime: 'image/png');
-      final v = _view(attachmentId: 'a6', localPath: '');
-      final dec = resolveMediaOpen(
-        descriptor: d,
-        view: v,
-        kind: 'dm',
-        host: 'sess',
-      );
-      // image + no usable local path -> wait branch
-      expect(dec.src, isNull);
-      expect(dec.wait, isTrue);
-      expect(dec.download, isTrue);
-    });
-
-    test('already-downloaded streamable prefers the local file', () {
-      // The local file wins over the streamable src.
-      final d = _descriptor(attachmentId: 'a7', mime: 'video/mp4');
-      final v = _view(attachmentId: 'a7', localPath: '/tmp/mosh/a7.mp4');
-      final dec = resolveMediaOpen(
-        descriptor: d,
-        view: v,
-        kind: 'dm',
-        host: 'sess',
-      );
-      expect(dec.src, 'file:///tmp/mosh/a7.mp4');
-      expect(dec.download, isFalse);
-      expect(dec.wait, isFalse);
-    });
+    for (final target in <AnyConversationTarget>[
+      const ChannelTarget('general'),
+      const GroupTarget('g')
+    ]) {
+      test('${target.kind.name} streams media while downloading', () async {
+        final server = MediaStreamServer.instance;
+        await server.start();
+        addTearDown(server.close);
+        final mime = target.kind == ConversationKind.channel
+            ? 'video/mp4'
+            : 'audio/mpeg';
+        final plan = ConversationAttachment(
+          descriptor: testAttachment(attachmentId: 'stream', mime: mime),
+        ).openPlan(target);
+        expect(plan.intent, isA<AttachmentMediaOpenIntent>());
+        expect((plan.intent as AttachmentMediaOpenIntent).src,
+            streamingMediaSrc(target.kind.name, target.id, 'stream'));
+        expect((plan.download, plan.wait), (true, false));
+      });
+    }
   });
 }

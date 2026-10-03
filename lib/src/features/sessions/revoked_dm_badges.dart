@@ -1,12 +1,3 @@
-// Pure helper + Riverpod provider for the "no longer in <org>" DM badge in
-// the sessions list.
-//
-// Safety rule: an org whose roster has not yet been verified
-// (`rosterVersion == null` -- fresh join, restart before first gossip) is
-// skipped entirely. Absence of a member proves nothing in that state, so we
-// never badge against an unverified roster.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/rust/org_runtime.dart' show OrgSnapshot;

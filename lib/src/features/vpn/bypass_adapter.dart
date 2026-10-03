@@ -1,11 +1,3 @@
-// bypass_adapter: pure helpers that pick which physical adapter the Moss
-// node should bind to when the user has not chosen one, so traffic leaves
-// the VPN tunnel. Used by `VpnConsentModal` (the default-adapter
-// suggestion) and `BindInterfaceField` (advanced settings). Pure + free of
-// any I/O so the policy is unit-testable without the network inventory.
-
-library;
-
 import 'package:mosh/src/rust/network_inventory.dart' show NetworkInterfaceInfo;
 
 /// Link-local IPv4 prefix (169.254.x.x). Windows hands these out when

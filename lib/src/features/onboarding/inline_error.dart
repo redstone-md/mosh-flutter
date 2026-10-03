@@ -1,15 +1,3 @@
-// Persistent inline error for the onboarding step screens. Each step
-// keeps the caught error as a widget-local `ConversationActionError?`,
-// clears it at the START of the next attempt, and renders its
-// `describe(l)` via this widget BELOW the primary button. This is one
-// source of truth -- a transient SnackBar would auto-dismiss and would
-// not be announced to assistive tech.
-//
-// `Semantics(liveRegion: true, container: true, excludeSemantics: true)`
-// makes screen readers announce the error once when it appears; without
-// excludeSemantics the visible Text would merge in and repeat the label.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;

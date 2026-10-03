@@ -1,22 +1,3 @@
-// Named-route shell. Uses `go_router` (declarative, URL-based) so the
-// deep-link intake (`mosh://...` -> route) can map straight onto these
-// path strings instead of hand-rolling `Navigator.pushNamed`.
-//
-// Route table (path -> screen):
-//   /                 OnboardingScreen
-//   /join             InvitePasteScreen
-//   /sessions         SessionsScreen (DM sessions list)
-//   /dm/:sessionId    DmScreen(sessionId = state.pathParameters['sessionId'])
-//
-// Two-pane shell: the /sessions, /dm/:id, /channel/:name, /group/:groupId,
-// and /chat (welcome) routes live inside a StatefulShellRoute with TWO
-// branches:
-//   - branch A (rail):  /sessions (SessionsScreen)
-//   - branch B (chat):  /chat (ChatPaneWelcome) + /dm/:id + /channel/:name
-//                       + /group/:groupId
-// The shell (mosh_shell.dart) lays them out side-by-side on desktop (rail
-// always visible beside the chat) and as a single pane on mobile (rail OR
-// chat).
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -123,19 +104,11 @@ final GoRouter appRouter = GoRouter(
           const ChatCreateScreen(),
     ),
     GoRoute(
-      // Channel-join step. Reached from the onboarding Channel tile via
-      // context.go(AppRoutes.channelJoin); the step's Back button returns
-      // to AppRoutes.onboarding. The Join button is a NO-OP STUB (the
-      // bridge joinChannel seam is a later slice).
       path: AppRoutes.channelJoin,
       builder: (BuildContext context, GoRouterState state) =>
           const ChannelJoinScreen(),
     ),
     GoRoute(
-      // Group-create step. Reached from the onboarding Group tile via
-      // context.go(AppRoutes.groupCreate); the step's Back button returns
-      // to AppRoutes.onboarding. The Create button is a NO-OP STUB (the
-      // bridge createGroup seam is a later slice).
       path: AppRoutes.groupCreate,
       builder: (BuildContext context, GoRouterState state) =>
           const GroupCreateScreen(),

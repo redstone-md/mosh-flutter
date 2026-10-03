@@ -1,10 +1,3 @@
-// Onboarding screen -- a thin shell over OnboardMenu. The full menu body
-// (identity chip, Start tiles, Join tiles, Advanced + About disclosures)
-// lives in OnboardMenu (onboard_menu.dart) so atomic #3 can embed the same
-// widget inline in the desktop chat-pane. This screen keeps only the
-// Scaffold + a bare AppBar and decides routing for the four tiles via
-// context.go. The Join tile goes to /join (InvitePasteScreen);
-// Group/Chat/Channel go to their create/join steps.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

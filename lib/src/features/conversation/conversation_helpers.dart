@@ -1,12 +1,3 @@
-/// Small helpers shared by every conversation: chat header sizing, message
-/// meta styles, avatar colours and initials. DM, channel and org group all
-/// use them, as does the sessions list.
-///
-/// They live here so the screens stay under the 500-line file-size
-/// discipline (ADR: file-size discipline) and share one copy instead of
-/// keeping private duplicates.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mosh/l10n/app_localizations.dart';
@@ -23,8 +14,6 @@ const double kMessageMetaGap = 8;
 /// avatar.
 const double messageAvatarSize = 32;
 
-/// Chat headers are compact under 640px wide: 54px min-height, a 15px
-/// title and an 11px subtitle (vs 16px/12px), with a shared 4px gap.
 bool _isCompactChatHeader(BuildContext context) =>
     MediaQuery.sizeOf(context).width <= 640;
 
@@ -43,7 +32,6 @@ TextStyle chatTitleStyle(BuildContext context) =>
           color: MoshColors.fg1,
         );
 
-/// Chat subtitle: 12px fg-3, 11px on a narrow header.
 TextStyle chatSubtitleStyle(BuildContext context) =>
     Theme.of(context).textTheme.bodySmall!.copyWith(
           fontSize: _isCompactChatHeader(context) ? 11 : 12,
@@ -76,8 +64,6 @@ const TextStyle kMessageMetaNameStyle = TextStyle(
   color: MoshColors.fg1,
 );
 
-/// Timestamp in a message meta row: 11px fg-3 with tabular figures so
-/// numerals keep equal width and clear contrast.
 const TextStyle kMessageTimeStyle = TextStyle(
   fontSize: 11,
   color: MoshColors.fg3,
@@ -151,7 +137,6 @@ class DeliveryTicks extends StatelessWidget {
     final style = read
         ? const TextStyle(fontSize: 10, color: MoshColors.moss)
         : const TextStyle(fontSize: 10, color: MoshColors.fg4);
-    // 10px fg-4, 1px below the meta line.
     return Padding(
       padding: const EdgeInsets.only(top: 1),
       // The label already includes the glyph + word, so the a11y string is
@@ -206,15 +191,6 @@ String? formatClockFull(BigInt? sentAtMs, {String? locale}) {
   return DateFormat.yMMMd(locale ?? 'en').add_Hm().format(dt);
 }
 
-/// Avatar initials: split the name on whitespace/underscore/dash, take the
-/// first char of each part, drop empties (leading/trailing separators
-/// yield empty parts), join, keep at most 2 chars, uppercase; return `"?"`
-/// when the result is empty. Sibling of [avatarColor]: the DM message row
-/// and the sessions list row both render an avatar with initials, so the
-/// algorithm lives here once (DRY) and both screens call this --
-/// previously each call site rendered only the first char
-/// (`label[0].toUpperCase()`), which lost the second initial of compound
-/// names (e.g. `juno-phone` rendered `J` instead of `JP`).
 String avatarInitials(String name) {
   final parts = name.split(RegExp(r'[\s_-]+'));
   // Drop the empty strings that a leading/trailing/multiple separator
@@ -272,16 +248,6 @@ class UnreadBadge extends StatelessWidget {
   }
 }
 
-/// OpenMLS-protection badge shown in the sender-meta row of a message.
-/// Renders the literal acronym `MLS` in a monospace style (the visible
-/// text is NOT localized -- it is the protocol acronym). The tooltip and
-/// the screen-reader label are localized via the `mlsBadgeTooltip` and
-/// `mlsBadgeLabel` ARB strings so the hint and the a11y label follow the
-/// device locale.
-///
-/// Reusable: the same badge renders next to the sender name in the DM
-/// `DmMessageRow` meta and (in later atomics) channel / group message
-/// rows.
 class MlsBadge extends StatelessWidget {
   const MlsBadge({super.key});
 

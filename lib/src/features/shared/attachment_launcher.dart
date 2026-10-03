@@ -1,10 +1,3 @@
-// Injectable platform seam for opening a downloaded attachment with the OS
-// default application. Screens own calling this adapter and presenting errors.
-//
-// Desktop uses url_launcher's external-app mode. Android uses open_filex
-// with an ACTION_VIEW Intent and a FileProvider content URI. Web is unsupported.
-library;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_filex/open_filex.dart';

@@ -1,28 +1,3 @@
-// Sealed seam between the flutter_rust_bridge surface and the Flutter UI.
-//
-// The app runs on `RealBridgeGateway`; tests run on the scriptable gateway in
-// test/support/. Widgets depend on `Gateway`, never on a concrete impl, so
-// swapping the wired runtime is one provider change (ADR 0013).
-//
-// This interface is deliberately narrow: it is the conversation seam, and it
-// is the test surface (ADR 0025). Eight methods -- the typed poll plus the
-// seven shared actions -- each take a [ConversationTarget] instead of coming
-// in a DM, a channel and a group flavour, so callers stop dispatching on the
-// kind (ADR 0017). For the six shared actions the adapter converts the target
-// to one typed ref and calls one shared bridge function; the dispatch lives
-// in the bridge (ADR 0024).
-//
-// Everything that only mirrors one generated bridge call 1:1 -- org, VPN,
-// call, diagnostics, session setup, the channel/group joins and lists -- is
-// NOT part of this interface. Those callers reach `BridgeFacade`
-// (bridge_facade.dart) directly, because faking a pass-through wholesale is
-// what once made the test double mirror 42 methods.
-//
-// The voice-call audio adapters (capture, playback, ringtone) also stay
-// outside this seam on purpose: they wrap OS audio (record/cpal) through
-// their own factory providers and hold no Rust domain state, so there is
-// nothing here to fake or swap (ADR 0025).
-
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 

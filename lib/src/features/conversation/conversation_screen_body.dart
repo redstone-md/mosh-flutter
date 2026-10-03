@@ -1,11 +1,3 @@
-/// Everything under a conversation's header: the banners, the search row,
-/// the message list, the composer, and the overlays on top of them.
-///
-/// One body for all three kinds. The screen above owns the widget state and
-/// passes it in as [ConversationChrome]; the running work comes from the
-/// conversation controller.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

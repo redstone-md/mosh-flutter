@@ -1,8 +1,3 @@
-// Shared informational/status banner above conversation tools. Persistence
-// belongs to its caller; the close action is optional and separately
-// accessible from the title/body announcement.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 

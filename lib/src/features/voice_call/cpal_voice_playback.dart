@@ -1,16 +1,3 @@
-// CpalVoicePlaybackFactory -- the real playback pipeline behind the
-// VoicePlaybackFactory seam. mosh-core's frb-exposed `voice_call_playback`
-// decodes Opus via `audiopus::coder::Decoder` and plays via a `cpal::Stream`
-// fed from a ring buffer with drift-resync (`PLAYBACK_RESYNC_S = 0.2s`).
-// Dart is a thin wrapper over the frb opaque -- the real work (decode,
-// ring, resync) is in Rust.
-//
-// Since `VoicePlaybackHandle implements CallFrameSink` (voice_playback.dart),
-// the handle returned here is passable straight into `drainCallFrames(...,
-// playback: handle)` -- no adapter needed.
-
-library;
-
 import 'dart:async';
 import 'dart:typed_data';
 

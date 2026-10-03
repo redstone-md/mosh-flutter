@@ -1,14 +1,3 @@
-// Which call dialog a session is asking for, derived from that session's
-// snapshot -- and from nothing else.
-//
-// mosh-core builds all three call fields of `SessionSnapshot` from one
-// `CallState` phase (private_dm_runtime.rs), so a session carries at most
-// one of them: pending (inbound, ringing), active (connected) or outgoing
-// (dialled, unanswered). Which dialog the UI owes the user is therefore a
-// pure function of one snapshot -- no phase machine, no timers, and no
-// "which modal did I open last" bookkeeping on the widget that draws it.
-library;
-
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 /// The call dialog a session wants shown. Sealed so the renderer must

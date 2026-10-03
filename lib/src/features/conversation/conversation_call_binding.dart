@@ -1,12 +1,3 @@
-/// The call capability a conversation hosts but does not own.
-///
-/// A DM can carry a call; the conversation module does not know how. It
-/// declares the slots a call needs -- start one, and somewhere to hang the
-/// overlay -- and the composition root fills them from the voice-call
-/// module. Nothing here imports that module, so the conversation module
-/// stays independent of it.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
