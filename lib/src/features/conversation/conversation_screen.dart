@@ -56,6 +56,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   ConversationFilter _filter = ConversationFilter.all;
   bool _mobileSearchOpen = false;
   bool? _showPeerStatus;
+  bool _markedInitialView = false;
 
   bool get _detailsDocked => MediaQuery.sizeOf(context).width >= 1280;
   bool get _detailsOpen => _showPeerStatus ?? _detailsDocked;
@@ -99,6 +100,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       _showPeerStatus = null;
       _search = '';
       _filter = ConversationFilter.all;
+      _markedInitialView = false;
       _markActive();
     }
   }
@@ -222,12 +224,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       conversationSnapshotProvider(_target),
       (_, next) {
         _resolvePendingOpen(next.value);
-        if (next.hasValue) _controller.markViewed();
+        if (next.hasValue) _markViewed();
       },
     );
-    // ref.listen cannot fire immediately during build; cover an existing snapshot.
-    if (ref.read(conversationSnapshotProvider(_target)).hasValue) {
-      _controller.markViewed();
+    // Cover a cached snapshot once; later view marks come from the listener.
+    if (!_markedInitialView &&
+        ref.read(conversationSnapshotProvider(_target)).hasValue) {
+      _markViewed();
     }
     final chrome = _chrome;
     final chat = Scaffold(
@@ -269,6 +272,11 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         ),
       ),
     ]);
+  }
+
+  void _markViewed() {
+    _markedInitialView = true;
+    _controller.markViewed();
   }
 
   void _resolvePendingOpen(ConversationSnapshot? snapshot) {
