@@ -23,12 +23,11 @@ class SetupSizing {
       80 * textScale;
 
   bool get stacked {
-    final available = viewport.width - outerPadding * 2;
-    final cardWidth = available.clamp(0.0, 1160.0);
-    return cardWidth - cardPadding * 2 < 740 * textScale;
+    final available = viewport.width - outerPadding * 2 - cardPadding * 2;
+    return available.clamp(0.0, 1160.0) < 740 * textScale;
   }
 
-  double get cardMaxWidth => stacked ? 640 : 1160;
+  double get contentMaxWidth => stacked ? 640 : 1160;
   bool get showIllustration => !stacked || viewport.height >= 600;
 
   double imageHeight({required bool stacked, required bool devices}) {

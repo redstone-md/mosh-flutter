@@ -59,18 +59,9 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
   Widget _viewport(BuildContext context, BoxConstraints constraints) {
     final sizing = SetupSizing(constraints.biggest,
         textScale: MediaQuery.textScalerOf(context).scale(14) / 14);
-    return SingleChildScrollView(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-        child: Padding(
-          padding: EdgeInsets.all(sizing.outerPadding),
-          child: Center(
-              child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: sizing.cardMaxWidth),
-                  child: _card(context, sizing, widget.profile.step))),
-        ),
-      ),
-    );
+    return Padding(
+        padding: EdgeInsets.all(sizing.outerPadding),
+        child: _card(context, sizing, widget.profile.step));
   }
 
   Widget _card(BuildContext context, SetupSizing sizing, SetupStep step) =>
@@ -89,7 +80,20 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
                     MoshColors.bg1,
                     MoshColors.bg0
                   ])),
-          child: _content(context, sizing, step));
+          child: LayoutBuilder(
+              builder: (context, constraints) =>
+                  _scrollContent(context, sizing, step, constraints)));
+
+  Widget _scrollContent(BuildContext context, SetupSizing sizing,
+          SetupStep step, BoxConstraints constraints) =>
+      SingleChildScrollView(
+          child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                  child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(maxWidth: sizing.contentMaxWidth),
+                      child: _content(context, sizing, step)))));
 
   Widget _content(BuildContext context, SetupSizing sizing, SetupStep step) =>
       Column(
