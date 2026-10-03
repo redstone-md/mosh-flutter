@@ -6,6 +6,9 @@
 `public/favicon.svg`. Its geometry and colors are unchanged. It has a fixed
 lime background so it stays legible in GitHub's light and dark themes.
 
+The app titlebar uses `assets/branding/mosh-mark.png`, the same landing-page
+mark from `public/apple-touch-icon.png`, with its original pixels preserved.
+
 ## Desktop screenshot
 
 `chat-desktop.png` renders the real `MoshApp` at 1440 × 900 logical pixels,

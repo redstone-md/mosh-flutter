@@ -103,6 +103,11 @@ ScriptableGateway _gateway() => ScriptableGateway()
   ]);
 
 Future<void> _save(WidgetTester tester) async {
+  for (final element in find.byType(Image).evaluate()) {
+    await tester.runAsync(
+        () => precacheImage((element.widget as Image).image, element));
+  }
+  await tester.pump();
   final boundary = tester
       .firstRenderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary));
   await tester.runAsync(() async {
