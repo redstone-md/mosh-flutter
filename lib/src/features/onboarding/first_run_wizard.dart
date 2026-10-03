@@ -13,6 +13,7 @@ import 'first_run_profile.dart';
 import 'first_run_provider.dart';
 import 'first_run_sizing.dart';
 import 'first_run_theme.dart';
+import 'first_run_transition.dart';
 
 class FirstRunWizard extends ConsumerStatefulWidget {
   const FirstRunWizard({super.key, required this.profile});
@@ -23,12 +24,24 @@ class FirstRunWizard extends ConsumerStatefulWidget {
 }
 
 class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
+  bool _illustrationsCached = false;
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
       if (mounted) ref.read(firstRunShownProvider.notifier).mark();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_illustrationsCached) return;
+    _illustrationsCached = true;
+    for (final asset in setupIllustrations.values) {
+      precacheImage(AssetImage(asset), context);
+    }
   }
 
   @override
@@ -54,57 +67,62 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
           child: Center(
               child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: sizing.cardMaxWidth),
-                  child: _card(context, sizing))),
+                  child: SetupStepTransition(
+                      step: widget.profile.step,
+                      builder: (context, step) =>
+                          _card(context, sizing, step)))),
         ),
       ),
     );
   }
 
-  Widget _card(BuildContext context, SetupSizing sizing) => Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(sizing.cardPadding),
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: MoshColors.moss.withValues(alpha: .3)),
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color.alphaBlend(
-                    MoshColors.moss.withValues(alpha: .055), MoshColors.bg0),
-                MoshColors.bg1,
-                MoshColors.bg0
-              ])),
-      child: _content(context, sizing));
+  Widget _card(BuildContext context, SetupSizing sizing, SetupStep step) =>
+      Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(sizing.cardPadding),
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: MoshColors.moss.withValues(alpha: .3)),
+              gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color.alphaBlend(MoshColors.moss.withValues(alpha: .055),
+                        MoshColors.bg0),
+                    MoshColors.bg1,
+                    MoshColors.bg0
+                  ])),
+          child: _content(context, sizing, step));
 
-  Widget _content(BuildContext context, SetupSizing sizing) => Column(
+  Widget _content(BuildContext context, SetupSizing sizing, SetupStep step) =>
+      Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(
                 child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 600),
-                    child: SetupProgress(
-                        step: widget.profile.step, compact: sizing.compact))),
+                    child: SetupProgress(step: step, compact: sizing.compact))),
             SizedBox(height: sizing.sectionGap),
             SetupFrame(
-                step: widget.profile.step,
+                step: step,
                 sizing: sizing,
-                child: _form(context, sizing)),
+                child: _form(context, sizing, step)),
             if (sizing.stacked &&
                 sizing.showIllustration &&
-                widget.profile.step == SetupStep.name) ...[
+                step == SetupStep.name) ...[
               const SizedBox(height: 20),
               const SetupPrivacyNote(),
             ],
           ]);
 
-  Widget _form(BuildContext context, SetupSizing sizing) {
+  Widget _form(BuildContext context, SetupSizing sizing, SetupStep step) {
     final l = AppLocalizations.of(context)!;
     final controller = ref.read(firstRunProfileProvider.notifier);
-    return switch (widget.profile.step) {
+    return switch (step) {
       SetupStep.name => DisplayNameForm(
           compact: sizing.compact,
+          showSaveConfirmation: false,
           initialName: widget.profile.displayName,
           actionLabel: l.firstRunContinue,
           onSave: (name) => controller.saveName(name, advance: true)),

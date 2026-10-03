@@ -10,11 +10,15 @@ class DisplayNameForm extends StatefulWidget {
       required this.initialName,
       required this.actionLabel,
       required this.onSave,
-      this.compact = false});
+      this.compact = false,
+      this.showSaveConfirmation = true});
   final String initialName;
   final String actionLabel;
   final Future<void> Function(String) onSave;
   final bool compact;
+
+  /// Settings confirms a save; the wizard confirms by moving to the next step.
+  final bool showSaveConfirmation;
 
   @override
   State<DisplayNameForm> createState() => _DisplayNameFormState();
@@ -42,7 +46,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
     });
     try {
       await widget.onSave(_name.text.trim());
-      if (mounted) setState(() => _saved = true);
+      if (mounted) setState(() => _saved = widget.showSaveConfirmation);
     } catch (_) {
       if (mounted) {
         setState(

@@ -6,6 +6,12 @@ import 'first_run_profile.dart';
 import 'first_run_heading.dart';
 import 'first_run_sizing.dart';
 
+const setupIllustrations = {
+  SetupStep.name: 'assets/onboarding/welcome.png',
+  SetupStep.device: 'assets/onboarding/devices.png',
+  SetupStep.network: 'assets/onboarding/network.png',
+};
+
 class SetupProgress extends StatelessWidget {
   const SetupProgress({super.key, required this.step, this.compact = false});
   final SetupStep step;
@@ -156,14 +162,9 @@ class SetupFrame extends StatelessWidget {
 
   Widget _illustration(BuildContext context, bool stacked, bool devices) {
     final l = AppLocalizations.of(context)!;
-    final asset = switch (step) {
-      SetupStep.name => 'welcome',
-      SetupStep.device => 'devices',
-      SetupStep.network => 'network',
-    };
     final text = Theme.of(context).textTheme;
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      Image.asset('assets/onboarding/$asset.png',
+      Image.asset(setupIllustrations[step]!,
           height: sizing.imageHeight(stacked: stacked, devices: devices),
           fit: BoxFit.contain,
           excludeFromSemantics: true),

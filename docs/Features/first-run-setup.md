@@ -136,6 +136,25 @@ The three illustrations are bundled in `assets/onboarding/` with their original
 RGBA transparency. Their generation prompts are recorded in
 [the asset notes](../../assets/onboarding/README.md).
 
+Step changes use a short fade through with a subtle horizontal shared-axis
+movement, following the [Material pattern for sequential signup pages](https://pub.dev/documentation/animations/latest/animations/SharedAxisTransition-class.html).
+The feature-local `SetupStepTransition` uses Flutter primitives: an 80ms exit,
+a 160ms entrance, `Cubic(.23, 1, .32, 1)` and a displacement of 2% of card width.
+Back reverses the direction; `SlideTransition` respects text direction. The
+titlebar stays stationary. Only opacity and translation animate; the card's
+content, height and centered position change while its opacity is zero.
+
+Only one step is mounted. Pointer and keyboard interaction pause during the
+transition, and the outgoing step leaves accessibility semantics immediately.
+Rapid requests retarget from the current opacity/position or finish the exit
+into the latest requested step. Initial/restored steps, same-step profile
+updates, resizing and failed saves do not trigger motion or replace form state.
+Platform reduced motion retains the fade and removes translation, including
+when the preference changes during a transition. The controller preserves this
+gentler fade instead of Flutter's default accelerated animation behavior.
+The wizard precaches all three illustrations. Advancing the name form confirms
+the save by showing the device step; Settings retains its saved confirmation.
+
 Size exception: `_DisplayNameFormState.build` exceeds the 50-line function budget
 because it declares the shared localized form. It contains no protocol or
 persistence logic; its containing type and file stay within the 200/400-line
@@ -198,3 +217,12 @@ form column, restored primary ink to the welcome caption and joined the step
 track. The onboarding suite and the 48-case viewport matrix pass with previews
 rendered at 1280×680, 900×700, 1920×1080, phone and 200% text. Native Windows verification
 remains outstanding; the previews exercise the real Flutter tree in widget tests.
+
+Step-transition validation on 2026-10-03: analysis and formatting are clean;
+the full Flutter suite passed 1,217 tests with five existing skips. Nineteen
+focused motion cases cover forward/back transitions, interrupted requests,
+reduced motion, semantics, keyboard access, stable outgoing geometry, resize,
+save errors and ticker disposal. Actual Flutter frames were rendered for all
+three transitions at 1280×680 and 390×844. The four changed production files
+collected 99.6% line and 98.5% branch coverage. Frame pacing on a physical Windows
+device remains unmeasured.
