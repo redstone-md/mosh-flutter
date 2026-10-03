@@ -5,14 +5,20 @@ mixin _BridgeOrganizations on _ScriptableBridgeState {
   Future<OrgSnapshot> joinOrg({required JoinOrgRequest request}) => runScripted(
         BridgeMethod.joinOrg,
         {'request': request},
-        () => cannedOrgSnapshot(
-          orgPubkey: orgPubkeyFromBundleUri(request.bundleUri),
-        ),
+        () {
+          final org = cannedOrgSnapshot(
+            orgPubkey: orgPubkeyFromBundleUri(request.bundleUri),
+          );
+          _orgs[org.orgPubkey] = org;
+          return org;
+        },
       );
 
   @override
   Future<void> leaveOrg({required String orgPubkey}) =>
-      runScripted(BridgeMethod.leaveOrg, {'orgPubkey': orgPubkey}, () {});
+      runScripted(BridgeMethod.leaveOrg, {'orgPubkey': orgPubkey}, () {
+        _orgs.remove(orgPubkey);
+      });
 
   @override
   Future<List<OrgSnapshot>> listOrgs() =>
@@ -32,22 +38,30 @@ mixin _BridgeOrganizations on _ScriptableBridgeState {
     required int listenPort,
     String? staticPeer,
   }) =>
-      runScripted(
-          BridgeMethod.sendOrgDmOffer,
-          {
-            'orgPubkey': orgPubkey,
-            'targetPeerId': targetPeerId,
-            'displayName': displayName,
-            'listenPort': listenPort,
-            'staticPeer': staticPeer,
-          },
-          () => InviteCreated(
-                inviteUri: 'mosh://invite?session=fake-org-dm&fp=00#fp=00',
-                sessionId: 'fake-org-dm-${conversations.sessions.length + 1}',
-                meshId: '',
-                fingerprint: '00',
-                listenAddress: '',
-              ));
+      runScripted(BridgeMethod.sendOrgDmOffer, {
+        'orgPubkey': orgPubkey,
+        'targetPeerId': targetPeerId,
+        'displayName': displayName,
+        'listenPort': listenPort,
+        'staticPeer': staticPeer,
+      }, () {
+        final id = 'fake-org-dm-${conversations.sessions.length + 1}';
+        final invite = InviteCreated(
+          inviteUri: 'mosh://invite?session=$id&fp=00#fp=00',
+          sessionId: id,
+          meshId: '',
+          fingerprint: '00',
+          listenAddress: '',
+        );
+        conversations.sessions[id] = fakeSession(
+          sessionId: id,
+          displayName: displayName,
+          role: 'inviter',
+          inviteUri: invite.inviteUri,
+          fingerprint: invite.fingerprint,
+        );
+        return invite;
+      });
 
   @override
   Future<SessionSnapshot> acceptOrgDmOffer({
@@ -120,25 +134,25 @@ mixin _BridgeOrganizations on _ScriptableBridgeState {
     required int listenPort,
     String? staticPeer,
   }) =>
-      runScripted(
-          BridgeMethod.acceptOrgGroupOffer,
-          {
-            'orgPubkey': orgPubkey,
-            'offerId': offerId,
-            'displayName': displayName,
-            'listenPort': listenPort,
-            'staticPeer': staticPeer,
-          },
-          () => cannedGroupSnapshot(
-                groupId: 'fake-org-group-accept',
-                displayName: displayName,
-                deviceFingerprint: '00',
-                creatorFingerprint: '00',
-                memberCount: BigInt.one,
-                inviteUri:
-                    'mosh://group?session=fake-org-group-accept&fp=00#fp=00',
-                orgPubkey: orgPubkey,
-              ));
+      runScripted(BridgeMethod.acceptOrgGroupOffer, {
+        'orgPubkey': orgPubkey,
+        'offerId': offerId,
+        'displayName': displayName,
+        'listenPort': listenPort,
+        'staticPeer': staticPeer,
+      }, () {
+        final group = cannedGroupSnapshot(
+          groupId: 'fake-org-group-accept',
+          displayName: displayName,
+          deviceFingerprint: '00',
+          creatorFingerprint: '00',
+          memberCount: BigInt.one,
+          inviteUri: 'mosh://group?session=fake-org-group-accept&fp=00#fp=00',
+          orgPubkey: orgPubkey,
+        );
+        conversations.groups[group.groupId] = group;
+        return group;
+      });
 
   @override
   Future<void> dismissOrgGroupOffer({
