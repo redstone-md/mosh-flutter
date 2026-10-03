@@ -177,6 +177,19 @@ void main() {
         isNull);
   });
 
+  testWidgets('Back and Continue keep the unsaved adapter selection',
+      (tester) async {
+    final harness = _harness();
+    await harness.pump(tester);
+    await _chooseEthernet(tester);
+    await tapSetup(tester, 'Back');
+    await tapSetup(tester, 'This is my first device');
+    expect(find.text('Ethernet - 192.168.1.5'), findsOneWidget);
+    expect(find.textContaining('outside your VPN'), findsOneWidget);
+    expect(harness.bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
+    expect(harness.bridge.countOf(BridgeMethod.listInterfaces), 1);
+  });
+
   testWidgets('detected VPN is explained without silently enabling bypass',
       (tester) async {
     final harness = _harness()

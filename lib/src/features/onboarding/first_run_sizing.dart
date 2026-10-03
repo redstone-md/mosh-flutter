@@ -12,6 +12,15 @@ class SetupSizing {
   double get sectionGap => compact ? 16 : 32;
   double get columnGap => compact ? 32 : 48;
 
+  // Reserve space for the next task while leaving room for progress and labels.
+  double get transitionReserve => sectionGap * 4;
+  double get transitionBaselineLimit =>
+      viewport.height -
+      outerPadding * 2 -
+      cardPadding * 2 -
+      sectionGap -
+      80 * textScale;
+
   bool get stacked {
     final available = viewport.width - outerPadding * 2;
     final cardWidth = available.clamp(0.0, 1160.0);

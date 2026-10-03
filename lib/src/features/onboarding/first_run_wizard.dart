@@ -67,10 +67,7 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
           child: Center(
               child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: sizing.cardMaxWidth),
-                  child: SetupStepTransition(
-                      step: widget.profile.step,
-                      builder: (context, step) =>
-                          _card(context, sizing, step)))),
+                  child: _card(context, sizing, widget.profile.step))),
         ),
       ),
     );
@@ -104,17 +101,34 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
                     constraints: const BoxConstraints(maxWidth: 600),
                     child: SetupProgress(step: step, compact: sizing.compact))),
             SizedBox(height: sizing.sectionGap),
-            SetupFrame(
-                step: step,
-                sizing: sizing,
-                child: _form(context, sizing, step)),
-            if (sizing.stacked &&
-                sizing.showIllustration &&
-                step == SetupStep.name) ...[
-              const SizedBox(height: 20),
-              const SetupPrivacyNote(),
-            ],
+            _body(context, sizing, step),
           ]);
+
+  Widget _body(BuildContext context, SetupSizing sizing, SetupStep step) =>
+      SetupStableLayout(
+          reserve: sizing.transitionReserve,
+          maximumBaseline: sizing.transitionBaselineLimit,
+          layout: (
+            sizing.viewport,
+            sizing.textScale,
+            Localizations.localeOf(context)
+          ),
+          child: SetupStepTransition(
+              key: const ValueKey('setup-content'),
+              step: step,
+              builder: (context, step) =>
+                  Column(mainAxisSize: MainAxisSize.min, children: [
+                    SetupFrame(
+                        step: step,
+                        sizing: sizing,
+                        child: _form(context, sizing, step)),
+                    if (sizing.stacked &&
+                        sizing.showIllustration &&
+                        step == SetupStep.name)
+                      const Padding(
+                          padding: EdgeInsets.only(top: 20),
+                          child: SetupPrivacyNote()),
+                  ])));
 
   Widget _form(BuildContext context, SetupSizing sizing, SetupStep step) {
     final l = AppLocalizations.of(context)!;

@@ -5,6 +5,7 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'first_run_profile.dart';
 import 'first_run_heading.dart';
 import 'first_run_sizing.dart';
+import 'first_run_transition.dart';
 
 const setupIllustrations = {
   SetupStep.name: 'assets/onboarding/welcome.png',
@@ -67,26 +68,7 @@ class SetupProgress extends StatelessWidget {
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Row(children: [
         track(index > 0, index <= step.index),
-        Container(
-            width: diameter,
-            height: diameter,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active ? MoshColors.mossGlow : MoshColors.bg1,
-                border: Border.all(
-                    color: active || done
-                        ? MoshColors.moss
-                        : MoshColors.fieldBorder),
-                boxShadow: active
-                    ? const [
-                        BoxShadow(color: MoshColors.mossGlow, blurRadius: 24)
-                      ]
-                    : null),
-            child: done
-                ? const Icon(Icons.check, size: 18, color: MoshColors.moss)
-                : Text('${index + 1}',
-                    style: Theme.of(context).textTheme.titleMedium)),
+        _marker(context, index, diameter, active, done),
         track(!last, index < step.index),
       ]),
       if (showLabel) ...[
@@ -97,6 +79,37 @@ class SetupProgress extends StatelessWidget {
       ],
     ]);
   }
+
+  Widget _marker(BuildContext context, int index, double diameter, bool active,
+          bool done) =>
+      SizedBox(
+          width: diameter,
+          height: diameter,
+          child: AnimatedContainer(
+              duration: setupStepExitDuration,
+              curve: setupStepCurve,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active ? MoshColors.mossGlow : MoshColors.bg1,
+                  border: Border.all(
+                      color: active || done
+                          ? MoshColors.moss
+                          : MoshColors.fieldBorder),
+                  boxShadow: active
+                      ? const [
+                          BoxShadow(color: MoshColors.mossGlow, blurRadius: 24)
+                        ]
+                      : null),
+              child: AnimatedSwitcher(
+                  duration: setupStepExitDuration,
+                  switchInCurve: setupStepCurve,
+                  switchOutCurve: setupStepCurve.flipped,
+                  child: done
+                      ? const Icon(Icons.check,
+                          size: 18, color: MoshColors.moss)
+                      : Text('${index + 1}',
+                          style: Theme.of(context).textTheme.titleMedium))));
 }
 
 /// Wide: artwork panel on the left, task heading and form on the right.
@@ -114,7 +127,6 @@ class SetupFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final devices = step == SetupStep.device;
     final stacked = sizing.stacked;
     final fit = stacked ? FlexFit.loose : FlexFit.tight;
     return Flex(
@@ -131,43 +143,43 @@ class SetupFrame extends StatelessWidget {
           Flexible(
               fit: fit,
               child: sizing.showIllustration
-                  ? _illustration(context, stacked, devices)
+                  ? _illustration(context, stacked, step)
                   : const SizedBox.shrink()),
           SizedBox(
               width: stacked ? 0 : sizing.columnGap,
               height:
                   stacked && sizing.showIllustration ? sizing.sectionGap : 0),
-          Flexible(
-              fit: fit,
-              child: Center(
-                  heightFactor: 1,
-                  child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                          maxWidth: stacked ? double.infinity : 480),
-                      child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            stacked
-                                ? const SizedBox.shrink()
-                                : Padding(
-                                    padding: EdgeInsets.only(
-                                        bottom: sizing.sectionGap),
-                                    child: SetupHeading(
-                                        step: step, centered: false)),
-                            child,
-                          ])))),
+          Flexible(fit: fit, child: _formPanel(stacked)),
         ]);
   }
 
-  Widget _illustration(BuildContext context, bool stacked, bool devices) {
+  Widget _formPanel(bool stacked) => Center(
+      heightFactor: 1,
+      child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxWidth: stacked ? double.infinity : 480),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                stacked
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: EdgeInsets.only(bottom: sizing.sectionGap),
+                        child: SetupHeading(step: step, centered: false)),
+                child,
+              ])));
+
+  Widget _illustration(BuildContext context, bool stacked, SetupStep step) {
+    final devices = step == SetupStep.device;
     final l = AppLocalizations.of(context)!;
     final text = Theme.of(context).textTheme;
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      Image.asset(setupIllustrations[step]!,
-          height: sizing.imageHeight(stacked: stacked, devices: devices),
-          fit: BoxFit.contain,
-          excludeFromSemantics: true),
+      SetupArtworkMotion(
+          child: Image.asset(setupIllustrations[step]!,
+              height: sizing.imageHeight(stacked: stacked, devices: devices),
+              fit: BoxFit.contain,
+              excludeFromSemantics: true)),
       if (!stacked && !devices) ...[
         const SizedBox(height: 16),
         Text(step == SetupStep.name ? l.firstRunWelcome : l.firstRunAlmostReady,
