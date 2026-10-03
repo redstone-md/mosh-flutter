@@ -7,9 +7,9 @@
 // then sealFrame + bridge.callSendFrame) -> a 20ms Timer.periodic
 // guarded by `draining` that runs drainCallFrames with the bridge,
 // playback as sink and a fresh JitterBuffer. detach() tears it all
-// down. A `cancelled` flag gates the two await windows (playback/capture
-// resolving after detach) so a teardown during setup does not leak or
-// clobber.
+// down. Cancellation gates setup and pending frame seals, so a completed
+// seal cannot start a send after detach. Key identity keeps a later
+// attachment from reviving a seal started by the previous call.
 library;
 
 import 'dart:async';
@@ -180,6 +180,7 @@ class VoiceCallOrchestrator {
   }) async {
     try {
       final seal = await sealFrame(key, noncePrefix, seq, directionBit, frame);
+      if (_cancelled || !identical(_key, key)) return;
       await bridge.callSendFrame(
           sessionId: sessionId, callId: callId, frame: seal);
     } catch (_) {
