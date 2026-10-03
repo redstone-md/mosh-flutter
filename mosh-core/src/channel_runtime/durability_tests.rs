@@ -1,9 +1,7 @@
 use super::*;
 use crate::moss_ffi::{drain_received_messages, fail_next_test_publish, MOSS_TEST_LOCK};
 
-#[path = "../../tests/support/temp_directory.rs"]
-mod temp_directory;
-use temp_directory::TempDirectory;
+use crate::test_temp_directory::TempDirectory;
 
 struct Fixture {
     store: Arc<Persistence>,

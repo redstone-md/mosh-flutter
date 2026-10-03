@@ -1,27 +1,37 @@
 use super::*;
 use crate::moss_ffi::{drain_received_messages, fail_next_test_publish, MOSS_TEST_LOCK};
 
+use crate::test_temp_directory::TempDirectory;
+
 struct Fixture {
-    directory: std::path::PathBuf,
     store: Arc<Persistence>,
     runtime: PrivateGroupRuntime,
     id: String,
+    directory: TempDirectory,
 }
 
 impl Fixture {
-    fn new() -> Self {
+    fn empty() -> Self {
         drain_received_messages();
-        let directory =
-            std::env::temp_dir().join(format!("mosh-private_group-durable-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&directory);
-        std::fs::create_dir_all(&directory).unwrap();
+        let directory = TempDirectory::new("mosh-private-group-durable");
         let store = Arc::new(
-            Persistence::open_with_dek(&directory.join("history.redb"), [57; 32]).unwrap(),
+            Persistence::open_with_dek(&directory.path().join("history.redb"), [57; 32]).unwrap(),
         );
-        let attachments = Arc::new(AttachmentStore::new(&directory).unwrap());
+        let attachments = Arc::new(AttachmentStore::new(directory.path()).unwrap());
         let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
-        let mut runtime = PrivateGroupRuntime::from_shared(moss, attachments, Some(store.clone()));
-        let id = runtime
+        let runtime = PrivateGroupRuntime::from_shared(moss, attachments, Some(store.clone()));
+        Self {
+            store,
+            runtime,
+            id: String::new(),
+            directory,
+        }
+    }
+
+    fn new() -> Self {
+        let mut fixture = Self::empty();
+        fixture.id = fixture
+            .runtime
             .create_group(CreateGroupRequest {
                 label: Some("Durable Group".into()),
                 display_name: "Alice".into(),
@@ -31,19 +41,109 @@ impl Fixture {
             })
             .unwrap()
             .group_id;
-        Self {
-            directory,
-            store,
-            runtime,
-            id,
-        }
+        fixture
+    }
+
+    fn join(&mut self, invite: &str, display_name: &str) {
+        self.id = self
+            .runtime
+            .join_group(JoinGroupRequest {
+                invite_uri: invite.into(),
+                display_name: display_name.into(),
+                org_pubkey: None,
+                listen_port: 42247,
+                static_peer: None,
+            })
+            .unwrap()
+            .group_id;
+    }
+
+    fn deliver_welcome(&mut self, admin: &mut MlsSessionCrypto) {
+        let session = self.runtime.groups.get_mut(&self.id).unwrap();
+        let key_package = session.crypto.key_package_bytes().unwrap();
+        let outcome = admin.add_members(&[key_package.as_slice()]).unwrap();
+        let welcome = ControlEnvelope::Welcome {
+            group_id: self.id.clone(),
+            for_participant_id: session.participant_id.clone(),
+            from_fingerprint: admin.fingerprint(),
+            welcome_b64: encode(&outcome.welcome_bytes),
+            tree_b64: encode(&outcome.tree_bytes),
+            commit_b64: encode(&outcome.commit_bytes),
+        };
+        inbox::deliver(MossReceivedMessage {
+            channel: session.control_channel.clone(),
+            payload: serde_json::to_vec(&welcome).unwrap(),
+        });
+    }
+
+    fn restart(&mut self) {
+        let attachments = Arc::new(AttachmentStore::new(self.directory.path()).unwrap());
+        let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
+        self.runtime =
+            PrivateGroupRuntime::from_shared(moss, attachments, Some(self.store.clone()));
+        self.runtime.rehydrate();
+    }
+
+    fn rejoining() -> Self {
+        let mut fixture = Self::empty();
+        let mut admin = MlsSessionCrypto::new("Alice").unwrap();
+        admin.create_group().unwrap();
+        let invite = build_invite_uri(
+            &admin.random_token("mesh").unwrap(),
+            &admin.random_token("group").unwrap(),
+            &admin.fingerprint(),
+            &None,
+        );
+        fixture.join(&invite, "Bob");
+        fixture.deliver_welcome(&mut admin);
+        assert_eq!(fixture.runtime.poll(&fixture.id).unwrap().member_count, 2);
+
+        let refused_close = fixture.store.refuse_record_writes(GROUP_HISTORY);
+        assert!(fixture.runtime.close(&fixture.id).unwrap().closed);
+        drop(refused_close);
+        admin.remove_members_by_identity("Bob").unwrap();
+        fixture.join(&invite, "Bob rejoined");
+        fixture.deliver_welcome(&mut admin);
+        fixture
+    }
+
+    fn assert_accepted_group_restores(&mut self) {
+        // Restart before a pending retry: both rows must still describe the
+        // last accepted join, even though this rejoin was refused.
+        self.restart();
+        let recovered = self
+            .runtime
+            .poll(&self.id)
+            .expect("refused rejoin must preserve a restorable accepted group");
+        assert_eq!(recovered.member_count, 2);
+        assert_eq!(recovered.display_name, "Bob");
     }
 }
 
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.directory);
-    }
+#[test]
+fn refused_rejoin_record_keeps_the_last_accepted_group_restorable() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::rejoining();
+    let refused_record = fixture.store.refuse_record_writes(GROUP_HISTORY);
+    assert!(matches!(
+        fixture.runtime.poll(&fixture.id),
+        Err(PrivateGroupError::Persistence(_))
+    ));
+    drop(refused_record);
+    fixture.assert_accepted_group_restores();
+}
+
+#[test]
+fn refused_rejoin_snapshot_rolls_back_the_new_group_record() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::rejoining();
+    let refused_snapshot = fixture.store.refuse_group_snapshot_writes();
+    assert!(matches!(
+        fixture.runtime.poll(&fixture.id),
+        Err(PrivateGroupError::Persistence(_))
+    ));
+    drop(refused_snapshot);
+    fixture.assert_accepted_group_restores();
 }
 
 #[test]
