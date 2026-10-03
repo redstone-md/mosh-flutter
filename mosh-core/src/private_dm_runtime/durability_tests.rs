@@ -2,27 +2,25 @@ use super::state_tests::{accept, connect, invite, runtime_on, ALICE_ID, BOB_ID};
 use super::transport::memory::MemoryNet;
 use super::wire::DATA_CHANNEL_PREFIX;
 use super::*;
+use crate::test_temp_directory::TempDirectory;
 
 struct Pair {
-    directory: std::path::PathBuf,
     store: Arc<Persistence>,
     attachments: Arc<AttachmentStore>,
     net: Arc<MemoryNet>,
     alice: PrivateDmRuntime,
     bob: PrivateDmRuntime,
     session_id: String,
+    directory: TempDirectory,
 }
 
 impl Pair {
     fn new(name: &str) -> Self {
-        let directory =
-            std::env::temp_dir().join(format!("mosh-durable-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&directory);
-        std::fs::create_dir_all(&directory).unwrap();
+        let directory = TempDirectory::new(&format!("mosh-durable-{name}"));
         let store = Arc::new(
-            Persistence::open_with_dek(&directory.join("history.redb"), [41; 32]).unwrap(),
+            Persistence::open_with_dek(&directory.path().join("history.redb"), [41; 32]).unwrap(),
         );
-        let attachments = Arc::new(AttachmentStore::new(&directory).unwrap());
+        let attachments = Arc::new(AttachmentStore::new(directory.path()).unwrap());
         let net = MemoryNet::new();
         net.link_both(ALICE_ID, BOB_ID, PeerTransport::Direct);
         let mut alice = PrivateDmRuntime::with_transport(
@@ -35,13 +33,13 @@ impl Pair {
         accept(&mut bob, &invitation);
         connect(&mut alice, &mut bob, &invitation.session_id);
         Self {
-            directory,
             store,
             attachments,
             net,
             alice,
             bob,
             session_id: invitation.session_id,
+            directory,
         }
     }
 
@@ -64,10 +62,16 @@ impl Pair {
     }
 }
 
-impl Drop for Pair {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.directory);
-    }
+#[test]
+fn pair_fixture_closes_database_handles_and_removes_its_directory() {
+    let pair = Pair::new("cleanup");
+    let directory = pair.directory.path().to_path_buf();
+    let handles = Arc::downgrade(&pair.store);
+
+    drop(pair);
+
+    assert!(handles.upgrade().is_none(), "database handles should close");
+    assert!(!directory.exists(), "fixture directory should be removed");
 }
 
 #[test]
