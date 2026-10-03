@@ -90,6 +90,35 @@ void main() {
     expect(harness.store.profile!.step, SetupStep.network);
   });
 
+  testWidgets(
+      'cancel link returns to device choices and allows another attempt',
+      (tester) async {
+    final harness = FirstRunHarness(
+        profile:
+            const FirstRunProfile(displayName: 'Juno', step: SetupStep.device));
+    await harness.pump(tester);
+    await tapSetup(tester, 'Connect to an existing profile');
+    await tester.enterText(find.byType(TextField), 'mosh://device-link/first');
+    await tester.tap(find.byTooltip('Connect'));
+    await tester.pumpAndSettle();
+    harness.link.actionError = StateError('cancel');
+    await tapSetup(tester, 'Cancel link');
+    expect(find.text('ABCDEF123456'), findsOneWidget);
+    harness.link.actionError = null;
+    await tapSetup(tester, 'Cancel link');
+    expect(find.text('Connect to an existing profile'), findsOneWidget);
+    expect(find.text('This is my first device'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    expect(harness.store.profile!.step, SetupStep.device);
+    await tapSetup(tester, 'Connect to an existing profile');
+    await tester.enterText(find.byType(TextField), 'mosh://device-link/second');
+    await tester.tap(find.byTooltip('Connect'));
+    await tester.pumpAndSettle();
+    expect(harness.link.imported,
+        ['mosh://device-link/first', 'mosh://device-link/second']);
+    expect(find.text('ABCDEF123456'), findsOneWidget);
+  });
+
   testWidgets('committed delivery disables cancellation and continuing',
       (tester) async {
     final harness = FirstRunHarness(

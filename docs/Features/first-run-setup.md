@@ -56,7 +56,10 @@ its port, peer and pending invite state.
 Device linking already supports importing a trusted installation's QR image or
 private link on desktop and camera scanning on Android. Approval happens on the
 trusted installation. Installations with existing conversations cannot adopt a
-different Mosh user. See [device linking](device-linking.md).
+different Mosh user. Cancelling the import or pending link returns to the setup
+device choices; a failed cancellation retains the current flow for retry. A
+linked identity or committed delivery remains visible if approval wins the race.
+See [device linking](device-linking.md).
 
 The existing network settings save a physical adapter choice. The running node
 applies it after restart; Windows offers app relaunch. A global VPN prompt can
@@ -181,10 +184,11 @@ default shortened fade so controls become available on the next frame. The wizar
 precaches all three illustrations. Advancing the name form confirms its save
 by showing the device step; Settings retains its saved confirmation.
 
-Size exception: `_DisplayNameFormState.build` exceeds the 50-line function budget
-because it declares the shared localized form. It contains no protocol or
-persistence logic; its containing type and file stay within the 200/400-line
-budgets. Layout, theme and step-heading logic are separate small components.
+Size exceptions: `_DisplayNameFormState.build` and `_FirstRunDeviceStepState.build`
+exceed the 50-line function budget because each declares one localized form.
+Protocol and persistence logic stay outside these builds; their containing types
+and files stay within the 200/400-line budgets. Layout, theme and step-heading
+logic are separate small components.
 Test registration functions enumerate independent cases and exceed the function
 budget; individual test callbacks remain small.
 

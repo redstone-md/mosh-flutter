@@ -81,7 +81,9 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
         if (device.isLoading)
           const Center(child: CircularProgressIndicator())
         else
-          const DevicesSettingsSection(joiningOnly: true),
+          DevicesSettingsSection(
+              joiningOnly: true,
+              onCancelled: () => setState(() => _connecting = false)),
         const SizedBox(height: 20),
       ] else ...[
         OutlinedButton.icon(
