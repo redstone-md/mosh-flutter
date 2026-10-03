@@ -36,6 +36,7 @@ probe-timeline.jsonl
 
 # Flutter / Dart / Rust build artifacts (added by Flutter scaffold)
 build/
+coverage/
 # Provisioned arm64 libopus.a + headers -- a build artifact, NOT source.
 # Regenerate with: pwsh -File third_party/build-opus-android.ps1
 # (reproduces `make -f Makefile.unix lib` from audiopus_sys-0.1.8's vendored opus)

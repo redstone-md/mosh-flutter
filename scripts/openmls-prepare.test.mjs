@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -57,6 +59,25 @@ test("a damaged cached archive cannot materialize source", async () => {
     /checksum mismatch/,
   );
   await writeFile(archive, bytes);
+});
+
+test("online preparation repairs a damaged archive cache", async () => {
+  const archive = path.join(cacheDir, "openmls-0.8.1.crate");
+  await writeFile(archive, "interrupted download");
+  const repaired = path.join(scratch, "repaired");
+  await prepareOpenMls({ destination: repaired, cacheDir });
+  assert.equal(await sourceHash(repaired), await sourceHash(destination));
+});
+
+test("preparation recovers a lock held by a terminated process", async () => {
+  const holder = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+  const exited = once(holder, "exit");
+  holder.kill("SIGKILL");
+  await exited;
+  const claim = path.join(`${destination}.lock`, `${holder.pid}-terminated.json`);
+  await writeFile(claim, JSON.stringify({ pid: holder.pid, choosing: true, ticket: 0 }));
+  await prepareOpenMls({ destination, cacheDir, offline: true });
+  await assert.rejects(readFile(claim), { code: "ENOENT" });
 });
 
 test("offline preparation from a cached archive recreates the full source", async () => {
