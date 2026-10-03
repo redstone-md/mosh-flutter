@@ -165,6 +165,12 @@ Then run `flutter run -d windows` or `flutter run -d macos` on the matching
 platform. Moss is built from the pinned submodule, including both macOS
 architectures.
 
+Moss preparation also reconstructs the pinned, patched OpenMLS source. Flutter
+native builds and CI prepare it automatically. Before running Cargo or bridge
+codegen directly in a fresh checkout, run `node scripts/openmls-prepare.mjs`.
+The [patch notes](third_party/openmls-patches/README.md) explain checksums and
+offline builds.
+
 | Location | Responsibility |
 | --- | --- |
 | `lib/` | Flutter UI, feature state and generated Dart bindings |

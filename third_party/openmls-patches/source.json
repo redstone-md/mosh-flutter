@@ -1,0 +1,8 @@
+{
+  "name": "openmls",
+  "version": "0.8.1",
+  "url": "https://static.crates.io/crates/openmls/openmls-0.8.1.crate",
+  "archiveSha256": "dcb512bfe6a55777518853ea535c6241f069cb0e8984678c117151d2a1e7e903",
+  "sourceSha256": "a824535b70a2ce25f881a509f8827e30f405966acbc655b3e08032b9c99aa953",
+  "upstreamCommit": "47dbedecad0c1fd8eb5368d582250ebfcc1e1ce6"
+}

@@ -1,5 +1,2 @@
-# Shell scripts must keep LF endings. Where bash runs them on a Windows runner
-# (e.g. the CI jobs that invoke scripts/*.sh), the default core.autocrlf=true
-# would otherwise check them out with CRLF and bash would fail on every line
-# with $'\r'.
-*.sh text eol=lf
+third_party/openmls-patches/* text eol=lf
+scripts/*.mjs text eol=lf

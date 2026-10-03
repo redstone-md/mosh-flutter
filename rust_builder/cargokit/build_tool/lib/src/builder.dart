@@ -89,6 +89,9 @@ class BuildEnvironment {
     final buildConfiguration =
         parseBuildConfiguration(Environment.configuration);
     final manifestDir = Environment.manifestDir;
+    runCommand('node', [
+      path.join(manifestDir, '..', 'scripts', 'openmls-prepare.mjs'),
+    ]);
     final crateOptions = CargokitCrateOptions.load(
       manifestDir: manifestDir,
     );

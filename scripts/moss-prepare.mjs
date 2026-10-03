@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { prepareOpenMls } from "./openmls-prepare.mjs";
 
 // Build output lands at the repo root `moss-runtime/` -- the canonical
 // candidate `moss_runtime.rs::default_candidate_paths` resolves from the
@@ -29,6 +30,7 @@ const DARWIN_SLICES = [
 ];
 
 await ensureMossCheckout();
+await prepareOpenMls();
 
 try {
   await mkdir(TARGET_DIR, { recursive: true });
