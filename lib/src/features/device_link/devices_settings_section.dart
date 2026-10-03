@@ -17,7 +17,14 @@ import 'device_revocation_dialog.dart';
 import 'qr_image.dart';
 
 class DevicesSettingsSection extends ConsumerStatefulWidget {
-  const DevicesSettingsSection({super.key});
+  const DevicesSettingsSection(
+      {super.key, this.joiningOnly = false, this.onCancelled});
+
+  /// Setup reuses the importer and protocol UI without authorization actions.
+  final bool joiningOnly;
+
+  /// Lets the setup step restore its choices after a successful cancellation.
+  final VoidCallback? onCancelled;
 
   @override
   ConsumerState<DevicesSettingsSection> createState() =>
@@ -27,7 +34,7 @@ class DevicesSettingsSection extends ConsumerStatefulWidget {
 class _DevicesSettingsSectionState
     extends ConsumerState<DevicesSettingsSection> {
   bool _busy = false;
-  bool _joining = false;
+  late bool _joining = widget.joiningOnly;
   String? _error;
 
   Future<void> _run(Future<void> Function() action) async {
@@ -77,7 +84,9 @@ class _DevicesSettingsSectionState
 
   Future<void> _cancel() async {
     await ref.read(deviceLinkProvider.notifier).cancel();
-    if (mounted) setState(() => _joining = false);
+    if (!mounted) return;
+    setState(() => _joining = false);
+    widget.onCancelled?.call();
   }
 
   Future<void> _removeDevice(DeviceDescriptor device) async {
@@ -107,10 +116,11 @@ class _DevicesSettingsSectionState
         s.phase == DeviceLinkPhase.linked;
     final role = _joining ? DeviceLinkRole.joining : s.role;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      LinkedDeviceList(
-          snapshot: s,
-          onRemove: idle && !_busy && !s.revoked ? _removeDevice : null),
-      const SizedBox(height: 24),
+      if (!widget.joiningOnly)
+        LinkedDeviceList(
+            snapshot: s,
+            onRemove: idle && !_busy && !s.revoked ? _removeDevice : null),
+      if (!widget.joiningOnly) const SizedBox(height: 24),
       if (s.phase == DeviceLinkPhase.linked) ...[
         Text(l.deviceLinkSuccess),
         const SizedBox(height: 16),
@@ -123,7 +133,11 @@ class _DevicesSettingsSectionState
         ),
         const SizedBox(height: 12),
       ],
-      if (role == null || idle && !_joining)
+      if (widget.joiningOnly && idle && s.canJoin)
+        _flow(s, true, DeviceLinkRole.joining)
+      else if (widget.joiningOnly && idle)
+        const SizedBox.shrink()
+      else if (role == null || idle && !_joining)
         _start(s)
       else
         _flow(s, idle, role),

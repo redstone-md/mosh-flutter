@@ -5,11 +5,9 @@ import 'package:mosh/src/app/mosh_menu_theme.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 
 // Mosh Flutter theme: the canonical dark `ThemeData` for the app. Every
-// color lives in [MoshColors] below. Font family names are wired here but
-// the font ASSETS are NOT bundled in pubspec.yaml yet; Flutter falls back
-// to the platform default sans/mono until a later change adds the
-// `flutter: fonts:` entries. Setting the family names now keeps the wiring
-// correct, so bundling the assets later is a no-op for call sites.
+// color lives in [MoshColors] below. The sans family (Inter) is bundled
+// through pubspec.yaml `flutter: fonts:`; monospace text uses the platform
+// default.
 
 /// All Mosh color tokens.
 ///
@@ -166,9 +164,10 @@ const ColorScheme _moshColorScheme = ColorScheme.dark(
   surfaceContainerHighest: MoshColors.bg3,
 );
 
-/// Primary sans family. The font files are not bundled, so the stack falls
-/// through to the platform UI font.
-const String _kSansFamily = 'Inter Tight';
+/// Primary sans family, bundled from `assets/fonts/` (Inter 4.1, OFL). Its
+/// balanced ascent/descent keeps labels optically centered in controls,
+/// which platform fallbacks such as Segoe UI do not.
+const String _kSansFamily = 'Inter';
 const List<String> _kSansFallback = <String>[
   'Geist',
   'IBM Plex Sans',
@@ -189,9 +188,6 @@ const TextStyle _kBase = TextStyle(
 /// inject a `Brightness` or a `ThemeExtension` without changing call sites.
 /// `lib/main.dart` calls this once at `MaterialApp.router(theme:)`.
 ThemeData buildMoshTheme() {
-  // The font files are NOT bundled in pubspec.yaml yet — Flutter falls
-  // back to the platform default sans/mono until the `flutter: fonts:`
-  // assets are added.
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,

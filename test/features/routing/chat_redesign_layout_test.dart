@@ -197,7 +197,7 @@ void main() {
     const font = String.fromEnvironment('MOSH_REDESIGN_FONT');
     if (font.isEmpty) return;
     final bytes = ByteData.sublistView(await File(font).readAsBytes());
-    for (final name in ['Inter Tight', 'Inter', 'Roboto', 'monospace']) {
+    for (final name in ['Inter', 'Roboto', 'monospace']) {
       await (FontLoader(name)..addFont(Future.value(bytes))).load();
     }
     final icons = await rootBundle.load('fonts/MaterialIcons-Regular.otf');

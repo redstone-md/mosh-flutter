@@ -5,6 +5,7 @@ import 'package:mosh/src/features/device_link/devices_settings_section.dart';
 import 'about_settings_section.dart';
 import 'connection_settings_section.dart';
 import 'privacy_settings_section.dart';
+import 'profile_settings_section.dart';
 import 'settings_navigation.dart';
 import 'voice_settings_section.dart';
 
@@ -49,6 +50,7 @@ class SettingsContent extends StatelessWidget {
 
   Widget _body() => switch (section) {
         SettingsSection.sound => const VoiceSettingsSection(),
+        SettingsSection.profile => const ProfileSettingsSection(),
         SettingsSection.devices => const DevicesSettingsSection(),
         SettingsSection.connection => const ConnectionSettingsSection(),
         SettingsSection.privacy => const PrivacySettingsSection(),

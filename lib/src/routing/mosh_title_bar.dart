@@ -7,7 +7,7 @@
 // "Peer status" button (opens the PeerStatusDrawer for the active
 // conversation), then the live StatePill for the active conversation. The
 // subtitle and the pill ellipsize (full text in a tooltip); below
-// [_kCompactWidth] the Peer status button drops to its icon.
+// [_kCompactWidth], adjusted for text scaling, Peer status drops to its icon.
 //
 // State (all live): activeConversationKeyProvider -> key; the matching
 // snapshot family is watched for the live .state (activeSessionProvider /
@@ -32,7 +32,7 @@ import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/state/session_providers.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// Below this bar width the Peer status button shows only its icon.
+/// Below this width at normal text scale, Peer status shows only its icon.
 const double _kCompactWidth = 640;
 
 const IconData _kPeerStatusIcon = Icons.electrical_services_outlined;
@@ -77,7 +77,10 @@ class MoshTitleBar extends ConsumerWidget {
           builder: (context, constraints) => _row(
             context,
             activeKey,
-            compact: constraints.maxWidth < _kCompactWidth,
+            compact: constraints.maxWidth <
+                _kCompactWidth *
+                    MediaQuery.textScalerOf(context).scale(14) /
+                    14,
           ),
         ),
       ),

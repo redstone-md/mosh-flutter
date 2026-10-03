@@ -4,6 +4,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 
 enum SettingsSection {
   sound(Icons.mic_none_outlined),
+  profile(Icons.person_outline),
   devices(Icons.devices_outlined),
   connection(Icons.link_outlined),
   privacy(Icons.lock_outline),
@@ -14,6 +15,7 @@ enum SettingsSection {
 
   String label(AppLocalizations l) => switch (this) {
         sound => l.settingsSectionVoice,
+        profile => l.settingsSectionProfile,
         devices => l.settingsSectionDevices,
         connection => l.settingsSectionConnection,
         privacy => l.settingsSectionPrivacy,
