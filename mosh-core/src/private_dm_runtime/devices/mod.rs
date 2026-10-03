@@ -26,3 +26,5 @@ const INITIAL_CLIENTS: usize = DM_USERS;
 pub(super) fn invalid() -> super::PrivateDmRuntimeError {
     super::PrivateDmRuntimeError::Codec(INVALID.into())
 }
+
+mod identity_session;

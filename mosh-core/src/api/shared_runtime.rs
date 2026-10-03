@@ -50,67 +50,40 @@ pub struct SharedResources {
     pub(crate) persistence: Option<Arc<Persistence>>,
 }
 
-/// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
+/// Mobile startup may repeat the same DEK after activity recreation.
+/// A different DEK would orphan the database and is refused.
 pub fn set_history_dek(dek: Vec<u8>) -> Result<(), String> {
-    if dek.len() != 32 {
-        return Err(format!(
+    let fixed = dek.try_into().map_err(|dek: Vec<u8>| {
+        format!(
             "set_history_dek: DEK must be exactly 32 bytes, got {}",
             dek.len()
-        ));
-    }
-    let mut fixed = [0u8; 32];
-    fixed.copy_from_slice(&dek);
-    // Idempotent across main() re-runs in a live process. Android can re-run
-    // main() on activity recreation / warm start (a fresh Dart isolate in the
-    // same process re-enters the inject calls); a new Dart isolate loses its
-    // module-level mirror of this cell, so it cannot tell the inject already
-    // happened. The Rust `OnceLock` is process-global and DOES persist, so it
-    // must be the side that tolerates the no-op re-inject. Accept a re-inject
-    // of the SAME 32 bytes as Ok (true no-op); reject only a DIFFERENT DEK,
-    // which would be a real divergence (the live runtime opened the DB under
-    // the first DEK and re-injecting a new one would orphan it). Slice-3
-    // device-pass finding: the prior "already injected" Err propagated as an
-    // unhandled exception in main() and blank-screened the warm start.
-    match INJECTED_DEK.set(fixed) {
-        Ok(()) => Ok(()),
-        Err(_) => match INJECTED_DEK.get() {
-            Some(existing) if *existing == fixed => Ok(()),
-            _ => Err(
-                "set_history_dek: DEK already injected with a different value; \
- re-injection is not allowed"
-                    .to_string(),
-            ),
-        },
-    }
+        )
+    })?;
+    inject_once(
+        &INJECTED_DEK,
+        fixed,
+        "set_history_dek: DEK already injected with a different value; re-injection is not allowed",
+    )
 }
 
-/// Inject the app-private data directory from the platform channel (ADR
-/// 0010, M-5). Idempotent-once; returns `Err` for an empty path.
+/// Mobile startup may repeat the same path; a different path is refused.
 pub fn set_app_data_dir(path: String) -> Result<(), String> {
     if path.trim().is_empty() {
         return Err("set_app_data_dir: path must be a non-empty directory".to_string());
     }
-    // The first Rust entry point from Dart on every platform: from here on,
-    // any Rust panic anywhere in the process leaves a line in the field log
-    // instead of dying silently.
     crate::diagnostics_log::install_panic_hook();
-    // Idempotent across main() re-runs in a live process; see `set_history_dek`
-    // for the rationale. Accept a re-inject of the SAME path as Ok (true
-    // no-op); reject only a DIFFERENT path, which would be a real divergence
-    // between Dart's DB-exists check and the path Rust opened the DB under.
-    let candidate = PathBuf::from(path);
-    // `candidate` is moved into `set`; clone so the original survives for the
-    // same-value comparison in the Err branch (PathBuf is not Copy).
-    match APP_DATA_DIR.set(candidate.clone()) {
+    inject_once(
+        &APP_DATA_DIR,
+        PathBuf::from(path),
+        "set_app_data_dir: app_data_dir already set to a different path; re-setting is not allowed",
+    )
+}
+
+fn inject_once<T: PartialEq>(cell: &OnceLock<T>, value: T, error: &str) -> Result<(), String> {
+    match cell.set(value) {
         Ok(()) => Ok(()),
-        Err(_) => match APP_DATA_DIR.get() {
-            Some(existing) if *existing == candidate => Ok(()),
-            _ => Err(
-                "set_app_data_dir: app_data_dir already set to a different path; \
- re-setting is not allowed"
-                    .to_string(),
-            ),
-        },
+        Err(value) if cell.get() == Some(&value) => Ok(()),
+        Err(_) => Err(error.to_string()),
     }
 }
 
@@ -118,11 +91,7 @@ pub fn set_app_data_dir(path: String) -> Result<(), String> {
 /// runtime facade calls this at construct time and hands the clones to its
 /// `from_shared_node(shared_node, attachment_store, persistence)` ctor.
 pub fn ensure_shared_resources() -> Result<SharedResources, String> {
-    let result = SHARED_RESOURCES.get_or_init(construct_resources);
-    match result {
-        Ok(resources) => Ok(resources.clone()),
-        Err(error) => Err(error.clone()),
-    }
+    SHARED_RESOURCES.get_or_init(construct_resources).clone()
 }
 
 /// Resolve the data dir: `<app_data_dir>/mosh` when injected, else the

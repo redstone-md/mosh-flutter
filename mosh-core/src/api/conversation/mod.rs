@@ -72,29 +72,19 @@ pub struct BridgeAttachmentPayload {
 /// Send a text message into the conversation.
 pub fn send(reference: BridgeConversationRef, body: String) -> Result<(), ConversationBridgeError> {
     match reference.kind {
-        BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .send_message(&reference.id, body)
-                .map(|_| ())?;
-        }
-        BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .send(&reference.id, body)
-                .map(|_| ())?;
-        }
-        BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .send(&reference.id, body)
-                .map(|_| ())?;
-        }
+        BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
+            .send_message(&reference.id, body)
+            .map(|_| ())
+            .map_err(Into::into),
+        BridgeConversationKind::Channel => super::channel::ensure_runtime()?
+            .send(&reference.id, body)
+            .map(|_| ())
+            .map_err(Into::into),
+        BridgeConversationKind::Group => super::private_group::ensure_runtime()?
+            .send(&reference.id, body)
+            .map(|_| ())
+            .map_err(Into::into),
     }
-    Ok(())
 }
 
 /// Retry a failed outbound message by its message id.
@@ -103,29 +93,19 @@ pub fn retry(
     message_id: String,
 ) -> Result<(), ConversationBridgeError> {
     match reference.kind {
-        BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .retry_message(&reference.id, &message_id)
-                .map(|_| ())?;
-        }
-        BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .retry_message(&reference.id, &message_id)
-                .map(|_| ())?;
-        }
-        BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .retry_message(&reference.id, &message_id)
-                .map(|_| ())?;
-        }
+        BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
+            .retry_message(&reference.id, &message_id)
+            .map(|_| ())
+            .map_err(Into::into),
+        BridgeConversationKind::Channel => super::channel::ensure_runtime()?
+            .retry_message(&reference.id, &message_id)
+            .map(|_| ())
+            .map_err(Into::into),
+        BridgeConversationKind::Group => super::private_group::ensure_runtime()?
+            .retry_message(&reference.id, &message_id)
+            .map(|_| ())
+            .map_err(Into::into),
     }
-    Ok(())
 }
 
 /// Send an attachment into the conversation. The bytes arrive base64-encoded
@@ -137,77 +117,42 @@ pub fn send_attachment(
     reference: BridgeConversationRef,
     payload: BridgeAttachmentPayload,
 ) -> Result<(), ConversationBridgeError> {
+    let bytes = decode_base64(&payload.data_base64)?;
     match reference.kind {
-        BridgeConversationKind::Dm => dm_send_attachment(&reference.id, payload)?,
-        BridgeConversationKind::Channel => channel_send_attachment(&reference.id, payload)?,
-        BridgeConversationKind::Group => group_send_attachment(&reference.id, payload)?,
+        BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
+            .send_attachment(
+                &reference.id,
+                payload.file_name,
+                payload.mime,
+                bytes,
+                payload.thumbnail_base64,
+                payload.voice,
+            )
+            .map(|_| ())
+            .map_err(Into::into),
+        BridgeConversationKind::Channel => super::channel::ensure_runtime()?
+            .send_attachment(
+                &reference.id,
+                payload.file_name,
+                payload.mime,
+                bytes,
+                payload.thumbnail_base64,
+                payload.voice,
+            )
+            .map(|_| ())
+            .map_err(Into::into),
+        BridgeConversationKind::Group => super::private_group::ensure_runtime()?
+            .send_attachment(
+                &reference.id,
+                payload.file_name,
+                payload.mime,
+                bytes,
+                payload.thumbnail_base64,
+                payload.voice,
+            )
+            .map(|_| ())
+            .map_err(Into::into),
     }
-    Ok(())
-}
-
-/// The DM arm of `send_attachment`. Split out per kind because the runtime
-/// call carries six arguments, which is where this function's dispatch stays
-/// readable. Decode happens before the lock, as on the bridge function.
-fn dm_send_attachment(
-    id: &str,
-    payload: BridgeAttachmentPayload,
-) -> Result<(), ConversationBridgeError> {
-    let bytes = decode_base64(&payload.data_base64)?;
-    let BridgeAttachmentPayload {
-        file_name,
-        mime,
-        thumbnail_base64,
-        voice,
-        ..
-    } = payload;
-    super::private_dm::ensure_runtime()?
-        .as_mut()
-        .expect("ensure_runtime guarantees Some")
-        .send_attachment(id, file_name, mime, bytes, thumbnail_base64, voice)
-        .map(|_| ())
-        .map_err(ConversationBridgeError::from)
-}
-
-/// The channel arm of `send_attachment`. See `dm_send_attachment`.
-fn channel_send_attachment(
-    id: &str,
-    payload: BridgeAttachmentPayload,
-) -> Result<(), ConversationBridgeError> {
-    let bytes = decode_base64(&payload.data_base64)?;
-    let BridgeAttachmentPayload {
-        file_name,
-        mime,
-        thumbnail_base64,
-        voice,
-        ..
-    } = payload;
-    super::channel::ensure_runtime()?
-        .as_mut()
-        .expect("ensure_runtime guarantees Some")
-        .send_attachment(id, file_name, mime, bytes, thumbnail_base64, voice)
-        .map(|_| ())
-        .map_err(ConversationBridgeError::from)
-}
-
-/// The group arm of `send_attachment`. See `dm_send_attachment`.
-fn group_send_attachment(
-    id: &str,
-    payload: BridgeAttachmentPayload,
-) -> Result<(), ConversationBridgeError> {
-    let bytes = decode_base64(&payload.data_base64)?;
-    let BridgeAttachmentPayload {
-        file_name,
-        mime,
-        thumbnail_base64,
-        voice,
-        ..
-    } = payload;
-    super::private_group::ensure_runtime()?
-        .as_mut()
-        .expect("ensure_runtime guarantees Some")
-        .send_attachment(id, file_name, mime, bytes, thumbnail_base64, voice)
-        .map(|_| ())
-        .map_err(ConversationBridgeError::from)
 }
 
 /// Begin (or retry) downloading a peer's attachment; progress is reported in
@@ -217,26 +162,16 @@ pub fn download_attachment(
     attachment_id: String,
 ) -> Result<(), ConversationBridgeError> {
     match reference.kind {
-        BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .download_attachment(&reference.id, &attachment_id)?;
-        }
-        BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .download_attachment(&reference.id, &attachment_id)?;
-        }
-        BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .download_attachment(&reference.id, &attachment_id)?;
-        }
+        BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
+            .download_attachment(&reference.id, &attachment_id)
+            .map_err(Into::into),
+        BridgeConversationKind::Channel => super::channel::ensure_runtime()?
+            .download_attachment(&reference.id, &attachment_id)
+            .map_err(Into::into),
+        BridgeConversationKind::Group => super::private_group::ensure_runtime()?
+            .download_attachment(&reference.id, &attachment_id)
+            .map_err(Into::into),
     }
-    Ok(())
 }
 
 /// Cancel an in-flight attachment transfer.
@@ -245,26 +180,16 @@ pub fn cancel_attachment(
     attachment_id: String,
 ) -> Result<(), ConversationBridgeError> {
     match reference.kind {
-        BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .cancel_attachment(&reference.id, &attachment_id)?;
-        }
-        BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .cancel_attachment(&reference.id, &attachment_id)?;
-        }
-        BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .cancel_attachment(&reference.id, &attachment_id)?;
-        }
+        BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
+            .cancel_attachment(&reference.id, &attachment_id)
+            .map_err(Into::into),
+        BridgeConversationKind::Channel => super::channel::ensure_runtime()?
+            .cancel_attachment(&reference.id, &attachment_id)
+            .map_err(Into::into),
+        BridgeConversationKind::Group => super::private_group::ensure_runtime()?
+            .cancel_attachment(&reference.id, &attachment_id)
+            .map_err(Into::into),
     }
-    Ok(())
 }
 
 /// Leave the conversation and tear it down: `close_session` for a DM,
@@ -272,29 +197,19 @@ pub fn cancel_attachment(
 /// names.
 pub fn leave(reference: BridgeConversationRef) -> Result<(), ConversationBridgeError> {
     match reference.kind {
-        BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .close_session(&reference.id)
-                .map(|_| ())?;
-        }
-        BridgeConversationKind::Channel => {
-            super::channel::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .leave(&reference.id)
-                .map(|_| ())?;
-        }
-        BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .close(&reference.id)
-                .map(|_| ())?;
-        }
+        BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
+            .close_session(&reference.id)
+            .map(|_| ())
+            .map_err(Into::into),
+        BridgeConversationKind::Channel => super::channel::ensure_runtime()?
+            .leave(&reference.id)
+            .map(|_| ())
+            .map_err(Into::into),
+        BridgeConversationKind::Group => super::private_group::ensure_runtime()?
+            .close(&reference.id)
+            .map(|_| ())
+            .map_err(Into::into),
     }
-    Ok(())
 }
 
 /// Tell the conversation's counterpart the user is typing. DMs and groups
@@ -306,21 +221,14 @@ pub fn leave(reference: BridgeConversationRef) -> Result<(), ConversationBridgeE
 /// ITS snapshot, so success is `()`.
 pub fn typing_signal(reference: BridgeConversationRef) -> Result<(), ConversationBridgeError> {
     match reference.kind {
-        BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .typing_signal(&reference.id)?;
-        }
-        BridgeConversationKind::Group => {
-            super::private_group::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .typing_signal(&reference.id)?;
-        }
-        BridgeConversationKind::Channel => {}
+        BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
+            .typing_signal(&reference.id)
+            .map_err(Into::into),
+        BridgeConversationKind::Group => super::private_group::ensure_runtime()?
+            .typing_signal(&reference.id)
+            .map_err(Into::into),
+        BridgeConversationKind::Channel => Ok(()),
     }
-    Ok(())
 }
 
 /// Auto-trigger the read receipts when the conversation is open: receipts
@@ -330,15 +238,11 @@ pub fn typing_signal(reference: BridgeConversationRef) -> Result<(), Conversatio
 /// The sender's own ticks re-color on the OTHER side with its next poll.
 pub fn mark_viewed(reference: BridgeConversationRef) -> Result<(), ConversationBridgeError> {
     match reference.kind {
-        BridgeConversationKind::Dm => {
-            super::private_dm::ensure_runtime()?
-                .as_mut()
-                .expect("ensure_runtime guarantees Some")
-                .mark_viewed(&reference.id)?;
-        }
-        BridgeConversationKind::Group | BridgeConversationKind::Channel => {}
+        BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
+            .mark_viewed(&reference.id)
+            .map_err(Into::into),
+        BridgeConversationKind::Group | BridgeConversationKind::Channel => Ok(()),
     }
-    Ok(())
 }
 
 /// Decode the bridge's base64 attachment payload. A payload that does not
