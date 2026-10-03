@@ -207,10 +207,17 @@ reads consume `bridgeFacadeProvider` (ADR 0025).
 
 That one module also owns the only kind-to-invalidate switch in the state
 layer: `invalidateConversation(ref.invalidate, conversation)` re-reads the
-snapshot family the kind names, and `refreshConversation` adds the DM rail
-list (a DM row carries its last message, a channel and a group row carry a
-name only). `unreadCountsProvider` is the same shape one level up -- one
+snapshot family the kind names, and `refreshConversation` adds the matching
+recent-chat list because every kind's row carries its last-message preview.
+`unreadCountsProvider` is the same shape one level up -- one
 family, one branch in `unreadCounts`, keyed by `ConversationRef.key`.
+
+Each conversation-list notifier owns refresh ordering. Background ticks skip
+an initial or outstanding read. Requests after mutations share one subsequent
+fresh read, so they cannot overwrite a newer list with an older completion.
+Rebuilds reject answers from the previous provider lifetime. Auto-poll owns the
+foreground timer and refreshes the open snapshot after successful list updates;
+it carries no separate in-flight guard. Each kind still progresses independently.
 
 ```mermaid
 classDiagram

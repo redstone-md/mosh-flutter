@@ -11,7 +11,7 @@
 //
 // Shape: one owned polling timer. Android suspends it while hidden/paused
 // and refreshes immediately on resume; desktop keeps polling. Each tick refreshes every
-// conversation kind's list. Each kind has its own in-flight guard: a slow
+// conversation kind's list. Each list module owns its in-flight guard: a slow
 // kind skips its own ticks and never holds the other kinds back (a DM
 // runtime busy with a transfer used to freeze the channel and group lists
 // too). The open conversation's snapshot is re-read when its kind's list
@@ -38,7 +38,7 @@ import 'package:mosh/src/gateway/conversation_target.dart'
 import 'package:mosh/src/state/active_conversation_key_provider.dart'
     show activeConversationProvider;
 import 'package:mosh/src/state/conversation_providers.dart'
-    show conversationListProvider, invalidateConversation;
+    show ConversationList, conversationListProvider, invalidateConversation;
 
 /// Poll cadence -- 1 second.
 const Duration kAutoPollInterval = Duration(milliseconds: 1000);
@@ -54,7 +54,6 @@ final autoPollIntervalProvider = Provider<Duration?>((ref) => null);
 final autoPollProvider = Provider<void>((ref) {
   final interval = ref.watch(autoPollIntervalProvider);
   if (interval == null) return;
-  final inFlight = <ConversationKind>{};
   late ForegroundPoller poller;
 
   // The open conversation's snapshot follows its own kind's list read: it
@@ -67,18 +66,20 @@ final autoPollProvider = Provider<void>((ref) {
     invalidateConversation(ref.invalidate, active.conversation);
   }
 
-  void refresh(ConversationKind kind) {
-    if (!inFlight.add(kind)) return;
-    unawaited(ref
-        .read(conversationListProvider(kind).notifier)
-        .refresh()
-        .whenComplete(() {
-      inFlight.remove(kind);
-      refreshOpenSnapshot(kind);
-    }));
+  for (final kind in ConversationKind.values) {
+    ref.listen(conversationListProvider(kind), (before, next) {
+      if (next is AsyncData<ConversationList> && before != next) {
+        refreshOpenSnapshot(kind);
+      }
+    });
   }
 
-  poller = ForegroundPoller(
-      interval, () => ConversationKind.values.forEach(refresh));
+  poller = ForegroundPoller(interval, () {
+    for (final kind in ConversationKind.values) {
+      unawaited(ref
+          .read(conversationListProvider(kind).notifier)
+          .refresh(background: true));
+    }
+  });
   ref.onDispose(poller.dispose);
 });
