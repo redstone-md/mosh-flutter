@@ -250,7 +250,7 @@ impl PrivateGroupRuntime {
         };
 
         self.groups.insert(group_id.clone(), session);
-        self.groups.persist_tail();
+        self.groups.persist_tail()?;
         Ok(GroupCreated {
             group_id,
             mesh_id,

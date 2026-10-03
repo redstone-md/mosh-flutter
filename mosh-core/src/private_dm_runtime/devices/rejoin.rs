@@ -37,7 +37,7 @@ impl PrivateDmRuntime {
             return Err(invalid());
         }
         let record = previous.to_persisted_record();
-        self.sessions.persist_tail();
+        self.sessions.persist_tail()?;
         session.device_id = record.display_name;
         session.participant_id = record.participant_id;
         session.peer_read_ids = record.read_message_ids;

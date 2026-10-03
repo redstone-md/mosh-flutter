@@ -27,7 +27,7 @@ pub(super) fn begin(f: &mut Fixture, source: &DeviceDescriptor, epoch: u64) {
         observed: Default::default(),
     });
     session.record_dirty = true;
-    f.runtime.sessions.persist_tail();
+    f.runtime.sessions.persist_tail().unwrap();
 }
 
 fn batch(f: &Fixture, offset: usize, total: usize, records: Vec<TextRecord>) -> RecoveryBatch {
@@ -107,7 +107,7 @@ fn cursors_replays_and_conflicts() {
     let session = f.runtime.session_mut(&f.session).unwrap();
     session.membership.as_mut().unwrap().history_import = None;
     session.record_dirty = true;
-    f.runtime.sessions.persist_tail();
+    f.runtime.sessions.persist_tail().unwrap();
     let first = batch(&f, 0, 2, vec![record("first-copy", "First recovered text")]);
     let first_packet = f.packet(&f.contact, DeviceMessage::RecoveryBatch(first));
     f.receive(&first_packet).unwrap();

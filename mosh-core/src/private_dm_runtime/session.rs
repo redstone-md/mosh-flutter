@@ -441,34 +441,6 @@ impl PrivateDmSession {
         self.route_send(ChannelKind::Control, &payload)
     }
 
-    /// Send queued messages oldest first once our side of the handshake is
-    /// done, so the ciphertext is at an epoch the counterpart holds. Moss's
-    /// peer table is not asked: a room publish does not need a row for the
-    /// counterpart, a publish with nobody to take it comes back `NoPeers`
-    /// and leaves the text queued, and the resend + DeliveryAck loop covers
-    /// a frame the transport took but lost. A refusal stops the pass, so a
-    /// newer message never overtakes an older one. Returns the ids whose
-    /// attempt changed so the runtime can persist them.
-    pub(super) fn pump_outbox(&mut self) -> Vec<String> {
-        if !self.can_encrypt_for_peer() || !self.device_outbox_ready() {
-            return Vec::new();
-        }
-        let mut changed = Vec::new();
-        for message_id in queued_in_order(&self.outbound_attempts) {
-            if let Err(error) = self.publish_queued(&message_id) {
-                dlog::write(
-                    LogLevel::Warn,
-                    kinds::OUTBOX,
-                    &self.session_id,
-                    &format!("queued message {message_id} stays queued: {error}"),
-                );
-                break;
-            }
-            changed.push(message_id);
-        }
-        changed
-    }
-
     /// Encrypt one queued message at the current epoch, publish it, and settle
     /// it `Sent`. The bytes are recorded on the attempt so the auto re-sends
     /// replay the same ciphertext the counterpart dedups on.

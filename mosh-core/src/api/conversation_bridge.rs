@@ -120,6 +120,7 @@ impl From<ChannelRuntimeError> for ConversationBridgeError {
         let kind = match &error {
             ChannelRuntimeError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             ChannelRuntimeError::Codec(_) => ConversationBridgeErrorKind::Internal,
+            ChannelRuntimeError::Persistence(_) => ConversationBridgeErrorKind::Persistence,
             ChannelRuntimeError::InvalidName(_) => ConversationBridgeErrorKind::InvalidInput,
             ChannelRuntimeError::BodyTooLarge => ConversationBridgeErrorKind::InvalidInput,
             ChannelRuntimeError::MissingChannel(_) => {
@@ -141,6 +142,7 @@ impl From<PrivateGroupError> for ConversationBridgeError {
         let kind = match &error {
             PrivateGroupError::Moss(_) => ConversationBridgeErrorKind::Unavailable,
             PrivateGroupError::Codec(_) => ConversationBridgeErrorKind::Internal,
+            PrivateGroupError::Persistence(_) => ConversationBridgeErrorKind::Persistence,
             PrivateGroupError::OpenMls(_) => ConversationBridgeErrorKind::Internal,
             PrivateGroupError::InvalidInvite(_) => ConversationBridgeErrorKind::InvalidInput,
             PrivateGroupError::BodyTooLarge => ConversationBridgeErrorKind::InvalidInput,
@@ -241,6 +243,10 @@ mod tests {
         );
         assert_maps(ChannelRuntimeError::Codec("base64".into()), Kind::Internal);
         assert_maps(
+            ChannelRuntimeError::Persistence("redb".into()),
+            Kind::Persistence,
+        );
+        assert_maps(
             ChannelRuntimeError::InvalidName("".into()),
             Kind::InvalidInput,
         );
@@ -274,6 +280,10 @@ mod tests {
             Kind::Unavailable,
         );
         assert_maps(PrivateGroupError::Codec("base64".into()), Kind::Internal);
+        assert_maps(
+            PrivateGroupError::Persistence("redb".into()),
+            Kind::Persistence,
+        );
         assert_maps(PrivateGroupError::OpenMls("no leaf".into()), Kind::Internal);
         assert_maps(
             PrivateGroupError::InvalidInvite("no fragment".into()),

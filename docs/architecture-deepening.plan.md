@@ -38,6 +38,9 @@ this plan and AGENTS.md. Use one atomic Conventional Commit per item.
 - [x] Conversation refresh: notifier-owned ordering and caller-visible tests.
 - [x] Device link workflow: shared action lock, proof-preserving errors,
   cancellation policy and stale-lifetime guards; 234 focused tests passed.
-- [ ] Conversation durable writes
+- [x] Conversation durable writes: accepted-row accounting and shared pending
+  writes/dequeue; approved Rust Result contracts; real-store refusal/restart
+  regressions. Full native run: 482 passed, 21 intentional skips. Review found
+  and fixed post-publication DM file/voice errors; 113 DM tests passed afterward.
 - [ ] Saved network adapter choice
 - [ ] Conversation attachments

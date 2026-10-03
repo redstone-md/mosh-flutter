@@ -25,7 +25,7 @@ use super::transfer::Transfer;
 use crate::attachment_runtime::AttachmentManifest;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::outbound_delivery::{MessageDeliveryMeta, MessageDeliveryStatus, OutboundAttemptRecord};
-use crate::persistence::{HistoryTables, Persistence};
+use crate::persistence::{HistoryTables, Persistence, PersistenceError};
 
 /// What a message that was still in flight when the app closed reports.
 const INTERRUPTED_SEND: &str = "app closed before the send completed";
@@ -156,14 +156,14 @@ impl History {
         conversation_id: &str,
         log: &MessageLog<M>,
         transfer: Option<&Transfer>,
-    ) -> bool {
+    ) -> Result<bool, PersistenceError> {
         let start = self
             .persisted_counts
             .get(conversation_id)
             .copied()
             .unwrap_or(0);
         if log.len() <= start {
-            return false;
+            return Ok(false);
         }
         for (index, message) in log.iter().enumerate().skip(start) {
             let sent_at_ms = message.sent_at_ms().unwrap_or_else(now_ms);
@@ -185,11 +185,11 @@ impl History {
                 &message_id,
                 stored,
                 manifest,
-            );
+            )?;
+            self.persisted_counts
+                .insert(conversation_id.to_string(), index + 1);
         }
-        self.persisted_counts
-            .insert(conversation_id.to_string(), log.len());
-        true
+        Ok(true)
     }
 
     /// Writes one message and the state of its send, in one transaction. No
@@ -203,42 +203,47 @@ impl History {
         message_id: &str,
         log: &MessageLog<M>,
         attempts: &HashMap<String, OutboundAttemptRecord>,
-    ) -> bool {
+    ) -> Result<bool, PersistenceError> {
         let Some(message) = log
             .iter()
             .find(|message| message.message_id() == Some(message_id))
         else {
-            return false;
+            return Ok(false);
         };
         let sent_at_ms = message.sent_at_ms().unwrap_or_else(now_ms);
-        let Some(row) = stored_row(
+        let row = stored_row(
             conversation_id,
             sent_at_ms,
             message_id,
             message.clone(),
             None,
-        ) else {
-            return false;
-        };
+        )?;
         let attempt_row = attempts
             .get(message_id)
-            .and_then(|attempt| serde_json::to_vec(attempt).ok());
-        let _ = p.commit_send(
+            .map(serde_json::to_vec)
+            .transpose()
+            .map_err(|error| PersistenceError::Json(error.to_string()))?;
+        p.commit_send(
             self.tables,
             conversation_id,
             sent_at_ms,
             message_id,
             &row,
             attempt_row.as_deref(),
-        );
-        true
+        )?;
+        Ok(true)
     }
 
     /// Writes the record a conversation is rebuilt from at startup.
-    pub fn write_record<R: Serialize>(&self, p: &Persistence, conversation_id: &str, record: &R) {
-        if let Ok(json) = serde_json::to_vec(record) {
-            let _ = p.put_conversation(self.tables, conversation_id, &json);
-        }
+    pub fn write_record<R: Serialize>(
+        &self,
+        p: &Persistence,
+        conversation_id: &str,
+        record: &R,
+    ) -> Result<(), PersistenceError> {
+        let json = serde_json::to_vec(record)
+            .map_err(|error| PersistenceError::Json(error.to_string()))?;
+        p.put_conversation(self.tables, conversation_id, &json)
     }
 
     /// Forgets how much of a conversation is written, so the next tail write
@@ -256,28 +261,20 @@ impl History {
         message_id: &str,
         message: M,
         manifest: Option<AttachmentManifest>,
-    ) {
-        if let Some(row) = stored_row(conversation_id, sent_at_ms, message_id, message, manifest) {
-            let _ = p.append_history_message(
-                self.tables,
-                conversation_id,
-                sent_at_ms,
-                message_id,
-                &row,
-            );
-        }
+    ) -> Result<(), PersistenceError> {
+        let row = stored_row(conversation_id, sent_at_ms, message_id, message, manifest)?;
+        p.append_history_message(self.tables, conversation_id, sent_at_ms, message_id, &row)
     }
 }
 
-/// One message as the store keeps it. `None` when it will not serialize, which
-/// leaves the row alone rather than writing something replay cannot read.
+/// One serialized message as the store keeps it.
 fn stored_row<M: ConversationMessage>(
     conversation_id: &str,
     sent_at_ms: u64,
     message_id: &str,
     message: M,
     manifest: Option<AttachmentManifest>,
-) -> Option<Vec<u8>> {
+) -> Result<Vec<u8>, PersistenceError> {
     let record = StoredMessage {
         conversation_id: conversation_id.to_string(),
         sent_at_ms,
@@ -285,7 +282,7 @@ fn stored_row<M: ConversationMessage>(
         message,
         attachment_manifest: manifest,
     };
-    serde_json::to_vec(&record).ok()
+    serde_json::to_vec(&record).map_err(|error| PersistenceError::Json(error.to_string()))
 }
 
 /// Fails the messages that came back Pending with no attempt record behind

@@ -730,6 +730,11 @@ flowchart TD
   when a record is worth writing: `record_is_final` (a joiner's record is a
   placeholder until the MLS group exists) and `record_changed` (only a DM has
   a saved field that can move later — the counterpart's moss peer id).
+  `runtime_writes.rs` owns refused message/attempt and snapshot/record writes.
+  Persistence methods return `Result`; accepted rows advance the history count,
+  and successful snapshot/record saves clear finalization work. Refused writes
+  remain pending, use current delivery outcomes on retry, and do not prevent
+  other conversations from saving. Memory-only runtimes retain their behavior.
 - `Transfer` — an attachment's bytes on their way out and in. It owns the
   transfer layer, the slot table and the blob store together, because they have
   to move together. Sending a file seals it, saves this device's copy and opens
@@ -763,9 +768,13 @@ flowchart TD
   the record stays for the user's Retry (ADR 0021). Control frames, which
   repeat on their own, swallow that refusal through
   `MossNode::publish_room_best_effort`. A DM text takes the other door:
-  `queue` files it as `Queued` with no payload, and the DM's outbox encrypts
-  and publishes it later, oldest first, once our side of the MLS handshake is
-  done. It does not ask moss's peer table: a room publish does not need a row
+  the command provisionally saves `Pending`, then activates `Queued` with no
+  payload. Refused admission becomes `Failed` and cannot publish automatically,
+  matching the composer's deliberate retry. `private_dm_runtime/outbox.rs`
+  owns one durable dequeue for commands and ticks. It saves queued work before
+  publication and delivery status plus advanced MLS state afterwards, even
+  when no new tail row exists. It publishes oldest first after our side of the
+  MLS handshake is done. It does not ask moss's peer table: a room publish does not need a row
   for the counterpart, and a publish nobody takes comes back `NoPeers` and
   leaves the text queued, never failed (ADR 0026).
 - `history::History` — what a conversation keeps on disk. `replay` reads one
@@ -781,6 +790,11 @@ flowchart TD
   transaction (`Persistence::commit_send`), and a message that comes back
   `Pending` with no attempt behind it is failed at replay rather than left
   spinning: a send interrupted by a crash is red, never stuck (ADR 0022).
+  A refused settlement save after publication remains pending and reports the
+  actual transport outcome, so a saved-status failure cannot prompt a duplicate
+  send. Group/channel text admission fails before Moss publication. See
+  [ADR 0037](ADR/0037-conversation-write-acceptance.md) for failure ownership,
+  exported Rust contracts and restart limits.
 - `dm_offers::DmOffers` — the private-DM invitations a channel or a group
   carries. `mint` builds the offer to publish, and derives its id from the
   invite URI so the same invitation twice reads as one offer. `receive` keeps
