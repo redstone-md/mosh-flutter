@@ -7,6 +7,7 @@ import path from "node:path";
 import process from "node:process";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
+import { prepareOpenMls } from "./openmls-prepare.mjs";
 
 // Keep test tools outside application manifests and the working tree.
 const trackerVersion = "11.2.3";
@@ -23,6 +24,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 
 try {
+  await prepareOpenMls();
   await ensureTracker();
   if (interrupted) throw new Error("Test run interrupted");
   const { default: Server } = await import(pathToFileURL(path.join(trackerDir, "server.js")));

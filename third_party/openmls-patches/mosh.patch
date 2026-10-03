@@ -1,0 +1,1272 @@
+--- /dev/null
++++ b/LICENSE
+@@ -0,0 +1,19 @@
++Copyright (c) 2020 OpenMLS Authors
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+--- /dev/null
++++ b/MOSH-PATCH.md
+@@ -0,0 +1,24 @@
++# OpenMLS 0.8.1 historical lifetime validation
++
++Vendored from the crates.io `openmls` 0.8.1 archive, upstream commit
++`47dbedecad0c1fd8eb5368d582250ebfcc1e1ce6`, directory `openmls/`.
++The original MIT license is copied from that commit. Registry cache markers
++are omitted. The distributed manifest and source metadata are retained.
++Archive SHA-256: `dcb512bfe6a55777518853ea535c6241f069cb0e8984678c117151d2a1e7e903`.
++
++The only source change is `src/key_packages/lifetime.rs`, recorded in
++[`openmls-historical-validation.patch`](../../docs/Proposals/openmls-historical-validation.patch).
++`Lifetime::with_validation_time` scopes synchronous lifetime checks to an
++authenticated historical Unix timestamp on the calling thread. A guard
++restores the previous policy on return or unwind, including nested calls.
++Creation and signature checks retain upstream behavior. The application uses
++the unchanged `has_acceptable_range` predicate to enforce lifetime limits.
++
++Mosh selects this policy only for signed, authorized retained DM admission
++evidence for its own next MLS epoch. Ordinary admission uses the current clock.
++See [ADR 0032](../../docs/ADR/0032-dm-offline-recovery.md).
++
++Upstream files are exempt from Mosh's file/type/function size limits. Keep
++them unchanged on upgrades, reapply this patch and run the focused policy and
++signed recovery tests plus the normal core checks. Remove the patch when an
++upstream existing-group API supports authenticated historical validation.
+--- a/examples/large-groups.rs
++++ b/examples/large-groups.rs
+@@ -25,6 +25,10 @@
+ use openmls_rust_crypto::OpenMlsRustCrypto;
+ use openmls_traits::{types::Ciphersuite, OpenMlsProvider as _};
+ use serde::{Deserialize, Serialize};
++
++#[cfg(test)]
++#[path = "review_regressions/large_groups.rs"]
++mod review_tests;
+ 
+ #[derive(Debug, Clone)]
+ #[allow(dead_code)]
+@@ -429,12 +433,22 @@
+ 
+     /// The group sizes to run or generate.
+     /// This has to be a list of values, separated by spaces, e.g. 2 3 5 10
+-    #[clap(short, long, value_delimiter = ' ', num_args = 1..)]
++    #[clap(short, long, value_delimiter = ' ', num_args = 1.., value_parser = parse_group_size)]
+     groups: Option<Vec<usize>>,
+ 
+     /// The group setup to use.
+     #[clap(short, long)]
+     setup: Option<SetupVariants>,
++}
++
++fn parse_group_size(value: &str) -> Result<usize, String> {
++    let size: usize = value
++        .parse()
++        .map_err(|error: std::num::ParseIntError| error.to_string())?;
++    if size < 2 {
++        return Err("Benchmarks require at least two members".into());
++    }
++    Ok(size)
+ }
+ mod util {
+     use std::path::Path;
+@@ -550,6 +564,10 @@
+                 continue;
+             }
+         }
++        if groups.len() < 2 {
++            eprintln!("Skipping stored group with fewer than two members");
++            continue;
++        }
+         println!("{} Members", groups.len());
+ 
+         // Add
+--- /dev/null
++++ b/examples/review_regressions/large_groups.rs
+@@ -0,0 +1,14 @@
++use super::*;
++
++#[test]
++fn benchmark_cli_rejects_groups_without_a_second_member() {
++    for size in ["0", "1", "invalid"] {
++        assert!(Args::try_parse_from(["large-groups", "--groups", size]).is_err());
++    }
++    let args = Args::try_parse_from(["large-groups", "--groups", "2", "3"]).unwrap();
++    assert_eq!(args.groups, Some(vec![2, 3]));
++    assert!(Args::try_parse_from(["large-groups"])
++        .unwrap()
++        .groups
++        .is_none());
++}
+--- a/src/framing/tests.rs
++++ b/src/framing/tests.rs
+@@ -588,5 +588,5 @@
+         .expect_err("Deserialization should have failed.");
+ 
+     // Expect a decoding  error
+-    matches!(err, tls_codec::Error::DecodingError(_));
+-}
++    assert!(matches!(err, tls_codec::Error::DecodingError(_)));
++}
+--- a/src/group/mls_group/commit_builder.rs
++++ b/src/group/mls_group/commit_builder.rs
+@@ -952,6 +952,10 @@
+             ..
+         } = self;
+ 
++        // Conversion can fail and writes message secrets when encrypting.
++        // Finish it before publishing a pending commit to memory or storage.
++        let mls_message = group.content_to_mls_message(create_commit_result.commit, provider)?;
++
+         // Set the current group state to [`MlsGroupState::PendingCommit`],
+         // storing the current [`StagedCommit`] from the commit results
+         group.group_state = MlsGroupState::PendingCommit(Box::new(PendingCommitState::Member(
+@@ -964,13 +968,6 @@
+             .map_err(CommitBuilderStageError::KeyStoreError)?;
+ 
+         group.reset_aad();
+-
+-        // Convert PublicMessage messages to MLSMessage and encrypt them if required by the
+-        // configuration.
+-        //
+-        // Note that this performs writes to the storage, so we should do that here, rather than
+-        // when working with the result.
+-        let mls_message = group.content_to_mls_message(create_commit_result.commit, provider)?;
+ 
+         Ok(CommitMessageBundle {
+             version: group.version(),
+--- a/src/group/mls_group/proposal.rs
++++ b/src/group/mls_group/proposal.rs
+@@ -1,4 +1,8 @@
+ use openmls_traits::{signatures::Signer, storage::StorageProvider as _, types::Ciphersuite};
++
++#[cfg(test)]
++#[path = "proposal_review_tests.rs"]
++mod review_tests;
+ 
+ use super::{
+     errors::{ProposalError, ProposeAddMemberError, ProposeRemoveMemberError, RemoveProposalError},
+@@ -179,9 +183,10 @@
+             },
+ 
+             Propose::Update(leaf_node_parameters) => match ref_or_value {
+-                ProposalOrRefType::Proposal => self
+-                    .propose_self_update(provider, signer, leaf_node_parameters)
+-                    .map_err(|e| e.into()),
++                // RFC 9420 Section 12.2 forbids committing one's own Update.
++                ProposalOrRefType::Proposal => Err(ProposalError::LibraryError(
++                    LibraryError::custom("Self-update proposals must be sent by reference"),
++                )),
+                 ProposalOrRefType::Reference => self
+                     .propose_self_update(provider, signer, leaf_node_parameters)
+                     .map_err(|e| e.into()),
+--- /dev/null
++++ b/src/group/mls_group/proposal_review_tests.rs
+@@ -0,0 +1,51 @@
++use super::*;
++use crate::prelude::{test_utils::new_credential, *};
++use openmls_basic_credential::SignatureKeyPair;
++use openmls_rust_crypto::OpenMlsRustCrypto;
++use openmls_traits::OpenMlsProvider as _;
++
++fn setup(provider: &OpenMlsRustCrypto) -> (MlsGroup, SignatureKeyPair) {
++    let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
++    let (credential, signer) =
++        new_credential(provider, b"Alice", ciphersuite.signature_algorithm());
++    let config = MlsGroupCreateConfig::builder()
++        .ciphersuite(ciphersuite)
++        .build();
++    let group = MlsGroup::new(provider, &signer, &config, credential).unwrap();
++    (group, signer)
++}
++
++#[test]
++fn by_value_update_is_rejected_without_storage_changes() {
++    let provider = OpenMlsRustCrypto::default();
++    let (mut group, signer) = setup(&provider);
++    let before = provider.storage().values.read().unwrap().clone();
++    let result = group.propose(
++        &provider,
++        &signer,
++        Propose::Update(LeafNodeParameters::default()),
++        ProposalOrRefType::Proposal,
++    );
++    assert!(matches!(result, Err(ProposalError::LibraryError(_))));
++    assert_eq!(group.pending_proposals().count(), 0);
++    assert!(
++        *provider.storage().values.read().unwrap() == before,
++        "storage changed on rejected update"
++    );
++}
++
++#[test]
++fn reference_update_keeps_requested_encoding() {
++    let provider = OpenMlsRustCrypto::default();
++    let (mut group, signer) = setup(&provider);
++    group
++        .propose(
++            &provider,
++            &signer,
++            Propose::Update(LeafNodeParameters::default()),
++            ProposalOrRefType::Reference,
++        )
++        .unwrap();
++    let pending = group.pending_proposals().next().unwrap();
++    assert_eq!(pending.proposal_or_ref_type(), ProposalOrRefType::Reference);
++}
+--- a/src/group/mls_group/tests_and_kats/tests/mls_group.rs
++++ b/src/group/mls_group/tests_and_kats/tests/mls_group.rs
+@@ -1900,9 +1900,11 @@
+     else {
+         panic!("expected proposal");
+     };
+-    bob_group
+-        .store_pending_proposal(bob_provider.storage(), *proposal_msg)
+-        .unwrap();
++    alice_group
++        .store_pending_proposal(alice_provider.storage(), *proposal_msg)
++        .unwrap();
++
++    assert_eq!(alice_group.pending_proposals().count(), 1);
+ 
+     // === Alice commits to the proposal ===
+     let (commit, _, _) = alice_group
+@@ -1923,6 +1925,7 @@
+     else {
+         panic!("Expected a commit");
+     };
++    assert_eq!(staged_commit.update_proposals().count(), 1);
+     bob_group
+         .merge_staged_commit(bob_provider, *staged_commit)
+         .expect("error merging commit to own update proposal");
+--- a/src/group/public_group/validation.rs
++++ b/src/group/public_group/validation.rs
+@@ -751,18 +751,13 @@
+                 // state for a component_id that has no state present.
+                 //
+                 // https://datatracker.ietf.org/doc/html/draft-ietf-mls-extensions#section-4.7-4
+-                let Some(gce) = group_context_extension_proposal else {
+-                    // extension gets implicitly created in the group context, so absence is not an
+-                    // error condition
+-                    return Ok(());
+-                };
+-                let Some(app_data_dict) = gce.extensions().app_data_dictionary() else {
+-                    // extension gets implicitly created in the group context, so absence is not an
+-                    // error condition
+-                    return Ok(());
+-                };
+-
+-                if app_data_dict.dictionary().get(&component_id).is_none() {
++                let extensions = group_context_extension_proposal
++                    .map(|gce| gce.extensions())
++                    .unwrap_or(self.group_context().extensions());
++                let component_exists = extensions
++                    .app_data_dictionary()
++                    .is_some_and(|dictionary| dictionary.dictionary().get(&component_id).is_some());
++                if !component_exists {
+                     return Err(AppDataUpdateValidationError::CannotRemoveNonexistentComponent);
+                 }
+ 
+--- /dev/null
++++ b/src/group/tests_and_kats/tests/app_data_review_tests.rs
+@@ -0,0 +1,90 @@
++use super::*;
++
++fn group_with_dictionary<Provider: OpenMlsProvider + Default>(
++    ciphersuite: Ciphersuite,
++    dictionary: Option<AppDataDictionary>,
++) -> (
++    Provider,
++    openmls_basic_credential::SignatureKeyPair,
++    MlsGroup,
++) {
++    let provider = Provider::default();
++    let (credential, signer) = crate::prelude::test_utils::new_credential(
++        &provider,
++        b"Alice",
++        ciphersuite.signature_algorithm(),
++    );
++    let mut extensions = vec![Extension::RequiredCapabilities(
++        RequiredCapabilitiesExtension::new(
++            &[ExtensionType::AppDataDictionary],
++            &[ProposalType::AppDataUpdate],
++            &[],
++        ),
++    )];
++    if let Some(dictionary) = dictionary {
++        extensions.push(Extension::AppDataDictionary(
++            AppDataDictionaryExtension::new(dictionary),
++        ));
++    }
++    let config = MlsGroupCreateConfig::builder()
++        .ciphersuite(ciphersuite)
++        .capabilities(Capabilities::new(
++            None,
++            None,
++            Some(&[ExtensionType::AppDataDictionary]),
++            Some(&[ProposalType::AppDataUpdate]),
++            None,
++        ))
++        .with_group_context_extensions(Extensions::from_vec(extensions).unwrap())
++        .build();
++    let group = MlsGroup::new(&provider, &signer, &config, credential).unwrap();
++    (provider, signer, group)
++}
++
++#[openmls_test]
++fn review_remove_requires_existing_component() {
++    let mut populated = AppDataDictionary::new();
++    populated.insert(99, b"existing".to_vec());
++    for with_gce in [false, true] {
++        for dictionary in [
++            None,
++            Some(AppDataDictionary::new()),
++            Some(populated.clone()),
++        ] {
++            let expected_success = dictionary.as_ref().is_some_and(|d| d.contains(&99));
++            let (provider, signer, mut group) =
++                group_with_dictionary::<Provider>(ciphersuite, dictionary);
++            if with_gce {
++                group
++                    .propose_group_context_extensions(
++                        &provider,
++                        group.extensions().clone(),
++                        &signer,
++                    )
++                    .unwrap();
++            }
++            let mut stage = group
++                .commit_builder()
++                .consume_proposal_store(true)
++                .add_proposals(vec![Proposal::AppDataUpdate(Box::new(
++                    AppDataUpdateProposal::remove(99),
++                ))])
++                .load_psks(provider.storage())
++                .unwrap();
++            let mut updater = stage.app_data_dictionary_updater();
++            updater.remove(&99);
++            stage.with_app_data_dictionary_updates(updater.changes());
++            let result = stage.build(provider.rand(), provider.crypto(), &signer, |_| true);
++            if expected_success {
++                assert!(result.is_ok());
++            } else {
++                assert!(matches!(
++                    result,
++                    Err(CreateCommitError::AppDataUpdateValidationError(
++                        AppDataUpdateValidationError::CannotRemoveNonexistentComponent
++                    ))
++                ));
++            }
++        }
++    }
++}
+--- a/src/group/tests_and_kats/tests/app_data_update_proposal_validation.rs
++++ b/src/group/tests_and_kats/tests/app_data_update_proposal_validation.rs
+@@ -4,11 +4,30 @@
+ use crate::test_utils::{frankenstein::*, single_group_test_framework::*};
+ use openmls_test::openmls_test;
+ 
++#[path = "app_data_review_tests.rs"]
++mod review_tests;
++
+ fn setup<'a, Provider: OpenMlsProvider>(
+     alice_party: &'a CorePartyState<Provider>,
+     bob_party: &'a CorePartyState<Provider>,
+     ciphersuite: Ciphersuite,
+     include_required_capabilities: bool,
++) -> GroupState<'a, Provider> {
++    setup_with_dictionary(
++        alice_party,
++        bob_party,
++        ciphersuite,
++        include_required_capabilities,
++        None,
++    )
++}
++
++fn setup_with_dictionary<'a, Provider: OpenMlsProvider>(
++    alice_party: &'a CorePartyState<Provider>,
++    bob_party: &'a CorePartyState<Provider>,
++    ciphersuite: Ciphersuite,
++    include_required_capabilities: bool,
++    dictionary: Option<AppDataDictionaryExtension>,
+ ) -> GroupState<'a, Provider> {
+     // Required capabilities for leaf node
+     let capabilities = Capabilities::new(
+@@ -25,11 +44,14 @@
+             &[ProposalType::AppDataUpdate],
+             &[],
+         ));
+-    let group_context_extensions = if include_required_capabilities {
+-        Extensions::single(required_capabilities_extension).unwrap()
+-    } else {
+-        Extensions::default()
+-    };
++    let mut extensions = Vec::new();
++    if include_required_capabilities {
++        extensions.push(required_capabilities_extension);
++    }
++    if let Some(dictionary) = dictionary {
++        extensions.push(Extension::AppDataDictionary(dictionary));
++    }
++    let group_context_extensions = Extensions::from_vec(extensions).unwrap();
+ 
+     // Set up the PreGroups with the required Capabilities
+     let alice_pre_group = alice_party.pre_group_builder(ciphersuite).build();
+@@ -235,7 +257,15 @@
+     let alice_party = CorePartyState::<Provider>::new("alice");
+     let bob_party = CorePartyState::<Provider>::new("bob");
+ 
+-    let mut group_state = setup(&alice_party, &bob_party, ciphersuite, true);
++    let mut dictionary = AppDataDictionary::default();
++    dictionary.insert(16, b"existing".to_vec());
++    let mut group_state = setup_with_dictionary(
++        &alice_party,
++        &bob_party,
++        ciphersuite,
++        true,
++        Some(AppDataDictionaryExtension::new(dictionary)),
++    );
+ 
+     let [alice] = group_state.members_mut(&["alice"]);
+ 
+@@ -727,6 +757,9 @@
+         b"wrong_component".to_vec().into(),
+     ));
+ 
++    let epoch_before = bob.group.epoch();
++    let dictionary_before = bob.group.extensions().app_data_dictionary().cloned();
++
+     // Process with the wrong updates
+     let result = bob.group.process_unverified_message_with_app_data_updates(
+         &bob_party.provider,
+@@ -734,48 +767,15 @@
+         bob_updater.changes(),
+     );
+ 
+-    // This should succeed (the API doesn't validate that updates match proposals),
+-    // but the resulting state will be different from Alice's.
+-    // This test documents the current behavior.
+-    match result {
+-        Ok(processed_message) => {
+-            // The message processed, but let's verify the state is inconsistent
+-            if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
+-                processed_message.into_content()
+-            {
+-                bob.group
+-                    .merge_staged_commit(&bob_party.provider, *staged_commit)
+-                    .unwrap();
+-
+-                // Merge Alice's commit too
+-                alice
+-                    .group
+-                    .merge_pending_commit(&alice_party.provider)
+-                    .unwrap();
+-
+-                // The dictionaries should NOT match because Bob provided wrong updates
+-                let alice_dict = alice.group.extensions().app_data_dictionary();
+-                let bob_dict = bob.group.extensions().app_data_dictionary();
+-
+-                // Note: This documents that the API allows mismatched updates
+-                // A stricter API might want to validate this
+-                if alice_dict == bob_dict {
+-                    panic!(
+-                        "Expected dictionaries to differ when Bob provides wrong updates, \
+-                         but they are the same. This suggests the API might be validating \
+-                         updates against proposals (which would be good!)."
+-                    );
+-                }
+-            }
+-        }
+-        Err(e) => {
+-            // If the API validates updates against proposals, this error is acceptable
+-            println!(
+-                "API validates updates against proposals (good!). Error: {:?}",
+-                e
+-            );
+-        }
+-    }
++    assert_eq!(
++        result.unwrap_err(),
++        ProcessMessageError::InvalidCommit(StageCommitError::ConfirmationTagMismatch)
++    );
++    assert_eq!(bob.group.epoch(), epoch_before);
++    assert_eq!(
++        bob.group.extensions().app_data_dictionary(),
++        dictionary_before.as_ref()
++    );
+ }
+ 
+ /// Test that standalone AppDataUpdate proposals can be processed normally
+--- a/src/group/tests_and_kats/tests/proposal_validation.rs
++++ b/src/group/tests_and_kats/tests/proposal_validation.rs
+@@ -1230,10 +1230,10 @@
+                             result.unwrap();
+                         }
+                         _ => {
+-                            matches!(
++                            assert!(matches!(
+                                 result.unwrap_err(),
+                                 CommitToPendingProposalsError::CreateCommitError(_)
+-                            );
++                            ));
+                         }
+                     }
+                 }
+@@ -1249,7 +1249,10 @@
+                             result.unwrap();
+                         }
+                         _ => {
+-                            matches!(result.unwrap_err(), AddMembersError::CreateCommitError(_));
++                            assert!(matches!(
++                                result.unwrap_err(),
++                                AddMembersError::CreateCommitError(_)
++                            ));
+                         }
+                     }
+                 }
+--- a/src/key_packages/lifetime.rs
++++ b/src/key_packages/lifetime.rs
+@@ -55,7 +55,30 @@
+     not_after: u64,
+ }
+ 
++thread_local! {
++    static VALIDATION_TIME: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
++}
++
++struct ValidationTimeGuard(Option<u64>);
++
++impl Drop for ValidationTimeGuard {
++    fn drop(&mut self) {
++        VALIDATION_TIME.with(|time| time.set(self.0));
++    }
++}
++
+ impl Lifetime {
++    /// Run synchronous historical validation at a Unix timestamp supplied by
++    /// the application. The application must authenticate the retained commit
++    /// and admission evidence before selecting its historical validation time.
++    /// This affects lifetime validation only, is local to the calling thread,
++    /// and restores the previous policy on return or panic.
++    pub fn with_validation_time<T>(unix_seconds: u64, validate: impl FnOnce() -> T) -> T {
++        let previous = VALIDATION_TIME.with(|time| time.replace(Some(unix_seconds)));
++        let _guard = ValidationTimeGuard(previous);
++        validate()
++    }
++
+     /// Create a new lifetime with lifetime `t` (in seconds).
+     /// Note that the lifetime is extended 1h into the past to adapt to skewed
+     /// clocks, i.e. `not_before` is set to now - 1h.
+@@ -83,6 +106,9 @@
+ 
+     /// Returns true if this lifetime is valid.
+     pub fn is_valid(&self) -> bool {
++        if let Some(elapsed) = VALIDATION_TIME.with(|time| time.get()) {
++            return self.not_before < elapsed && elapsed < self.not_after;
++        }
+         match SystemTime::now()
+             .duration_since(UNIX_EPOCH)
+             .map(|duration| duration.as_secs())
+@@ -126,6 +152,22 @@
+     use super::Lifetime;
+ 
+     #[test]
++    fn historical_validation_is_nested_and_restored_on_panic() {
++        let lifetime = Lifetime::init(10, 20);
++        assert!(!lifetime.is_valid());
++        Lifetime::with_validation_time(15, || {
++            assert!(lifetime.is_valid());
++            Lifetime::with_validation_time(30, || assert!(!lifetime.is_valid()));
++            assert!(lifetime.is_valid());
++        });
++        assert!(!lifetime.is_valid());
++        let _ = std::panic::catch_unwind(|| {
++            Lifetime::with_validation_time(15, || panic!("restore validation policy"));
++        });
++        assert!(!lifetime.is_valid());
++    }
++
++    #[test]
+     fn lifetime() {
+         // A freshly created extensions must be valid.
+         let ext = Lifetime::default();
+--- a/src/schedule/psk.rs
++++ b/src/schedule/psk.rs
+@@ -5,6 +5,10 @@
+ use openmls_traits::{random::OpenMlsRand, storage::StorageProvider as StorageProviderTrait};
+ use serde::{Deserialize, Serialize};
+ use tls_codec::{Serialize as TlsSerializeTrait, VLBytes};
++
++#[cfg(test)]
++#[path = "psk_store_review_tests.rs"]
++mod review_tests;
+ 
+ use super::*;
+ use crate::{
+@@ -588,8 +592,15 @@
+                 self.resumption_psk.push(item);
+                 self.cursor += 1;
+             } else {
+-                self.cursor += 1;
+-                self.cursor %= self.resumption_psk.len();
++                // Older stores can have an incorrect cursor or rollover order.
++                // Evict by epoch while preserving the serialized store format.
++                self.cursor = self
++                    .resumption_psk
++                    .iter()
++                    .enumerate()
++                    .min_by_key(|(_, (epoch, _))| *epoch)
++                    .expect("A full nonzero-capacity store contains a secret")
++                    .0;
+                 self.resumption_psk[self.cursor] = item;
+             }
+         }
+--- /dev/null
++++ b/src/schedule/psk_store_review_tests.rs
+@@ -0,0 +1,57 @@
++use super::{store::ResumptionPskStore, *};
++
++fn add(store: &mut ResumptionPskStore, epoch: u64) {
++    let secret = ResumptionPskSecret {
++        secret: Secret::from_slice(&[epoch as u8; 32]),
++    };
++    store.add(epoch.into(), secret);
++}
++
++fn assert_recent_epochs(store: &ResumptionPskStore, last: u64, capacity: usize) {
++    for epoch in 0..=last {
++        let expected = capacity > 0 && last - epoch < capacity as u64;
++        assert_eq!(
++            store.get(epoch.into()).is_some(),
++            expected,
++            "epoch {epoch}, last {last}"
++        );
++    }
++}
++
++#[test]
++fn rollover_retains_recent_epochs_across_reload() {
++    for capacity in [0, 1, 3] {
++        let mut store = ResumptionPskStore::new(capacity);
++        for epoch in 0..10 {
++            add(&mut store, epoch);
++            assert_recent_epochs(&store, epoch, capacity);
++            store = serde_json::from_slice(&serde_json::to_vec(&store).unwrap()).unwrap();
++        }
++    }
++}
++
++#[test]
++fn legacy_full_cursor_before_first_rollover() {
++    let mut store = ResumptionPskStore::new(3);
++    for epoch in 0..3 {
++        add(&mut store, epoch);
++    }
++    let mut legacy = serde_json::to_value(&store).unwrap();
++    legacy["cursor"] = 3.into();
++    let mut restored = serde_json::from_value(legacy).unwrap();
++    add(&mut restored, 3);
++    assert_recent_epochs(&restored, 3, 3);
++}
++
++#[test]
++fn legacy_store_after_incorrect_rollover_evicts_oldest_epoch() {
++    let mut store = ResumptionPskStore::new(3);
++    for epoch in [0, 3, 2] {
++        add(&mut store, epoch);
++    }
++    let mut legacy = serde_json::to_value(&store).unwrap();
++    legacy["cursor"] = 1.into();
++    let mut restored = serde_json::from_value(legacy).unwrap();
++    add(&mut restored, 4);
++    assert_recent_epochs(&restored, 4, 3);
++}
+--- a/src/test_utils/single_group_test_framework/mod.rs
++++ b/src/test_utils/single_group_test_framework/mod.rs
+@@ -224,9 +224,12 @@
+             .process_message(&self.party.core_state.provider, message)?;
+ 
+         match processed_message.into_content() {
+-            ProcessedMessageContent::ApplicationMessage(_) => todo!(),
+-            ProcessedMessageContent::ProposalMessage(_) => todo!(),
+-            ProcessedMessageContent::ExternalJoinProposalMessage(_) => todo!(),
++            ProcessedMessageContent::ApplicationMessage(_) => (),
++            ProcessedMessageContent::ProposalMessage(proposal)
++            | ProcessedMessageContent::ExternalJoinProposalMessage(proposal) => self
++                .group
++                .store_pending_proposal(self.party.core_state.provider.storage(), *proposal)
++                .map_err(ProcessMessageError::StorageError)?,
+             ProcessedMessageContent::StagedCommitMessage(m) => self
+                 .group
+                 .merge_staged_commit(&self.party.core_state.provider, *m)?,
+--- a/src/test_utils/test_framework/mod.rs
++++ b/src/test_utils/test_framework/mod.rs
+@@ -34,7 +34,7 @@
+     messages::*,
+     treesync::{node::Node, LeafNode, RatchetTree, RatchetTreeIn},
+ };
+-use ::rand::{rngs::OsRng, RngCore, TryRngCore};
++use ::rand::{rngs::OsRng, seq::IndexedRandom, RngCore, TryRngCore};
+ use openmls_basic_credential::SignatureKeyPair;
+ use openmls_traits::{
+     crypto::OpenMlsCrypto,
+@@ -48,8 +48,31 @@
+ pub mod client;
+ pub mod errors;
+ 
++#[cfg(test)]
++#[path = "review_tests.rs"]
++mod review_tests;
++
+ use self::client::*;
+ use self::errors::*;
++
++fn random_removal_targets(
++    members: &[(usize, Vec<u8>)],
++    own_index: usize,
++    rng: &mut impl RngCore,
++) -> Vec<LeafNodeIndex> {
++    let candidates: Vec<_> = members
++        .iter()
++        .filter(|(index, _)| *index != own_index)
++        .collect();
++    if candidates.is_empty() {
++        return Vec::new();
++    }
++    let count = (rng.next_u32() as usize) % candidates.len().min(5) + 1;
++    candidates
++        .choose_multiple(rng, count)
++        .map(|(index, _)| LeafNodeIndex::new(*index as u32))
++        .collect()
++}
+ 
+ #[derive(Clone)]
+ /// The `Group` struct represents the "global" shared state of the group. Note,
+@@ -212,8 +235,7 @@
+         let (_, id) = group
+             .members
+             .iter()
+-            .find(|(leaf_index, _)| index == *leaf_index)
+-            .expect("Couldn't find member at leaf index");
++            .find(|(leaf_index, _)| index == *leaf_index)?;
+         let clients = self.clients.read().expect("An unexpected error occurred.");
+         let client = clients
+             .get(id)
+@@ -465,6 +487,9 @@
+     ) -> Result<GroupId, SetupError<Provider::StorageError>> {
+         // Pick a random group creator.
+         let clients = self.clients.read().expect("An unexpected error occurred.");
++        if clients.is_empty() {
++            return Err(SetupError::NotEnoughClients);
++        }
+         let group_creator_id = ((OsRng.unwrap_mut().next_u32() as usize) % clients.len())
+             .to_be_bytes()
+             .to_vec();
+@@ -505,6 +530,9 @@
+         ciphersuite: Ciphersuite,
+         authentication_service: AS,
+     ) -> Result<GroupId, SetupError<Provider::StorageError>> {
++        if target_group_size == 0 {
++            return Err(SetupError::Unknown);
++        }
+         // Create the initial group.
+         let group_id = self.create_group(ciphersuite)?;
+ 
+@@ -686,10 +714,6 @@
+             1 => {
+                 // If it's a single-member group, don't remove anyone.
+                 if group.members.len() > 1 {
+-                    // How many members?
+-                    let number_of_removals =
+-                        (((rng.next_u32() as usize) % group.members.len()) % 5) + 1;
+-
+                     let (own_index, _) = group
+                         .members
+                         .iter()
+@@ -698,40 +722,8 @@
+                         .clone();
+                     println!("Index of the member performing the {action_type:?}: {own_index:?}");
+ 
+-                    let mut target_member_leaf_indices = Vec::new();
+-                    let mut target_member_identities = Vec::new();
+-                    let clients = self.clients.read().expect("An unexpected error occurred.");
+-                    // Get the client references, as opposed to just the member indices.
+-                    println!("Removing members:");
+-                    for _ in 0..number_of_removals {
+-                        // Get a random index.
+-                        let mut member_list_index = (rng.next_u32() as usize) % group.members.len();
+-                        // Re-sample until the index is not our own index and
+-                        // not one that is not already being removed.
+-                        let (mut leaf_index, mut identity) =
+-                            group.members[member_list_index].clone();
+-                        while leaf_index == own_index
+-                            || target_member_identities.contains(&identity)
+-                        {
+-                            member_list_index = (rng.next_u32() as usize) % group.members.len();
+-                            let (new_leaf_index, new_identity) =
+-                                group.members[member_list_index].clone();
+-                            leaf_index = new_leaf_index;
+-                            identity = new_identity;
+-                        }
+-                        let client = clients
+-                            .get(&identity)
+-                            .expect("An unexpected error occurred.")
+-                            .read()
+-                            .expect("An unexpected error occurred.");
+-                        let client_group =
+-                            client.groups.read().expect("An unexpected error occurred.");
+-                        let client_group = client_group
+-                            .get(&group.group_id)
+-                            .expect("An unexpected error occurred.");
+-                        target_member_leaf_indices.push(client_group.own_leaf_index());
+-                        target_member_identities.push(identity);
+-                    }
++                    let target_member_leaf_indices =
++                        random_removal_targets(&group.members, own_index, &mut rng);
+                     self.remove_clients(
+                         action_type,
+                         group,
+--- /dev/null
++++ b/src/test_utils/test_framework/review_tests.rs
+@@ -0,0 +1,23 @@
++use super::*;
++use ::rand::{rngs::StdRng, SeedableRng};
++use std::collections::HashSet;
++
++#[test]
++fn removals_are_bounded_distinct_and_exclude_the_sender() {
++    for size in [1, 2, 3, 7] {
++        let members: Vec<_> = (0..size).map(|i| (i * 4, vec![i as u8])).collect();
++        for own_index in members.iter().map(|(index, _)| *index) {
++            for seed in 0..64 {
++                let mut rng = StdRng::seed_from_u64(seed);
++                let targets = random_removal_targets(&members, own_index, &mut rng);
++                assert_eq!(targets.is_empty(), size == 1);
++                assert!(targets.len() <= (size - 1).min(5));
++                assert!(!targets.contains(&LeafNodeIndex::new(own_index as u32)));
++                assert_eq!(targets.iter().collect::<HashSet<_>>().len(), targets.len());
++                assert!(targets.iter().all(|target| members
++                    .iter()
++                    .any(|(index, _)| { *target == LeafNodeIndex::new(*index as u32) })));
++            }
++        }
++    }
++}
+--- a/src/treesync/node/leaf_node.rs
++++ b/src/treesync/node/leaf_node.rs
+@@ -374,16 +374,17 @@
+             EncryptionKeyPair::random(provider.rand(), provider.crypto(), ciphersuite)?;
+         leaf_node_tbs.payload.encryption_key = encryption_key_pair.public_key().clone();
+ 
+-        // Store the encryption key pair in the key store.
++        // Set the leaf node source to update
++        leaf_node_tbs.payload.leaf_node_source = LeafNodeSource::Update;
++
++        // Sign the leaf node
++        let leaf_node = leaf_node_tbs.sign(signer)?;
++
++        // Persist the new key only after signing succeeded.
+         encryption_key_pair
+             .write(provider.storage())
+             .map_err(LeafNodeUpdateError::Storage)?;
+ 
+-        // Set the leaf node source to update
+-        leaf_node_tbs.payload.leaf_node_source = LeafNodeSource::Update;
+-
+-        // Sign the leaf node
+-        let leaf_node = leaf_node_tbs.sign(signer)?;
+         self.payload = leaf_node.payload;
+         self.signature = leaf_node.signature;
+ 
+--- a/tests/book_code_discard_commit.rs
++++ b/tests/book_code_discard_commit.rs
+@@ -493,7 +493,10 @@
+ 
+     // === Alice creates a group ===
+     let mut alice_group = MlsGroup::builder()
++        .with_group_id(group_id.clone())
+         .with_capabilities(capabilities.clone())
++        // Keep the sending ratchet unchanged so storage snapshots can be compared.
++        .with_wire_format_policy(PURE_PLAINTEXT_WIRE_FORMAT_POLICY)
+         .ciphersuite(ciphersuite)
+         .build(alice_provider, &alice_signer, alice_credential.clone())
+         .expect("An unexpected error occurred.");
+@@ -501,6 +504,10 @@
+     // save the storage state
+     let state_before = GroupStorageState::from_storage(alice_provider.storage(), &group_id);
+ 
++    assert!(MlsGroup::load(alice_provider.storage(), &group_id)
++        .unwrap()
++        .is_some());
++
+     let payload = vec![0; 100];
+     let custom_proposal = CustomProposal::new(custom_proposal_type, payload);
+ 
+@@ -521,5 +528,6 @@
+         .expect("Could not clear pending commit");
+ 
+     let state_after = GroupStorageState::from_storage(alice_provider.storage(), &group_id);
+-    assert!(state_before == state_after);
+-}
++    assert!(state_before.non_proposal_state() == state_after.non_proposal_state());
++    assert_eq!(alice_group.pending_proposals().count(), 1);
++}
+--- a/tests/managed_api.rs
++++ b/tests/managed_api.rs
+@@ -5,6 +5,9 @@
+     },
+ };
+ use openmls_test::openmls_test;
++
++#[path = "review_regressions/test_framework.rs"]
++mod review_regressions;
+ 
+ #[openmls_test]
+ fn test_mls_group_api() {
+--- a/tests/mls_group.rs
++++ b/tests/mls_group.rs
+@@ -8,6 +8,12 @@
+ 
+ use openmls_test::openmls_test;
+ use openmls_traits::signatures::Signer;
++
++#[path = "review_regressions/commit_and_update.rs"]
++mod commit_and_update;
++
++#[path = "review_regressions/delivery.rs"]
++mod delivery;
+ 
+ fn generate_key_package<Provider: OpenMlsProvider>(
+     ciphersuite: Ciphersuite,
+--- /dev/null
++++ b/tests/review_regressions/commit_and_update.rs
+@@ -0,0 +1,149 @@
++use std::{cell::Cell, io};
++
++use openmls::prelude::*;
++use openmls_basic_credential::SignatureKeyPair;
++use openmls_rust_crypto::OpenMlsRustCrypto;
++use openmls_traits::{
++    random::OpenMlsRand,
++    signatures::{Signer, SignerError},
++    OpenMlsProvider,
++};
++
++#[derive(Default)]
++struct FailingRandom {
++    inner: OpenMlsRustCrypto,
++    fail: Cell<bool>,
++}
++
++impl OpenMlsRand for FailingRandom {
++    type Error = io::Error;
++
++    fn random_array<const N: usize>(&self) -> Result<[u8; N], Self::Error> {
++        if self.fail.get() {
++            return Err(io::Error::other("injected randomness failure"));
++        }
++        self.inner.rand().random_array().map_err(io::Error::other)
++    }
++
++    fn random_vec(&self, len: usize) -> Result<Vec<u8>, Self::Error> {
++        if self.fail.get() {
++            return Err(io::Error::other("injected randomness failure"));
++        }
++        self.inner.rand().random_vec(len).map_err(io::Error::other)
++    }
++}
++
++#[derive(Default)]
++struct Provider {
++    inner: OpenMlsRustCrypto,
++    random: FailingRandom,
++}
++
++impl OpenMlsProvider for Provider {
++    type CryptoProvider = <OpenMlsRustCrypto as OpenMlsProvider>::CryptoProvider;
++    type RandProvider = FailingRandom;
++    type StorageProvider = <OpenMlsRustCrypto as OpenMlsProvider>::StorageProvider;
++
++    fn crypto(&self) -> &Self::CryptoProvider {
++        self.inner.crypto()
++    }
++
++    fn rand(&self) -> &Self::RandProvider {
++        &self.random
++    }
++
++    fn storage(&self) -> &Self::StorageProvider {
++        self.inner.storage()
++    }
++}
++
++fn new_group(provider: &Provider, policy: WireFormatPolicy) -> (MlsGroup, SignatureKeyPair) {
++    let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
++    let (credential, signer) = openmls::prelude::test_utils::new_credential(
++        provider,
++        b"Alice",
++        ciphersuite.signature_algorithm(),
++    );
++    let config = MlsGroupCreateConfig::builder()
++        .ciphersuite(ciphersuite)
++        .wire_format_policy(policy)
++        .build();
++    let group = MlsGroup::new(provider, &signer, &config, credential).unwrap();
++    (group, signer)
++}
++
++#[test]
++fn failed_conversion_does_not_stage_a_commit() {
++    let provider = Provider::default();
++    let (mut group, signer) = new_group(&provider, MIXED_CIPHERTEXT_WIRE_FORMAT_POLICY);
++    let group_id = group.group_id().clone();
++    let complete = group
++        .commit_builder()
++        .load_psks(provider.storage())
++        .unwrap()
++        .build(provider.rand(), provider.crypto(), &signer, |_| true)
++        .unwrap();
++    provider.random.fail.set(true);
++    assert!(complete.stage_commit(&provider).is_err());
++    assert!(group.pending_commit().is_none());
++    let restored = MlsGroup::load(provider.storage(), &group_id)
++        .unwrap()
++        .unwrap();
++    assert!(restored.pending_commit().is_none());
++    assert_eq!(restored.epoch(), group.epoch());
++    provider.random.fail.set(false);
++    group
++        .self_update(&provider, &signer, LeafNodeParameters::default())
++        .unwrap();
++    group.merge_pending_commit(&provider).unwrap();
++}
++
++#[test]
++fn successful_staging_survives_reload_in_both_wire_formats() {
++    for policy in [
++        PURE_PLAINTEXT_WIRE_FORMAT_POLICY,
++        MIXED_CIPHERTEXT_WIRE_FORMAT_POLICY,
++    ] {
++        let provider = Provider::default();
++        let (mut group, signer) = new_group(&provider, policy);
++        let old_epoch = group.epoch();
++        group
++            .self_update(&provider, &signer, LeafNodeParameters::default())
++            .unwrap();
++        let mut restored = MlsGroup::load(provider.storage(), group.group_id())
++            .unwrap()
++            .unwrap();
++        assert!(restored.pending_commit().is_some());
++        restored.merge_pending_commit(&provider).unwrap();
++        assert!(restored.epoch() > old_epoch);
++    }
++}
++
++struct FailingSigner(SignatureScheme);
++
++impl Signer for FailingSigner {
++    fn sign(&self, _: &[u8]) -> Result<Vec<u8>, SignerError> {
++        Err(SignerError::SigningError)
++    }
++
++    fn signature_scheme(&self) -> SignatureScheme {
++        self.0
++    }
++}
++
++#[test]
++fn failed_leaf_signature_does_not_store_a_private_key() {
++    let provider = Provider::default();
++    let (mut group, signer) = new_group(&provider, PURE_PLAINTEXT_WIRE_FORMAT_POLICY);
++    let before = provider.storage().values.read().unwrap().clone();
++    let leaf_before = group.own_leaf_node().unwrap().clone();
++    let failing_signer = FailingSigner(signer.signature_scheme());
++    assert!(group
++        .propose_self_update(&provider, &failing_signer, LeafNodeParameters::default())
++        .is_err());
++    assert_eq!(group.own_leaf_node().unwrap(), &leaf_before);
++    assert!(
++        *provider.storage().values.read().unwrap() == before,
++        "storage changed on failed signature"
++    );
++}
+--- /dev/null
++++ b/tests/review_regressions/delivery.rs
+@@ -0,0 +1,112 @@
++use openmls::{prelude::*, test_utils::single_group_test_framework::*};
++use openmls_test::openmls_test;
++
++fn group<'a, P: OpenMlsProvider>(
++    alice: &'a CorePartyState<P>,
++    bob: &'a CorePartyState<P>,
++    ciphersuite: Ciphersuite,
++) -> GroupState<'a, P> {
++    let config = MlsGroupCreateConfig::builder()
++        .ciphersuite(ciphersuite)
++        .use_ratchet_tree_extension(true)
++        .build();
++    let mut group = GroupState::new_from_party(
++        GroupId::from_slice(b"delivery regression"),
++        alice.generate_pre_group(ciphersuite),
++        config.clone(),
++    )
++    .unwrap();
++    group
++        .add_member(AddMemberConfig {
++            adder: "alice",
++            addees: vec![bob.generate_pre_group(ciphersuite)],
++            join_config: config.join_config().clone(),
++            tree: None,
++        })
++        .unwrap();
++    group
++}
++
++#[openmls_test]
++fn delivery_accepts_application_messages() {
++    let alice_party = CorePartyState::<Provider>::new("alice");
++    let bob_party = CorePartyState::<Provider>::new("bob");
++    let mut group = group(&alice_party, &bob_party, ciphersuite);
++    let [alice, bob] = group.members_mut(&["alice", "bob"]);
++    let message = alice
++        .group
++        .create_message(&alice_party.provider, &alice.party.signer, b"hello")
++        .unwrap();
++    let epoch = bob.group.epoch();
++    bob.deliver_and_apply(message.into()).unwrap();
++    assert_eq!(bob.group.epoch(), epoch);
++    assert_eq!(bob.group.pending_proposals().count(), 0);
++}
++
++#[openmls_test]
++fn delivery_queues_member_proposals_for_a_commit() {
++    let alice_party = CorePartyState::<Provider>::new("alice");
++    let bob_party = CorePartyState::<Provider>::new("bob");
++    let mut group = group(&alice_party, &bob_party, ciphersuite);
++    let [alice, bob] = group.members_mut(&["alice", "bob"]);
++    let (proposal, _) = alice
++        .group
++        .propose_self_update(
++            &alice_party.provider,
++            &alice.party.signer,
++            LeafNodeParameters::default(),
++        )
++        .unwrap();
++    bob.deliver_and_apply(proposal.into()).unwrap();
++    assert_eq!(bob.group.pending_proposals().count(), 1);
++    let (commit, _, _) = bob
++        .group
++        .commit_to_pending_proposals(&bob_party.provider, &bob.party.signer)
++        .unwrap();
++    alice.deliver_and_apply(commit.into()).unwrap();
++    bob.group.merge_pending_commit(&bob_party.provider).unwrap();
++    assert_eq!(
++        alice.group.export_ratchet_tree(),
++        bob.group.export_ratchet_tree()
++    );
++}
++
++#[openmls_test]
++fn delivery_queues_external_join_proposals() {
++    let alice_party = CorePartyState::<Provider>::new("alice");
++    let bob_party = CorePartyState::<Provider>::new("bob");
++    let charlie_party = CorePartyState::<Provider>::new("charlie");
++    let mut group = group(&alice_party, &bob_party, ciphersuite);
++    let [alice] = group.members_mut(&["alice"]);
++    let charlie = charlie_party.generate_pre_group(ciphersuite);
++    let proposal = JoinProposal::new::<<Provider as OpenMlsProvider>::StorageProvider>(
++        charlie.key_package_bundle.key_package().clone(),
++        alice.group.group_id().clone(),
++        alice.group.epoch(),
++        &charlie.signer,
++    )
++    .unwrap();
++    alice.deliver_and_apply(proposal.into()).unwrap();
++    assert_eq!(alice.group.pending_proposals().count(), 1);
++    let staged = alice
++        .group
++        .commit_builder()
++        .consume_proposal_store(true)
++        .load_psks(alice_party.provider.storage())
++        .unwrap()
++        .build(
++            alice_party.provider.rand(),
++            alice_party.provider.crypto(),
++            &alice.party.signer,
++            |_| true,
++        )
++        .unwrap()
++        .stage_commit(&alice_party.provider)
++        .unwrap();
++    assert!(staged.welcome().is_some());
++    alice
++        .group
++        .merge_pending_commit(&alice_party.provider)
++        .unwrap();
++    assert_eq!(alice.group.members().count(), 3);
++}
+--- /dev/null
++++ b/tests/review_regressions/test_framework.rs
+@@ -0,0 +1,47 @@
++use super::*;
++use openmls::test_utils::test_framework::errors::SetupError;
++
++#[openmls_test]
++fn unknown_leaf_returns_none() {
++    let setup = MlsGroupTestSetup::<Provider>::new(
++        MlsGroupCreateConfig::test_default(ciphersuite),
++        1,
++        CodecUse::SerializedMessages,
++    );
++    let group_id = setup.create_group(ciphersuite).unwrap();
++    let groups = setup.groups.read().unwrap();
++    let group = groups.get(&group_id).unwrap();
++    assert_eq!(
++        setup.identity_by_index(0, group),
++        Some(group.members[0].1.clone())
++    );
++    assert_eq!(setup.identity_by_index(99, group), None);
++}
++
++#[openmls_test]
++fn empty_setup_cannot_create_group() {
++    let setup = MlsGroupTestSetup::<Provider>::new(
++        MlsGroupCreateConfig::test_default(ciphersuite),
++        0,
++        CodecUse::SerializedMessages,
++    );
++    assert!(matches!(
++        setup.create_group(ciphersuite),
++        Err(SetupError::NotEnoughClients)
++    ));
++    assert!(setup.groups.read().unwrap().is_empty());
++}
++
++#[openmls_test]
++fn zero_size_group_has_no_side_effects() {
++    let setup = MlsGroupTestSetup::<Provider>::new(
++        MlsGroupCreateConfig::test_default(ciphersuite),
++        1,
++        CodecUse::SerializedMessages,
++    );
++    assert!(matches!(
++        setup.create_random_group(0, ciphersuite, noop_authentication_service),
++        Err(SetupError::Unknown)
++    ));
++    assert!(setup.groups.read().unwrap().is_empty());
++}

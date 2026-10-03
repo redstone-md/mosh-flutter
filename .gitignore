@@ -44,6 +44,10 @@ third_party/opus-android-arm64/
 # Regenerate with: bash scripts/opus-prepare-macos.sh
 # (configure/make per GOARCH-style arch from audiopus_sys-0.1.8's vendored opus, then lipo)
 third_party/opus-macos-universal/
+# Reconstructed from the pinned archive and complete local patch.
+third_party/openmls/
+third_party/openmls.lock/
+third_party/openmls.prepare-*/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
