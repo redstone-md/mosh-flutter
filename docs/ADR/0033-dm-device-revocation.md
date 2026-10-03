@@ -11,7 +11,7 @@ journal; each private DM owns its MLS transition and acknowledgement journal.
 Both reuse existing encrypted redb records, directed Moss streams and runtime
 owners. No dependency, table, hosted service or Moss source changes are needed.
 The user approved the contracts, optional record fields and test boundaries in
-[the implementation plan](../../dm-device-revocation.plan.md).
+[the implementation plan](../Archive/dm-device-revocation.plan.md).
 
 This follows MLS's existing
 [Remove proposal rules](https://www.rfc-editor.org/rfc/rfc9420.html#section-12.1.3)

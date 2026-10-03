@@ -1,9 +1,8 @@
 # Settings redesign
 
-The [approved plan](../Proposals/settings-redesign.plan.md) is delivered on
-`feat/settings-redesign`, one screen per local development-build review.
 The settings frame and all five sections are implemented: Sound, Devices,
-Connection, Privacy and About.
+Connection, Privacy and About. The original
+[approved plan](../Archive/settings-redesign.plan.md) is archived for reference.
 Read receipts have moved to Privacy.
 
 ## Navigation
@@ -422,7 +421,7 @@ dependency changes.
 - `lib/l10n/`: `app_en.arb`, `app_ru.arb`.
 - `test/features/settings/`: `settings_screen_test.dart`,
   `voice_settings_section_test.dart`; `test/support/settings.dart`.
-- `docs/Architecture.md`, `docs/Proposals/settings-redesign.plan.md`,
+- `docs/Architecture.md`, `docs/Archive/settings-redesign.plan.md`,
   `docs/Features/settings-redesign.md`.
 
 Devices also changes `lib/src/features/device_link/`, generated bridge files,

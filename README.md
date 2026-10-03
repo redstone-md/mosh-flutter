@@ -173,6 +173,7 @@ architectures.
 | `docs/ADR/` | Architecture decisions |
 | `test/support/` | Scripted dependencies shared by widget tests and previews |
 
+The [documentation index](docs/README.md) links to feature guides and decisions.
 See [AGENTS.md](AGENTS.md) for checks and contribution constraints, and the
 [architecture map](docs/Architecture.md) for runtime boundaries.
 The [visual asset notes](docs/assets/README.md) explain how to regenerate the
