@@ -75,7 +75,9 @@ Preserve restored joining and committed delivery states.
 ## Layout and assets
 
 Use the existing palette: `bg0` #0B0C0D, `bg1` #111315, `moss` #B7D84A,
-`fg1` #ECEEEA and `fg2` #A8AEB0. Typography uses the shared platform font stack.
+`fg1` #ECEEEA and `fg2` #A8AEB0. Typography uses the app's bundled Inter
+(`assets/fonts/`, OFL). Its balanced metrics keep labels optically centered in
+buttons and step markers; the former Segoe UI fallback sat 1–2px low.
 Wide windows use the reference's illustration on the left and controls on the
 right for all three steps. Narrow windows stack these blocks in a centered card
 up to 640px wide. Wide cards remain capped at 1160px.
@@ -93,8 +95,10 @@ choices share a neutral outlined
 style; a linked profile gets one filled Continue action. Back is secondary.
 
 Setup reuses native Flutter controls and the existing `MoshSelect`. Its local
-theme gives button labels and field text the 14px body token, filled and outlined
-actions a 52px minimum height, and Back a 48px minimum height. Buttons can grow
+theme gives field text the 14px body token, every action label 15px/600, and
+filled, outlined and Back actions a 48px minimum height. The setup style is the
+receiver of `ButtonStyle.merge`: the app theme's `styleFrom` fills every slot,
+so merging the other way silently restored the 12px app label. Buttons can grow
 for wrapped labels and enlarged text. Settings keeps its existing density.
 
 The card centers horizontally and vertically within the space below the title
@@ -188,7 +192,8 @@ desktop, tablet, phone, small-window and error/import states were inspected.
 The final 320×568 name preview includes the full card and primary action without
 the optional illustration or encryption caption.
 
-Reference-alignment pass on 2026-10-03 moved the wide task heading into the
+Reference-alignment pass on 2026-10-03 bundled Inter, fixed the dropped setup
+button label (12px → 15px), reduced actions to 48px, moved the wide task heading into the
 form column, restored primary ink to the welcome caption and joined the step
 track. The onboarding suite and the 48-case viewport matrix pass with previews
 rendered at 1280×680, 900×700, 1920×1080, phone and 200% text. Native Windows verification

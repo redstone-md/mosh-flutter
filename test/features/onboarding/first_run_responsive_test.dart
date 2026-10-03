@@ -48,7 +48,7 @@ void main() {
         greaterThan(smallImage.height));
     expect(largeCard.top, greaterThan(smallCard.top));
     expect(tester.getSize(find.byType(FilledButton)).height,
-        greaterThanOrEqualTo(52));
+        greaterThanOrEqualTo(48));
     await saveSetupPreview(tester, 'first-run-centered-1080');
   });
 
@@ -96,7 +96,7 @@ void main() {
     await tester.ensureVisible(find.byType(FilledButton));
     final action = tester.getRect(find.byType(FilledButton));
     expect(action.bottom, lessThanOrEqualTo(844 - 360));
-    expect(action.height, greaterThanOrEqualTo(52));
+    expect(action.height, greaterThanOrEqualTo(48));
     expect(tester.takeException(), isNull);
     await tapSetup(tester, 'Continue');
     expect(harness.store.profile!.displayName, 'Лена');
