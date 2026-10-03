@@ -17,10 +17,14 @@ import 'device_revocation_dialog.dart';
 import 'qr_image.dart';
 
 class DevicesSettingsSection extends ConsumerStatefulWidget {
-  const DevicesSettingsSection({super.key, this.joiningOnly = false});
+  const DevicesSettingsSection(
+      {super.key, this.joiningOnly = false, this.onCancelled});
 
   /// Setup reuses the importer and protocol UI without authorization actions.
   final bool joiningOnly;
+
+  /// Lets the setup step restore its choices after a successful cancellation.
+  final VoidCallback? onCancelled;
 
   @override
   ConsumerState<DevicesSettingsSection> createState() =>
@@ -80,7 +84,9 @@ class _DevicesSettingsSectionState
 
   Future<void> _cancel() async {
     await ref.read(deviceLinkProvider.notifier).cancel();
-    if (mounted) setState(() => _joining = false);
+    if (!mounted) return;
+    setState(() => _joining = false);
+    widget.onCancelled?.call();
   }
 
   Future<void> _removeDevice(DeviceDescriptor device) async {
