@@ -28,9 +28,10 @@ Future<void> prepareSetupPreview(WidgetTester tester) async {
 /// Capture the real Flutter tree only when the optional preview is requested.
 Future<void> saveSetupPreview(WidgetTester tester, String name) async {
   if (!_enabled) return;
-  final scene = find.byType(Image);
-  await tester.runAsync(() =>
-      precacheImage(tester.widget<Image>(scene).image, tester.element(scene)));
+  for (final element in find.byType(Image).evaluate()) {
+    await tester.runAsync(
+        () => precacheImage((element.widget as Image).image, element));
+  }
   await tester.pump();
   final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(const ValueKey('setup-preview')));

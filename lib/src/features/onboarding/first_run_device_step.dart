@@ -80,19 +80,21 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
         const DevicesSettingsSection(joiningOnly: true),
         const SizedBox(height: 20),
       ] else ...[
-        FilledButton.icon(
+        OutlinedButton.icon(
             onPressed: locked ? null : () => setState(() => _connecting = true),
             icon: const Icon(Icons.qr_code_scanner),
             label: Text(l.firstRunConnectDevice)),
         const SizedBox(height: 12),
       ],
-      OutlinedButton(
-          onPressed: locked ? null : _continue,
-          child: Text(connected
-              ? l.firstRunContinue
-              : pending
-                  ? l.firstRunCancelLink
-                  : l.firstRunFirstDevice)),
+      if (connected)
+        FilledButton(
+            onPressed: locked ? null : _continue,
+            child: Text(l.firstRunContinue))
+      else
+        OutlinedButton(
+            onPressed: locked ? null : _continue,
+            child:
+                Text(pending ? l.firstRunCancelLink : l.firstRunFirstDevice)),
       const SizedBox(height: 12),
       TextButton(
           onPressed: locked || pending ? null : () => _back(),
