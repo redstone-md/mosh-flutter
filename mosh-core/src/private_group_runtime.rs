@@ -205,6 +205,7 @@ pub struct GroupLeaveResult {
 mod error;
 pub use error::*;
 pub(crate) mod wire_types;
+pub use wire_types::PrivateGroupRuntime;
 pub(crate) use wire_types::*;
 
 struct GroupSession {
