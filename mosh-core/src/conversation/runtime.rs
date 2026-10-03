@@ -171,10 +171,9 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         self.history.replay(&persistence, conversation_id, into);
     }
 
-    /// Says a conversation's saved record is already the final one. What
-    /// rehydrate knows, because it just read that record off disk — without
-    /// this the first tail write would replace the record with itself, and
-    /// re-encrypt the kind's whole state to do it.
+    /// Says the current record is already durably saved. Creation marks it
+    /// after accepting its atomic pair; rehydrate marks restored records.
+    /// The next unchanged tail need not re-encrypt the conversation state.
     pub fn mark_record_final(&mut self, conversation_id: &str) {
         self.final_records.insert(conversation_id.to_string());
     }
