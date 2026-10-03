@@ -53,8 +53,14 @@ the platform backend without accepting a store it does not inspect. The
 
 ## Device linking
 
-The Devices settings section uses the device-link bridge and its own
-Riverpod async state. `DeviceLinkRuntime` owns one local signing identity,
+Devices settings and first-run setup share `DeviceLinkController`. Its
+`DeviceLinkState` retains native proof, action errors and one lock covering
+QR acquisition, native commands and durable setup navigation. Polls do not
+replace pending actions, and results from a disposed or rebuilt controller
+cannot publish into its replacement. `DeviceLinkCommands` keeps generated
+calls inside the feature; scripted commands test the real Flutter workflow.
+Native consent and persistence proofs still use the real bridge and Moss.
+`DeviceLinkRuntime` owns one local signing identity,
 a verified device roster and the pairing exchange. It borrows the existing
 `SharedMossNode` and encrypted `Persistence`; pairing uses directed Moss
 stream 3. Existing DM, org and MLS identities keep their contracts.

@@ -11,6 +11,7 @@ import 'device_link_flow.dart';
 import 'device_link_import_form.dart';
 import 'device_link_provider.dart';
 import 'device_link_start_actions.dart';
+import 'device_link_state.dart';
 import 'device_list.dart';
 import 'device_qr_scanner.dart';
 import 'device_revocation_dialog.dart';
@@ -33,58 +34,39 @@ class DevicesSettingsSection extends ConsumerStatefulWidget {
 
 class _DevicesSettingsSectionState
     extends ConsumerState<DevicesSettingsSection> {
-  bool _busy = false;
   late bool _joining = widget.joiningOnly;
-  String? _error;
 
+  /// The workflow exposes failures while retaining the last native proof.
   Future<void> _run(Future<void> Function() action) async {
-    if (_busy) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
     try {
       await action();
-    } catch (error) {
-      if (mounted) {
-        final l = AppLocalizations.of(context)!;
-        setState(() => _error = error is FormatException
-            ? l.deviceLinkInvalidQr
-            : deviceLinkError(l, error));
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    } catch (_) {}
   }
 
-  Future<void> _join(String uri) async {
-    if (!mounted) return;
-    await ref
+  Future<void> _join(Future<String?> Function() acquire) async {
+    final joined = await ref
         .read(deviceLinkProvider.notifier)
-        .joinLink(uri.trim(), _deviceName());
-    if (mounted) setState(() => _joining = false);
+        .joinFrom(acquire, _deviceName());
+    if (joined && mounted) setState(() => _joining = false);
   }
 
-  Future<void> _importImage() async {
+  Future<String?> _importImage() async {
     final file = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ['png', 'jpg', 'jpeg', 'webp']);
-    if (file == null) return;
+    if (file == null) return null;
     if (file.size > 10 * 1024 * 1024) {
       throw const FormatException('Invalid QR image');
     }
-    await _join(await decodeDeviceQr(await file.readAsBytes()));
+    return decodeDeviceQr(await file.readAsBytes());
   }
 
-  Future<void> _scan() async {
-    final uri = await Navigator.of(context).push<String>(
-        MaterialPageRoute(builder: (_) => const DeviceQrScanner()));
-    if (uri != null) await _join(uri);
-  }
+  Future<String?> _scan() => Navigator.of(context)
+      .push<String>(MaterialPageRoute(builder: (_) => const DeviceQrScanner()));
 
   Future<void> _cancel() async {
-    await ref.read(deviceLinkProvider.notifier).cancel();
-    if (!mounted) return;
+    final outcome = await ref.read(deviceLinkProvider.notifier).cancel();
+    if (!mounted || outcome != DeviceLinkExit.ready) return;
     setState(() => _joining = false);
     widget.onCancelled?.call();
   }
@@ -106,76 +88,85 @@ class _DevicesSettingsSectionState
                 onPressed: () => ref.invalidate(deviceLinkProvider),
                 child: Text(l.deviceLinkRetry)),
           ]),
-          data: (snapshot) => _body(l, snapshot),
+          data: (link) => _body(l, link),
         );
   }
 
-  Widget _body(AppLocalizations l, DeviceLinkSnapshot s) {
-    final idle = s.phase == DeviceLinkPhase.idle ||
-        s.phase == DeviceLinkPhase.failed ||
-        s.phase == DeviceLinkPhase.linked;
+  Widget _body(AppLocalizations l, DeviceLinkState link) {
+    final s = link.snapshot;
+    final idle = link.idle;
     final role = _joining ? DeviceLinkRole.joining : s.role;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (!widget.joiningOnly)
         LinkedDeviceList(
             snapshot: s,
-            onRemove: idle && !_busy && !s.revoked ? _removeDevice : null),
+            onRemove: idle && !link.busy && !s.revoked ? _removeDevice : null),
       if (!widget.joiningOnly) const SizedBox(height: 24),
       if (s.phase == DeviceLinkPhase.linked) ...[
         Text(l.deviceLinkSuccess),
         const SizedBox(height: 16),
       ],
-      if (_error != null || s.error != null) ...[
+      if (link.error != null || s.error != null) ...[
         Semantics(
           liveRegion: true,
-          child: Text(_error ?? deviceLinkErrorKind(l, s.error!),
+          child: Text(
+              link.error != null
+                  ? deviceLinkError(l, link.error!)
+                  : deviceLinkErrorKind(l, s.error!),
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ),
         const SizedBox(height: 12),
       ],
+      if (link.readError != null)
+        TextButton(
+            onPressed: link.busy
+                ? null
+                : ref.read(deviceLinkProvider.notifier).refresh,
+            child: Text(l.deviceLinkRetry)),
       if (widget.joiningOnly && idle && s.canJoin)
-        _flow(s, true, DeviceLinkRole.joining)
+        _flow(s, true, DeviceLinkRole.joining, link.busy)
       else if (widget.joiningOnly && idle)
         const SizedBox.shrink()
       else if (role == null || idle && !_joining)
-        _start(s)
+        _start(s, link.busy)
       else
-        _flow(s, idle, role),
-      if (_busy) ...[
+        _flow(s, idle, role, link.busy),
+      if (link.busy) ...[
         const SizedBox(height: 12),
         const LinearProgressIndicator(),
       ],
     ]);
   }
 
-  Widget _start(DeviceLinkSnapshot s) => DeviceLinkStartActions(
+  Widget _start(DeviceLinkSnapshot s, bool busy) => DeviceLinkStartActions(
         canJoin: s.canJoin,
         revoked: s.revoked,
-        onAuthorize: _busy
+        onAuthorize: busy
             ? null
             : () => _run(ref.read(deviceLinkProvider.notifier).beginLink),
-        onJoin: _busy
+        onJoin: busy
             ? null
             : () => setState(() {
                   _joining = true;
-                  _error = null;
                 }),
       );
 
-  Widget _flow(DeviceLinkSnapshot s, bool idle, DeviceLinkRole role) =>
+  Widget _flow(
+          DeviceLinkSnapshot s, bool idle, DeviceLinkRole role, bool busy) =>
       DeviceLinkFlow(
         snapshot: s,
         role: role,
-        busy: _busy,
+        busy: busy,
         onApprove: (code) =>
             _run(() => ref.read(deviceLinkProvider.notifier).approve(code)),
         onCancel: () => _run(_cancel),
         importForm: idle
             ? DeviceLinkImportForm(
-                busy: _busy,
-                onSubmit: (uri) => _run(() => _join(uri)),
-                onImage: () => _run(_importImage),
-                onScan: Platform.isAndroid ? () => _run(_scan) : null,
+                busy: busy,
+                onSubmit: (uri) => _run(() => _join(() async => uri)),
+                onImage: () => _run(() => _join(_importImage)),
+                onScan:
+                    Platform.isAndroid ? () => _run(() => _join(_scan)) : null,
               )
             : null,
       );

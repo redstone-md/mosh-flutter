@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/deeplink/mosh_deep_link.dart';
+import 'package:mosh/src/features/device_link/device_link_provider.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/features/onboarding/first_run_wizard.dart';
@@ -137,6 +138,7 @@ void main() {
     expect(harness.link.cancellations, 0);
     harness.link.publish(setupDeviceSnapshot(
         phase: DeviceLinkPhase.linked, canJoin: false, devices: 2));
+    await harness.container.read(deviceLinkProvider.notifier).refresh();
     await tester.pumpAndSettle();
     await tapSetup(tester, 'Continue');
     expect(harness.store.profile!.step, SetupStep.network);
