@@ -86,7 +86,7 @@ Received history remains local, including on the removed phone.
 ## Verification and limits
 
 The confirmed test boundaries and baseline are in
-[the implementation plan](../../android-linked-dm.plan.md).
+[the implementation plan](../Archive/android-linked-dm.plan.md).
 The host runner uses the existing public-API native installation workers and
 the real Flutter bridge. Its authenticated loopback control connection through
 `adb reverse` only coordinates assertions; QR, history, MLS and text traffic

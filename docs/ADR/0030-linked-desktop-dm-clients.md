@@ -126,7 +126,7 @@ Cryptographic refusal tests use real keys and storage. The public bridge also
 runs through automatic discovery. CI uses a local real tracker as described
 in [ADR 0015](0015-deep-link-and-ci-and-versioning.md); unwrapped Cargo runs
 retain the public Moss defaults. Commands, coverage requirements and results
-are tracked in [the plan](../../two-desktop-dm.plan.md).
+are tracked in [the plan](../Archive/two-desktop-dm.plan.md).
 
 ## Maintainability exceptions
 

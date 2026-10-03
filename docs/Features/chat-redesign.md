@@ -1,6 +1,6 @@
 # Conversation redesign
 
-The approved [wireframe](../Proposals/chat-redesign-wireframe.html) guides the
+The approved [wireframe](../Archive/chat-redesign-wireframe.html) guides the
 Flutter chat list, messages and details for DMs, private groups and public channels.
 
 ## Implementation sequence

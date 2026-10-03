@@ -150,7 +150,8 @@ processes. Cover successful approval, outsider refusal, wrong code, malformed
 and expired QR, packet tampering/replay, disconnect and restart. Preserve
 existing DM history/peer-id and prove ordinary DM messaging still works.
 Test the real QR renderer/decoder and Flutter screen with the native bridge.
-Commands and quality bars live in desktop-link.plan.md during implementation.
+Implementation commands and verification results are preserved in
+[the archived plan](../Archive/desktop-link.plan.md).
 
 ## Dart bridge access
 
