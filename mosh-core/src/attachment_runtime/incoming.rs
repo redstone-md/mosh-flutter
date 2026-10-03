@@ -12,7 +12,10 @@ impl AttachmentRuntime {
             ));
         }
         let (key, nonce_prefix) = manifest_keys(&manifest)?;
-        if manifest.chunk_size == 0 || manifest.total_size > MAX_ATTACHMENT_SIZE {
+        if manifest.total_size == 0
+            || manifest.chunk_size == 0
+            || manifest.total_size > MAX_ATTACHMENT_SIZE
+        {
             return Err(AttachmentRuntimeError::ManifestMismatch(
                 "size or chunk_size".to_string(),
             ));
@@ -92,6 +95,14 @@ impl IncomingTransfer {
         let mut assembled = Vec::with_capacity(self.manifest.total_size as usize);
         for chunk in self.chunks.values() {
             assembled.extend_from_slice(chunk);
+        }
+        if assembled.len() as u64 != self.manifest.total_size {
+            self.state = TransferState::Failed;
+            return Err(AttachmentRuntimeError::ManifestMismatch(format!(
+                "size {} != {}",
+                assembled.len(),
+                self.manifest.total_size
+            )));
         }
         let actual_hash = sha256_hex(&assembled);
         if actual_hash != self.manifest.content_hash {

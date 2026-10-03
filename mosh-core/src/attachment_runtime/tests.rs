@@ -74,6 +74,53 @@ fn multi_chunk_round_trip() {
 }
 
 #[test]
+fn authenticated_chunks_must_match_the_advertised_size() {
+    for advertised_size in [1023, 1025] {
+        let mut sender = AttachmentRuntime::new();
+        let mut receiver = AttachmentRuntime::new();
+        let mut manifest = sender
+            .prepare_outgoing(outgoing("a", payload(1024)))
+            .unwrap();
+        manifest.total_size = advertised_size;
+        receiver.register_incoming(manifest).unwrap();
+        let frame = sender
+            .serve_chunks(&ChunkRequest {
+                attachment_id: "a".into(),
+                chunk_indices: vec![0],
+            })
+            .unwrap()
+            .remove(0);
+
+        assert!(matches!(
+            receiver.ingest_chunk(&frame),
+            Err(AttachmentRuntimeError::ManifestMismatch(_))
+        ));
+        assert_eq!(
+            receiver.incoming_progress("a").unwrap().state,
+            TransferState::Failed
+        );
+    }
+}
+
+#[test]
+fn empty_incoming_manifest_does_not_reserve_a_transfer_slot() {
+    let mut sender = AttachmentRuntime::new();
+    let mut receiver = AttachmentRuntime::new();
+    let valid = sender.prepare_outgoing(outgoing("a", payload(1))).unwrap();
+    let mut empty = valid.clone();
+    empty.total_size = 0;
+    empty.chunk_count = 0;
+    empty.content_hash = sha256_hex(&[]);
+
+    assert!(matches!(
+        receiver.register_incoming(empty),
+        Err(AttachmentRuntimeError::ManifestMismatch(_))
+    ));
+    assert!(receiver.incoming_progress("a").is_none());
+    receiver.register_incoming(valid).unwrap();
+}
+
+#[test]
 fn rejects_oversized_attachment() {
     let mut runtime = AttachmentRuntime::new();
     let huge = vec![0u8; (MAX_ATTACHMENT_SIZE + 1) as usize];
