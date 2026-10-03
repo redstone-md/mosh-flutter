@@ -783,6 +783,10 @@ split by channel and concern. The root owns the public types and the
 facade methods; the modules are `impl` blocks on the same session struct
 and see each other through `pub(super)`.
 
+`PrivateGroupRuntime` remains publicly available at
+`mosh_core::private_group_runtime::PrivateGroupRuntime` for native callers such
+as `mosh-probe`; the wire-envelope module stays internal to the crate.
+
 ```mermaid
 flowchart TD
     subgraph DM["private_dm_runtime/"]
