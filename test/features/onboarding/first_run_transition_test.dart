@@ -21,7 +21,7 @@ void main() {
     });
   }
 
-  testWidgets('Continue fades through before mounting the next form',
+  testWidgets('Continue crossfades the content without a blank interval',
       (tester) async {
     final harness = await _pump(tester, SetupStep.name);
     await tester.enterText(find.byType(TextFormField), 'Yuna');
@@ -31,20 +31,20 @@ void main() {
     expect(harness.store.profile!.displayName, 'Yuna');
     expect(harness.store.profile!.step, SetupStep.device);
     expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.byType(FirstRunDeviceStep), findsOneWidget);
     expect(_blocked(tester), isTrue);
     await tester.pump(const Duration(milliseconds: 40));
     expect(_fade(tester), inExclusiveRange(0, 1));
-    expect(_position(tester).dx, lessThan(0));
-    await tester.pump(const Duration(milliseconds: 41));
-    await tester.pump();
+    expect(_position(tester).dx, greaterThan(0));
+    expect(_fadeFor(tester, SetupStep.name), inExclusiveRange(0, 1));
+    expect(_positionFor(tester, SetupStep.name).dx, lessThan(0));
+    expect(_fade(tester) + _fadeFor(tester, SetupStep.name), greaterThan(.5));
+    await tester.pump(const Duration(milliseconds: 81));
     expect(find.byType(TextFormField), findsNothing);
     expect(find.byType(FirstRunDeviceStep), findsOneWidget);
-    expect(_fade(tester), 0);
-    expect(_position(tester).dx, greaterThan(0));
-    await tester.pump(const Duration(milliseconds: 80));
     expect(_fade(tester), inExclusiveRange(0, 1));
-    expect(_position(tester).dx, inExclusiveRange(0, .02));
-    await tester.pump(const Duration(milliseconds: 81));
+    expect(_position(tester).dx, inExclusiveRange(0, .03));
+    await tester.pump(const Duration(milliseconds: 120));
     expect(_fade(tester), 1);
     expect(_position(tester), Offset.zero);
     expect(_blocked(tester), isFalse);
@@ -57,7 +57,8 @@ void main() {
     await tester.pump();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 40));
-    expect(_position(tester).dx, greaterThan(0));
+    expect(_position(tester).dx, lessThan(0));
+    expect(_positionFor(tester, SetupStep.device).dx, greaterThan(0));
     await tester.pump(const Duration(milliseconds: 41));
     await tester.pump();
     expect(_position(tester).dx, lessThan(0));
@@ -114,8 +115,8 @@ void main() {
     final form = tester.state(find.byType(TextFormField));
     await _go(tester, harness, SetupStep.device);
     await tester.pump(const Duration(milliseconds: 40));
-    final opacity = _fade(tester);
-    final position = _position(tester);
+    final opacity = _fadeFor(tester, SetupStep.name);
+    final position = _positionFor(tester, SetupStep.name);
     await _go(tester, harness, SetupStep.name);
     expect(_fade(tester), closeTo(opacity, .0001));
     expect(_position(tester), position);
@@ -165,11 +166,10 @@ void main() {
     await _go(tester, harness, SetupStep.network);
     await tester.pump(const Duration(milliseconds: 61));
     await tester.pump();
-    expect(find.byType(FirstRunDeviceStep), findsNothing);
     expect(find.byType(FirstRunNetworkStep), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 40));
-    final opacity = _fade(tester);
-    final position = _position(tester);
+    final opacity = _fadeFor(tester, SetupStep.device);
+    final position = _positionFor(tester, SetupStep.device);
     await _go(tester, harness, SetupStep.device);
     expect(_fade(tester), closeTo(opacity, .0001));
     expect(_position(tester), position);
@@ -234,7 +234,8 @@ void main() {
       testWidgets('$step transition frames render at $size', (tester) async {
         await prepareSetupPreview(tester);
         final harness = await _pump(tester, step, size: size);
-        final prefix = 'setup-motion-${step.name}-${size.width.toInt()}';
+        final prefix =
+            'setup-content-motion-${step.name}-${size.width.toInt()}';
         await saveSetupPreview(tester, '$prefix-000');
         final action = switch (step) {
           SetupStep.name => 'Continue',
@@ -248,7 +249,7 @@ void main() {
         expect(harness.store.profile!.step,
             step == SetupStep.device ? SetupStep.network : SetupStep.device);
         var elapsed = 0;
-        for (final delta in [16, 24, 40, 16, 24, 40, 80]) {
+        for (final delta in List.filled(16, 16)) {
           await tester.pump(Duration(milliseconds: delta));
           elapsed += delta;
           await saveSetupPreview(
@@ -278,11 +279,29 @@ Future<void> _go(
   await tester.pump();
 }
 
-Finder _inside(Type type) => find.descendant(
-    of: find.byType(SetupStepTransition), matching: find.byType(type));
-double _fade(WidgetTester tester) =>
-    tester.widget<FadeTransition>(_inside(FadeTransition).first).opacity.value;
-Offset _position(WidgetTester tester) =>
-    tester.widget<SlideTransition>(_inside(SlideTransition)).position.value;
+Finder _panel(WidgetTester tester, [SetupStep? step]) {
+  final region = find.byKey(const ValueKey('setup-content'));
+  final active = tester.widget<SetupStepTransition>(region).step;
+  return find.descendant(
+      of: region,
+      matching: find.byKey(ValueKey(step ?? active), skipOffstage: false),
+      skipOffstage: false);
+}
+
+Finder _inside(WidgetTester tester, Type type, [SetupStep? step]) =>
+    find.descendant(
+        of: _panel(tester, step),
+        matching: find.byType(type, skipOffstage: false),
+        skipOffstage: false);
+double _fade(WidgetTester tester) => _fadeFor(tester);
+double _fadeFor(WidgetTester tester, [SetupStep? step]) => tester
+    .widget<FadeTransition>(_inside(tester, FadeTransition, step).first)
+    .opacity
+    .value;
+Offset _position(WidgetTester tester) => _positionFor(tester);
+Offset _positionFor(WidgetTester tester, [SetupStep? step]) => tester
+    .widget<SlideTransition>(_inside(tester, SlideTransition, step).first)
+    .position
+    .value;
 bool _blocked(WidgetTester tester) =>
-    tester.widget<IgnorePointer>(_inside(IgnorePointer).first).ignoring;
+    tester.widget<IgnorePointer>(_inside(tester, IgnorePointer).first).ignoring;

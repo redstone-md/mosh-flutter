@@ -66,7 +66,8 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final snapshot = ref.watch(deviceLinkProvider).value;
+    final device = ref.watch(deviceLinkProvider);
+    final snapshot = device.value;
     final pending = snapshot?.role != null &&
         snapshot?.phase != DeviceLinkPhase.linked &&
         snapshot?.phase != DeviceLinkPhase.failed;
@@ -77,7 +78,10 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
         snapshot.phase == DeviceLinkPhase.delivering;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (snapshot == null || _connecting || pending || connected) ...[
-        const DevicesSettingsSection(joiningOnly: true),
+        if (device.isLoading)
+          const Center(child: CircularProgressIndicator())
+        else
+          const DevicesSettingsSection(joiningOnly: true),
         const SizedBox(height: 20),
       ] else ...[
         OutlinedButton.icon(
