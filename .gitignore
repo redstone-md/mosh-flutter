@@ -27,6 +27,10 @@ Thumbs.db
 .scratch/
 .workbuddy-ai/
 
+# Local planning drafts; shared plans belong in docs/Proposals/.
+/*.plan.md
+/*.brainstorm.md
+
 # Merged run artifact from scripts/probe-e2e.mjs — regenerated every run.
 probe-timeline.jsonl
 

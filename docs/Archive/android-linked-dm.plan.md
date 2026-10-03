@@ -80,7 +80,7 @@ phone installation or log QR secrets.
 
 Physical arm64 acceptance and a manual release-APK flow remain unrun.
 The local-host command and evidence checklist are in
-[the Android feature guide](docs/Features/android-linked-dm.md).
+[the Android feature guide](../Features/android-linked-dm.md).
 
 ## Changed files
 

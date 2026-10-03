@@ -180,7 +180,7 @@ thread isolation and cleanup on panic. Widget tests
 observe waiting/importing/completion through `test/support/`.
 
 Results and the exact changed-file inventory live in
-[the approved plan](../../dm-offline-recovery.plan.md). Existing runtime/session
+[the approved plan](../Archive/dm-offline-recovery.plan.md). Existing runtime/session
 size exceptions from ADRs 0030/0031 remain. Ordered native interruption and
 two-epoch tests, plus signed-packet scenario helpers, may exceed 50 lines to
 keep their durable transitions and caller-visible assertions together. New

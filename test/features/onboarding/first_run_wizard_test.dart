@@ -259,7 +259,7 @@ void main() {
       (tester) async {
     await prepareSetupPreview(tester);
     await FirstRunHarness(profile: const FirstRunProfile()).pump(tester);
-    final illustration = tester.getRect(find.byType(Image));
+    final illustration = tester.getRect(setupIllustration);
     final name = tester.getRect(find.byType(TextFormField));
     expect(illustration.right, lessThan(name.left));
     await saveSetupPreview(tester, 'first-run-preview');

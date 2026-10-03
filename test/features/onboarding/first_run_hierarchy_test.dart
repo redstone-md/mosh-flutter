@@ -28,7 +28,7 @@ void main() {
               widget is Semantics && widget.properties.header == true),
           findsOneWidget);
       expect(tester.getRect(title).bottom,
-          lessThan(tester.getRect(find.byType(Image)).top));
+          lessThan(tester.getRect(setupIllustration).top));
       expect(find.text('Добро пожаловать в Mosh'), findsNothing);
       expect(find.text('Почти готово'), findsNothing);
       await saveSetupPreview(tester, 'first-run-hierarchy-${step.name}-phone');
