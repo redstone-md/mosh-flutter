@@ -349,9 +349,7 @@ impl PrivateGroupRuntime {
         self.drain_inbound()?;
         let session = self.group_mut(group_id)?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        if let Err(error) = self.groups.persist_tail() {
-            dlog::write(LogLevel::Error, kinds::PERSIST, KIND, &error.to_string());
-        }
+        self.groups.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -487,9 +485,7 @@ impl PrivateGroupRuntime {
                 .open(message, owned_group_id, payload, ciphertext.len())?
         };
         let result = self.publish_prepared(group_id, prepared, true)?;
-        if let Err(error) = self.groups.persist_tail() {
-            dlog::write(LogLevel::Error, kinds::PERSIST, KIND, &error.to_string());
-        }
+        self.groups.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -601,14 +597,14 @@ impl PrivateGroupRuntime {
 
     pub fn poll(&mut self, group_id: &str) -> Result<GroupSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
-        self.groups.persist_tail()?;
+        self.groups.persist_tail_logged(KIND);
         let session = self.group_mut(group_id)?;
         Ok(session.snapshot())
     }
 
     pub fn list(&mut self) -> Result<GroupListSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
-        self.groups.persist_tail()?;
+        self.groups.persist_tail_logged(KIND);
         let mut groups: Vec<GroupSnapshot> = self
             .groups
             .values_mut()

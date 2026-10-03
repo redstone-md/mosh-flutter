@@ -36,6 +36,57 @@ impl Fixture {
             directory,
         }
     }
+
+    fn restart(&mut self) {
+        let attachments = Arc::new(AttachmentStore::new(self.directory.path()).unwrap());
+        let moss = Arc::new(MossFfiRuntime::load_default().unwrap());
+        self.runtime = ChannelRuntime::from_shared(moss, attachments, Some(self.store.clone()));
+        self.runtime.rehydrate();
+    }
+}
+
+fn assert_attachment(snapshot: &ChannelSnapshot, attachment_id: &str) {
+    assert_eq!(
+        snapshot.messages[0]
+            .attachment
+            .as_ref()
+            .unwrap()
+            .attachment_id,
+        attachment_id
+    );
+}
+
+#[test]
+fn refused_attachment_history_keeps_poll_and_list_available_until_repair() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let fault = fixture.store.refuse_message_writes(CHANNEL_HISTORY);
+    let sent = fixture
+        .runtime
+        .send_attachment(
+            &fixture.id,
+            "durable.txt".into(),
+            "text/plain".into(),
+            b"published attachment".to_vec(),
+            None,
+            None,
+        )
+        .unwrap();
+
+    let snapshot = fixture
+        .runtime
+        .poll(&fixture.id)
+        .expect("reads stay available");
+    assert_attachment(&snapshot, &sent.attachment_id);
+    let channels = fixture.runtime.list().unwrap().channels;
+    assert_attachment(&channels[0], &sent.attachment_id);
+    drop(fault);
+    fixture.runtime.poll(&fixture.id).unwrap();
+    let saved = fixture.store.list_channel_messages(&fixture.id).unwrap();
+    assert_eq!(saved.len(), 1);
+    fixture.restart();
+    let restored = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_attachment(&restored, &sent.attachment_id);
 }
 
 #[test]

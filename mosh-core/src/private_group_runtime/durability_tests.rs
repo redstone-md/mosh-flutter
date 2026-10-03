@@ -120,15 +120,57 @@ impl Fixture {
     }
 }
 
+fn assert_attachment(snapshot: &GroupSnapshot, attachment_id: &str) {
+    assert_eq!(
+        snapshot.messages[0]
+            .attachment
+            .as_ref()
+            .unwrap()
+            .attachment_id,
+        attachment_id
+    );
+}
+
+#[test]
+fn refused_attachment_history_keeps_poll_and_list_available_until_repair() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let fault = fixture.store.refuse_message_writes(GROUP_HISTORY);
+    let sent = fixture
+        .runtime
+        .send_attachment(
+            &fixture.id,
+            "durable.txt".into(),
+            "text/plain".into(),
+            b"published attachment".to_vec(),
+            None,
+            None,
+        )
+        .unwrap();
+
+    let snapshot = fixture
+        .runtime
+        .poll(&fixture.id)
+        .expect("reads stay available");
+    assert_attachment(&snapshot, &sent.attachment_id);
+    let groups = fixture.runtime.list().unwrap().groups;
+    assert_attachment(&groups[0], &sent.attachment_id);
+    drop(fault);
+    fixture.runtime.poll(&fixture.id).unwrap();
+    let saved = fixture.store.list_group_messages(&fixture.id).unwrap();
+    assert_eq!(saved.len(), 1);
+    fixture.restart();
+    let restored = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_attachment(&restored, &sent.attachment_id);
+}
+
 #[test]
 fn refused_rejoin_record_keeps_the_last_accepted_group_restorable() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::rejoining();
     let refused_record = fixture.store.refuse_record_writes(GROUP_HISTORY);
-    assert!(matches!(
-        fixture.runtime.poll(&fixture.id),
-        Err(PrivateGroupError::Persistence(_))
-    ));
+    let volatile = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_eq!(volatile.display_name, "Bob rejoined");
     drop(refused_record);
     fixture.assert_accepted_group_restores();
 }
@@ -138,10 +180,8 @@ fn refused_rejoin_snapshot_rolls_back_the_new_group_record() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::rejoining();
     let refused_snapshot = fixture.store.refuse_group_snapshot_writes();
-    assert!(matches!(
-        fixture.runtime.poll(&fixture.id),
-        Err(PrivateGroupError::Persistence(_))
-    ));
+    let volatile = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_eq!(volatile.display_name, "Bob rejoined");
     drop(refused_snapshot);
     fixture.assert_accepted_group_restores();
 }

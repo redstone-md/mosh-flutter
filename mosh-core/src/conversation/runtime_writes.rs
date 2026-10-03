@@ -31,6 +31,14 @@ impl PendingWrites {
 }
 
 impl<S: ConversationSession> ConversationRuntime<S> {
+    /// Keep reads and completed publications available while refused writes
+    /// remain pending for a later retry.
+    pub(crate) fn persist_tail_logged(&mut self, scope: &str) {
+        if let Err(error) = self.persist_tail() {
+            dlog::write(LogLevel::Error, kinds::PERSIST, scope, &error.to_string());
+        }
+    }
+
     /// Retry refused writes and append new rows. A refusal in one conversation
     /// does not prevent the remaining conversations from saving their state.
     pub fn persist_tail(&mut self) -> Result<(), PersistenceError> {
