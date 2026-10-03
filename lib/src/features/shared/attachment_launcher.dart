@@ -1,19 +1,8 @@
 // Injectable platform seam for opening a downloaded attachment with the OS
 // default application. Screens own calling this adapter and presenting errors.
 //
-// Dispatch by platform:
-//   - Desktop (Windows/macOS/Linux) uses url_launcher's external-app mode
-//     (unchanged from the original behavior).
-//   - Android uses open_filex, which builds the ACTION_VIEW Intent + the
-//     FileProvider content URI from the FileProvider infra landed in atomic #1.
-//   - Web throws UnsupportedError (open_filex is not meaningful on web).
-//
-// Renamed from `UrlLauncherAttachmentLauncher` -> `AttachmentLauncherImpl`
-// because the class now dispatches across url_launcher AND open_filex, so the
-// old name was a misnomer. Call sites only reference the
-// `attachmentLauncherProvider` instance, never the class name, so the rename
-// is internal-only (no production churn). The decision was made over leaving
-// the misleading name, per the "long-term architecture" principle.
+// Desktop uses url_launcher's external-app mode. Android uses open_filex
+// with an ACTION_VIEW Intent and a FileProvider content URI. Web is unsupported.
 library;
 
 import 'package:flutter/foundation.dart';
