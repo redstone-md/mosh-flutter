@@ -2,6 +2,10 @@
 
 use super::*;
 
+#[cfg(test)]
+#[path = "lifecycle_tests.rs"]
+mod tests;
+
 impl PrivateGroupRuntime {
     /// Rebuild private groups + history from the encrypted store. Best-effort:
     /// a corrupt group row is skipped so one bad record does not block startup.
@@ -249,8 +253,9 @@ impl PrivateGroupRuntime {
             typing_gate: TypingGate::default(),
         };
 
+        self.persist_created_group(&session)?;
         self.groups.insert(group_id.clone(), session);
-        self.groups.persist_tail()?;
+        self.groups.mark_record_final(&group_id);
         Ok(GroupCreated {
             group_id,
             mesh_id,
@@ -258,6 +263,23 @@ impl PrivateGroupRuntime {
             fingerprint: creator_fingerprint,
             label,
         })
+    }
+
+    fn persist_created_group(&self, session: &GroupSession) -> Result<(), PrivateGroupError> {
+        let Some(store) = self.groups.persistence() else {
+            return Ok(());
+        };
+        if let Err(error) = session.write_extra(store) {
+            runtime::close_room(
+                &self.shared_node,
+                &session.node,
+                &session.mesh_id,
+                &group_channels(&session.group_id),
+                &format!("{KIND} {}", session.group_id),
+            );
+            return Err(error.into());
+        }
+        Ok(())
     }
 
     pub fn join_group(
