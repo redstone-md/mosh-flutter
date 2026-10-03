@@ -28,7 +28,8 @@ Future<void> _pumpList(
       ConversationMessageListView(
         messages: messages,
         snapshot: snapshot,
-        attachmentCallbacks: (_) => const ConversationAttachmentCallbacks(
+        attachmentCallbacks: (_, {required bool own}) =>
+            const ConversationAttachmentCallbacks(
           busy: false,
           onDownload: _noop,
           onCancel: _noop,

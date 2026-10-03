@@ -38,7 +38,7 @@ void main() {
           container.read(conversationControllerProvider(_target).notifier);
       final image = testAttachment(
           attachmentId: 'image', fileName: 'image.png', mime: 'image/png');
-      controller.openAttachment(image, null);
+      controller.openAttachment(image, null, own: false);
 
       final outcome = controller.resolvePendingOpen([
         testAttachmentView(
@@ -66,7 +66,8 @@ void main() {
     controller.openAttachment(
         image,
         testAttachmentView(
-            attachmentId: 'image', state: AttachmentState.downloading));
+            attachmentId: 'image', state: AttachmentState.downloading),
+        own: false);
 
     expect(gateway.countOf(GatewayMethod.downloadAttachment), 0);
     expect(container.read(conversationControllerProvider(_target)).pendingOpen,

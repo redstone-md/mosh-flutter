@@ -95,6 +95,7 @@ class AttachmentCard extends StatelessWidget {
       return VoiceMessageCard(
         descriptor: descriptor,
         view: view,
+        own: own,
         busy: busy,
         onDownload: onDownload,
         playLabel: l.voiceMessagePlayLabel,

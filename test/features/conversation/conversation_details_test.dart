@@ -115,7 +115,7 @@ void main() {
               target: snapshot.target,
               async: AsyncData(snapshot),
               onClose: () => closed = true,
-              onOpenAttachment: (_, view) {}),
+              onOpenAttachment: (_, view, own) {}),
         )),
         overrides: [
           gatewayProvider.overrideWithValue(gateway),
@@ -139,41 +139,50 @@ void main() {
     expect(closed, isTrue);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('an available shared file opens with its own transfer view',
-      (tester) async {
-    final file = testAttachment(attachmentId: 'downloaded');
-    final view = testAttachmentView(
-        attachmentId: 'downloaded',
-        state: AttachmentState.available,
-        localPath: '/tmp/report.pdf');
-    final source = TestSnapshots.dm(sessionId: 'dm', messages: [
-      TestMessages.dm(fromDevice: 'Alice', body: '', attachment: file),
-    ], attachments: [
-      view
-    ]);
-    final snapshot = DmConversation(const DmTarget('dm'), source);
-    AttachmentView? opened;
-    final gateway = ScriptableGateway()..seedSessions([source]);
-    await pumpScreen(
-        tester,
-        Scaffold(
-            body: SizedBox(
-          width: 320,
-          child: ConversationDetailsPanel(
-              target: snapshot.target,
-              async: AsyncData(snapshot),
-              onClose: () {},
-              onOpenAttachment: (_, transfer) => opened = transfer),
-        )),
-        overrides: [
-          gatewayProvider.overrideWithValue(gateway),
-          bridgeFacadeProvider.overrideWithValue(
-              ScriptableBridge(conversations: gateway.conversations)),
-        ]);
-    await tester.ensureVisible(find.text(file.fileName));
-    await tester.tap(find.text(file.fileName));
-    expect(opened, view);
-  });
+  for (final own in [true, false]) {
+    testWidgets(
+        'an own=$own available shared file opens with its row ownership',
+        (tester) async {
+      final file = testAttachment(attachmentId: 'downloaded');
+      final view = testAttachmentView(
+          attachmentId: 'downloaded',
+          state: AttachmentState.available,
+          localPath: '/tmp/report.pdf');
+      final source = TestSnapshots.dm(sessionId: 'dm', messages: [
+        TestMessages.dm(
+            fromDevice: own ? 'me' : 'Alice', body: '', attachment: file),
+      ], attachments: [
+        view
+      ]);
+      final snapshot = DmConversation(const DmTarget('dm'), source);
+      AttachmentView? opened;
+      bool? openedOwn;
+      final gateway = ScriptableGateway()..seedSessions([source]);
+      await pumpScreen(
+          tester,
+          Scaffold(
+              body: SizedBox(
+            width: 320,
+            child: ConversationDetailsPanel(
+                target: snapshot.target,
+                async: AsyncData(snapshot),
+                onClose: () {},
+                onOpenAttachment: (_, transfer, own) {
+                  opened = transfer;
+                  openedOwn = own;
+                }),
+          )),
+          overrides: [
+            gatewayProvider.overrideWithValue(gateway),
+            bridgeFacadeProvider.overrideWithValue(
+                ScriptableBridge(conversations: gateway.conversations)),
+          ]);
+      await tester.ensureVisible(find.text(file.fileName));
+      await tester.tap(find.text(file.fileName));
+      expect(opened, view);
+      expect(openedOwn, own);
+    });
+  }
   testWidgets('conversation banners warn about revocation and group rejoin',
       (tester) async {
     final cases = <(ConversationSnapshot, String)>[
