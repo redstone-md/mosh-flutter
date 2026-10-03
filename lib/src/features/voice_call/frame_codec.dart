@@ -24,8 +24,6 @@ final BigInt SEQ_VALUE_MASK = (BigInt.one << 63) - BigInt.one;
 
 Uint8List bytesFromBase64(String value) => base64Decode(value);
 
-String bytesToBase64(Uint8List value) => base64Encode(value);
-
 /// 8-byte big-endian encoding of `seq`. Manual extraction instead of
 /// `ByteData.setUint64` because Dart's `int` is signed 64-bit and values with
 /// bit 63 set (e.g. [CALLEE_DIRECTION_BIT]) misbehave under setUint64.

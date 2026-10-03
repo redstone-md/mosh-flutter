@@ -1,6 +1,6 @@
 // Tests for VoiceCallOrchestrator. Each test drives the
 // orchestrator with Noop / recording / firing capture + playback factories
-// and a recording transport over a recording Gateway, so the orchestrator's
+// and a scriptable bridge, so the orchestrator's
 // full surface (cancelled windows, draining guard, seq
 // snapshot+inc, jitter reorder, setup-failure -> endCall) is exercised
 // without any native audio backend. Real Future.delayed matches the
@@ -12,7 +12,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/voice_call/call_frame_transport.dart';
 
 import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/features/voice_call/frame_codec.dart';
@@ -140,7 +139,6 @@ void main() {
   group('voice_call_orchestrator', () {
     test('attach imports the call key and starts the poll', () async {
       final gateway = ScriptableBridge();
-      final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       await orchestrator.attach(
         sessionId: 's',
@@ -148,7 +146,7 @@ void main() {
         keyB64: KEY_B64,
         noncePrefixB64: PREFIX_B64,
         direction: 'caller',
-        transport: transport,
+        bridge: gateway,
         captureFactory: const NoopVoiceCaptureFactory(),
         playbackFactory: const NoopVoicePlaybackFactory(),
         onError: (_) {},
@@ -174,7 +172,6 @@ void main() {
         () async {
       // Unmuted path.
       final gateway1 = ScriptableBridge();
-      final transport1 = CallFrameTransport(gateway1);
       final capture1 = _FiringCaptureFactory([
         Uint8List.fromList([1, 2, 3])
       ]);
@@ -185,7 +182,7 @@ void main() {
         keyB64: KEY_B64,
         noncePrefixB64: PREFIX_B64,
         direction: 'caller',
-        transport: transport1,
+        bridge: gateway1,
         captureFactory: capture1,
         playbackFactory: _RecordingPlaybackFactory(),
         onError: (_) {},
@@ -193,6 +190,9 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(gateway1.countOf(BridgeMethod.callSendFrame), 1);
+      final call = gateway1.lastCall(BridgeMethod.callSendFrame)!;
+      expect(call.arg<String>('sessionId'), 's');
+      expect(call.arg<String>('callId'), 'c');
       final key = await importCallKey(KEY_B64);
       final opened = await openFrame(
           key,
@@ -207,7 +207,6 @@ void main() {
 
       // Muted path: toggleMute before the 30ms frame fires.
       final gateway2 = ScriptableBridge();
-      final transport2 = CallFrameTransport(gateway2);
       final capture2 = _FiringCaptureFactory([
         Uint8List.fromList([1, 2, 3])
       ]);
@@ -218,7 +217,7 @@ void main() {
         keyB64: KEY_B64,
         noncePrefixB64: PREFIX_B64,
         direction: 'caller',
-        transport: transport2,
+        bridge: gateway2,
         captureFactory: capture2,
         playbackFactory: _RecordingPlaybackFactory(),
         onError: (_) {},
@@ -234,7 +233,6 @@ void main() {
     test('seq increments per frame and the direction bit is applied', () async {
       for (final direction in ['caller', 'callee']) {
         final gateway = ScriptableBridge();
-        final transport = CallFrameTransport(gateway);
         final capture = _FiringCaptureFactory([
           Uint8List.fromList([10]),
           Uint8List.fromList([20]),
@@ -247,7 +245,7 @@ void main() {
           keyB64: KEY_B64,
           noncePrefixB64: PREFIX_B64,
           direction: direction,
-          transport: transport,
+          bridge: gateway,
           captureFactory: capture,
           playbackFactory: _RecordingPlaybackFactory(),
           onError: (_) {},
@@ -276,11 +274,10 @@ void main() {
 
     test('drained frames surface reordered to playback', () async {
       final gateway = ScriptableBridge();
-      final transport = CallFrameTransport(gateway);
       final playbackFactory = _RecordingPlaybackFactory();
       final key = await importCallKey(KEY_B64);
       // Seal frames for seqs [3,1,2] with payloads [30,10,20]; deliver them
-      // raw (the transport base64-encodes for drainCallFrames); the jitter
+      // raw through the bridge; the jitter
       // buffer must reorder to [1,2,3] -> payloads [10,20,30].
       final f1 = await sealFrame(key, PREFIX_B64, BigInt.one,
           CALLER_DIRECTION_BIT, Uint8List.fromList([10]));
@@ -296,7 +293,7 @@ void main() {
         keyB64: KEY_B64,
         noncePrefixB64: PREFIX_B64,
         direction: 'caller',
-        transport: transport,
+        bridge: gateway,
         captureFactory: const NoopVoiceCaptureFactory(),
         playbackFactory: playbackFactory,
         onError: (_) {},
@@ -318,7 +315,6 @@ void main() {
     test('the draining guard drops a tick while a drain is in flight',
         () async {
       final gateway = ScriptableBridge();
-      final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       await orchestrator.attach(
         sessionId: 's',
@@ -326,7 +322,7 @@ void main() {
         keyB64: KEY_B64,
         noncePrefixB64: PREFIX_B64,
         direction: 'caller',
-        transport: transport,
+        bridge: gateway,
         captureFactory: const NoopVoiceCaptureFactory(),
         playbackFactory: const NoopVoicePlaybackFactory(),
         onError: (_) {},
@@ -347,7 +343,6 @@ void main() {
 
     test('detach cancels the poll and stops capture/playback', () async {
       final gateway = ScriptableBridge();
-      final transport = CallFrameTransport(gateway);
       final captureFactory = _RecordingCaptureFactory();
       final playbackFactory = _RecordingPlaybackFactory();
       final orchestrator = _orchestrator();
@@ -357,7 +352,7 @@ void main() {
         keyB64: KEY_B64,
         noncePrefixB64: PREFIX_B64,
         direction: 'caller',
-        transport: transport,
+        bridge: gateway,
         captureFactory: captureFactory,
         playbackFactory: playbackFactory,
         onError: (_) {},
@@ -375,7 +370,6 @@ void main() {
 
     test('a capture onFrame firing after detach is a no-op', () async {
       final gateway = ScriptableBridge();
-      final transport = CallFrameTransport(gateway);
       final capture = _FiringCaptureFactory([
         Uint8List.fromList([1, 2, 3])
       ]);
@@ -386,7 +380,7 @@ void main() {
         keyB64: KEY_B64,
         noncePrefixB64: PREFIX_B64,
         direction: 'caller',
-        transport: transport,
+        bridge: gateway,
         captureFactory: capture,
         playbackFactory: _RecordingPlaybackFactory(),
         onError: (_) {},
@@ -402,7 +396,6 @@ void main() {
 
     test('setup failure calls onError + endCall(setup_failed)', () async {
       final gateway = ScriptableBridge();
-      final transport = CallFrameTransport(gateway);
       final orchestrator = _orchestrator();
       String? errorMessage;
       String? endReason;
@@ -412,7 +405,7 @@ void main() {
         keyB64: KEY_B64,
         noncePrefixB64: PREFIX_B64,
         direction: 'caller',
-        transport: transport,
+        bridge: gateway,
         captureFactory: const NoopVoiceCaptureFactory(),
         playbackFactory: _FailingPlaybackFactory(Exception('boom')),
         onError: (msg) => errorMessage = msg,

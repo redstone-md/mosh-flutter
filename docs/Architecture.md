@@ -1036,7 +1036,8 @@ flowchart TD
     Dialog["call_dialog: CallDialog + callDialogFor"]
     Modals["CallOverlay / IncomingCallModal / OutgoingCallModal"]
     Codec["frame_codec / frame_crypto"]
-    Media["jitter_buffer / call_drain / call_frame_transport"]
+    Media["jitter_buffer / call_drain"]
+    Bridge["BridgeFacade: raw voice frames"]
     Adapters["VoiceCapture / VoicePlayback / RingtonePlayer"]
     Rust["mosh-core: voice_call_runtime / _jitter / _frame_crypto / _drain"]
 
@@ -1048,7 +1049,9 @@ flowchart TD
     Orch --> Codec
     Orch --> Media
     Codec --> Rust
-    Media --> Rust
+    Orch --> Bridge
+    Media --> Bridge
+    Bridge --> Rust
 ```
 
 A DM is a conversation that *can carry* a call; the call is not the DM. The
@@ -1071,6 +1074,11 @@ overlay, which is what an unbound test gets. The ringtone travels the same
 way: the layer reads `ringtonePlayerProvider` unless a test hands it one.
 
 ### Media path
+
+The audio loop sends and drains raw `Uint8List` wire frames through the existing
+`BridgeFacade`. `drainCallFrames` decrypts and reorders those bytes before
+feeding playback. There is no separate frame-transport adapter or base64
+conversion between the bridge and the drain loop.
 
 Voice frames never touch the DM runtime's lock. The audio loop sends and
 drains every 20 ms through `api::private_dm::call_send_frame` /
