@@ -37,7 +37,7 @@ test("concurrent processes recover dead claims without sharing the critical sect
     });
   `;
   try {
-    await Promise.all(Array.from({ length: 12 }, async () => {
+    await completeWorkers(Array.from({ length: 12 }, async () => {
       const child = spawn(process.execPath, ["--input-type=module", "-e", worker, module, directory]);
       let errors = "";
       child.stderr.on("data", (chunk) => { errors += chunk; });
@@ -56,7 +56,7 @@ test("failed actions release their claim and same-process callers serialize", as
   try {
     await assert.rejects(withSourceLock(directory, () => { throw new Error("failed action"); }), /failed action/);
     let active = 0;
-    await Promise.all(Array.from({ length: 8 }, () => withSourceLock(directory, async () => {
+    await completeWorkers(Array.from({ length: 8 }, () => withSourceLock(directory, async () => {
       assert.equal(++active, 1);
       await new Promise((resolve) => setTimeout(resolve, 5));
       assert.equal(active--, 1);
@@ -66,3 +66,10 @@ test("failed actions release their claim and same-process callers serialize", as
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+// Finish every caller before cleanup, including when one of them fails.
+async function completeWorkers(workers) {
+  for (const worker of await Promise.allSettled(workers)) {
+    if (worker.status === "rejected") throw worker.reason;
+  }
+}

@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+const removalOptions = { recursive: true, force: true, maxRetries: 20, retryDelay: 20 };
+
 /** Lamport's bakery lock: each process owns a unique claim, so recovery cannot delete a new owner. */
 export async function withSourceLock(directory, action) {
   await mkdir(directory, { recursive: true });
@@ -16,14 +18,24 @@ export async function withSourceLock(directory, action) {
     await waitForTurn(directory, claim, owner.ticket);
     return await action();
   } finally {
-    await rm(claim, { force: true });
+    await rm(claim, removalOptions);
   }
 }
 
 async function publish(claim, state) {
   const pending = `${claim}.pending`;
   await writeFile(pending, JSON.stringify(state));
-  await rename(pending, claim);
+  const deadline = Date.now() + 5_000;
+  while (true) {
+    try {
+      await rename(pending, claim);
+      return;
+    } catch (error) {
+      // Windows readers can briefly deny replacement until their handles close.
+      if (!["EPERM", "EACCES", "EBUSY"].includes(error.code) || Date.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
 }
 
 async function liveClaims(directory) {
@@ -37,7 +49,7 @@ async function liveClaims(directory) {
     });
     if (!state) continue;
     if (alive(state.pid)) claims.push({ claim, state });
-    else await rm(claim, { force: true });
+    else await rm(claim, removalOptions);
   }
   return claims;
 }
