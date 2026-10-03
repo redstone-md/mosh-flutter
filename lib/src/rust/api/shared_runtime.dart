@@ -6,15 +6,15 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `construct_resources`, `database_path`, `resolve_data_dir`, `resolved_data_dir`, `restore_vpn_bypass`
+// These functions are ignored because they are not marked as `pub`: `construct_resources`, `database_path`, `inject_once`, `resolve_data_dir`, `resolved_data_dir`, `restore_vpn_bypass`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
 
-/// Inject the at-rest history DEK from the mobile platform channel (ADR 0011).
+/// Mobile startup may repeat the same DEK after activity recreation.
+/// A different DEK would orphan the database and is refused.
 Future<void> setHistoryDek({required List<int> dek}) =>
     RustLib.instance.api.crateApiSharedRuntimeSetHistoryDek(dek: dek);
 
-/// Inject the app-private data directory from the platform channel (ADR
-/// 0010, M-5). Idempotent-once; returns `Err` for an empty path.
+/// Mobile startup may repeat the same path; a different path is refused.
 Future<void> setAppDataDir({required String path}) =>
     RustLib.instance.api.crateApiSharedRuntimeSetAppDataDir(path: path);
 

@@ -126,6 +126,14 @@ impl MlsSessionCrypto {
             .map_err(MlsCryptoError::openmls)?
             .stage_commit(&self.provider)
             .map_err(MlsCryptoError::openmls)?;
+        self.merge_replacement(bundle)
+    }
+
+    // Serialize before merging; discard staged state if serialization fails.
+    fn merge_replacement(
+        &mut self,
+        bundle: CommitMessageBundle,
+    ) -> Result<AddOutcome, MlsCryptoError> {
         let serialized: Result<(Vec<u8>, Vec<u8>), MlsCryptoError> = (|| {
             let commit_bytes = bundle.commit().to_bytes().map_err(MlsCryptoError::codec)?;
             let welcome_bytes = bundle
