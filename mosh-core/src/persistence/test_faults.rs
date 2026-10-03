@@ -1,5 +1,6 @@
 //! Reversible failures from real redb table validation, isolated to one store.
 use super::*;
+use redb::TableDefinition;
 use redb::TableHandle;
 use std::sync::Arc;
 

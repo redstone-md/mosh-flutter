@@ -1,5 +1,5 @@
 //! Keep the conversation record and its own MLS snapshot in one accepted write.
-use super::{dm_devices::db_error, *};
+use super::*;
 
 impl Persistence {
     pub(crate) fn put_dm_transition(
@@ -30,17 +30,9 @@ impl Persistence {
     ) -> Result<(), PersistenceError> {
         let record = encrypt_blob(&self.dek, record)?;
         let snapshot = encrypt_blob(&self.dek, snapshot)?;
-        let tx = self.db.begin_write().map_err(db_error)?;
-        {
-            tx.open_table(records)
-                .map_err(db_error)?
-                .insert(id, record.as_slice())
-                .map_err(db_error)?;
-            tx.open_table(snapshots)
-                .map_err(db_error)?
-                .insert(id, snapshot.as_slice())
-                .map_err(db_error)?;
-        }
-        tx.commit().map_err(db_error)
+        self.write(|tx| {
+            Self::update_row(tx, records, id, Some(&record))?;
+            Self::update_row(tx, snapshots, id, Some(&snapshot))
+        })
     }
 }
