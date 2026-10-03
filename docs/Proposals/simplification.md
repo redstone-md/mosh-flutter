@@ -108,8 +108,8 @@ Simplifications:
 - Changed instrumented executable lines, including moved source: Flutter
   267/300 (89.0%); core Rust 4,147/4,843 (85.6%). Comment/blank lines, generated
   bindings and tests are excluded. Preparation/locking coverage is 90.18% lines
-  and 82.89% branches. Flutter/LLVM line reports do not expose branch coverage
-  with the installed stable toolchains.
+  and 82.89% branches. Flutter changed branches cover 47/52 (90.4%); Rust branch
+  coverage requires nightly, unavailable in the installed stable toolchain.
 - Independent standards and requirements reviews found two Escape parity
   regressions and source-preparation recovery/edit-protection issues. Regression
   tests cover the fixes; documentation counts and module facts were reconciled.
