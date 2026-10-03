@@ -5,6 +5,7 @@ import 'package:mosh/main.dart';
 import 'package:mosh/src/features/device_link/device_link_provider.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
 import 'package:mosh/src/features/onboarding/first_run_provider.dart';
+import 'package:mosh/src/features/onboarding/first_run_transition.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -12,6 +13,10 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'scriptable_bridge.dart';
 import 'scriptable_device_link.dart';
 import 'scriptable_gateway.dart';
+
+/// Selects setup artwork independently of the window's branding image.
+Finder get setupIllustration => find.descendant(
+    of: find.byType(SetupArtworkMotion), matching: find.byType(Image));
 
 class MemoryFirstRunStore extends FirstRunStore {
   MemoryFirstRunStore([this.profile]) : super(null);

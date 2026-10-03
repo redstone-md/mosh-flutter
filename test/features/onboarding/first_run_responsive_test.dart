@@ -71,7 +71,7 @@ void main() {
     await prepareSetupPreview(tester);
     final harness = FirstRunHarness(profile: const FirstRunProfile());
     await harness.pump(tester, size: const Size(1280, 680));
-    final smallImage = tester.getSize(find.byType(Image));
+    final smallImage = tester.getSize(setupIllustration);
     final smallCard = _card(tester);
     final smallViewport = _viewport(tester);
     expect(smallCard.center.dy, closeTo(smallViewport.center.dy, 1));
@@ -80,7 +80,7 @@ void main() {
     await tester.pumpAndSettle();
     final largeCard = _card(tester);
     expect(largeCard.center.dy, closeTo(_viewport(tester).center.dy, 1));
-    expect(tester.getSize(find.byType(Image)).height,
+    expect(tester.getSize(setupIllustration).height,
         greaterThan(smallImage.height));
     expect(largeCard.top, greaterThan(smallCard.top));
     expect(tester.getSize(find.byType(FilledButton)).height,
@@ -106,7 +106,7 @@ void main() {
             .controller!
             .text,
         'Лена');
-    expect(tester.getRect(find.byType(Image)).bottom,
+    expect(tester.getRect(setupIllustration).bottom,
         lessThan(tester.getRect(find.byType(TextFormField)).top));
     await tester.ensureVisible(find.byType(FilledButton));
     expect(tester.takeException(), isNull);
