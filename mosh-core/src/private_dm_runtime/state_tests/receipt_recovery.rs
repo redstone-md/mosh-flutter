@@ -118,7 +118,7 @@ fn a_receipt_from_a_newer_client_decode_drops() {
         decode_json::<ControlEnvelope>(&bytes).is_err(),
         "an unknown variant name must fail decode"
     );
-    publish_to_bob(&net, &invite, &bytes);
+    publish_control_from(&net, &invite, ALICE_ID, BOB_ID, &bytes);
     bob.drain_inbound();
     let _ = alice;
 }

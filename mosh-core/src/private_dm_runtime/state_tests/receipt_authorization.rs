@@ -112,49 +112,45 @@ fn a_disabled_toggle_sends_nothing_and_ignores_inbound_receipts() {
         "an off toggle files no events"
     );
 
-    // Symmetry, inbound side: even a receipt Bob's own toggle would have
-    // ignored gets dropped while he is off. Alice turns HERS on and receipts;
-    // Bob (still off) must not color the message.
+    // The setting is app-wide. Stage a genuine receipt while enabled, then
+    // turn it off before the receiving runtime drains that receipt.
     alice.set_read_receipts_enabled(true).expect("toggle on");
-    bob.mark_viewed(&invite.session_id).expect("still a no-op");
-    // Force a receipt onto the wire by re-running Bob's session-level send
-    // directly is not the point — drive the real path: Bob's runtime, with
-    // his toggle flipped on for one instant, receipts and reverts.
-    bob.set_read_receipts_enabled(true).expect("flip on");
     bob.mark_viewed(&invite.session_id)
         .expect("receipt goes out");
-    deliver_inbox(&net, ALICE_ID, BOB_ID, &invite);
+    let receipt = net
+        .endpoint(ALICE_ID)
+        .drain()
+        .into_iter()
+        .find(|frame| payload_says(&frame.payload, "ReadReceipt"))
+        .expect("a genuine encrypted receipt must reach Alice");
+    alice.set_read_receipts_enabled(false).expect("toggle off");
+    assert!(!alice.read_receipts_enabled());
+    crate::moss_ffi::clear_event_log();
+    publish_control_from(&net, &invite, BOB_ID, ALICE_ID, &receipt.payload);
+    alice.drain_inbound();
+    assert_eq!(
+        alice_message(&mut alice, &invite.session_id, &sent.message_id).read,
+        None,
+        "the disabled receiver ignores a delivered, authentic receipt"
+    );
+    assert!(read_events(&invite.session_id).is_empty());
+
+    // The very same ciphertext succeeds when enabled: rejection above came
+    // from the setting, and did not consume its MLS receive generation.
+    alice.set_read_receipts_enabled(true).expect("toggle on");
+    publish_control_from(&net, &invite, BOB_ID, ALICE_ID, &receipt.payload);
     alice.drain_inbound();
     assert_eq!(
         alice_message(&mut alice, &invite.session_id, &sent.message_id).read,
         Some(true),
-        "with both on, the settlement still works"
-    );
-
-    // Now the symmetry direction the ticket pins: Bob off again — receipts
-    // stop even though Alice keeps sending.
-    bob.set_read_receipts_enabled(false).expect("flip off");
-    let second = alice
-        .send_message(&invite.session_id, "second message".to_string())
-        .expect("Alice should send");
-    bob.drain_inbound();
-    bob.mark_viewed(&invite.session_id).expect("no-op");
-    assert_eq!(
-        receipt_frames(&net, ALICE_ID),
-        0,
-        "receipts stop when the toggle is off"
-    );
-    assert_eq!(
-        alice_message(&mut alice, &invite.session_id, &second.message_id).read,
-        None,
-        "no receipt means no color on the new message either"
+        "the enabled receiver accepts that authentic receipt"
     );
 
     clear_toggle(&dir);
 }
 
 // A receipt is only as good as its MLS decrypt: a garbage ciphertext and a
-// ciphertext minted by the group's own member (MLS cannot decrypt own
+// ciphertext minted by the receiving member (MLS cannot decrypt own
 // messages) both die before touching the ticks — the DeliveryAck forgery
 // pattern, replayed against receipts.
 #[test]
@@ -168,6 +164,7 @@ fn a_forged_receipt_never_colors_a_message() {
     let invite = invite(&mut alice);
     accept(&mut bob, &invite);
     connect(&mut alice, &mut bob, &invite.session_id);
+    alice.set_read_receipts_enabled(true).expect("toggle on");
 
     let sent = alice
         .send_message(&invite.session_id, "forgery bait".to_string())
@@ -175,19 +172,24 @@ fn a_forged_receipt_never_colors_a_message() {
     bob.drain_inbound();
 
     crate::moss_ffi::clear_event_log();
+    let participant_id = bob.sessions[&invite.session_id].participant_id.clone();
 
     // Forgery #1: garbage ciphertext.
     let forged = serde_json::to_vec(&ControlEnvelope::ReadReceipt {
         session_id: invite.session_id.clone(),
-        participant_id: "peer-participant".to_string(),
+        participant_id: participant_id.clone(),
         receipt_ciphertext_b64: encode(b"not-an-mls-ciphertext"),
     })
     .expect("forged envelope should serialize");
-    publish_to_bob(&net, &invite, &forged);
+    publish_control_from(&net, &invite, BOB_ID, ALICE_ID, &forged);
+    alice.drain_inbound();
+    assert_eq!(
+        alice_message(&mut alice, &invite.session_id, &sent.message_id).read,
+        None
+    );
 
-    // Forgery #2: a receipt minted by this very group member — Alice
-    // encrypting to a group she is part of cannot decrypt on Bob's side
-    // (MLS deletes the sender's secret), so the replay is equally dead.
+    // Forgery #2: Alice's own ciphertext replayed toward Alice while the
+    // envelope claims Bob. MLS must reject the receiving member's own frame.
     let self_minted = {
         let session = alice
             .sessions
@@ -202,28 +204,26 @@ fn a_forged_receipt_never_colors_a_message() {
             .expect("Alice should encrypt");
         serde_json::to_vec(&ControlEnvelope::ReadReceipt {
             session_id: invite.session_id.clone(),
-            participant_id: "peer-participant".to_string(),
+            participant_id,
             receipt_ciphertext_b64: encode(&ciphertext),
         })
         .expect("self-minted envelope should serialize")
     };
-    publish_to_bob(&net, &invite, &self_minted);
+    publish_control_from(&net, &invite, BOB_ID, ALICE_ID, &self_minted);
 
-    bob.drain_inbound();
-    bob.poll_session(&invite.session_id)
-        .expect("Bob poll should pass");
+    alice.drain_inbound();
+    assert_eq!(
+        alice_message(&mut alice, &invite.session_id, &sent.message_id).read,
+        None
+    );
     assert!(
         read_events(&invite.session_id).is_empty(),
         "no forged receipt files an event"
     );
 
     // Now the honest path over the same link, to prove the forgeries were the
-    // problem and not the plumbing: both sides enabled, Bob receipts for
-    // real and Alice colors. The forgeries are still sitting in ALICE's inbox
-    // beside the honest one; the drain feeds all three to the runtime and only
-    // the MLS-decryptable receipt colors.
-    alice.set_read_receipts_enabled(true).expect("toggle on");
-    bob.set_read_receipts_enabled(true).expect("toggle on");
+    // problem and not the plumbing: both forgeries have already drained;
+    // Bob's genuine receipt now colors Alice's message over the same link.
     bob.mark_viewed(&invite.session_id).expect("viewing passes");
     alice.drain_inbound();
     assert_eq!(
