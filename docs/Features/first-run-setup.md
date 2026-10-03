@@ -80,6 +80,9 @@ workflow. It retains a saved choice after a restart failure, distinguishes
 save and restart errors, and retries restart without another consent write.
 Closing settings retains the restart instruction. Setup completion is still
 saved before restart or the manual-restart dialog.
+Completion captures its controller and relauncher before saving, so closing the
+network form cannot cancel durable completion or Windows relaunch. Manual restart
+uses the retained navigator while it remains mounted.
 
 The existing network settings save a physical adapter choice. The running node
 applies it after restart; Windows offers app relaunch. A global VPN prompt can

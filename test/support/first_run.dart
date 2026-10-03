@@ -23,6 +23,7 @@ class MemoryFirstRunStore extends FirstRunStore {
   FirstRunProfile? profile;
   Object? readError;
   Object? writeError;
+  Future<void>? completionWrite;
 
   @override
   Future<FirstRunProfile?> read() async {
@@ -32,6 +33,8 @@ class MemoryFirstRunStore extends FirstRunStore {
 
   @override
   Future<void> write(FirstRunProfile profile) async {
+    final pending = profile.completed ? completionWrite : null;
+    if (pending != null) await pending;
     if (writeError != null) throw writeError!;
     this.profile = profile;
   }
