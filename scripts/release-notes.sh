@@ -65,6 +65,19 @@ your PC": click **More info**, then **Run anyway**. Verify the download first:
 (Get-FileHash .\\mosh-${VERSION}-setup.exe -Algorithm SHA256).Hash.ToLower()
 # must equal the hash in mosh-${VERSION}-setup.exe.sha256
 \`\`\`
+
+**macOS (12 Monterey or later, Apple Silicon + Intel):** download
+\`Mosh_${VERSION}_universal.dmg\` and its \`.sha256\` file into the same folder.
+Verify the download before opening it:
+
+\`\`\`sh
+shasum -a 256 -c Mosh_${VERSION}_universal.dmg.sha256
+# must report Mosh_${VERSION}_universal.dmg: OK
+\`\`\`
+
+Open the disk image and drag Mosh to Applications. The app is not notarized;
+if Gatekeeper blocks its first launch, try opening it once, then choose
+**System Settings > Privacy & Security > Open Anyway**.
 EOF
 
 # --- what is provably in it --------------------------------------------------

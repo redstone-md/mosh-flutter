@@ -4,6 +4,47 @@ All notable changes to Mosh are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-10-03
+
+First launch now guides you through your name, device linking and network
+preferences before opening conversations.
+
+### Added
+
+- Three-step setup for new installations, with optional device linking and
+  physical-adapter selection. Your name and last saved step survive a restart.
+- A Profile section in Settings to edit your saved display name. The name is
+  reused for new conversations; existing conversation names stay as they are.
+- Conversation invitations received during setup open after you finish it.
+
+### Changed
+
+- Setup adapts to narrow windows, larger text and the on-screen keyboard.
+  Content scrolls inside a stationary card beneath the titlebar.
+- Step transitions preserve unfinished forms and respect reduced motion.
+  Returning to a step keeps its name, imported link and adapter selection.
+- Inter is bundled with the app, so text and controls use the same font on
+  every platform. Setup actions have larger labels and 48px minimum heights.
+
+### Fixed
+
+- Cancelling a pending device link returns to the device choices and allows
+  another pairing attempt. Failed cancellations remain available for retry.
+- Setup saves completion before Windows relaunches. A failed save keeps the
+  current form open with a retryable error.
+- Progress markers and the compact titlebar accommodate enlarged text.
+
+### Upgrade notes
+
+- Installations with existing conversations or linked devices skip setup.
+- Adapter changes take effect after restarting Mosh. Windows offers a relaunch;
+  other platforms ask you to close and reopen the app. Automatic VPN detection
+  is currently available on Windows only.
+- An invitation is held only while the app stays open. If you close Mosh during
+  setup, reopen the invitation after completing setup.
+- This release ships Windows and macOS builds. Physical Windows and Android
+  first-run verification remains pending.
+
 ## [0.14.0] - 2026-10-02
 
 ### Added
