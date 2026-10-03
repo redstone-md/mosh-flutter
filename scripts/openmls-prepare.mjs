@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { withSourceLock } from "./support/source-lock.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const patchDir = path.join(root, "third_party/openmls-patches");
@@ -38,9 +39,7 @@ export async function prepareOpenMls({
 } = {}) {
   const spec = JSON.parse(await readFile(path.join(patchDir, "source.json"), "utf8"));
   await mkdir(path.dirname(destination), { recursive: true });
-  const lock = `${destination}.lock`;
-  await acquireLock(lock);
-  try {
+  return withSourceLock(`${destination}.lock`, async () => {
     if (await hasFile(destination)) {
       const actual = await sourceHash(destination);
       if (actual === spec.sourceSha256) {
@@ -55,23 +54,30 @@ export async function prepareOpenMls({
     const archive = await loadArchive(spec, cacheDir, offline);
     await installSource(spec, archive, destination);
     return destination;
-  } finally {
-    await rm(lock, { recursive: true, force: true });
-  }
+  });
 }
 
 async function loadArchive(spec, cacheDir, offline) {
   await mkdir(cacheDir, { recursive: true });
   const archive = path.join(cacheDir, `${spec.name}-${spec.version}.crate`);
-  if (!(await hasFile(archive))) {
-    if (offline) throw new Error(`Offline archive missing: ${archive}`);
-    const response = await fetch(spec.url, { signal: AbortSignal.timeout(60_000) });
-    if (!response.ok) throw new Error(`Download failed: ${response.status} ${spec.url}`);
-    const bytes = Buffer.from(await response.arrayBuffer());
-    verifyArchive(bytes, spec.archiveSha256);
-    await writeFile(archive, bytes);
+  if (await hasFile(archive)) {
+    const bytes = await readFile(archive);
+    if (sha256(bytes) === spec.archiveSha256) return archive;
+    if (offline) throw new Error("OpenMLS archive checksum mismatch");
   }
-  verifyArchive(await readFile(archive), spec.archiveSha256);
+  if (offline) throw new Error(`Offline archive missing: ${archive}`);
+  const response = await fetch(spec.url, { signal: AbortSignal.timeout(60_000) });
+  if (!response.ok) throw new Error(`Download failed: ${response.status} ${spec.url}`);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  verifyArchive(bytes, spec.archiveSha256);
+  const staging = await mkdtemp(path.join(cacheDir, "archive-"));
+  try {
+    const downloaded = path.join(staging, "source.crate");
+    await writeFile(downloaded, bytes);
+    await rename(downloaded, archive);
+  } finally {
+    await rm(staging, { recursive: true, force: true });
+  }
   return archive;
 }
 
@@ -123,20 +129,6 @@ async function readStamp(destination) {
   } catch (error) {
     if (error.code === "ENOENT") return null;
     throw error;
-  }
-}
-
-async function acquireLock(lock) {
-  const deadline = Date.now() + 60_000;
-  while (true) {
-    try {
-      await mkdir(lock);
-      return;
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      if (Date.now() >= deadline) throw new Error(`OpenMLS preparation lock timed out: ${lock}`);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
   }
 }
 

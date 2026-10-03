@@ -12,7 +12,10 @@ node scripts/openmls-prepare.mjs
 [source.json](source.json) pins the crates.io archive, its SHA-256, upstream
 commit and the SHA-256 of the complete patched source tree. Preparation verifies
 both hashes, applies the patch in a temporary directory and publishes only
-verified source. The result at `third_party/openmls/` is the byte-identical tree
+verified source. A process lock uses unique claims and Lamport's
+[bakery ordering](https://lamport.azurewebsites.net/pubs/bakery.pdf), so a stopped
+builder can be recovered without removing another builder's claim. The result
+at `third_party/openmls/` is the byte-identical tree
 used before this migration, including its manifest, lockfile, license, upstream
 tests and Mosh regression tests. Existing source edits cause preparation to fail.
 
@@ -28,7 +31,8 @@ A fresh checkout requires either the cached archive or access to crates.io.
 
 To update the patch, edit the materialized source, produce a unified diff against
 the pinned archive, then update `sourceSha256`. `sourceHash` in the preparation
-script computes that hash. Run `node --test scripts/openmls-prepare.test.mjs`
+script computes that hash. Run
+`node --test scripts/openmls-prepare.test.mjs scripts/source-lock.test.mjs`
 and the core checks before committing. Patch updates retain all upstream files;
 do not trim tests or license notices. Upstream files keep their documented size
 exceptions. The MIT notice is retained in [LICENSE](LICENSE) and in the source.
