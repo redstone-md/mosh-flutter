@@ -165,9 +165,7 @@ impl ChannelRuntime {
             (channel_name, topic, prepared)
         };
         let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
-        if let Err(error) = self.channels.persist_tail() {
-            dlog::write(LogLevel::Error, kinds::PERSIST, KIND, &error.to_string());
-        }
+        self.channels.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -184,9 +182,7 @@ impl ChannelRuntime {
             (session.name.clone(), session.topic.clone(), prepared)
         };
         let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
-        if let Err(error) = self.channels.persist_tail() {
-            dlog::write(LogLevel::Error, kinds::PERSIST, KIND, &error.to_string());
-        }
+        self.channels.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -276,9 +272,7 @@ impl ChannelRuntime {
         let normalized = normalize_name(name)?;
         let session = self.channel_mut(&normalized)?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        if let Err(error) = self.channels.persist_tail() {
-            dlog::write(LogLevel::Error, kinds::PERSIST, KIND, &error.to_string());
-        }
+        self.channels.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -323,14 +317,14 @@ impl ChannelRuntime {
 
     pub fn poll(&mut self, name: &str) -> Result<ChannelSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
-        self.channels.persist_tail()?;
+        self.channels.persist_tail_logged(KIND);
         let normalized = normalize_name(name)?;
         Ok(self.channel_ref(&normalized)?.snapshot())
     }
 
     pub fn list(&mut self) -> Result<ChannelListSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
-        self.channels.persist_tail()?;
+        self.channels.persist_tail_logged(KIND);
         let mut channels: Vec<ChannelSnapshot> = self
             .channels
             .values()
