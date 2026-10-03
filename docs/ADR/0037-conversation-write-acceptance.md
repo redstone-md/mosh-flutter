@@ -21,12 +21,25 @@ refusal does not prevent other conversations from saving. A refused atomic send
 blocks message-only tail writes for that conversation. Memory-only runtimes
 continue to treat persistence as successful.
 
-Group MLS snapshots and their restoring records share one encrypted redb
-transaction. Rejoining after a refused durable close can replace the local
-signer, so writing its snapshot first would invalidate the retained old record.
+Snapshot reads retry pending writes and return the current in-memory view even
+when storage refuses. They log the refusal while retaining the write for retry,
+so one failed save cannot hide conversations. Text sends still return
+Persistence on refused admission before publishing. Group creation returns
+Persistence before exposing its new session.
+
+DM and group MLS snapshots and their restoring records share one encrypted redb
+transaction. DM read-receipt replay depends on both the consumed MLS ratchet and
+the record's read_message_ids. Rejoining after a refused durable close can replace
+the local signer, so writing its snapshot first would invalidate the retained
+old record.
 A refused pair write leaves the earlier pair recoverable and remains pending
-for retry. This reuses the atomic writer used by DM device transitions without
+for retry. Ordinary pre-Welcome DM snapshots retain their existing placeholder
+policy. This reuses the atomic writer used by DM device transitions without
 changing public contracts or database tables.
+
+Creating a group saves only its own atomic pair before inserting the session.
+A refused save closes the provisional room and leaves no session or retry that
+can silently create it later. Unrelated pending history cannot refuse creation.
 
 DM send admission first persists the existing Pending state. If admission
 refuses, the attempt becomes Failed and only its failed-status save is retried.
@@ -51,7 +64,9 @@ table-type fault exercises actual write refusal. Checks cover admission,
 repair/reopen, deliberate retry, delivery and MLS settlement, record/tail
 retries and isolation of atomic sends. A real Welcome after a refused close and
 rejoin verifies recovery when either group record or snapshot storage refuses,
-before retrying. No production fault interface is added.
+before retrying. Further cases cover refused creation, authenticated receipt
+replay after restart, and attachment reads during refusal through repair and
+rehydration. No production fault interface is added.
 
 A filesystem I/O failure can poison redb and require reopening the database.
 This decision does not add automatic database reopening. If the process exits
