@@ -8,6 +8,42 @@ import '../../support/first_run.dart';
 import '../../support/first_run_preview.dart';
 
 void main() {
+  for (final size in [
+    const Size(1280, 680),
+    const Size(1920, 1080),
+    const Size(390, 844),
+  ]) {
+    for (final step in SetupStep.values) {
+      testWidgets('$step has equal outer insets at $size', (tester) async {
+        final harness = FirstRunHarness(
+            profile: FirstRunProfile(displayName: 'Лена', step: step));
+        await harness.pump(tester, size: size);
+        _expectEqualInsets(tester);
+        final frame = tester.getRect(find.byType(SetupFrame));
+        expect(frame.center.dx, closeTo(_card(tester).center.dx, 1));
+        expect(frame.width, lessThanOrEqualTo(1160));
+      });
+    }
+  }
+
+  testWidgets('overflow scrolls inside a stationary card', (tester) async {
+    final harness =
+        FirstRunHarness(profile: const FirstRunProfile(displayName: 'Yuna'));
+    await harness.pump(tester, size: const Size(320, 568), scale: 2);
+    _expectEqualInsets(tester);
+    final card = _card(tester);
+    final scroll = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    expect(scroll.position.maxScrollExtent, greaterThan(0));
+    await tester.ensureVisible(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+    expect(_card(tester), card);
+    expect(tester.getRect(find.byType(FilledButton)).bottom,
+        lessThanOrEqualTo(card.bottom - 16));
+    await tapSetup(tester, 'Continue');
+    expect(harness.store.profile!.step, SetupStep.device);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final size in [const Size(1280, 680), const Size(900, 700)]) {
     for (final step in SetupStep.values) {
       testWidgets('$step fits the first viewport at $size', (tester) async {
@@ -110,6 +146,14 @@ Rect _card(WidgetTester tester) => tester.getRect(find
 
 Rect _viewport(WidgetTester tester) => tester.getRect(find
     .ancestor(
-        of: find.byType(SetupProgress),
-        matching: find.byType(SingleChildScrollView))
-    .first);
+        of: find.byType(SetupProgress), matching: find.byType(LayoutBuilder))
+    .last);
+
+void _expectEqualInsets(WidgetTester tester) {
+  final card = _card(tester);
+  final viewport = _viewport(tester);
+  final inset = card.left - viewport.left;
+  expect(card.top - viewport.top, closeTo(inset, 1));
+  expect(viewport.right - card.right, closeTo(inset, 1));
+  expect(viewport.bottom - card.bottom, closeTo(inset, 1));
+}

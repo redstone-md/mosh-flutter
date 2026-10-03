@@ -79,8 +79,10 @@ Use the existing palette: `bg0` #0B0C0D, `bg1` #111315, `moss` #B7D84A,
 (`assets/fonts/`, OFL). Its balanced metrics keep labels optically centered in
 buttons and step markers; the former Segoe UI fallback sat 1–2px low.
 Wide windows use the reference's illustration on the left and controls on the
-right for all three steps. Narrow windows stack these blocks in a centered card
-up to 640px wide. Wide cards remain capped at 1160px.
+right for all three steps. Narrow windows stack these blocks. The outer card
+fills the available viewport below the titlebar with the same inset on all four
+sides. Its centered content is capped at 640px when stacked and 1160px in two
+columns; the form column retains its 480px maximum width on desktop.
 
 Each step has one primary task heading, then its explanation, directly above
 its controls. Wide layouts follow the reference: the heading starts the form
@@ -104,8 +106,9 @@ receiver of `ButtonStyle.merge`: the app theme's `styleFrom` fills every slot,
 so merging the other way silently restored the 12px app label. Buttons can grow
 for wrapped labels and enlarged text. Settings keeps its existing density.
 
-The card centers horizontally and vertically within the space below the title
-bar. `SetupSizing` reads that viewport's width and height, including the reduced
+The card has equal outer padding within the safe area below the titlebar.
+Its content centers horizontally and vertically inside the padded card.
+`SetupSizing` reads the viewport's width and height, including the reduced
 height when a keyboard opens. It adjusts decorative image sizes and spacing.
 Progress circles grow with their text instead of clipping enlarged numbers.
 Where the step labels would crowd, the indicator shows all three markers and
@@ -128,12 +131,17 @@ The shared window titlebar also accounts for text scale when replacing the
 Peer status label with its compact icon, so completion does not expose an
 overflowing chat header at 200% text size.
 
-The scroll view gives its content the viewport's minimum height, following
+The scroll view inside the card gives its content the inner viewport's minimum
+height, following
 [Flutter's constrained scroll layout](https://docs.flutter.dev/cookbook/lists/spaced-items).
-It centers a card that fits, and scrolls larger content for small windows,
-enlarged text, keyboard input or expanded device-link states. Regression tests
+It centers content that fits, and scrolls larger content for small windows,
+enlarged text, keyboard input or expanded device-link states. The outer frame
+stays stationary and keeps its insets even while the content scrolls. The
+minimum-height constraint permits growth without fixed text heights or
+intrinsic measurement. Regression tests
 require all three default steps to fit at 1280×680 and 900×700 in Russian, and
-verify centering, image resizing, name preservation and keyboard access.
+verify equal insets, content centering, internal scrolling, image resizing,
+name preservation and keyboard access.
 
 The three illustrations are bundled in `assets/onboarding/` with their original
 RGBA transparency. Their generation prompts are recorded in
@@ -253,3 +261,11 @@ from setup. Formatting and analysis are clean; 174 focused onboarding/Profile
 tests passed with rendered previews, including the 48 viewport/text-scale cases
 and persistent-shell transitions. The three changed production files collected
 97.5% line and 98.1% branch coverage. Desktop and phone previews were inspected.
+
+Equal-inset validation on 2026-10-03: 184 focused onboarding/Profile tests passed
+with previews, including the 48 viewport/text-scale cases. Nine regression cases
+verify equal frame insets on all three steps at desktop and phone sizes; a tenth
+checks internal scrolling with 200% text in a small window. Persistent-shell,
+resize, keyboard and accessibility checks pass. Formatting and analysis are clean.
+Both changed production files collected 100% line and branch coverage. Desktop
+and phone previews were inspected; physical Windows verification remains pending.
