@@ -46,12 +46,14 @@ pub(super) fn retry_send_until_accepted(
         if remaining.is_zero() {
             break;
         }
-        // Pace the re-drives one per tick: the refusal takes a tick to come
-        // back, and polling here keeps the runtime's state machine advancing
-        // with the mesh facts in the timeline while the rendezvous forms.
+        // Poll each tick to advance the state machine while rendezvous forms.
+        // Sleeping or polling can consume the remaining budget.
         std::thread::sleep(TICK.min(remaining));
         let snap = channels.poll(channel)?;
         channel_snapshot_line(role, &snap);
+        if started.elapsed() >= budget {
+            break;
+        }
         sent = channels.retry_message(channel, &sent.message_id)?;
         attempt += 1;
         emit(
