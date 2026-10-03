@@ -104,10 +104,6 @@ bool _isDesktopPlatform() {
 Future<bool> _launchFile(Uri uri) =>
     launchUrl(uri, mode: LaunchMode.externalApplication);
 
-// Backwards-compat alias retained for any external/legacy references; the
-// canonical name is now `AttachmentLauncherImpl`.
-typedef UrlLauncherAttachmentLauncher = AttachmentLauncherImpl;
-
 final attachmentLauncherProvider = Provider<AttachmentLauncher>(
   (_) => const AttachmentLauncherImpl(),
 );
