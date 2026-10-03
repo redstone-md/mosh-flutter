@@ -23,17 +23,20 @@
 
 ![Mosh desktop showing a fictional conversation with Maya, a file, a voice note and conversation details](docs/assets/chat-desktop.png)
 
-<p align="center"><sub>Desktop preview with sample messages and simulated connection states.</sub></p>
+<p align="center"><sub>Desktop preview with sample data.</sub></p>
 
 ## Download
 
 Open the [latest release](https://github.com/redstone-md/mosh-flutter/releases/latest)
 and choose the file for your platform.
 
-| Platform | Download | Installation |
-| --- | --- | --- |
-| Windows x64 | [Installer · .exe](https://github.com/redstone-md/mosh-flutter/releases/latest) | Run the installer. No admin access needed. |
-| macOS 12+ | [Disk image · .dmg](https://github.com/redstone-md/mosh-flutter/releases/latest) | Drag Mosh to Applications. Apple Silicon and Intel. |
+| Download | Installation |
+| --- | --- |
+| [Windows x64 · .exe](https://github.com/redstone-md/mosh-flutter/releases/latest) | Run the installer. |
+| [macOS 12+ · .dmg](https://github.com/redstone-md/mosh-flutter/releases/latest) | Drag Mosh to Applications. |
+
+Windows installs without admin access. The macOS build supports Apple Silicon
+and Intel.
 
 Windows and macOS packages are available. Android supports linked text chats
 while the app is open; Android packages are not published yet.
@@ -99,7 +102,7 @@ Each installation keeps its own keys and encrypted local storage.
 
 <p align="center">
   <img src="docs/assets/first-run.png" alt="Mosh first-run setup showing the name step with Alex as the sample display name" width="800">
-  <br><sub>First-run setup, captured from the app with a sample name.</sub>
+  <br><sub>First-run setup with a sample name.</sub>
 </p>
 
 Setup saves your progress. Your name, devices and network preferences remain
