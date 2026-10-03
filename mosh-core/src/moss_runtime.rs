@@ -22,10 +22,6 @@ pub const MOSS_LIBRARY_NAME: &str = "libmoss.dylib";
 #[cfg(all(unix, not(target_os = "macos")))]
 pub const MOSS_LIBRARY_NAME: &str = "libmoss.so";
 
-pub trait MossRuntime {
-    fn status(&self) -> MossRuntimeStatus;
-}
-
 #[derive(Debug, Clone, serde::Serialize)]
 #[frb(non_opaque)]
 pub struct MossRuntimeStatus {
@@ -92,10 +88,8 @@ impl MossDynamicRuntime {
             .find(|path| path.exists())
             .cloned()
     }
-}
 
-impl MossRuntime for MossDynamicRuntime {
-    fn status(&self) -> MossRuntimeStatus {
+    pub fn status(&self) -> MossRuntimeStatus {
         let available = self.first_available_path().is_some();
 
         MossRuntimeStatus {

@@ -1578,7 +1578,9 @@ fn a_joiner_record_without_snapshot_is_dropped_at_rehydrate() {
     accept(&mut bob, &invite);
     // The legacy behavior: a joiner placeholder record written at accept
     // time, with no snapshot behind it and no Welcome ever coming.
-    bob.sessions.persist_record(&invite.session_id, false);
+    bob.sessions
+        .persist_record(&invite.session_id, false)
+        .unwrap();
     assert_eq!(
         stored_session_rows(&persistence).len(),
         1,
@@ -1632,11 +1634,9 @@ fn a_final_record_without_snapshot_is_kept_and_reported() {
         peer_moss_id: None,
         read_message_ids: vec![],
     };
-    crate::conversation::history::History::new(DM_HISTORY).write_record(
-        &persistence,
-        "session-finalish",
-        &record,
-    );
+    crate::conversation::history::History::new(DM_HISTORY)
+        .write_record(&persistence, "session-finalish", &record)
+        .unwrap();
     assert_eq!(stored_session_rows(&persistence).len(), 1);
 
     let net = MemoryNet::new();

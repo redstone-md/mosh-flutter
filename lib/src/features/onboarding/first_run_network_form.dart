@@ -4,6 +4,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/vpn/bypass_adapter.dart';
+import 'package:mosh/src/features/vpn/network_choice_provider.dart';
 import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 
@@ -25,9 +26,13 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
   bool _busy = false;
   String? _error;
 
-  bool get _needsRestart =>
-      _picked != widget.network.savedAdapter ||
-      _picked != widget.network.liveAdapter;
+  bool get _needsRestart => ref
+      .read(networkChoiceProvider(ref.read(bridgeFacadeProvider)).notifier)
+      .requiresRestart(_picked);
+
+  bool get _saving =>
+      _busy ||
+      ref.read(networkChoiceProvider(ref.read(bridgeFacadeProvider))).busy;
 
   bool get _selectionAvailable =>
       _picked == null ||
@@ -35,44 +40,40 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
           .any((adapter) => adapter.name == _picked);
 
   Future<void> _finish() async {
-    if (_busy || !_selectionAvailable) return;
+    if (_saving || !_selectionAvailable) return;
+    final setup = ref.read(firstRunProfileProvider.notifier);
+    final relauncher = DesktopAppRelauncherScope.of(context);
+    final navigator = Navigator.of(context, rootNavigator: true);
     setState(() {
       _busy = true;
       _error = null;
     });
-    var restarting = false;
     try {
-      if (_picked != widget.network.savedAdapter) {
-        await ref
-            .read(bridgeFacadeProvider)
-            .setVpnBypassConsent(interfaceName: _picked);
-      }
-      if (!mounted) return;
-      await ref.read(firstRunProfileProvider.notifier).finish(() async {
-        if (!_needsRestart || !mounted) return;
-        restarting = true;
-        final relauncher = DesktopAppRelauncherScope.of(context);
+      await ref
+          .read(networkChoiceProvider(ref.read(bridgeFacadeProvider)).notifier)
+          .apply(_picked, complete: setup.finish, restart: () async {
         if (relauncher.supported) {
           await relauncher.relaunch();
-        } else {
-          await _manualRestart();
+        } else if (navigator.mounted) {
+          await _manualRestart(navigator.context);
         }
       });
-    } catch (_) {
+    } on NetworkChoiceError catch (error) {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
-        setState(() =>
-            _error = restarting ? l.firstRunRestartError : l.firstRunSaveError);
+        setState(() => _error = error.kind == NetworkChoiceFailure.restart
+            ? l.firstRunRestartError
+            : l.firstRunSaveError);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _manualRestart() async {
-    final l = AppLocalizations.of(context)!;
+  Future<void> _manualRestart(BuildContext restartContext) async {
+    final l = AppLocalizations.of(restartContext)!;
     await showDialog<void>(
-        context: context,
+        context: restartContext,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
               title: Text(l.firstRunRestartTitle),
@@ -98,6 +99,7 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(networkChoiceProvider(ref.watch(bridgeFacadeProvider)));
     final l = AppLocalizations.of(context)!;
     final relauncher = DesktopAppRelauncherScope.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -119,14 +121,15 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
       ],
       const SizedBox(height: 28),
       FilledButton(
-          onPressed: _busy || !_selectionAvailable ? null : _finish,
-          child: Text(_busy
+          onPressed: _saving || !_selectionAvailable ? null : _finish,
+          child: Text(_saving
               ? l.firstRunSaving
               : _needsRestart && relauncher.supported
                   ? l.firstRunSaveRestart
                   : l.firstRunFinish)),
       const SizedBox(height: 12),
-      TextButton(onPressed: _busy ? null : _back, child: Text(l.firstRunBack)),
+      TextButton(
+          onPressed: _saving ? null : _back, child: Text(l.firstRunBack)),
       if (_error != null)
         Semantics(
             liveRegion: true,
@@ -151,6 +154,6 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
                 enabled: false),
         ],
         onChanged:
-            _busy ? null : (adapter) => setState(() => _picked = adapter));
+            _saving ? null : (adapter) => setState(() => _picked = adapter));
   }
 }

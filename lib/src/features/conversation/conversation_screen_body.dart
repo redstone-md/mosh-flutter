@@ -68,7 +68,8 @@ class ConversationScreenBody extends ConsumerWidget {
   final Future<void> Function() onRetrySend;
 
   /// Opens an attachment. The screen owns the viewer and the file launcher.
-  final void Function(AttachmentDescriptor descriptor, AttachmentView? view)
+  final void Function(
+          AttachmentDescriptor descriptor, AttachmentView? view, bool own)
       onOpenAttachment;
 
   /// Starts a DM with a peer of this channel or group.

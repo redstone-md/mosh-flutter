@@ -23,6 +23,7 @@ class MemoryFirstRunStore extends FirstRunStore {
   FirstRunProfile? profile;
   Object? readError;
   Object? writeError;
+  Future<void>? completionWrite;
 
   @override
   Future<FirstRunProfile?> read() async {
@@ -32,6 +33,8 @@ class MemoryFirstRunStore extends FirstRunStore {
 
   @override
   Future<void> write(FirstRunProfile profile) async {
+    final pending = profile.completed ? completionWrite : null;
+    if (pending != null) await pending;
     if (writeError != null) throw writeError!;
     this.profile = profile;
   }
@@ -49,7 +52,7 @@ class FirstRunHarness {
 
   final MemoryFirstRunStore store;
   final ScriptableBridge bridge;
-  ScriptableDeviceLink link;
+  final ScriptableDeviceLink link;
   late ProviderContainer container;
 
   Future<void> pump(
@@ -70,13 +73,8 @@ class FirstRunHarness {
       bridgeFacadeProvider.overrideWithValue(bridge),
       gatewayProvider.overrideWithValue(
           ScriptableGateway(conversations: bridge.conversations)),
-      deviceLinkProvider.overrideWith(() {
-        link = ScriptableDeviceLink(snapshot: link.current)
-          ..buildError = link.buildError
-          ..actionError = link.actionError
-          ..snapshotAfterCancel = link.snapshotAfterCancel;
-        return link;
-      }),
+      deviceLinkCommandsProvider.overrideWithValue(link),
+      deviceLinkPollIntervalProvider.overrideWithValue(null),
     ]);
     addTearDown(container.dispose);
     appRouter.go(AppRoutes.sessions);

@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
+import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import '../../support/pump.dart';
+import '../../support/conversation_cases.dart';
 
 AttachmentDescriptor _descriptor() => AttachmentDescriptor(
       attachmentId: 'attachment-1',
@@ -25,9 +27,11 @@ void main() {
         Builder(
           builder: (context) => Scaffold(
             body: AttachmentActions(
-              descriptor: _descriptor(),
-              state: AttachmentState.offered,
-              outgoing: false,
+              attachment: ConversationAttachment(
+                  descriptor: _descriptor(),
+                  view: testAttachmentView(
+                      attachmentId: 'attachment-1',
+                      state: AttachmentState.offered)),
               busy: true,
               onDownload: (_) {},
               onCancel: (_) {},
@@ -46,9 +50,11 @@ void main() {
         Builder(
           builder: (context) => Scaffold(
             body: AttachmentActions(
-              descriptor: _descriptor(),
-              state: AttachmentState.failed,
-              outgoing: false,
+              attachment: ConversationAttachment(
+                  descriptor: _descriptor(),
+                  view: testAttachmentView(
+                      attachmentId: 'attachment-1',
+                      state: AttachmentState.failed)),
               busy: true,
               onDownload: (_) {},
               onCancel: (_) {},
@@ -67,9 +73,11 @@ void main() {
         Builder(
           builder: (context) => Scaffold(
             body: AttachmentActions(
-              descriptor: _descriptor(),
-              state: AttachmentState.downloading,
-              outgoing: false,
+              attachment: ConversationAttachment(
+                  descriptor: _descriptor(),
+                  view: testAttachmentView(
+                      attachmentId: 'attachment-1',
+                      state: AttachmentState.downloading)),
               busy: true,
               onDownload: (_) {},
               onCancel: (_) {},

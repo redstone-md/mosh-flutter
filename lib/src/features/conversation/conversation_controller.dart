@@ -17,12 +17,7 @@ import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart'
     show ConversationAttachmentCallbacks;
 import 'package:mosh/src/features/conversation/conversation_state.dart';
-import 'package:mosh/src/features/shared/attachment_media_src.dart'
-    show
-        isViewableMedia,
-        localFileSrc,
-        resolveLocalAttachmentOpen,
-        resolveMediaOpen;
+import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
@@ -32,7 +27,7 @@ import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show StartSessionRequest;
 import 'package:mosh/src/rust/conversation/attachments.dart'
-    show AttachmentDescriptor, AttachmentState, AttachmentView;
+    show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider, refreshConversation;
 import 'package:mosh/src/state/gateway_provider.dart'
@@ -215,18 +210,20 @@ class ConversationController extends Notifier<ConversationControllerState> {
 
   /// Builds the attachment card's actions for one row. [onOpen] goes back to
   /// the screen, which owns the viewer.
-  ConversationAttachmentCallbacks Function(AttachmentView? view)
-      attachmentCallbacks(
-    void Function(AttachmentDescriptor descriptor, AttachmentView? view) onOpen,
+  ConversationAttachmentCallbacks Function(AttachmentView? view,
+      {required bool own}) attachmentCallbacks(
+    void Function(
+            AttachmentDescriptor descriptor, AttachmentView? view, bool own)
+        onOpen,
   ) =>
-          (view) => ConversationAttachmentCallbacks(
-                busy: state.transferBusy,
-                onDownload: (id) =>
-                    _transferAttachment((g) => _downloadAttachment(g, id)),
-                onCancel: (id) =>
-                    _transferAttachment((g) => _cancelAttachment(g, id)),
-                onOpen: (descriptor) => onOpen(descriptor, view),
-              );
+      (view, {required bool own}) => ConversationAttachmentCallbacks(
+            busy: state.transferBusy,
+            onDownload: (id) =>
+                _transferAttachment((g) => _downloadAttachment(g, id)),
+            onCancel: (id) =>
+                _transferAttachment((g) => _cancelAttachment(g, id)),
+            onOpen: (descriptor) => onOpen(descriptor, view, own),
+          );
 
   /// Starts a transfer and re-reads the conversation when it settles. The
   /// progress shows up in the next poll, so nothing waits on the future; a
@@ -252,29 +249,18 @@ class ConversationController extends Notifier<ConversationControllerState> {
   /// and waits: the screen shows it once [resolvePendingOpen] says so.
   AttachmentOpenIntent openAttachment(
     AttachmentDescriptor descriptor,
-    AttachmentView? view,
-  ) {
-    final local =
-        resolveLocalAttachmentOpen(descriptor: descriptor, view: view);
-    if (local is! AttachmentNoopOpenIntent) return local;
-    if (!isViewableMedia(descriptor.mime)) {
-      return const AttachmentNoopOpenIntent();
-    }
-    final decision = resolveMediaOpen(
-      descriptor: descriptor,
-      view: view,
-      kind: target.kind.name,
-      host: target.id,
-    );
+    AttachmentView? view, {
+    required bool own,
+  }) {
+    final decision =
+        ConversationAttachment(descriptor: descriptor, view: view, own: own)
+            .openPlan(target);
     if (decision.wait) state = state.copyWith(pendingOpen: descriptor);
     if (decision.download) {
       _transferAttachment(
           (g) => _downloadAttachment(g, descriptor.attachmentId));
     }
-    return switch (decision.src) {
-      null => const AttachmentNoopOpenIntent(),
-      final src => AttachmentMediaOpenIntent(descriptor: descriptor, src: src),
-    };
+    return decision.intent;
   }
 
   /// Checks a waiting attachment against a fresh transfer list. Called by the
@@ -290,18 +276,12 @@ class ConversationController extends Notifier<ConversationControllerState> {
       }
     }
     if (view == null) return const ConversationPendingNone();
-    final localPath = view.localPath;
-    if (localPath != null && localPath.isNotEmpty) {
+    final result = ConversationAttachment(descriptor: pending, view: view)
+        .resolvePendingOpen();
+    if (result is! ConversationPendingNone) {
       state = state.copyWith(pendingOpen: null);
-      return ConversationPendingShow(pending, localFileSrc(localPath));
     }
-    // A failed/cancelled transfer clears the wait: nothing will arrive.
-    if (view.state == AttachmentState.failed ||
-        view.state == AttachmentState.cancelled) {
-      state = state.copyWith(pendingOpen: null);
-      return const ConversationPendingDropped();
-    }
-    return const ConversationPendingNone();
+    return result;
   }
 
   /// Invites a peer of this channel or group to a private DM: mint an

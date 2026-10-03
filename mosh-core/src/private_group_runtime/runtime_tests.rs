@@ -1377,11 +1377,9 @@ fn a_group_joiner_record_without_snapshot_is_dropped_at_rehydrate() {
         static_peer: None,
         org_pubkey: None,
     };
-    crate::conversation::history::History::new(GROUP_HISTORY).write_record(
-        &persistence,
-        "group-orphan",
-        &record,
-    );
+    crate::conversation::history::History::new(GROUP_HISTORY)
+        .write_record(&persistence, "group-orphan", &record)
+        .unwrap();
     assert_eq!(
         persisted_group_rows(&persistence).len(),
         1,
@@ -1429,11 +1427,9 @@ fn a_real_group_record_without_snapshot_is_kept_and_reported() {
         static_peer: None,
         org_pubkey: None,
     };
-    crate::conversation::history::History::new(GROUP_HISTORY).write_record(
-        &persistence,
-        "group-corrupt",
-        &record,
-    );
+    crate::conversation::history::History::new(GROUP_HISTORY)
+        .write_record(&persistence, "group-corrupt", &record)
+        .unwrap();
     assert_eq!(persisted_group_rows(&persistence).len(), 1);
 
     let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));

@@ -140,6 +140,7 @@ pub struct ChannelLeaveResult {
 pub enum ChannelRuntimeError {
     Moss(String),
     Codec(String),
+    Persistence(String),
     InvalidName(String),
     BodyTooLarge,
     MissingChannel(String),
@@ -154,6 +155,7 @@ impl std::fmt::Display for ChannelRuntimeError {
         match self {
             Self::Moss(error) => write!(formatter, "Moss error: {error}"),
             Self::Codec(error) => write!(formatter, "codec error: {error}"),
+            Self::Persistence(error) => write!(formatter, "persistence error: {error}"),
             Self::InvalidName(name) => write!(formatter, "invalid channel name: {name}"),
             Self::BodyTooLarge => write!(formatter, "channel message too large"),
             Self::MissingChannel(name) => write!(formatter, "channel not joined: {name}"),
@@ -200,4 +202,10 @@ pub struct ChannelRuntime {
     // actively harmful.
     pub(super) shared_node: Arc<SharedMossNode>,
     pub(super) channels: ConversationRuntime<ChannelSession>,
+}
+
+impl From<crate::persistence::PersistenceError> for ChannelRuntimeError {
+    fn from(error: crate::persistence::PersistenceError) -> Self {
+        Self::Persistence(error.to_string())
+    }
 }

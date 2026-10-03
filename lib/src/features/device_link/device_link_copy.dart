@@ -1,8 +1,15 @@
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/rust/device_link/types.dart';
 
-String deviceLinkError(AppLocalizations l, Object error) => deviceLinkErrorKind(
-    l, error is DeviceLinkError ? error.kind : DeviceLinkErrorKind.unavailable);
+String deviceLinkError(
+        AppLocalizations l, Object error) =>
+    error is FormatException
+        ? l.deviceLinkInvalidQr
+        : deviceLinkErrorKind(
+            l,
+            error is DeviceLinkError
+                ? error.kind
+                : DeviceLinkErrorKind.unavailable);
 
 String deviceLinkErrorKind(AppLocalizations l, DeviceLinkErrorKind kind) =>
     switch (kind) {

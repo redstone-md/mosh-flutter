@@ -18,7 +18,7 @@ void main() {
       Scaffold(
         body: ConversationPeerStatus(
           target: const DmTarget('test'),
-          onOpenAttachment: (_, view) {},
+          onOpenAttachment: (_, view, own) {},
           async: AsyncValue.error(
             const ConversationBridgeError(
               kind: ConversationBridgeErrorKind.unavailable,

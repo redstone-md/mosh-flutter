@@ -1,9 +1,5 @@
-// Parity tests for `call_drain` (lib/src/features/voice_call/call_drain.dart)
-// -- the gateway poll-loop glue that pulls sealed call frames from a
-// [CallFrameSource]. This is a fresh Dart suite proving the
-// glue behavior end-to-end against the real `frame_crypto` seal/open path
-// (no crypto mocking) so the jitter-reorder + skip-on-auth-failure contract
-// is exercised faithfully.
+// Decrypt/reorder/feed behavior through the bridge and playback seams,
+// using real frame crypto and jitter ordering without native audio.
 // ignore_for_file: constant_identifier_names
 
 import 'dart:typed_data';
@@ -13,18 +9,11 @@ import 'package:mosh/src/features/voice_call/call_drain.dart';
 import 'package:mosh/src/features/voice_call/frame_codec.dart';
 import 'package:mosh/src/features/voice_call/frame_crypto.dart';
 import 'package:mosh/src/features/voice_call/jitter_buffer.dart';
+import '../../support/scriptable_bridge.dart';
 
 const String KEY_B64 =
     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; // 32 zero bytes
 const String PREFIX_B64 = 'AAAAAA=='; // 4 zero bytes
-
-class _FakeSource implements CallFrameSource {
-  _FakeSource(this.frames);
-  List<String> frames;
-  @override
-  Future<List<String>> callDrainFrames(String sessionId, String callId) async =>
-      frames;
-}
 
 class _FakeSink implements CallFrameSink {
   final List<({BigInt seq, Uint8List payload})> received = [];
@@ -36,14 +25,14 @@ class _FakeSink implements CallFrameSink {
 
 void main() {
   group('call_drain', () {
-    test('drains nothing when source returns no frames', () async {
+    test('drains nothing when the bridge returns no frames', () async {
       final key = await importCallKey(KEY_B64);
-      final source = _FakeSource(<String>[]);
+      final bridge = ScriptableBridge();
       final jitter = JitterBuffer();
       final playback = _FakeSink();
 
       await drainCallFrames(
-        source: source,
+        bridge: bridge,
         sessionId: 's',
         callId: 'c',
         key: key,
@@ -66,13 +55,12 @@ void main() {
           CALLER_DIRECTION_BIT, Uint8List.fromList([20]));
       final f3 = await sealFrame(key, PREFIX_B64, BigInt.from(3),
           CALLER_DIRECTION_BIT, Uint8List.fromList([30]));
-      final source = _FakeSource(
-          [bytesToBase64(f3), bytesToBase64(f1), bytesToBase64(f2)]);
+      final bridge = ScriptableBridge()..seedCallFrames([f3, f1, f2]);
       final jitter = JitterBuffer();
       final playback = _FakeSink();
 
       await drainCallFrames(
-        source: source,
+        bridge: bridge,
         sessionId: 's',
         callId: 'c',
         key: key,
@@ -88,6 +76,9 @@ void main() {
       expect(playback.received[1].payload, Uint8List.fromList([20]));
       expect(playback.received[2].seq, BigInt.from(3));
       expect(playback.received[2].payload, Uint8List.fromList([30]));
+      final call = bridge.lastCall(BridgeMethod.callDrainFrames)!;
+      expect(call.arg<String>('sessionId'), 's');
+      expect(call.arg<String>('callId'), 'c');
     });
 
     test('skips frames that fail auth (tampered) and plays the rest', () async {
@@ -97,13 +88,12 @@ void main() {
       final tampered = await sealFrame(key, PREFIX_B64, BigInt.two,
           CALLER_DIRECTION_BIT, Uint8List.fromList([20]));
       tampered[tampered.length - 1] ^= 0xff; // flip last byte -> GCM auth fails
-      final source =
-          _FakeSource([bytesToBase64(good), bytesToBase64(tampered)]);
+      final bridge = ScriptableBridge()..seedCallFrames([good, tampered]);
       final jitter = JitterBuffer();
       final playback = _FakeSink();
 
       await drainCallFrames(
-        source: source,
+        bridge: bridge,
         sessionId: 's',
         callId: 'c',
         key: key,
