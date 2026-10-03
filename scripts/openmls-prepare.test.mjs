@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
@@ -28,6 +28,24 @@ test("existing source edits are preserved and refused", async () => {
   await assert.rejects(prepareOpenMls({ destination, cacheDir }), /local edits/);
   assert.equal(await readFile(edited, "utf8"), `${original}\n# local edit\n`);
   await writeFile(edited, original);
+});
+
+test("a removed manifest cannot bypass edit protection", async () => {
+  const manifest = path.join(destination, "Cargo.toml");
+  const original = await readFile(manifest);
+  await rm(manifest);
+  await assert.rejects(prepareOpenMls({ destination, cacheDir }), /local edits/);
+  await assert.rejects(readFile(manifest), { code: "ENOENT" });
+  await writeFile(manifest, original);
+});
+
+test("a partial source tree is preserved and refused", async () => {
+  const partial = path.join(scratch, "partial");
+  await mkdir(partial);
+  const edited = path.join(partial, "local.rs");
+  await writeFile(edited, "local source");
+  await assert.rejects(prepareOpenMls({ destination: partial, cacheDir }), /local edits/);
+  assert.equal(await readFile(edited, "utf8"), "local source");
 });
 
 test("a damaged cached archive cannot materialize source", async () => {

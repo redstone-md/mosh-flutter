@@ -41,7 +41,7 @@ export async function prepareOpenMls({
   const lock = `${destination}.lock`;
   await acquireLock(lock);
   try {
-    if (await hasFile(path.join(destination, "Cargo.toml"))) {
+    if (await hasFile(destination)) {
       const actual = await sourceHash(destination);
       if (actual === spec.sourceSha256) {
         await writeFile(path.join(destination, stampName), `${JSON.stringify(spec)}\n`);
