@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/rust/network_inventory.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
+import 'package:mosh/src/features/vpn/network_choice_provider.dart';
 
 class SetupNetwork {
   const SetupNetwork(
@@ -17,15 +18,11 @@ class SetupNetwork {
 final setupNetworkProvider =
     FutureProvider.autoDispose<SetupNetwork>((ref) async {
   final bridge = ref.watch(bridgeFacadeProvider);
-  final (interfaces, consent, binding, detection) = await (
-    bridge.listInterfaces(),
-    bridge.getVpnBypassConsent(),
-    bridge.getBindInterface(),
-    bridge.detectVpn(),
-  ).wait;
+  final routing =
+      await ref.read(networkChoiceProvider(bridge).notifier).readRouting();
   return SetupNetwork(
-      interfaces: interfaces,
-      savedAdapter: consent?.interface_,
-      liveAdapter: binding,
-      vpnDetected: detection.vpnOwnsDefaultRoute);
+      interfaces: routing.saved.interfaces,
+      savedAdapter: routing.saved.adapter,
+      liveAdapter: routing.liveAdapter,
+      vpnDetected: routing.vpnDetected);
 });

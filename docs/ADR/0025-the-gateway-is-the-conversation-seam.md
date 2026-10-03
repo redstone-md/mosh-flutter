@@ -43,7 +43,7 @@ and the test surface should be the same small thing.
 - The 34 mirrors leave the interface and move to `BridgeFacade`
   (`lib/src/gateway/bridge_facade.dart`) -- a concrete class, one one-line
   delegation per method, no seam around it. Their callers (org actions and
-  providers, the VPN widgets, the voice-call orchestrator and frame transport,
+  providers, the VPN widgets, the voice-call orchestrator and frame drain,
   diagnostics, onboarding steps, the rail accept, the controller's cross-kind
   offer and invite calls) consume it through `bridgeFacadeProvider`.
 - `ScriptableGateway` records and scripts only the eight seam methods. A new

@@ -3,6 +3,7 @@ import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
+import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/features/conversation/attachment_thumb.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
@@ -27,17 +28,15 @@ class ConversationSharedFile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final file = message.attachment!;
-    final outgoing =
-        view?.direction == 'outgoing' || (view == null && message.own);
-    final state = view?.state ??
-        (outgoing ? AttachmentState.available : AttachmentState.offered);
-    final canOpen = state == AttachmentState.available &&
-        (view?.localPath?.isNotEmpty ?? false);
+    final attachment =
+        ConversationAttachment(descriptor: file, view: view, own: message.own);
+    final progress = attachment.progress;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: AttachmentOpenTarget(
         label: l.attachmentOpenAria(file.fileName),
-        onOpen: canOpen ? () => actions.onOpen(file) : null,
+        onOpen:
+            attachment.localPath != null ? () => actions.onOpen(file) : null,
         child: Row(children: [
           Container(
             width: kAttachmentThumbSize,
@@ -60,19 +59,12 @@ class ConversationSharedFile extends StatelessWidget {
               const SizedBox(height: 4),
               Text(formatBytes(file.totalSize),
                   style: Theme.of(context).textTheme.bodySmall),
-              if (state == AttachmentState.downloading)
-                LinearProgressIndicator(
-                    value: view!.chunkCount == BigInt.zero
-                        ? null
-                        : (view!.completedChunks.toDouble() /
-                                view!.chunkCount.toDouble())
-                            .clamp(0.0, 1.0)),
+              if (progress != null)
+                LinearProgressIndicator(value: progress.fraction),
             ],
           )),
           AttachmentActions(
-            descriptor: file,
-            state: state,
-            outgoing: outgoing,
+            attachment: attachment,
             busy: actions.busy,
             onDownload: actions.onDownload,
             onCancel: actions.onCancel,

@@ -14,6 +14,7 @@ import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_device_link.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late Directory directory;
   late FirstRunStore store;
   late ScriptableBridge bridge;
@@ -28,8 +29,8 @@ void main() {
     container = ProviderContainer(retry: (_, __) => null, overrides: [
       firstRunStoreProvider.overrideWithValue(store),
       bridgeFacadeProvider.overrideWithValue(bridge),
-      deviceLinkProvider.overrideWith(
-          () => link = ScriptableDeviceLink(snapshot: link.current)),
+      deviceLinkCommandsProvider.overrideWithValue(link),
+      deviceLinkPollIntervalProvider.overrideWithValue(null),
     ]);
   });
   tearDown(() async {

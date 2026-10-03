@@ -40,3 +40,7 @@ pub mod api;
 // Reuse the independent-installation harness for private legacy-format fixtures.
 #[cfg(test)]
 extern crate self as mosh_core;
+
+#[cfg(test)]
+#[path = "../tests/support/temp_directory.rs"]
+mod test_temp_directory;

@@ -6,6 +6,7 @@
 // each double mixes it in over its own method enum. The doubles stay flat:
 // one method per call, no nesting.
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:mosh/src/gateway/conversation_target.dart';
 
@@ -61,6 +62,7 @@ mixin ScriptedEngine<M extends Enum> {
 
   final Map<M, _ScriptedFailure> _failures = {};
   final Map<M, Completer<void>> _held = {};
+  final Map<M, Queue<Future<Object?>>> _responses = {};
 
   // ---------------------------------------------------------------- asserts
 
@@ -104,6 +106,11 @@ mixin ScriptedEngine<M extends Enum> {
     if (gate != null && !gate.isCompleted) gate.complete();
   }
 
+  /// Supply one response whose completion a test controls independently.
+  void respondNext<T>(M method, Future<T> response) {
+    (_responses[method] ??= Queue()).add(response);
+  }
+
   Object _defaultError(M method) =>
       Exception('the scripted double: scripted failure of ${method.name}');
 
@@ -120,6 +127,10 @@ mixin ScriptedEngine<M extends Enum> {
     if (failure != null && failure.consume()) throw failure.error;
     final gate = _held[method];
     if (gate != null) await gate.future;
+    final responses = _responses[method];
+    if (responses != null && responses.isNotEmpty) {
+      return await responses.removeFirst() as T;
+    }
     return result();
   }
 }
