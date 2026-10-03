@@ -9,6 +9,9 @@ use super::*;
 use crate::conversation::test_message::TestMessage;
 use crate::persistence::DM_HISTORY;
 
+#[path = "runtime_tests/durability.rs"]
+mod durability;
+
 const CONVERSATION: &str = "conv-1";
 
 /// A stand-in kind, the way `test_message::TestMessage` stands in one layer
@@ -67,8 +70,9 @@ impl ConversationSession for TestSession {
         format!("record for {}", self.id)
     }
 
-    fn write_extra(&self, _persistence: &Persistence) {
+    fn write_extra(&self, _persistence: &Persistence) -> Result<(), PersistenceError> {
         self.extra_writes.set(self.extra_writes.get() + 1);
+        Ok(())
     }
 
     fn record_is_final(&self) -> bool {
@@ -139,7 +143,7 @@ fn a_record_is_saved_once_it_is_final_and_not_before() {
     session.say("first");
     runtime.insert(CONVERSATION.to_string(), session);
 
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
     assert!(
         runtime.stored_records::<String>().is_empty(),
         "a record that cannot be rebuilt must not be saved"
@@ -149,7 +153,7 @@ fn a_record_is_saved_once_it_is_final_and_not_before() {
         .get_mut(CONVERSATION)
         .expect("the conversation")
         .ready = true;
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
 
     assert_eq!(
         runtime.stored_records::<String>(),
@@ -163,10 +167,10 @@ fn an_unchanged_record_is_not_written_again() {
     let mut runtime = scratch.runtime();
     runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
 
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
     let after_first = extra_writes(&runtime);
-    runtime.persist_tail();
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
+    runtime.persist_tail().unwrap();
 
     assert_eq!(
         extra_writes(&runtime),
@@ -180,16 +184,16 @@ fn a_changed_record_is_written_again_and_then_settles() {
     let scratch = Scratch::open("changed");
     let mut runtime = scratch.runtime();
     runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
     let after_first = extra_writes(&runtime);
 
     runtime
         .get_mut(CONVERSATION)
         .expect("the conversation")
         .changed = true;
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
     let after_change = extra_writes(&runtime);
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
 
     assert_eq!(after_change, after_first + 1, "a changed record is saved");
     assert_eq!(
@@ -204,14 +208,14 @@ fn new_messages_save_the_kind_state_with_them() {
     let scratch = Scratch::open("messages");
     let mut runtime = scratch.runtime();
     runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
     let idle = extra_writes(&runtime);
 
     runtime
         .get_mut(CONVERSATION)
         .expect("the conversation")
         .say("something new");
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
 
     assert_eq!(extra_writes(&runtime), idle + 1);
 }
@@ -226,9 +230,13 @@ fn a_send_saves_its_message_and_only_a_first_send_saves_the_kind_state() {
     runtime.insert(CONVERSATION.to_string(), session);
     let before = extra_writes(&runtime);
 
-    runtime.persist_send(CONVERSATION, &message_id, true);
+    runtime
+        .persist_send(CONVERSATION, &message_id, true)
+        .unwrap();
     let after_first = extra_writes(&runtime);
-    runtime.persist_send(CONVERSATION, &message_id, false);
+    runtime
+        .persist_send(CONVERSATION, &message_id, false)
+        .unwrap();
 
     assert_eq!(after_first, before + 1, "a first send saves the kind state");
     assert_eq!(
@@ -262,8 +270,12 @@ fn a_send_for_a_message_nobody_holds_writes_nothing() {
     runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
     let before = extra_writes(&runtime);
 
-    runtime.persist_send(CONVERSATION, "never-sent", true);
-    runtime.persist_send("never-joined", "never-sent", true);
+    runtime
+        .persist_send(CONVERSATION, "never-sent", true)
+        .unwrap();
+    runtime
+        .persist_send("never-joined", "never-sent", true)
+        .unwrap();
 
     assert_eq!(extra_writes(&runtime), before);
     assert!(runtime.stored_records::<String>().is_empty());
@@ -275,9 +287,9 @@ fn a_fresh_conversation_saves_its_record_before_anyone_speaks() {
     let mut runtime = scratch.runtime();
     runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
 
-    runtime.persist_record(CONVERSATION, true);
+    runtime.persist_record(CONVERSATION, true).unwrap();
     let after_create = extra_writes(&runtime);
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
 
     assert_eq!(
         runtime.stored_records::<String>(),
@@ -296,9 +308,9 @@ fn a_placeholder_record_is_saved_without_claiming_to_be_final() {
     let mut runtime = scratch.runtime();
     runtime.insert(CONVERSATION.to_string(), TestSession::new(CONVERSATION));
 
-    runtime.persist_record(CONVERSATION, false);
+    runtime.persist_record(CONVERSATION, false).unwrap();
     let after_create = extra_writes(&runtime);
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
 
     assert_eq!(
         extra_writes(&runtime),
@@ -316,7 +328,7 @@ fn a_record_read_back_off_disk_is_not_written_again() {
     // What rehydrate does: the record came off disk, so it is already final.
     runtime.mark_record_final(CONVERSATION);
     let before = extra_writes(&runtime);
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
 
     assert_eq!(
         extra_writes(&runtime),
@@ -332,11 +344,11 @@ fn a_conversation_the_user_left_is_written_again_from_the_start() {
     let mut session = TestSession::new(CONVERSATION);
     session.say("first");
     runtime.insert(CONVERSATION.to_string(), session);
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
     let after_first = extra_writes(&runtime);
 
     runtime.forget(CONVERSATION);
-    runtime.persist_tail();
+    runtime.persist_tail().unwrap();
 
     assert_eq!(
         extra_writes(&runtime),

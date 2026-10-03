@@ -112,7 +112,7 @@ impl ChannelRuntime {
         };
 
         self.channels.insert(normalized.clone(), session);
-        self.channels.persist_tail();
+        self.channels.persist_tail()?;
         self.poll(&normalized)
     }
 

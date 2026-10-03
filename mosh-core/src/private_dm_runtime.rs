@@ -2,6 +2,7 @@ mod call_media;
 pub(crate) mod contracts;
 mod devices;
 mod invite;
+mod outbox;
 pub(crate) mod transport;
 mod wire;
 
@@ -515,7 +516,7 @@ impl PrivateDmRuntime {
 
         // Alice's group exists from create_group(), so the record is final the
         // moment it is written.
-        self.sessions.persist_record(&session_id, true);
+        self.sessions.persist_record(&session_id, true)?;
 
         Ok(InviteCreated {
             invite_uri,
@@ -595,51 +596,6 @@ impl PrivateDmRuntime {
         self.poll_session(&session_id)
     }
 
-    /// Files a text message as `Queued` and lets the outbox drive it out. The
-    /// message is on disk before the transport is asked anything, so a restart
-    /// keeps it; a transport that refuses right now just leaves it queued.
-    pub fn send_message(
-        &mut self,
-        session_id: &str,
-        body: String,
-    ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
-        self.drain_inbound();
-        let message_id = {
-            let session = self.session_mut(session_id)?;
-            session.ensure_device_authorized()?;
-            let message = session.messages.stamp(ChatMessage {
-                from_device: session.device_id.clone(),
-                body,
-                message_id: session
-                    .devices_live()
-                    .then(|| {
-                        session
-                            .crypto
-                            .random_token(&hex::encode(session.crypto.signer_public()))
-                    })
-                    .transpose()?,
-                sent_at_ms: None,
-                attachment: None,
-                call_event: None,
-                delivery_status: None,
-                delivery_error: None,
-                retryable: None,
-                retry_count: None,
-                read: None,
-            });
-            let owned_session_id = session.session_id.clone();
-            session
-                .outbox()
-                .queue(message, owned_session_id)?
-                .message_id
-        };
-        self.sessions.persist_send(session_id, &message_id, true);
-        self.deliver_queued(session_id);
-        let result = self.send_result(session_id, &message_id)?;
-        self.sessions.persist_tail();
-        Ok(result)
-    }
-
     /// Signals "I am typing" for one session, driven by the composer's input.
     /// The per-keystroke call is folded down to the refresh cadence inside the
     /// session; a publish the transport refuses is retried on the next call
@@ -689,66 +645,6 @@ impl PrivateDmRuntime {
         Ok(())
     }
 
-    /// Puts a failed message back in the queue. A message that is already
-    /// waiting its turn is left alone and reported as it stands.
-    pub fn retry_message(
-        &mut self,
-        session_id: &str,
-        message_id: &str,
-    ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
-        self.drain_inbound();
-        {
-            let session = self.session_mut(session_id)?;
-            let attempt = session
-                .outbound_attempts
-                .get(message_id)
-                .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
-            if matches!(
-                attempt.delivery_status,
-                MessageDeliveryStatus::Queued | MessageDeliveryStatus::Pending
-            ) {
-                return self.send_result(session_id, message_id);
-            }
-            session.outbox().requeue(message_id)?;
-        }
-        self.sessions.persist_send(session_id, message_id, false);
-        self.deliver_queued(session_id);
-        self.send_result(session_id, message_id)
-    }
-
-    /// Give one session's outbox a turn right now, and write down whatever it
-    /// settled.
-    fn deliver_queued(&mut self, session_id: &str) {
-        let Some(session) = self.sessions.get_mut(session_id) else {
-            return;
-        };
-        for message_id in session.pump_outbox() {
-            self.sessions.persist_send(session_id, &message_id, false);
-        }
-    }
-
-    /// How one message's send stands, as the app is told.
-    fn send_result(
-        &self,
-        session_id: &str,
-        message_id: &str,
-    ) -> Result<SendMessageResult, PrivateDmRuntimeError> {
-        let session = self.session_ref(session_id)?;
-        let attempt = session
-            .outbound_attempts
-            .get(message_id)
-            .ok_or_else(|| PrivateDmRuntimeError::MissingMessage(message_id.to_string()))?;
-        Ok(SendMessageResult {
-            session_id: session.session_id.clone(),
-            state: session.state,
-            ciphertext_bytes: attempt.ciphertext_bytes,
-            message_id: message_id.to_string(),
-            sent_at_ms: attempt.sent_at_ms,
-            delivery_status: attempt.delivery_status,
-            delivery_error: attempt.delivery_error.clone(),
-        })
-    }
-
     /// Encrypts a file, stores the sender's own copy, and announces the
     /// manifest to the peer over the MLS-protected control channel.
     pub fn send_attachment(
@@ -764,7 +660,9 @@ impl PrivateDmRuntime {
         let result = self
             .session_mut(session_id)?
             .send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        self.sessions.persist_tail();
+        if let Err(error) = self.sessions.persist_tail() {
+            self.log_persistence_failure(session_id, &error);
+        }
         Ok(result)
     }
 
@@ -924,6 +822,7 @@ impl PrivateDmRuntime {
     fn tick(&mut self, now: u64) {
         let lost_window = self.lost_window_ms;
         let mut dirty: Vec<(String, String)> = Vec::new();
+        let mut ready = Vec::new();
         for (session_id, session) in self.sessions.iter_mut() {
             if session.ensure_device_authorized().is_err() {
                 continue;
@@ -936,19 +835,37 @@ impl PrivateDmRuntime {
             session.pump_hello(now);
             session.pump_peer_announce(now);
             session.pump_call_signaling(now);
+            ready.push(session_id.clone());
             let changed = session
-                .pump_outbox()
+                .pump_unacked_resends(now)
                 .into_iter()
-                .chain(session.pump_unacked_resends(now))
                 .chain(session.take_dirty_outbound());
             dirty.extend(changed.map(|message_id| (session_id.clone(), message_id)));
         }
         for (session_id, message_id) in dirty {
-            self.sessions.persist_send(&session_id, &message_id, false);
+            if let Err(error) = self.sessions.persist_send(&session_id, &message_id, false) {
+                self.log_persistence_failure(&session_id, &error);
+            }
+        }
+        for session_id in ready {
+            if let Err(error) = self.deliver_queued(&session_id) {
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::PERSIST,
+                    &session_id,
+                    &error.to_string(),
+                );
+            }
         }
         self.pump_devices(now);
-        self.sessions.persist_tail();
+        if let Err(error) = self.sessions.persist_tail() {
+            self.log_persistence_failure(KIND, &error);
+        }
         self.sync_call_media();
+    }
+
+    fn log_persistence_failure(&self, id: &str, error: &crate::persistence::PersistenceError) {
+        dlog::write(LogLevel::Error, kinds::PERSIST, id, &error.to_string());
     }
 
     /// The call media hub the audio loop sends and drains through.
@@ -1068,19 +985,11 @@ impl ConversationSession for PrivateDmSession {
         self.to_persisted_record()
     }
 
-    fn write_extra(&self, persistence: &Persistence) {
-        // A snapshot write that fails while the record write after it
-        // succeeds leaves a row rehydrate can never rebuild. Surface the
-        // failure instead of swallowing it.
-        if let Err(error) = persistence.put_mls_snapshot(&self.session_id, &self.crypto.snapshot())
-        {
-            dlog::write(
-                LogLevel::Error,
-                kinds::PERSIST,
-                &self.session_id,
-                &format!("MLS snapshot persist failed: {error}"),
-            );
-        }
+    fn write_extra(
+        &self,
+        persistence: &Persistence,
+    ) -> Result<(), crate::persistence::PersistenceError> {
+        persistence.put_mls_snapshot(&self.session_id, &self.crypto.snapshot())
     }
 
     /// Until the joiner processes the Welcome its record's group id is an
@@ -1127,6 +1036,9 @@ mod state_tests;
 #[cfg(test)]
 #[path = "private_dm_runtime/outbox_tests.rs"]
 mod outbox_tests;
+
+#[cfg(test)]
+mod durability_tests;
 
 #[cfg(test)]
 #[path = "private_dm_runtime/blob_route_tests.rs"]

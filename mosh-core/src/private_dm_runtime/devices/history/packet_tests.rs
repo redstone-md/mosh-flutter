@@ -149,7 +149,7 @@ impl Fixture {
         session.role = crate::private_dm_runtime::SessionRole::Bob;
         session.peer_joined = true;
         session.record_dirty = true;
-        self.runtime.sessions.persist_tail();
+        self.runtime.sessions.persist_tail().unwrap();
     }
 
     fn batch(&self, offset: usize, records: Vec<TextRecord>) -> HistoryBatch {

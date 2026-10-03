@@ -11,6 +11,8 @@ use crate::secure_storage::{OsSecureSecretStore, SecureSecretStore};
 
 mod dm_devices;
 mod dm_history;
+#[cfg(test)]
+pub(crate) mod test_faults;
 
 const NONCE_LEN: usize = 12;
 
