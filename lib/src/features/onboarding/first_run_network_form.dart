@@ -101,13 +101,6 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
     final l = AppLocalizations.of(context)!;
     final relauncher = DesktopAppRelauncherScope.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Semantics(
-          header: true,
-          child: Text(l.firstRunNetworkTitle,
-              style: Theme.of(context).textTheme.headlineSmall)),
-      const SizedBox(height: 12),
-      Text(l.firstRunNetworkBody),
-      const SizedBox(height: 24),
       if (widget.network.vpnDetected) ...[
         Text(l.firstRunVpnDetected,
             style: const TextStyle(color: MoshColors.warn)),
@@ -115,7 +108,11 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
       ],
       _picker(l),
       const SizedBox(height: 16),
-      Text(_picked == null ? l.firstRunAutomaticHint : l.firstRunBypassHint),
+      Text(_picked == null ? l.firstRunAutomaticHint : l.firstRunBypassHint,
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
+              ?.copyWith(color: MoshColors.fg2)),
       if (_needsRestart) ...[
         const SizedBox(height: 12),
         Text(l.bindAdapterRestartNeeded),

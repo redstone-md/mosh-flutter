@@ -6,11 +6,13 @@ import 'package:mosh/src/routing/mosh_title_bar.dart';
 
 import 'display_name_form.dart';
 import 'first_run_device_step.dart';
+import 'first_run_heading.dart';
 import 'first_run_layout.dart';
 import 'first_run_network_step.dart';
 import 'first_run_profile.dart';
 import 'first_run_provider.dart';
 import 'first_run_sizing.dart';
+import 'first_run_theme.dart';
 
 class FirstRunWizard extends ConsumerStatefulWidget {
   const FirstRunWizard({super.key, required this.profile});
@@ -31,7 +33,7 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
 
   @override
   Widget build(BuildContext context) => Theme(
-      data: _setupTheme(Theme.of(context)),
+      data: buildSetupTheme(Theme.of(context)),
       child: Scaffold(
         backgroundColor: MoshColors.bg0,
         body: SafeArea(
@@ -42,7 +44,8 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
       ));
 
   Widget _viewport(BuildContext context, BoxConstraints constraints) {
-    final sizing = SetupSizing(constraints.biggest);
+    final sizing = SetupSizing(constraints.biggest,
+        textScale: MediaQuery.textScalerOf(context).scale(14) / 14);
     return SingleChildScrollView(
       child: ConstrainedBox(
         constraints: BoxConstraints(minHeight: constraints.maxHeight),
@@ -50,7 +53,7 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
           padding: EdgeInsets.all(sizing.outerPadding),
           child: Center(
               child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1160),
+                  constraints: BoxConstraints(maxWidth: sizing.cardMaxWidth),
                   child: _card(context, sizing))),
         ),
       ),
@@ -74,15 +77,6 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
               ])),
       child: _content(context, sizing));
 
-  ThemeData _setupTheme(ThemeData theme) => theme.copyWith(
-      visualDensity: VisualDensity.standard,
-      filledButtonTheme: FilledButtonThemeData(
-          style: theme.filledButtonTheme.style?.copyWith(
-              minimumSize: const WidgetStatePropertyAll(Size(0, 52)))),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-          style: theme.outlinedButtonTheme.style?.copyWith(
-              minimumSize: const WidgetStatePropertyAll(Size(0, 48)))));
-
   Widget _content(BuildContext context, SetupSizing sizing) => Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -93,31 +87,32 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
                     child: SetupProgress(
                         step: widget.profile.step, compact: sizing.compact))),
             SizedBox(height: sizing.sectionGap),
+            Center(
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: SetupHeading(step: widget.profile.step))),
+            const SizedBox(height: 24),
             SetupFrame(
                 step: widget.profile.step,
                 sizing: sizing,
                 child: _form(context, sizing)),
+            if (sizing.stacked &&
+                sizing.showIllustration &&
+                widget.profile.step == SetupStep.name) ...[
+              const SizedBox(height: 20),
+              const SetupPrivacyNote(),
+            ],
           ]);
 
   Widget _form(BuildContext context, SetupSizing sizing) {
     final l = AppLocalizations.of(context)!;
     final controller = ref.read(firstRunProfileProvider.notifier);
     return switch (widget.profile.step) {
-      SetupStep.name =>
-        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Semantics(
-              header: true,
-              child: Text(l.firstRunNameTitle,
-                  style: Theme.of(context).textTheme.headlineSmall)),
-          const SizedBox(height: 12),
-          Text(l.firstRunNameBody),
-          SizedBox(height: sizing.compact ? 16 : 24),
-          DisplayNameForm(
-              compact: sizing.compact,
-              initialName: widget.profile.displayName,
-              actionLabel: l.firstRunContinue,
-              onSave: (name) => controller.saveName(name, advance: true)),
-        ]),
+      SetupStep.name => DisplayNameForm(
+          compact: sizing.compact,
+          initialName: widget.profile.displayName,
+          actionLabel: l.firstRunContinue,
+          onSave: (name) => controller.saveName(name, advance: true)),
       SetupStep.device => const FirstRunDeviceStep(),
       SetupStep.network => const FirstRunNetworkStep(),
     };

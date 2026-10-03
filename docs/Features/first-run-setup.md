@@ -76,21 +76,46 @@ Preserve restored joining and committed delivery states.
 
 Use the existing palette: `bg0` #0B0C0D, `bg1` #111315, `moss` #B7D84A,
 `fg1` #ECEEEA and `fg2` #A8AEB0. Typography uses the shared platform font stack.
-The card follows the reference's split composition for name and network; device
-linking uses the reference's centered illustration and form. At narrow widths,
-the illustration and form stack vertically. Setup's primary buttons are 52px.
+Wide windows use the reference's illustration on the left and controls on the
+right for all three steps. Narrow windows stack these blocks in a centered card
+up to 640px wide. Wide cards remain capped at 1160px.
+
+Each step has one primary task heading, then its explanation, before artwork and
+controls. The heading uses the existing 23px/600 type token; desktop illustration
+captions use the secondary 19px token and muted text. Narrow screens omit these
+repeated captions. The name step keeps its factual encryption note after the
+form in narrow layouts with room for supporting content. The two initial device
+choices share a neutral outlined
+style; a linked profile gets one filled Continue action. Back is secondary.
+
+Setup reuses native Flutter controls and the existing `MoshSelect`. Its local
+theme gives button labels and field text the 14px body token, filled and outlined
+actions a 52px minimum height, and Back a 48px minimum height. Buttons can grow
+for wrapped labels and enlarged text. Settings keeps its existing density.
 
 The card centers horizontally and vertically within the space below the title
 bar. `SetupSizing` reads that viewport's width and height, including the reduced
-height when a keyboard opens. It adjusts decorative image sizes, progress
-markers and spacing. Text and controls keep their native readable sizes; the
-layout never scales the entire form with a paint transform.
+height when a keyboard opens. It adjusts decorative image sizes and spacing.
+Progress circles grow with their text instead of clipping enlarged numbers.
+Where the step labels would crowd, the indicator shows all three markers and
+only the current step's label. It never squeezes every label into a narrow slot.
+Text and controls keep their native readable sizes; the layout never scales the
+entire form with a paint transform.
 
-Name and network use two columns when their content has at least 740px of width.
-The device step remains centered in tall windows and uses two columns in short,
-wide windows. Narrow windows stack the illustration and form. One stable `Flex`
-changes direction and fit, preserving unsaved form fields across resizing.
+Two columns require 740px of content width at normal text scale; enlarged text
+raises this threshold. A stable `Flex` changes direction and fit, preserving
+unsaved names, imported links and adapter selections across resizing. Stacked
+illustrations are limited to 120px for name/network. In stacked viewports below
+600px of available height, artwork and secondary captions yield space to the form.
 The former fixed-height divider no longer sets a minimum card height.
+
+Spacing follows a 4px grid: compact/regular outer padding 12/32px, card padding
+16/32px, section gaps 16/32px and column gaps 32/48px. Heading and explanation
+are grouped with 12px; controls follow with 24px. Compact name avatars use 72px
+instead of 96px. Control text remains readable and respects system text scaling.
+The shared window titlebar also accounts for text scale when replacing the
+Peer status label with its compact icon, so completion does not expose an
+overflowing chat header at 200% text size.
 
 The scroll view gives its content the viewport's minimum height, following
 [Flutter's constrained scroll layout](https://docs.flutter.dev/cookbook/lists/spaced-items).
@@ -103,10 +128,10 @@ The three illustrations are bundled in `assets/onboarding/` with their original
 RGBA transparency. Their generation prompts are recorded in
 [the asset notes](../../assets/onboarding/README.md).
 
-Size exception: `SetupFrame._illustration`, `_DisplayNameFormState.build`, and
-`_FirstRunNetworkFormState.build` exceed the 50-line function budget because they
-declare localized widget trees. They contain no protocol or persistence logic;
-their containing types and files stay within the 200/400-line budgets.
+Size exception: `_DisplayNameFormState.build` exceeds the 50-line function budget
+because it declares the shared localized form. It contains no protocol or
+persistence logic; its containing type and file stay within the 200/400-line
+budgets. Layout, theme and step-heading logic are separate small components.
 Test registration functions enumerate independent cases and exceed the function
 budget; individual test callbacks remain small.
 
@@ -142,3 +167,20 @@ during resizing and keyboard access. Changed production files collected 99.5%
 line and 98.4% branch coverage. Rendered previews were checked for all three
 steps in short desktop windows, a taller desktop window and a narrow phone
 viewport. The layout fix has not yet been checked on a physical Windows device.
+
+The hierarchy pass adds 48 viewport/text-scale cases for all three steps, from
+320×568 and phone landscape through tablets, short desktops and 2560×1440,
+at normal and 200% text size. These cases exercise the next action and completion
+into chats. Additional cases check heading order, equal device-choice emphasis,
+linked-profile continuation, Tab/Enter navigation, retryable save errors and
+preserved imported links and adapter selections. Flutter's text-contrast,
+labeled-target and Android tap-target guidelines pass on all three default steps.
+
+Final hierarchy validation on 2026-10-03: analysis found no issues, and the full
+suite passed 1,197 tests with five existing skips. Coverage for the nine changed
+production files was 98.5% line and 90.8% branch. The optional preview run passed
+79 layout/state cases with readable sans-serif and Material icon fonts; rendered
+desktop, tablet, phone, small-window and error/import states were inspected.
+The final 320×568 name preview includes the full card and primary action without
+the optional illustration or encryption caption. Native Windows verification
+remains outstanding; the previews exercise the real Flutter tree in widget tests.

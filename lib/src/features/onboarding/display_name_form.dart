@@ -68,7 +68,8 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                                 .textTheme
                                 .labelMedium
                                 ?.copyWith(fontSize: 28))),
-                    child: Avatar(name: _name.text, radius: 48))),
+                    child: Avatar(
+                        name: _name.text, radius: widget.compact ? 36 : 48))),
             SizedBox(height: widget.compact ? 16 : 28),
             TextFormField(
                 controller: _name,
@@ -86,7 +87,8 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                     prefixIcon: const Icon(Icons.person_outline),
                     counterText: '',
                     helperText: l.firstRunNameHint,
-                    helperMaxLines: 3)),
+                    helperMaxLines: 3,
+                    errorMaxLines: 3)),
             SizedBox(height: widget.compact ? 16 : 24),
             FilledButton(
                 onPressed: _busy ? null : _save,

@@ -8,6 +8,7 @@ import 'package:mosh/src/rust/network_inventory.dart';
 import 'package:mosh/src/rust/vpn_consent.dart';
 
 import '../../support/first_run.dart';
+import '../../support/first_run_preview.dart';
 import '../../support/scriptable_bridge.dart';
 
 const _ethernet = NetworkInterfaceInfo(
@@ -125,6 +126,31 @@ void main() {
     await tapSetup(tester, 'Retry');
     expect(find.text('Automatic · system connection'), findsOneWidget);
     expect(harness.bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
+  });
+
+  testWidgets('resizing preserves the selected adapter and bypass explanation',
+      (tester) async {
+    await prepareSetupPreview(tester);
+    final harness = _harness();
+    await harness.pump(tester);
+    await _chooseEthernet(tester);
+    tester.view.physicalSize = const Size(320, 568);
+    await tester.pumpAndSettle();
+    expect(find.text('Ethernet - 192.168.1.5'), findsOneWidget);
+    expect(find.textContaining('outside your VPN'), findsOneWidget);
+    await saveSetupPreview(tester, 'first-run-network-bypass-small');
+    await tester.ensureVisible(find.text('Save and finish'));
+    expect(tester.takeException(), isNull);
+    tester.view.physicalSize = const Size(1280, 680);
+    await tester.pumpAndSettle();
+    await tapSetup(tester, 'Save and finish');
+    expect(
+        harness.bridge
+            .lastCall(BridgeMethod.setVpnBypassConsent)!
+            .arg<String>('interfaceName'),
+        'Ethernet');
+    await tapSetup(tester, 'Understood');
+    expect(harness.store.profile!.completed, isTrue);
   });
 
   testWidgets('unavailable saved adapter must be replaced before finishing',

@@ -3,6 +3,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 
 import 'first_run_profile.dart';
+import 'first_run_heading.dart';
 import 'first_run_sizing.dart';
 
 class SetupProgress extends StatelessWidget {
@@ -18,31 +19,52 @@ class SetupProgress extends StatelessWidget {
       l.firstRunDeviceStep,
       l.firstRunNetworkStep
     ];
+    final diameter = (MediaQuery.textScalerOf(context).scale(14) + 16)
+        .clamp(compact ? 32.0 : 40.0, double.infinity);
     return Semantics(
         liveRegion: true,
         label: l.firstRunProgress(step.index + 1, 3),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          for (var index = 0; index < labels.length; index++) ...[
-            if (index > 0)
-              Expanded(
-                  child: Padding(
-                      padding: EdgeInsets.only(top: compact ? 16 : 20),
-                      child: Divider(
-                          color: index <= step.index
-                              ? MoshColors.moss
-                              : MoshColors.lineStrong))),
-            Expanded(flex: 2, child: _item(context, labels[index], index)),
-          ],
-        ]));
+        child: LayoutBuilder(builder: (context, constraints) {
+          final compactLabels = constraints.maxWidth <
+              300 * MediaQuery.textScalerOf(context).scale(14) / 14;
+          return Column(mainAxisSize: MainAxisSize.min, children: [
+            _steps(context, labels, diameter, compactLabels),
+            if (compactLabels) ...[
+              const SizedBox(height: 8),
+              Text(labels[step.index],
+                  style: const TextStyle(color: MoshColors.fg2)),
+            ],
+          ]);
+        }));
   }
 
-  Widget _item(BuildContext context, String label, int index) {
+  Widget _steps(BuildContext context, List<String> labels, double diameter,
+          bool compactLabels) =>
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        for (var index = 0; index < labels.length; index++) ...[
+          if (index > 0)
+            Expanded(
+                child: Padding(
+                    padding: EdgeInsets.only(top: diameter / 2),
+                    child: Divider(
+                        color: index <= step.index
+                            ? MoshColors.moss
+                            : MoshColors.lineStrong))),
+          Expanded(
+              flex: 2,
+              child: _item(context, labels[index], index, diameter,
+                  showLabel: !compactLabels)),
+        ],
+      ]);
+
+  Widget _item(BuildContext context, String label, int index, double diameter,
+      {required bool showLabel}) {
     final active = index == step.index;
     final done = index < step.index;
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Container(
-          width: compact ? 32 : 40,
-          height: compact ? 32 : 40,
+          width: diameter,
+          height: diameter,
           alignment: Alignment.center,
           decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -60,10 +82,12 @@ class SetupProgress extends StatelessWidget {
               ? const Icon(Icons.check, size: 18, color: MoshColors.moss)
               : Text('${index + 1}',
                   style: Theme.of(context).textTheme.titleMedium)),
-      const SizedBox(height: 8),
-      Text(label,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: active ? MoshColors.fg1 : MoshColors.fg2)),
+      if (showLabel) ...[
+        const SizedBox(height: 8),
+        Text(label,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: active ? MoshColors.fg1 : MoshColors.fg2)),
+      ],
     ]);
   }
 }
@@ -80,79 +104,64 @@ class SetupFrame extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (context, size) {
-        final devices = step == SetupStep.device;
-        final stacked =
-            size.maxWidth < 740 || devices && sizing.viewport.height >= 760;
-        final fit = stacked ? FlexFit.loose : FlexFit.tight;
-        return Flex(
-            direction: stacked ? Axis.vertical : Axis.horizontal,
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: stacked
-                ? CrossAxisAlignment.stretch
-                : CrossAxisAlignment.center,
-            children: [
-              Flexible(
-                  fit: fit,
-                  child: _illustration(context, devices,
-                      sizing.imageHeight(stacked: stacked, devices: devices))),
-              SizedBox(
-                  width: stacked ? 0 : sizing.columnGap,
-                  height: stacked ? sizing.sectionGap : 0),
-              Flexible(
-                  fit: fit,
-                  child: Center(
-                      heightFactor: 1,
-                      child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 520),
-                          child: child))),
-            ]);
-      });
+  Widget build(BuildContext context) {
+    final devices = step == SetupStep.device;
+    final stacked = sizing.stacked;
+    final fit = stacked ? FlexFit.loose : FlexFit.tight;
+    return Flex(
+        direction: stacked ? Axis.vertical : Axis.horizontal,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment:
+            stacked ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
+        children: [
+          Flexible(
+              fit: fit,
+              child: sizing.showIllustration
+                  ? _illustration(context, stacked, devices)
+                  : const SizedBox.shrink()),
+          SizedBox(
+              width: stacked ? 0 : sizing.columnGap,
+              height:
+                  stacked && sizing.showIllustration ? sizing.sectionGap : 0),
+          Flexible(
+              fit: fit,
+              child: Center(
+                  heightFactor: 1,
+                  child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: child))),
+        ]);
+  }
 
-  Widget _illustration(BuildContext context, bool devices, double imageHeight) {
+  Widget _illustration(BuildContext context, bool stacked, bool devices) {
     final l = AppLocalizations.of(context)!;
     final asset = switch (step) {
       SetupStep.name => 'welcome',
       SetupStep.device => 'devices',
       SetupStep.network => 'network',
     };
-    final title = switch (step) {
-      SetupStep.name => l.firstRunWelcome,
-      SetupStep.device => l.firstRunDeviceTitle,
-      SetupStep.network => l.firstRunAlmostReady,
-    };
-    final body = switch (step) {
-      SetupStep.name => l.firstRunWelcomeBody,
-      SetupStep.device => l.firstRunDeviceBody,
-      SetupStep.network => l.firstRunNetworkIntro,
-    };
     final text = Theme.of(context).textTheme;
-    final image = Image.asset('assets/onboarding/$asset.png',
-        height: imageHeight, fit: BoxFit.contain, excludeFromSemantics: true);
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      if (!devices) image,
-      if (!devices) const SizedBox(height: 16),
-      Semantics(
-          header: true,
-          child: Text(title,
-              textAlign: TextAlign.center, style: text.headlineMedium)),
-      const SizedBox(height: 12),
-      ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Text(body,
-              textAlign: TextAlign.center,
-              style: text.bodyLarge?.copyWith(color: MoshColors.fg2))),
-      if (devices) const SizedBox(height: 16),
-      if (devices) image,
-      if (step == SetupStep.name) ...[
-        SizedBox(height: sizing.compact ? 20 : 28),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.lock_outline, size: 18, color: MoshColors.moss),
-          const SizedBox(width: 8),
-          Flexible(
-              child: Text(l.firstRunEncryption,
-                  textAlign: TextAlign.center, style: text.bodySmall)),
-        ]),
+      Image.asset('assets/onboarding/$asset.png',
+          height: sizing.imageHeight(stacked: stacked, devices: devices),
+          fit: BoxFit.contain,
+          excludeFromSemantics: true),
+      if (!stacked && !devices) ...[
+        const SizedBox(height: 16),
+        Text(step == SetupStep.name ? l.firstRunWelcome : l.firstRunAlmostReady,
+            textAlign: TextAlign.center,
+            style: text.headlineSmall?.copyWith(color: MoshColors.fg2)),
+        const SizedBox(height: 12),
+        Text(
+            step == SetupStep.name
+                ? l.firstRunWelcomeBody
+                : l.firstRunNetworkIntro,
+            textAlign: TextAlign.center,
+            style: text.bodyLarge?.copyWith(color: MoshColors.fg2)),
+        if (step == SetupStep.name) ...[
+          const SizedBox(height: 24),
+          const SetupPrivacyNote(),
+        ],
       ],
     ]);
   }
