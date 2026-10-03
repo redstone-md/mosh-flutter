@@ -31,9 +31,8 @@ Every download has a SHA-256 checksum alongside it.
 | Windows x64 | `mosh-<version>-setup.exe` | Run the installer. Installs for your user without an admin prompt and upgrades in place. |
 | macOS 12+ | `Mosh_<version>_universal.dmg` | Apple Silicon and Intel. Open the image and drag Mosh to Applications. |
 
-Android linked text chats are in development and work while the app is in the
-foreground. Physical-device verification is still pending. There are no
-published Android, Linux or iOS packages yet.
+Android also supports linked text chats while the app is in the foreground.
+Published downloads currently cover Windows and macOS.
 
 <details>
 <summary>First-launch warnings and download verification</summary>
@@ -60,16 +59,29 @@ shasum -a 256 -c Mosh_*_universal.dmg.sha256
 
 </details>
 
-## Features
+## Inside Mosh
 
-| Feature | What you can do |
-| --- | --- |
-| Private chats and groups | Exchange messages protected by OpenMLS end-to-end encryption. Public channels are signed and are not confidential. |
-| Files and audio | Share attachments, send voice notes and make encrypted one-to-one voice calls. |
-| Linked devices | Continue text DMs on another installation and recover available history. Each device keeps its own keys and encrypted local storage. |
-| A single chat list | Search personal chats, groups and channels, filter by type and open conversation details alongside the chat. |
-| First-run setup | Set your name, optionally link a device and choose network preferences. Saved progress resumes after restart. |
-| Desktop and small screens | Use the sidebar on wide windows and a compact layout on phones. English and Russian are included. |
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/assets/mesh-conversations.png" alt="Glass conversation bubbles connected through a peer mesh" width="420">
+      <h3>Private conversations over a mesh</h3>
+      <p>Private chats and groups use OpenMLS end-to-end encryption. Moss finds peers automatically, with no central message server or hostnames to enter.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/linked-devices.png" alt="A glass laptop and phone connected by a lime-lit path" width="420">
+      <h3>Continue on another device</h3>
+      <p>Link with a QR and confirmation code. Continue text DMs and recover available history. Each installation keeps its own keys and encrypted local storage.</p>
+    </td>
+  </tr>
+</table>
+
+- Share files, send voice notes and make encrypted one-to-one voice calls.
+- Search personal chats, groups and channels in one list, with conversation
+  details beside the chat on wide windows.
+- Set up your name, devices and network preferences once. Saved progress
+  resumes after restart, and Settings keeps these choices accessible.
+- Use the desktop sidebar or the compact phone layout, in English or Russian.
 
 ## Start a conversation
 
@@ -88,31 +100,35 @@ wizard. Incoming conversation invitations wait until setup finishes.
 [Device linking](docs/Features/device-linking.md) ·
 [Private chats](docs/Features/private-dm.md)
 
-## Connected through Moss
+## Privacy you can inspect
 
-![Two smoked-glass conversation bubbles connected through a lime-lit peer mesh](docs/assets/mesh-conversations.png)
+Private chats and groups are end-to-end encrypted. Public channels are signed
+and are not confidential. Peer discovery uses public trackers, so content
+encryption does not make network activity anonymous. Participants can see
+device associations.
 
-Moss discovers peers automatically and carries messages over its mesh. Mosh
-does not use a central message server, and you do not enter hostnames or ports
-to start a chat. OpenMLS protects private chat and group content; public
-channels have a different privacy model.
+Message history is encrypted locally. Crash reporting is off by default and
+can be enabled in Privacy settings.
 
-Peer discovery uses public trackers. Content encryption does not make network
-activity anonymous, and participants can see device associations.
+<details>
+<summary>How local history keys are stored</summary>
 
-Message history is encrypted locally. Windows and Linux use the OS credential
-store for the history key; Android uses Keystore. On macOS, the key is kept in
+Windows and Linux use the OS credential store for the history key; Android
+uses Keystore. On macOS, the key is kept in
 a permission-restricted file in the app container. These choices and their
 limits are documented in the
 [storage and threat model](docs/ADR/0011-secure-storage-and-threat-model.md).
 
-Crash reporting is off by default and can be enabled in Privacy settings.
+</details>
 
-## Build from source
+## Development
 
 The app is Flutter and Riverpod over a Rust core, connected by
 `flutter_rust_bridge`. The core owns OpenMLS, Moss transport, persistence and
 voice calls.
+
+<details>
+<summary>Build from source and repository map</summary>
 
 Use the toolchain versions from [.github/actions/setup](.github/actions/setup/action.yml)
 and [rust-toolchain.toml](rust-toolchain.toml). You also need Node.js and the
@@ -148,6 +164,8 @@ See [AGENTS.md](AGENTS.md) for checks and contribution constraints, and the
 [architecture map](docs/Architecture.md) for runtime boundaries.
 The [visual asset notes](docs/assets/README.md) explain how to regenerate the
 README screenshot and record the illustration prompt.
+
+</details>
 
 ## License
 
