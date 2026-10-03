@@ -176,8 +176,8 @@ the illustration's scale. A loading device snapshot uses a compact spinner
 until its existing settings/import UI is available.
 
 Platform reduced motion retains the fade and removes translation and scale,
-including preference changes during a transition. Controllers preserve this
-gentler fade instead of Flutter's default accelerated behavior. The wizard
+including preference changes during a transition. New transitions use Flutter's
+default shortened fade so controls become available on the next frame. The wizard
 precaches all three illustrations. Advancing the name form confirms its save
 by showing the device step; Settings retains its saved confirmation.
 
