@@ -1,13 +1,8 @@
-// Shared attachment media-source helpers. A downloaded attachment is
-// served via `file://` + the absolute
-// path (see [localFileSrc]). Streaming media is served by the local
-// ephemeral HTTP server below.
-//
-// [resolveMediaOpen] is the pure decision function for opening an
-// attachment: given a descriptor,
-// the current view, and the (kind, host) it returns the (src, download,
-// wait) decision the screen acts on. Extracted as a pure function so it is
-// unit-testable without pumping a widget (the screen wiring stays thin).
+// Shared media-source formatting and legacy opening decisions.
+// Downloaded media uses [localFileSrc]; streaming media uses the local
+// ephemeral HTTP server below. ConversationAttachment owns production
+// opening policy, including transfer-state validation. The legacy decisions
+// retain their earlier path-only behavior for existing helper consumers.
 library;
 
 import 'package:mosh/src/rust/conversation/attachments.dart';
@@ -29,10 +24,10 @@ bool isStreamableMedia(String mime) =>
 /// Windows where `Uri.file` defaults to it.
 final _windowsPath = RegExp(r'^([A-Za-z]:[\\/]|\\\\)');
 
-/// Resolves an already-downloaded attachment without performing a side
-/// effect. Media remains an in-app viewer intent; every other file becomes an
-/// external-open intent. A missing path returns a no-op for the caller's
-/// normal download/media state machine.
+/// Legacy path-only opening decision. Media becomes an in-app viewer intent;
+/// other files become external-open intents, and a missing path is a no-op.
+/// This helper does not validate transfer availability. Conversation actions
+/// use `ConversationAttachment.openPlan` to reject stale cached paths.
 AttachmentOpenIntent resolveLocalAttachmentOpen({
   required AttachmentDescriptor descriptor,
   AttachmentView? view,
@@ -96,7 +91,7 @@ String streamingMediaSrc(
   ).toString();
 }
 
-/// The open decision returned by [resolveMediaOpen]:
+/// The legacy open decision returned by [resolveMediaOpen]:
 /// - `src` set + `download` false + `wait` false: already downloaded, show
 ///   the local file immediately.
 /// - `src` set + `download` true + `wait` false: streamable media, stream
@@ -111,11 +106,10 @@ class MediaOpenDecision {
   final bool wait;
 }
 
-/// Pure decision function for opening an attachment. Decides the (src,
-/// download, wait) for opening `descriptor` given the
-/// current `view` + the streaming (kind, host). The screen calls this and
-/// acts: show the viewer with `src` when set, kick the download when
-/// `download`, and arm the pendingOpen resolver when `wait`.
+/// Legacy media decision retained for existing helper consumers and tests.
+/// It preserves the original path-based (src, download, wait) behavior.
+/// Conversation actions use `ConversationAttachment.openPlan`, which checks
+/// transfer availability and avoids restarting an active download.
 MediaOpenDecision resolveMediaOpen({
   required AttachmentDescriptor descriptor,
   AttachmentView? view,

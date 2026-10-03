@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
@@ -67,6 +69,43 @@ void main() {
         'Ethernet');
     expect(events, ['start', 'exit']);
   });
+
+  for (final stage in ['consent', 'completion']) {
+    testWidgets('closing during $stage save still completes and restarts',
+        (tester) async {
+      final harness = _harness();
+      final completion = Completer<void>();
+      final events = <String>[];
+      final relauncher = DesktopAppRelauncher(
+          arguments: const [],
+          isWindows: () => true,
+          start: (_, __, ___) async {
+            expect(harness.store.profile!.completed, isTrue);
+            events.add('start');
+          },
+          terminate: (_) => events.add('exit'));
+      await harness.pump(tester, relauncher: relauncher);
+      await _chooseEthernet(tester);
+      if (stage == 'consent') {
+        harness.bridge.hold(BridgeMethod.setVpnBypassConsent);
+      } else {
+        harness.store.completionWrite = completion.future;
+      }
+      await tapSetup(tester, 'Save and restart');
+      expect(harness.store.profile!.completed, isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+      if (stage == 'consent') {
+        harness.bridge.release(BridgeMethod.setVpnBypassConsent);
+      } else {
+        completion.complete();
+      }
+      await tester.pumpAndSettle();
+      expect(harness.store.profile!.completed, isTrue);
+      expect(events, ['start', 'exit']);
+      expect(harness.bridge.countOf(BridgeMethod.setVpnBypassConsent), 1);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('unsupported relaunch explains manual restart before chats',
       (tester) async {

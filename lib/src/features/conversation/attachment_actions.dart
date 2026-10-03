@@ -5,7 +5,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/rust/conversation/attachments.dart';
+import 'conversation_attachment.dart';
 
 /// The actions row. At most ONE `IconButton` renders, gated on `state` +
 /// `outgoing` (outgoing and available files have no transfer button):
@@ -21,18 +21,14 @@ import 'package:mosh/src/rust/conversation/attachments.dart';
 class AttachmentActions extends StatelessWidget {
   const AttachmentActions({
     super.key,
-    required this.descriptor,
-    required this.state,
-    required this.outgoing,
+    required this.attachment,
     required this.busy,
     required this.onDownload,
     required this.onCancel,
     required this.l,
   });
 
-  final AttachmentDescriptor descriptor;
-  final AttachmentState state;
-  final bool outgoing;
+  final ConversationAttachment attachment;
   final bool busy;
   final void Function(String attachmentId) onDownload;
   final void Function(String attachmentId) onCancel;
@@ -40,52 +36,42 @@ class AttachmentActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fileName = descriptor.fileName;
-    final id = descriptor.attachmentId;
-    // 2) !outgoing && (offered|cancelled) -> Download / Retry-download
-    //    (cancelled reuses the button with the "Retry download" label).
-    if (!outgoing &&
-        (state == AttachmentState.offered ||
-            state == AttachmentState.cancelled)) {
-      final isRetry = state == AttachmentState.cancelled;
-      final tooltip =
-          isRetry ? l.attachmentRetryDownload : l.attachmentDownload;
-      final semanticsLabel = isRetry
-          ? l.attachmentRetryDownloadAria(fileName)
-          : l.attachmentDownloadAria(fileName);
-      return _ActionIcon(
-        icon: Icons.download,
-        tooltip: tooltip,
-        semanticsLabel: semanticsLabel,
-        onPressed: busy ? null : () => onDownload(id),
-        busy: busy,
-      );
-    }
-
-    // 3) !outgoing && failed -> Retry.
-    if (!outgoing && state == AttachmentState.failed) {
-      return _ActionIcon(
-        icon: Icons.refresh,
-        tooltip: l.attachmentRetry,
-        semanticsLabel: l.attachmentRetryAria(fileName),
-        onPressed: busy ? null : () => onDownload(id),
-        busy: busy,
-      );
-    }
-
-    // 4) !outgoing && downloading -> Cancel (always enabled).
-    if (!outgoing && state == AttachmentState.downloading) {
-      return _ActionIcon(
-        icon: Icons.close,
-        tooltip: l.attachmentCancelDownload,
-        semanticsLabel: l.attachmentCancelDownloadAria(fileName),
-        onPressed: () => onCancel(id),
-      );
-    }
-
-    // No action button (e.g. outgoing sender in a non-available state):
-    // an empty SizedBox.shrink so the parent Row reserves no gap.
-    return const SizedBox.shrink();
+    final control = attachment.transferControl(busy: busy);
+    if (control == null) return const SizedBox.shrink();
+    final file = attachment.descriptor;
+    final (icon, tooltip, label) = switch (control.action) {
+      AttachmentTransferAction.download => (
+          Icons.download,
+          l.attachmentDownload,
+          l.attachmentDownloadAria(file.fileName)
+        ),
+      AttachmentTransferAction.retryDownload => (
+          Icons.download,
+          l.attachmentRetryDownload,
+          l.attachmentRetryDownloadAria(file.fileName)
+        ),
+      AttachmentTransferAction.retry => (
+          Icons.refresh,
+          l.attachmentRetry,
+          l.attachmentRetryAria(file.fileName)
+        ),
+      AttachmentTransferAction.cancel => (
+          Icons.close,
+          l.attachmentCancelDownload,
+          l.attachmentCancelDownloadAria(file.fileName)
+        ),
+    };
+    return _ActionIcon(
+      icon: icon,
+      tooltip: tooltip,
+      semanticsLabel: label,
+      onPressed: control.enabled
+          ? () => control.action == AttachmentTransferAction.cancel
+              ? onCancel(file.attachmentId)
+              : onDownload(file.attachmentId)
+          : null,
+      busy: !control.enabled,
+    );
   }
 }
 

@@ -46,10 +46,21 @@ The `api` facade is real
 for every command family (`diagnostics`, `private_dm`, `channel`,
 `private_group`, `org`, `network`, `vpn`; OnceLock singletons, ADR 0016).
 
+Diagnostic probes call `run_openmls_smoke_test()` and
+`MossDynamicRuntime.status()` directly. `OsSecureSecretStore.status()` reports
+the platform backend without accepting a store it does not inspect. The
+`SecureSecretStore` seam remains for the OS and file adapters.
+
 ## Device linking
 
-The Devices settings section uses the device-link bridge and its own
-Riverpod async state. `DeviceLinkRuntime` owns one local signing identity,
+Devices settings and first-run setup share `DeviceLinkController`. Its
+`DeviceLinkState` retains native proof, action errors and one lock covering
+QR acquisition, native commands and durable setup navigation. Polls do not
+replace pending actions, and results from a disposed or rebuilt controller
+cannot publish into its replacement. `DeviceLinkCommands` keeps generated
+calls inside the feature; scripted commands test the real Flutter workflow.
+Native consent and persistence proofs still use the real bridge and Moss.
+`DeviceLinkRuntime` owns one local signing identity,
 a verified device roster and the pairing exchange. It borrows the existing
 `SharedMossNode` and encrypted `Persistence`; pairing uses directed Moss
 stream 3. Existing DM, org and MLS identities keep their contracts.
@@ -202,10 +213,17 @@ reads consume `bridgeFacadeProvider` (ADR 0025).
 
 That one module also owns the only kind-to-invalidate switch in the state
 layer: `invalidateConversation(ref.invalidate, conversation)` re-reads the
-snapshot family the kind names, and `refreshConversation` adds the DM rail
-list (a DM row carries its last message, a channel and a group row carry a
-name only). `unreadCountsProvider` is the same shape one level up -- one
+snapshot family the kind names, and `refreshConversation` adds the matching
+recent-chat list because every kind's row carries its last-message preview.
+`unreadCountsProvider` is the same shape one level up -- one
 family, one branch in `unreadCounts`, keyed by `ConversationRef.key`.
+
+Each conversation-list notifier owns refresh ordering. Background ticks skip
+an initial or outstanding read. Requests after mutations share one subsequent
+fresh read, so they cannot overwrite a newer list with an older completion.
+Rebuilds reject answers from the previous provider lifetime. Auto-poll owns the
+foreground timer and refreshes the open snapshot after successful list updates;
+it carries no separate in-flight guard. Each kind still progresses independently.
 
 ```mermaid
 classDiagram
@@ -556,6 +574,20 @@ header and the body one `ConversationChrome` -- the search text, the filter,
 the mobile search panel, the peer-status drawer and the leave action -- so
 neither holds a copy of the screen's state.
 
+`ConversationAttachment` interprets a descriptor and observed transfer state
+for message cards, the shared-file index and open actions. It owns direction,
+default state, usable paths, previews, bounded progress and allowed controls.
+An available transfer with a nonempty local path is ready; failed/cancelled
+transfers take precedence over stale cached paths. Unknown transfer size renders
+indeterminate progress on both surfaces. The controller owns pending opens and
+uses the same interpretation to wait, display or discard them.
+
+Voice cards use this readiness rule and media_kit's existing Player. A queued
+play request survives failed loading or playback and is consumed after success.
+A cancelled transfer or disposed card cannot start queued playback after a held
+load. Tests exercise actual Player calls through its recording PlatformPlayer
+adapter; native decoding remains a runtime check.
+
 The one thing a conversation does not own is the call a DM can carry. It
 declares what it needs from one in `conversation_call_binding.dart` and never
 imports the module that answers; see Voice Call Module below.
@@ -712,6 +744,11 @@ flowchart TD
   when a record is worth writing: `record_is_final` (a joiner's record is a
   placeholder until the MLS group exists) and `record_changed` (only a DM has
   a saved field that can move later — the counterpart's moss peer id).
+  `runtime_writes.rs` owns refused message/attempt and snapshot/record writes.
+  Persistence methods return `Result`; accepted rows advance the history count,
+  and successful snapshot/record saves clear finalization work. Refused writes
+  remain pending, use current delivery outcomes on retry, and do not prevent
+  other conversations from saving. Memory-only runtimes retain their behavior.
 - `Transfer` — an attachment's bytes on their way out and in. It owns the
   transfer layer, the slot table and the blob store together, because they have
   to move together. Sending a file seals it, saves this device's copy and opens
@@ -745,9 +782,13 @@ flowchart TD
   the record stays for the user's Retry (ADR 0021). Control frames, which
   repeat on their own, swallow that refusal through
   `MossNode::publish_room_best_effort`. A DM text takes the other door:
-  `queue` files it as `Queued` with no payload, and the DM's outbox encrypts
-  and publishes it later, oldest first, once our side of the MLS handshake is
-  done. It does not ask moss's peer table: a room publish does not need a row
+  the command provisionally saves `Pending`, then activates `Queued` with no
+  payload. Refused admission becomes `Failed` and cannot publish automatically,
+  matching the composer's deliberate retry. `private_dm_runtime/outbox.rs`
+  owns one durable dequeue for commands and ticks. It saves queued work before
+  publication and delivery status plus advanced MLS state afterwards, even
+  when no new tail row exists. It publishes oldest first after our side of the
+  MLS handshake is done. It does not ask moss's peer table: a room publish does not need a row
   for the counterpart, and a publish nobody takes comes back `NoPeers` and
   leaves the text queued, never failed (ADR 0026).
 - `history::History` — what a conversation keeps on disk. `replay` reads one
@@ -763,6 +804,11 @@ flowchart TD
   transaction (`Persistence::commit_send`), and a message that comes back
   `Pending` with no attempt behind it is failed at replay rather than left
   spinning: a send interrupted by a crash is red, never stuck (ADR 0022).
+  A refused settlement save after publication remains pending and reports the
+  actual transport outcome, so a saved-status failure cannot prompt a duplicate
+  send. Group/channel text admission fails before Moss publication. See
+  [ADR 0037](ADR/0037-conversation-write-acceptance.md) for failure ownership,
+  exported Rust contracts and restart limits.
 - `dm_offers::DmOffers` — the private-DM invitations a channel or a group
   carries. `mint` builds the offer to publish, and derives its id from the
   invite URI so the same invitation twice reads as one offer. `receive` keeps
@@ -777,6 +823,10 @@ Each kind runtime is a thin root (the public facade) plus focused modules,
 split by channel and concern. The root owns the public types and the
 facade methods; the modules are `impl` blocks on the same session struct
 and see each other through `pub(super)`.
+
+`PrivateGroupRuntime` remains publicly available at
+`mosh_core::private_group_runtime::PrivateGroupRuntime` for native callers such
+as `mosh-probe`; the wire-envelope module stays internal to the crate.
 
 ```mermaid
 flowchart TD
@@ -986,6 +1036,15 @@ enabling saves the selected name, disabling clears it, and successful writes
 invoke the existing relauncher. Loading, unknown state and pending writes
 disable the switch; failed writes preserve its prior value. Refreshing the
 interface list uses an icon beside the selector.
+Settings, setup and the VPN prompt use `networkChoiceProvider`, scoped to the
+bridge lifetime. `NetworkChoiceController` serializes saving and restarting,
+keeps restart knowledge after the settings widget closes, and returns separate
+save/restart failures. Setup supplies its existing durable completion callback
+before restart. Settings reads only saved consent; setup also reads live binding.
+Prompt reads use current consent after parallel inspection, and obsolete
+controller lifetimes cannot publish state or release a replacement lock.
+Bridge calls begin through `Future.sync` so synchronous native startup errors
+are handled together with asynchronous failures.
 Shared runtime construction restores the saved adapter once, before the Moss
 node starts. It resolves the current name or stored index using the existing
 network inventory. An unavailable adapter or failed enumeration falls back to
@@ -1036,7 +1095,8 @@ flowchart TD
     Dialog["call_dialog: CallDialog + callDialogFor"]
     Modals["CallOverlay / IncomingCallModal / OutgoingCallModal"]
     Codec["frame_codec / frame_crypto"]
-    Media["jitter_buffer / call_drain / call_frame_transport"]
+    Media["jitter_buffer / call_drain"]
+    Bridge["BridgeFacade: raw voice frames"]
     Adapters["VoiceCapture / VoicePlayback / RingtonePlayer"]
     Rust["mosh-core: voice_call_runtime / _jitter / _frame_crypto / _drain"]
 
@@ -1048,7 +1108,9 @@ flowchart TD
     Orch --> Codec
     Orch --> Media
     Codec --> Rust
-    Media --> Rust
+    Orch --> Bridge
+    Media --> Bridge
+    Bridge --> Rust
 ```
 
 A DM is a conversation that *can carry* a call; the call is not the DM. The
@@ -1071,6 +1133,11 @@ overlay, which is what an unbound test gets. The ringtone travels the same
 way: the layer reads `ringtonePlayerProvider` unless a test hands it one.
 
 ### Media path
+
+The audio loop sends and drains raw `Uint8List` wire frames through the existing
+`BridgeFacade`. `drainCallFrames` decrypts and reorders those bytes before
+feeding playback. There is no separate frame-transport adapter or base64
+conversion between the bridge and the drain loop.
 
 Voice frames never touch the DM runtime's lock. The audio loop sends and
 drains every 20 ms through `api::private_dm::call_send_frame` /

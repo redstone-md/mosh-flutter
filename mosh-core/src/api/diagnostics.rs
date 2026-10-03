@@ -10,7 +10,7 @@
 use crate::api::shared_runtime::{database_path, ensure_shared_resources};
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::frb_generated::StreamSink;
-use crate::moss_runtime::{MossDynamicRuntime, MossRuntime, MossRuntimeStatus};
+use crate::moss_runtime::{MossDynamicRuntime, MossRuntimeStatus};
 pub use crate::openmls_crypto::{
     run_openmls_alice_bob_roundtrip, run_openmls_smoke_test, OpenMlsRoundTripStatus,
     OpenMlsSmokeStatus,

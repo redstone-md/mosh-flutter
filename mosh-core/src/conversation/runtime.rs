@@ -20,6 +20,9 @@ use std::sync::Arc;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+#[path = "runtime_writes.rs"]
+mod writes;
+
 use super::history::{History, Restore};
 use super::message_log::{ConversationMessage, MessageLog};
 use super::transfer::Transfer;
@@ -27,7 +30,7 @@ use crate::attachment_store::AttachmentStore;
 use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use crate::moss_ffi::MossNode;
 use crate::outbound_delivery::OutboundAttemptRecord;
-use crate::persistence::{HistoryTables, Persistence};
+use crate::persistence::{HistoryTables, Persistence, PersistenceError};
 use crate::shared_node::SharedMossNode;
 
 /// What the shell needs from one conversation, whatever kind it is.
@@ -53,7 +56,9 @@ pub trait ConversationSession {
 
     /// Durable state of this kind that goes down beside the history. A DM and
     /// a group save their MLS snapshot here; a public channel has none.
-    fn write_extra(&self, _persistence: &Persistence) {}
+    fn write_extra(&self, _persistence: &Persistence) -> Result<(), PersistenceError> {
+        Ok(())
+    }
 
     /// Whether the record is worth saving yet. A joiner's record carries an
     /// empty MLS group id until the Welcome lands, and a conversation saved
@@ -84,6 +89,7 @@ pub struct ConversationRuntime<S: ConversationSession> {
     /// refreshes each one only once.
     final_records: HashSet<String>,
     sessions: HashMap<String, S>,
+    pending: writes::PendingWrites,
 }
 
 impl<S: ConversationSession> ConversationRuntime<S> {
@@ -98,6 +104,7 @@ impl<S: ConversationSession> ConversationRuntime<S> {
             history: History::new(tables),
             final_records: HashSet::new(),
             sessions: HashMap::new(),
+            pending: writes::PendingWrites::default(),
         }
     }
 
@@ -164,107 +171,9 @@ impl<S: ConversationSession> ConversationRuntime<S> {
         self.history.replay(&persistence, conversation_id, into);
     }
 
-    /// Appends what every conversation has gained since the last write, and
-    /// saves the record of any whose record has become final.
-    pub fn persist_tail(&mut self) {
-        let Some(persistence) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        // Records to write once the read-only pass is over, since finalizing
-        // one changes the table.
-        let mut pending: Vec<String> = Vec::new();
-        for session in self.sessions.values() {
-            let conversation_id = session.conversation_id();
-            let has_new_messages = self.history.write_tail(
-                &persistence,
-                conversation_id,
-                session.log(),
-                session.transfer(),
-            );
-            let record_due = session.record_is_final()
-                && (!self.final_records.contains(conversation_id) || session.record_changed());
-            // Only when something moved: the snapshot is re-encrypted whole,
-            // and doing that on every idle poll starved the handshake under
-            // test on slow hardware.
-            if has_new_messages || record_due {
-                session.write_extra(&persistence);
-            }
-            if record_due {
-                pending.push(conversation_id.to_string());
-            }
-        }
-        for conversation_id in pending {
-            self.write_record(&persistence, &conversation_id);
-        }
-    }
-
-    /// Writes down one message and the state of its send. `deep` also saves
-    /// the kind's own durable state, which a first send needs and the settle
-    /// that follows it does not.
-    pub fn persist_send(&mut self, conversation_id: &str, message_id: &str, deep: bool) {
-        let Some(persistence) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        {
-            let Some(session) = self.sessions.get(conversation_id) else {
-                return;
-            };
-            if !self.history.write_send(
-                &persistence,
-                conversation_id,
-                message_id,
-                session.log(),
-                session.attempts(),
-            ) {
-                return;
-            }
-            if deep {
-                session.write_extra(&persistence);
-            }
-            let record_due = session.record_is_final()
-                && (!self.final_records.contains(conversation_id) || session.record_changed());
-            if !record_due {
-                return;
-            }
-        }
-        self.write_record(&persistence, conversation_id);
-    }
-
-    /// Saves one conversation's record now, without waiting for a message. A
-    /// conversation that was just created needs this: it must be rebuildable
-    /// from the moment it exists.
-    ///
-    /// `final_now` says the record is already complete, so the kind's own
-    /// state goes down with it and the tail write will not save it again. A
-    /// joiner whose record is still a placeholder passes `false`.
-    pub fn persist_record(&mut self, conversation_id: &str, final_now: bool) {
-        let Some(persistence) = self.persistence.as_ref().cloned() else {
-            return;
-        };
-        let record = {
-            let Some(session) = self.sessions.get(conversation_id) else {
-                return;
-            };
-            if final_now {
-                session.write_extra(&persistence);
-            }
-            session.record()
-        };
-        self.history
-            .write_record(&persistence, conversation_id, &record);
-        if !final_now {
-            return;
-        }
-        if let Some(session) = self.sessions.get_mut(conversation_id) {
-            session.record_written();
-        }
-        self.final_records.insert(conversation_id.to_string());
-    }
-
-    /// Says a conversation's saved record is already the final one. What
-    /// rehydrate knows, because it just read that record off disk — without
-    /// this the first tail write would replace the record with itself, and
-    /// re-encrypt the kind's whole state to do it.
+    /// Says the current record is already durably saved. Creation marks it
+    /// after accepting its atomic pair; rehydrate marks restored records.
+    /// The next unchanged tail need not re-encrypt the conversation state.
     pub fn mark_record_final(&mut self, conversation_id: &str) {
         self.final_records.insert(conversation_id.to_string());
     }
@@ -275,17 +184,7 @@ impl<S: ConversationSession> ConversationRuntime<S> {
     pub fn forget(&mut self, conversation_id: &str) {
         self.history.forget(conversation_id);
         self.final_records.remove(conversation_id);
-    }
-
-    fn write_record(&mut self, persistence: &Persistence, conversation_id: &str) {
-        if let Some(session) = self.sessions.get(conversation_id) {
-            self.history
-                .write_record(persistence, conversation_id, &session.record());
-        }
-        if let Some(session) = self.sessions.get_mut(conversation_id) {
-            session.record_written();
-        }
-        self.final_records.insert(conversation_id.to_string());
+        self.pending.forget(conversation_id);
     }
 }
 

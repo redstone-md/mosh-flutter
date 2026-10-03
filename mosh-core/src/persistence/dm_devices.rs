@@ -1,4 +1,4 @@
-//! Atomic DM epoch records and race-free creation of the shared device identity.
+//! Race-free creation and replacement of the shared device-link identity.
 use super::*;
 
 pub(super) fn db_error(error: impl std::fmt::Display) -> PersistenceError {
@@ -35,28 +35,6 @@ impl Persistence {
         }
         tx.commit().map_err(db_error)?;
         Ok(true)
-    }
-
-    pub(crate) fn put_dm_transition(
-        &self,
-        session: &str,
-        record: &[u8],
-        snapshot: &[u8],
-    ) -> Result<(), PersistenceError> {
-        let record = encrypt_blob(&self.dek, record)?;
-        let snapshot = encrypt_blob(&self.dek, snapshot)?;
-        let tx = self.db.begin_write().map_err(db_error)?;
-        {
-            tx.open_table(SESSIONS)
-                .map_err(db_error)?
-                .insert(session, record.as_slice())
-                .map_err(db_error)?;
-            tx.open_table(MLS_SNAPSHOT)
-                .map_err(db_error)?
-                .insert(session, snapshot.as_slice())
-                .map_err(db_error)?;
-        }
-        tx.commit().map_err(db_error)
     }
 
     /// Concurrent initial readers must receive the same identity winner.

@@ -122,8 +122,8 @@ class ConversationMessageListView extends StatefulWidget {
   /// transfer state.
   final ConversationSnapshot snapshot;
 
-  final ConversationAttachmentCallbacks Function(AttachmentView? view)
-      attachmentCallbacks;
+  final ConversationAttachmentCallbacks Function(AttachmentView? view,
+      {required bool own}) attachmentCallbacks;
 
   /// Sends a failed message again.
   final void Function(String messageId) onRetryMessage;
@@ -214,7 +214,7 @@ class _ConversationMessageListViewState
     final view = attachment == null
         ? null
         : widget.snapshot.attachmentView(attachment.attachmentId);
-    final callbacks = widget.attachmentCallbacks(view);
+    final callbacks = widget.attachmentCallbacks(view, own: row.message.own);
     final body = row.message.body;
     final messageRow = ConversationMessageRow(
       message: row.message,

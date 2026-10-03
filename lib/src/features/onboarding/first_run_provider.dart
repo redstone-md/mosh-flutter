@@ -62,8 +62,9 @@ class FirstRunController extends AsyncNotifier<FirstRunProfile> {
         check(() => bridge.listChannels().then((s) => s.channels.isNotEmpty)),
         check(() => bridge.listGroups().then((s) => s.groups.isNotEmpty)),
         check(() => bridge.listOrgs().then((s) => s.isNotEmpty)),
-        check(() =>
-            ref.read(deviceLinkProvider.future).then(_hasIdentityHistory)),
+        check(() => ref
+            .read(deviceLinkProvider.future)
+            .then((link) => _hasIdentityHistory(link.snapshot))),
       ]);
     } catch (_) {
       if (!existing) rethrow;

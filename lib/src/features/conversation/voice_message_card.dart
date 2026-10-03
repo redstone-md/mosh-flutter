@@ -1,10 +1,4 @@
-// Voice-message card, rendered by AttachmentCard when descriptor.voice
-// != null. An inline player: a play/pause button + a 64-bucket waveform
-// (CustomPaint, played/unplayed split at the live progress) + a
-// position/duration label. Tapping the waveform seeks. Playback uses
-// media_kit (the same engine MediaViewer + VoiceComposer preview use); the
-// file path comes from view.localPath. If the file is not local yet
-// (offered/offered incoming), the play button triggers onDownload.
+// Inline media_kit voice player with waveform seeking and download-on-play.
 library;
 
 import 'dart:async' show unawaited;
@@ -22,6 +16,8 @@ import 'package:mosh/src/features/shared/voice_composer.dart'
     show formatVoiceClock, waveformBuckets;
 import 'package:mosh/src/features/shared/contextual_icon_switcher.dart';
 import 'package:mosh/src/features/shared/press_scale.dart';
+import 'conversation_attachment.dart';
+import 'conversation_state.dart' show ConversationPendingDropped;
 
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/l10n/app_localizations.dart';
@@ -42,9 +38,7 @@ Uint8List _peaksFromBase64(String? b64) {
   return peaks;
 }
 
-/// Inline voice-message player. [descriptor] carries the VoiceMeta (duration
-/// + peaks); [view] carries the local path + transfer state; [onDownload] is
-/// fired when the user taps play before the file is local.
+/// Plays a local voice message or downloads it when the user presses play.
 class VoiceMessageCard extends StatefulWidget {
   const VoiceMessageCard({
     super.key,
@@ -54,11 +48,14 @@ class VoiceMessageCard extends StatefulWidget {
     required this.onDownload,
     required this.playLabel,
     required this.pauseLabel,
+    this.own = false,
     this.messageFooter,
+    this.createPlayer,
   });
 
   final AttachmentDescriptor descriptor;
   final AttachmentView? view;
+  final bool own;
   final bool busy;
   final void Function(String attachmentId) onDownload;
 
@@ -66,20 +63,25 @@ class VoiceMessageCard extends StatefulWidget {
   final String pauseLabel;
   final Widget? messageFooter;
 
+  /// Uses media_kit's existing platform-player seam in headless tests.
+  final Player Function()? createPlayer;
+
   @override
   State<VoiceMessageCard> createState() => _VoiceMessageCardState();
 }
 
 class _VoiceMessageCardState extends State<VoiceMessageCard> {
+  ConversationAttachment get _attachment => ConversationAttachment(
+      descriptor: widget.descriptor, view: widget.view, own: widget.own);
   Player? _player;
   bool _playing = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  // True when the user tapped play before the file was local: the download
-  // was started and playback must begin the moment the local path arrives.
+  String? _loadedPath;
+  String? _openingPath;
+  // A play request survives download and load failure until playback succeeds.
   bool _playWhenReady = false;
 
-  /// setState only while the state is still alive.
   void _ifMounted(VoidCallback fn) {
     if (mounted) fn();
   }
@@ -87,10 +89,9 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   @override
   void initState() {
     super.initState();
-    // Defensive: Player() throws in test envs (no native lib) -> the card
-    // renders the waveform + a disabled play button so the row still shows.
+    // The card still renders when native playback is unavailable.
     try {
-      final player = Player();
+      final player = (widget.createPlayer ?? Player.new)();
       _player = player;
       player.stream.playing.listen((playing) {
         _ifMounted(() => setState(() => _playing = playing));
@@ -109,29 +110,36 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
   @override
   void didUpdateWidget(covariant VoiceMessageCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If the local path arrived (download finished), open it on the player.
-    // A play tapped before the download finished is queued: it must actually
-    // start now, not just load the file.
-    final newPath = widget.view?.localPath;
-    if (newPath != null && newPath != oldWidget.view?.localPath) {
-      _open(newPath);
-      if (_playWhenReady) {
-        _playWhenReady = false;
-        unawaited(_player?.play());
-      }
+    if (_attachment.resolvePendingOpen() is ConversationPendingDropped) {
+      _playWhenReady = false;
+    }
+    final newPath = _attachment.localPath;
+    final oldPath = ConversationAttachment(
+            descriptor: oldWidget.descriptor,
+            view: oldWidget.view,
+            own: oldWidget.own)
+        .localPath;
+    if (newPath != null && newPath != oldPath) {
+      unawaited(_open(newPath));
     }
   }
 
   Future<void> _open(String path) async {
     final player = _player;
-    if (player == null) return;
+    if (player == null || _openingPath == path) return;
+    _openingPath = path;
     try {
-      // play: false -- opening only loads the file; the queued play (or the
-      // user's next tap) decides whether it starts. Without this a queued
-      // play-after-download would autoplay the file on load.
       await player.open(Media(path), play: false);
+      if (!mounted || _attachment.localPath != path) return;
+      _loadedPath = path;
+      if (_playWhenReady) {
+        await player.play();
+        _playWhenReady = false;
+      }
     } catch (_) {
-      // best-effort
+      // Keep the request so the next play tap retries loading.
+    } finally {
+      if (_openingPath == path) _openingPath = null;
     }
   }
 
@@ -141,31 +149,34 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     super.dispose();
   }
 
-  bool get _downloading => widget.view?.state == AttachmentState.downloading;
-
   /// Tapping play before the file is local starts its download (once).
   void _requestDownload() {
-    if (!_downloading) {
+    if (_attachment.progress == null) {
       widget.onDownload(widget.descriptor.attachmentId);
     }
   }
 
   Future<void> _toggle() async {
     final player = _player;
-    final localPath = widget.view?.localPath;
+    final localPath = _attachment.localPath;
     if (localPath == null) {
-      // Play-before-download: queue it so the arrival of the local path
-      // starts playback (didUpdateWidget), not just the file load.
+      if (_attachment.outgoing) return;
       _playWhenReady = true;
       _requestDownload();
       return;
     }
     if (player == null) return;
-    // Open on first play (the player was idle until the path arrived).
-    if (_duration == Duration.zero) {
+    if (_loadedPath != localPath) {
+      _playWhenReady = true;
       await _open(localPath);
+      return;
     }
-    await player.playOrPause();
+    try {
+      await player.playOrPause();
+      if (mounted) _playWhenReady = false;
+    } catch (_) {
+      // A failed queued request remains available for another play tap.
+    }
   }
 
   void _seek(double ratio) {
@@ -182,24 +193,20 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
     final voice = widget.descriptor.voice;
     final durationMs = voice?.durationMs ?? 0;
     final peaks = _peaksFromBase64(voice?.peaksB64);
-    // Progress clamps to 0..1; 0 when duration is unknown.
     final progress = durationMs > 0
         ? (math.min(1.0, _position.inMilliseconds / durationMs))
         : 0.0;
-    // Time shows position while playing/seeked, else the full duration.
     final showMs = (_playing || _position.inMilliseconds > 0)
         ? _position.inMilliseconds
         : durationMs;
     final playLabel = _playing ? widget.pauseLabel : widget.playLabel;
-    // Flat embedded player. The message bubble owns the surrounding surface.
-    final enabled = !(widget.busy && widget.view?.localPath == null);
+    final enabled =
+        _attachment.localPath != null || !(widget.busy || _attachment.outgoing);
     return Container(
       constraints: const BoxConstraints(maxWidth: 280),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 40x40 hit target with tactile press scale, centered glyph,
-          // and contextual icon cross-fade.
           Opacity(
             opacity: enabled ? 1 : 0.65,
             child: PressScale(
@@ -297,10 +304,7 @@ class VoiceCardTimeLabel extends StatelessWidget {
   }
 }
 
-/// The voice wave: 64 buckets with a played/unplayed split, plus the seek
-/// gesture. Owns its own box: the ratio is measured against the WAVE's
-/// width, not the card's (`Builder` context), so a tap near the right edge
-/// reports ~1.0 no matter how wide the card renders.
+/// Waveform seeking measures its own width, independently of the card.
 class VoiceWaveform extends StatelessWidget {
   const VoiceWaveform({
     super.key,
@@ -326,8 +330,7 @@ class VoiceWaveform extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The Builder's context resolves to the wave's own render object: the
-    // card's context would measure the whole card (the audit's HIGH finding).
+    // Measure the waveform's render object.
     return Builder(
       builder: (context) => GestureDetector(
         onTapDown: (details) {
@@ -353,10 +356,7 @@ class VoiceWaveform extends StatelessWidget {
   }
 }
 
-/// Draws the 64-bucket waveform with a played/unplayed split: each bucket
-/// is a centered vertical bar whose height is the bucket's amplitude
-/// (0..255 -> 0..height, min 2px); bars below the progress use the played
-/// color, the rest the unplayed color.
+/// Draws 64 amplitude bars, marking the played portion in its own color.
 class _WaveformPainter extends CustomPainter {
   const _WaveformPainter({
     required this.peaks,

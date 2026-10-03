@@ -240,6 +240,23 @@ impl<'a, M: ConversationMessage> Outbox<'a, M> {
         }
     }
 
+    /// Activates a durably admitted DM without counting admission as a retry.
+    pub(crate) fn activate_queue(&mut self, message_id: &str) -> Result<(), LogError> {
+        let attempt = self
+            .attempts
+            .get_mut(message_id)
+            .ok_or_else(|| LogError::Missing(message_id.to_string()))?;
+        attempt.delivery_status = MessageDeliveryStatus::Queued;
+        attempt.delivery_error = None;
+        self.log.mark_delivery(
+            message_id,
+            MessageDeliveryStatus::Queued,
+            None,
+            attempt.retry_count,
+        )?;
+        self.sync_message_json(message_id)
+    }
+
     /// Copies the message's current JSON into its attempt record, so a restart
     /// rebuilds the message with the delivery status it ended on.
     pub fn sync_message_json(&mut self, message_id: &str) -> Result<(), LogError> {

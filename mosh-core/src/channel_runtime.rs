@@ -165,7 +165,7 @@ impl ChannelRuntime {
             (channel_name, topic, prepared)
         };
         let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
-        self.channels.persist_tail();
+        self.channels.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -182,8 +182,32 @@ impl ChannelRuntime {
             (session.name.clone(), session.topic.clone(), prepared)
         };
         let result = self.publish_prepared(&normalized, &topic, channel_name, prepared)?;
-        self.channels.persist_tail();
+        self.channels.persist_tail_logged(KIND);
         Ok(result)
+    }
+
+    fn persist_prepared(
+        &mut self,
+        normalized: &str,
+        message_id: &str,
+    ) -> Result<(), ChannelRuntimeError> {
+        if let Err(error) = self.channels.persist_send(normalized, message_id, false) {
+            self.channel_mut(normalized)?.outbox().settle(
+                message_id,
+                Err(error.to_string()),
+                OnSent::Retain,
+            )?;
+            if let Err(save_error) = self.channels.persist_send(normalized, message_id, false) {
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::PERSIST,
+                    normalized,
+                    &save_error.to_string(),
+                );
+            }
+            return Err(error.into());
+        }
+        Ok(())
     }
 
     /// Publishes a prepared send on the channel's topic and writes down how it
@@ -196,8 +220,7 @@ impl ChannelRuntime {
         channel_name: String,
         prepared: Prepared,
     ) -> Result<ChannelSendResult, ChannelRuntimeError> {
-        self.channels
-            .persist_send(normalized, &prepared.message_id, false);
+        self.persist_prepared(normalized, &prepared.message_id)?;
         let publish = {
             let session = self.channel_ref(normalized)?;
             session
@@ -213,8 +236,17 @@ impl ChannelRuntime {
                 OnSent::Forget,
             )?
         };
-        self.channels
-            .persist_send(normalized, &prepared.message_id, false);
+        if let Err(error) = self
+            .channels
+            .persist_send(normalized, &prepared.message_id, false)
+        {
+            dlog::write(
+                LogLevel::Error,
+                kinds::PERSIST,
+                normalized,
+                &error.to_string(),
+            );
+        }
         Ok(ChannelSendResult {
             name: channel_name,
             bytes: prepared.ciphertext_bytes,
@@ -240,7 +272,7 @@ impl ChannelRuntime {
         let normalized = normalize_name(name)?;
         let session = self.channel_mut(&normalized)?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        self.channels.persist_tail();
+        self.channels.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -285,14 +317,14 @@ impl ChannelRuntime {
 
     pub fn poll(&mut self, name: &str) -> Result<ChannelSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
-        self.channels.persist_tail();
+        self.channels.persist_tail_logged(KIND);
         let normalized = normalize_name(name)?;
         Ok(self.channel_ref(&normalized)?.snapshot())
     }
 
     pub fn list(&mut self) -> Result<ChannelListSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
-        self.channels.persist_tail();
+        self.channels.persist_tail_logged(KIND);
         let mut channels: Vec<ChannelSnapshot> = self
             .channels
             .values()
@@ -430,3 +462,7 @@ fn publish_json<T: Serialize>(
 #[cfg(test)]
 #[path = "channel_runtime/runtime_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "channel_runtime/durability_tests.rs"]
+mod durability_tests;

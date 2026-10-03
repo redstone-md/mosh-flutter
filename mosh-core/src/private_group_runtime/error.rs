@@ -6,6 +6,7 @@ use super::*;
 pub enum PrivateGroupError {
     Moss(String),
     Codec(String),
+    Persistence(String),
     OpenMls(String),
     InvalidInvite(String),
     BodyTooLarge,
@@ -22,6 +23,7 @@ impl std::fmt::Display for PrivateGroupError {
         match self {
             Self::Moss(error) => write!(formatter, "Moss error: {error}"),
             Self::Codec(error) => write!(formatter, "codec error: {error}"),
+            Self::Persistence(error) => write!(formatter, "persistence error: {error}"),
             Self::OpenMls(error) => write!(formatter, "OpenMLS error: {error}"),
             Self::InvalidInvite(error) => write!(formatter, "invalid group invite: {error}"),
             Self::BodyTooLarge => write!(formatter, "group message too large"),
@@ -71,5 +73,11 @@ impl From<SlotError> for PrivateGroupError {
             SlotError::Missing(id) => Self::MissingAttachment(id),
             other => Self::Attachment(other.to_string()),
         }
+    }
+}
+
+impl From<crate::persistence::PersistenceError> for PrivateGroupError {
+    fn from(error: crate::persistence::PersistenceError) -> Self {
+        Self::Persistence(error.to_string())
     }
 }

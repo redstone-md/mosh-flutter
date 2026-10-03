@@ -30,7 +30,8 @@ class ConversationDetailsPanel extends ConsumerWidget {
   final AnyConversationTarget target;
   final AsyncValue<ConversationSnapshot> async;
   final VoidCallback onClose;
-  final void Function(AttachmentDescriptor, AttachmentView?) onOpenAttachment;
+  final void Function(AttachmentDescriptor, AttachmentView?, bool own)
+      onOpenAttachment;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -158,7 +159,7 @@ class ConversationDetailsPanel extends ConsumerWidget {
     for (final message in files) {
       final descriptor = message.attachment!;
       final view = views[descriptor.attachmentId];
-      final callbacks = actions(view);
+      final callbacks = actions(view, own: message.own);
       cards.add(ConversationSharedFile(
           message: message, view: view, actions: callbacks));
     }

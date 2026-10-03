@@ -91,7 +91,9 @@ fn history_survives_a_restart() {
     log.push(TestMessage::new("alice", "first").at(100).with_id("m1"));
     log.push(TestMessage::new("bob", "second").at(200).with_id("m2"));
 
-    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
+    assert!(history
+        .write_tail(&scratch.persistence, CONVERSATION, &log, None)
+        .unwrap());
 
     let (restored, attempts) = scratch.read_back(&mut History::new(DM_HISTORY));
     assert_eq!(restored.len(), 2);
@@ -137,12 +139,9 @@ fn an_offered_file_can_be_downloaded_after_both_peers_restart() {
             retry_count: None,
             read: None,
         });
-        History::new(DM_HISTORY).write_tail(
-            &scratch.persistence,
-            CONVERSATION,
-            &log,
-            Some(transfer),
-        );
+        History::new(DM_HISTORY)
+            .write_tail(&scratch.persistence, CONVERSATION, &log, Some(transfer))
+            .unwrap();
     }
 
     let mut revived_sender = sender.transfer();
@@ -198,12 +197,18 @@ fn a_message_is_written_once_not_once_per_poll() {
     let mut log = MessageLog::default();
     log.push(TestMessage::new("alice", "first").at(100).with_id("m1"));
 
-    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
+    assert!(history
+        .write_tail(&scratch.persistence, CONVERSATION, &log, None)
+        .unwrap());
     // An idle poll: nothing new, so nothing is written.
-    assert!(!history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
+    assert!(!history
+        .write_tail(&scratch.persistence, CONVERSATION, &log, None)
+        .unwrap());
 
     log.push(TestMessage::new("alice", "second").at(200).with_id("m2"));
-    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
+    assert!(history
+        .write_tail(&scratch.persistence, CONVERSATION, &log, None)
+        .unwrap());
 
     let rows = scratch
         .persistence
@@ -218,12 +223,16 @@ fn replaying_picks_up_where_the_last_write_left_off() {
     let mut first = History::new(DM_HISTORY);
     let mut log = MessageLog::default();
     log.push(TestMessage::new("alice", "first").at(100).with_id("m1"));
-    first.write_tail(&scratch.persistence, CONVERSATION, &log, None);
+    first
+        .write_tail(&scratch.persistence, CONVERSATION, &log, None)
+        .unwrap();
 
     let mut second = History::new(DM_HISTORY);
     let (restored, _) = scratch.read_back(&mut second);
     // The replayed message is already down, so the next write must skip it.
-    assert!(!second.write_tail(&scratch.persistence, CONVERSATION, &restored, None));
+    assert!(!second
+        .write_tail(&scratch.persistence, CONVERSATION, &restored, None)
+        .unwrap());
     assert_eq!(
         scratch
             .persistence
@@ -240,11 +249,15 @@ fn forgetting_a_conversation_rewrites_it_from_the_start() {
     let mut history = History::new(DM_HISTORY);
     let mut log = MessageLog::default();
     log.push(TestMessage::new("alice", "first").at(100).with_id("m1"));
-    history.write_tail(&scratch.persistence, CONVERSATION, &log, None);
+    history
+        .write_tail(&scratch.persistence, CONVERSATION, &log, None)
+        .unwrap();
 
     history.forget(CONVERSATION);
 
-    assert!(history.write_tail(&scratch.persistence, CONVERSATION, &log, None));
+    assert!(history
+        .write_tail(&scratch.persistence, CONVERSATION, &log, None)
+        .unwrap());
 }
 
 #[test]
@@ -258,7 +271,9 @@ fn a_failed_send_comes_back_retryable() {
     record.delivery_error = Some("no route".to_string());
     attempts.insert("m1".to_string(), record);
 
-    assert!(history.write_send(&scratch.persistence, CONVERSATION, "m1", &log, &attempts));
+    assert!(history
+        .write_send(&scratch.persistence, CONVERSATION, "m1", &log, &attempts)
+        .unwrap());
 
     let (restored, restored_attempts) = scratch.read_back(&mut History::new(DM_HISTORY));
     assert_eq!(restored.len(), 1);
@@ -282,7 +297,9 @@ fn a_send_cut_short_by_a_restart_comes_back_failed_not_pending() {
         "m1".to_string(),
         attempt(&log[0], MessageDeliveryStatus::Pending),
     );
-    history.write_send(&scratch.persistence, CONVERSATION, "m1", &log, &attempts);
+    history
+        .write_send(&scratch.persistence, CONVERSATION, "m1", &log, &attempts)
+        .unwrap();
 
     let (restored, _) = scratch.read_back(&mut History::new(DM_HISTORY));
 
@@ -346,11 +363,15 @@ fn a_settled_send_drops_its_attempt_record() {
         "m1".to_string(),
         attempt(&log[0], MessageDeliveryStatus::Pending),
     );
-    history.write_send(&scratch.persistence, CONVERSATION, "m1", &log, &attempts);
+    history
+        .write_send(&scratch.persistence, CONVERSATION, "m1", &log, &attempts)
+        .unwrap();
 
     // What a channel or a group does once the frame is on the wire.
     attempts.remove("m1");
-    history.write_send(&scratch.persistence, CONVERSATION, "m1", &log, &attempts);
+    history
+        .write_send(&scratch.persistence, CONVERSATION, "m1", &log, &attempts)
+        .unwrap();
 
     let (restored, restored_attempts) = scratch.read_back(&mut History::new(DM_HISTORY));
     assert_eq!(restored.len(), 1);
@@ -363,13 +384,15 @@ fn a_send_of_a_message_that_is_not_in_the_log_writes_nothing() {
     let history = History::new(DM_HISTORY);
     let log: MessageLog<TestMessage> = MessageLog::default();
 
-    assert!(!history.write_send(
-        &scratch.persistence,
-        CONVERSATION,
-        "ghost",
-        &log,
-        &Attempts::new()
-    ));
+    assert!(!history
+        .write_send(
+            &scratch.persistence,
+            CONVERSATION,
+            "ghost",
+            &log,
+            &Attempts::new()
+        )
+        .unwrap());
     assert!(scratch
         .persistence
         .list_history_messages(DM_HISTORY, CONVERSATION)
@@ -383,7 +406,8 @@ fn each_kind_reads_only_its_own_tables() {
     let mut dm = History::new(DM_HISTORY);
     let mut log = MessageLog::default();
     log.push(TestMessage::new("alice", "dm only").at(100).with_id("m1"));
-    dm.write_tail(&scratch.persistence, CONVERSATION, &log, None);
+    dm.write_tail(&scratch.persistence, CONVERSATION, &log, None)
+        .unwrap();
 
     let mut channel_log: MessageLog<TestMessage> = MessageLog::default();
     let mut attempts = Attempts::new();
@@ -407,7 +431,9 @@ fn a_conversation_record_round_trips() {
     let scratch = Scratch::open("record");
     let history = History::new(DM_HISTORY);
 
-    history.write_record(&scratch.persistence, CONVERSATION, &"a record");
+    history
+        .write_record(&scratch.persistence, CONVERSATION, &"a record")
+        .unwrap();
 
     let stored: Vec<String> = history.stored_conversations(&scratch.persistence);
     assert_eq!(stored, vec!["a record".to_string()]);
@@ -421,7 +447,9 @@ fn an_unreadable_record_is_skipped_not_fatal() {
         .persistence
         .put_conversation(DM_HISTORY, "broken", b"not json")
         .expect("write");
-    history.write_record(&scratch.persistence, CONVERSATION, &"a record");
+    history
+        .write_record(&scratch.persistence, CONVERSATION, &"a record")
+        .unwrap();
 
     let stored: Vec<String> = history.stored_conversations(&scratch.persistence);
     assert_eq!(stored, vec!["a record".to_string()]);

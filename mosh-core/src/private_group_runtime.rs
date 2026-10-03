@@ -205,6 +205,7 @@ pub struct GroupLeaveResult {
 mod error;
 pub use error::*;
 pub(crate) mod wire_types;
+pub use wire_types::PrivateGroupRuntime;
 pub(crate) use wire_types::*;
 
 struct GroupSession {
@@ -348,7 +349,7 @@ impl PrivateGroupRuntime {
         self.drain_inbound()?;
         let session = self.group_mut(group_id)?;
         let result = session.send_attachment(file_name, mime, bytes, thumbnail, voice)?;
-        self.groups.persist_tail();
+        self.groups.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -484,7 +485,7 @@ impl PrivateGroupRuntime {
                 .open(message, owned_group_id, payload, ciphertext.len())?
         };
         let result = self.publish_prepared(group_id, prepared, true)?;
-        self.groups.persist_tail();
+        self.groups.persist_tail_logged(KIND);
         Ok(result)
     }
 
@@ -512,6 +513,37 @@ impl PrivateGroupRuntime {
         Ok(())
     }
 
+    fn persist_prepared(
+        &mut self,
+        group_id: &str,
+        message_id: &str,
+        persist_snapshot: bool,
+    ) -> Result<(), PrivateGroupError> {
+        if let Err(error) = self
+            .groups
+            .persist_send(group_id, message_id, persist_snapshot)
+        {
+            self.group_mut(group_id)?.outbox().settle(
+                message_id,
+                Err(error.to_string()),
+                OnSent::Retain,
+            )?;
+            if let Err(save_error) =
+                self.groups
+                    .persist_send(group_id, message_id, persist_snapshot)
+            {
+                dlog::write(
+                    LogLevel::Error,
+                    kinds::PERSIST,
+                    group_id,
+                    &save_error.to_string(),
+                );
+            }
+            return Err(error.into());
+        }
+        Ok(())
+    }
+
     /// Publishes a prepared send on the group's data channel and writes down
     /// how it went. A group has no acknowledgement, so the attempt record is
     /// gone as soon as the frame is on the wire.
@@ -521,8 +553,7 @@ impl PrivateGroupRuntime {
         prepared: Prepared,
         persist_snapshot: bool,
     ) -> Result<GroupSendResult, PrivateGroupError> {
-        self.groups
-            .persist_send(group_id, &prepared.message_id, persist_snapshot);
+        self.persist_prepared(group_id, &prepared.message_id, persist_snapshot)?;
         let publish = {
             let session = self
                 .groups
@@ -543,8 +574,17 @@ impl PrivateGroupRuntime {
             )?;
             (group_id_owned, settled)
         };
-        self.groups
-            .persist_send(group_id, &prepared.message_id, false);
+        if let Err(error) = self
+            .groups
+            .persist_send(group_id, &prepared.message_id, false)
+        {
+            dlog::write(
+                LogLevel::Error,
+                kinds::PERSIST,
+                group_id,
+                &error.to_string(),
+            );
+        }
         Ok(GroupSendResult {
             group_id: group_id_owned,
             bytes: prepared.ciphertext_bytes,
@@ -557,14 +597,14 @@ impl PrivateGroupRuntime {
 
     pub fn poll(&mut self, group_id: &str) -> Result<GroupSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
-        self.groups.persist_tail();
+        self.groups.persist_tail_logged(KIND);
         let session = self.group_mut(group_id)?;
         Ok(session.snapshot())
     }
 
     pub fn list(&mut self) -> Result<GroupListSnapshot, PrivateGroupError> {
         self.drain_inbound()?;
-        self.groups.persist_tail();
+        self.groups.persist_tail_logged(KIND);
         let mut groups: Vec<GroupSnapshot> = self
             .groups
             .values_mut()
@@ -693,20 +733,15 @@ impl ConversationSession for GroupSession {
         self.to_persisted_record()
     }
 
-    fn write_extra(&self, persistence: &Persistence) {
-        // A snapshot write that fails while the record write after it
-        // succeeds leaves a row rehydrate can never rebuild. Surface the
-        // failure instead of swallowing it.
-        if let Err(error) =
-            persistence.put_group_mls_snapshot(&self.group_id, &self.crypto.snapshot())
-        {
-            dlog::write(
-                LogLevel::Error,
-                kinds::PERSIST,
-                &self.group_id,
-                &format!("MLS snapshot persist failed: {error}"),
-            );
-        }
+    fn write_extra(
+        &self,
+        persistence: &Persistence,
+    ) -> Result<(), crate::persistence::PersistenceError> {
+        let record = serde_json::to_vec(&self.to_persisted_record())
+            .map_err(|error| crate::persistence::PersistenceError::Json(error.to_string()))?;
+        // Rejoining can replace the signer while an older record survives a
+        // refused close. The shared writer may repeat this same record safely.
+        persistence.put_group_transition(&self.group_id, &record, &self.crypto.snapshot())
     }
 
     /// Until the MLS group exists the record's group id is an empty
@@ -1004,3 +1039,7 @@ fn optional_query(url: &url::Url, key: &str) -> Option<String> {
 #[cfg(test)]
 #[path = "private_group_runtime/runtime_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "private_group_runtime/durability_tests.rs"]
+mod durability_tests;

@@ -85,21 +85,48 @@ class ConversationListNotifier extends AsyncNotifier<ConversationList> {
 
   /// Which kind this entry reads.
   final ConversationKind kind;
+  Future<void>? _refreshing;
+  bool _refreshAgain = false;
+  int _generation = 0;
 
   @override
-  Future<ConversationList> build() => _read(ref.watch(bridgeFacadeProvider));
+  Future<ConversationList> build() {
+    _generation++;
+    _refreshing = null;
+    _refreshAgain = false;
+    return _read(ref.watch(bridgeFacadeProvider));
+  }
 
-  /// Re-runs the server query after a mutation. A guard-swap, so the rail
-  /// never flashes a spinner on a refresh. The provider can be disposed or
-  /// rebuilt while the read is out; the notifier outlives a rebuild and its
-  /// `ref` then names the new build, so the check uses the ref this read
-  /// started under, and a stale answer never overwrites a newer build.
-  Future<void> refresh() async {
+  /// Refreshes without replacing visible rows with loading state. Overlapping
+  /// mutation requests share one subsequent read; background ticks only join
+  /// the current read. A rebuild discards results from the old lifetime.
+  Future<void> refresh({bool background = false}) {
+    if (background && state.isLoading) return Future.value();
+    final pending = _refreshing;
+    if (pending != null) {
+      if (!background) _refreshAgain = true;
+      return pending;
+    }
+    final generation = _generation;
+    return _refreshing = _refresh().whenComplete(() {
+      if (generation == _generation) _refreshing = null;
+    });
+  }
+
+  Future<void> _refresh() async {
     final startedUnder = ref;
-    final next = await AsyncValue.guard(
-      () => _read(startedUnder.read(bridgeFacadeProvider)),
-    );
-    if (startedUnder.mounted) state = next;
+    if (state.isLoading) {
+      await AsyncValue.guard(() => future);
+      if (!startedUnder.mounted) return;
+    }
+    do {
+      _refreshAgain = false;
+      final next = await AsyncValue.guard(
+        () => _read(startedUnder.read(bridgeFacadeProvider)),
+      );
+      if (!startedUnder.mounted) return;
+      state = next;
+    } while (_refreshAgain && startedUnder.mounted);
   }
 
   /// [bridge] is passed in rather than read inside, so `build` can watch

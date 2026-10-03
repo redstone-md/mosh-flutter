@@ -29,7 +29,8 @@ class ConversationPeerStatus extends StatelessWidget {
   final AsyncValue<ConversationSnapshot> async;
 
   final AnyConversationTarget target;
-  final void Function(AttachmentDescriptor, AttachmentView?) onOpenAttachment;
+  final void Function(AttachmentDescriptor, AttachmentView?, bool own)
+      onOpenAttachment;
   final VoidCallback onRefresh;
   final VoidCallback onClose;
 
