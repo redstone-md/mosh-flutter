@@ -4,10 +4,12 @@ import 'package:mosh/src/app/mosh_theme.dart';
 
 import 'first_run_profile.dart';
 
-/// The current task is the single heading, before artwork and controls.
+/// The current task is the single heading, directly above its controls.
+/// Centered when stacked; start-aligned atop the wide form column.
 class SetupHeading extends StatelessWidget {
-  const SetupHeading({super.key, required this.step});
+  const SetupHeading({super.key, required this.step, this.centered = true});
   final SetupStep step;
+  final bool centered;
 
   @override
   Widget build(BuildContext context) {
@@ -22,20 +24,25 @@ class SetupHeading extends StatelessWidget {
       SetupStep.device => l.firstRunDeviceBody,
       SetupStep.network => l.firstRunNetworkBody,
     };
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Semantics(
-          header: true,
-          child: Text(title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium)),
-      const SizedBox(height: 12),
-      Text(body,
-          textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .bodyLarge
-              ?.copyWith(color: MoshColors.fg2)),
-    ]);
+    final align = centered ? TextAlign.center : TextAlign.start;
+    return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment:
+            centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+        children: [
+          Semantics(
+              header: true,
+              child: Text(title,
+                  textAlign: align,
+                  style: Theme.of(context).textTheme.headlineMedium)),
+          const SizedBox(height: 12),
+          Text(body,
+              textAlign: align,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: MoshColors.fg2)),
+        ]);
   }
 }
 

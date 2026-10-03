@@ -41,47 +41,48 @@ class SetupProgress extends StatelessWidget {
   Widget _steps(BuildContext context, List<String> labels, double diameter,
           bool compactLabels) =>
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        for (var index = 0; index < labels.length; index++) ...[
-          if (index > 0)
-            Expanded(
-                child: Padding(
-                    padding: EdgeInsets.only(top: diameter / 2),
-                    child: Divider(
-                        color: index <= step.index
-                            ? MoshColors.moss
-                            : MoshColors.lineStrong))),
+        for (var index = 0; index < labels.length; index++)
           Expanded(
-              flex: 2,
               child: _item(context, labels[index], index, diameter,
-                  showLabel: !compactLabels)),
-        ],
+                  last: index == labels.length - 1, showLabel: !compactLabels)),
       ]);
 
+  /// Half-lines on both sides of each marker join into one continuous track.
   Widget _item(BuildContext context, String label, int index, double diameter,
-      {required bool showLabel}) {
+      {required bool last, required bool showLabel}) {
     final active = index == step.index;
     final done = index < step.index;
+    Widget track(bool visible, bool reached) => Expanded(
+        child: visible
+            ? Divider(
+                height: 1,
+                color: reached ? MoshColors.moss : MoshColors.lineStrong)
+            : const SizedBox.shrink());
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-          width: diameter,
-          height: diameter,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active ? MoshColors.mossGlow : MoshColors.bg1,
-              border: Border.all(
-                  color: active || done
-                      ? MoshColors.moss
-                      : MoshColors.fieldBorder),
-              boxShadow: active
-                  ? const [
-                      BoxShadow(color: MoshColors.mossGlow, blurRadius: 24)
-                    ]
-                  : null),
-          child: done
-              ? const Icon(Icons.check, size: 18, color: MoshColors.moss)
-              : Text('${index + 1}',
-                  style: Theme.of(context).textTheme.titleMedium)),
+      Row(children: [
+        track(index > 0, index <= step.index),
+        Container(
+            width: diameter,
+            height: diameter,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active ? MoshColors.mossGlow : MoshColors.bg1,
+                border: Border.all(
+                    color: active || done
+                        ? MoshColors.moss
+                        : MoshColors.fieldBorder),
+                boxShadow: active
+                    ? const [
+                        BoxShadow(color: MoshColors.mossGlow, blurRadius: 24)
+                      ]
+                    : null),
+            child: done
+                ? const Icon(Icons.check, size: 18, color: MoshColors.moss)
+                : Text('${index + 1}',
+                    style: Theme.of(context).textTheme.titleMedium)),
+        track(!last, index < step.index),
+      ]),
       if (showLabel) ...[
         const SizedBox(height: 8),
         Text(label,
@@ -92,7 +93,9 @@ class SetupProgress extends StatelessWidget {
   }
 }
 
-/// A stable Flex preserves form state while switching to a single column.
+/// Wide: artwork panel on the left, task heading and form on the right.
+/// Narrow: heading, artwork, form. A stable Flex with fixed slots preserves
+/// form state while switching between the two.
 class SetupFrame extends StatelessWidget {
   const SetupFrame(
       {super.key,
@@ -114,6 +117,11 @@ class SetupFrame extends StatelessWidget {
         crossAxisAlignment:
             stacked ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
         children: [
+          stacked
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: SetupHeading(step: step))
+              : const SizedBox.shrink(),
           Flexible(
               fit: fit,
               child: sizing.showIllustration
@@ -128,8 +136,21 @@ class SetupFrame extends StatelessWidget {
               child: Center(
                   heightFactor: 1,
                   child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: child))),
+                      constraints: BoxConstraints(
+                          maxWidth: stacked ? double.infinity : 480),
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            stacked
+                                ? const SizedBox.shrink()
+                                : Padding(
+                                    padding: EdgeInsets.only(
+                                        bottom: sizing.sectionGap),
+                                    child: SetupHeading(
+                                        step: step, centered: false)),
+                            child,
+                          ])))),
         ]);
   }
 
@@ -149,8 +170,7 @@ class SetupFrame extends StatelessWidget {
       if (!stacked && !devices) ...[
         const SizedBox(height: 16),
         Text(step == SetupStep.name ? l.firstRunWelcome : l.firstRunAlmostReady,
-            textAlign: TextAlign.center,
-            style: text.headlineSmall?.copyWith(color: MoshColors.fg2)),
+            textAlign: TextAlign.center, style: text.headlineSmall),
         const SizedBox(height: 12),
         Text(
             step == SetupStep.name
