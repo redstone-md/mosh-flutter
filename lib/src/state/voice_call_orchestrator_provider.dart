@@ -15,8 +15,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart'
     show CallDialog, NoCallDialog, callDialogFor;
-import 'package:mosh/src/features/voice_call/call_frame_transport.dart'
-    show CallFrameTransport;
 import 'package:mosh/src/features/voice_call/voice_call_orchestrator.dart'
     show VoiceCallOrchestrator;
 import 'package:mosh/src/features/voice_call/voice_capture.dart'
@@ -174,14 +172,13 @@ class VoiceCallOrchestratorNotifier
     final orchestrator = _orchestrator!;
     final sid = sessionId;
     final bridge = ref.read(bridgeFacadeProvider);
-    final transport = CallFrameTransport(bridge);
     orchestrator.attach(
       sessionId: sid,
       callId: activeCall.callId,
       keyB64: activeCall.keyB64,
       noncePrefixB64: activeCall.noncePrefixB64,
       direction: activeCall.direction,
-      transport: transport,
+      bridge: bridge,
       captureFactory: ref.read(voiceCaptureFactoryProvider),
       playbackFactory: ref.read(voicePlaybackFactoryProvider),
       onError: (message) => _fail(message, CallErrorSource.audioSetup),

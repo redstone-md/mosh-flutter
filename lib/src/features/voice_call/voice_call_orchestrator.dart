@@ -1,12 +1,12 @@
 // VoiceCallOrchestrator -- the audio-transport lifecycle for an active
 // two-party voice call. Riverpod-free + Flutter-free so it is unit-testable
-// with Noop capture/playback factories and a recording transport.
+// with Noop capture/playback factories and a scriptable bridge.
 //
 // attach() runs the setup: importCallKey -> reset seq/jitter/mute ->
 // start playback -> start capture (onFrame: snapshot+inc seq synchronously
-// then sealFrame + transport.sendFrameBytes) -> a 20ms Timer.periodic
-// guarded by `draining` that runs drainCallFrames with the transport as
-// source + playback as sink + a fresh JitterBuffer. detach() tears it all
+// then sealFrame + bridge.callSendFrame) -> a 20ms Timer.periodic
+// guarded by `draining` that runs drainCallFrames with the bridge,
+// playback as sink and a fresh JitterBuffer. detach() tears it all
 // down. A `cancelled` flag gates the two await windows (playback/capture
 // resolving after detach) so a teardown during setup does not leak or
 // clobber.
@@ -16,9 +16,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart' show SecretKey;
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 
 import 'call_drain.dart' show drainCallFrames;
-import 'call_frame_transport.dart' show CallFrameTransport;
 import 'frame_codec.dart' show CALLER_DIRECTION_BIT, CALLEE_DIRECTION_BIT;
 import 'frame_crypto.dart' show importCallKey, sealFrame;
 import 'jitter_buffer.dart' show JitterBuffer;
@@ -61,7 +61,7 @@ class VoiceCallOrchestrator {
     required String keyB64,
     required String noncePrefixB64,
     required String direction, // "caller" | "callee"
-    required CallFrameTransport transport,
+    required BridgeFacade bridge,
     required VoiceCaptureFactory captureFactory,
     required VoicePlaybackFactory playbackFactory,
     required void Function(String? message) onError,
@@ -99,7 +99,7 @@ class VoiceCallOrchestrator {
           seq: seq,
           directionBit: directionBit,
           frame: frame,
-          transport: transport,
+          bridge: bridge,
           sessionId: sessionId,
           callId: callId,
         );
@@ -120,7 +120,7 @@ class VoiceCallOrchestrator {
         // Swallow poll errors and always reset the draining guard so the
         // next tick can fire.
         drainCallFrames(
-          source: transport,
+          bridge: bridge,
           sessionId: sessionId,
           callId: callId,
           key: key,
@@ -174,13 +174,14 @@ class VoiceCallOrchestrator {
     required BigInt seq,
     required BigInt directionBit,
     required Uint8List frame,
-    required CallFrameTransport transport,
+    required BridgeFacade bridge,
     required String sessionId,
     required String callId,
   }) async {
     try {
       final seal = await sealFrame(key, noncePrefix, seq, directionBit, frame);
-      await transport.sendFrameBytes(sessionId, callId, seal);
+      await bridge.callSendFrame(
+          sessionId: sessionId, callId: callId, frame: seal);
     } catch (_) {
       // Send failure is non-fatal -- swallow here.
     }

@@ -1,5 +1,5 @@
-/// Gateway poll-loop glue for voice-call frame draining. Pulls pending wire
-/// frames for a call from the [CallFrameSource] gateway, decrypts each
+/// Poll-loop glue for voice-call frame draining. Pulls raw wire
+/// frames for a call from the bridge, decrypts each
 /// (skipping any that fail auth), pushes the survivors into the
 /// [JitterBuffer], then drains the ready (reordered) frames to the
 /// [CallFrameSink] playback handle. Pure of Flutter so the poll loop can
@@ -9,16 +9,10 @@ library;
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:mosh/src/gateway/bridge_facade.dart' show BridgeFacade;
 
-import 'frame_codec.dart';
 import 'frame_crypto.dart';
 import 'jitter_buffer.dart';
-
-/// Pulls pending wire frames for a call. The only gateway method this
-/// module needs.
-abstract interface class CallFrameSource {
-  Future<List<String>> callDrainFrames(String sessionId, String callId);
-}
 
 /// Where decoded, reordered frames go. The playback handle, narrowed.
 abstract interface class CallFrameSink {
@@ -30,7 +24,7 @@ abstract interface class CallFrameSink {
 /// ones to playback. Uses named params (Dart idiom for a 7-arg surface;
 /// matches the call-site convention elsewhere in this feature).
 Future<void> drainCallFrames({
-  required CallFrameSource source,
+  required BridgeFacade bridge,
   required String sessionId,
   required String callId,
   required SecretKey key,
@@ -38,10 +32,11 @@ Future<void> drainCallFrames({
   required JitterBuffer jitter,
   required CallFrameSink playback,
 }) async {
-  final frames = await source.callDrainFrames(sessionId, callId);
+  final frames =
+      await bridge.callDrainFrames(sessionId: sessionId, callId: callId);
   if (frames.isEmpty) return;
-  for (final frameB64 in frames) {
-    final opened = await openFrame(key, noncePrefix, bytesFromBase64(frameB64));
+  for (final frame in frames) {
+    final opened = await openFrame(key, noncePrefix, frame);
     if (opened != null) {
       jitter.push(BufferedFrame(seq: opened.seq, payload: opened.payload));
     }
