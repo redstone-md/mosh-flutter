@@ -1,10 +1,6 @@
 //! Race-free creation and replacement of the shared device-link identity.
 use super::*;
 
-pub(super) fn db_error(error: impl std::fmt::Display) -> PersistenceError {
-    PersistenceError::Db(error.to_string())
-}
-
 impl Persistence {
     /// Compare the decrypted record in the write transaction so two runtime
     /// owners cannot roll back each other's roster or pairing delivery state.
