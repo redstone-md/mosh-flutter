@@ -58,3 +58,39 @@ fn the_no_peers_text_matches_the_runtime_display() {
         mosh_core::moss_ffi::MossFfiError::NoPeers.to_string()
     );
 }
+
+#[test]
+fn an_expired_retry_budget_does_not_publish_again() {
+    let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
+    let mut channels = ChannelRuntime::from_shared(runtime, scratch_store().unwrap(), None);
+    let channel = "probe-expired-retry";
+    channels
+        .join(JoinChannelRequest {
+            name: channel.to_string(),
+            display_name: "deadline".to_string(),
+            listen_port: 0,
+            static_peer: None,
+        })
+        .unwrap();
+    let first = channels
+        .send(channel, "deadline check".to_string())
+        .unwrap();
+    assert!(refused_for_no_peers(&first));
+    let message_id = first.message_id.clone();
+    retry_send_until_accepted(
+        "deadline-test",
+        &mut channels,
+        channel,
+        first,
+        Duration::from_millis(1),
+        false,
+    )
+    .unwrap();
+    let snapshot = channels.poll(channel).unwrap();
+    let message = snapshot
+        .messages
+        .iter()
+        .find(|message| message.message_id.as_deref() == Some(&message_id))
+        .unwrap();
+    assert_eq!(message.retry_count, Some(0));
+}
