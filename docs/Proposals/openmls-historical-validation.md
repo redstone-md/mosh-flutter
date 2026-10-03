@@ -10,9 +10,10 @@ The [patch](openmls-historical-validation.patch) adds a scoped,
 thread-local lifetime validation clock. It restores the prior policy on return
 or panic, including nested calls. It does not change the process-global clock,
 skip signatures or import another client's MLS state. The user approved the
-dependency change on 2026-09-28. The existing version is vendored under
-`third_party/openmls`, with its license and provenance. Core and probe use that
-same copy without changing dependency versions.
+dependency change on 2026-09-28. The existing version is materialized under
+`third_party/openmls` from a [pinned archive and complete local patch](../../third_party/openmls-patches/README.md),
+with its license and provenance. Core and probe use that same byte-identical
+copy without changing dependency versions.
 
 The approved [PR 29 review corrections](openmls-review-corrections.md) document
 subsequent fixes to this vendor copy and how its upstream tests are restored

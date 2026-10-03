@@ -59,9 +59,9 @@ and the test surface should be the same small thing.
 
 - The Gateway interface finally is the test surface: eight scripted methods,
   and `ScriptableGateway` drops from 756 to about 190 lines. The bridge fake
-  (`ScriptableBridge`) is over the repo size budgets by design -- see the
-  documented exception below -- and exists so widget tests can run without
-  Rust.
+  (`ScriptableBridge`) shares scripted state with named conversation, call,
+  network, organization and diagnostics facets. Each facet stays within the
+  file budget while widget tests keep one fake per provider and run without Rust.
 - ADR 0013's "widgets depend on Gateway, never a concrete impl" now holds for
   the conversation seam only. Mirror callers depend on a concrete class; their
   fake<->real swap is still one provider body, but the class has no other
@@ -73,19 +73,18 @@ and the test surface should be the same small thing.
 
 ### Size exceptions (documented per exception_policy)
 
-- `BridgeFacade` (type, ~225 LOC over `type_max_loc: 200`) and
-  `ScriptableBridge` (type ~470 LOC; file ~560 over `file_max_loc: 400`).
-- Reason: both are one flat member per generated bridge function, in the
+- `BridgeFacade` (type, 256 LOC over `type_max_loc: 200`, measured after simplification).
+- Reason: it has one flat member per generated bridge function, in the
   facade's own declaration order -- 34 mirrors with no logic to factor out.
   Splitting the facade by area would put five providers where one seam-free
-  pass-through reads in one sitting; splitting the fake would break the "one
-  fake per provider" contract tests rely on.
-- Scope: exactly these two types and their files. Nothing else may lean on
-  this exception.
+  pass-through reads in one sitting. The test fake now splits implementation
+  into mixins without adding providers or changing that contract.
+- Scope: exactly the facade type. Its file and all fake facets fit the file
+  budget. Nothing else may lean on this exception.
 - Removal plan: ticket 14 contracted the bridge surface (the eighteen
   per-kind shared-action wrappers) without touching a mirror -- none of them
   was mirrored here, so the count stays at 34. A future bridge contraction
-  that removes mirrors shrinks the two files with it. Revisit the exception
+  that removes mirrors shrinks the facade with it. Revisit the exception
   whenever the mirror count changes.
 
 ## References

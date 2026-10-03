@@ -1,1419 +1,282 @@
-# Mosh Architecture (Flutter fork)
+# Mosh architecture
 
-This is the global architecture map for the Flutter-rewrite fork (`mosh-flutter`). It replaces the upstream Tauri + React view. Decisions live in the ADRs referenced below; this document is the assembled picture.
+Mosh is a desktop-first decentralized messenger built with Flutter, Riverpod,
+Rust, OpenMLS and Moss. Windows and macOS are the primary desktop targets;
+Android uses the same linked-device and DM runtime. Private DMs and groups use
+MLS encryption. Public channels authenticate messages without content secrecy.
+Discovery is automatic through Moss. Public trackers limit metadata privacy.
 
-## Purpose
-
-Mosh is a desktop-first decentralized end-to-end-encrypted messenger. In this fork the application shell is a Flutter + Dart UI over the retained `mosh-core` Rust runtime: MLS group secrets live in OpenMLS, transport runs over the Moss mesh, secrets are held in OS secure storage, and message history persists to a local redb store. The shell is desktop-first (Windows, macOS, Linux) with Android and iOS from the same codebase; only the Flutter shell and frontend are rewritten, the Rust core is not.
-
-## System Boundaries
-
-```mermaid
-flowchart LR
-    User[User]
-    Flutter[Flutter / Dart UI]
-    Bridge[FFI Bridge flutter_rust_bridge]
-    Api[mosh_core::api facade]
-    Runtimes[mosh-core runtimes]
-    Moss[Moss shared library]
-    OpenMLS[OpenMLS engine]
-    Keychain[OS secure storage]
-    Store[redb local store]
-    Trackers[Default/public Moss trackers]
-
-User --> Flutter
-Flutter --> Bridge
-Bridge --> Api
-Api --> Runtimes
-Runtimes --> OpenMLS
-Runtimes --> Moss
-Runtimes --> Keychain
-Runtimes --> Store
-Moss --> Trackers
-```
-
-Dart never crosses this seam except through the generated bridge. The `api` module is the only Rust surface the bridge binds; it is a thin facade over the runtimes (private_dm, group, channel, org, voice, attachment, persistence, secure_storage). Secrets, MLS state, Moss transport, and redb persistence all live on the Rust side of the boundary (ADR 0009, ADR 0010).
-The Dart side reaches `api` through two surfaces (ADR 0025): the `Gateway`
-seam -- `RealBridgeGateway` delegating to the generated free functions in
-`lib/src/rust/api/` -- for the conversation methods, and the concrete
-`BridgeFacade` for everything that mirrors one bridge call 1:1. The app ships
-only the real implementations; tests swap in `ScriptableGateway` and
-`ScriptableBridge` (`test/support/`) through the providers. Conversation
-callers consume `gatewayProvider`, never a concrete `Gateway` (ADR 0013);
-mirror callers consume `bridgeFacadeProvider`. Device linking follows the
-scoped direct bridge decision in [ADR 0029](ADR/0029-private-desktop-device-linking.md).
-The `api` facade is real
-for every command family (`diagnostics`, `private_dm`, `channel`,
-`private_group`, `org`, `network`, `vpn`; OnceLock singletons, ADR 0016).
-
-Diagnostic probes call `run_openmls_smoke_test()` and
-`MossDynamicRuntime.status()` directly. `OsSecureSecretStore.status()` reports
-the platform backend without accepting a store it does not inspect. The
-`SecureSecretStore` seam remains for the OS and file adapters.
-
-## Device linking
-
-Devices settings and first-run setup share `DeviceLinkController`. Its
-`DeviceLinkState` retains native proof, action errors and one lock covering
-QR acquisition, native commands and durable setup navigation. Polls do not
-replace pending actions, and results from a disposed or rebuilt controller
-cannot publish into its replacement. `DeviceLinkCommands` keeps generated
-calls inside the feature; scripted commands test the real Flutter workflow.
-Native consent and persistence proofs still use the real bridge and Moss.
-`DeviceLinkRuntime` owns one local signing identity,
-a verified device roster and the pairing exchange. It borrows the existing
-`SharedMossNode` and encrypted `Persistence`; pairing uses directed Moss
-stream 3. Existing DM, org and MLS identities keep their contracts.
-See [ADR 0029](ADR/0029-private-desktop-device-linking.md) for admission,
-signature verification, expiry, replay and delivery recovery.
-Signed roster removals use the same private stream and encrypted identity
-row. Identity writers compare their exact persisted bytes inside the write
-transaction, so a stale owner cannot overwrite a newer roster. Typed revoked
-and pending/applied snapshot fields drive the Devices UI; the DM runtime owns
-MLS application. See [ADR 0033](ADR/0033-dm-device-revocation.md).
-
-Android uses these same identity, roster, MLS admission, history recovery and
-removal owners. Startup loads its own user-presence-gated Keystore DEK before
-opening app-private encrypted records. System backup/transfer is excluded so
-new installations cannot inherit a copied device identity or keyless database.
-`ForegroundPoller` pauses Android UI reads while hidden/paused and refreshes
-immediately on resume without reconstructing native owners. Desktop polling
-retains its existing behavior. The main Android manifest grants network access
-in release builds as well as debug. See [ADR 0034](ADR/0034-android-linked-text-dm.md)
-and [the physical Android scenario](Features/android-linked-dm.md).
+## Read the system
 
 ```mermaid
 flowchart LR
-    Unlock[Android foreground unlock] --> DEK[Own Keystore DEK]
-    DEK --> Local[Own encrypted identities and DM records]
-    Local --> Runtime[Existing device-link and private-DM owners]
-    Runtime --> Moss[Real arm64 Moss, automatic discovery]
-    Moss --> Desktop[Linked desktop]
-    Moss --> Contact[DM contact]
-    Resume[Foreground return] --> Poll[Immediate guarded UI refresh]
-    Poll --> Runtime
+    UI[Flutter features] --> State[Riverpod state]
+    State --> Gateway[Gateway: conversation actions]
+    State --> Facade[BridgeFacade: other native commands]
+    Gateway --> Bridge[Generated flutter_rust_bridge]
+    Facade --> Bridge
+    Bridge --> Owners[api: runtime owners]
+    Owners --> Runtime[DM / group / channel / org / device link]
+    Runtime --> Shared[Shared conversation modules]
+    Runtime --> MLS[OpenMLS]
+    Runtime --> Node[One shared Moss node]
+    Shared --> Store[Encrypted redb persistence]
+    Node --> Mesh[Moss discovery and transport]
 ```
 
-```mermaid
-flowchart LR
-    Settings[Devices settings] --> Provider[Device-link provider]
-    Provider --> Bridge[Device-link API]
-    Bridge --> Runtime[DeviceLinkRuntime]
-    Runtime --> Identity[DeviceIdentity]
-    Identity --> Roster[Signed DeviceRoster]
-    Identity --> Store[Encrypted device-link row]
-    Runtime --> Node[SharedMossNode]
-    Node --> Stream[Directed stream 3]
-```
+| Directory | Responsibility | Start here |
+| --- | --- | --- |
+| `lib/src/features/` | Screens, feature state and interaction | `conversation/conversation_screen.dart` |
+| `lib/src/state/` | Polling, snapshots and application state | `conversation_providers.dart` |
+| `lib/src/gateway/` | Typed Flutter/native adapters | `gateway.dart`, `bridge_facade.dart` |
+| `mosh-core/src/api/` | Bridge functions and process runtime ownership | `runtime_owner.rs`, `shared_runtime.rs` |
+| `mosh-core/src/conversation/` | Shared logs, delivery, history and transfers | `runtime.rs` |
+| `mosh-core/src/private_dm_runtime/` | DM protocol and linked installations | `session.rs`, `devices/` |
+| `mosh-core/src/private_group_runtime/` | MLS groups and organization admission | `lifecycle.rs`, `org_gate.rs` |
+| `mosh-core/src/channel_runtime/` | Public channel protocol | `lifecycle.rs`, `session.rs` |
+| `mosh-core/src/org_runtime/` | Organization roster and admission | `session.rs`, `actions.rs`, `storage.rs` |
+| `mosh-core/src/device_link/` | Signed device identities, rosters and pairing | `runtime/`, `identity.rs`, `roster.rs` |
+| `mosh-core/src/persistence/` | Encrypted tables and atomic writes | `database.rs`, `schema.rs`, `outbound.rs` |
+| `mosh-core/src/moss_ffi/` | Native symbols, callbacks and node operations | `symbols.rs`, `callbacks.rs`, `node.rs` |
+| `mosh-core/src/mls_crypto/` | MLS setup, commits, messages and restoration | `setup.rs`, `commits.rs`, `storage.rs` |
+| `mosh-probe/src/` | Headless reachability diagnostics | `cli.rs`, `dm.rs`, `group.rs`, `channel.rs` |
+| `test/support/` | Scripted bridge and widget dependencies | `scriptable_gateway.dart`, `scriptable_bridge.dart` |
+| `mosh-core/tests/support/` | Independent native installation fixtures | Device-link and transport harnesses |
 
-```mermaid
-classDiagram
-    class DeviceLinkSnapshot {
-        role
-        userId
-        ownDeviceId
-        devices
-        revoked
-        revocations
-        phase
-        pendingDevice
-        confirmationCode
-        error
-    }
-    class DeviceLinkRuntime {
-        snapshot()
-        beginLink()
-        joinLink(uri, deviceName)
-        approve(code)
-        cancel()
-        revoke(deviceId)
-    }
-    class DeviceIdentity
-    class DeviceRoster
-    class DeviceDescriptor
-    DeviceLinkRuntime --> DeviceLinkSnapshot
-    DeviceLinkRuntime --> DeviceIdentity
-    DeviceIdentity --> DeviceRoster
-    DeviceRoster --> DeviceDescriptor
-```
+Runtime roots preserve public Rust type paths; private implementation modules
+own lifecycle, command, receive, snapshot and storage work. Generated bridge
+files are checked in and generated localization files are ignored. Moss is a
+pinned submodule; do not modify its source. The OpenMLS upstream mirror is
+reconstructed from [a pinned archive and complete local patch](../third_party/openmls-patches/README.md).
 
-## Repository Boundaries
+## Flutter state and conversations
 
-```mermaid
-flowchart TB
-    Fork[mosh-flutter fork root]
-    Core[mosh-core Rust crate]
-    MossSub[moss submodule pin v0.9.0]
-    Lib[lib Flutter / Dart UI]
-    Docs[docs]
+`Gateway` owns typed conversation polling and common actions. `ConversationTarget`
+selects the snapshot type; common commands cross the bridge once with a typed
+kind/id reference. `BridgeFacade` handles command families that mirror one native
+operation, including setup, lists, organizations, diagnostics and calls. Tests
+replace these adapters through providers; production uses real implementations.
+See [ADR 0017](ADR/0017-gateway-takes-the-conversation-target.md),
+[ADR 0024](ADR/0024-the-bridge-names-shared-conversation-actions.md) and
+[ADR 0025](ADR/0025-the-gateway-is-the-conversation-seam.md).
 
-    Fork --> Core
-    Fork --> MossSub
-    Fork --> Lib
-    Fork --> Docs
-    Lib -. FFI bridge .-> Core
-    Core -. loads shared lib .-> MossSub
-```
-
-`mosh-core/` is the built Rust runtime. `moss/` is the Moss Go shared library, pinned at `v0.9.0`. `lib/` is the Flutter + Dart frontend. `docs/` holds this map, the ADRs, the glossary, and the plan. The dead React/Tauri app is gone from this fork: nothing under the old `src/`/`src-tauri/` paths exists here (ADR 0013).
-
-## First-run setup
-
-`MoshApp` gates mounting the router through `FirstRunGate`. New installations
-complete name, optional device linking and optional network-interface setup
-before entering conversations. Saved completion or existing conversation/device
-history bypasses the wizard. An incoming invite stays in the router's memory
-until setup completes. Conversation auto-polling starts after this gate;
-device linking continues through its existing native service and provider.
-
-The feature-local `FirstRunStore` owns non-secret, versioned preferences in
-the application support directory: display name, saved step and completion.
-It restores the invite flow's default name and backs Settings' Profile section.
-Existing conversation names and identities retain their contracts. Device
-and network steps reuse existing runtime APIs. Adapter changes require restart;
-Windows can relaunch automatically after durable completion, other platforms
-request manual restart. See [ADR 0036](ADR/0036-first-run-gate-and-local-profile.md)
-and [first-run behavior](Features/first-run-setup.md).
-
-## Gateway and Provider Layer (slice one)
-
-```mermaid
-flowchart LR
-    Widget[Widget / Screen]
-    Providers[Riverpod providers]
-    GW[Gateway interface -- the conversation seam]
-    Real[RealBridgeGateway ships in the app]
-    Fake[ScriptableGateway tests only]
-    BF[BridgeFacade -- the 1:1 mirrors]
-    Frb[frb-generated api functions]
-    Core[mosh_core::api Rust facade]
-
-    Widget -->|ref.watch| Providers
-    Providers -->|gatewayProvider| GW
-    Providers -->|bridgeFacadeProvider| BF
-    GW -->|app| Real
-    GW -->|"test override"| Fake
-    BF --> Frb
-    Real --> Frb
-    Frb --> Core
-```
-
-Slice one ships three providers behind the bridge providers in
-`lib/src/state/session_providers.dart`: `activeSessionProvider.family`
-(FutureProvider.family for a per-session snapshot, the DM screen poll),
-`diagnosticsProvider` (AsyncNotifierProvider for `appDiagnostics`), and
-`inviteFlowProvider` (sync NotifierProvider for the cross-screen invite-create
-flow: displayName + listenPort + lastInvite). The session LIST is no longer
-one of them: one family, `conversationListProvider`
-(`lib/src/state/conversation_providers.dart`), serves the DM, channel and
-group lists with the kind as its family arg, so the kind branch that used to
-be three list providers lives in one module. The snapshot poll consumes
-`gatewayProvider`, never a concrete `Gateway` (ADR 0013); the list and invite
-reads consume `bridgeFacadeProvider` (ADR 0025).
-
-That one module also owns the only kind-to-invalidate switch in the state
-layer: `invalidateConversation(ref.invalidate, conversation)` re-reads the
-snapshot family the kind names, and `refreshConversation` adds the matching
-recent-chat list because every kind's row carries its last-message preview.
-`unreadCountsProvider` is the same shape one level up -- one
-family, one branch in `unreadCounts`, keyed by `ConversationRef.key`.
-
-Each conversation-list notifier owns refresh ordering. Background ticks skip
-an initial or outstanding read. Requests after mutations share one subsequent
-fresh read, so they cannot overwrite a newer list with an older completion.
-Rebuilds reject answers from the previous provider lifetime. Auto-poll owns the
-foreground timer and refreshes the open snapshot after successful list updates;
-it carries no separate in-flight guard. Each kind still progresses independently.
-
-```mermaid
-classDiagram
-    class ConversationList {
-        <<sealed>>
-    }
-    class DmConversationList {
-        SessionListSnapshot snapshot
-    }
-    class ChannelConversationList {
-        ChannelListSnapshot snapshot
-    }
-    class GroupConversationList {
-        GroupListSnapshot snapshot
-    }
-    ConversationList <|-- DmConversationList
-    ConversationList <|-- ChannelConversationList
-    ConversationList <|-- GroupConversationList
-
-    class ConversationKind {
-        <<enum>>
-        dm
-        channel
-        group
-    }
-    class conversationListProvider {
-        <<family>>
-        kind : ConversationKind
-    }
-    ConversationKind --> conversationListProvider : family arg
-    conversationListProvider --> ConversationList : AsyncValue
-    conversationListProvider ..> DmConversationList : listSessions()
-    conversationListProvider ..> ChannelConversationList : listChannels()
-    conversationListProvider ..> GroupConversationList : listGroups()
-```
-
-## Private DM Slice
-
-```mermaid
-sequenceDiagram
-    participant Alice as Alice UI Dart
-    participant Bridge as FFI Bridge
-    participant Core as mosh-core
-    participant Moss as Moss mesh
-    participant Mls as OpenMLS
-    participant Keychain as OS Keychain
-    participant Bob as Bob via Moss
-
-    Alice->>Bridge: createInvite
-    Bridge->>Core: api::private_dm::create_invite
-    Core->>Keychain: load identity and key package
-    Core->>Mls: create key package
-    Core->>Moss: start node with tracker config
-    Moss-->>Core: peer id ready
-    Core-->>Bridge: invite URI and fingerprint
-    Bridge-->>Alice: InviteUri
-    Alice->>Alice: share invite URI via clipboard
-    Bob->>Bridge: acceptInvite invite
-    Bridge->>Core: api::private_dm::accept_invite
-    Core->>Mls: create welcome from peer key package
-    Core->>Moss: publish MLS control message
-    Moss-->>Moss: deliver over pubsub
-    Core->>Mls: join group on Bob side
-    Bob->>Bob: Read the shared fingerprint in the header lock
-    Bob->>Bridge: send DmTarget(sessionId) text
-    Bridge->>Core: api::conversation::send BridgeConversationRef{Dm, id}
-    Core->>Mls: protect as MLS application message
-    Core->>Moss: publish ciphertext
-    Moss-->>Moss: deliver to Alice node
-    Core->>Mls: unprotect through group state
-    Bridge->>Core: poll_session
-    Core-->>Bridge: SessionSnapshot
-    Bridge-->>Alice: Decrypted messages
-```
-
-This reuses the invite, fingerprint and send flow. The generated bridge
-connects UI and runtime (ADR 0009, ADR 0010). The fingerprint lock displays
-the creator's value on both sides. It has no local confirmation flag or send
-gate. See [private-DM behavior](Features/private-dm.md).
-
-Snapshot delivery is poll-based, not stream-based: `api::private_dm` exposes
-no `StreamSink`, and the DM screen re-polls `activeSessionProvider.family`
-— the poll cadence is a UI choice, and the DM screen owns it. The protocol
-does not wait for that poll: a service thread started with the runtime runs
-one protocol step (`PrivateDmRuntime::service`) every 500 ms, so handshakes,
-keepalives, the outbox and re-sends keep going when the window is hidden or
-its timers are throttled. The Dart auto-poll gives each list kind its own
-in-flight guard, so one busy kind never freezes the others. The sequence
-above is the design intent; the slice-one proof is
-`integration_test/slice_one_test.dart` (see Features/private-dm.md).
-
-### Linked desktop clients
-
-Issue 24 extends one DM to separate MLS clients for a linked user's devices.
-The signed device roster authorizes each client; the established MLS contact
-binds the counterpart's user identity. Admission and its delivery journal live
-inside the encrypted session record. Live ciphertext uses directed Moss streams.
-The Flutter conversation and fingerprint retain their existing contracts.
-
-```mermaid
-flowchart LR
-    A[User A original desktop] --> DM[One DM MLS group]
-    A2[User A linked desktop] --> DM
-    B[User B desktop] --> DM
-    R[Private signed device roster] --> A
-    R --> A2
-    DM --> Store[Independent encrypted stores]
-    DM --> Moss[Directed Moss streams]
-```
-
-```mermaid
-classDiagram
-    class DeviceMembership {
-        topology
-        joining
-        delivery
-        recovery
-        recoveryExports
-        epochRecords
-    }
-    class DmTopology {
-        ownUserId
-        clients
-        rosters
-    }
-    class IdentityClaim {
-        roster
-        deviceId
-        mlsSigner
-        displayName
-    }
-    class PrivateDmSession
-    PrivateDmSession --> DeviceMembership
-    DeviceMembership --> DmTopology
-    DmTopology --> IdentityClaim
-```
-
-### Initial history on a linked desktop
-
-An admitted linked desktop imports semantic text from its authorized source
-over the private encrypted device stream. Source manifests and recipient
-cursors survive restart. Imported rows and progress commit together under
-the recipient's own local key; live and imported text share message ids.
-The optional `SessionSnapshot.history_sync` drives the conversation's waiting
-and importing notices. See [ADR 0031](ADR/0031-linked-desktop-dm-history.md).
-
-```mermaid
-flowchart LR
-    Source[Authorized source history] --> Manifest[Durable frozen manifest]
-    Manifest --> Stream[Signed batches over encrypted Moss stream]
-    Stream --> Import[Verify and deduplicate semantic text]
-    Import --> Store[Atomic rows and cursor under local key]
-    Store --> View[Existing DM snapshot and history status]
-    Live[New live text] --> Import
-```
-
-### Returning DM installations
-
-An admitted installation probes available participants for missed text and MLS
-admission evidence. It applies verified commits in epoch order to its own MLS
-state, then imports semantic text through the existing atomic history boundary.
-Acknowledgements finish retries without deleting retained text or evidence.
-Source replacement uses a new durable round; live/imported text shares ids.
-The existing history status reports waiting when holders are unavailable.
-See [ADR 0032](ADR/0032-dm-offline-recovery.md) for retention, authorization,
-ordered recovery and future storage boundaries.
-
-The vendored OpenMLS 0.8.1 patch validates retained Add lifetimes at their
-original author-signed admission time after group, epoch and author checks.
-It restores the actual-clock policy after each synchronous recovery operation.
-Normal admission uses the actual clock and the shared decoder enforces the
-library's maximum package lifetime range.
-
-```mermaid
-flowchart LR
-    Probe[Probe admitted participants] --> Source[Select available holder]
-    Source --> Epoch[Verify and save each next MLS epoch]
-    Epoch --> Import[Import bounded semantic text]
-    Import --> Local[Own encrypted store and durable cursor]
-    Local --> View[Existing snapshot and history status]
-    Source --> Waiting[Wait or switch source after silence]
-    Waiting --> Probe
-```
-
-### Revoking a DM installation
-
-`api::device_link::revoke(device_id)` persists a signed roster removal before
-transport. The private DM runtime processes removals in signed roster order,
-creates an exact-leaf MLS Remove and saves its evidence, topology, local MLS
-snapshot and retry journal together. Receivers verify both the original device
-authorization and the actual MLS committer before saving and acknowledging.
-The remaining cohort, excluding removed clients, determines pending/applied
-status. Retained evidence supports ordered Add/Remove recovery from another
-authorized holder when the original author is offline.
-
-```mermaid
-flowchart LR
-    Roster[Durable signed roster removal] --> MLS[Exact MLS leaf Remove]
-    MLS --> Store[Atomic epoch and evidence save]
-    Store --> Remaining[Remaining clients verify and save]
-    Remaining --> Ack[Durable acknowledgement]
-    Ack --> Applied[Typed applied status]
-    Store --> Recovery[Retained ordered Add and Remove evidence]
-    Recovery --> Returning[Honest returning client applies next epoch]
-```
-
-Current roster authorization gates live routing, history and recovery. A newer
-roster is pinned without publishing it as the old epoch's topology while the
-MLS transition is pending. Removal between a client's signed admission and
-the current roster retires that leaf even if the device later receives fresh
-roster permission. A revoked DM remains a readable local archive. Fresh
-same-user QR approval enables a new independent Join/Welcome while preserving
-semantic history. No private MLS state is transferred between installations.
-See [ADR 0033](ADR/0033-dm-device-revocation.md).
-
-## Interface Contracts
-
-```mermaid
-classDiagram
-    class PrivateDmProtocol {
-      +createInvite() InviteUri
-      +acceptInvite(invite) FingerprintChallenge
-      +confirmFingerprint(challenge) ConversationId
-      +sendMessage(conversationId, text) SendResult
-      +sessionSnapshotEvents() Stream Snapshot
-    }
-
-    class Gateway {
-      +poll(target) Snapshot
-      +send(target, body) void
-      +sendAttachment(target, file) void
-      +leave(target) void
-    }
-
-    class BridgeFacade {
-      +createInvite() InviteCreated
-      +acceptInvite(invite) SessionSnapshot
-      +listSessions() SessionListSnapshot
-      +callStart(sessionId) CallStarted
-    }
-
-    class ConversationTarget {
-      +String id
-      DmTarget, ChannelTarget, GroupTarget
-    }
-
-    class ScriptableGateway {
-    }
-
-    class RealBridgeGateway {
-    }
-
-    class ScriptableBridge {
-    }
-
-    class MossAdapter {
-      +start(config) NodeHandle
-      +subscribe(channel) Result
-      +publish(channel, payload) Result
-      +stop(handle) Result
-    }
-
-    class MlsAdapter {
-      +createKeyPackage() KeyPackage
-      +createWelcome(peerPackage) WelcomeMessage
-      +protectMessage(groupId, plaintext) Ciphertext
-      +unprotectMessage(groupId, ciphertext) Plaintext
-    }
-
-    class SecureStorageAdapter {
-      +loadSecret(key) SecretBytes
-      +saveSecret(key, value) Result
-      +deleteSecret(key) Result
-    }
-
-    PrivateDmProtocol --> Gateway
-    Gateway --> ConversationTarget
-    Gateway <|.. ScriptableGateway
-    Gateway <|.. RealBridgeGateway
-    BridgeFacade <|.. ScriptableBridge
-    RealBridgeGateway --> MossAdapter
-    RealBridgeGateway --> MlsAdapter
-    RealBridgeGateway --> SecureStorageAdapter
-```
-
-`Gateway` is the Dart seam declared in slice one (ADR 0013). `ScriptableGateway` (in `test/support/`, never shipped) is the test double that lets widget tests run without the Rust runtime; `RealBridgeGateway` wraps the generated `flutter_rust_bridge` `api` and is the production path. The Rust `api` module owns the `MossAdapter`, `MlsAdapter`, and `SecureStorageAdapter` composition; Dart never instantiates them directly. The `api` surface carries one function per operation (ADR 0010 as amended by ADR 0024: the six shared conversation actions take the conversation kind in the argument instead of one function per kind).
-Since ADR 0025 the `Gateway` surface has 8 methods -- the conversation seam:
-`poll`, `send`, `retry`, `sendAttachment`, `downloadAttachment`,
-`cancelAttachment`, `dismissDmOffer` and `leave`, each taking a
-`ConversationTarget` instead of coming in a DM, channel and group flavour, so
-one method serves all three kinds (ADR 0017). For the six shared actions
-`RealBridgeGateway` converts the target to a typed `BridgeConversationRef` and
-calls one shared bridge function — the kind dispatch lives in the bridge
-(ADR 0024); only `dismissDmOffer`, which a DM cannot answer, still switches in
-the adapter. The other 34 former methods -- org, VPN, call, diagnostics,
-session setup, the channel/group joins and lists -- mirror one
-`mosh_core::api` signature 1:1, hide no decision, and left the interface:
-their callers reach the concrete `BridgeFacade` (`lib/src/gateway/
-bridge_facade.dart`) through `bridgeFacadeProvider`, and tests fake it with
-`ScriptableBridge` only where a screen needs canned data or a scripted
-failure. The two doubles share one `ScriptedConversations` state, mirroring
-the single Rust runtime both Dart surfaces are views over. The voice-call
-audio adapters (capture, playback, ringtone) stay outside both surfaces on
-purpose: they wrap OS audio through their own factory providers and hold no
-Rust domain state, so there is nothing to fake at the bridge. The
-`api` facade is real for every command family (OnceLock singletons,
-ADR 0016).
-
-## Conversation Module
-
-One module renders and drives every conversation: the DM, the public channel
-and the org group (ADR 0018). It lives in `lib/src/features/conversation/`.
+DM, channel and group screens supply headers and targets to one
+`ConversationScreen`. Its controller owns send/retry, attachments, voice notes
+and leave operations. The screen owns the composer, search, selection, panels
+and navigation. Action methods return results instead of navigating or editing
+the composer. A sealed `ConversationSnapshot` gives shared rendering one message
+shape while preserving each kind's native snapshot for kind-specific controls.
 
 ```mermaid
 flowchart TD
-    Dm[DmScreen]
-    Ch[ChannelScreen]
-    Gr[GroupScreen]
-    Screen[ConversationScreen]
-    Body[ConversationScreenBody]
-    Ctrl[ConversationController]
-    List[ConversationMessageListView]
-    Row[ConversationMessageRow]
-    Snap[conversationSnapshotProvider]
-    Kind["activeSessionProvider / channelSnapshotProvider / groupSnapshotProvider"]
-    GW[Gateway]
-
-    Dm -->|"its header, its target"| Screen
-    Ch -->|"its header, its target"| Screen
-    Gr -->|"its header, its target"| Screen
-    Screen --> Body
-    Screen --> Ctrl
-    Body --> List
-    List --> Row
-    Body --> Snap
-    Ctrl --> GW
-    Ctrl --> Snap
-    Snap --> Kind
-    Kind --> GW
+    Headers[DM / channel / group headers] --> Screen[ConversationScreen]
+    Screen --> Controller[ConversationController]
+    Screen --> Body[Shared body, list and message row]
+    Body --> Snapshot[conversationSnapshotProvider]
+    Snapshot --> Native[Existing typed snapshot providers]
+    Controller --> Gateway[Gateway actions]
+    Native --> Gateway
 ```
 
-Each kind supplies its app bar and its target, and each kind's screen and app
-bar live in this module beside the chrome they share, so the conversation
-module imports no other conversation-shaped module. Everything below the
-header is shared: one controller for send / retry / attachments / voice /
-leave / peer DM, one body, one message list, one row. The screen hands the
-header and the body one `ConversationChrome` -- the search text, the filter,
-the mobile search panel, the peer-status drawer and the leave action -- so
-neither holds a copy of the screen's state.
-
-`ConversationAttachment` interprets a descriptor and observed transfer state
-for message cards, the shared-file index and open actions. It owns direction,
-default state, usable paths, previews, bounded progress and allowed controls.
-An available transfer with a nonempty local path is ready; failed/cancelled
-transfers take precedence over stale cached paths. Unknown transfer size renders
-indeterminate progress on both surfaces. The controller owns pending opens and
-uses the same interpretation to wait, display or discard them.
-
-Voice cards use this readiness rule and media_kit's existing Player. A queued
-play request survives failed loading or playback and is consumed after success.
-A cancelled transfer or disposed card cannot start queued playback after a held
-load. Tests exercise actual Player calls through its recording PlatformPlayer
-adapter; native decoding remains a runtime check.
-
-The one thing a conversation does not own is the call a DM can carry. It
-declares what it needs from one in `conversation_call_binding.dart` and never
-imports the module that answers; see Voice Call Module below.
-
-The three generated snapshots map into one sealed view, so the shared code
-reads one message shape while the kind-only surfaces — the peer-status
-drawer, the group rejoin warning, the leave dialog's label — still reach
-their own typed source snapshot.
-
-```mermaid
-classDiagram
-    class ConversationSnapshot {
-      +AnyConversationTarget target
-      +String ownDeviceName
-      +String ownFingerprint
-      +List~ConversationMessage~ messages
-      +List~AttachmentView~ attachments
-    }
-    class DmConversation {
-      +SessionSnapshot source
-    }
-    class ChannelConversation {
-      +ChannelSnapshot source
-    }
-    class GroupConversation {
-      +GroupSnapshot source
-    }
-    class ConversationControllerState {
-      +bool sending
-      +ConversationActionError? chatError
-      +String? lastFailedBody
-      +AttachmentDescriptor? pendingOpen
-    }
-    class ConversationActionError {
-      +ConversationBridgeErrorKind? kind
-      +String message
-      +describe(AppLocalizations) String
-    }
-
-    ConversationSnapshot <|-- DmConversation
-    ConversationSnapshot <|-- ChannelConversation
-    ConversationSnapshot <|-- GroupConversation
-    ConversationController --> ConversationControllerState
-    ConversationControllerState --> ConversationActionError
-    ConversationController --> ConversationSnapshot
-```
-
-A failed shared action reaches the banner as a `ConversationActionError`: the
-bridge's `ConversationBridgeErrorKind` when the seam threw one, ready-made
-text otherwise. The screen picks the wording from the kind and never reads
-the runtime's diagnostic sentence.
-
-`ConversationActionError` lives in `features/shared/` because it is the one
-classifier for a caught bridge error everywhere a screen acts on the bridge:
-the conversation banner, the three onboarding steps, the invite paste, the
-org-action toast in `org_actions.dart`, the rail's accept-offer toast, the
-DM's start-call snack bar, and the voice-call layer (whose `CallError`
-carries the classified cause) all catch, call
-`ConversationActionError.of(error)`, and render `describe(l)`. No user-facing
-path calls `toString()` or `readableError` on a `ConversationBridgeError`.
-Snapshot-driven state (rejoin, revocation, retryable delivery) stays
-snapshot-driven.
-
-Every conversation action on the bridge throws that same
-`ConversationBridgeError`: the six shared actions and the kind-specific ones
-(DM invites and call controls, channel join and DM offers, group create/join
-and DM offers, all org actions). Each facade's `ensure_runtime()` answers
-`Unavailable` when its singleton cannot be driven, and the runtime's own error
-maps through one `From` impl per runtime in `api/conversation_bridge.rs`. Only
-the poll and list reads keep a plain `String` — a read failure is a provider
-error, not something the user acted on. The generated Dart class carries a
-`toString` that returns the message, for logs and test failures; every screen
-renders it through the shared classifier above, never through `toString`.
-
-`conversationSnapshotProvider` does not poll. It watches the kind provider
-the app already has and maps the result, so there is one poll per
-conversation and invalidating a kind provider still refreshes everything that
-reads it.
-
-The controller owns what the screen is doing; the screen owns the composer,
-the search text, the filter, the drawer, and navigation. The controller never
-navigates and never touches the composer: the methods that could trigger
-either return a result the screen acts on.
-
-Conversation behaviour is tested once and run over all three targets, from
-`test/support/conversation_cases.dart`.
-
-### Shared conversation code in the core
-
-The same folding is done in `mosh-core`, where the DM, group and channel
-runtimes each carried their own copy of the plumbing (ADR 0019). What they
-share now lives in `mosh-core/src/conversation/`; what differs — how a frame
-is encrypted and where it is published — stays with the kind.
-
-Every kind is now the same shell with its own policy inside it. The shell is
-`conversation::runtime::ConversationRuntime<S>`: the table of conversations by
-id, the room each opens on the shared moss node, and the two writes that keep
-them on disk. `S` is the kind's session, behind the `ConversationSession`
-trait.
-
-```mermaid
-flowchart TD
-    Dm["private_dm_runtime/<br/>session, control, data, typing, blob, snapshot, calls"]
-    Gr["private_group_runtime/<br/>lifecycle, wires, org_gate, commits, control, data, snapshot"]
-    Ch["channel_runtime/<br/>lifecycle, session, blob, types"]
-    Shell["conversation::runtime<br/>ConversationRuntime&lt;S&gt; + ConversationSession"]
-    Slots["conversation::attachments<br/>AttachmentSlots"]
-    Xfer["conversation::transfer<br/>Transfer: prepare, accept, serve, ingest"]
-    Log["conversation::message_log<br/>MessageLog + ConversationMessage"]
-    Seen["conversation::dedup<br/>SeenFrames"]
-    Mesh["conversation::mesh<br/>mesh_info + snapshot_events"]
-    Out["conversation::outbound<br/>Outbox: open, reopen, settle"]
-    Hist["conversation::history<br/>History: replay, write_tail, write_send"]
-    Offers["conversation::dm_offers<br/>DmOffers: mint, receive, dismiss"]
-    Moss[moss node]
-    Db[(redb, encrypted)]
-
-    Dm --> Shell
-    Gr --> Shell
-    Ch --> Shell
-    Dm --> Xfer
-    Gr --> Xfer
-    Ch --> Xfer
-    Dm --> Log
-    Dm --> Seen
-    Dm --> Mesh
-    Dm --> Out
-    Gr --> Log
-    Gr --> Seen
-    Gr --> Mesh
-    Gr --> Out
-    Gr --> Offers
-    Ch --> Log
-    Ch --> Seen
-    Ch --> Mesh
-    Ch --> Out
-    Ch --> Offers
-    Xfer --> Slots
-    Shell --> Hist
-    Shell -->|"open_room / close_room"| Moss
-    Hist -->|"HistoryTables picks the tables"| Db
-    Dm -->|"MLS + room, through DmTransport"| Moss
-    Gr -->|"MLS + room"| Moss
-    Ch -->|"plain + room"| Moss
-```
-
-- `ConversationRuntime<S>` — the shell. It holds the sessions, opens and closes
-  their rooms on the shared node, replays them at startup, and runs the two
-  persist loops: `persist_tail` for what a conversation has gained, and
-  `persist_send` for one message and the state of its send. Through
-  `ConversationSession`, each kind supplies its id, messages, unsettled sends,
-  attachment transfer, rebuild record, and extra durable state (an MLS
-  snapshot for a DM or group; none for a public channel). Two methods decide
-  when a record is worth writing: `record_is_final` (a joiner's record is a
-  placeholder until the MLS group exists) and `record_changed` (only a DM has
-  a saved field that can move later — the counterpart's moss peer id).
-  `runtime_writes.rs` owns refused message/attempt and snapshot/record writes.
-  Persistence methods return `Result`; accepted rows advance the history count,
-  and successful snapshot/record saves clear finalization work. Refused writes
-  remain pending, use current delivery outcomes on retry, and do not prevent
-  other conversations from saving. Memory-only runtimes retain their behavior.
-- `Transfer` — an attachment's bytes on their way out and in. It owns the
-  transfer layer, the slot table and the blob store together, because they have
-  to move together. Sending a file seals it, saves this device's copy and opens
-  a slot; a manifest coming in opens a slot the other way; chunks are served
-  from one side and filed on the other. Publishing stays with the kind, so the
-  calls hand back frames instead of putting them on the wire. A saved sender
-  reloads its file only when a chunk is requested; uncached received offers
-  are restored from their encrypted history manifests (ADR 0028). Downloads
-  in one conversation share a 256-chunk request window, with voice notes first
-  when a slot opens.
-- `AttachmentSlots` — which attachment was offered, which one the user asked
-  for, where the finished file landed. Held by `Transfer`, which is what the
-  kinds see.
-- `MessageLog<M>` — the message list plus the id generator, behind the
-  `ConversationMessage` trait. The trait keeps the one real difference
-  explicit: a channel or group message is matched on the sender's fingerprint,
-  a DM message on the device name.
-- `SeenFrames` — the capped ring that spots a repeated moss frame. Which
-  frames are checked is still the kind's call; a DM skips its handshake and
-  chunk traffic, where a re-send is how loss is recovered.
-- `mesh::mesh_info` and `mesh::snapshot_events` — how the mesh looks and what
-  the node has been doing, the part every snapshot ends with. A DM narrows the
-  channel list to its own session afterwards; the rest read it as it comes.
-- `outbound::Outbox` — the path out. `open` stamps a new message and files the
-  attempt record that survives a restart, `reopen` prepares a re-send from that
-  record, `settle` writes the result on both the message and the record. The
-  kind publishes in between, its own way, and says whether the record is kept
-  afterwards: a DM keeps it for the DeliveryAck and the auto re-sends, a group
-  and a channel are done with it. A publish Moss refuses for want of peers
-  settles as a retryable `Failed`, not as `Sent` — the frame reached nobody, so
-  the record stays for the user's Retry (ADR 0021). Control frames, which
-  repeat on their own, swallow that refusal through
-  `MossNode::publish_room_best_effort`. A DM text takes the other door:
-  the command provisionally saves `Pending`, then activates `Queued` with no
-  payload. Refused admission becomes `Failed` and cannot publish automatically,
-  matching the composer's deliberate retry. `private_dm_runtime/outbox.rs`
-  owns one durable dequeue for commands and ticks. It saves queued work before
-  publication and delivery status plus advanced MLS state afterwards, even
-  when no new tail row exists. It publishes oldest first after our side of the
-  MLS handshake is done. It does not ask moss's peer table: a room publish does not need a row
-  for the counterpart, and a publish nobody takes comes back `NoPeers` and
-  leaves the text queued, never failed (ADR 0026).
-- `history::History` — what a conversation keeps on disk. `replay` reads one
-  conversation back (messages, attachment offers, sends that never settled),
-  `write_tail` appends only the messages gained since the last write, and
-  `write_send` writes one message and the state of its send. Which tables it
-  touches is a `persistence::HistoryTables` value — `DM_HISTORY`,
-  `GROUP_HISTORY`, `CHANNEL_HISTORY` — so the table names are data, not three
-  copies of the same code. The store counts what is already down, which is what
-  keeps a message written once instead of once per poll. The shell decides
-  when a record is worth rewriting, from the two answers the kind gives it.
-  A send's two rows — the message and its attempt record — go down in one
-  transaction (`Persistence::commit_send`), and a message that comes back
-  `Pending` with no attempt behind it is failed at replay rather than left
-  spinning: a send interrupted by a crash is red, never stuck (ADR 0022).
-  A refused settlement save after publication remains pending and reports the
-  actual transport outcome, so a saved-status failure cannot prompt a duplicate
-  send. Group/channel text admission fails before Moss publication. See
-  [ADR 0037](ADR/0037-conversation-write-acceptance.md) for failure ownership,
-  exported Rust contracts and restart limits.
-- `dm_offers::DmOffers` — the private-DM invitations a channel or a group
-  carries. `mint` builds the offer to publish, and derives its id from the
-  invite URI so the same invitation twice reads as one offer. `receive` keeps
-  an arriving offer only when it names us, is not our own echo and is not one
-  we already hold. `dismiss` drops one. A DM has no such list: it is where an
-  accepted offer leads, not a place offers are shown. An org keeps its own
-  list, on peer-ids and gated by the roster (ADR 0019).
-
-### Runtime file layout
-
-Each kind runtime is a thin root (the public facade) plus focused modules,
-split by channel and concern. The root owns the public types and the
-facade methods; the modules are `impl` blocks on the same session struct
-and see each other through `pub(super)`.
-
-`PrivateGroupRuntime` remains publicly available at
-`mosh_core::private_group_runtime::PrivateGroupRuntime` for native callers such
-as `mosh-probe`; the wire-envelope module stays internal to the crate.
-
-```mermaid
-flowchart TD
-    subgraph DM["private_dm_runtime/"]
-        DmRoot["root: facade, constants, PrivateDmSession struct"]
-        DmS["session.rs: new, restore, persist record"]
-        DmC["control.rs: handshake, receipts, call envelopes"]
-        DmD["data.rs: messages, acks, dedup"]
-        DmT["typing.rs: cadence, hint window"]
-        DmB["blob.rs: chunk requests, manifests"]
-        DmV["snapshot.rs: the poll shape"]
-        DmX["calls.rs: offer/accept/decline/end, frames"]
-    end
-    subgraph GRP["private_group_runtime/"]
-        GrRoot["root: facade, wire types, GroupSession"]
-        GrL["lifecycle.rs: rehydrate, create, join"]
-        GrW["wires.rs: publish, typing"]
-        GrO["org_gate.rs: roster authority, admission"]
-        GrM["commits.rs: MLS commits, resync"]
-        GrC["control.rs: control channel handlers"]
-        GrD2["data.rs: data + blob channels"]
-        GrS2["snapshot.rs: poll, typing roster"]
-        GrE["error.rs, wire_types.rs"]
-    end
-    subgraph CH["channel_runtime/"]
-        ChRoot["root: facade, drain"]
-        ChL2["lifecycle.rs: rehydrate, join, leave"]
-        ChT["types.rs: wire types, error"]
-        ChS3["session.rs: message handling"]
-        ChB2["blob.rs: blob topic + snapshot"]
-    end
-    Shared["conversation/: runtime shell, typing, read_events, dedup, log, outbox, transfer, history, mesh, dm_offers"]
-    DmRoot --> Shared
-        GrRoot --> Shared
-    ChRoot --> Shared
-```
-
-A module file never crosses 400 lines (the repo's file budget); the
-inline test modules live beside them (`state_tests.rs`,
-`runtime_tests.rs`, `outbox_tests.rs`), and the pinned typing/read-event
-codes the diagnostics panel keys on live once in
-`conversation/typing.rs` and `conversation/read_events.rs`.
-
-### One node and the DM transport seam
-
-The process runs one moss node (`shared_node`), and a DM reaches it through
-one interface. `private_dm_runtime::transport::DmTransport` is the only door a
-DM frame goes through in either direction: open and close a room, subscribe a
-channel, publish a frame, ask moss to reach a peer, report how that peer is
-reachable, drain what arrived. Voice-call media has its own inbox claim and
-its own `drain_media`, so the DM drain never carries it (Voice Call Module). `MossDmTransport` wraps the shared node and
-never keeps its handle, so the holder's refcount alone decides when moss
-stops. `MemoryNet` (tests only) joins two runtimes in one process and can be
-told which frames get lost and which publishes are refused. The paid mailbox
-is a second implementation behind the same trait (ADR 0026).
-
-```mermaid
-flowchart LR
-    Session["PrivateDmSession<br/>state machine, outbox, MLS"]
-    Trait["DmTransport<br/>publish · connect_peer · reach · drain · drain_media"]
-    Moss["MossDmTransport → shared node"]
-    Mem["MemoryNet (tests)"]
-    Session --> Trait
-    Trait --> Moss
-    Trait --> Mem
-```
-
-What the snapshot says about a DM is proven by the other side. `state` is
-`pending` (nothing from the counterpart yet), `handshaking` (its handshake
-frame arrived, or it was connected and nothing authenticated came back for
-25 s) or `connected` (an MLS-authenticated frame came back). `Hello` — the
-sender's moss peer id, MLS-encrypted — is what makes the proof immediate; it
-repeats on the handshake cadence until answered, and a connected session
-that has heard nothing for 10 s sends one as a keepalive. The counterpart
-answers every Hello outside its own 2 s cadence, so one exchange refreshes
-both sides and a busy chat sends none. `transport` is how moss reports the
-counterpart right now: `direct`, `relayed` or `none`. It is a label, not
-the verdict: gossip carries a chat through other peers while moss lists no
-row for the counterpart, so `connected` with `none` reads "through the mesh".
-The peer table does pick the chunk route: served chunks ride the moss stream
-only to a `direct` peer (a relayed or unknown peer blocks the stream call for
-seconds), and a refused stream keeps the session on the room wire for 10 s.
-
-```mermaid
-stateDiagram-v2
-    [*] --> pending
-    pending --> handshaking: handshake frame
-    pending --> connected: authenticated frame
-    handshaking --> connected: authenticated frame
-    connected --> handshaking: 25 s without an authenticated frame
-    connected --> connected: frame or keepalive answer
-```
-
-The Dart side renders both through
-`features/conversation/dm_state.dart`, one wording for the header, the rail,
-the title-bar pill and the diagnostics card.
-
-## Sessions Rail
-
-The rail is one list of rows, not one list per conversation kind. It lives in
-`lib/src/features/sessions/`: `sessions_screen.dart` composes it,
-`rail_entry.dart` owns what a row is, `rail_item.dart` owns the row chrome,
-and `org_actions.dart` / `sessions_rail_actions.dart` own what a tap does.
-
-A row is a `RailEntry`: the conversation it opens plus the chrome that
-conversation's kind wants. `sessions_rail_list.dart` builds entries from existing snapshots: invitations
-remain separate above one list of DMs, groups and channels ordered by their last
-text or attachment; organization sections remain below. `RailActivity` supplies
-previews and known participant names in one history scan. Local search and type
-filters narrow this list without fetching message history.
-The unread lookup, the active highlight and the clear-on-tap all come from
-`RailEntry.ref.key`, so the `kind:id` grammar is written once, by
-`ConversationRef`, and never by the screen.
-
-```mermaid
-classDiagram
-    class RailEntry {
-        <<sealed>>
-        +ref
-        +buildRow(context, chrome)
-    }
-    RailEntry <|-- DmRailEntry
-    RailEntry <|-- ChannelRailEntry
-    RailEntry <|-- GroupRailEntry
-    RailEntry <|-- OfferRailEntry : ref is null
-    RailEntry ..> ConversationRef : the row's key
-    RailEntry ..> RailItem : one row shape
-```
-
-`RailRowChrome` is what the rail computes for a row and hands back: the unread
-count, whether this is the open conversation, and the hook that clears the
-badge. The offer row is the one row with no conversation behind it, so it gets
-zero, false and null — it renders the accept affordance and the dismiss X
-through the same `RailItem` every other row uses.
-
-Conversation details share one content widget between the docked third desktop
-column (window widths ≥1280px) and the existing modal focus boundary at narrower
-widths. Message bubbles, date boundaries and on-demand message search are shared
-across all three conversation kinds. See [Conversation redesign](Features/chat-redesign.md)
-for layout thresholds, runtime security/roster limits and verification.
-
-Chat corner geometry is owned by `app/mosh_shapes.dart` and reused by the theme
-and feature components. `ConversationKindStyle` and `ConversationKindAvatar`
-share type accents, glyphs and labels across rail, filters, header and details.
-See [Chat visual consistency](Features/chat-visual-consistency.md).
-The shared message text/footer components use actual paragraph metrics to
-reserve inline metadata space while keeping selection on ordinary `Text`.
-The header identity and fingerprint have independent focus/tap boundaries.
-See [Bubble/header polish](Features/chat-message-header-polish.md).
-
-## Settings
-
-The rail gear pushes `/settings` (`AppRoutes.settings`) above the chat shell.
-Returning pops the route, preserving the open conversation, scroll position
-and draft. A direct settings entry returns to the chat list. Settings live in
-`lib/src/features/settings/`: the screen owns responsive list/detail navigation,
-while section selection, sidebar, content scroller and audio controls are
-separate modules. At 800px and above the sidebar stays beside the selected
-section; narrower windows use a list followed by the selected section. Back
-and Escape return to that list before closing settings. Riverpod remembers
-the last section for the application launch, without writing it to disk. Only
-the wide sidebar restores its content; narrow entries always start at the list.
-
-The [redesign](Features/settings-redesign.md) delivers the frame and all five
-sections: Sound, Devices, Connection, Privacy and About. Settings use the
-existing titlebar's brand variant; conversation status remains owned by the
-hidden chat shell.
-
-```mermaid
-flowchart TD
-    Gear["RailSettingsButton (rail bottom)"] -->|context.push /settings| Route["/settings above chat shell"]
-    Route --> Screen["SettingsScreen"]
-    Screen --> Voice["Sound"]
-    Screen --> Devices["Devices: device-link provider"]
-    Screen --> Conn["Connection"]
-    Screen --> Privacy["Privacy: crash reporting + read receipts"]
-    Screen --> About["About"]
-    Voice --> Input["mic picker: record listInputDevices"]
-    Voice --> Output["speaker picker: mosh-core list_output_devices"]
-    Voice --> Test["RingtonePlayer: native CPAL binding"]
-    Conn --> Bind["Lazy BindInterfaceField: saved adapter + restart"]
-    Output --> Store["audio-devices.json (data dir)"]
-    Input --> Store
-    Store -->|resolve at start| Playback["call playback / ringtone (cpal)"]
-    Store -->|RecordConfig.device| Capture["call capture / voice composer"]
-```
-
-The device picks persist in `audio-devices.json` in the data dir (the
-read-receipts pattern: a non-secret answer readable pre-runtime). The input
-pick is consumed by Dart — `RecordConfig.device` into `record`'s capture
-paths (call capture and the voice composer); the output pick resolves
-inside mosh-core at stream start (`resolve_output_device`), where an
-unknown or unplugged id degrades to the system default with a log line,
-never a failed call. The onboarding Advanced disclosure no longer exists.
-Connection has no editable host/port fields. Its VPN override mounts on first
-expansion. Saved adapter choices require a restart;
-Windows relaunches automatically, other platforms show manual instructions.
-Read receipts live in Privacy.
-Connection contains only the collapsible VPN override; automatic discovery
-continues without a settings card. Version information stays in About.
-Stable disclosure storage keys keep expansion state separate from the section's
-scroll offset and restore open controls on return. Each shared selector owns a
-PageStorage bucket, so its desktop popup cannot read or overwrite the enclosing
-disclosure's boolean state. The VPN bypass switch reads the saved adapter through
-`get_vpn_bypass_consent`, independently of the process-local binding:
-enabling saves the selected name, disabling clears it, and successful writes
-invoke the existing relauncher. Loading, unknown state and pending writes
-disable the switch; failed writes preserve its prior value. Refreshing the
-interface list uses an icon beside the selector.
-Settings, setup and the VPN prompt use `networkChoiceProvider`, scoped to the
-bridge lifetime. `NetworkChoiceController` serializes saving and restarting,
-keeps restart knowledge after the settings widget closes, and returns separate
-save/restart failures. Setup supplies its existing durable completion callback
-before restart. Settings reads only saved consent; setup also reads live binding.
-Prompt reads use current consent after parallel inspection, and obsolete
-controller lifetimes cannot publish state or release a replacement lock.
-Bridge calls begin through `Future.sync` so synchronous native startup errors
-are handled together with asynchronous failures.
-Shared runtime construction restores the saved adapter once, before the Moss
-node starts. It resolves the current name or stored index using the existing
-network inventory. An unavailable adapter or failed enumeration falls back to
-default routing with a log entry and retains the saved choice. Explicit process
-overrides take precedence. Saving or clearing consent affects the next launch;
-it does not rebind a running node.
-
-SettingsCardHeader shares Connection's native ListTile geometry across all
-five sections: 44px icon plate, 10px icon/text gap, centered leading icon and
-4px between title and description. A scoped standard visual density prevents
-the global compact theme from reducing that gap. Ordinary cards group title
-and description above their controls. Expansion and switch headers reuse the same scoped
-ListTile theme with native leading/secondary slots. Settings navigation and
-device rows use the same gap; SettingsIcon has one implementation in the
-header module and is re-exported from settings_card.dart.
-
-Privacy uses SettingsToggleCard for crash reporting and read receipts. The
-existing AsyncSwitchTile still owns async reads, pending-write guards and
-rollback; CrashReporting owns SDK consent and cleanup (ADR 0035). Card details
-use distinct PageStorage keys and never mount or toggle the reporting controls.
-The native stack-memory caveat stays visible outside report details. Titles
-and summaries wrap together in the native switch tile; the same switch
-instance survives window resizing.
-A build without reporting availability disables only the crash-report switch.
-
-About reads the installed package version and build number using the existing
-package_info_plus plugin, behind a feature-local auto-disposed FutureProvider.
-Loading and unavailable states stay in the version row; leaving and returning
-retries a failed read. The card shows a short explanation of Moss delivery and
-public-tracker discovery directly below the summary of OpenMLS private
-chats/groups versus public channels without end-to-end encryption.
-
-Audio selectors keep disconnected saved devices visible without overwriting
-the preference. Enumeration errors offer retry and the system default. A
-failed save keeps the previously persisted selection. The test sound uses the
-existing ringtone seam and stops after 1.5 seconds, on explicit stop or when
-the section is disposed.
-
-## Voice Call Module
-
-One module holds the whole call pipeline. It lives in
-`lib/src/features/voice_call/`.
-
-```mermaid
-flowchart TD
-    Layer[VoiceCallLayer]
-    Orch[VoiceCallOrchestratorNotifier]
-    Dialog["call_dialog: CallDialog + callDialogFor"]
-    Modals["CallOverlay / IncomingCallModal / OutgoingCallModal"]
-    Codec["frame_codec / frame_crypto"]
-    Media["jitter_buffer / call_drain"]
-    Bridge["BridgeFacade: raw voice frames"]
-    Adapters["VoiceCapture / VoicePlayback / RingtonePlayer"]
-    Rust["mosh-core: voice_call_runtime / _jitter / _frame_crypto / _drain"]
-
-    Dialog --> Orch
-    Layer --> Dialog
-    Layer --> Modals
-    Layer --> Orch
-    Orch --> Adapters
-    Orch --> Codec
-    Orch --> Media
-    Codec --> Rust
-    Orch --> Bridge
-    Media --> Bridge
-    Bridge --> Rust
-```
-
-A DM is a conversation that *can carry* a call; the call is not the DM. The
-pipeline used to live under `lib/src/features/dm/`, where nineteen of the
-directory's twenty-two files were the call stack, two were the DM itself
-(`dm_screen.dart` and `dm_screen_header.dart`), and the twenty-second — the
-fingerprint badge — was DM app-bar chrome, not a call at all. Those three are
-now elsewhere: the two DM files in `lib/src/features/conversation/`, with the
-rest of the conversation chrome, and the fingerprint badge in
-`lib/src/features/fingerprint/`, beside the fingerprint confirm surface it was
-ported with. ADR 0018 already keeps the DM-specific part small: its header,
-and whether the safety number has been confirmed in person.
-
-The conversation module does not import this one. It declares what a call
-needs from it — start one, and somewhere to hang the overlay — in
-`conversation_call_binding.dart`; `voice_call_binding.dart` is the adapter
-that answers, and `production_provider_overrides.dart` is the one place the
-two meet. Nothing bound means a conversation starts no call and hangs no
-overlay, which is what an unbound test gets. The ringtone travels the same
-way: the layer reads `ringtonePlayerProvider` unless a test hands it one.
-
-### Media path
-
-The audio loop sends and drains raw `Uint8List` wire frames through the existing
-`BridgeFacade`. `drainCallFrames` decrypts and reorders those bytes before
-feeding playback. There is no separate frame-transport adapter or base64
-conversion between the bridge and the drain loop.
-
-Voice frames never touch the DM runtime's lock. The audio loop sends and
-drains every 20 ms through `api::private_dm::call_send_frame` /
-`call_drain_frames`, which go to a cached `CallMedia` hub: it publishes on
-the call's channel and reads the media inbox. The runtime owns the call
-state machine and mirrors its active calls into the hub after every tick and
-every call action; a frame for a call that is not live is dropped, and a
-call's inbound queue holds at most one second. Playback plays silence until
-60 ms are buffered and again after an underrun; the jitter buffer skips a
-lost frame once three frames wait behind it, so a loss never drains
-playback dry.
-
-```mermaid
-flowchart LR
-    Loop["Dart audio loop (20 ms)"] --> Api["api: call_send_frame / call_drain_frames"]
-    Api --> Hub["CallMedia (own lock)"]
-    Hub --> Pub["transport.publish on the call channel"]
-    Inbox["media inbox"] --> Hub
-    Runtime["PrivateDmRuntime (tick, call actions)"] -. live calls .-> Hub
-```
-
-The Dart module name follows the Rust one. `mosh-core` already has
-`voice_call_runtime`, `voice_call_jitter`, `voice_call_frame_crypto` and
-`voice_call_drain`, and the `api` surface exposes `voice_call_*` operations.
-
-`lib/src/features/dm/` no longer exists. Every importer — the two call
-providers in `lib/src/state/`, the two tests in `test/state/`, and the call
-tests, now under `test/features/voice_call/` — imports `features/voice_call/`
-directly. No re-export shim is left behind, so the only path that resolves to
-a call file is the one in the call module.
-
-`voice_call_orchestrator_provider.dart` is the one home for call state. It
-exposes a single `VoiceCallOrchestratorNotifier` (family by `sessionId`) whose
-state is `dialog` (a `CallDialog` derived purely from the session snapshot),
-`muted`, and `error`. `call_dialog.dart` holds the derivation itself —
-`callDialogFor(SessionSnapshot)` returns `IncomingCallDialog`,
-`OutgoingCallDialog`, `ActiveCallDialog` or `NoCallDialog`, and is unit-tested
-without timers. `VoiceCallLayer` is a pure renderer: it reads `dialog` and shows
-exactly that one modal, routes every control (accept / decline / end / mute)
-back to the notifier, and surfaces `error` (a snack bar for `callControl`, the
-host's `onVoiceCallError` for `audioSetup`) before `clearError()`. The old
-phase-machine, the four "which modal is open" fields, and the dual error-sink
-ownership protocol are gone; the no-answer timeout is a deliberate 30 s
-(callee) / 45 s (caller, in `mosh-core`) pair so a real decline beats the
-caller's auto-end.
-
-## State Ownership
-
-- Server / runtime state (sessions, messages, snapshots, diagnostics, delivery status) comes from `mosh-core` through the bridge and lives in Riverpod `AsyncNotifierProvider`s as `AsyncValue<T>`. UI consumes it with `.when(loading:, error:, data:)`. Riverpod is the server-state seam here (ADR 0010's Dart-side choice).
-- Ephemeral UI state (open drawer, selected session, composer draft, modal visibility, animation controllers) lives in `StatefulWidget` state or `flutter_hooks`, never in providers. Local state stays local; nothing else moves it.
-- Reads use `ref.watch(provider.select(...))` so widgets rebuild only on the slice they care about.
-- Fetching has one entry point: `AsyncNotifier.build`.
-- Secrets (MLS keys, org root keys, the redb at-rest history key) live in `mosh-core` secure storage, never in Dart. Windows and Linux use the `keyring`-backed `OsSecureSecretStore`; mobile uses a Flutter platform channel into Android Keystore / iOS Keychain. macOS keeps the at-rest history key in a 0600 file in the app container (`FileSecretStore`), because without an Apple Team ID the keychain asked for the password after every update (ADR 0011, amendment 0.9.6).
-- Private message history stores ciphertext plus minimal metadata in redb; the store is encrypted at rest.
-
-## Port Boundary
-
-What is in Dart vs `mosh-core`, per ADR 0012.
-
-In Dart (UI, UI-flow orchestration, human-readable-string parsing, display computation):
-
-1. `invite_uri.dart` (parse `mosh://invite?...#fp=...` with the same contracts and error codes as `invite-uri.ts`).
-2. Clipboard invite detection via `Clipboard.getData` in a Riverpod notifier.
-3. `unread.dart`, `format.dart`, content strings (to ARB).
-4. Riverpod `AsyncNotifier`s consuming bridge streams; the call layer is a pure renderer of the `CallDialog` derived from the snapshot (see Voice Call Module).
-5. Ringtone playback via a platform audio plugin (UI sound, not transport).
-
-In `mosh-core` (crypto, binary wire formats, transport buffers, persistent state):
-
-1. `voice_call_frame_crypto.rs` (AES-GCM frame seal/open; one source of truth for the wire format).
-2. `voice_call_jitter.rs` (reorder buffer).
-3. `voice_call_drain.rs` (drain loop as a runtime method).
-4. MLS state, Moss transport, redb persistence, secure storage.
-
-Dart never touches AES-GCM, binary frame layouts, or transport buffers directly. The bridge is the only crossing (ADR 0012).
-
-## Build And Dependency Model
-
-- `mosh-core` `Cargo.toml` sets `[lib] crate-type = ["lib", "cdylib", "staticlib"]` so one crate serves all six targets: desktop links the `cdylib`, Android links `cdylib`, iOS links `staticlib` (ADR 0010).
-- `flutter_rust_bridge` generates typed Dart bindings from `mosh_core::api`; `rust_input: crate::api`, `rust_root: mosh-core/`, `dart_output: lib/src/rust`. Codegen runs in the build script and in CI, not manually; a drift job fails if committed bindings desync from Rust signatures (ADR 0010, plan S7).
-- The `moss/` submodule is pinned (currently `v0.9.0`, bumped deliberately with the runtime features that need it; see the release history). Any future bump is a deliberate step with its own note.
-- i18n uses Flutter's `gen-l10n`: ARB files under `lib/l10n` (`app_en.arb` template, `app_ru.arb`), `l10n.yaml` config, `AppLocalizations` output. `flutter: generate: true` in `pubspec.yaml`. A `gen-l10n`-drift CI job fails if generated output or ARB desync (ADR 0014, plan S7).
-- Animation uses Flutter's own primitives (`AnimationController`, `Tween`, `AnimatedBuilder`) under a feature-local helper; no GSAP-equivalent third-party library until a concrete need forces it (ADR 0010).
-- Fork version line is `0.8.0-dev`, separate from upstream `mosh` 0.7.x (ADR 0015).
-
-### macOS release chain
-
-One arm64 runner produces a universal DMG (arm64 + x86_64). Every native
-piece is built for both slices and stapled together, then packaged
-unsigned — the app carries an ad-hoc signature (Xcode "Sign to Run
-Locally"), which is what Apple Silicon requires to run at all.
-
-```mermaid
-flowchart LR
-    Prep["node scripts/moss-prepare.mjs"]
-    Go["go build GOARCH=arm64 + GOARCH=amd64"]
-    Lip["lipo"]
-    Dylib["moss-runtime/libmoss.dylib (universal)"]
-    Build["flutter build macos --release"]
-    Ck["cargokit: mosh-core universal (ARCHS)"]
-    Phase["Xcode Moss Runtime copy phase"]
-    App["mosh.app (ad-hoc, sandboxed)"]
-    Pkg["scripts/macos-package.sh"]
-    DMG["Mosh_&lt;v&gt;_universal.dmg + .sha256"]
-
-    Prep --> Go
-    Go --> Lip
-    Lip --> Dylib
-    Prep --> Build
-    Build --> Ck
-    Build --> Phase
-    Dylib --> Phase
-    Ck --> App
-    Phase --> App
-    Build --> App
-    App --> Pkg
-    Pkg --> DMG
-```
-
-- `scripts/moss-prepare.mjs` builds the Go FFI twice on darwin (one slice
-  per `GOARCH`, cross-cgo through `clang -arch`) and `lipo`s one universal
-  `libmoss.dylib`.
-- `scripts/opus-prepare-macos.sh` builds a universal `libopus.a` the same
-  way (per-arch configure/make, then `lipo`): audiopus_sys's vendored
-  build cannot cross-compile opus, so the podspec's cargokit script sets
-  `LIBOPUS_LIB_DIR` at the provisioned archive — the pattern the Android
-  lane established first.
-- The Xcode "Moss Runtime" copy phase drops `libmoss.dylib` into
-  `Contents/MacOS/` — the "next to the executable" candidate
-  `moss_runtime.rs::default_candidate_paths` probes — so local builds and
-  CI builds are self-contained without a separate packaging step.
-- Release entitlements keep the sandbox and grant network client + server
-  (trackers, DHT, calls) and user-selected files (the attachment picker).
-- `scripts/macos-package.sh` verifies both slices on every binary,
-  re-signs the dylib ad-hoc if `lipo` damaged its signature, then wraps
-  `create-dmg` (background from `macos/packaging/dmg-background.png`,
-  regenerated by `scripts/gen-macos-dmg-background.py`).
-- The supported macOS floor is 12 Monterey: the Go 1.25 runtime requires
-  it, and any Mac that still runs is covered. The DMG is unsigned, so
-  Gatekeeper warns on first launch; README documents the official "Open
-  Anyway" flow. The chain lives in `.github/workflows/build-macos.yml`
-  (reusable), with CI proof (`macos-dmg`, `rust-core-macos`) on every push
-  to main and release attachment wired into `release.yml`.
-
-## Crypto And Privacy Model
-
-This domain context is inherited unchanged from upstream; the Flutter rewrite does not alter it.
-
-- Moss provides P2P delivery, peer discovery, and encrypted transport sessions over the mesh.
-- OpenMLS provides private DM message-layer E2EE.
-- Public/default trackers are used for v1 discovery, so metadata privacy is limited.
-- The UI must say private messages are content-encrypted, not anonymous.
-- Public chats are planned as signed/authenticated but non-confidential messages.
-- The voice-call wire frame (`[seq:u64 BE][ciphertext-with-tag]`, AES-GCM nonce `[nonce_prefix(4)][seq(8)]`, direction bit in seq) lives in `mosh-core` only, so there is one source of truth (ADR 0012).
-
-## Slice One Scope
-
-Slice one proved the bridge, the state stack, i18n, and the core DM flow on desktop behind a temporary fake gateway. That fake is gone: the app always runs the real bridge, and the test double lives under `test/`. Reference: [ADR 0013](ADR/0013-fork-topology-and-temporary-fake-gateway.md).
-- **Status: COMPLETE.** See "Slice One Status" below.
-
-- Onboarding (display name).
-- Invite paste (`mosh://invite?...#fp=...`) parsed via ported `invite_uri.dart`; manual paste only, NO `mosh://` deep-link OS association (ADR 0015).
-- Fingerprint confirm gate that blocks `sendMessage` until the safety number is confirmed.
-- One DM screen (message list + composer) over the gateway seam.
-- Diagnostics screen showing runtime status.
-- i18n in `ru` and `en` via `gen-l10n`; `LocaleProvider` seam laid so a manual language switch can be added later as one widget.
-- Desktop-only build; no mobile cross-build, no `integration_test` on devices in slice one.
-- Fake gateway as the default `Gateway` behind a debug flag; real bridge swapped in at S5 with no widget changes (ADR 0013).
-- Port `invite-uri.ts`, `invite-detection.ts`, `unread.ts`, `format.ts`, `private-dm.content.ts` to Dart; move `frame-crypto.ts`, `jitter-buffer.ts`, `call-drain.ts` into `mosh-core` (ADR 0012).
-
-Out of scope for slice one: deep-link `mosh://` OS association, mobile Moss builds and mobile secure-storage platform channels, voice call / org / VPN / channels / private groups Dart UI (runtimes are bound via `api` but the UI is later slices), manual language switch UI.
-## Slice One Status
-
-Slice one is complete. Summary of the final state:
-
-- Bridge proven end-to-end on real `mosh_core.dll` via
-  `integration_test/slice_one_test.dart` (RealBridgeGateway: diagnostics,
-  runtime status, session list, invite).
-- Tests green: 42 Dart widget + unit tests; 28 Rust `#[test]` items across
-  the voice-call files (`voice_call_frame_crypto` 10, `voice_call_jitter` 8,
-  `voice_call_drain` 5, `voice_call_runtime` 5); 1 integration test.
-- CI matrix of 5 jobs on `windows-latest` (`.github/workflows/ci.yml`):
-  `rust-core`, `codegen-drift`, `flutter-test`, `l10n-drift`, and
-  `integration-test` (needs the other four).
-- No fake gateway ships: `gatewayProvider` always builds `RealBridgeGateway`,
-  and tests override it with `ScriptableGateway` from `test/support/`. See
-  ADR 0013, "Removal of the fake gateway". Since ADR 0025 the 1:1 mirrors
-  ride `bridgeFacadeProvider` (tests: `ScriptableBridge`).
-- Five slice-one screens shipped: onboarding, invite paste, fingerprint
-  confirm, one DM screen, diagnostics.
-- `api` facade is real for every family now (`diagnostics`, `private_dm`,
-  `channel`, `private_group`, `org`, `network`, `vpn`; OnceLock singleton,
-  ADR 0016) — the five slice-one `todo!()` placeholders were wired in later
-  slices and none remain.
-
-## Slice Two Status
-
-Slice two (deep-link `mosh://` desktop, ADR 0015) is complete. The
-slice-one screens were unreachable from the running app (`main.dart`
-shipped a static `MoshHome` smoke-screen with no router), so slice two
-first laid a route shell, then wired the OS deep-link into it.
-
-- **Route shell (S2-1):** `go_router` (`lib/src/routing/app_router.dart`)
-  with `/` (OnboardingScreen home), `/join` (InvitePasteScreen),
-  `/diagnostics`, `/dm/:sessionId` (DmScreen). `MoshApp` is
-  `MaterialApp.router(routerConfig: appRouter)`. The Join tile navigates
-  to `/join`; the Group tile stays a "later slice" placeholder;
-  Diagnostics is an AppBar action. `MoshHome` is
-  gone.
-- **Windows scheme registration (S2-2):** `mosh://` registered under
-  `HKCU\Software\Classes\mosh` via `win32_registry` 3.0.3
-  (`lib/src/deeplink/mosh_url_scheme_windows.dart`): `URL Protocol` +
-  `shell\open\command = "<exe>" "%1"`. HKCU needs no admin elevation;
-  idempotent; never throws. Called from `main()` after `RustLib.init()`,
-  gated `Platform.isWindows`. `app_links 7.2.1` added as a dependency
-  for the intake.
-- **Intake (S2-3):** `windows/runner/main.cpp` calls
-  `SendAppLinkToInstance()` at the top of `wWinMain` so a `mosh://`
-  click that launches a second instance forwards the URI to the
-  already-running one (single window). Dart
-  `lib/src/deeplink/mosh_deep_link.dart` subscribes
-  `AppLinks().uriLinkStream` (covers cold-start initial + warm links),
-  gates scheme `== 'mosh'`, and navigates `appRouter.go('/join', extra:
-  <uri>)`. A cold-start link before the router mounts is buffered and
-  replayed once via a post-frame callback; navigation is try/catch.
-  `/join` reads `state.extra` and seeds `InvitePasteScreen`'s text
-  field + live detection. Three widget tests cover warm / scheme-gate /
-  cold-start replay.
-- Single scheme `mosh://` everywhere (ADR 0009/0015); no per-fork
-  variant. Mobile intent-filter / `CFBundleURLSchemes` remain deferred
-  to the mobile slice (ADR 0015).
-- Tests green: 48 Dart (was 42 after slice one; +6 across follow-up +
-  slice two), Rust `cargo test` 215/0/5-ignored (serial), `flutter
-  analyze` clean.
-
-## References
-
-- docs/ADR/0009-flutter-shell-replaces-tauri-frontend.md - Flutter shell replaces Tauri frontend.
-- docs/ADR/0010-flutter-rust-bridge-and-state-stack.md - flutter_rust_bridge + Riverpod state stack.
-- docs/ADR/0011 - secure storage and at-rest history key (referenced by glossary).
-- docs/ADR/0012-port-strategy-what-goes-to-dart-vs-mosh-core.md - port boundary: Dart vs mosh-core.
-- docs/ADR/0013 - temporary fake gateway and read-only reference policy for `src-tauri/` / `src/`.
-- docs/ADR/0013 - Removal of the fake gateway: no fake in `lib/`, tests use `ScriptableGateway`.
-- docs/ADR/0014 - i18n via `gen-l10n`, `LocaleProvider`.
-- docs/ADR/0015 - fork version line `0.8.0-dev`, deep-link deferral.
-- docs/ADR/0016-api-runtime-ownership-oncelock-singleton.md - api runtime ownership via OnceLock singleton.
-- docs/ADR/0017-gateway-takes-the-conversation-target.md - the Dart Gateway takes the conversation target.
-- docs/ADR/0025-the-gateway-is-the-conversation-seam.md - the Gateway narrows to the conversation seam; 1:1 mirrors call the bridge facade directly.
-- docs/ADR/0018-one-conversation-module.md - one Conversation module for the DM, the channel and the group.
-- docs/ADR/0019-shared-conversation-strata-in-the-core.md - shared conversation strata in mosh-core.
-- docs/ADR/0020-one-inbox-per-owner.md - one inbound queue per owner instead of one queue for everybody.
-- docs/ADR/0021-no-peers-is-not-sent.md - a publish with no peers fails retryably instead of reporting Sent.
-- docs/ADR/0022-a-send-is-one-durable-fact.md - a send's message row and attempt row commit together, and an unbacked Pending comes back failed.
-- docs/ADR/0023-the-tree-says-who-the-admin-is.md - a group's admin is derived from the MLS tree after every commit, not carried by an AdminHandoff frame.
-- docs/ADR/0024-the-bridge-names-shared-conversation-actions.md - the bridge exposes one function per shared conversation operation with the kind in the argument, not one per kind; amends ADR 0010's Tauri-mapping clause.
-- docs/flutter-fork-glossary.md - Flutter fork ubiquitous language.
-- docs/Features/private-dm.md - slice-one private-DM feature flow (Mermaid sequence).
-- docs/Features/read-receipts.md - DM read-receipt flow: toggle, symmetric gate, persistence (Mermaid sequence).
-- docs/Features/typing.md - typing indicator flow: cadence, receiver-owned expiry, group member identity (Mermaid sequence).
-- docs/Features/field-log.md - the field log: sink, rotation policy, kinds vocabulary (Mermaid flowchart).
-- docs/ADR/0027-attachments-ride-moss-streams.md - attachment chunks ride moss streams on direct DMs: carrier swap with the room wire fallback, reserved inbox channel, DM-only scope.
-- docs/ADR/0028-durable-attachment-offers.md - attachment manifests in encrypted history, sender and receiver restoration after restart.
-- docs/ADR/0035-opt-in-crash-reporting.md - opt-in Sentry crash reporting: consent file with scrub salt, no-DSN-no-reporting, scrubbed events, threat model.
-
-### Trusted-device QR (settings stage two)
-
-`beginLink()` creates a v2, five-minute invitation on the authorizing installation.
-`joinLink(uri, deviceName)` starts the eligible new installation with its own
-signed descriptor. The authorizer freezes the first candidate; its signed offer
-and the human confirmation code bind the trusted descriptor, candidate and base
-roster. Flutter reads the explicit snapshot role and displays sequential steps;
-only the active authorizing QR screen receives the invitation URI.
-
-The signed roster/CAS/delivery/receipt machinery is shared with the existing
-linking flow. New v1 imports are rejected. Already authenticated, pinned v1
-pending exchanges and committed deliveries/receipts can finish after upgrade.
-`mobile_scanner` owns Android camera lifecycle; image/link import and the existing
-bounded decoder remain the fallback. See [ADR 0029](ADR/0029-private-desktop-device-linking.md)
-and [device linking](Features/device-linking.md).
+`conversationSnapshotProvider` maps existing typed providers and adds no poll.
+`conversationListProvider` is one family keyed by conversation kind. Each
+notifier serializes reads, skips overlapping background ticks and coalesces
+post-mutation refreshes. Answers from an older provider lifetime are discarded.
+`invalidateConversation` owns kind dispatch for snapshots; `refreshConversation`
+also updates the corresponding recent-chat list. `unreadCountsProvider` uses
+`ConversationRef.key` consistently for badges and clear-on-open behavior.
+
+`ForegroundPoller` pauses Android UI reads while hidden and refreshes immediately
+on resume. Desktop UI polling retains its cadence. Protocol service threads keep
+native handshakes and retries running independently of visible Flutter widgets.
+
+`ConversationAttachment` interprets transfer direction, progress, previews,
+usable paths and allowed controls for cards, file lists and opening. Failed or
+cancelled transfers override stale paths. Unknown totals show indeterminate
+progress. Voice playback consumes a queued request only after success and checks
+its lifetime before starting after an asynchronous load.
+
+The sessions rail builds one sorted list of `RailEntry` values from the existing
+snapshots. `RailActivity` computes previews and participants in one scan. Search
+and kind filters are local. Shared geometry lives in `app/mosh_shapes.dart`;
+`ConversationKindStyle` shares accents, labels and glyphs. Conversation details
+reuse one widget between the third desktop column and narrow modal layouts.
+See [conversation behavior](Features/chat-redesign.md) and
+[visual consistency](Features/chat-visual-consistency.md).
+
+Caught conversation errors become `ConversationActionError` and use localized
+wording derived from `ConversationBridgeErrorKind`. Runtime diagnostic strings
+are for logs. Poll/list failures remain provider errors. Rejoin, revocation and
+delivery state come from native snapshots, not guessed UI flags.
+
+## Native ownership and durability
+
+`api::runtime_owner::RuntimeOwner<T>` initializes and caches the DM, group,
+channel and organization owners once, including initialization errors. Each
+owner retains its own mutex; device linking and audio keep their existing owners.
+`shared_runtime` supplies one Moss node, encrypted persistence and attachment
+store per installation. Device signing keys, transport identity and MLS signing
+keys stay separate. Runtime creation restores saved network binding before
+starting the shared node.
+
+`ConversationRuntime<S>` owns the session table and durability work. Each
+`ConversationSession` supplies its message/record types, log, pending attempts,
+transfer state and optional MLS snapshot. Kind modules own wire formats,
+authorization and publication.
+
+| Shared module | Owns |
+| --- | --- |
+| `message_log` | Message ids, history rows and delivery metadata |
+| `dedup` | Bounded repeated-frame tracking |
+| `outbound` | Admission, retry and settlement records |
+| `history` | Replay, tail writes and atomic message/attempt saves |
+| `runtime_writes` | Refused writes retained until durable acceptance |
+| `transfer` / `attachments` | Blob preparation, chunk scheduling and transfer slots |
+| `dm_offers` | Private-DM invitations offered in channels and groups |
+| `mesh`, `typing`, `read_events` | Shared diagnostics and presence interpretation |
+
+History table names are `HistoryTables` data, so DM/group/channel storage shares
+one implementation. A send's message and attempt rows commit together. Replay
+fails a provisional pending message without a backing attempt. Refused state
+writes remain pending and do not block reads or other conversations.
+Group/channel admission must persist before publication. A refused save after
+publication retains the actual transport outcome and retries persistence, rather
+than prompting another send. Group creation saves its record before exposing
+the session. DM and channel creation retain their existing insert-then-save
+ordering; a joining DM persists its MLS snapshot after Welcome. See
+[ADR 0022](ADR/0022-a-send-is-one-durable-fact.md) and
+[ADR 0037](ADR/0037-conversation-write-acceptance.md).
+
+Persistence's `database` owns DEK acquisition and encrypted row operations;
+`schema` retains the table definitions. `history` and `conversation_records`
+share kind-based lifecycle operations. `outbound` owns atomic message/attempt
+acceptance; `records` and `group_commits` isolate identity and organization
+evidence. Attachment scheduling handles priority slots, timed retry gaps and
+sequential cursor requests in that order.
+
+DM text starts as durably admitted queued work. The outbox encrypts and publishes
+oldest first after local MLS readiness. Moss `NoPeers` leaves DM work queued;
+group/channel sends report retryable failure when no frame left. Delivery means
+the counterpart acknowledged it. Read receipts use their own persisted metadata.
+
+A DM uses `DmTransport`; production answers with `MossDmTransport`, and focused
+protocol tests use `MemoryNet`. Transport owns room membership, publication,
+reachability and inbox drains. Voice media has a separate inbox/lock.
+One `SharedMossNode` serves all conversations. Opening a room rolls back its node
+reference on failure; leaving unsubscribes before releasing the room and node.
+See [ADR 0020](ADR/0020-one-inbox-per-owner.md) and
+[ADR 0026](ADR/0026-one-node-a-transport-seam-and-a-dm-outbox.md).
+
+DM connection state requires an authenticated counterpart frame. Moss's direct,
+relayed or absent peer route is a separate fact; gossip can deliver with no direct
+peer row. Handshake/Hello retries and keepalives refresh that authenticated state.
+Attachment streams use direct routes and fall back to room publication on refusal;
+blob subscriptions remain active. Restored encrypted manifests preserve offered
+attachments after restart. See [ADR 0027](ADR/0027-attachments-ride-moss-streams.md)
+and [ADR 0028](ADR/0028-durable-attachment-offers.md).
+
+## Device linking and recovery
+
+`DeviceLinkController` is shared by setup and Devices settings. Its state keeps
+native proof, errors and one action/navigation lock. Polls cannot overwrite
+pending actions, and disposed/rebuilt controller lifetimes cannot publish stale
+answers. Generated calls remain in feature-local `DeviceLinkCommands`.
+
+Native `DeviceLinkRuntime` owns the local signing identity, verified roster and
+pairing exchange. It borrows shared Moss and persistence. Pairing uses directed
+stream 3. New v2 invitations expire after five minutes; authorizer consent binds
+the trusted descriptor, candidate and base roster to the human confirmation code.
+Only the active authorizer QR screen receives the invitation URI. New v1 imports
+are refused; already pinned legacy exchanges can finish.
+
+Each linked device becomes a separate MLS client within the same DM. Signed
+rosters authorize installation membership; existing contacts bind counterpart
+identity. Admission evidence and delivery journals persist with the session.
+Initial history imports semantic text from an authorized source using durable
+manifests/cursors. Live and imported rows share ids. Returning installations
+replay verified missing commits in epoch order, then import text through the same
+atomic history operation. Source switching opens a new durable recovery round.
+
+Retained Add evidence signs its original admission time. Recovery verifies the
+same group, next epoch, authorized original author and timestamp before using
+OpenMLS's scoped historical validation clock. Normal admission uses the actual
+clock. Package/leaf signatures and lifetime-range checks remain active.
+Signed roster removal persists before delivery; identity writes compare exact
+prior bytes within the transaction. The DM owner applies MLS removal and reports
+pending/applied state. See [ADR 0029](ADR/0029-private-desktop-device-linking.md),
+[ADR 0030](ADR/0030-linked-desktop-dm-clients.md),
+[ADR 0031](ADR/0031-linked-desktop-dm-history.md),
+[ADR 0032](ADR/0032-dm-offline-recovery.md) and
+[ADR 0033](ADR/0033-dm-device-revocation.md).
+
+Android loads its own user-presence-gated Keystore DEK before opening encrypted
+records. Backup/transfer excludes keys and identity storage; copied installations
+cannot inherit another device's identity. The release manifest includes network
+access. See [ADR 0034](ADR/0034-android-linked-text-dm.md).
+
+## Setup, settings and voice
+
+`FirstRunGate` delays router mounting and conversation polling until setup saves
+completion. Existing conversation/device history bypasses the wizard. Buffered
+invites survive setup. `FirstRunStore` keeps versioned non-secret profile and step
+preferences in the application support directory. Setup reuses device-link and
+network owners. See [ADR 0036](ADR/0036-first-run-gate-and-local-profile.md).
+
+Settings is a route above the chat shell, preserving drafts and scroll position.
+Its feature owns responsive section navigation; shared cards/disclosures provide
+layout. `NetworkChoiceController` serializes saving and restarting, retaining
+restart knowledge beyond an individual screen lifetime. Settings reads saved
+consent; setup also inspects live binding. A changed binding takes effect on the
+next launch. Windows can relaunch automatically; other platforms explain restart.
+Missing adapters fall back to default routing while retaining the saved choice.
+Audio picks persist independently and use system defaults for disconnected
+hardware. See [settings behavior](Features/settings-redesign.md).
+
+The conversation declares `ConversationCallBinding`; the voice feature supplies
+its adapter through `production_provider_overrides.dart`. `VoiceCallLayer` renders
+the orchestrator's dialog model. Capture, playback and ringtone have independent
+factory providers. Shared call cards and modal focus behavior serve all phases.
+
+Dart seals and opens call frames with the existing cryptography package and
+reorders playback with its jitter buffer. Raw bytes cross `BridgeFacade` every
+20 ms. Rust's `CallMedia` hub publishes/drains active calls through a separate lock,
+so audio does not wait on the DM owner. Native Opus/CPAL handle encoding and
+playback. Playback buffers 60 ms, emits silence on underrun, and jitter skips a
+gap once three later frames wait. Rust owns call signaling and mirrors active
+calls into the hub. The wire is `[seq:u64 BE][ciphertext+tag]`, with AES-GCM nonce
+`[prefix:4][seq:8]` and a direction bit in the sequence.
+
+## Security, builds and checks
+
+History is encrypted with AES-256-GCM under an installation DEK. Windows/Linux
+use OS credential storage; macOS uses a permission-restricted file inside the app
+container; Android injects its own Keystore key. Device and transport identity
+records are encrypted. Security UI displays real runtime snapshots. Read
+[ADR 0011](ADR/0011-secure-storage-and-threat-model.md) for the storage threat model.
+
+Crash reporting is opt-in. Consent and a scrub salt live in a non-secret file.
+No configured DSN means no reporting. Rust captures panics; Dart scrubs/sends
+eligible events. Native stack memory remains a documented limitation. See
+[ADR 0035](ADR/0035-opt-in-crash-reporting.md).
+
+Use the versions in `rust-toolchain.toml` and `.github/actions/setup/action.yml`.
+`node scripts/moss-prepare.mjs` builds Moss and prepares OpenMLS. Direct Cargo or
+bridge-codegen use on a fresh checkout needs `node scripts/openmls-prepare.mjs`.
+Flutter native builds and CI prepare it automatically. Prepared/cached source
+supports offline use; a new checkout needs the pinned archive or network access.
+
+`flutter_rust_bridge_codegen generate` regenerates the committed Rust/Dart bridge;
+CI checks drift. Flutter `gen-l10n` generates English/Russian localizations from
+ARB files. Cargokit links the same core as desktop/Android dynamic libraries and
+iOS static libraries. Windows integration tests require debug; Android builds
+require `--target-platform android-arm64`. macOS releases prepare universal Moss
+and Opus libraries before packaging; the reusable build workflow owns signing and
+DMG generation.
+
+Required checks live in [AGENTS.md](../AGENTS.md). Native runtime tests use real
+Moss and independent processes because Moss's keystore is process-global.
+`node scripts/moss-test.mjs` starts a local tracker and runs the core suite;
+`--native-ui` exercises the real Flutter linking flow. Widget tests use scripted
+adapters from `test/support/`. The [documentation index](README.md) links current
+feature behavior; ADRs retain decision history and [the archive](Archive/README.md)
+retains completed plans.
