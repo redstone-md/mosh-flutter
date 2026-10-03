@@ -6,6 +6,13 @@ the scope on 2026-09-28 after triage. The vendored version remains OpenMLS 0.8.1
 upstream commit `47dbedecad0c1fd8eb5368d582250ebfcc1e1ce6`. They extend the local
 [historical-validation patch](openmls-historical-validation.md).
 
+The reviewed source is now reconstructed from the
+[pinned archive and complete patch](../../third_party/openmls-patches/README.md).
+Run `node scripts/openmls-prepare.mjs` before following the local source links
+below or running the reproduction commands. GitHub readers can inspect the
+[complete patch](../../third_party/openmls-patches/mosh.patch); the ignored source
+tree remains byte-identical to the reviewed version.
+
 No dependency versions, serialized fields, exported types or function signatures
 change. Runtime corrections affect commit staging, leaf signing and resumption
 PSK retention. Application-data validation is behind `extensions-draft-08`;
