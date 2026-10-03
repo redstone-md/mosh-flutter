@@ -66,20 +66,14 @@ pub fn stream_attachment_range(
     let range = match kind.as_str() {
         "dm" => crate::api::private_dm::ensure_runtime()
             .map_err(|error| error.to_string())?
-            .as_mut()
-            .expect("ensure_runtime guarantees Some")
             .stream_attachment_range(&host, &attachment_id, start, end)
             .map_err(|error| error.to_string())?,
         "channel" => crate::api::channel::ensure_runtime()
             .map_err(|error| error.to_string())?
-            .as_mut()
-            .expect("ensure_runtime guarantees Some")
             .stream_attachment_range(&host, &attachment_id, start, end)
             .map_err(|error| error.to_string())?,
         "group" => crate::api::private_group::ensure_runtime()
             .map_err(|error| error.to_string())?
-            .as_mut()
-            .expect("ensure_runtime guarantees Some")
             .stream_attachment_range(&host, &attachment_id, start, end)
             .map_err(|error| error.to_string())?,
         _ => return Err("unknown stream kind".to_string()),

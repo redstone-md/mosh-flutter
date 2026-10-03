@@ -11,8 +11,6 @@ use crate::conversation::dm_offers::DmOffer;
 use crate::conversation::runtime::ConversationRuntime;
 use crate::shared_node::SharedMossNode;
 
-/// What a group calls itself in a log line about its room.
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub(super) enum ControlEnvelope {
@@ -87,6 +85,23 @@ pub(super) enum ControlEnvelope {
         from_fingerprint: String,
         typing_ciphertext_b64: String,
     },
+}
+
+impl ControlEnvelope {
+    pub(super) fn group_id(&self) -> &str {
+        match self {
+            Self::KeyPackage { group_id, .. }
+            | Self::Welcome { group_id, .. }
+            | Self::Commit { group_id, .. }
+            | Self::AdminHandoff { group_id, .. }
+            | Self::SelfRemove { group_id, .. }
+            | Self::AttachmentManifest { group_id, .. }
+            | Self::DmOffer { group_id, .. }
+            | Self::ResyncRequest { group_id, .. }
+            | Self::ResyncResponse { group_id, .. }
+            | Self::TypingIndicator { group_id, .. } => group_id,
+        }
+    }
 }
 
 /// The MLS-encrypted body of a group `TypingIndicator` — the same shape the

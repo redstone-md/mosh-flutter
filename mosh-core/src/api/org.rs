@@ -1,32 +1,9 @@
-//! Org facade.
-//!
-//! Surfaces the `org_*` command group: join, leave, list, poll,
-//! DM-offer send/accept/dismiss, group create/accept-offer/dismiss-offer,
-//! and group member invite. Poll maps to a `StreamSink`-returning facade
-//! function that streams org snapshots.
-//!
-//! OWNERSHIP (ADR 0016 -- api runtime ownership, OnceLock singleton): the
-//! runtime is held in a process-global
-//! `OnceLock<Mutex<Option<OrgRuntime>>>` plus a cached `load_error`.
-//! `ensure_runtime()` constructs the singleton on first call, then locks
-//! and borrows it. Each public function
-//! calls `ensure_runtime()` and delegates. The actions return the typed
-//! `ConversationBridgeError` (ADR 0024) through `From<OrgError>`; `list`
-//! and `poll` keep the plain `String` shape (ADR 0010).
-//!
-//! SHARED RESOURCES (ADR 0016 -- shared-runtime refactor): the Moss node +
-//! persistence are borrowed from `api::shared_runtime` via
-//! `ensure_shared_resources()`: the same `Arc<SharedMossNode>` the
-//! DM/channel/group facades get. No per-facade Moss
-//! load. Orgs carry no attachments, so the attachment store is NOT borrowed.
-//!
-//! TYPES (ADR 0010 -- 1:1 mapping, DRY): request and return types are the
-//! runtime's own, re-exported here via `use crate::org_runtime::{...}` and
-//! (for the DM-offer commands, which also drive the private-DM runtime to
-//! mint/accept the invite) the private-DM contracts.
-//! They are NOT redefined.
+//! Org bridge operations. Shared resources and runtime ownership live in
+//! `shared_runtime` and `runtime_owner` (ADRs 0016 and 0024).
 
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::MutexGuard;
+
+use super::runtime_owner::RuntimeOwner;
 
 use crate::api::conversation_bridge::{ConversationBridgeError, ConversationBridgeErrorKind};
 use crate::org_runtime::{
@@ -39,66 +16,14 @@ use crate::private_group_runtime::{
     CreateGroupRequest, GroupCreated, GroupSnapshot, JoinGroupRequest,
 };
 
-const ORG_UNAVAILABLE: &str = "org runtime unavailable";
-const LOCK_POISONED: &str = "org runtime lock poisoned";
-// Every created or joined group stores its invite URI, so a group without
-// one is a state the runtime never produces: no caller-visible remedy.
+static RUNTIME: RuntimeOwner<OrgRuntime> = RuntimeOwner::new("org");
+
 const GROUP_WITHOUT_INVITE: &str = "group has no invite URI";
 
-/// Process-global singleton for the org runtime (ADR 0016).
-///
-/// `Option` carries the "ready vs missing" duality: `Some` once Moss
-/// loaded, `None` if construction failed (so
-/// later calls report the original error instead of retrying into the same
-/// failure). The `OnceLock` guarantees a single construction; the `Mutex`
-/// serializes the `&mut self` runtime calls.
-static RUNTIME: OnceLock<Mutex<Option<OrgRuntime>>> = OnceLock::new();
-
-/// The cached construction error, if the singleton's first init failed.
-/// Lives in its own `OnceLock` so a failed init reports a stable message on
-/// every later call.
-static LOAD_ERROR: OnceLock<String> = OnceLock::new();
-
-/// Lazily construct the singleton on first call, then lock it.
-///
-/// On the first call: borrow the shared resources (Moss node + persistence
-/// via `api::shared_runtime`), build the org runtime off them, rehydrate
-/// saved orgs from the encrypted store, and store it. On every later call:
-/// just lock. Returns a guard the public functions can drive the `&mut self`
-/// runtime through, or an `Unavailable` bridge error.
-fn ensure_runtime() -> Result<MutexGuard<'static, Option<OrgRuntime>>, ConversationBridgeError> {
-    let mutex = RUNTIME.get_or_init(|| Mutex::new(build_runtime()));
-    let guard = mutex
-        .lock()
-        .map_err(|_| ConversationBridgeError::unavailable(LOCK_POISONED))?;
-    if guard.is_none() {
-        // Construction failed on the first call; the cause is cached.
-        let message = LOAD_ERROR
-            .get()
-            .map(|error| format!("{ORG_UNAVAILABLE}: {error}"))
-            .unwrap_or_else(|| ORG_UNAVAILABLE.to_string());
-        return Err(ConversationBridgeError::unavailable(message));
-    }
-    Ok(guard)
+fn ensure_runtime() -> Result<MutexGuard<'static, OrgRuntime>, ConversationBridgeError> {
+    RUNTIME.lock(construct_runtime)
 }
 
-/// Build the singleton value once. Returns `Some(runtime)` on success, or
-/// `None` + caches the cause in `LOAD_ERROR` on failure. Split out from
-/// `ensure_runtime` to keep that function's nesting shallow.
-fn build_runtime() -> Option<OrgRuntime> {
-    match construct_runtime() {
-        Ok(runtime) => Some(runtime),
-        Err(error) => {
-            let _ = LOAD_ERROR.set(error.to_string());
-            None
-        }
-    }
-}
-
-/// The org-runtime construction recipe: borrow the shared resources (Moss
-/// node + persistence) from `api::shared_runtime`, build an
-/// `OrgRuntime::from_shared_node` off them, then rehydrate saved orgs from
-/// the encrypted store.
 fn construct_runtime() -> Result<OrgRuntime, OrgError> {
     let resources =
         crate::api::shared_runtime::ensure_shared_resources().map_err(OrgError::Moss)?;
@@ -111,8 +36,7 @@ fn construct_runtime() -> Result<OrgRuntime, OrgError> {
 
 /// Join an org from a `mosh://org` bundle URI. Delegates to `OrgRuntime::join_org`.
 pub fn join_org(request: JoinOrgRequest) -> Result<OrgSnapshot, ConversationBridgeError> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    let mut runtime = ensure_runtime()?;
     runtime
         .join_org(request)
         .map_err(ConversationBridgeError::from)
@@ -127,13 +51,11 @@ pub fn leave_org(org_pubkey: String) -> Result<(), ConversationBridgeError> {
     // needs no extra wiring here (the group runtime reconciles against the
     // persisted roster on its own drain cadence).
     {
-        let mut guard = ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = ensure_runtime()?;
         runtime.leave_org(&org_pubkey)?;
     }
     {
-        let mut guard = crate::api::private_group::ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = crate::api::private_group::ensure_runtime()?;
         runtime.close_org_groups(&org_pubkey);
     }
     Ok(())
@@ -143,15 +65,13 @@ pub fn leave_org(org_pubkey: String) -> Result<(), ConversationBridgeError> {
 /// `Vec<OrgSnapshot>` directly (no Result), so the facade wraps it in `Ok`
 /// for the bridge's `Result<Vec<OrgSnapshot>, String>` shape.
 pub fn list() -> Result<Vec<OrgSnapshot>, String> {
-    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    let mut runtime = ensure_runtime().map_err(|error| error.to_string())?;
     Ok(runtime.list())
 }
 
 /// Poll an org for its current snapshot. Delegates to `OrgRuntime::poll`.
 pub fn poll(org_pubkey: String) -> Result<OrgSnapshot, String> {
-    let mut guard = ensure_runtime().map_err(|error| error.to_string())?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    let mut runtime = ensure_runtime().map_err(|error| error.to_string())?;
     runtime.poll(&org_pubkey).map_err(|error| error.to_string())
 }
 
@@ -170,8 +90,7 @@ pub fn send_dm_offer(
     // drop the orphan local invite so it does not linger as a dead "waiting"
     // session.
     let invite = {
-        let mut guard = crate::api::private_dm::ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = crate::api::private_dm::ensure_runtime()?;
         runtime.create_invite(StartSessionRequest {
             display_name,
             listen_port,
@@ -179,8 +98,7 @@ pub fn send_dm_offer(
         })?
     };
     let offered = {
-        let mut guard = ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = ensure_runtime()?;
         runtime.send_dm_offer(&org_pubkey, &target_peer_id, &invite.invite_uri)?;
         runtime
             .link_dm(&org_pubkey, &target_peer_id, &invite.session_id)
@@ -188,8 +106,7 @@ pub fn send_dm_offer(
     };
     if let Err(error) = offered {
         // The offer never reached the mesh: drop the orphan local invite.
-        let mut guard = crate::api::private_dm::ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = crate::api::private_dm::ensure_runtime()?;
         let _ = runtime.close_session(&invite.session_id);
         return Err(error);
     }
@@ -210,13 +127,11 @@ pub fn accept_dm_offer(
     // invite URI + the inviter peer id), then accept the invite via the
     // private-DM runtime, then link the resulting session in the org runtime.
     let offer: OrgDmOfferView = {
-        let mut guard = ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = ensure_runtime()?;
         runtime.accept_dm_offer(&org_pubkey, &offer_id)?
     };
     let snapshot = {
-        let mut guard = crate::api::private_dm::ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = crate::api::private_dm::ensure_runtime()?;
         runtime.accept_invite(AcceptInviteRequest {
             invite_uri: offer.invite_uri.clone(),
             display_name,
@@ -225,8 +140,7 @@ pub fn accept_dm_offer(
         })?
     };
     {
-        let mut guard = ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = ensure_runtime()?;
         runtime.link_dm(&org_pubkey, &offer.from_peer_id, &snapshot.session_id)?
     }
     Ok(snapshot)
@@ -238,8 +152,7 @@ pub fn dismiss_dm_offer(
     org_pubkey: String,
     offer_id: String,
 ) -> Result<(), ConversationBridgeError> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    let mut runtime = ensure_runtime()?;
     runtime
         .dismiss_dm_offer(&org_pubkey, &offer_id)
         .map_err(ConversationBridgeError::from)
@@ -261,8 +174,7 @@ pub fn create_group(
     // roster binding), then offer it to each listed roster member via the org
     // runtime send_group_offer path.
     let created = {
-        let mut guard = crate::api::private_group::ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = crate::api::private_group::ensure_runtime()?;
         runtime.create_group(CreateGroupRequest {
             label: label.clone(),
             display_name,
@@ -272,8 +184,7 @@ pub fn create_group(
         })?
     };
     {
-        let mut guard = ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = ensure_runtime()?;
         for target in &member_peer_ids {
             runtime.send_group_offer(
                 &org_pubkey,
@@ -301,13 +212,11 @@ pub fn accept_group_offer(
     // (org_pubkey stamped on the JoinGroupRequest so the group carries its
     // roster binding).
     let offer: OrgGroupOfferView = {
-        let mut guard = ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = ensure_runtime()?;
         runtime.accept_group_offer(&org_pubkey, &offer_id)?
     };
     {
-        let mut guard = crate::api::private_group::ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = crate::api::private_group::ensure_runtime()?;
         runtime
             .join_group(JoinGroupRequest {
                 invite_uri: offer.group_invite_uri.clone(),
@@ -326,8 +235,7 @@ pub fn dismiss_group_offer(
     org_pubkey: String,
     offer_id: String,
 ) -> Result<(), ConversationBridgeError> {
-    let mut guard = ensure_runtime()?;
-    let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+    let mut runtime = ensure_runtime()?;
     runtime
         .dismiss_group_offer(&org_pubkey, &offer_id)
         .map_err(ConversationBridgeError::from)
@@ -344,8 +252,7 @@ pub fn group_invite_members(
     // group for its invite URI + label, then re-offer the invite to each
     // listed roster member over org-control.
     let (invite_uri, label) = {
-        let mut guard = crate::api::private_group::ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = crate::api::private_group::ensure_runtime()?;
         let snapshot = runtime.poll(&group_id)?;
         let uri = snapshot.invite_uri.ok_or_else(|| {
             ConversationBridgeError::new(
@@ -356,8 +263,7 @@ pub fn group_invite_members(
         (uri, snapshot.label)
     };
     {
-        let mut guard = ensure_runtime()?;
-        let runtime = guard.as_mut().expect("ensure_runtime guarantees Some");
+        let mut runtime = ensure_runtime()?;
         for target in &member_peer_ids {
             runtime.send_group_offer(&org_pubkey, target, &invite_uri, label.clone())?;
         }

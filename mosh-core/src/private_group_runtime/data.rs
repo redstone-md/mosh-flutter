@@ -107,15 +107,13 @@ impl GroupSession {
             voice,
         })?;
         let content_hash = outgoing.manifest.content_hash.clone();
-        let manifest_json = serde_json::to_vec(&outgoing.manifest)
-            .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
-        let ciphertext = self.crypto.encrypt(&manifest_json)?;
+        let manifest_ciphertext_b64 = self.crypto.encrypt_json(&outgoing.manifest)?;
         let envelope = ControlEnvelope::AttachmentManifest {
             group_id: self.group_id.clone(),
             participant_id: self.participant_id.clone(),
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
-            manifest_ciphertext_b64: encode(&ciphertext),
+            manifest_ciphertext_b64,
         };
         self.publish_control(&envelope)?;
 
