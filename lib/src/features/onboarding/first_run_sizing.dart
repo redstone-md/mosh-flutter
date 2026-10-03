@@ -12,8 +12,9 @@ class SetupSizing {
   double get sectionGap => compact ? 16 : 32;
   double get columnGap => compact ? 32 : 48;
 
-  // Reserve space for the next task while leaving room for progress and labels.
-  double get transitionReserve => sectionGap * 4;
+  // Stacked steps add heading, artwork and controls vertically. Reserve more
+  // room for their differing heights while keeping progress within the viewport.
+  double get transitionReserve => sectionGap * (stacked ? 8 : 4);
   double get transitionBaselineLimit =>
       viewport.height -
       outerPadding * 2 -
