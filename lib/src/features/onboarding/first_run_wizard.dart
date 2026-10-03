@@ -136,6 +136,7 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
     return switch (step) {
       SetupStep.name => DisplayNameForm(
           compact: sizing.compact,
+          showAvatar: false,
           showSaveConfirmation: false,
           initialName: widget.profile.displayName,
           actionLabel: l.firstRunContinue,

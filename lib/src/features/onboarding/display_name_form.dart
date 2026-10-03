@@ -11,11 +11,15 @@ class DisplayNameForm extends StatefulWidget {
       required this.actionLabel,
       required this.onSave,
       this.compact = false,
+      this.showAvatar = true,
       this.showSaveConfirmation = true});
   final String initialName;
   final String actionLabel;
   final Future<void> Function(String) onSave;
   final bool compact;
+
+  /// The profile editor previews initials; setup leads straight to the field.
+  final bool showAvatar;
 
   /// Settings confirms a save; the wizard confirms by moving to the next step.
   final bool showSaveConfirmation;
@@ -66,22 +70,24 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-                child: Theme(
-                    data: Theme.of(context).copyWith(
-                        textTheme: Theme.of(context).textTheme.copyWith(
-                            labelMedium: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(fontSize: 28))),
-                    child: _name.text.trim().isEmpty
-                        ? CircleAvatar(
-                            radius: radius,
-                            backgroundColor: MoshColors.avatarSurface,
-                            child: Icon(Icons.person_outline,
-                                size: radius * .8, color: MoshColors.fg2))
-                        : Avatar(name: _name.text, radius: radius))),
-            SizedBox(height: widget.compact ? 16 : 28),
+            if (widget.showAvatar) ...[
+              Center(
+                  child: Theme(
+                      data: Theme.of(context).copyWith(
+                          textTheme: Theme.of(context).textTheme.copyWith(
+                              labelMedium: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(fontSize: 28))),
+                      child: _name.text.trim().isEmpty
+                          ? CircleAvatar(
+                              radius: radius,
+                              backgroundColor: MoshColors.avatarSurface,
+                              child: Icon(Icons.person_outline,
+                                  size: radius * .8, color: MoshColors.fg2))
+                          : Avatar(name: _name.text, radius: radius))),
+              SizedBox(height: widget.compact ? 16 : 28),
+            ],
             TextFormField(
                 controller: _name,
                 enabled: !_busy,

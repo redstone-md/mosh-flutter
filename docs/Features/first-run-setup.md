@@ -89,7 +89,10 @@ Stacked layouts center the heading above the artwork. The heading uses the
 existing 23px/600 type token; desktop illustration captions use the secondary
 19px token in primary ink with a muted body. Narrow screens omit these
 repeated captions. The step indicator is one continuous track joining its
-markers. An empty name shows a person icon instead of a `?` initial. The name step keeps its factual encryption note after the
+markers. The name step starts directly with the name field below its heading
+and explanation, without an initials avatar or its reserved spacing. Settings
+retains the live initials preview in the shared name editor. The name step keeps
+its factual encryption note after the
 form in narrow layouts with room for supporting content. The two initial device
 choices share a neutral outlined
 style; a linked profile gets one filled Continue action. Back is secondary.
@@ -119,8 +122,8 @@ The former fixed-height divider no longer sets a minimum card height.
 
 Spacing follows a 4px grid: compact/regular outer padding 12/32px, card padding
 16/32px, section gaps 16/32px and column gaps 32/48px. Heading and explanation
-are grouped with 12px; controls follow with 24px. Compact name avatars use 72px
-instead of 96px. Control text remains readable and respects system text scaling.
+are grouped with 12px; controls follow with 24px. Control text remains readable
+and respects system text scaling.
 The shared window titlebar also accounts for text scale when replacing the
 Peer status label with its compact icon, so completion does not expose an
 overflowing chat header at 200% text size.
@@ -154,7 +157,9 @@ Initial/restored steps, same-step updates, resize and save errors do not replay
 motion. The cache lasts only for this wizard and writes no additional preferences.
 
 `SetupStableLayout` reserves the first body's natural height plus up to four
-section gaps within the viewport budget. This keeps default-step card geometry
+section gaps in two columns, or eight in stacked layouts, within the viewport
+budget. The extra stacked reserve accommodates the shorter name form without
+shifting the shell when taller steps enter. This keeps default-step card geometry
 and progress coordinates steady. Expanded import/error content can grow beyond
 the baseline without making that extra height permanent. A viewport, text-scale
 or locale change remeasures the baseline while retaining field state. This uses
@@ -242,3 +247,9 @@ and phone. Actual Flutter frames were rendered every 16ms for all three
 transitions at 1280×680 and 390×844. The five changed production files collected
 99.2% line and 92.5% branch coverage. Frame pacing on a physical Windows device
 remains unmeasured.
+
+Name-step simplification on 2026-10-03 removes the avatar and its trailing gap
+from setup. Formatting and analysis are clean; 174 focused onboarding/Profile
+tests passed with rendered previews, including the 48 viewport/text-scale cases
+and persistent-shell transitions. The three changed production files collected
+97.5% line and 98.1% branch coverage. Desktop and phone previews were inspected.
