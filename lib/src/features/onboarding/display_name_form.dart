@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 
 /// Shared name editor for setup and Settings. Persist before reporting success.
@@ -55,6 +56,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final radius = widget.compact ? 36.0 : 48.0;
     return Form(
         key: _form,
         child: Column(
@@ -68,8 +70,13 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                                 .textTheme
                                 .labelMedium
                                 ?.copyWith(fontSize: 28))),
-                    child: Avatar(
-                        name: _name.text, radius: widget.compact ? 36 : 48))),
+                    child: _name.text.trim().isEmpty
+                        ? CircleAvatar(
+                            radius: radius,
+                            backgroundColor: MoshColors.avatarSurface,
+                            child: Icon(Icons.person_outline,
+                                size: radius * .8, color: MoshColors.fg2))
+                        : Avatar(name: _name.text, radius: radius))),
             SizedBox(height: widget.compact ? 16 : 28),
             TextFormField(
                 controller: _name,

@@ -53,7 +53,6 @@ void main() {
     final task = tester.widget<Text>(find.text(_titles[SetupStep.name]!));
     final welcome = tester.widget<Text>(find.text('Добро пожаловать в Mosh'));
     expect(task.style!.fontSize, greaterThan(welcome.style!.fontSize!));
-    expect(task.style!.color, isNot(welcome.style!.color));
   });
 
   testWidgets('device choices have equal emphasis before choosing',

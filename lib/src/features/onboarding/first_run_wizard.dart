@@ -87,11 +87,6 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
                     child: SetupProgress(
                         step: widget.profile.step, compact: sizing.compact))),
             SizedBox(height: sizing.sectionGap),
-            Center(
-                child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 600),
-                    child: SetupHeading(step: widget.profile.step))),
-            const SizedBox(height: 24),
             SetupFrame(
                 step: widget.profile.step,
                 sizing: sizing,

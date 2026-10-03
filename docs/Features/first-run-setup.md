@@ -80,10 +80,14 @@ Wide windows use the reference's illustration on the left and controls on the
 right for all three steps. Narrow windows stack these blocks in a centered card
 up to 640px wide. Wide cards remain capped at 1160px.
 
-Each step has one primary task heading, then its explanation, before artwork and
-controls. The heading uses the existing 23px/600 type token; desktop illustration
-captions use the secondary 19px token and muted text. Narrow screens omit these
-repeated captions. The name step keeps its factual encryption note after the
+Each step has one primary task heading, then its explanation, directly above
+its controls. Wide layouts follow the reference: the heading starts the form
+column, left-aligned, while the left column holds artwork and its caption.
+Stacked layouts center the heading above the artwork. The heading uses the
+existing 23px/600 type token; desktop illustration captions use the secondary
+19px token in primary ink with a muted body. Narrow screens omit these
+repeated captions. The step indicator is one continuous track joining its
+markers. An empty name shows a person icon instead of a `?` initial. The name step keeps its factual encryption note after the
 form in narrow layouts with room for supporting content. The two initial device
 choices share a neutral outlined
 style; a linked profile gets one filled Continue action. Back is secondary.
@@ -182,5 +186,10 @@ production files was 98.5% line and 90.8% branch. The optional preview run passe
 79 layout/state cases with readable sans-serif and Material icon fonts; rendered
 desktop, tablet, phone, small-window and error/import states were inspected.
 The final 320×568 name preview includes the full card and primary action without
-the optional illustration or encryption caption. Native Windows verification
+the optional illustration or encryption caption.
+
+Reference-alignment pass on 2026-10-03 moved the wide task heading into the
+form column, restored primary ink to the welcome caption and joined the step
+track. The onboarding suite and the 48-case viewport matrix pass with previews
+rendered at 1280×680, 900×700, 1920×1080, phone and 200% text. Native Windows verification
 remains outstanding; the previews exercise the real Flutter tree in widget tests.
