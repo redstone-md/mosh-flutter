@@ -11,10 +11,6 @@ const ALICE_IDENTITY: &[u8] = b"mosh-alice-device";
 const BOB_IDENTITY: &[u8] = b"mosh-bob-device";
 const TEST_MESSAGE: &[u8] = b"mosh-openmls-smoke";
 
-pub trait PrivateMessageCrypto {
-    fn smoke_test(&self) -> Result<OpenMlsSmokeStatus, OpenMlsAdapterError>;
-}
-
 #[derive(Debug, Clone, serde::Serialize)]
 #[frb(non_opaque)]
 pub struct OpenMlsSmokeStatus {
@@ -57,51 +53,47 @@ impl std::fmt::Display for OpenMlsAdapterError {
 
 impl std::error::Error for OpenMlsAdapterError {}
 
-pub struct OpenMlsPrivateMessageCrypto;
-
 struct MlsDevice {
     provider: OpenMlsRustCrypto,
     signer: SignatureKeyPair,
     credential: CredentialWithKey,
 }
 
-impl PrivateMessageCrypto for OpenMlsPrivateMessageCrypto {
-    fn smoke_test(&self) -> Result<OpenMlsSmokeStatus, OpenMlsAdapterError> {
-        let provider = OpenMlsRustCrypto::default();
-        let signer = SignatureKeyPair::new(SignatureScheme::ED25519)
-            .map_err(|error| OpenMlsAdapterError::SignatureKey(error.to_string()))?;
+pub fn run_openmls_smoke_test() -> Result<OpenMlsSmokeStatus, OpenMlsAdapterError> {
+    let provider = OpenMlsRustCrypto::default();
+    let signer = SignatureKeyPair::new(SignatureScheme::ED25519)
+        .map_err(|error| OpenMlsAdapterError::SignatureKey(error.to_string()))?;
 
-        signer
-            .store(provider.storage())
-            .map_err(|error| OpenMlsAdapterError::Storage(error.to_string()))?;
+    signer
+        .store(provider.storage())
+        .map_err(|error| OpenMlsAdapterError::Storage(error.to_string()))?;
 
-        let credential = BasicCredential::new(TEST_IDENTITY.to_vec());
-        let credential_with_key = CredentialWithKey {
-            credential: credential.into(),
-            signature_key: signer.to_public_vec().into(),
-        };
+    let credential = BasicCredential::new(TEST_IDENTITY.to_vec());
+    let credential_with_key = CredentialWithKey {
+        credential: credential.into(),
+        signature_key: signer.to_public_vec().into(),
+    };
 
-        let config = MlsGroupCreateConfig::builder()
-            .ciphersuite(Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519)
-            .use_ratchet_tree_extension(true)
-            .build();
+    let config = MlsGroupCreateConfig::builder()
+        .ciphersuite(Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519)
+        .use_ratchet_tree_extension(true)
+        .build();
 
-        let mut group = MlsGroup::new(&provider, &signer, &config, credential_with_key)
-            .map_err(|error| OpenMlsAdapterError::Group(error.to_string()))?;
+    let mut group = MlsGroup::new(&provider, &signer, &config, credential_with_key)
+        .map_err(|error| OpenMlsAdapterError::Group(error.to_string()))?;
 
-        let protected_message = group
-            .create_message(&provider, &signer, TEST_MESSAGE)
-            .map_err(|error| OpenMlsAdapterError::Message(error.to_string()))?;
+    let protected_message = group
+        .create_message(&provider, &signer, TEST_MESSAGE)
+        .map_err(|error| OpenMlsAdapterError::Message(error.to_string()))?;
 
-        Ok(OpenMlsSmokeStatus {
-            provider: "openmls_rust_crypto".to_string(),
-            ciphersuite: CIPHERSUITE_NAME.to_string(),
-            protected_message_created: matches!(
-                protected_message.body(),
-                MlsMessageBodyOut::PrivateMessage(_)
-            ),
-        })
-    }
+    Ok(OpenMlsSmokeStatus {
+        provider: "openmls_rust_crypto".to_string(),
+        ciphersuite: CIPHERSUITE_NAME.to_string(),
+        protected_message_created: matches!(
+            protected_message.body(),
+            MlsMessageBodyOut::PrivateMessage(_)
+        ),
+    })
 }
 
 pub fn run_openmls_alice_bob_roundtrip() -> Result<OpenMlsRoundTripStatus, OpenMlsAdapterError> {
@@ -145,10 +137,6 @@ pub fn run_openmls_alice_bob_roundtrip() -> Result<OpenMlsRoundTripStatus, OpenM
         welcome_joined: alice_group.export_ratchet_tree() == bob_group.export_ratchet_tree(),
         plaintext_roundtrip: plaintext == TEST_MESSAGE,
     })
-}
-
-pub fn run_openmls_smoke_test() -> Result<OpenMlsSmokeStatus, OpenMlsAdapterError> {
-    OpenMlsPrivateMessageCrypto.smoke_test()
 }
 
 fn create_device(identity: &[u8]) -> Result<MlsDevice, OpenMlsAdapterError> {

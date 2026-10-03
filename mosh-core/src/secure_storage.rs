@@ -67,9 +67,11 @@ pub struct OsSecureSecretStore;
 
 impl OsSecureSecretStore {
     pub fn status() -> SecureStorageStatus {
-        let store = Self;
-
-        storage_status_for(&store)
+        SecureStorageStatus {
+            backend: BACKEND_NAME.to_string(),
+            service: SERVICE_NAME.to_string(),
+            available: ensure_native_store().is_ok(),
+        }
     }
 
     fn entry(key: &str) -> Result<Entry, SecureStorageError> {
@@ -90,14 +92,6 @@ impl OsSecureSecretStore {
             .ok()?
             .get_secret()
             .ok()
-    }
-}
-
-pub fn storage_status_for(_store: &dyn SecureSecretStore) -> SecureStorageStatus {
-    SecureStorageStatus {
-        backend: BACKEND_NAME.to_string(),
-        service: SERVICE_NAME.to_string(),
-        available: ensure_native_store().is_ok(),
     }
 }
 

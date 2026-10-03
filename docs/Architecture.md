@@ -46,6 +46,11 @@ The `api` facade is real
 for every command family (`diagnostics`, `private_dm`, `channel`,
 `private_group`, `org`, `network`, `vpn`; OnceLock singletons, ADR 0016).
 
+Diagnostic probes call `run_openmls_smoke_test()` and
+`MossDynamicRuntime.status()` directly. `OsSecureSecretStore.status()` reports
+the platform backend without accepting a store it does not inspect. The
+`SecureSecretStore` seam remains for the OS and file adapters.
+
 ## Device linking
 
 The Devices settings section uses the device-link bridge and its own

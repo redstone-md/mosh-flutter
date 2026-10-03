@@ -25,7 +25,7 @@ use mosh_core::channel_runtime::{
 };
 use mosh_core::conversation::mesh::{MeshInfo, SnapshotEvent};
 use mosh_core::moss_ffi::MossFfiRuntime;
-use mosh_core::moss_runtime::{MossDynamicRuntime, MossRuntime};
+use mosh_core::moss_runtime::MossDynamicRuntime;
 use mosh_core::network_inventory;
 use mosh_core::outbound_delivery::MessageDeliveryStatus;
 use mosh_core::private_dm_runtime::{
