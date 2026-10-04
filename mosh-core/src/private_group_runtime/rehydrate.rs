@@ -2,6 +2,10 @@
 
 use super::*;
 
+#[cfg(test)]
+#[path = "rehydrate_tests.rs"]
+mod tests;
+
 impl PrivateGroupRuntime {
     pub fn rehydrate(&mut self) {
         let Some(store) = self.groups.persistence().cloned() else {
@@ -46,6 +50,15 @@ impl PrivateGroupRuntime {
         crypto: MlsSessionCrypto,
         store: &Arc<Persistence>,
     ) -> Option<GroupSession> {
+        let org_signer = restore_result(
+            &record.group_id,
+            "org signer unavailable",
+            record
+                .org_pubkey
+                .as_ref()
+                .map(|_| load_org_signer(Some(store)))
+                .transpose(),
+        )?;
         let node = restore_result(
             &record.group_id,
             "node start failed",
@@ -55,15 +68,6 @@ impl PrivateGroupRuntime {
                 record.listen_port,
                 record.static_peer.clone(),
             ),
-        )?;
-        let org_signer = restore_result(
-            &record.group_id,
-            "org signer unavailable",
-            record
-                .org_pubkey
-                .as_ref()
-                .map(|_| load_org_signer(Some(store)))
-                .transpose(),
         )?;
         let mut restored_record = record.clone();
         restored_record.device_fingerprint = node
