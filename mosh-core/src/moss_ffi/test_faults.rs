@@ -6,6 +6,7 @@ static TEST_PUBLISH_FAILURE: Mutex<Option<TestPublishOutcome>> = Mutex::new(None
 enum TestPublishOutcome {
     Injected(String),
     Code(i32),
+    Accepted(Box<dyn FnOnce() + Send>),
 }
 
 pub struct TestPublishFailureGuard;
@@ -23,6 +24,12 @@ pub fn fail_next_test_publish(message: &str) -> TestPublishFailureGuard {
 
 pub fn no_peers_next_test_publish() -> TestPublishFailureGuard {
     arm_test_publish(TestPublishOutcome::Code(MOSS_ERR_NO_PEERS))
+}
+
+pub(crate) fn after_next_test_publish(
+    accepted: impl FnOnce() + Send + 'static,
+) -> TestPublishFailureGuard {
+    arm_test_publish(TestPublishOutcome::Accepted(Box::new(accepted)))
 }
 
 pub(super) fn tolerate_unmeshed_test_node(
@@ -46,6 +53,10 @@ pub(super) fn take_test_publish_outcome() -> Option<Result<(), MossFfiError>> {
                 Err(MossFfiError::InjectedPublishFailure(message))
             }
             TestPublishOutcome::Code(code) => check_publish_code(code),
+            TestPublishOutcome::Accepted(accepted) => {
+                accepted();
+                Ok(())
+            }
         })
 }
 

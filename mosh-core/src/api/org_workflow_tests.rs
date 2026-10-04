@@ -11,6 +11,9 @@ mod group_acceptance;
 #[path = "org_dm_acceptance_durability_tests.rs"]
 mod dm_durability;
 
+#[path = "org_dm_creation_tests.rs"]
+mod dm_creation;
+
 #[test]
 fn malformed_dm_invite_never_exposes_an_org_offer_or_creates_a_session() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());

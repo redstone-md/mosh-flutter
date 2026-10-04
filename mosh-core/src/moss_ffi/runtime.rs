@@ -90,16 +90,16 @@ impl MossFfiRuntime {
             });
         }
 
-        let mut node = MossNode {
+        let node = MossNode {
             runtime: Arc::clone(self),
             handle,
             identity_signer,
         };
-        if node.identity_signer.as_ref().is_some_and(|key| {
+        if !node.identity_signer.as_ref().is_some_and(|key| {
             node.identity_public_key_hex().as_deref()
-                != Some(&hex::encode(key.verifying_key().to_bytes()))
+                == Some(&hex::encode(key.verifying_key().to_bytes()))
         }) {
-            node.identity_signer = None;
+            return Err(MossFfiError::IdentityUnavailable);
         }
         Ok(node)
     }

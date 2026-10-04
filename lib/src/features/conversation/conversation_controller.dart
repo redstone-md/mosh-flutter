@@ -9,6 +9,7 @@ import 'package:mosh/src/features/conversation/conversation_message_list_view.da
     show ConversationAttachmentCallbacks;
 import 'package:mosh/src/features/conversation/conversation_state.dart';
 import 'package:mosh/src/features/conversation/conversation_attachment.dart';
+import 'package:mosh/src/features/conversation/conversation_dm_offer.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
@@ -288,27 +289,17 @@ class ConversationController extends Notifier<ConversationControllerState> {
     state = state.copyWith(offerBusy: true);
     try {
       final flow = ref.read(inviteFlowProvider);
-      final invite = await ref.read(bridgeFacadeProvider).createInvite(
-            request: StartSessionRequest(
-              displayName: flow.displayName,
-              listenPort: flow.listenPort,
-              staticPeer: flow.staticPeer,
-            ),
-          );
-      // The channel and group offers are distinct bridge calls: the one
-      // kind branch, exhaustive over the sealed DmOfferHost kinds.
-      await switch (host) {
-        ChannelTarget() => ref.read(bridgeFacadeProvider).sendChannelDmOffer(
-              channelName: host.id,
-              peerFingerprint: peerFingerprint,
-              inviteUri: invite.inviteUri,
-            ),
-        GroupTarget() => ref.read(bridgeFacadeProvider).sendGroupDmOffer(
-              groupId: host.id,
-              peerFingerprint: peerFingerprint,
-              inviteUri: invite.inviteUri,
-            ),
-      };
+      final invite = await createAndOfferDm(
+        bridge: ref.read(bridgeFacadeProvider),
+        gateway: ref.read(gatewayProvider),
+        host: host,
+        peerFingerprint: peerFingerprint,
+        request: StartSessionRequest(
+          displayName: flow.displayName,
+          listenPort: flow.listenPort,
+          staticPeer: flow.staticPeer,
+        ),
+      );
       state = state.copyWith(
         offeredFingerprints: {...state.offeredFingerprints, peerFingerprint},
       );

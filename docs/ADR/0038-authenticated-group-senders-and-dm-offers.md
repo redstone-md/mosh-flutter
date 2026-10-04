@@ -22,6 +22,7 @@ below Moss's 64 KiB publication limit. Existing org envelope encoding is unchang
 Moss identity capture uses the existing load/save callbacks during serialized
 native initialization. The node verifies the captured public key against its
 actual transport identity. Private keys never cross the bridge or enter logs.
+Initialization fails if that signer is missing or cannot be verified.
 
 Group text, attachment manifests, typing and DM offers use this proof. Incoming
 frames must prove possession of both keys and current MLS membership before
@@ -66,6 +67,8 @@ Org-carried DM offers use the same owned, targeted invitation. Outgoing offers
 require both endpoints in the roster. Incoming offers verify ownership before
 deduplication, and acceptance verifies again, including restored pending offers.
 An old pending offer without these proofs must be dismissed and reissued.
+Acceptance rechecks both endpoints against the current verified roster, including
+roster updates queued since delivery. Revocation does not close established DMs.
 Org offer URIs remain visible to topic readers; the pinned target prevents another
 reader from taking admission.
 
@@ -82,6 +85,9 @@ controls retain their existing protocol. Manual DM invitations without a target
 retain legacy admission for the invitation holder; they do not promise a
 particular recipient identity. Invitations with a proof always verify it.
 Existing DM sessions and linked-device workflows remain readable and usable.
+Org offer records persist before publication. If subsequent local linking fails,
+the published invitation remains usable. The conversation UI owns cleanup of a
+newly created DM whose offer failed; the group bridge retains caller-owned invites.
 
 First sends and deliberate group retries share text encoding. A retry encrypts
 the trusted local message again in the current epoch, preserving its message ID

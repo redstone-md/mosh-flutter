@@ -2,6 +2,23 @@ use super::*;
 use crate::private_dm_runtime::PrivateDmRuntime;
 use crate::private_group_runtime::PrivateGroupRuntime;
 
+pub(super) fn create_and_offer_dm(
+    org: &mut OrgRuntime,
+    dm: &mut PrivateDmRuntime,
+    org_pubkey: &str,
+    target_peer_id: &str,
+    request: StartSessionRequest,
+) -> Result<InviteCreated, ConversationBridgeError> {
+    let invite = dm.create_targeted_invite(request, target_peer_id)?;
+    if let Err(error) = org.send_dm_offer(org_pubkey, target_peer_id, &invite.invite_uri) {
+        let _ = dm.close_session(&invite.session_id);
+        return Err(error.into());
+    }
+    // Publication succeeded: subsequent persistence errors must leave the invite usable.
+    org.link_dm(org_pubkey, target_peer_id, &invite.session_id)?;
+    Ok(invite)
+}
+
 pub(super) fn accept_and_link_dm(
     org: &mut OrgRuntime,
     dm: &mut PrivateDmRuntime,

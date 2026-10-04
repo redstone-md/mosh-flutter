@@ -1,4 +1,79 @@
 use super::*;
+
+#[test]
+fn revoked_members_cannot_accept_or_supply_queued_dm_offers() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    for revoke_recipient in [false, true] {
+        let mut fixture = Fixture::new();
+        fixture.deliver(Resolution::AcceptDm, "revoked-offer");
+        let member = org_signing::peer_id_hex(&fixture.member);
+        let remaining = if revoke_recipient {
+            &member
+        } else {
+            &fixture.own_peer
+        };
+        fixture.runtime.ingest_for_test(
+            &org_key_hex(),
+            &roster_wire(&signed_roster(2, &[(remaining, "remaining", "member")])),
+        );
+        assert!(fixture
+            .runtime
+            .peek_dm_offer(&org_key_hex(), "revoked-offer")
+            .is_err());
+        assert_eq!(fixture.offer_count(), 1);
+        assert!(fixture
+            .runtime
+            .poll(&org_key_hex())
+            .unwrap()
+            .dm_links
+            .is_empty());
+        fixture.runtime.ingest_for_test(
+            &org_key_hex(),
+            &roster_wire(&signed_roster(
+                3,
+                &[
+                    (&fixture.own_peer, "Alice", "admin"),
+                    (&member, "Bob", "member"),
+                ],
+            )),
+        );
+        fixture
+            .resolve(Resolution::AcceptDm, "revoked-offer")
+            .unwrap();
+    }
+}
+
+#[test]
+fn org_offer_persistence_refusal_prevents_publication_and_preserves_links() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let target = org_signing::peer_id_hex(&fixture.member);
+    let invite = owned_dm_invite(&SigningKey::from_bytes(&[86; 32]), &target);
+    let fault = fixture.store.refuse_org_record_writes();
+    let _publish = crate::moss_ffi::fail_next_test_publish("publication was attempted");
+    assert!(matches!(
+        fixture
+            .runtime
+            .send_dm_offer(&org_key_hex(), &target, &invite),
+        Err(OrgError::Persistence(_))
+    ));
+    assert!(fixture
+        .runtime
+        .poll(&org_key_hex())
+        .unwrap()
+        .dm_links
+        .is_empty());
+    drop(fault);
+    assert!(matches!(
+        fixture.runtime.send_dm_offer(&org_key_hex(), &target, &invite),
+        Err(OrgError::Moss(message)) if message.contains("publication was attempted")
+    ));
+    fixture
+        .runtime
+        .send_dm_offer(&org_key_hex(), &target, &invite)
+        .unwrap();
+}
+
 use crate::test_temp_directory::TempDirectory;
 
 struct Fixture {
