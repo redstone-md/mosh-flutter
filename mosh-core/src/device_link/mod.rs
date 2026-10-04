@@ -1,5 +1,6 @@
 //! Device identity, signed membership and private desktop linking, ADR 0029.
 pub mod identity;
+mod names_wire;
 mod qr;
 pub mod roster;
 mod runtime;
