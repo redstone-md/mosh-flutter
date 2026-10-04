@@ -4,11 +4,14 @@ use super::*;
 
 impl GroupSession {
     pub(super) fn handle_data(&mut self, payload: Vec<u8>) -> Result<(), PrivateGroupError> {
-        let envelope: DataEnvelope = decode_json(&payload)?;
+        let proof = decode_json(&payload)?;
+        let sender = self.verify_application(&proof, &self.data_channel.clone())?;
+        let envelope: DataEnvelope = decode_json(&sender.payload)?;
         if envelope.group_id != self.group_id || envelope.participant_id == self.participant_id {
             return Ok(());
         }
-        let plaintext = self.crypto.decrypt(&decode(&envelope.ciphertext_b64)?)?;
+        self.require_author(&envelope.from_fingerprint, &sender)?;
+        let plaintext = self.decrypt_application(&envelope.ciphertext_b64, &sender)?;
         // A delivered message contradicts "typing": the author's hint dies at
         // once, whatever its deadline said.
         self.clear_member_typing(&envelope.from_fingerprint);

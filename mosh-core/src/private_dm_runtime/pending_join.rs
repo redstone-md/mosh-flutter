@@ -9,17 +9,14 @@ impl PrivateDmRuntime {
         session_id: &str,
     ) -> Result<PendingJoinRecovery, PrivateDmRuntimeError> {
         let session = self.session_ref(session_id)?;
-        let key_package = match session
+        let key_package = session
             .pending_key_package
             .as_deref()
-            .map(decode_json)
+            .map(|payload| {
+                admission_authentication::admission_key_package(payload, &session.mesh_id)
+            })
             .transpose()?
-        {
-            Some(ControlEnvelope::KeyPackage {
-                key_package_b64, ..
-            }) => Some(decode(&key_package_b64)?),
-            _ => None,
-        };
+            .flatten();
         Ok(PendingJoinRecovery {
             provider_snapshot: session.crypto.snapshot(),
             participant_id: session.participant_id.clone(),
@@ -104,6 +101,16 @@ impl PrivateDmRuntime {
             request.listen_port,
             static_peer.clone(),
         )?;
+        if invite_ownership::target_peer(&request.invite_uri)
+            .map_err(PrivateDmRuntimeError::InvalidInvite)?
+            .is_some_and(|target| self.transport.local_peer_id().as_deref() != Some(&target))
+        {
+            self.transport
+                .close_room(&invite.mesh_id, &session_channels(&invite.session_id), KIND);
+            return Err(PrivateDmRuntimeError::InvalidInvite(
+                "invitation targets another installation".into(),
+            ));
+        }
         let mut session = PrivateDmSession::new(
             SessionRole::Bob,
             request.display_name,
@@ -140,6 +147,24 @@ fn stage_admission(
     };
     let bytes = serde_json::to_vec(&envelope)
         .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
+    let bytes = if session.expected_invitee()?.is_some() {
+        let proof_b64 = session
+            .transport
+            .authenticate_key_package(&bytes, &session.mesh_id, &session.crypto)
+            .map_err(PrivateDmRuntimeError::InvalidInvite)?
+            .ok_or_else(|| {
+                PrivateDmRuntimeError::InvalidInvite(
+                    "transport cannot authenticate targeted admission".into(),
+                )
+            })?;
+        serde_json::to_vec(&ControlEnvelope::AuthenticatedKeyPackage {
+            session_id: session.session_id.clone(),
+            proof_b64,
+        })
+        .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?
+    } else {
+        bytes
+    };
     session.pending_key_package = Some(bytes);
     Ok(())
 }

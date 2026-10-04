@@ -33,7 +33,17 @@ impl GroupSession {
     /// Control-channel publish. Org groups wrap every frame in the signed
     /// envelope (ADR 0007) — including resync traffic, closing the
     /// unauthenticated-resync residual from the plain-group path.
-    pub(super) fn publish_control<T: Serialize>(&self, value: &T) -> Result<(), PrivateGroupError> {
+    pub(super) fn publish_control(&self, value: &ControlEnvelope) -> Result<(), PrivateGroupError> {
+        if value.is_application() {
+            let proof = self.sign_application(value, &self.control_channel)?;
+            return publish_control_message(
+                &self.node,
+                &self.control_channel,
+                &self.mesh_id,
+                org_context(self.org_pubkey.as_deref(), self.org_signer.as_ref()),
+                &proof,
+            );
+        }
         publish_control_message(
             &self.node,
             &self.control_channel,

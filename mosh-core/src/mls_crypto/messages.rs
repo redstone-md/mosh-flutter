@@ -24,6 +24,32 @@ impl MlsSessionCrypto {
         self.decrypt_with_signer(ciphertext).map(|(body, _)| body)
     }
 
+    /// A member can wrap another member's ciphertext in their own valid
+    /// outer proof. Reject that mismatch without consuming the receive ratchet.
+    pub(crate) fn decrypt_from_signer(
+        &mut self,
+        ciphertext: &[u8],
+        expected: &[u8],
+    ) -> Result<Vec<u8>, MlsCryptoError> {
+        let identity = Self::credential_identity(&self.credential.credential)
+            .ok_or(MlsCryptoError::NotReady)?;
+        let group_id = self.group_id_bytes().ok_or(MlsCryptoError::NotReady)?;
+        let mut candidate = Self::restore(
+            &identity,
+            &self.signer_public(),
+            &self.snapshot(),
+            &group_id,
+        )?;
+        let (body, signer) = candidate.decrypt_with_signer(ciphertext)?;
+        if signer != expected {
+            return Err(MlsCryptoError::OpenMls(
+                "ciphertext signer differs from sender proof".into(),
+            ));
+        }
+        *self = candidate;
+        Ok(body)
+    }
+
     /// Return the verified leaf signer with its application plaintext.
     pub(crate) fn decrypt_with_signer(
         &mut self,

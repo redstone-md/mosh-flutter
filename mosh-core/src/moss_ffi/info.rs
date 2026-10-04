@@ -13,6 +13,10 @@ impl MossNode {
         if take_test_public_key_unavailable() {
             return None;
         }
+        self.identity_public_key_hex()
+    }
+
+    pub(super) fn identity_public_key_hex(&self) -> Option<String> {
         let ptr = unsafe { (self.runtime.get_public_key)(self.handle) };
         if ptr.is_null() {
             return None;

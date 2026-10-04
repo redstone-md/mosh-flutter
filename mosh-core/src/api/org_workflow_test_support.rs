@@ -51,7 +51,7 @@ impl Fixture {
         net.endpoint(&member_peer);
         net.link(&own_peer, &member_peer, PeerTransport::Direct);
         let dm = PrivateDmRuntime::with_transport(
-            net.endpoint(&own_peer),
+            net.authenticated_endpoint(&SigningKey::from_bytes(&[90; 32])),
             attachments.clone(),
             Some(store.clone()),
         );
@@ -132,6 +132,28 @@ impl Fixture {
         }
     }
 
+    pub fn dm_invite(&self) -> String {
+        let mut inviter = crate::mls_crypto::MlsSessionCrypto::new("Bob").unwrap();
+        inviter.create_group().unwrap();
+        self.owned_dm_invite(&inviter, "peer", "peer-session")
+    }
+
+    pub fn owned_dm_invite(
+        &self,
+        inviter: &crate::mls_crypto::MlsSessionCrypto,
+        mesh: &str,
+        session: &str,
+    ) -> String {
+        let owner = org_signing::peer_id_hex(&self.member);
+        let raw = format!(
+            "mosh://invite?mesh={mesh}&session={session}&moss={owner}&target={}#fp={}",
+            self.own_peer,
+            inviter.fingerprint()
+        );
+        crate::private_dm_runtime::invite_ownership::sign_invite(&raw, &self.member, inviter)
+            .unwrap()
+    }
+
     pub fn group_request(&self) -> CreateGroupRequest {
         CreateGroupRequest {
             label: Some("Work".into()),
@@ -171,7 +193,8 @@ impl Fixture {
         let attachments = Arc::new(AttachmentStore::new(self._directory.path()).unwrap());
         let shared = SharedMossNode::new(Arc::new(MossFfiRuntime::load_default().unwrap()));
         self.dm = PrivateDmRuntime::with_transport(
-            self.net.endpoint(&self.own_peer),
+            self.net
+                .authenticated_endpoint(&SigningKey::from_bytes(&[90; 32])),
             attachments.clone(),
             Some(self.store.clone()),
         );

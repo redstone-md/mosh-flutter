@@ -11,6 +11,7 @@ use std::{
 
 mod callbacks;
 mod config;
+mod identity;
 mod info;
 mod node;
 mod runtime;
@@ -26,6 +27,8 @@ mod tests;
 pub use crate::stream_transport::STREAM_INBOX_CHANNEL_PREFIX;
 #[cfg(test)]
 pub use callbacks::clear_moss_keystore;
+#[cfg(test)]
+pub(crate) use callbacks::replace_test_keystore;
 pub use callbacks::{
     clear_event_log, drain_received_messages, push_app_event, set_moss_keystore,
     snapshot_event_log, wait_for_payload,
@@ -75,6 +78,7 @@ pub enum MossFfiError {
     InvalidCString(String),
     Operation { name: &'static str, code: i32 },
     DeliveryTimeout,
+    IdentityUnavailable,
     InjectedPublishFailure(String),
     NoPeers,
 }
@@ -100,6 +104,9 @@ impl std::fmt::Display for MossFfiError {
             Self::InvalidCString(value) => write!(formatter, "Moss string contains NUL: {value}"),
             Self::Operation { name, code } => write!(formatter, "Moss {name} failed: {code}"),
             Self::DeliveryTimeout => write!(formatter, "Moss delivery timed out"),
+            Self::IdentityUnavailable => {
+                write!(formatter, "Moss identity signer could not be verified")
+            }
             Self::InjectedPublishFailure(message) => write!(formatter, "{message}"),
             Self::NoPeers => write!(formatter, "no peers yet, so the message did not go out"),
         }
@@ -147,6 +154,7 @@ pub struct MossFfiRuntime {
 pub struct MossNode {
     runtime: Arc<MossFfiRuntime>,
     handle: MossHandle,
+    identity_signer: Option<ed25519_dalek::SigningKey>,
 }
 
 #[derive(Debug, Clone, Default)]

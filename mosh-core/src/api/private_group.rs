@@ -66,6 +66,8 @@ pub fn send_dm_offer(
     target_fingerprint: String,
     invite_uri: String,
 ) -> Result<(), ConversationBridgeError> {
+    let invite_uri = super::private_dm::ensure_runtime()?
+        .authenticated_owned_invite(&invite_uri, &target_fingerprint)?;
     let mut runtime = ensure_runtime()?;
     runtime
         .send_dm_offer(&group_id, target_fingerprint, invite_uri)

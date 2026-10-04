@@ -17,7 +17,6 @@ impl PrivateGroupRuntime {
             if !session.joined {
                 return Err(PrivateGroupError::NotReady);
             }
-            let ciphertext = session.crypto.encrypt(body.as_bytes())?;
             let message = session.messages.stamp(GroupMessage {
                 from_device: session.display_name.clone(),
                 from_fingerprint: session.device_fingerprint.clone(),
@@ -30,21 +29,11 @@ impl PrivateGroupRuntime {
                 retryable: None,
                 retry_count: None,
             });
-            let envelope = DataEnvelope {
-                group_id: session.group_id.clone(),
-                participant_id: session.participant_id.clone(),
-                from_device: session.display_name.clone(),
-                from_fingerprint: session.device_fingerprint.clone(),
-                message_id: message.message_id.clone(),
-                sent_at_ms: message.sent_at_ms,
-                ciphertext_b64: encode(&ciphertext),
-            };
-            let payload = serde_json::to_vec(&envelope)
-                .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
+            let (payload, ciphertext_bytes) = session.encode_text(&message)?;
             let owned_group_id = session.group_id.clone();
             session
                 .outbox()
-                .open(message, owned_group_id, payload, ciphertext.len())?
+                .open(message, owned_group_id, payload, ciphertext_bytes)?
         };
         let result = self.publish_prepared(group_id, prepared, true)?;
         self.groups.persist_tail_logged(KIND);
@@ -59,9 +48,13 @@ impl PrivateGroupRuntime {
         self.drain_inbound()?;
         let prepared = {
             let session = self.group_mut(group_id)?;
+            if !session.joined {
+                return Err(PrivateGroupError::NotReady);
+            }
+            session.prepare_retry(message_id)?;
             session.outbox().reopen(message_id)?
         };
-        self.publish_prepared(group_id, prepared, false)
+        self.publish_prepared(group_id, prepared, true)
     }
 
     /// Signals "I am typing" in one group, driven by the composer's input.

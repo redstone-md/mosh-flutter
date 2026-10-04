@@ -36,7 +36,7 @@ impl std::fmt::Display for EnvelopeError {
 
 impl std::error::Error for EnvelopeError {}
 
-fn signing_input(ctx: &OrgContext, payload: &[u8]) -> Vec<u8> {
+pub(crate) fn signing_input(ctx: &OrgContext, payload: &[u8]) -> Vec<u8> {
     let parts: [&[u8]; 4] = [
         ctx.org_pubkey.as_bytes(),
         ctx.mesh_id.as_bytes(),

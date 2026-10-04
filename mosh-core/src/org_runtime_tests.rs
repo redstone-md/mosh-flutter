@@ -67,6 +67,17 @@ fn identity_blob(seed: [u8; 32]) -> Vec<u8> {
     blob
 }
 
+fn owned_dm_invite(owner: &SigningKey, target: &str) -> String {
+    let mut crypto = crate::mls_crypto::MlsSessionCrypto::new("DM owner").unwrap();
+    crypto.create_group().unwrap();
+    let peer = org_signing::peer_id_hex(owner);
+    let raw = format!(
+        "mosh://invite?mesh=peer&session=peer&moss={peer}&target={target}#fp={}",
+        crypto.fingerprint()
+    );
+    crate::private_dm_runtime::invite_ownership::sign_invite(&raw, owner, &crypto).unwrap()
+}
+
 fn temp_persistence(tag: &str, seed: [u8; 32]) -> (Arc<Persistence>, PathBuf) {
     let mut path = std::env::temp_dir();
     path.push(format!("mosh-org-rt-{tag}-{}.redb", std::process::id()));
