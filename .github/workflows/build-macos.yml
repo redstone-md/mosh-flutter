@@ -92,6 +92,23 @@ jobs:
         # crash reporting; without it the build cannot report at all.
         run: flutter build macos --release --dart-define=SENTRY_DSN=${{ vars.SENTRY_DSN }}
 
+      - name: Test native menu localization
+        if: ${{ !inputs.universal }}
+        run: |
+          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner \
+            -configuration Debug -destination 'platform=macOS' \
+            -parallel-testing-enabled NO -resultBundlePath build/native-menu-tests.xcresult \
+            -only-testing:RunnerTests ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload native menu test results
+        if: ${{ always() && !inputs.universal }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-menu-test-results
+          path: build/native-menu-tests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
+
       # ADR 0035: upload the separate debug files (Rust PDB/dSYM, runner)
       # so Sentry symbolicates native crashes and Rust panics. Release tags
       # only; a fork without the token skips it.

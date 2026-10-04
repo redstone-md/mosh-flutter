@@ -1,15 +1,18 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/state/locale_preference_store.dart';
 
 final localeProvider =
-    NotifierProvider<LocaleNotifier, Locale>(LocaleNotifier.new);
+    NotifierProvider<LocaleNotifier, Locale?>(LocaleNotifier.new);
 
-class LocaleNotifier extends Notifier<Locale> {
+class LocaleNotifier extends Notifier<Locale?> {
   @override
-  Locale build() {
-    final device = WidgetsBinding.instance.platformDispatcher.locale;
-    return device.languageCode.isEmpty ? const Locale('en') : device;
-  }
+  Locale? build() => ref.watch(localePreferenceStoreProvider).read();
 
-  void setLocale(Locale locale) => state = locale;
+  /// Null delegates system resolution and live OS changes to Flutter.
+  Future<void> setLocale(Locale? locale) async {
+    final owner = ref;
+    await owner.read(localePreferenceStoreProvider).write(locale);
+    if (owner.mounted) state = locale;
+  }
 }

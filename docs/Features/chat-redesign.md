@@ -14,6 +14,14 @@ Flutter chat list, messages and details for DMs, private groups and public chann
 
 ## Behavior and ownership
 
+- Enter submits and clears the current draft immediately, keeping focus on all
+  platforms. Further text submissions remain available while native admission
+  runs. A conversation-local FIFO preserves Enter order; native message rows
+  retain their own queued/sent/delivered states. Refused admissions are retained
+  separately for Retry, so a later success cannot erase an earlier failure.
+  Completion never clears a newer draft, including an identical one. A refused
+  send restores its text only if the empty draft has remained untouched.
+
 - `RailActivity` scans each history once. Text and attachments determine the
   latest activity; blank control/call events do not reorder chats. Dated activity
   precedes undated activity; chats without content are last. Equal times use the
