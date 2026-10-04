@@ -275,12 +275,11 @@ Future<void> pumpConversation(
   AttachmentLauncher? launcher,
   bool useRouter = false,
 }) async {
+  final effectiveGateway = gateway ?? ScriptableGateway();
   final overrides = <Override>[
-    if (gateway != null) ...[
-      gatewayProvider.overrideWithValue(gateway),
-      bridgeFacadeProvider.overrideWithValue(
-          ScriptableBridge(conversations: gateway.conversations)),
-    ],
+    gatewayProvider.overrideWithValue(effectiveGateway),
+    bridgeFacadeProvider.overrideWithValue(
+        ScriptableBridge(conversations: effectiveGateway.conversations)),
     if (launcher != null)
       attachmentLauncherProvider.overrideWithValue(launcher),
     testCase.snapshotOverride(messages: messages, attachments: attachments),

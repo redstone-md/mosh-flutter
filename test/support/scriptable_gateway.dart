@@ -88,6 +88,13 @@ class ScriptableGateway
   @override
   Future<void> rename(AnyConversationTarget target, {required String name}) =>
       runScripted(GatewayMethod.rename, {'target': target, 'name': name}, () {
+        if (target is GroupTarget) {
+          conversations.renameGroup(
+              conversations.groups[target.id] ??
+                  cannedGroupSnapshot(groupId: target.id),
+              name);
+          return;
+        }
         names[target.ref.key] = name;
       });
 

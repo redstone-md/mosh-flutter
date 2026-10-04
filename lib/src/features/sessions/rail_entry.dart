@@ -142,7 +142,7 @@ final class DmRailEntry extends RailEntry {
 
   @override
   String searchText(AppLocalizations l) =>
-      '${displayName(l)} ${originalName(l)} ${activity.participantNames}';
+      '${super.searchText(l)} ${displayName(l)} ${originalName(l)} ${activity.participantNames}';
 
   /// The org the peer left, when this DM is org-bound and the peer is no
   /// longer in the roster. The rail looks it up in

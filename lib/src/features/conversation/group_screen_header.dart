@@ -101,9 +101,15 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
 
 /// The role appears once, alongside membership and actual MLS state.
 String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
-  if (group.nameStatus?.error != null) return l.chatNameRejected;
-  if (group.nameStatus?.pending == true) return l.chatNameWaiting;
   final memberPart = l.membersCount(group.memberCount.toInt());
   final adminPrefix = group.isAdmin ? '${l.groupAdminBadge}, ' : '';
-  return '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
+  final summary =
+      '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
+  if (group.nameStatus?.error != null) {
+    return '$summary · ${l.chatNameRejected}';
+  }
+  if (group.nameStatus?.pending == true) {
+    return '$summary · ${l.chatNameWaiting}';
+  }
+  return summary;
 }

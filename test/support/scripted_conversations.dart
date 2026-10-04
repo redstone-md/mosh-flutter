@@ -10,7 +10,8 @@ import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot;
-import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
+import 'package:mosh/src/rust/private_group_runtime.dart'
+    show GroupSnapshot, GroupNameStatus;
 
 /// The seeded DM sessions, channels and groups, keyed the way the runtime
 /// keys them (session id, channel name, group id). Seeding replaces whatever
@@ -21,6 +22,31 @@ class ScriptedConversations {
   final Map<String, SessionSnapshot> sessions = {};
   final Map<String, ChannelSnapshot> channels = {};
   final Map<String, GroupSnapshot> groups = {};
+
+  void renameGroup(GroupSnapshot group, String name) {
+    groups[group.groupId] = GroupSnapshot(
+      groupId: group.groupId,
+      meshId: group.meshId,
+      label: name,
+      displayName: group.displayName,
+      deviceFingerprint: group.deviceFingerprint,
+      creatorFingerprint: group.creatorFingerprint,
+      isAdmin: group.isAdmin,
+      nameStatus: const GroupNameStatus(pending: false),
+      state: group.state,
+      memberCount: group.memberCount,
+      inviteUri: group.inviteUri,
+      messages: group.messages,
+      attachments: group.attachments,
+      dmOffers: group.dmOffers,
+      mesh: group.mesh,
+      events: group.events,
+      needsRejoin: group.needsRejoin,
+      orgPubkey: group.orgPubkey,
+      memberPeerIds: group.memberPeerIds,
+      typingMembers: group.typingMembers,
+    );
+  }
 
   void seedSessions(Iterable<SessionSnapshot> seeded) {
     sessions
