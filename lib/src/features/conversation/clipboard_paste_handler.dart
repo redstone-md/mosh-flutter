@@ -135,9 +135,8 @@ class PasteImageAction extends Action<PasteTextIntent> {
   final AttachmentPickedCallback onAttach;
   final AttachmentPickErrorCallback onAttachmentPickError;
 
-  /// Returns true when the composer accepts input (not sending + not
-  /// disabled); the paste handler is skipped otherwise so a paste into a
-  /// locked composer falls back to the platform default (no-op).
+  /// Whether image attachment is allowed. Otherwise the platform's text
+  /// paste still handles the editable draft, including during admission.
   final bool Function() gate;
 
   @override

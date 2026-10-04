@@ -160,7 +160,9 @@ Future<FirstRunHarness> _pump(
   final harness = FirstRunHarness(
       profile: FirstRunProfile(displayName: 'Лена', step: step));
   await harness.pump(tester, size: size);
-  harness.container.read(localeProvider.notifier).setLocale(const Locale('ru'));
+  await harness.container
+      .read(localeProvider.notifier)
+      .setLocale(const Locale('ru'));
   await tester.pumpAndSettle();
   return harness;
 }

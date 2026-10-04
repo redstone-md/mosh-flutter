@@ -241,7 +241,7 @@ void main() {
         final harness = FirstRunHarness(
             profile: FirstRunProfile(displayName: 'Юна', step: step));
         await harness.pump(tester, size: size, scale: 2);
-        harness.container
+        await harness.container
             .read(localeProvider.notifier)
             .setLocale(const Locale('ru'));
         await tester.pumpAndSettle();

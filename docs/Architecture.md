@@ -67,6 +67,16 @@ and navigation. Action methods return results instead of navigating or editing
 the composer. A sealed `ConversationSnapshot` gives shared rendering one message
 shape while preserving each kind's native snapshot for kind-specific controls.
 
+`ConversationTextSends` admits submitted drafts in FIFO order without blocking
+editing or waiting for delivery. It keeps refused submissions individually for
+Retry. The existing native outbox and snapshot rows own durable delivery states.
+Confirmed leave freezes new submissions and drains accepted native admission
+before closing the conversation. A refused leave reopens submission and retains
+failed texts. Text failures have their own Retry banner, independent of other
+action errors.
+The screen clears each draft at submission and restores refused text only when
+that draft has remained untouched; delayed completion never clears newer input.
+
 ```mermaid
 flowchart TD
     Headers[DM / channel / group headers] --> Screen[ConversationScreen]
@@ -227,6 +237,15 @@ cannot inherit another device's identity. The release manifest includes network
 access. See [ADR 0034](ADR/0034-android-linked-text-dm.md).
 
 ## Setup, settings and voice
+
+Interface language defaults to Flutter's system resolution, including changes
+to the OS's preferred locales. Profile settings can persist an explicit English
+or Russian choice in `interface-language`, a non-secret Dart preference independent
+of setup and encrypted history. A refused atomic save retains the previous choice;
+missing/invalid data returns to System, with English as the unsupported-locale
+fallback. Both the unlocked app and the startup lock surface read this preference.
+The macOS runner updates existing menu item labels by stable XIB identifiers;
+Cocoa retains their actions, shortcuts and OS-owned submenu contents.
 
 `FirstRunGate` delays router mounting and conversation polling until setup saves
 completion. Existing conversation/device history bypasses the wizard. Buffered

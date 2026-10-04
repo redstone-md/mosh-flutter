@@ -8,7 +8,6 @@ class AppDelegate: FlutterAppDelegate {
     // Suppress SIGPIPE process-wide so that broken-pipe writes from CPAL audio
     // streams or Moss P2P networking return EPIPE instead of crashing the app.
     signal(SIGPIPE, SIG_IGN)
-    super.applicationDidFinishLaunching(notification)
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

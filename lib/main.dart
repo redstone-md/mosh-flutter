@@ -24,6 +24,8 @@ import 'package:mosh/src/platform/desktop_app_relauncher.dart';
 import 'package:mosh/src/platform/mobile_dek.dart';
 import 'package:mosh/src/features/onboarding/first_run_gate.dart';
 import 'package:mosh/src/state/locale_provider.dart';
+import 'package:mosh/src/platform/native_menu_localization.dart';
+import 'package:mosh/src/features/lock/mosh_lock_app.dart';
 import 'package:mosh/src/state/production_provider_overrides.dart';
 import 'package:mosh/src/rust/frb_generated.dart'; // RustLib (init entrypoint)
 import 'package:media_kit/media_kit.dart';
@@ -172,12 +174,13 @@ void main(List<String> args) async {
       // for this case (verified on device).
       final bool insecureDevice =
           error.message?.contains('BIOMETRIC_UNAVAILABLE') ?? false;
-      root = MoshLockScreen(
+      root = MoshLockApp(
+          screen: MoshLockScreen(
         swapTo: (Widget next) => _appRoot.value = next,
         nextApp: MoshApp(relauncher: relauncher),
         initialState:
             insecureDevice ? LockState.insecureDevice : LockState.canceled,
-      );
+      ));
     }
   } else {
     root = MoshApp(relauncher: relauncher);
@@ -274,7 +277,9 @@ class MoshApp extends ConsumerWidget {
         data: MediaQuery.disableAnimationsOf(context)
             ? Theme.of(context).copyWith(splashFactory: NoSplash.splashFactory)
             : Theme.of(context),
-        child: FirstRunGate(child: child ?? const SizedBox()),
+        child: NativeMenuLocalization(
+          child: FirstRunGate(child: child ?? const SizedBox()),
+        ),
       ),
     );
     return DesktopAppRelauncherScope(

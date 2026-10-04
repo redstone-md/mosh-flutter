@@ -14,6 +14,7 @@ import 'package:mosh/src/features/conversation/conversation_leave_prompt.dart';
 import 'package:mosh/src/features/conversation/conversation_screen_body.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_state.dart';
+import 'package:mosh/src/features/conversation/conversation_text_sends.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/shared/attachment_launcher.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
@@ -52,6 +53,7 @@ class ConversationScreen extends ConsumerStatefulWidget {
 
 class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   final TextEditingController _composer = TextEditingController();
+  int _composerRevision = 0;
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
   bool _mobileSearchOpen = false;
@@ -69,8 +71,11 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   @override
   void initState() {
     super.initState();
+    _composer.addListener(_draftChanged);
     _markActive();
   }
+
+  void _draftChanged() => _composerRevision++;
 
   /// Marks this conversation as the one on screen, so its unread badge
   /// clears on the next read. Deferred by a microtask: Riverpod does not
@@ -96,6 +101,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     // mobile search panel so the new one does not inherit it, and point the
     // unread lifecycle at the conversation now on screen.
     if (widget.target != oldWidget.target) {
+      _composerRevision++;
       _mobileSearchOpen = false;
       _showPeerStatus = null;
       _search = '';
@@ -105,23 +111,32 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     }
   }
 
-  /// Sends what the composer holds, then clears it -- but only if it still
-  /// holds the same text, so anything typed during the send survives.
+  /// Capture and clear at submission, so Enter can accept the next draft.
   Future<void> _send() async {
     final body = _composer.text.trim();
     if (body.isEmpty) return;
-    _clearComposerAfter(await _controller.sendBody(body));
+    _composer.clear();
+    final revision = _composerRevision;
+    _restoreRefusedDraft(await _controller.sendBody(body), revision);
   }
 
-  /// Sends the last failed message again, with the same clearing rule.
+  /// Retry may clear the restored failed draft, never a newer draft.
   Future<void> _retryFailedSend() async {
-    _clearComposerAfter(await _controller.retryFailedSend());
+    final failure =
+        ref.read(conversationTextSendsProvider(_target)).firstFailure;
+    if (failure == null) return;
+    if (_composer.text.trim() == failure.body) _composer.clear();
+    final revision = _composerRevision;
+    _restoreRefusedDraft(await _controller.retryFailedSend(), revision);
   }
 
-  void _clearComposerAfter(ConversationSendOutcome outcome) {
-    if (!mounted) return;
-    if (outcome.sent && _composer.text.trim() == outcome.body) {
-      _composer.clear();
+  void _restoreRefusedDraft(ConversationSendOutcome outcome, int revision) {
+    if (!mounted || _composerRevision != revision) return;
+    if (!outcome.sent && outcome.body.isNotEmpty && _composer.text.isEmpty) {
+      _composer.value = TextEditingValue(
+        text: outcome.body,
+        selection: TextSelection.collapsed(offset: outcome.body.length),
+      );
     }
   }
 
