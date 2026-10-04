@@ -19,7 +19,7 @@ sequenceDiagram
     Note over RT: refresh throttle: at most one frame per 3 s
     RT->>W: TypingIndicator (encrypted body)
     Note over W: body carries device + until_ms, never in the clear
-    W->>B: decrypt = authenticate; forged hints drop here
+    W->>B: authenticate MLS membership and decrypt
     B->>B: stamp deadline from Bob's clock (+5 s)
     B->>UI: snapshot carries peer_typing_until_ms / typing_members
     Note over UI: hint lapses at the deadline, poll-driven expiry
@@ -57,7 +57,7 @@ sequenceDiagram
 | member identity | the counterpart (envelope + device body must agree) | `TypingMember { fingerprint, display_name, until_ms }` — fingerprint keyed, display name learned from their frames |
 | event | pinned code 10 (`typing`), phases `started`/`stopped` into the event ring (capacity 64) via `push_app_event` | same ring, same code |
 
-Group typing identifies WHICH member types; channels never carry typing
+Group typing displays a claimed member ID; channels never carry typing
 (no direct counterpart, and the channel wire is identity-free).
 
 ## Forge and mixed-version tolerance
@@ -66,14 +66,18 @@ Group typing identifies WHICH member types; channels never carry typing
   ciphertext the receiver accepts, so a bystander cannot forge "someone
   is typing". A frame that does not decrypt drops silently (a field-log
   note under `verify`), never an error.
+- Plain-group member IDs are not cryptographically bound to the authenticated
+  MLS sender. A member can claim another member's Moss ID; rejecting invalid
+  ciphertext does not prevent that. See the identity limits in
+  [Architecture](../Architecture.md).
 - Old clients ride the established unknown-envelope decode-drop: a build
   without the `TypingIndicator` variant fails `decode_json` and drops
   the frame — no typing shown, nothing breaks.
 
 ## Proof
 
-State tests in `private_dm_runtime/state_tests.rs` (`MemoryNet`) and
-group tests in `private_group_runtime.rs`:
+DM tests in `private_dm_runtime/state_tests/typing.rs` (`MemoryNet`) and
+group state tests under `private_group_runtime/runtime_tests/`:
 
 - `typing_signal_travels_and_a_message_stops_it` — one keystroke, one
   encrypted frame, receiver-stamped window, a real message clears it.

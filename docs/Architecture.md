@@ -3,7 +3,7 @@
 Mosh is a desktop-first decentralized messenger built with Flutter, Riverpod,
 Rust, OpenMLS and Moss. Windows and macOS are the primary desktop targets;
 Android uses the same linked-device and DM runtime. Private DMs and groups use
-MLS encryption. Public channels authenticate messages without content secrecy.
+MLS encryption. Public channels carry plaintext and self-claimed sender IDs.
 Discovery is automatic through Moss. Public trackers limit metadata privacy.
 
 ## Read the system
@@ -34,7 +34,7 @@ flowchart LR
 | `mosh-core/src/private_dm_runtime/` | DM protocol and linked installations | `session.rs`, `devices/` |
 | `mosh-core/src/private_group_runtime/` | MLS groups and organization admission | `lifecycle.rs`, `org_gate.rs` |
 | `mosh-core/src/channel_runtime/` | Public channel protocol | `lifecycle.rs`, `session.rs` |
-| `mosh-core/src/org_runtime/` | Organization roster and admission | `session.rs`, `actions.rs`, `storage.rs` |
+| `mosh-core/src/org_runtime/` | Organization roster, offers and admission | `session.rs`, `actions.rs`, `acceptance.rs`, `storage.rs` |
 | `mosh-core/src/device_link/` | Signed device identities, rosters and pairing | `runtime/`, `identity.rs`, `roster.rs` |
 | `mosh-core/src/persistence/` | Encrypted tables and atomic writes | `database.rs`, `schema.rs`, `outbound.rs` |
 | `mosh-core/src/moss_ffi/` | Native symbols, callbacks and node operations | `symbols.rs`, `callbacks.rs`, `node.rs` |
@@ -141,11 +141,23 @@ fails a provisional pending message without a backing attempt. Refused state
 writes remain pending and do not block reads or other conversations.
 Group/channel admission must persist before publication. A refused save after
 publication retains the actual transport outcome and retries persistence, rather
-than prompting another send. Group creation saves its record before exposing
-the session. DM and channel creation retain their existing insert-then-save
+than prompting another send. DM and group creation save their record and MLS
+state before exposing the session. Channel creation retains its insert-then-save
 ordering; a joining DM persists its MLS snapshot after Welcome. See
 [ADR 0022](ADR/0022-a-send-is-one-durable-fact.md) and
 [ADR 0037](ADR/0037-conversation-write-acceptance.md).
+
+Organization offers keep their resolution state in encrypted org records.
+`org_runtime/acceptance.rs` retains the original offer and private join state
+until the native conversation is durable. The bridge prepares a join, saves
+its recovery intent, then publishes and polls; refused registration sends no
+key package. Publication refusal restores the visible offer without deleting
+the durable backup. Restart restores unfinished offers; retry reuses their
+original keys so a cached Welcome can still admit them.
+`persistence/org_acceptances.rs` retires the matching kind, conversation ID and
+local signer in the same transaction as its native record and MLS snapshot.
+Org writes merge stored resolutions so an old runtime cache cannot undo them.
+Dismissals resolve immediately. No pre-Welcome native session row is added.
 
 Persistence's `database` owns DEK acquisition and encrypted row operations;
 `schema` retains the table definitions. `history` and `conversation_records`
@@ -253,6 +265,15 @@ use OS credential storage; macOS uses a permission-restricted file inside the ap
 container; Android injects its own Keystore key. Device and transport identity
 records are encrypted. Security UI displays real runtime snapshots. Read
 [ADR 0011](ADR/0011-secure-storage-and-threat-model.md) for the storage threat model.
+
+Org control uses signed envelopes and roster-bound MLS credentials
+([ADR 0004](ADR/0004-org-credential-identity-is-moss-peer-id.md),
+[ADR 0007](ADR/0007-signed-envelope-over-gossip.md)). Plain-group DM offers lack
+member authentication, and claimed Moss author IDs in encrypted controls are
+not bound to the MLS sender. Attachment controls reject mismatched outer and
+encrypted author IDs; a member can still forge both IDs together.
+Those existing protocol limitations require a control/identity migration;
+Moss peer IDs and conversation MLS fingerprints are different identities.
 
 Crash reporting is opt-in. Consent and a scrub salt live in a non-secret file.
 No configured DSN means no reporting. Rust captures panics; Dart scrubs/sends
