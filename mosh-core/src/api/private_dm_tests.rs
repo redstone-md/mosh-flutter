@@ -176,18 +176,8 @@ fn persistence_and_identity_survive_restart() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-// M-5 (ADR 0010): unit tests for the app_data_dir bridge. The
-// path-selection logic is exercised through the pure `resolve_data_dir`
-// helper (no process-global mutation), so it stays fully isolated. The
-// `set_app_data_dir` validation tests touch the real `APP_DATA_DIR`
-// `OnceLock`: the empty-reject test returns Err BEFORE the cell is touched
-// (the `trim().is_empty()` guard is first), so it never mutates state; the
-// double-set test DOES set the cell on its first call, but the cell is
-// inert in the test binary -- no test here exercises `construct_runtime`
-// (the only reader of `APP_DATA_DIR`), and production never runs in a test
-// binary -- so leaving it set cannot contaminate the other 218 tests. The
-// dir it sets to is a unique temp subdir so even a hypothetical future
-// reader would point at an isolated, real path.
+// ADR 0010: pure path selection stays in-process; immutable startup injection
+// runs in a fresh process so it cannot change other tests' effective data dir.
 
 #[test]
 fn resolve_data_dir_uses_injected_app_data_dir() {
@@ -228,31 +218,34 @@ fn set_app_data_dir_rejects_empty_path() {
 
 #[test]
 fn set_app_data_dir_is_idempotent_for_same_value_and_rejects_divergence() {
-    // Idempotent-on-same-value: a re-inject of the SAME path is a no-op
-    // (Ok), since Android re-runs main() on activity recreation in a live
-    // process and a fresh Dart isolate cannot tell the inject already
-    // happened. A DIFFERENT path is a real divergence (Dart's DB-exists
-    // check vs the path Rust opened under) and must still Err. This test
-    // sets the process-global cell (OnceLock is irreversible), but the
-    // cell is inert in the test binary -- no test exercises
-    // `construct_runtime` (its only reader) -- so leaving it set cannot
-    // contaminate the other tests. The dir is a unique temp subdir so a
-    // hypothetical future reader would point at an isolated, real path.
-    let dir = unique_test_dir("app_data_dir_set");
-    std::fs::create_dir_all(&dir).expect("test dir should create");
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "api::private_dm::tests::app_data_dir_injection_process",
+            "--ignored",
+            "--nocapture",
+        ])
+        .status()
+        .unwrap();
+    assert!(status.success());
+}
+
+#[test]
+#[ignore = "Isolated startup state worker invoked by the app directory API test."]
+fn app_data_dir_injection_process() {
+    let dir = crate::test_temp_directory::TempDirectory::new("mosh-app-data-dir-set");
+    let path = dir.path().to_string_lossy().into_owned();
     assert!(
-        super::set_app_data_dir(dir.to_string_lossy().to_string()).is_ok(),
+        super::set_app_data_dir(path.clone()).is_ok(),
         "first set_app_data_dir call must succeed"
     );
     assert!(
-        super::set_app_data_dir(dir.to_string_lossy().to_string()).is_ok(),
+        super::set_app_data_dir(path).is_ok(),
         "re-inject of the SAME path must be a no-op (Ok)"
     );
-    let other = unique_test_dir("app_data_dir_set_other");
+    let other = crate::test_temp_directory::TempDirectory::new("mosh-app-data-dir-other");
     assert!(
-        super::set_app_data_dir(other.to_string_lossy().to_string()).is_err(),
+        super::set_app_data_dir(other.path().to_string_lossy().into_owned()).is_err(),
         "set_app_data_dir with a DIFFERENT path must be rejected (divergence)"
     );
-    let _ = std::fs::remove_dir_all(&dir);
-    let _ = std::fs::remove_dir_all(&other);
 }

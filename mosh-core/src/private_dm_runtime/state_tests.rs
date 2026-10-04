@@ -159,25 +159,15 @@ fn read_events(session_id: &str) -> Vec<String> {
         .collect()
 }
 
-/// A per-test scratch app-data dir, so the toggle's file never leaks between
-/// tests (or into the real temp mosh dir). One shared-process set: the SAME
-/// path must be re-injected across tests, so a fixed id keeps it stable.
-fn toggle_dir(name: &str) -> std::path::PathBuf {
+/// Propose a shared scratch root, then use the directory production resolved.
+/// A prior startup injection wins; receipt tests clear only its toggle file.
+fn point_data_dir_once() -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "mosh-receipts-toggle-{}-{name}",
+        "mosh-receipts-toggle-{}-shared",
         std::process::id()
     ));
-    let _ = std::fs::remove_dir_all(&dir);
-    dir
-}
-
-/// Points the shared-runtime data dir at a fresh scratch dir for this test.
-/// The OnceLock keeps the first value, so every receipt test in this binary
-/// shares one scratch root; each test clears the toggle file itself.
-fn point_data_dir_once() -> std::path::PathBuf {
-    let dir = toggle_dir("shared");
     let _ = crate::api::shared_runtime::set_app_data_dir(dir.to_string_lossy().into_owned());
-    dir
+    crate::api::shared_runtime::resolved_data_dir()
 }
 
 fn clear_toggle(dir: &std::path::Path) {
