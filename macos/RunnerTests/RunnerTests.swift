@@ -65,10 +65,35 @@ class RunnerTests: XCTestCase {
       }
     }
     let ids = identifiers(menu)
-    XCTAssertEqual(ids.filter { $0.hasPrefix("nativeMenu") }.count, 51,
+    // AppKit may add an alternate Full Screen item with the same identifier.
+    let localizationIds = Set(ids.filter { $0.hasPrefix("nativeMenu") })
+    XCTAssertEqual(localizationIds.count, 51,
                    "Loaded menu identifiers: \(ids)")
     XCTAssertTrue(ids.contains("nativeMenuCopy"))
     XCTAssertTrue(ids.contains("nativeMenuPreferencesAction"))
+  }
+
+  func testApplicationMenuLocalizesEveryMatchingItem() throws {
+    let menu = try XCTUnwrap(NSApp.mainMenu)
+    func items(_ menu: NSMenu) -> [NSMenuItem] {
+      menu.items.flatMap { [$0] + ($0.submenu.map { items($0) } ?? []) }
+    }
+    let localized = items(menu).filter { $0.identifier?.rawValue.hasPrefix("nativeMenu") == true }
+    let originals = localized.map { ($0, $0.title, $0.submenu?.title) }
+    defer {
+      for (item, title, submenuTitle) in originals {
+        item.title = title
+        if let title = submenuTitle { item.submenu?.title = title }
+      }
+    }
+    let labels = Dictionary(uniqueKeysWithValues: Set(localized.compactMap { $0.identifier?.rawValue })
+      .map { ($0, "Localized \($0)") })
+    NativeMenuLocalizer.apply(labels, to: menu)
+    XCTAssertFalse(localized.isEmpty)
+    for item in localized {
+      XCTAssertEqual(item.title, labels[item.identifier!.rawValue])
+      if let submenu = item.submenu { XCTAssertEqual(submenu.title, item.title) }
+    }
   }
 
 }

@@ -57,8 +57,15 @@ generation and the original Cocoa menu. It separates text admission from
 file/voice busy state and interface-language storage from onboarding storage.
 No dependencies, Rust contracts, bridge bindings or database schemas changed.
 The macOS release build and two native menu tests passed on GitHub. The live
-menu identifier test failed; CI now saves its result bundle and reports loaded
-identifiers so the native decoding failure can be diagnosed.
+menu identifier test counted 52 items instead of 51 because AppKit inserted an
+alternate Full Screen item with the same identifier. All 51 XIB identifiers were
+present. The test now checks unique identifiers and a separate test translates
+every matching item in the live menu, including AppKit alternates.
+The same CI log exposed an unimplemented superclass launch callback. Removing
+that call preserves the SIGPIPE suppression; a native regression invokes the
+real launch callback and raises SIGPIPE to verify it remains ignored.
+CI saves the native result bundle. Verification of these fixes requires the
+macOS lane because this development host is Linux.
 
 ## PR review verification (2026-10-04)
 
@@ -100,6 +107,7 @@ lib/src/state/locale_preference_store.dart
 lib/src/state/locale_provider.dart
 macos/Runner/Base.lproj/MainMenu.xib
 macos/Runner/MainFlutterWindow.swift
+macos/Runner/AppDelegate.swift
 macos/RunnerTests/RunnerTests.swift
 .github/workflows/build-macos.yml
 ```
