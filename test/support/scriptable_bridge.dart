@@ -1,4 +1,5 @@
 import 'dart:async' show StreamController;
+import 'package:mosh/src/rust/chat_names/types.dart';
 import 'dart:typed_data' show Uint8List;
 
 import 'package:mosh/src/gateway/bridge_facade.dart';
@@ -41,6 +42,7 @@ part 'scriptable_bridge_calls.dart';
 /// Every method on [BridgeFacade]. Tests name a method through this enum, so
 /// a typo is a compile error instead of a call that is never scripted.
 enum BridgeMethod {
+  personalNames,
   appDiagnostics,
   mossLibraryInfo,
   nativeRuntimeStatus,

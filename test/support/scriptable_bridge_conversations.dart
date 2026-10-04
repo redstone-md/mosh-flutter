@@ -2,6 +2,15 @@ part of 'scriptable_bridge.dart';
 
 mixin _BridgeConversations on _ScriptableBridgeState {
   @override
+  Future<ChatNameSnapshot> personalNames() => runScripted(
+      BridgeMethod.personalNames,
+      {},
+      () => ChatNameSnapshot(entries: [
+            for (final entry in conversations.names.entries)
+              ChatNameEntry(conversationKey: entry.key, name: entry.value)
+          ], pending: false, canRename: true));
+
+  @override
   Future<InviteCreated> createInvite({required StartSessionRequest request}) =>
       runScripted(BridgeMethod.createInvite, {'request': request}, () {
         final seeded = _invite;

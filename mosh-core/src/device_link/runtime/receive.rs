@@ -5,6 +5,9 @@ use crate::device_link::wire::{self, LinkMessage};
 
 impl DeviceLinkRuntime {
     pub(super) fn receive(&mut self, packet: &[u8]) -> Result<()> {
+        if self.receive_names(packet)? {
+            return Ok(());
+        }
         if self.receive_roster(packet)? {
             return Ok(());
         }

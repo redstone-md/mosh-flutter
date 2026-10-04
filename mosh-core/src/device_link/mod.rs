@@ -1,5 +1,6 @@
 //! Device identity, signed membership and private desktop linking, ADR 0029.
 pub mod identity;
+mod names_wire;
 mod qr;
 pub mod roster;
 mod runtime;
@@ -11,3 +12,6 @@ pub use runtime::DeviceLinkRuntime;
 mod identity_tests;
 #[cfg(test)]
 mod protocol_tests;
+
+#[cfg(test)]
+mod names_wire_tests;

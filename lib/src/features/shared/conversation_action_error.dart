@@ -41,6 +41,8 @@ class ConversationActionError {
         ConversationBridgeErrorKind.persistence => l.chatActionErrorPersistence,
         ConversationBridgeErrorKind.needsRejoin => l.chatActionErrorNeedsRejoin,
         ConversationBridgeErrorKind.revoked => l.chatActionErrorRevoked,
+        ConversationBridgeErrorKind.permissionDenied =>
+          l.chatNamePermissionDenied,
         ConversationBridgeErrorKind.internal =>
           l.chatActionErrorInternal(message),
       };

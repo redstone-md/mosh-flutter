@@ -35,6 +35,10 @@ impl Persistence {
         self.refuse_table_writes(ORG_RECORDS)
     }
 
+    pub(crate) fn refuse_chat_name_writes(self: &Arc<Self>) -> TableFault {
+        self.refuse_table_writes(CHAT_NAMES)
+    }
+
     fn refuse_table_writes(self: &Arc<Self>, table: Rows) -> TableFault {
         let tx = self.db.begin_write().expect("fault transaction");
         let rows = tx

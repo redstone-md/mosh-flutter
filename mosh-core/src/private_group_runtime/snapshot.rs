@@ -11,7 +11,11 @@ impl GroupSession {
             display_name: self.display_name.clone(),
             device_fingerprint: self.device_fingerprint.clone(),
             creator_fingerprint: self.creator_fingerprint.clone(),
-            is_admin: self.is_admin,
+            is_admin: self.acting_admin(),
+            name_status: Some(GroupNameStatus {
+                pending: self.names.pending,
+                error: self.names.error.clone(),
+            }),
             state: self.state(),
             member_count: self.crypto.member_count(),
             invite_uri: self.invite_uri.clone(),

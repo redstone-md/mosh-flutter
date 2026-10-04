@@ -32,7 +32,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/private_dm_runtime/transport.dart'
     show PeerTransport;
 import 'package:mosh/src/rust/private_group_runtime.dart'
-    show GroupMessage, GroupSnapshot;
+    show GroupMessage, GroupSnapshot, GroupNameStatus;
 import 'package:mosh/src/rust/private_group_runtime/wire_types.dart'
     show TypingMember;
 
@@ -204,6 +204,7 @@ class TestSnapshots {
     required String deviceFingerprint,
     required List<GroupMessage> messages,
     bool isAdmin = true,
+    GroupNameStatus? nameStatus,
     String state = 'ready',
     BigInt? memberCount,
     String? inviteUri,
@@ -226,6 +227,7 @@ class TestSnapshots {
         deviceFingerprint: deviceFingerprint,
         creatorFingerprint: creatorFingerprint ?? deviceFingerprint,
         isAdmin: isAdmin,
+        nameStatus: nameStatus,
         state: state,
         memberCount: memberCount ?? BigInt.two,
         inviteUri: inviteUri,

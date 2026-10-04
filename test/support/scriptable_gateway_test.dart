@@ -7,8 +7,27 @@ import 'package:mosh/src/gateway/conversation_target.dart';
 
 import 'gateway_snapshots.dart';
 import 'scriptable_gateway.dart';
+import 'scriptable_bridge.dart';
+import 'message_builders.dart';
 
 void main() {
+  test(
+      'group rename updates the shared poll and list state, not personal names',
+      () async {
+    final gateway = ScriptableGateway();
+    final group = TestSnapshots.group(
+        groupId: 'group', deviceFingerprint: 'me', label: 'Old', messages: []);
+    gateway.seedGroups([group]);
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    await gateway.rename(const GroupTarget('group'), name: 'Plans');
+    final renamed = await gateway.poll(const GroupTarget('group'));
+    expect(renamed.label, 'Plans');
+    expect(renamed.memberCount, group.memberCount);
+    expect(renamed.messages, same(group.messages));
+    expect((await bridge.listGroups()).groups.single, same(renamed));
+    expect((await bridge.personalNames()).entries, isEmpty);
+  });
+
   test('the test gateway send -> poll -> leave round trip', () async {
     final gateway = ScriptableGateway();
     gateway.seedSessions([

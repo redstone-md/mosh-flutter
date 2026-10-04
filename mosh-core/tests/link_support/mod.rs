@@ -305,6 +305,20 @@ fn serve(
             continue;
         }
         let mut rt = runtime.lock().unwrap();
+        if matches!(action, "names" | "name_set" | "name_reset") {
+            let result = match action {
+                "name_set" => rt.rename_chat(&arg, command["name"].as_str().unwrap()),
+                "name_reset" => rt.reset_chat_name(&arg),
+                _ => rt.chat_names_snapshot(),
+            };
+            let response = match result {
+                Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
+                Err(error) => json!({"error":format!("{:?}", error.kind)}),
+            };
+            println!("{OUTPUT_PREFIX}{response}");
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
         let result = match action {
             "connect" => {
                 node.connect(&arg).unwrap();

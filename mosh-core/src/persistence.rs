@@ -3,12 +3,14 @@ use crate::diagnostics_log::{self as dlog, kinds, LogLevel};
 use flutter_rust_bridge::frb;
 use redb::{Database, ReadableTable};
 
+mod chat_names;
 mod conversation_records;
 mod crypto;
 mod database;
 mod dm_devices;
 mod dm_history;
 mod group_commits;
+mod group_names;
 mod history;
 mod mls_state;
 mod org_acceptances;

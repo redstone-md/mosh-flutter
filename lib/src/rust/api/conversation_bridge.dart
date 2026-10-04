@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `unavailable`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 // These functions have error during generation (see debug logs or enable `stop_on_error: true` for more details): `new`
 
 /// One failed conversation action, as the seam reports it.
@@ -73,6 +73,9 @@ enum ConversationBridgeErrorKind {
 
   /// The member's credential is no longer valid in this conversation.
   revoked,
+
+  /// The current role does not allow this action.
+  permissionDenied,
 
   /// No caller-visible remedy exists for this failure.
   internal,

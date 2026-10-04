@@ -10,6 +10,7 @@ import 'api/attachment_stream.dart';
 import 'api/audio_devices.dart';
 import 'api/channel.dart';
 import 'api/conversation.dart';
+import 'api/conversation/names.dart';
 import 'api/conversation_bridge.dart';
 import 'api/device_link.dart';
 import 'api/diagnostics.dart';
@@ -25,6 +26,7 @@ import 'api/vpn.dart';
 import 'attachment_runtime.dart';
 import 'channel_runtime.dart';
 import 'channel_runtime/types.dart';
+import 'chat_names/types.dart';
 import 'conversation/attachments.dart';
 import 'conversation/dm_offers.dart';
 import 'conversation/mesh.dart';
@@ -215,6 +217,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DmHistorySyncState dco_decode_box_autoadd_dm_history_sync_state(dynamic raw);
 
   @protected
+  GroupNameChanged dco_decode_box_autoadd_group_name_changed(dynamic raw);
+
+  @protected
+  GroupNameStatus dco_decode_box_autoadd_group_name_status(dynamic raw);
+
+  @protected
   JoinChannelRequest dco_decode_box_autoadd_join_channel_request(dynamic raw);
 
   @protected
@@ -286,6 +294,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage dco_decode_chat_message(dynamic raw);
 
   @protected
+  ChatNameEntry dco_decode_chat_name_entry(dynamic raw);
+
+  @protected
+  ChatNameSnapshot dco_decode_chat_name_snapshot(dynamic raw);
+
+  @protected
   ConnectOutcome dco_decode_connect_outcome(dynamic raw);
 
   @protected
@@ -344,6 +358,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GroupMessage dco_decode_group_message(dynamic raw);
 
   @protected
+  GroupNameChanged dco_decode_group_name_changed(dynamic raw);
+
+  @protected
+  GroupNameStatus dco_decode_group_name_status(dynamic raw);
+
+  @protected
   GroupSnapshot dco_decode_group_snapshot(dynamic raw);
 
   @protected
@@ -378,6 +398,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatMessage> dco_decode_list_chat_message(dynamic raw);
+
+  @protected
+  List<ChatNameEntry> dco_decode_list_chat_name_entry(dynamic raw);
 
   @protected
   List<DeviceDescriptor> dco_decode_list_device_descriptor(dynamic raw);
@@ -503,6 +526,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DmHistorySyncState? dco_decode_opt_box_autoadd_dm_history_sync_state(
       dynamic raw);
+
+  @protected
+  GroupNameChanged? dco_decode_opt_box_autoadd_group_name_changed(dynamic raw);
+
+  @protected
+  GroupNameStatus? dco_decode_opt_box_autoadd_group_name_status(dynamic raw);
 
   @protected
   MeshInfo? dco_decode_opt_box_autoadd_mesh_info(dynamic raw);
@@ -768,6 +797,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       SseDeserializer deserializer);
 
   @protected
+  GroupNameChanged sse_decode_box_autoadd_group_name_changed(
+      SseDeserializer deserializer);
+
+  @protected
+  GroupNameStatus sse_decode_box_autoadd_group_name_status(
+      SseDeserializer deserializer);
+
+  @protected
   JoinChannelRequest sse_decode_box_autoadd_join_channel_request(
       SseDeserializer deserializer);
 
@@ -850,6 +887,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
 
   @protected
+  ChatNameEntry sse_decode_chat_name_entry(SseDeserializer deserializer);
+
+  @protected
+  ChatNameSnapshot sse_decode_chat_name_snapshot(SseDeserializer deserializer);
+
+  @protected
   ConnectOutcome sse_decode_connect_outcome(SseDeserializer deserializer);
 
   @protected
@@ -917,6 +960,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GroupMessage sse_decode_group_message(SseDeserializer deserializer);
 
   @protected
+  GroupNameChanged sse_decode_group_name_changed(SseDeserializer deserializer);
+
+  @protected
+  GroupNameStatus sse_decode_group_name_status(SseDeserializer deserializer);
+
+  @protected
   GroupSnapshot sse_decode_group_snapshot(SseDeserializer deserializer);
 
   @protected
@@ -956,6 +1005,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer);
+
+  @protected
+  List<ChatNameEntry> sse_decode_list_chat_name_entry(
+      SseDeserializer deserializer);
 
   @protected
   List<DeviceDescriptor> sse_decode_list_device_descriptor(
@@ -1102,6 +1155,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DmHistorySyncState? sse_decode_opt_box_autoadd_dm_history_sync_state(
+      SseDeserializer deserializer);
+
+  @protected
+  GroupNameChanged? sse_decode_opt_box_autoadd_group_name_changed(
+      SseDeserializer deserializer);
+
+  @protected
+  GroupNameStatus? sse_decode_opt_box_autoadd_group_name_status(
       SseDeserializer deserializer);
 
   @protected
@@ -1384,6 +1445,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       DmHistorySyncState self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_group_name_changed(
+      GroupNameChanged self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_group_name_status(
+      GroupNameStatus self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_join_channel_request(
       JoinChannelRequest self, SseSerializer serializer);
 
@@ -1471,6 +1540,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
 
   @protected
+  void sse_encode_chat_name_entry(ChatNameEntry self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_chat_name_snapshot(
+      ChatNameSnapshot self, SseSerializer serializer);
+
+  @protected
   void sse_encode_connect_outcome(
       ConnectOutcome self, SseSerializer serializer);
 
@@ -1544,6 +1620,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_group_message(GroupMessage self, SseSerializer serializer);
 
   @protected
+  void sse_encode_group_name_changed(
+      GroupNameChanged self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_group_name_status(
+      GroupNameStatus self, SseSerializer serializer);
+
+  @protected
   void sse_encode_group_snapshot(GroupSnapshot self, SseSerializer serializer);
 
   @protected
@@ -1586,6 +1670,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_chat_message(
       List<ChatMessage> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_chat_name_entry(
+      List<ChatNameEntry> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_device_descriptor(
@@ -1737,6 +1825,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_dm_history_sync_state(
       DmHistorySyncState? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_group_name_changed(
+      GroupNameChanged? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_group_name_status(
+      GroupNameStatus? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_mesh_info(

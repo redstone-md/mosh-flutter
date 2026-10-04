@@ -62,6 +62,7 @@ List<GroupedConversationMessage> groupConversationMessages(
 
 bool _continuesBlock(
     ConversationMessage previous, ConversationMessage current) {
+  if (previous.nameChange != null || current.nameChange != null) return false;
   final previousMs = previous.sentAtMs;
   final currentMs = current.sentAtMs;
   if (previousMs == null || currentMs == null) return false;
@@ -202,6 +203,18 @@ class _ConversationMessageListViewState
     ConversationKind kind,
     AppLocalizations l,
   ) {
+    if (row.message.nameChange case final change?) {
+      return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          child: Text(
+              row.message.deliveryError != null
+                  ? row.message.deliveryError == 'superseded'
+                      ? l.chatNameSuperseded
+                      : l.chatNameRejected
+                  : l.chatNameChanged(row.message.fromDevice, change.name),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall));
+    }
     final attachment = row.message.attachment;
     final view = attachment == null
         ? null

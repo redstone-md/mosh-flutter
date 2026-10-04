@@ -145,6 +145,7 @@ impl MemberView {
             group_id: group_id.to_string(),
             from_fingerprint: leaver.fingerprint(),
             proposal_b64: encode(&leaver.leave_proposal_bytes().unwrap()),
+            name_state_proof_b64: None,
         }
     }
 

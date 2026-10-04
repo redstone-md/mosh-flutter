@@ -1,4 +1,5 @@
 import 'dart:async' show Timer;
+import 'package:mosh/src/features/conversation/rename_chat_dialog.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
@@ -6,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
-    show ConversationKind;
+    show ConversationKind, GroupTarget;
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/channel_group_providers.dart';
 import 'package:mosh/src/features/conversation/conversation_chrome.dart';
@@ -79,6 +80,14 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
       leaveMenuLabel: l.groupLeaveLabel,
       leaveMenuIcon: Icons.logout,
       menuActions: [
+        if (group != null && group.isAdmin && group.state == 'ready')
+          ChatHeaderMenuAction(
+              label: l.chatRename,
+              icon: Icons.edit_outlined,
+              onSelect: () => showRenameChatDialog(
+                  context, GroupTarget(widget.groupId),
+                  name: group.label ?? l.groupUntitled,
+                  originalName: group.label ?? l.groupUntitled)),
         if (group?.inviteUri != null)
           ChatHeaderMenuAction(
             label: _inviteCopied ? l.groupCopyInviteDone : l.groupCopyInvite,
@@ -94,5 +103,13 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
 String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
   final memberPart = l.membersCount(group.memberCount.toInt());
   final adminPrefix = group.isAdmin ? '${l.groupAdminBadge}, ' : '';
-  return '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
+  final summary =
+      '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
+  if (group.nameStatus?.error != null) {
+    return '$summary · ${l.chatNameRejected}';
+  }
+  if (group.nameStatus?.pending == true) {
+    return '$summary · ${l.chatNameWaiting}';
+  }
+  return summary;
 }
