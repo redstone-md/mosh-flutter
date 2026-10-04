@@ -20,12 +20,26 @@ impl OrgRuntime {
         org_pubkey: &str,
         offer_id: &str,
     ) -> Result<OrgDmOfferView, OrgError> {
-        self.session_mut(org_pubkey)?
+        self.drain_inbound();
+        let session = self.session_mut(org_pubkey)?;
+        let offer = session
             .dm_offers
             .iter()
             .find(|offer| offer.offer_id == offer_id)
             .cloned()
-            .ok_or_else(|| OrgError::Codec(format!("unknown dm offer {offer_id}")))
+            .ok_or_else(|| OrgError::Codec(format!("unknown dm offer {offer_id}")))?;
+        if !session.in_roster() || !session.sender_in_roster(&offer.from_peer_id) {
+            return Err(OrgError::Codec(
+                "DM offer requires current roster members".into(),
+            ));
+        }
+        crate::private_dm_runtime::invite_ownership::verify_offered_invite(
+            &offer.invite_uri,
+            &offer.from_peer_id,
+            &session.own_peer_id,
+        )
+        .map_err(OrgError::Codec)?;
+        Ok(offer)
     }
 
     /// Consume a pending group offer; the view carries the invite URI for
@@ -92,16 +106,28 @@ impl OrgRuntime {
         invite_uri: &str,
     ) -> Result<(), OrgError> {
         let session = self.session_mut(org_pubkey)?;
+        if !session.in_roster() || !session.sender_in_roster(target_peer_id) {
+            return Err(OrgError::Codec("DM offer requires roster members".into()));
+        }
+        crate::private_dm_runtime::invite_ownership::verify_offered_invite(
+            invite_uri,
+            &session.own_peer_id,
+            target_peer_id,
+        )
+        .map_err(OrgError::Codec)?;
         let message = OrgMessage::DmOffer {
             offer_id: random_id()?,
             target_peer_id: target_peer_id.to_string(),
             from_name: session.display_name.clone(),
             invite_uri: invite_uri.to_string(),
         };
+        let mut record = session.to_record();
+        upsert_link(&mut record.dm_links, target_peer_id, None);
+        let record = self.persist_record(record)?;
+        let session = self.session_mut(org_pubkey)?;
         publish_signed(session, &message)?;
-        upsert_link(&mut session.dm_links, target_peer_id, None);
-        let record = session.to_record();
-        self.persist_record(record).map(|_| ())
+        session.dm_links = record.dm_links;
+        Ok(())
     }
 
     /// Offer an org-bound group to a roster member over org-control.

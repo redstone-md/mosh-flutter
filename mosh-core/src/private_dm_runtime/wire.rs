@@ -38,6 +38,10 @@ pub fn channel_call_id(channel: &str) -> Option<&str> {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ControlEnvelope {
+    AuthenticatedKeyPackage {
+        session_id: String,
+        proof_b64: String,
+    },
     DeviceIdentity {
         session_id: String,
         participant_id: String,

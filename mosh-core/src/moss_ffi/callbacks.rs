@@ -26,6 +26,21 @@ pub(super) fn swap_test_keystore(
     )
 }
 
+#[cfg(test)]
+pub(crate) struct RestoreKeystore(Option<Arc<dyn MossKeyStore>>);
+
+#[cfg(test)]
+impl Drop for RestoreKeystore {
+    fn drop(&mut self) {
+        let _ = swap_test_keystore(self.0.take());
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn replace_test_keystore(store: Option<Arc<dyn MossKeyStore>>) -> RestoreKeystore {
+    RestoreKeystore(swap_test_keystore(store))
+}
+
 pub(super) unsafe extern "C" fn on_moss_message(
     channel: *const c_char,
     _sender_id: *const u8,
@@ -60,6 +75,7 @@ pub(super) unsafe extern "C" fn keystore_load(buffer: *mut u8, capacity: u32) ->
         return 0; // buffer too small; Moss probes first, so this is defensive
     }
     unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), buffer, bytes.len()) };
+    identity::capture_identity(&bytes);
     len
 }
 
@@ -70,6 +86,7 @@ pub(super) unsafe extern "C" fn keystore_save(data: *const u8, len: u32) {
         return;
     }
     let bytes = unsafe { std::slice::from_raw_parts(data, len as usize) }.to_vec();
+    identity::capture_identity(&bytes);
     let guard = MOSS_KEYSTORE.lock().expect("moss keystore lock poisoned");
     if let Some(store) = guard.as_ref() {
         store.save_identity(&bytes);

@@ -18,10 +18,7 @@ fn retry(fixture: &mut Fixture, invite: &str) -> Result<SessionSnapshot, Convers
 fn initial_offer(fixture: &mut Fixture) -> (String, MlsSessionCrypto) {
     let mut inviter = MlsSessionCrypto::new("Bob").unwrap();
     inviter.create_group().unwrap();
-    let invite = format!(
-        "mosh://invite?mesh=dm-durable&session=durable-dm#fp={}",
-        inviter.fingerprint()
-    );
+    let invite = fixture.owned_dm_invite(&inviter, "dm-durable", "durable-dm");
     fixture.deliver_dm_offer(&invite);
     (invite, inviter)
 }
@@ -43,8 +40,18 @@ fn prepare_welcome(
         .drain()
         .into_iter()
         .map(|frame| serde_json::from_slice::<serde_json::Value>(&frame.payload).unwrap())
-        .find(|frame| frame["type"] == "KeyPackage")
+        .find(|frame| frame["type"] == "AuthenticatedKeyPackage")
         .unwrap();
+    let proof: crate::sender_auth::SenderProof =
+        serde_json::from_slice(&decode(package["proof_b64"].as_str().unwrap()).unwrap()).unwrap();
+    let sender = proof
+        .verify(&crate::org_envelope::OrgContext {
+            org_pubkey: "",
+            mesh_id: "dm-durable",
+            channel_kind: "dm-key-package-v1",
+        })
+        .unwrap();
+    let package: serde_json::Value = serde_json::from_slice(&sender.payload).unwrap();
     let key_package = decode(package["key_package_b64"].as_str().unwrap()).unwrap();
     welcome_for_package(fixture, id, inviter, &key_package)
 }

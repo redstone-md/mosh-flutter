@@ -3,6 +3,12 @@ use crate::moss_ffi::{drain_received_messages, fail_next_test_publish, MOSS_TEST
 
 use crate::test_temp_directory::TempDirectory;
 
+#[path = "retry_authentication_tests.rs"]
+mod retry_authentication;
+
+#[path = "durability_tests/welcome_offer_authentication.rs"]
+mod welcome_offer_authentication;
+
 struct Fixture {
     store: Arc<Persistence>,
     runtime: PrivateGroupRuntime,

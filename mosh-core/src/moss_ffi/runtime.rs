@@ -73,7 +73,15 @@ impl MossFfiRuntime {
     ) -> Result<MossNode, MossFfiError> {
         let mesh_id = c_string(mesh_id)?;
         let config = c_string(config_json)?;
+        // Moss Init calls these context-free callbacks synchronously. Serializing
+        // Init gives each node only the key Moss actually selected for it.
+        let _init = identity::INIT_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        self.install_keystore()?;
+        drop(identity::take_identity());
         let handle = unsafe { (self.init)(mesh_id.as_ptr(), std::ptr::null(), config.as_ptr()) };
+        let identity_signer = identity::take_identity();
 
         if handle <= 0 {
             return Err(MossFfiError::Operation {
@@ -82,10 +90,18 @@ impl MossFfiRuntime {
             });
         }
 
-        Ok(MossNode {
+        let node = MossNode {
             runtime: Arc::clone(self),
             handle,
-        })
+            identity_signer,
+        };
+        if !node.identity_signer.as_ref().is_some_and(|key| {
+            node.identity_public_key_hex().as_deref()
+                == Some(&hex::encode(key.verifying_key().to_bytes()))
+        }) {
+            return Err(MossFfiError::IdentityUnavailable);
+        }
+        Ok(node)
     }
 
     pub fn init_default_node(
