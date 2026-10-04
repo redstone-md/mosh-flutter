@@ -18,20 +18,27 @@ class FailedConversationSend {
 }
 
 class ConversationTextSendState {
-  const ConversationTextSendState({this.pending = 0, this.failures = const []});
+  const ConversationTextSendState({
+    this.pending = 0,
+    this.failures = const [],
+    this.closing = false,
+  });
   final int pending;
   final List<FailedConversationSend> failures;
+  final bool closing;
 
   FailedConversationSend? get firstFailure => failures.firstOrNull;
 
   ConversationTextSendState copyWith({
     int? pending,
     List<FailedConversationSend>? failures,
+    bool? closing,
   }) =>
       ConversationTextSendState(
         pending: pending ?? this.pending,
         failures:
             failures == null ? this.failures : List.unmodifiable(failures),
+        closing: closing ?? this.closing,
       );
 }
 
@@ -55,6 +62,9 @@ class ConversationTextSends extends Notifier<ConversationTextSendState> {
     if (body.isEmpty) {
       return Future.value(ConversationSendOutcome.nothingToSend);
     }
+    if (state.closing) {
+      return Future.value(ConversationSendOutcome(sent: false, body: body));
+    }
     final lifetime = _lifetime;
     final gateway = ref.read(gatewayProvider);
     state = state.copyWith(pending: state.pending + 1);
@@ -65,11 +75,28 @@ class ConversationTextSends extends Notifier<ConversationTextSendState> {
 
   Future<ConversationSendOutcome> retry() {
     final failed = state.firstFailure;
-    if (failed == null) {
+    if (failed == null || state.closing) {
       return Future.value(ConversationSendOutcome.nothingToSend);
     }
     state = state.copyWith(failures: state.failures.sublist(1));
     return send(failed.body);
+  }
+
+  /// Freeze new submissions, finish accepted admission, then close. A refused
+  /// close reopens admission and preserves failures. Delivery is never awaited.
+  Future<bool> closeAfterPending(Future<void> Function() close) async {
+    if (state.closing) return false;
+    final lifetime = _lifetime;
+    state = state.copyWith(closing: true);
+    try {
+      await _tail;
+      if (!_active(lifetime)) return false;
+      await close();
+      return _active(lifetime);
+    } catch (_) {
+      if (_active(lifetime)) state = state.copyWith(closing: false);
+      rethrow;
+    }
   }
 
   bool _active(int lifetime) => ref.mounted && lifetime == _lifetime;

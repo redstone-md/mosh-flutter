@@ -99,6 +99,34 @@ void main() {
       expect(find.textContaining(_bridgeDetail), findsNothing);
       expect(find.textContaining('Instance of'), findsNothing);
     });
+
+    testWidgets(
+        '${testCase.label}: unrelated errors keep refused text retryable',
+        (tester) async {
+      final gateway = ScriptableGateway()
+        ..failNext(GatewayMethod.send,
+            error: _bridgeError(ConversationBridgeErrorKind.persistence));
+      await pumpConversation(tester, testCase, gateway: gateway);
+      await _sendText(tester, 'hello');
+      _controller(tester, testCase).showError('Microphone unavailable');
+      await tester.pumpAndSettle();
+      final banners =
+          tester.widgetList<ChatErrorBanner>(find.byType(ChatErrorBanner));
+      expect(
+          banners.map((banner) => banner.message),
+          containsAll([
+            'Microphone unavailable',
+            _l(tester).chatActionErrorPersistence,
+          ]));
+      expect(banners.where((banner) => banner.onRetry != null), hasLength(1));
+
+      await tester.tap(find.text(_l(tester).chatErrorRetry));
+      await tester.pumpAndSettle();
+      expect(gateway.argValues<String>(GatewayMethod.send, 'body'),
+          ['hello', 'hello']);
+      expect(_bannerText(tester), 'Microphone unavailable');
+      expect(_banner(tester).onRetry, isNull);
+    });
   }
 
   final dm = conversationCases().first;

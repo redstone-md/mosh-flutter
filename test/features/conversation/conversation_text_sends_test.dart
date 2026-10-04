@@ -67,6 +67,22 @@ void main() {
     expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['first']);
   });
 
+  test('closing preserves failed text when Retry is requested', () async {
+    final gateway = ScriptableGateway()..failNext(GatewayMethod.send);
+    final container = containerFor(gateway);
+    final sends = container.read(provider.notifier);
+    await sends.send('failed');
+    final close = Completer<void>();
+    final closing = sends.closeAfterPending(() => close.future);
+    expect((await sends.retry()).sent, isFalse);
+    expect(container.read(provider).firstFailure?.body, 'failed');
+    expect(gateway.countOf(GatewayMethod.send), 1);
+    close.completeError(Exception('close refused'));
+    await expectLater(closing, throwsException);
+    expect((await sends.retry()).sent, isTrue);
+    expect(container.read(provider).failures, isEmpty);
+  });
+
   test(
       'invalidating a queue cancels its pending work without affecting a new one',
       () async {

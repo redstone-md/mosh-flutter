@@ -333,11 +333,16 @@ class ConversationController extends Notifier<ConversationControllerState> {
   Future<bool> leave() async {
     state = state.copyWith(chatError: null);
     try {
-      await ref.read(gatewayProvider).leave(target);
+      final gateway = ref.read(gatewayProvider);
+      final sends = ref.read(conversationTextSendsProvider(target).notifier);
+      if (!await sends.closeAfterPending(() => gateway.leave(target))) {
+        return false;
+      }
     } catch (error) {
       _report(error);
       return false;
     }
+    if (!ref.mounted) return false;
     ref.invalidate(conversationTextSendsProvider(target));
     refresh();
     return true;

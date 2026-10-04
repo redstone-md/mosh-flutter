@@ -27,8 +27,8 @@ video calls remain separate requests.
   development host is Linux. Verify Dart channel payloads and native menu mappings.
 - Keep dependencies, Rust bridge and existing persistence schemas unchanged.
 
-Use verified Conventional Commits per issue. Publication requires a separate
-reviewable handoff; no GitHub mutations are part of this local implementation.
+Use verified Conventional Commits per issue. Published as
+[PR #52](https://github.com/redstone-md/mosh-flutter/pull/52) after approval.
 
 ## Verification (2026-10-04)
 
@@ -56,7 +56,25 @@ The implementation reuses native delivery status, the existing selector, ARB
 generation and the original Cocoa menu. It separates text admission from
 file/voice busy state and interface-language storage from onboarding storage.
 No dependencies, Rust contracts, bridge bindings or database schemas changed.
-The remaining verification risk is the unrun macOS build and native test lane.
+The macOS release build and two native menu tests passed on GitHub. The live
+menu identifier test failed; CI now saves its result bundle and reports loaded
+identifiers so the native decoding failure can be diagnosed.
+
+## PR review verification (2026-10-04)
+
+- CodeAnt close/send finding: confirmed leave freezes new submissions, drains
+  accepted native admission, then calls leave. Failed leave reopens admission
+  and preserves refused text. No delivery receipt is awaited.
+- CodeAnt hidden Retry finding: general action errors and refused text render
+  independent existing banners; Retry stays attached to refused text.
+- Regression tests failed before the fix for DM, channels and groups. Unit and
+  real-router widget tests cover order, repeated close, failed close, blocked
+  Retry, reopening input and disposal while draining.
+- `flutter analyze --no-pub`: no issues. Full Flutter suite: 1387 passed, 5
+  existing native-library tests skipped on Linux.
+- Changed executable Dart lines against `0dc50c5`: 28/28 (100%); branches:
+  11/12 (91.7%). Formatting: 521 files checked with no changes.
+- `git diff --check` and `actionlint .github/workflows/build-macos.yml`: passed.
 
 ## Changed files
 
@@ -90,6 +108,8 @@ Tests and support:
 
 ```text
 test/features/conversation/conversation_composer_test.dart
+test/features/conversation/conversation_close_flow_test.dart
+test/features/conversation/conversation_leave_order_test.dart
 test/features/conversation/conversation_keyboard_send_test.dart
 test/features/conversation/conversation_send_test.dart
 test/features/conversation/conversation_text_sends_test.dart

@@ -116,11 +116,11 @@ The following existing declaration spans include their signatures and internal c
 | `lib/src/features/conversation/attachment_card_branches.dart:26` | `_MediaPreviewCard.build` | 128 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/conversation_composer.dart:29` | `ConversationComposer` | 209 | One controlled composer subtree. |
 | `lib/src/features/conversation/conversation_composer.dart:92` | `ConversationComposer.build` | 145 | Existing declarative widget subtree. |
-| `lib/src/features/conversation/conversation_controller.dart:55` | `ConversationController` | 291 | Existing action and invalidation owner; text admission extracted into a separate notifier. |
+| `lib/src/features/conversation/conversation_controller.dart:55` | `ConversationController` | 296 | Existing action and invalidation owner; text admission extracted into a separate notifier. |
 | `lib/src/features/conversation/conversation_helpers.dart:104` | `DeliveryTicks.build` | 57 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/conversation_screen.dart:54` | `_ConversationScreenState` | 255 | Composer/search/pending-open lifetime, including draft revision protection. |
 | `lib/src/features/conversation/conversation_screen.dart:234` | `_ConversationScreenState.build` | 57 | Existing declarative widget subtree. |
-| `lib/src/features/conversation/conversation_screen_body.dart:80` | `ConversationScreenBody.build` | 62 | Existing declarative widget subtree. |
+| `lib/src/features/conversation/conversation_screen_body.dart:80` | `ConversationScreenBody.build` | 68 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/conversation_search_box.dart:80` | `_ConversationSearchBoxState.build` | 51 | Existing declarative widget subtree. |
 | `lib/src/features/conversation/voice_message_card.dart:187` | `_VoiceMessageCardState.build` | 80 | Existing declarative widget subtree. |
 | `lib/src/features/diagnostics/diagnostics_summary.dart:84` | `diagnosticsSummary` | 111 | Pure localized snapshot summary. |

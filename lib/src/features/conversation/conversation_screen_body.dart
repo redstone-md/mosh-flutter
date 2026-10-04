@@ -86,7 +86,8 @@ class ConversationScreenBody extends ConsumerWidget {
     final controller =
         ref.watch(conversationControllerProvider(target).notifier);
     final call = ref.watch(conversationCallBindingProvider);
-    final chatError = state.chatError ?? sends.firstFailure?.error;
+    final chatError = state.chatError;
+    final failedSend = sends.firstFailure;
     return SafeArea(
       child: Stack(
         children: [
@@ -95,15 +96,20 @@ class ConversationScreenBody extends ConsumerWidget {
               if (chatError != null)
                 ChatErrorBanner(
                   message: chatError.describe(l),
-                  onRetry: state.chatError == null && sends.firstFailure != null
-                      ? onRetrySend
-                      : null,
+                ),
+              if (failedSend != null)
+                ChatErrorBanner(
+                  message: failedSend.error.describe(l),
+                  onRetry: sends.closing ? null : onRetrySend,
                 ),
               ConversationBanners(target: target, snapshot: async.value),
               ConversationSearchRow(chrome: chrome),
-              Expanded(child: _messages(async, state, controller, l, sendBusy)),
+              Expanded(
+                  child: _messages(
+                      async, state, controller, l, sendBusy || sends.closing)),
               TypingHint(names: typingNamesOf(async.value)),
-              _composer(l, sendBusy, controller, _revoked(async.value)),
+              _composer(l, sendBusy, controller,
+                  sends.closing || _revoked(async.value)),
             ],
           ),
           if (chrome.showPeerStatus && !detailsDocked)

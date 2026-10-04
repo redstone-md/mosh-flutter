@@ -70,6 +70,10 @@ shape while preserving each kind's native snapshot for kind-specific controls.
 `ConversationTextSends` admits submitted drafts in FIFO order without blocking
 editing or waiting for delivery. It keeps refused submissions individually for
 Retry. The existing native outbox and snapshot rows own durable delivery states.
+Confirmed leave freezes new submissions and drains accepted native admission
+before closing the conversation. A refused leave reopens submission and retains
+failed texts. Text failures have their own Retry banner, independent of other
+action errors.
 The screen clears each draft at submission and restores refused text only when
 that draft has remained untouched; delayed completion never clears newer input.
 
