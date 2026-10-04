@@ -11,11 +11,8 @@ mod group_acceptance;
 #[path = "org_dm_acceptance_durability_tests.rs"]
 mod dm_durability;
 
-const URI: &str =
-    "mosh://invite?mesh=peer&session=peer-session#fp=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-
 #[test]
-fn malformed_dm_invite_does_not_consume_the_org_offer() {
+fn malformed_dm_invite_never_exposes_an_org_offer_or_creates_a_session() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::new();
     fixture.deliver_dm_offer("malformed invite");
@@ -31,22 +28,24 @@ fn malformed_dm_invite_does_not_consume_the_org_offer() {
         ConversationBridgeErrorKind::InvalidInput
     );
     let org = fixture.org.poll(&fixture.org_key).unwrap();
-    assert_eq!(org.dm_offers.len(), 1);
+    assert!(org.dm_offers.is_empty());
     assert!(org.dm_links.is_empty());
+    assert!(fixture.dm.list_sessions().unwrap().sessions.is_empty());
 }
 
 #[test]
 fn hard_dm_admission_failure_retains_offer_then_successful_retry_links_once() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::new();
-    fixture.deliver_dm_offer(URI);
+    let uri = fixture.dm_invite();
+    fixture.deliver_dm_offer(&uri);
     fixture.net.fail_publishes(fixture.own_peer(), true);
     let result = workflows::accept_and_link_dm(
         &mut fixture.org,
         &mut fixture.dm,
         &fixture.org_key,
         "retryable-offer",
-        Fixture::dm_request(URI),
+        Fixture::dm_request(&uri),
     );
     assert_eq!(
         result.unwrap_err().kind,
@@ -62,7 +61,7 @@ fn hard_dm_admission_failure_retains_offer_then_successful_retry_links_once() {
         &mut fixture.dm,
         &fixture.org_key,
         "retryable-offer",
-        Fixture::dm_request(URI),
+        Fixture::dm_request(&uri),
     )
     .unwrap();
     let org = fixture.org.poll(&fixture.org_key).unwrap();
@@ -78,14 +77,15 @@ fn hard_dm_admission_failure_retains_offer_then_successful_retry_links_once() {
 fn refused_org_completion_preserves_offer_and_rolls_back_only_the_new_dm() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::new();
-    fixture.deliver_dm_offer(URI);
+    let uri = fixture.dm_invite();
+    fixture.deliver_dm_offer(&uri);
     let fault = fixture.store.refuse_org_record_writes();
     let result = workflows::accept_and_link_dm(
         &mut fixture.org,
         &mut fixture.dm,
         &fixture.org_key,
         "retryable-offer",
-        Fixture::dm_request(URI),
+        Fixture::dm_request(&uri),
     );
     assert_eq!(
         result.unwrap_err().kind,
@@ -106,7 +106,7 @@ fn refused_org_completion_preserves_offer_and_rolls_back_only_the_new_dm() {
         &mut fixture.dm,
         &fixture.org_key,
         "retryable-offer",
-        Fixture::dm_request(URI),
+        Fixture::dm_request(&uri),
     )
     .unwrap();
 }
@@ -188,13 +188,14 @@ fn group_offers_attempt_every_recipient_after_a_hard_publication_failure() {
 fn accepted_pending_dm_offer_is_recoverable_after_restart_without_redelivery() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let mut fixture = Fixture::new();
-    fixture.deliver_dm_offer(URI);
+    let uri = fixture.dm_invite();
+    fixture.deliver_dm_offer(&uri);
     let snapshot = workflows::accept_and_link_dm(
         &mut fixture.org,
         &mut fixture.dm,
         &fixture.org_key,
         "retryable-offer",
-        Fixture::dm_request(URI),
+        Fixture::dm_request(&uri),
     )
     .unwrap();
     assert_eq!(
@@ -211,8 +212,8 @@ fn accepted_pending_dm_offer_is_recoverable_after_restart_without_redelivery() {
     fixture.restart();
     let snapshot = fixture.org.poll(&fixture.org_key).unwrap();
     assert_eq!(snapshot.dm_offers.len(), 1);
-    assert_eq!(snapshot.dm_offers[0].invite_uri, URI);
-    fixture.deliver_dm_offer(URI);
+    assert_eq!(snapshot.dm_offers[0].invite_uri, uri);
+    fixture.deliver_dm_offer(&uri);
     assert_eq!(
         fixture.org.poll(&fixture.org_key).unwrap().dm_offers.len(),
         1
@@ -222,7 +223,7 @@ fn accepted_pending_dm_offer_is_recoverable_after_restart_without_redelivery() {
         &mut fixture.dm,
         &fixture.org_key,
         "retryable-offer",
-        Fixture::dm_request(URI),
+        Fixture::dm_request(&uri),
     )
     .unwrap();
 }

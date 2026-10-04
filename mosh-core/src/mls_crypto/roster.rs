@@ -1,6 +1,14 @@
 use super::*;
 
 impl MlsSessionCrypto {
+    pub(crate) fn member_identity_for_signer(&self, signer: &[u8]) -> Option<String> {
+        let member = self
+            .group
+            .as_ref()?
+            .members()
+            .find(|member| member.signature_key == signer)?;
+        Self::credential_identity(&member.credential)
+    }
     pub fn key_package_signer_is_member(
         &self,
         key_package_bytes: &[u8],

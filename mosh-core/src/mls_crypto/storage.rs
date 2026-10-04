@@ -1,6 +1,10 @@
 use super::*;
 
 impl MlsSessionCrypto {
+    pub(crate) fn sign_sender_proof(&self, payload: &[u8]) -> Result<Vec<u8>, MlsCryptoError> {
+        openmls_traits::signatures::Signer::sign(&self.signer, payload)
+            .map_err(|_| MlsCryptoError::OpenMls("could not sign sender proof".into()))
+    }
     /// Serialize MLS state for at-rest persistence.
     pub fn snapshot(&self) -> Vec<u8> {
         self.provider.snapshot_bytes()

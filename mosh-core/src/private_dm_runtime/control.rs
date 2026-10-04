@@ -2,6 +2,10 @@
 
 use super::*;
 
+#[cfg(test)]
+#[path = "welcome_auth_tests.rs"]
+mod welcome_auth_tests;
+
 impl PrivateDmSession {
     pub(super) fn handle_control(&mut self, payload: Vec<u8>) -> Result<(), PrivateDmRuntimeError> {
         let envelope: ControlEnvelope = decode_json(&payload)?;
@@ -14,6 +18,12 @@ impl PrivateDmSession {
         envelope: ControlEnvelope,
     ) -> Result<(), PrivateDmRuntimeError> {
         match envelope {
+            ControlEnvelope::AuthenticatedKeyPackage {
+                session_id,
+                proof_b64,
+            } if session_id == self.session_id && matches!(self.role, SessionRole::Alice) => {
+                self.accept_authenticated_key_package(&proof_b64)
+            }
             ControlEnvelope::DeviceIdentity {
                 session_id,
                 participant_id,
@@ -28,9 +38,7 @@ impl PrivateDmSession {
                 key_package_b64,
                 moss_peer_id,
             } if self.is_alice_session(&session_id, &participant_id) => {
-                self.note_peer_name(&from_device);
-                self.note_peer_moss_id(moss_peer_id);
-                self.answer_key_package(&key_package_b64)
+                self.accept_legacy_key_package(&from_device, moss_peer_id, &key_package_b64)
             }
             ControlEnvelope::Welcome {
                 session_id,
@@ -52,6 +60,22 @@ impl PrivateDmSession {
             }
             other => self.handle_feedback_control(other),
         }
+    }
+
+    fn accept_legacy_key_package(
+        &mut self,
+        name: &str,
+        moss_peer_id: Option<String>,
+        key_package: &str,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        if self.expected_invitee()?.is_some() {
+            return Err(PrivateDmRuntimeError::InvalidInvite(
+                "targeted DM requires authenticated admission".into(),
+            ));
+        }
+        self.note_peer_name(name);
+        self.note_peer_moss_id(moss_peer_id);
+        self.answer_key_package(key_package)
     }
 
     fn handle_feedback_control(
@@ -140,7 +164,7 @@ impl PrivateDmSession {
         &mut self,
         welcome_b64: &str,
         ratchet_tree_b64: &str,
-        from_device: &str,
+        _from_device: &str,
         moss_peer_id: Option<String>,
     ) -> Result<(), PrivateDmRuntimeError> {
         // A linked client accepts only its authorized private admission.
@@ -154,10 +178,25 @@ impl PrivateDmSession {
         if self.peer_joined {
             return Ok(());
         }
-        self.note_peer_name(from_device);
-        self.note_peer_moss_id(moss_peer_id);
-        self.crypto
-            .join_welcome(&decode(welcome_b64)?, &decode(ratchet_tree_b64)?)?;
+        let owner = self
+            .invite_uri
+            .as_deref()
+            .map(|raw| {
+                let invite = ParsedInvite::parse(raw)?;
+                invite_ownership::verify_invite_owner(raw, &invite)
+                    .map_err(PrivateDmRuntimeError::InvalidInvite)
+            })
+            .transpose()?
+            .flatten();
+        let name = self.crypto.join_welcome_pinned(
+            &decode(welcome_b64)?,
+            &decode(ratchet_tree_b64)?,
+            &self.fingerprint,
+            owner.as_ref().map(|owner| owner.mls_signer.as_slice()),
+            None,
+        )?;
+        self.note_peer_name(&name);
+        self.note_peer_moss_id(owner.map(|owner| owner.peer_id).or(moss_peer_id));
         self.note_handshake_frame();
         // Joined: stop retransmitting the KeyPackage.
         self.pending_key_package = None;

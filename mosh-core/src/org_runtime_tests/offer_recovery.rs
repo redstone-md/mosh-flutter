@@ -63,9 +63,7 @@ impl Fixture {
                 offer_id: id.into(),
                 target_peer_id: self.own_peer.clone(),
                 from_name: "Bob".into(),
-                invite_uri:
-                    "mosh://invite?mesh=peer&session=peer#fp=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                        .into(),
+                invite_uri: owned_dm_invite(&self.member, &self.own_peer),
             },
             Resolution::AcceptGroup | Resolution::DismissGroup => OrgMessage::GroupOffer {
                 offer_id: id.into(),
@@ -197,4 +195,76 @@ fn legacy_org_records_load_without_resolved_offer_metadata() {
     fixture.restart();
     fixture.deliver(Resolution::AcceptDm, "legacy-pending");
     assert_eq!(fixture.offer_count(), 1);
+}
+
+#[test]
+fn restored_legacy_dm_offers_cannot_bypass_ownership_checks_at_acceptance() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let offer = OrgDmOfferView {
+        offer_id: "legacy-owner-mismatch".into(),
+        from_peer_id: org_signing::peer_id_hex(&fixture.member),
+        from_name: "Bob".into(),
+        invite_uri: owned_dm_invite(&SigningKey::from_bytes(&[88; 32]), &fixture.own_peer),
+    };
+    let session = fixture.runtime.orgs.get_mut(&org_key_hex()).unwrap();
+    session.pending_acceptances.insert(
+        offer.offer_id.clone(),
+        PendingAcceptance::Dm {
+            conversation_id: "peer".into(),
+            signer_public: vec![],
+            offer,
+            recovery: None,
+        },
+    );
+    let record = session.to_record();
+    fixture.runtime.persist_record(record).unwrap();
+    fixture.restart();
+    assert_eq!(fixture.offer_count(), 1);
+    assert!(matches!(
+        fixture
+            .runtime
+            .accept_dm_offer(&org_key_hex(), "legacy-owner-mismatch"),
+        Err(OrgError::Codec(_))
+    ));
+    assert!(fixture
+        .runtime
+        .poll(&org_key_hex())
+        .unwrap()
+        .dm_links
+        .is_empty());
+}
+
+#[test]
+fn outgoing_org_offers_require_owned_targeted_invites_before_publication() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let target = org_signing::peer_id_hex(&fixture.member);
+    let owner = SigningKey::from_bytes(&[86; 32]);
+    let invalid = owned_dm_invite(&fixture.member, &target);
+    let valid = owned_dm_invite(&owner, &target);
+    let _publication = crate::moss_ffi::fail_next_test_publish("inspect valid org offer");
+    assert!(matches!(
+        fixture
+            .runtime
+            .send_dm_offer(&org_key_hex(), &target, &invalid),
+        Err(OrgError::Codec(_))
+    ));
+    assert!(matches!(
+        fixture
+            .runtime
+            .send_dm_offer(&org_key_hex(), &fixture.own_peer, &valid),
+        Err(OrgError::Codec(_))
+    ));
+    assert!(
+        matches!(fixture.runtime.send_dm_offer(&org_key_hex(), &target, &valid), Err(OrgError::Moss(message)) if message.contains("inspect valid org offer"))
+    );
+    fixture
+        .runtime
+        .send_dm_offer(&org_key_hex(), &target, &valid)
+        .unwrap();
+    assert_eq!(
+        fixture.runtime.poll(&org_key_hex()).unwrap().dm_links[0].peer_id,
+        target
+    );
 }

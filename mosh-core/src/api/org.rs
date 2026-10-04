@@ -98,19 +98,22 @@ pub fn send_dm_offer(
     // session.
     let invite = {
         let mut runtime = crate::api::private_dm::ensure_runtime()?;
-        runtime.create_invite(StartSessionRequest {
-            display_name,
-            listen_port,
-            static_peer,
-        })?
+        runtime.create_targeted_invite(
+            StartSessionRequest {
+                display_name,
+                listen_port,
+                static_peer,
+            },
+            &target_peer_id,
+        )?
     };
-    let offered = {
+    let offered = (|| {
         let mut runtime = ensure_runtime()?;
         runtime.send_dm_offer(&org_pubkey, &target_peer_id, &invite.invite_uri)?;
         runtime
             .link_dm(&org_pubkey, &target_peer_id, &invite.session_id)
             .map_err(ConversationBridgeError::from)
-    };
+    })();
     if let Err(error) = offered {
         // The offer never reached the mesh: drop the orphan local invite.
         let mut runtime = crate::api::private_dm::ensure_runtime()?;

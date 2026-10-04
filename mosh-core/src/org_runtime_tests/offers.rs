@@ -34,11 +34,38 @@ fn dm_offers_are_roster_gated_targeted_and_accept_once() {
     );
     runtime.ingest_for_test(&org, &roster_wire(&roster));
 
+    let invite = owned_dm_invite(&member_key, &own_peer);
+    for (index, invite_uri) in [
+        "mosh://dm?mesh=x&session=y".to_string(),
+        owned_dm_invite(&stranger_key, &own_peer),
+        owned_dm_invite(&member_key, &member_peer),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        runtime.ingest_for_test(
+            &org,
+            &signed_wire(
+                &member_key,
+                mesh,
+                &OrgMessage::DmOffer {
+                    offer_id: format!("invalid-{index}"),
+                    target_peer_id: own_peer.clone(),
+                    from_name: "Bob".into(),
+                    invite_uri,
+                },
+            ),
+        );
+    }
+    assert!(
+        runtime.poll(&org).unwrap().dm_offers.is_empty(),
+        "offer must prove its creator and target"
+    );
     let offer = |id: &str, target: &str| OrgMessage::DmOffer {
         offer_id: id.into(),
         target_peer_id: target.into(),
         from_name: "Bob".into(),
-        invite_uri: "mosh://dm?mesh=x&session=y".into(),
+        invite_uri: invite.clone(),
     };
 
     // From a member, to us: surfaces exactly once despite redelivery.
@@ -68,7 +95,7 @@ fn dm_offers_are_roster_gated_targeted_and_accept_once() {
 
     // Accept: returns the offer view, records a link, persists it.
     let accepted = runtime.accept_dm_offer(&org, "o1").unwrap();
-    assert_eq!(accepted.invite_uri, "mosh://dm?mesh=x&session=y");
+    assert_eq!(accepted.invite_uri, invite);
     assert_eq!(accepted.from_peer_id, member_peer);
     runtime.link_dm(&org, &member_peer, "session-1").unwrap();
     let snap = runtime.poll(&org).unwrap();

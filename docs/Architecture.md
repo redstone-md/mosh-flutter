@@ -268,12 +268,17 @@ records are encrypted. Security UI displays real runtime snapshots. Read
 
 Org control uses signed envelopes and roster-bound MLS credentials
 ([ADR 0004](ADR/0004-org-credential-identity-is-moss-peer-id.md),
-[ADR 0007](ADR/0007-signed-envelope-over-gossip.md)). Plain-group DM offers lack
-member authentication, and claimed Moss author IDs in encrypted controls are
-not bound to the MLS sender. Attachment controls reject mismatched outer and
-encrypted author IDs; a member can still forge both IDs together.
-Those existing protocol limitations require a control/identity migration;
-Moss peer IDs and conversation MLS fingerprints are different identities.
+[ADR 0007](ADR/0007-signed-envelope-over-gossip.md)). Group text, typing,
+attachments and DM offers bind the Moss author to the full MLS sender key through
+one transcript signed by both keys. DM offers encrypt their invitation with MLS,
+prove its creator owns the DM key and pin the intended recipient before
+publication. Org-carried DM offers use the same owner and target checks.
+Targeted admission verifies the recipient's Moss and DM keys;
+Welcome verifies the creator's pinned key. All group clients must upgrade
+together; unsigned application frames are rejected. Manual invitations without
+a target retain capability-based admission. Existing history and public channel
+author labels gain no retrospective authentication. See
+[ADR 0038](ADR/0038-authenticated-group-senders-and-dm-offers.md).
 
 Crash reporting is opt-in. Consent and a scrub salt live in a non-secret file.
 No configured DSN means no reporting. Rust captures panics; Dart scrubs/sends

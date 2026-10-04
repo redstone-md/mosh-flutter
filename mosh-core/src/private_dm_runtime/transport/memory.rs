@@ -2,9 +2,12 @@
 //! a link per direction that says how the far end is reachable and which
 //! frames get lost on the way.
 
+mod authentication;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use super::super::admission_authentication::sign_key_package;
 use super::{is_call_media_inbound, DmTransport, PeerTransport, PublishError};
 use crate::conversation::mesh::{MeshInfo, PeerDetail};
 use crate::moss_ffi::MossReceivedMessage;
@@ -98,6 +101,7 @@ impl MemoryNet {
         Arc::new(MemoryTransport {
             net: Arc::clone(self),
             peer_id: peer_id.to_string(),
+            identity: None,
         })
     }
 
@@ -207,6 +211,7 @@ impl MemoryNet {
 pub struct MemoryTransport {
     net: Arc<MemoryNet>,
     peer_id: String,
+    identity: Option<ed25519_dalek::SigningKey>,
 }
 
 impl MemoryTransport {
@@ -227,6 +232,18 @@ impl MemoryTransport {
 }
 
 impl DmTransport for MemoryTransport {
+    fn authenticate_key_package(
+        &self,
+        payload: &[u8],
+        mesh: &str,
+        crypto: &crate::mls_crypto::MlsSessionCrypto,
+    ) -> Result<Option<String>, String> {
+        self.identity
+            .as_ref()
+            .map(|identity| sign_key_package(identity, crypto, mesh, payload))
+            .transpose()
+    }
+
     fn open_room(
         &self,
         _room: &str,

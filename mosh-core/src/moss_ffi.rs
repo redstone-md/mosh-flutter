@@ -11,6 +11,7 @@ use std::{
 
 mod callbacks;
 mod config;
+mod identity;
 mod info;
 mod node;
 mod runtime;
@@ -26,6 +27,8 @@ mod tests;
 pub use crate::stream_transport::STREAM_INBOX_CHANNEL_PREFIX;
 #[cfg(test)]
 pub use callbacks::clear_moss_keystore;
+#[cfg(test)]
+pub(crate) use callbacks::replace_test_keystore;
 pub use callbacks::{
     clear_event_log, drain_received_messages, push_app_event, set_moss_keystore,
     snapshot_event_log, wait_for_payload,
@@ -147,6 +150,7 @@ pub struct MossFfiRuntime {
 pub struct MossNode {
     runtime: Arc<MossFfiRuntime>,
     handle: MossHandle,
+    identity_signer: Option<ed25519_dalek::SigningKey>,
 }
 
 #[derive(Debug, Clone, Default)]
