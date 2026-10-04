@@ -12,7 +12,7 @@ class RunnerTests: XCTestCase {
     let submenu = NSMenu(title: "Edit")
     edit.submenu = submenu
     menu.addItem(edit)
-    let copy = NSMenuItem(title: "Copy", action: Selector(("copy:")), keyEquivalent: "c")
+    let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
     copy.identifier = NSUserInterfaceItemIdentifier("nativeMenuCopy")
     copy.tag = 7
     submenu.addItem(copy)
@@ -23,7 +23,7 @@ class RunnerTests: XCTestCase {
     XCTAssertEqual(edit.title, "Правка")
     XCTAssertEqual(submenu.title, "Правка")
     XCTAssertEqual(copy.title, "Скопировать")
-    XCTAssertEqual(copy.action, Selector(("copy:")))
+    XCTAssertEqual(copy.action, #selector(NSText.copy(_:)))
     XCTAssertEqual(copy.keyEquivalent, "c")
     XCTAssertEqual(copy.tag, 7)
     XCTAssertEqual(systemItem.title, "OS-owned")
@@ -55,7 +55,8 @@ class RunnerTests: XCTestCase {
       }
     }
     let ids = identifiers(menu)
-    XCTAssertEqual(ids.filter { $0.hasPrefix("nativeMenu") }.count, 51)
+    XCTAssertEqual(ids.filter { $0.hasPrefix("nativeMenu") }.count, 51,
+                   "Loaded menu identifiers: \(ids)")
     XCTAssertTrue(ids.contains("nativeMenuCopy"))
     XCTAssertTrue(ids.contains("nativeMenuPreferencesAction"))
   }
