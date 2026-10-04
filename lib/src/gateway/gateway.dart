@@ -8,6 +8,9 @@ import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 /// Widgets consume this interface, never a concrete class, so the wired
 /// backend is a single Riverpod provider swap.
 abstract interface class Gateway {
+  Future<void> rename(AnyConversationTarget target, {required String name});
+  Future<void> resetName(AnyConversationTarget target);
+
   /// Reads [target]'s current state. The snapshot type follows the kind:
   /// a DM polls back a [SessionSnapshot], a channel a [ChannelSnapshot],
   /// a group a [GroupSnapshot].

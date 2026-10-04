@@ -27,20 +27,29 @@ impl GroupSession {
     /// Latest verified roster for this group's org, re-verified only when
     /// the stored bytes change.
     pub(super) fn org_roster(&mut self) -> Option<Roster> {
-        let org_pubkey = self.org_pubkey.as_deref()?;
+        self.org_roster_checked().ok()
+    }
+
+    fn org_roster_checked(&mut self) -> Result<Roster, PrivateGroupError> {
+        let org_pubkey = self
+            .org_pubkey
+            .as_deref()
+            .ok_or(PrivateGroupError::NotReady)?;
         let bytes = self
             .persistence
-            .as_ref()?
-            .get_org_roster(org_pubkey)
-            .ok()??;
+            .as_ref()
+            .ok_or(PrivateGroupError::NotReady)?
+            .get_org_roster(org_pubkey)?
+            .ok_or(PrivateGroupError::NotReady)?;
         if let Some((cached_bytes, roster)) = self.roster_cache.as_ref() {
             if *cached_bytes == bytes {
-                return Some(roster.clone());
+                return Ok(roster.clone());
             }
         }
-        let roster = org_roster::verify(&bytes, org_pubkey, None).ok()?;
+        let roster = org_roster::verify(&bytes, org_pubkey, None)
+            .map_err(|error| PrivateGroupError::Codec(format!("org roster rejected: {error}")))?;
         self.roster_cache = Some((bytes, roster.clone()));
-        Some(roster)
+        Ok(roster)
     }
 
     pub(super) fn roster_contains(&mut self, peer_id: &str) -> bool {
@@ -68,13 +77,19 @@ impl GroupSession {
     /// (ADR 0005) — the fingerprint-admin machinery is not consulted at
     /// all. Plain groups: the legacy single-admin flag.
     pub(super) fn acting_admin(&mut self) -> bool {
+        self.try_acting_admin().unwrap_or(false)
+    }
+
+    pub(super) fn try_acting_admin(&mut self) -> Result<bool, PrivateGroupError> {
         if self.org_pubkey.is_some() {
-            return match self.own_peer_id() {
-                Some(id) => self.roster_role_is_admin(&id),
-                None => false,
-            };
+            let id = self.own_peer_id().ok_or(PrivateGroupError::NotReady)?;
+            return Ok(self
+                .org_roster_checked()?
+                .members
+                .iter()
+                .any(|member| member.moss_peer_id == id && member.role == "admin"));
         }
-        self.is_admin
+        Ok(self.is_admin)
     }
 
     /// Re-derive the admin from the MLS tree. While the admin still holds a

@@ -130,6 +130,22 @@ impl Fixture {
 
 #[test]
 fn refused_read_metadata_does_not_consume_its_replay_after_restart() {
+    // Facade tests start a permanent DM service sharing this process's inbox.
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "private_dm_runtime::write_coherence_tests::read_metadata_process",
+            "--ignored",
+            "--nocapture",
+        ])
+        .status()
+        .unwrap();
+    assert!(status.success());
+}
+
+#[test]
+#[ignore = "Independent DM inbox, invoked by the read metadata regression."]
+fn read_metadata_process() {
     let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let config = std::env::temp_dir().join(format!(
         "mosh-receipts-toggle-{}-shared",

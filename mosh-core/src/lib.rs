@@ -3,6 +3,7 @@ pub mod attachment_runtime;
 pub mod attachment_store;
 pub mod audio_devices;
 pub mod channel_runtime;
+pub mod chat_names;
 pub mod commit_sequencer;
 pub mod conversation;
 pub mod crash_reporting;

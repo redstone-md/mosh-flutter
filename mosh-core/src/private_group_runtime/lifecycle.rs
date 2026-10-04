@@ -54,6 +54,7 @@ impl PrivateGroupRuntime {
             group_id: group_id.clone(),
             mesh_id: mesh_id.clone(),
             label: label.clone(),
+            names: Default::default(),
             display_name: request.display_name,
             participant_id,
             device_fingerprint,

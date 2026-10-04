@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:mosh/src/state/chat_names_provider.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/src/platform/foreground_poller.dart';
@@ -45,6 +46,7 @@ final autoPollProvider = Provider<void>((ref) {
   }
 
   poller = ForegroundPoller(interval, () {
+    unawaited(ref.read(chatNamesProvider.notifier).refresh());
     for (final kind in ConversationKind.values) {
       unawaited(ref
           .read(conversationListProvider(kind).notifier)

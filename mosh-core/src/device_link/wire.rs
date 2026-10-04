@@ -130,6 +130,7 @@ pub fn is_device_link_packet(bytes: &[u8]) -> bool {
     bytes.starts_with(WIRE_PREFIX)
         || bytes.starts_with(LEGACY_WIRE_PREFIX)
         || bytes.starts_with(ROSTER_NOTICE_PREFIX)
+        || bytes.starts_with(super::names_wire::PREFIX)
 }
 
 fn prefix(qr: &PairingQr) -> &'static [u8] {

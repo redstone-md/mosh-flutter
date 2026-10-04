@@ -14,6 +14,8 @@ pub enum PrivateGroupError {
     MissingMessage(String),
     DuplicateGroup(String),
     NotReady,
+    InvalidName(String),
+    RenameDenied,
     Attachment(String),
     MissingAttachment(String),
 }
@@ -31,6 +33,10 @@ impl std::fmt::Display for PrivateGroupError {
             Self::MissingMessage(id) => write!(formatter, "group message missing: {id}"),
             Self::DuplicateGroup(id) => write!(formatter, "already joined group: {id}"),
             Self::NotReady => write!(formatter, "group not ready"),
+            Self::InvalidName(error) => write!(formatter, "invalid group name: {error}"),
+            Self::RenameDenied => {
+                write!(formatter, "only current group admins can rename the group")
+            }
             Self::Attachment(error) => write!(formatter, "attachment error: {error}"),
             Self::MissingAttachment(id) => write!(formatter, "attachment not found: {id}"),
         }

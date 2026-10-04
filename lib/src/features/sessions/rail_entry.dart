@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/state/chat_names_provider.dart' show chatDisplayName;
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -44,6 +45,18 @@ sealed class RailEntry {
   /// conversation yet -- a pending DM offer has no session behind it until
   /// it is accepted.
   ConversationRef? get ref;
+
+  String originalName(AppLocalizations l) => switch (this) {
+        DmRailEntry(:final session) => peerLabel(l, session),
+        ChannelRailEntry(:final channel) => '#${channel.name}',
+        GroupRailEntry(:final group) =>
+          group.label ?? shorten(group.groupId, 6),
+        OfferRailEntry() => '',
+      };
+
+  String? get personalName => null;
+  String displayName(AppLocalizations l) =>
+      chatDisplayName(originalName(l), personalName);
 
   RailActivity get activity => const RailActivity();
 
@@ -118,17 +131,19 @@ List<RailEntry> recentRailEntries(
 /// is no longer in the org roster, the revoked badge -- an `UnreadBadge`
 /// when count > 0, and an onTap that navigates to the DM screen.
 final class DmRailEntry extends RailEntry {
-  DmRailEntry(this.session, {this.revokedOrgName})
+  DmRailEntry(this.session, {this.revokedOrgName, this.personalName})
       : activity = RailActivity.dm(session);
 
   final SessionSnapshot session;
+  @override
+  final String? personalName;
 
   @override
   final RailActivity activity;
 
   @override
   String searchText(AppLocalizations l) =>
-      '${peerLabel(l, session)} ${activity.participantNames}';
+      '${super.searchText(l)} ${displayName(l)} ${originalName(l)} ${activity.participantNames}';
 
   /// The org the peer left, when this DM is org-bound and the peer is no
   /// longer in the roster. The rail looks it up in
@@ -142,7 +157,7 @@ final class DmRailEntry extends RailEntry {
   @override
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     final l = AppLocalizations.of(context)!;
-    final label = peerLabel(l, session);
+    final label = displayName(l);
     return RailItem(
       kind: RailItemKind.dm,
       leading: ConversationKindAvatar(
@@ -170,16 +185,19 @@ final class DmRailEntry extends RailEntry {
 /// One channel row: leading `Icons.tag`, title `#<name>`, subtitle the
 /// topic, trailing `UnreadBadge`. `onTap` opens the channel screen.
 final class ChannelRailEntry extends RailEntry {
-  ChannelRailEntry(this.channel) : activity = RailActivity.channel(channel);
+  ChannelRailEntry(this.channel, {this.personalName})
+      : activity = RailActivity.channel(channel);
 
   final ChannelSnapshot channel;
+  @override
+  final String? personalName;
 
   @override
   final RailActivity activity;
 
   @override
   String searchText(AppLocalizations l) =>
-      '${channel.name} ${activity.participantNames}';
+      '${displayName(l)} ${channel.name} ${activity.participantNames}';
 
   @override
   ConversationRef get ref =>
@@ -189,8 +207,9 @@ final class ChannelRailEntry extends RailEntry {
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     return RailItem(
       kind: RailItemKind.channel,
-      leading: ConversationKindAvatar(kind: ref.kind, name: channel.name),
-      title: '#${channel.name}',
+      leading: ConversationKindAvatar(
+          kind: ref.kind, name: displayName(AppLocalizations.of(context)!)),
+      title: displayName(AppLocalizations.of(context)!),
       timestamp: timestamp(context),
       // An empty topic yields no subtitle line ([RailItem] hides it).
       subtitle: preview(AppLocalizations.of(context)!) ?? channel.topic,
@@ -226,7 +245,7 @@ final class GroupRailEntry extends RailEntry {
   @override
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     final l = AppLocalizations.of(context)!;
-    final label = group.label ?? shorten(group.groupId, 6);
+    final label = displayName(l);
     return RailItem(
       kind: RailItemKind.group,
       leading: ConversationKindAvatar(kind: ref.kind, name: label),

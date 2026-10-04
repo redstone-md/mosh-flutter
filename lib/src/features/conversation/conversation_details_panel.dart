@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
@@ -72,7 +73,8 @@ class ConversationDetailsPanel extends ConsumerWidget {
 
   Widget _content(BuildContext context, WidgetRef ref,
       ConversationSnapshot snapshot, AppLocalizations l) {
-    final model = ConversationDetailsModel(snapshot, l);
+    final model = ConversationDetailsModel(snapshot, l,
+        personalName: ref.watch(personalChatNameProvider(target.ref)));
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -119,6 +121,9 @@ class ConversationDetailsPanel extends ConsumerWidget {
         Text(model.title,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge),
+        if (model.personalName != null)
+          Text(model.l.chatOriginalName(model.originalName),
+              textAlign: TextAlign.center),
         const SizedBox(height: 4),
         Text(model.subtitle,
             textAlign: TextAlign.center,

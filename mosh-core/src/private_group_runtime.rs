@@ -107,6 +107,19 @@ pub struct GroupMessage {
     pub retryable: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_change: Option<GroupNameChanged>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GroupNameChanged {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GroupNameStatus {
+    pub pending: bool,
+    pub error: Option<String>,
 }
 
 impl ConversationMessage for GroupMessage {
@@ -159,6 +172,7 @@ pub struct GroupSnapshot {
     pub device_fingerprint: String,
     pub creator_fingerprint: String,
     pub is_admin: bool,
+    pub name_status: Option<GroupNameStatus>,
     pub state: String,
     pub member_count: usize,
     pub invite_uri: Option<String>,
@@ -323,6 +337,14 @@ impl PrivateGroupRuntime {
             session.pump_attachment_requests();
             // ADR 0005: a roster change may legitimize lag-buffered commits.
             session.sync_roster_state();
+            if let Err(error) = session.sync_names() {
+                dlog::write(
+                    LogLevel::Warn,
+                    kinds::FRAME,
+                    &session.group_id,
+                    &format!("group name sync failed: {error}"),
+                );
+            }
         }
         Ok(())
     }
@@ -358,6 +380,7 @@ mod actions;
 mod authentication;
 mod close;
 mod invite;
+mod names;
 mod outbound;
 mod sequencing;
 mod session;

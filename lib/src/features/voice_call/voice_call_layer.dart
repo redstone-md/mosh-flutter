@@ -143,7 +143,13 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         barrierDismissible: false,
         builder: (dialogContext) {
           _dialogContext = dialogContext;
-          return _buildDialogFor(dialog, dialogContext, peerLabel);
+          return Consumer(builder: (_, ref, __) {
+            final name = ref.watch(
+                voiceCallOrchestratorProvider(widget.sessionId)
+                    .select((state) => state.dialog.peerName));
+            return _buildDialogFor(dialog, dialogContext,
+                name.isEmpty ? widget.l.callPeerFallback : name);
+          });
         },
       ).then((_) {
         // Forget only the modal this route was. A pop that came from a

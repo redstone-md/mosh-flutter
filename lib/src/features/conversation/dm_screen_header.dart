@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/state/chat_names_provider.dart';
+import 'package:mosh/src/features/conversation/rename_chat_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -36,12 +39,16 @@ class DmScreenHeader extends ConsumerWidget implements PreferredSizeWidget {
     // What the runtime has proven about the contact, in one sentence.
     final status = s == null ? '' : dmStateSentence(l, s.state, s.transport);
     final fingerprint = s?.fingerprint ?? '';
+    final target = DmTarget(sessionId);
+    final original = s == null ? sessionId : peerLabel(l, s);
+    final personal = ref.watch(personalChatNameProvider(target.ref));
+    final name = chatDisplayName(original, personal);
     return ConversationAppBar(
       chrome: chrome,
       peerOnline: s?.state == DmSessionState.connected,
-      avatarName: s == null ? sessionId : peerLabel(l, s),
+      avatarName: name,
       title: ConversationHeaderTitle(
-        name: s == null ? sessionId : peerLabel(l, s),
+        name: name,
         subtitle: status,
         onOpenDetails: chrome.onOpenPeerStatus,
         nameAction: FingerprintLock(
@@ -51,6 +58,16 @@ class DmScreenHeader extends ConsumerWidget implements PreferredSizeWidget {
       ),
       leaveMenuLabel: l.deleteChatConfirm,
       leaveMenuIcon: Icons.delete_outline,
+      menuActions: [
+        ChatHeaderMenuAction(
+            label: l.chatRename,
+            icon: Icons.edit_outlined,
+            disabled: !ref.watch(personalChatRenameAvailableProvider),
+            onSelect: () => showRenameChatDialog(context, target,
+                name: name,
+                originalName: original,
+                hasPersonalName: personal != null))
+      ],
       inlineActions: [
         // Primary action precedes search and the menu in every header.
         IconButton(

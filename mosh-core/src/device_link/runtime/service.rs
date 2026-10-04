@@ -13,6 +13,7 @@ impl DeviceLinkRuntime {
     /// Drive pairing even while its settings section is closed.
     pub fn service(&mut self) -> Result<()> {
         self.identity.reload()?;
+        self.reload_names()?;
         self.reconcile_removal()?;
         self.expire()?;
         for message in self.transport.drain() {
@@ -26,6 +27,7 @@ impl DeviceLinkRuntime {
         self.retry_exchange();
         self.retry_delivery();
         self.retry_roster();
+        self.sync_names()?;
         Ok(())
     }
 

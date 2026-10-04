@@ -7,12 +7,15 @@ import 'package:mosh/src/util/format.dart';
 typedef ConversationParticipant = ({String identity, String name});
 
 class ConversationDetailsModel {
-  ConversationDetailsModel(this.snapshot, this.l);
+  ConversationDetailsModel(this.snapshot, this.l, {this.personalName});
+  final String? personalName;
 
   final ConversationSnapshot snapshot;
   final AppLocalizations l;
 
-  String get title => switch (snapshot) {
+  String get title => personalName ?? originalName;
+
+  String get originalName => switch (snapshot) {
         DmConversation(:final source) => peerLabel(l, source),
         GroupConversation(:final source) =>
           source.label ?? l.summaryGroupFallbackTitle,

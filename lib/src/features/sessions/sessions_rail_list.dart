@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/state/chat_names_provider.dart';
+import 'package:mosh/src/features/conversation/chat_row_menu.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
@@ -62,7 +64,9 @@ class SessionsRailList extends ConsumerWidget {
             if (status case final status?) status,
             ..._offers(context, ref, offers, l),
             for (final entry in visible)
-              entry.buildRow(context, _chrome(ref, entry)),
+              ChatRowMenu(
+                  entry: entry,
+                  child: entry.buildRow(context, _chrome(ref, entry))),
             if (visible.isEmpty && entries.isNotEmpty)
               Padding(
                   padding: const EdgeInsets.all(24),
@@ -77,12 +81,17 @@ class SessionsRailList extends ConsumerWidget {
         ref.watch(conversationListProvider(ConversationKind.channel)).value);
     final groups = groupsOf(
         ref.watch(conversationListProvider(ConversationKind.group)).value);
+    final names = ref.watch(chatNamesProvider).value?.entries ?? [];
+    final aliases = {for (final e in names) e.conversationKey: e.name};
     final revoked = ref.watch(revokedDmBadgesProvider);
     return [
       for (final s in dmSessions)
-        DmRailEntry(s, revokedOrgName: revoked[s.sessionId]),
+        DmRailEntry(s,
+            revokedOrgName: revoked[s.sessionId],
+            personalName: aliases['dm:${s.sessionId}']),
       for (final g in groups) GroupRailEntry(g),
-      for (final c in channels) ChannelRailEntry(c),
+      for (final c in channels)
+        ChannelRailEntry(c, personalName: aliases['channel:${c.name}']),
     ];
   }
 

@@ -2,6 +2,9 @@ mod actions;
 mod exchange;
 #[cfg(test)]
 mod legacy_tests;
+mod names;
+#[cfg(test)]
+mod names_tests;
 mod receive;
 mod revocation;
 mod service;
@@ -30,12 +33,20 @@ pub struct DeviceLinkRuntime {
     delivery_last_send: Option<Instant>,
     delivery_started: Instant,
     roster_last_send: Option<Instant>,
+    names: crate::chat_names::ChatNames,
+    names_last_pull: Option<Instant>,
+    names_peer_digests: std::collections::HashMap<String, String>,
+    names_initial_pulls: std::collections::HashMap<String, String>,
+    names_pending_pages: std::collections::HashMap<String, names::NamePageRequest>,
 }
 
 impl DeviceLinkRuntime {
     pub fn open(shared: Arc<SharedMossNode>, store: Arc<Persistence>) -> Result<Self> {
         let transport = LinkTransport::new(shared)?;
         let identity = DeviceIdentity::open(store, &transport.peer_id()?)?;
+        let names = identity
+            .chat_names()
+            .map_err(super::identity::storage_error)?;
         let exchange = identity
             .record
             .pending
@@ -58,6 +69,11 @@ impl DeviceLinkRuntime {
             delivery_last_send: None,
             delivery_started: Instant::now(),
             roster_last_send: None,
+            names,
+            names_last_pull: None,
+            names_peer_digests: std::collections::HashMap::new(),
+            names_initial_pulls: std::collections::HashMap::new(),
+            names_pending_pages: std::collections::HashMap::new(),
         };
         runtime.expire()?;
         Ok(runtime)

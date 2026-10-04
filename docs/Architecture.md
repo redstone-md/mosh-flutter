@@ -236,6 +236,12 @@ records. Backup/transfer excludes keys and identity storage; copied installation
 cannot inherit another device's identity. The release manifest includes network
 access. See [ADR 0034](ADR/0034-android-linked-text-dm.md).
 
+Personal DM/channel names live in an encrypted account register and synchronize
+through the existing device-link owner. Shared group names use authenticated MLS
+metadata, current admin authority, atomic history events and durable pending
+state. Flutter resolves display names independently of conversation addresses.
+See [ADR 0039](ADR/0039-chat-names.md).
+
 ## Setup, settings and voice
 
 Interface language defaults to Flutter's system resolution, including changes

@@ -1,7 +1,7 @@
 //! Fault injection hooks used by runtime behavior tests.
 use super::*;
 
-static TEST_PUBLISH_FAILURE: Mutex<Option<TestPublishOutcome>> = Mutex::new(None);
+static TEST_PUBLISH_FAILURE: Mutex<Option<(Option<String>, TestPublishOutcome)>> = Mutex::new(None);
 
 enum TestPublishOutcome {
     Injected(String),
@@ -11,25 +11,33 @@ enum TestPublishOutcome {
 
 pub struct TestPublishFailureGuard;
 
-fn arm_test_publish(outcome: TestPublishOutcome) -> TestPublishFailureGuard {
+fn arm_test_publish(channel: Option<&str>, outcome: TestPublishOutcome) -> TestPublishFailureGuard {
     *TEST_PUBLISH_FAILURE
         .lock()
-        .expect("test publish failure lock poisoned") = Some(outcome);
+        .expect("test publish failure lock poisoned") = Some((channel.map(str::to_owned), outcome));
     TestPublishFailureGuard
 }
 
 pub fn fail_next_test_publish(message: &str) -> TestPublishFailureGuard {
-    arm_test_publish(TestPublishOutcome::Injected(message.to_string()))
+    arm_test_publish(None, TestPublishOutcome::Injected(message.to_string()))
+}
+
+/// Refuse one application channel while allowing unrelated protocol traffic.
+pub fn fail_next_test_publish_on(channel: &str, message: &str) -> TestPublishFailureGuard {
+    arm_test_publish(
+        Some(channel),
+        TestPublishOutcome::Injected(message.to_string()),
+    )
 }
 
 pub fn no_peers_next_test_publish() -> TestPublishFailureGuard {
-    arm_test_publish(TestPublishOutcome::Code(MOSS_ERR_NO_PEERS))
+    arm_test_publish(None, TestPublishOutcome::Code(MOSS_ERR_NO_PEERS))
 }
 
 pub(crate) fn after_next_test_publish(
     accepted: impl FnOnce() + Send + 'static,
 ) -> TestPublishFailureGuard {
-    arm_test_publish(TestPublishOutcome::Accepted(Box::new(accepted)))
+    arm_test_publish(None, TestPublishOutcome::Accepted(Box::new(accepted)))
 }
 
 pub(super) fn tolerate_unmeshed_test_node(
@@ -43,21 +51,24 @@ pub(super) fn tolerate_unmeshed_test_node(
 
 /// The armed outcome for one publish, already turned into what the publish
 /// should return. `None` means nothing was armed and the call goes to Moss.
-pub(super) fn take_test_publish_outcome() -> Option<Result<(), MossFfiError>> {
-    TEST_PUBLISH_FAILURE
+pub(super) fn take_test_publish_outcome(channel: &str) -> Option<Result<(), MossFfiError>> {
+    let mut fault = TEST_PUBLISH_FAILURE
         .lock()
-        .expect("test publish failure lock poisoned")
-        .take()
-        .map(|outcome| match outcome {
-            TestPublishOutcome::Injected(message) => {
-                Err(MossFfiError::InjectedPublishFailure(message))
-            }
-            TestPublishOutcome::Code(code) => check_publish_code(code),
-            TestPublishOutcome::Accepted(accepted) => {
-                accepted();
-                Ok(())
-            }
-        })
+        .expect("test publish failure lock poisoned");
+    if fault
+        .as_ref()
+        .is_some_and(|(target, _)| target.as_deref().is_some_and(|target| target != channel))
+    {
+        return None;
+    }
+    fault.take().map(|(_, outcome)| match outcome {
+        TestPublishOutcome::Injected(message) => Err(MossFfiError::InjectedPublishFailure(message)),
+        TestPublishOutcome::Code(code) => check_publish_code(code),
+        TestPublishOutcome::Accepted(accepted) => {
+            accepted();
+            Ok(())
+        }
+    })
 }
 
 impl Drop for TestPublishFailureGuard {

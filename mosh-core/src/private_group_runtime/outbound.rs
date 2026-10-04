@@ -28,6 +28,7 @@ impl PrivateGroupRuntime {
                 delivery_error: None,
                 retryable: None,
                 retry_count: None,
+                name_change: None,
             });
             let (payload, ciphertext_bytes) = session.encode_text(&message)?;
             let owned_group_id = session.group_id.clone();

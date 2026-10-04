@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChannels, LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
-import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
+import 'package:mosh/src/rust/private_group_runtime.dart'
+    show GroupSnapshot, GroupNameStatus;
 import 'package:mosh/src/state/channel_group_providers.dart';
 
 import '../../support/message_builders.dart';
@@ -24,6 +25,7 @@ Future<void> _openMenu(WidgetTester tester) async {
 GroupSnapshot _snapshot(
         {bool admin = false,
         int members = 2,
+        GroupNameStatus? nameStatus,
         String? invite,
         String fingerprint = ''}) =>
     TestSnapshots.group(
@@ -32,12 +34,31 @@ GroupSnapshot _snapshot(
         messages: [],
         label: 'Design team',
         isAdmin: admin,
+        nameStatus: nameStatus,
         memberCount: BigInt.from(members),
         state: 'Active',
         inviteUri: invite,
         creatorFingerprint: fingerprint);
 
 void main() {
+  for (final status in [
+    const GroupNameStatus(pending: true),
+    const GroupNameStatus(pending: false, error: 'permission_changed'),
+  ]) {
+    testWidgets(
+        'rename status preserves membership, role and MLS state: $status',
+        (tester) async {
+      await _pumpGroup(tester, _snapshot(admin: true, nameStatus: status));
+      expect(
+          find.textContaining('admin, 2 members · MLS Active'), findsOneWidget);
+      expect(
+          find.textContaining(status.pending
+              ? 'Name change waiting to send'
+              : 'Name change rejected'),
+          findsOneWidget);
+    });
+  }
+
   for (final admin in [true, false]) {
     for (final count in [1, 2]) {
       testWidgets('admin=$admin, members=$count: one compact role/status line',

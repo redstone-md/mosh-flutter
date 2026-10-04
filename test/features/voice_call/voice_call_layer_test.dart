@@ -15,6 +15,8 @@ import '../../support/scriptable_gateway.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart';
+import 'package:mosh/src/state/chat_names_provider.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -83,6 +85,30 @@ SessionSnapshot _activeSnapshot(String sessionId) => TestSnapshots.dm(
     );
 
 void main() {
+  testWidgets('resetting an alias updates an already open call modal',
+      (tester) async {
+    final gateway = ScriptableGateway();
+    final bridge = ScriptableBridge(conversations: gateway.conversations);
+    gateway.seedSessions([_outgoingSnapshot('sess-1')]);
+    gateway.conversations.names['dm:sess-1'] = 'Family';
+    final l = await AppLocalizations.delegate.load(const Locale('en'));
+    await pumpScreen(
+        tester, Scaffold(body: VoiceCallLayer(sessionId: 'sess-1', l: l)),
+        overrides: [
+          gatewayProvider.overrideWithValue(gateway),
+          bridgeFacadeProvider.overrideWithValue(bridge)
+        ],
+        settle: false);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('Family'), findsOneWidget);
+    final container =
+        ProviderScope.containerOf(tester.element(find.byType(VoiceCallLayer)));
+    await gateway.resetName(const DmTarget('sess-1'));
+    container.invalidate(chatNamesProvider);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('Family'), findsNothing);
+    expect(find.text('Alice'), findsOneWidget);
+  });
   testWidgets(
     'startVoiceCall routes through gateway.callStart',
     (tester) async {

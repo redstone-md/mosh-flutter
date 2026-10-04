@@ -181,6 +181,16 @@ impl DeviceIdentity {
         SigningKey::from_bytes(&self.record.seed)
     }
 
+    pub(crate) fn chat_names(
+        &self,
+    ) -> crate::chat_names::types::Result<crate::chat_names::ChatNames> {
+        crate::chat_names::ChatNames::open(
+            self.store.clone(),
+            &self.roster().user_id(),
+            &self.device().device_id,
+        )
+    }
+
     pub(crate) fn can_join(&self) -> Result<bool> {
         if self.revoked()? {
             return Ok(true);

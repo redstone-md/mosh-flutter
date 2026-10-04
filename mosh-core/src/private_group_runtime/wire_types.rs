@@ -13,6 +13,12 @@ use crate::shared_node::SharedMossNode;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub(super) enum ControlEnvelope {
+    NameMetadata {
+        group_id: String,
+        operation: super::names::NameOperation,
+        epoch: u64,
+        ciphertext_b64: String,
+    },
     KeyPackage {
         group_id: String,
         participant_id: String,
@@ -47,6 +53,8 @@ pub(super) enum ControlEnvelope {
         group_id: String,
         from_fingerprint: String,
         proposal_b64: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name_state_proof_b64: Option<String>,
     },
     /// AttachmentManifest encrypted as an MLS application message, broadcast
     /// to every member so they can later request the chunks.
@@ -93,11 +101,15 @@ impl ControlEnvelope {
     pub(super) fn is_application(&self) -> bool {
         matches!(
             self,
-            Self::AttachmentManifest { .. } | Self::DmOffer { .. } | Self::TypingIndicator { .. }
+            Self::AttachmentManifest { .. }
+                | Self::DmOffer { .. }
+                | Self::TypingIndicator { .. }
+                | Self::NameMetadata { .. }
         )
     }
     pub(super) fn group_id(&self) -> &str {
         match self {
+            Self::NameMetadata { group_id, .. } => group_id,
             Self::KeyPackage { group_id, .. }
             | Self::Welcome { group_id, .. }
             | Self::Commit { group_id, .. }
@@ -169,6 +181,8 @@ pub(super) struct PersistedGroupSession {
     pub(super) group_id: String,
     pub(super) mesh_id: String,
     pub(super) label: Option<String>,
+    #[serde(default)]
+    pub(super) names: super::names::GroupNames,
     pub(super) display_name: String,
     pub(super) participant_id: String,
     pub(super) device_fingerprint: String,

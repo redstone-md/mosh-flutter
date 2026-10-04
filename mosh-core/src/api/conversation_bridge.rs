@@ -42,6 +42,8 @@ pub enum ConversationBridgeErrorKind {
     NeedsRejoin,
     /// The member's credential is no longer valid in this conversation.
     Revoked,
+    /// The current role does not allow this action.
+    PermissionDenied,
     /// No caller-visible remedy exists for this failure.
     Internal,
 }
@@ -150,6 +152,8 @@ impl From<PrivateGroupError> for ConversationBridgeError {
             PrivateGroupError::MissingMessage(_) => ConversationBridgeErrorKind::MissingMessage,
             PrivateGroupError::DuplicateGroup(_) => ConversationBridgeErrorKind::InvalidInput,
             PrivateGroupError::NotReady => ConversationBridgeErrorKind::NotReady,
+            PrivateGroupError::InvalidName(_) => ConversationBridgeErrorKind::InvalidInput,
+            PrivateGroupError::RenameDenied => ConversationBridgeErrorKind::PermissionDenied,
             PrivateGroupError::Attachment(_) => ConversationBridgeErrorKind::Transfer,
             PrivateGroupError::MissingAttachment(_) => {
                 ConversationBridgeErrorKind::MissingAttachment
@@ -171,6 +175,19 @@ impl From<OrgError> for ConversationBridgeError {
             OrgError::Codec(_) => ConversationBridgeErrorKind::Internal,
         };
         Self::new(kind, error.to_string())
+    }
+}
+
+impl From<crate::chat_names::ChatNameError> for ConversationBridgeError {
+    fn from(error: crate::chat_names::ChatNameError) -> Self {
+        use crate::chat_names::ChatNameErrorKind;
+        let kind = match error.kind {
+            ChatNameErrorKind::InvalidInput => ConversationBridgeErrorKind::InvalidInput,
+            ChatNameErrorKind::Storage => ConversationBridgeErrorKind::Persistence,
+            ChatNameErrorKind::Unauthorized => ConversationBridgeErrorKind::Revoked,
+            ChatNameErrorKind::Unavailable => ConversationBridgeErrorKind::Unavailable,
+        };
+        Self::new(kind, error.message)
     }
 }
 

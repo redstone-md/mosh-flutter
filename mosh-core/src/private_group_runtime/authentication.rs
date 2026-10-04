@@ -76,6 +76,12 @@ impl GroupSession {
             return Ok(());
         }
         match envelope {
+            ControlEnvelope::NameMetadata {
+                operation,
+                epoch,
+                ciphertext_b64,
+                ..
+            } => self.accept_name_metadata(operation, epoch, &ciphertext_b64, sender),
             ControlEnvelope::AttachmentManifest {
                 participant_id,
                 from_device,

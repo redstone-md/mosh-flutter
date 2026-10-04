@@ -19,6 +19,7 @@ pub(super) const MOSS_IDENTITY: TableDefinition<&str, &[u8]> =
 pub(super) const MOSS_IDENTITY_KEY: &str = "node-identity-v1";
 pub(super) const DEVICE_LINK: TableDefinition<&str, &[u8]> = TableDefinition::new("device_link");
 pub(super) const DEVICE_LINK_KEY: &str = "local-device-v1";
+pub(super) const CHAT_NAMES: Rows = TableDefinition::new("chat_names");
 // Key: org pubkey hex -> latest verified roster bytes (multi-org).
 pub(super) const ORG_ROSTERS: TableDefinition<&str, &[u8]> = TableDefinition::new("org_rosters");
 // Key: "<group_id>/<epoch:020>" — zero-padded so lexicographic order == numeric.
@@ -68,7 +69,7 @@ pub const CHANNEL_HISTORY: HistoryTables = HistoryTables {
     label: "channel",
 };
 
-pub(super) const ALL_TABLES: [Rows; 14] = [
+pub(super) const ALL_TABLES: [Rows; 15] = [
     MLS_SNAPSHOT,
     MESSAGES,
     SESSIONS,
@@ -80,6 +81,7 @@ pub(super) const ALL_TABLES: [Rows; 14] = [
     OUTBOUND_ATTEMPTS,
     MOSS_IDENTITY,
     DEVICE_LINK,
+    CHAT_NAMES,
     ORG_ROSTERS,
     GROUP_COMMIT_LOG,
     ORG_RECORDS,

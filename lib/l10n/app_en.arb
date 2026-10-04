@@ -1887,5 +1887,35 @@
   "nativeMenuMinimize": "Minimize",
   "nativeMenuZoom": "Zoom",
   "nativeMenuBringAllToFront": "Bring All to Front",
-  "nativeMenuHelp": "Help"
+  "nativeMenuHelp": "Help",
+  "chatRename": "Rename chat",
+  "chatName": "Chat name",
+  "chatNameSave": "Save",
+  "chatNameReset": "Reset name",
+  "chatNamePersonal": "Visible only to you. Syncs with your linked devices.",
+  "chatNameShared": "The new name will be visible to everyone in the group.",
+  "chatNameInvalid": "Use 1–64 characters on one line, without control characters.",
+  "chatNameWaiting": "Name change waiting to send",
+  "chatNamePermissionDenied": "You don't have permission to rename this chat.",
+  "chatNameRejected": "Name change rejected: admin rights changed.",
+  "chatNameChanged": "{actor} changed the group name to {name}",
+  "@chatNameChanged": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatOriginalName": "Original name: {name}",
+  "@chatOriginalName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNameSuperseded": "Name change superseded by a later name."
 }

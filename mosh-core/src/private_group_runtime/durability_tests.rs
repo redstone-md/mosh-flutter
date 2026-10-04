@@ -1,5 +1,8 @@
 use super::*;
-use crate::moss_ffi::{drain_received_messages, fail_next_test_publish, MOSS_TEST_LOCK};
+use crate::moss_ffi::{
+    drain_received_messages, fail_next_test_publish, fail_next_test_publish_on,
+    TestPublishFailureGuard, MOSS_TEST_LOCK,
+};
 
 use crate::test_temp_directory::TempDirectory;
 
@@ -9,6 +12,17 @@ mod retry_authentication;
 #[path = "durability_tests/welcome_offer_authentication.rs"]
 mod welcome_offer_authentication;
 
+#[path = "durability_tests/names.rs"]
+mod names;
+
+#[path = "durability_tests/name_wire.rs"]
+mod name_wire;
+
+#[path = "durability_tests/names_authority.rs"]
+mod names_authority;
+#[path = "durability_tests/names_handoff.rs"]
+mod names_handoff;
+
 struct Fixture {
     store: Arc<Persistence>,
     runtime: PrivateGroupRuntime,
@@ -17,6 +31,11 @@ struct Fixture {
 }
 
 impl Fixture {
+    fn refuse_data_publication(&self, message: &str) -> TestPublishFailureGuard {
+        let channel = &self.runtime.groups.get(&self.id).unwrap().data_channel;
+        fail_next_test_publish_on(channel, message)
+    }
+
     fn empty() -> Self {
         drain_received_messages();
         let directory = TempDirectory::new("mosh-private-group-durable");
