@@ -1,9 +1,8 @@
 // Sending, failing, and retrying, over all three conversation kinds.
 //
 // A send that throws keeps the text in the composer and shows an error
-// banner with a Retry button. A send that works clears the composer -- but
-// only if it still holds the text that was sent, so anything typed while the
-// send was in flight survives.
+// banner with a Retry button. Submission clears immediately; completion
+// preserves a newer draft.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -90,7 +89,7 @@ void main() {
       await tester.tap(find.byKey(kComposerSendButtonKey));
       await tester.pump();
 
-      expect(_composer(tester).text, 'hello there');
+      expect(_composer(tester).text, '');
 
       gateway.release(GatewayMethod.send);
       await tester.pumpAndSettle();
@@ -107,9 +106,7 @@ void main() {
       await tester.tap(find.byKey(kComposerSendButtonKey));
       await tester.pump();
 
-      // The field is disabled while the send runs, so write to the
-      // controller the way a still-editable field would.
-      _composer(tester).text = 'hello there and more';
+      await tester.enterText(_composerField(), 'hello there and more');
       await tester.pump();
 
       gateway.release(GatewayMethod.send);

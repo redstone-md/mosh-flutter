@@ -10,11 +10,10 @@ class ConversationControllerState {
     this.offerBusy = false,
     this.offeredFingerprints = const <String>{},
     this.chatError,
-    this.lastFailedBody,
     this.pendingOpen,
   });
 
-  /// A text, file or voice send is in flight.
+  /// A file or voice send is in flight. Text admission has its own queue.
   final bool sending;
 
   /// How many attachment transfers are running.
@@ -29,16 +28,10 @@ class ConversationControllerState {
   /// The failure shown in the error banner above the conversation.
   final ConversationActionError? chatError;
 
-  /// The text of the last send that failed, kept so Retry can send it again.
-  final String? lastFailedBody;
-
   /// An attachment the user asked to open before its download finished.
   final AttachmentDescriptor? pendingOpen;
 
   bool get transferBusy => transferOperations > 0;
-
-  /// Whether the error banner's Retry button does anything.
-  bool get canRetrySend => lastFailedBody != null;
 
   ConversationControllerState copyWith({
     bool? sending,
@@ -46,7 +39,6 @@ class ConversationControllerState {
     bool? offerBusy,
     Set<String>? offeredFingerprints,
     Object? chatError = _keep,
-    Object? lastFailedBody = _keep,
     Object? pendingOpen = _keep,
   }) =>
       ConversationControllerState(
@@ -57,9 +49,6 @@ class ConversationControllerState {
         chatError: identical(chatError, _keep)
             ? this.chatError
             : chatError as ConversationActionError?,
-        lastFailedBody: identical(lastFailedBody, _keep)
-            ? this.lastFailedBody
-            : lastFailedBody as String?,
         pendingOpen: identical(pendingOpen, _keep)
             ? this.pendingOpen
             : pendingOpen as AttachmentDescriptor?,
@@ -70,9 +59,8 @@ class ConversationControllerState {
   static const _keep = Object();
 }
 
-/// The result of a send or a retry. The screen clears the composer only when
-/// [sent] is true and the composer still holds [body], so text typed while
-/// the send was in flight survives.
+/// The result of native admission. A refused send may restore an untouched
+/// empty draft; successful completion never clears a later draft.
 class ConversationSendOutcome {
   const ConversationSendOutcome({required this.sent, required this.body});
 

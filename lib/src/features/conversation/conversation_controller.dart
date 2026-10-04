@@ -8,6 +8,7 @@ import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart'
     show ConversationAttachmentCallbacks;
 import 'package:mosh/src/features/conversation/conversation_state.dart';
+import 'package:mosh/src/features/conversation/conversation_text_sends.dart';
 import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/features/conversation/conversation_dm_offer.dart';
 import 'package:mosh/src/features/shared/attachment_open.dart';
@@ -89,34 +90,15 @@ class ConversationController extends Notifier<ConversationControllerState> {
     state = state.copyWith(chatError: ConversationActionError.of(error));
   }
 
-  /// Sends [body]. On success it clears the failed send and the error and
-  /// re-reads the conversation; on failure it keeps the text so Retry can
-  /// send it again, and shows the error.
-  Future<ConversationSendOutcome> sendBody(String body) async {
-    if (body.isEmpty || state.sending) {
-      return ConversationSendOutcome.nothingToSend;
-    }
-    state = state.copyWith(sending: true, chatError: null);
-    try {
-      await ref.read(gatewayProvider).send(target, body: body);
-      state = state.copyWith(lastFailedBody: null, chatError: null);
-      refresh();
-      return ConversationSendOutcome(sent: true, body: body);
-    } catch (error) {
-      state = state.copyWith(lastFailedBody: body);
-      _report(error);
-      return ConversationSendOutcome(sent: false, body: body);
-    } finally {
-      if (ref.mounted) state = state.copyWith(sending: false);
-    }
+  /// Captures one submission in the conversation's ordered admission queue.
+  Future<ConversationSendOutcome> sendBody(String body) {
+    if (body.isNotEmpty) state = state.copyWith(chatError: null);
+    return ref.read(conversationTextSendsProvider(target).notifier).send(body);
   }
 
-  /// Sends the last failed text again.
-  Future<ConversationSendOutcome> retryFailedSend() async {
-    final body = state.lastFailedBody;
-    if (body == null) return ConversationSendOutcome.nothingToSend;
-    return sendBody(body);
-  }
+  /// Retries the oldest refused submission, preserving other failures.
+  Future<ConversationSendOutcome> retryFailedSend() =>
+      ref.read(conversationTextSendsProvider(target).notifier).retry();
 
   /// The [[Typing indicator]] emit-on-input hook: hands the runtime the
   /// keystroke, which throttles its wire frame on its own ~3 s cadence
@@ -349,13 +331,14 @@ class ConversationController extends Notifier<ConversationControllerState> {
   /// it happened: the screen navigates away only then, and a failure stays
   /// in the banner.
   Future<bool> leave() async {
-    state = state.copyWith(lastFailedBody: null, chatError: null);
+    state = state.copyWith(chatError: null);
     try {
       await ref.read(gatewayProvider).leave(target);
     } catch (error) {
       _report(error);
       return false;
     }
+    ref.invalidate(conversationTextSendsProvider(target));
     refresh();
     return true;
   }

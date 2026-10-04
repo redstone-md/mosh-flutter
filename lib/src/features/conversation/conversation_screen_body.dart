@@ -15,6 +15,7 @@ import 'package:mosh/src/features/conversation/conversation_peer_status.dart';
 import 'package:mosh/src/features/conversation/conversation_search_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_state.dart';
+import 'package:mosh/src/features/conversation/conversation_text_sends.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/typing_hint.dart';
 import 'package:mosh/src/features/shared/attachment_picker.dart';
@@ -56,7 +57,7 @@ class ConversationScreenBody extends ConsumerWidget {
   /// Sends what the composer holds.
   final VoidCallback onSend;
 
-  /// Sends the last failed message again.
+  /// Retries the oldest refused text submission.
   final Future<void> Function() onRetrySend;
 
   /// Opens an attachment. The screen owns the viewer and the file launcher.
@@ -80,10 +81,12 @@ class ConversationScreenBody extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final async = ref.watch(conversationSnapshotProvider(target));
     final state = ref.watch(conversationControllerProvider(target));
+    final sends = ref.watch(conversationTextSendsProvider(target));
+    final sendBusy = state.sending || sends.pending > 0;
     final controller =
         ref.watch(conversationControllerProvider(target).notifier);
     final call = ref.watch(conversationCallBindingProvider);
-    final chatError = state.chatError;
+    final chatError = state.chatError ?? sends.firstFailure?.error;
     return SafeArea(
       child: Stack(
         children: [
@@ -92,13 +95,15 @@ class ConversationScreenBody extends ConsumerWidget {
               if (chatError != null)
                 ChatErrorBanner(
                   message: chatError.describe(l),
-                  onRetry: state.canRetrySend ? onRetrySend : null,
+                  onRetry: state.chatError == null && sends.firstFailure != null
+                      ? onRetrySend
+                      : null,
                 ),
               ConversationBanners(target: target, snapshot: async.value),
               ConversationSearchRow(chrome: chrome),
-              Expanded(child: _messages(async, state, controller, l)),
+              Expanded(child: _messages(async, state, controller, l, sendBusy)),
               TypingHint(names: typingNamesOf(async.value)),
-              _composer(l, state, controller, _revoked(async.value)),
+              _composer(l, sendBusy, controller, _revoked(async.value)),
             ],
           ),
           if (chrome.showPeerStatus && !detailsDocked)
@@ -140,9 +145,10 @@ class ConversationScreenBody extends ConsumerWidget {
     ConversationControllerState state,
     ConversationController controller,
     AppLocalizations l,
+    bool sendBusy,
   ) =>
       ChatDropZone(
-        disabled: state.sending || _revoked(async.value),
+        disabled: sendBusy || _revoked(async.value),
         onAttach: controller.sendAttachment,
         onError: onAttachmentPickError,
         child: async.when(
@@ -193,14 +199,14 @@ class ConversationScreenBody extends ConsumerWidget {
 
   Widget _composer(
     AppLocalizations l,
-    ConversationControllerState state,
+    bool sendBusy,
     ConversationController controller,
     bool disabled,
   ) =>
       ConversationComposer(
         disabled: disabled,
         controller: composer,
-        sending: state.sending,
+        sending: sendBusy,
         placeholder: l.chatComposerPlaceholder,
         sendLabel: l.chatSendLabel,
         onSend: onSend,

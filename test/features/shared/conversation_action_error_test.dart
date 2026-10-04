@@ -115,6 +115,9 @@ void main() {
       gateway.failNext(GatewayMethod.send, error: _bridgeError(kind));
       await _sendText(tester, 'hello $kind');
       expect(_bannerText(tester), wording[kind], reason: '$kind');
+      await _controller(tester, dm).retryFailedSend();
+      await tester.pumpAndSettle();
+      expect(find.byType(ChatErrorBanner), findsNothing);
     }
   });
 

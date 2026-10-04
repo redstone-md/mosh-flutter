@@ -25,8 +25,7 @@ const Key kComposerSendButtonKey = Key('composer-send-button');
 String? _storedComposerInputDeviceId() => audioInputDeviceId();
 
 /// The shared DM + channel + group composer. Stateless because all state is
-/// transient or owned by the screen (`controller` + `sending` are passed in;
-/// the screen owns the `sending` flag + post-send invalidate).
+/// transient or owned by the conversation's screen and send controllers.
 class ConversationComposer extends StatelessWidget {
   const ConversationComposer({
     super.key,
@@ -55,12 +54,8 @@ class ConversationComposer extends StatelessWidget {
   final bool sending;
 
   /// A hard gate that disables the picker, voice mic, text input, and send
-  /// button INDEPENDENTLY of an in-flight send. `sending` separately swaps
-  /// the send label to "Sending" + shows the busy spinner while a send runs.
-  /// The send button additionally requires non-empty text. `disabled`
-  /// exists so a screen can gate input without showing a spinner.
-  /// Defaults to false so existing callers (which pass only `sending`) are
-  /// unchanged.
+  /// button independently of admission. `sending` gates file/voice picking
+  /// and shows progress for an empty draft; text remains editable/submittable.
   final bool disabled;
   final String placeholder;
   final String sendLabel;
@@ -95,7 +90,6 @@ class ConversationComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canSend = !sending && !disabled && controller.text.trim().isNotEmpty;
     // Composer chrome: bg-1 surface with a hairline top border.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
@@ -106,7 +100,7 @@ class ConversationComposer extends StatelessWidget {
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
         builder: (context, value, _) {
-          final enabled = !sending && !disabled && value.text.trim().isNotEmpty;
+          final enabled = !disabled && value.text.trim().isNotEmpty;
           // The control group uses 16px corners around 8px control corners.
           return Container(
             constraints: const BoxConstraints(minHeight: 54),
@@ -161,7 +155,10 @@ class ConversationComposer extends StatelessWidget {
                     },
                     child: TextField(
                       controller: controller,
-                      enabled: !sending && !disabled,
+                      enabled: !disabled,
+                      // Finalize IME composition without Flutter's default
+                      // unfocus, keeping the next keyboard submission ready.
+                      onEditingComplete: controller.clearComposing,
                       // Emit-on-input: every change that leaves a non-empty
                       // draft asks the runtime to signal typing (it throttles
                       // repeats on its own cadence). A cleared draft sends
@@ -172,7 +169,9 @@ class ConversationComposer extends StatelessWidget {
                         }
                       },
                       onSubmitted: (_) {
-                        if (canSend) onSend();
+                        if (!disabled && controller.text.trim().isNotEmpty) {
+                          onSend();
+                        }
                       },
                       // A bare 13px field on the box's own background -- no
                       // border, no fill of its own.
@@ -215,7 +214,7 @@ class ConversationComposer extends StatelessWidget {
                         disabledBackgroundColor: MoshColors.bg3,
                         disabledForegroundColor: MoshColors.fg4,
                       ),
-                      child: sending
+                      child: sending && value.text.trim().isEmpty
                           ? const SizedBox(
                               width: 16,
                               height: 16,

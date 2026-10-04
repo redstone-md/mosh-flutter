@@ -1,7 +1,7 @@
 // ConversationComposer `disabled` vs `sending` test: the composer keeps a
 // hard `disabled` gate distinct from the in-flight `sending` flag. The
 // send button is the cleanest assertion target: its `onPressed` is null
-// iff the gate (`sending || disabled`) is set OR the text is empty.
+// iff the hard gate is set or the text is empty. Sending permits more text.
 // Pumping the composer directly (no screen) keeps the test hermetic; the
 // AttachmentPicker file dialog only opens on tap, so pumping it is safe.
 import 'package:flutter/material.dart';
@@ -65,12 +65,11 @@ void main() {
         reason: 'send enabled when not sending, not disabled, non-empty');
   });
 
-  testWidgets('sending true disables send even when disabled false',
-      (tester) async {
+  testWidgets('sending permits another draft and submission', (tester) async {
     final c = TextEditingController(text: 'hello');
     await pump(tester, sending: true, disabled: false, c: c);
     final FilledButton b = tester.widget(find.byType(FilledButton));
-    expect(b.onPressed, isNull,
-        reason: 'sending gates send even when disabled is false');
+    expect(b.onPressed, isNotNull);
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isTrue);
   });
 }

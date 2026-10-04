@@ -67,6 +67,12 @@ and navigation. Action methods return results instead of navigating or editing
 the composer. A sealed `ConversationSnapshot` gives shared rendering one message
 shape while preserving each kind's native snapshot for kind-specific controls.
 
+`ConversationTextSends` admits submitted drafts in FIFO order without blocking
+editing or waiting for delivery. It keeps refused submissions individually for
+Retry. The existing native outbox and snapshot rows own durable delivery states.
+The screen clears each draft at submission and restores refused text only when
+that draft has remained untouched; delayed completion never clears newer input.
+
 ```mermaid
 flowchart TD
     Headers[DM / channel / group headers] --> Screen[ConversationScreen]
