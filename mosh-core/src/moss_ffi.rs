@@ -78,6 +78,7 @@ pub enum MossFfiError {
     InvalidCString(String),
     Operation { name: &'static str, code: i32 },
     DeliveryTimeout,
+    IdentityUnavailable,
     InjectedPublishFailure(String),
     NoPeers,
 }
@@ -103,6 +104,9 @@ impl std::fmt::Display for MossFfiError {
             Self::InvalidCString(value) => write!(formatter, "Moss string contains NUL: {value}"),
             Self::Operation { name, code } => write!(formatter, "Moss {name} failed: {code}"),
             Self::DeliveryTimeout => write!(formatter, "Moss delivery timed out"),
+            Self::IdentityUnavailable => {
+                write!(formatter, "Moss identity signer could not be verified")
+            }
             Self::InjectedPublishFailure(message) => write!(formatter, "{message}"),
             Self::NoPeers => write!(formatter, "no peers yet, so the message did not go out"),
         }

@@ -92,35 +92,19 @@ pub fn send_dm_offer(
     listen_port: u16,
     static_peer: Option<String>,
 ) -> Result<InviteCreated, ConversationBridgeError> {
-    // Mint the invite via the private-DM runtime, then record + link it in
-    // the org runtime. On an org-side failure
-    // drop the orphan local invite so it does not linger as a dead "waiting"
-    // session.
-    let invite = {
-        let mut runtime = crate::api::private_dm::ensure_runtime()?;
-        runtime.create_targeted_invite(
-            StartSessionRequest {
-                display_name,
-                listen_port,
-                static_peer,
-            },
-            &target_peer_id,
-        )?
-    };
-    let offered = (|| {
-        let mut runtime = ensure_runtime()?;
-        runtime.send_dm_offer(&org_pubkey, &target_peer_id, &invite.invite_uri)?;
-        runtime
-            .link_dm(&org_pubkey, &target_peer_id, &invite.session_id)
-            .map_err(ConversationBridgeError::from)
-    })();
-    if let Err(error) = offered {
-        // The offer never reached the mesh: drop the orphan local invite.
-        let mut runtime = crate::api::private_dm::ensure_runtime()?;
-        let _ = runtime.close_session(&invite.session_id);
-        return Err(error);
-    }
-    Ok(invite)
+    let mut org = ensure_runtime()?;
+    let mut dm = crate::api::private_dm::ensure_runtime()?;
+    workflows::create_and_offer_dm(
+        &mut org,
+        &mut dm,
+        &org_pubkey,
+        &target_peer_id,
+        StartSessionRequest {
+            display_name,
+            listen_port,
+            static_peer,
+        },
+    )
 }
 
 /// Accept an org-carried DM offer.

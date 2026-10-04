@@ -1,5 +1,35 @@
 use super::*;
 
+unsafe extern "C" fn no_public_key(_handle: MossHandle) -> *mut u8 {
+    std::ptr::null_mut()
+}
+
+unsafe extern "C" fn ignore_keystore(
+    _load: Option<KeyStoreLoadCallback>,
+    _save: Option<KeyStoreSaveCallback>,
+) -> i32 {
+    MOSS_OK
+}
+
+#[test]
+fn initialization_rejects_an_unverifiable_or_uncaptured_identity() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let _restore = replace_test_keystore(None);
+    let mut missing_public = MossFfiRuntime::load_default().unwrap();
+    missing_public.get_public_key = no_public_key;
+    assert!(Arc::new(missing_public)
+        .init_node("missing-public", &node_config(0, None))
+        .is_err());
+    let mut missing_signer = MossFfiRuntime::load_default().unwrap();
+    missing_signer.uninstall_keystore().unwrap();
+    missing_signer.set_key_store = ignore_keystore;
+    assert!(Arc::new(missing_signer)
+        .init_node("missing-signer", &node_config(0, None))
+        .is_err());
+    let runtime = Arc::new(MossFfiRuntime::load_default().unwrap());
+    assert!(runtime.init_node("verified", &node_config(0, None)).is_ok());
+}
+
 struct MemStore(Mutex<Option<Vec<u8>>>);
 
 impl MossKeyStore for MemStore {
