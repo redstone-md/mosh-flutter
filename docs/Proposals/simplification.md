@@ -104,7 +104,7 @@ No second organization write follows successful native admission. Group creation
 validates targets first and returns the created group while attempting every
 invitation, so one publication failure does not hide a durable group.
 
-Five inline threads remain open. Two suggestions are disproved by the pinned
+Five inline findings lack complete fixes. Two suggestions are disproved by the pinned
 OpenMLS implementation and the passing Windows corrupt-cache test. Three
 identity findings need a protocol migration: plain-group DM offers lack sender
 authentication, and attachment/typing Moss identity claims are not bound to the
