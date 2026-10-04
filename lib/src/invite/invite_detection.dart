@@ -1,17 +1,3 @@
-/// Pure UI-helper: classify a pasted string as a mosh invite.
-///
-/// Per ADR 0012, the detection logic is a pure function on a `String` —
-/// the clipboard read itself happens in the widget layer via Flutter's
-/// `Clipboard.getData`, not here.
-///
-/// This module routes the dm/group parse through `parseMoshInvite` /
-/// `parseMoshGroupInvite` and surfaces the canonical `InviteParseError.code`
-/// — `invite_uri.dart` is the single source of truth for invite-URI parsing
-/// (ADR 0012). It still owns the bits the URI parser has no concept of:
-/// `org` bundle detection, the `_InviteFamily` host switch, and the
-/// family-branched fingerprint message.
-library;
-
 import 'package:mosh/src/invite/invite_uri.dart';
 
 export 'package:mosh/src/invite/invite_uri.dart'

@@ -19,17 +19,14 @@ impl PrivateDmSession {
             device: self.device_id.clone(),
             until_ms: TypingGate::deadline(now),
         };
-        let Ok(body_json) = serde_json::to_vec(&body) else {
-            return;
-        };
-        let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
+        let Ok(ciphertext_b64) = self.crypto.encrypt_json(&body) else {
             return;
         };
         let envelope = ControlEnvelope::TypingIndicator {
             session_id: self.session_id.clone(),
             participant_id: self.participant_id.clone(),
             from_device: self.device_id.clone(),
-            typing_ciphertext_b64: encode(&ciphertext),
+            typing_ciphertext_b64: ciphertext_b64,
         };
         let Ok(payload) = serde_json::to_vec(&envelope) else {
             return;
@@ -178,16 +175,13 @@ impl PrivateDmSession {
         let body = ReadReceiptBody {
             message_id: message_id.to_string(),
         };
-        let Ok(body_json) = serde_json::to_vec(&body) else {
-            return Ok(());
-        };
-        let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
+        let Ok(ciphertext_b64) = self.crypto.encrypt_json(&body) else {
             return Ok(());
         };
         let envelope = ControlEnvelope::ReadReceipt {
             session_id: self.session_id.clone(),
             participant_id: self.participant_id.clone(),
-            receipt_ciphertext_b64: encode(&ciphertext),
+            receipt_ciphertext_b64: ciphertext_b64,
         };
         let Ok(payload) = serde_json::to_vec(&envelope) else {
             return Ok(());

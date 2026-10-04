@@ -1,12 +1,3 @@
-/// AES-GCM frame seal / open for a two-party voice call. The wire frame is
-/// `[seq:u64 BE][ciphertext-with-16-byte-tag]`; the AES-GCM nonce is
-/// `[nonce_prefix (4)][seq (8)]`. The high bit of `seq` distinguishes
-/// caller vs callee so the two participants never collide nonces while
-/// sharing one key. The pure byte helpers (buildNonce / buildFrame /
-/// parseFrame / direction-bit constants) are reused from `frame_codec.dart`
-/// (DRY).
-library;
-
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';

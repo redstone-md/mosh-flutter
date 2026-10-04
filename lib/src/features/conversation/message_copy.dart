@@ -1,15 +1,3 @@
-/// Copying message text, the way Telegram Desktop and Discord do it.
-///
-/// [MessageSelectionArea] wraps the message list in a [SelectionArea]: text
-/// drag-selects across messages and copies with Ctrl/Cmd+C or the platform
-/// selection menu (right-click on desktop, long-press on mobile). That menu
-/// also offers "Copy text" for the message the pointer went down on.
-///
-/// [CopyableMessage] wraps one message row. It tells the area which message
-/// was pressed, takes keyboard focus so Ctrl/Cmd+C copies the whole message,
-/// and gives screen readers a "Copy text" action.
-library;
-
 import 'dart:async' show unawaited;
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;

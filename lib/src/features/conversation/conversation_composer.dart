@@ -1,18 +1,3 @@
-/// Shared conversation composer for the DM + channel + group screens. All
-/// three screens wire AttachmentPicker (paperclip) + VoiceComposer (mic) +
-/// TextField + send button through this widget; the screen owns the
-/// controller + sending flag + the per-kind send*Attachment / sendVoice
-/// Gateway seam.
-//
-// Layout: composer box -> AttachmentPicker (when onAttach) -> VoiceComposer
-// (when onSendVoice) -> input -> send button. Drag-drop (ChatDropZone) is a
-// later slice.
-//
-// Disabled gates the picker + voice mic + input + send button; sending (a
-// separate flag) swaps the send icon for a spinner and forces enabled
-// false. onSend fires on button or submit.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 

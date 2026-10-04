@@ -1,7 +1,3 @@
-// Stages of the [MediaViewer]: the media_kit-backed video + audio branches
-// and the shared playback placeholder. A `part` of media_viewer.dart so the
-// stage widgets stay library-private while the file stays under the 400-line
-// repo cap.
 part of 'media_viewer.dart';
 
 /// The video branch (a `video` element with `src controls autoPlay`).
@@ -15,14 +11,10 @@ class _VideoStage extends StatefulWidget {
   const _VideoStage({
     required this.descriptor,
     required this.src,
-    required this.maxStageWidth,
-    required this.maxStageHeight,
   });
 
   final AttachmentDescriptor descriptor;
   final String src;
-  final double maxStageWidth;
-  final double maxStageHeight;
 
   @override
   State<_VideoStage> createState() => _VideoStageState();
@@ -81,28 +73,17 @@ class _VideoStageState extends State<_VideoStage> {
   Widget build(BuildContext context) {
     final controller = _controller;
     if (controller == null) {
-      // Fallback (test env / unsupported platform) -- the same placeholder
-      // card the viewer used before the slice-3 player wiring.
       return _PlaybackPlaceholderCard(
         fileName: widget.descriptor.fileName,
         icon: Icons.play_circle_filled,
-        bg2: MoshColors.bg2,
       );
     }
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: widget.maxStageWidth,
-        maxHeight: widget.maxStageHeight,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Video(
-          controller: controller,
-          // Material controls (play/pause/seek/volume
-          // + fullscreen), the closest native counterpart.
-          controls: MaterialVideoControls,
-          fill: Colors.transparent,
-        ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Video(
+        controller: controller,
+        controls: MaterialVideoControls,
+        fill: Colors.transparent,
       ),
     );
   }
@@ -158,12 +139,10 @@ class _AudioStage extends StatefulWidget {
   const _AudioStage({
     required this.descriptor,
     required this.src,
-    required this.maxStageWidth,
   });
 
   final AttachmentDescriptor descriptor;
   final String src;
-  final double maxStageWidth;
 
   @override
   State<_AudioStage> createState() => _AudioStageState();
@@ -229,89 +208,77 @@ class _AudioStageState extends State<_AudioStage> {
       return _PlaybackPlaceholderCard(
         fileName: widget.descriptor.fileName,
         icon: Icons.play_circle_filled,
-        bg2: MoshColors.bg2,
       );
     }
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: widget.maxStageWidth),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
-        // `.media-viewer-audio { padding: 32px 40px; border: 1px solid
-        // var(--line); border-radius: 14px; background: var(--bg-2) }`.
-        decoration: BoxDecoration(
-          color: MoshColors.bg2,
-          border: Border.all(color: MoshColors.line),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.play_circle_filled,
-              size: 32,
-              color: theme.colorScheme.primary,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+      // `.media-viewer-audio { padding: 32px 40px; border: 1px solid
+      // var(--line); border-radius: 14px; background: var(--bg-2) }`.
+      decoration: BoxDecoration(
+        color: MoshColors.bg2,
+        border: Border.all(color: MoshColors.line),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.play_circle_filled,
+            size: 32,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            widget.descriptor.fileName,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: theme.colorScheme.onSurface,
             ),
-            const SizedBox(height: 14),
-            Text(
-              widget.descriptor.fileName,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: theme.colorScheme.onSurface,
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+                onPressed: () => player.playOrPause(),
               ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-                  onPressed: () => player.playOrPause(),
+              Expanded(
+                child: Slider(
+                  value: _position.inMilliseconds.toDouble(),
+                  min: 0,
+                  max: _duration.inMilliseconds.toDouble().clamp(
+                        1,
+                        double.infinity,
+                      ),
+                  onChanged: (value) =>
+                      player.seek(Duration(milliseconds: value.round())),
                 ),
-                Expanded(
-                  child: Slider(
-                    value: _position.inMilliseconds.toDouble(),
-                    min: 0,
-                    max: _duration.inMilliseconds.toDouble().clamp(
-                          1,
-                          double.infinity,
-                        ),
-                    onChanged: (value) =>
-                        player.seek(Duration(milliseconds: value.round())),
-                  ),
+              ),
+              SizedBox(
+                width: 80,
+                child: MediaAudioTimeLabel(
+                  position: _position,
+                  duration: _duration,
                 ),
-                SizedBox(
-                  width: 80,
-                  child: MediaAudioTimeLabel(
-                    position: _position,
-                    duration: _duration,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-/// The video / audio / other placeholder card
-/// (`display:flex; flex-direction:column; align-items:center; gap:14px;
-/// padding:32px 40px; border:1px var(--line); border-radius:14px;
-/// background:var(--bg-2); color:var(--moss)`; `strong` -> `color:var(--fg-1);
-/// font-size:13px`). Used for video, audio, and the "other" file branch
-/// (each with a different icon). A real player is a slice-3 follow-up.
 class _PlaybackPlaceholderCard extends StatelessWidget {
   const _PlaybackPlaceholderCard({
     required this.fileName,
     required this.icon,
-    required this.bg2,
   });
 
   final String fileName;
   final IconData icon;
-  final Color bg2;
 
   @override
   Widget build(BuildContext context) {
@@ -319,9 +286,7 @@ class _PlaybackPlaceholderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
       decoration: BoxDecoration(
-        // bg-2 background.
-        color: bg2,
-        // 1px line border.
+        color: MoshColors.bg2,
         border: Border.all(color: theme.dividerColor),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -329,7 +294,6 @@ class _PlaybackPlaceholderCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
-        // 14px gap between icon and file name.
         children: [
           Icon(
             // Play icon (video/audio) or file icon (other).
@@ -342,7 +306,6 @@ class _PlaybackPlaceholderCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             fileName,
-            // fg-1, 13px, bold.
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 13,

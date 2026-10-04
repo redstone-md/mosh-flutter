@@ -1,30 +1,3 @@
-// Shared AttachmentPicker. A paperclip IconButton that
-// opens the native file picker (file_picker `FilePicker.pickFile`), reads the
-// picked file's bytes via `PlatformFile.readAsBytes()`, infers the MIME type
-// from the extension (`package:mime lookupMimeType`, since file_picker does
-// not expose a MIME), enforces the 50 MB
-// ceiling, and hands a ready-to-send [PickedAttachment] to the composer via
-// `onPick`.
-//
-// There is no hidden input to coordinate -- `FilePicker.pickFile`
-// opens the native picker directly from the button's `onPressed`. The button
-// is a plain `IconButton` with
-// `Icons.attach_file` (the Material paperclip). `tooltip` provides the
-// accessibility label. `onPressed`
-// is null when `disabled`. When the picker is
-// cancelled or returns no file, nothing happens.
-//
-// Voice + ChatDropZone are SEPARATE concerns: voice is its
-// own VoiceComposer widget (a later atomic), and ChatDropZone is a drag-drop
-// wrapper that also calls `onAttach`. This widget is JUST the paperclip path.
-//
-// 50 MB ceiling: the picker rejects `file.size >
-// ATTACHMENT_MAX_BYTES` (50 * 1024 * 1024) BEFORE
-// reading bytes (so a 500 MB file is rejected without loading it into RAM).
-// On overflow `onError(AttachmentTooLarge)` fires so the screen surfaces the
-// localized limit message (the composer does not hard-code the message).
-library;
-
 import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;
 

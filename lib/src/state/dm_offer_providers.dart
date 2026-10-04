@@ -1,15 +1,3 @@
-// DM-offer rail server-state provider. Flattens the per-channel + per-group
-// dmOffers lists into one flat list of [PendingDmOffer] tagged with the
-// originating host + kind. The sessions rail renders one [OfferRailEntry]
-// per pending offer at the top of the rail (order: offers -> sessions ->
-// groups -> channels -> orgs).
-//
-// Per ADR 0010: this is a derived provider (no Gateway call of its own --
-// it watches the channel and group entries of the conversation list, the
-// existing server-state reads), so it auto-refreshes when either list
-// invalidates (after a dismiss/join/leave). No new Rust / frb codegen.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart'

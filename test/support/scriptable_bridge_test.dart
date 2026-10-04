@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/api/conversation_bridge.dart';
 import 'package:mosh/src/rust/channel_runtime.dart' show JoinChannelRequest;
+import 'package:mosh/src/rust/org_runtime.dart' show JoinOrgRequest;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 
 import 'gateway_snapshots.dart';
@@ -13,6 +14,93 @@ import 'scriptable_gateway.dart';
 import 'scriptable_bridge.dart';
 
 void main() {
+  test('joining an organization retains the snapshot for list and poll',
+      () async {
+    final bridge = ScriptableBridge();
+    final joined = await bridge.joinOrg(
+      request: const JoinOrgRequest(
+        bundleUri: 'mosh://org?org=org-1',
+        displayName: 'alice',
+        listenPort: 8765,
+      ),
+    );
+
+    expect(await bridge.listOrgs(), [joined]);
+    expect(await bridge.pollOrg(orgPubkey: joined.orgPubkey), same(joined));
+  });
+
+  test('leaving an organization removes it from later lists', () async {
+    final bridge = ScriptableBridge()
+      ..seedOrgs([cannedOrgSnapshot(orgPubkey: 'org-1')]);
+
+    await bridge.leaveOrg(orgPubkey: 'org-1');
+
+    expect(await bridge.listOrgs(), isEmpty);
+  });
+
+  test('a failed organization leave retains its previous snapshot', () async {
+    final org = cannedOrgSnapshot(orgPubkey: 'org-1');
+    final bridge = ScriptableBridge()
+      ..seedOrgs([org])
+      ..failNext(BridgeMethod.leaveOrg);
+
+    await expectLater(
+      bridge.leaveOrg(orgPubkey: org.orgPubkey),
+      throwsException,
+    );
+
+    expect(await bridge.listOrgs(), [org]);
+    expect(await bridge.pollOrg(orgPubkey: org.orgPubkey), same(org));
+  });
+
+  test('organization DM offers create sessions shared with the gateway',
+      () async {
+    final bridge = ScriptableBridge();
+    final gateway = ScriptableGateway(conversations: bridge.conversations);
+    final offered = await bridge.sendOrgDmOffer(
+      orgPubkey: 'org-1',
+      targetPeerId: 'bob',
+      displayName: 'alice',
+      listenPort: 8765,
+    );
+
+    final listed = (await bridge.listSessions()).sessions;
+    expect(listed, hasLength(1));
+    final snapshot = await gateway.poll(DmTarget(offered.sessionId));
+    expect(snapshot, same(listed.single));
+    expect(snapshot.displayName, 'alice');
+    expect(snapshot.role, 'inviter');
+    expect(snapshot.inviteUri, offered.inviteUri);
+    expect(snapshot.fingerprint, offered.fingerprint);
+    expect(Uri.parse(offered.inviteUri).queryParameters['session'],
+        offered.sessionId);
+
+    final second = await bridge.sendOrgDmOffer(
+      orgPubkey: 'org-1',
+      targetPeerId: 'carol',
+      displayName: 'alice',
+      listenPort: 8765,
+    );
+    expect(second.sessionId, isNot(offered.sessionId));
+    expect((await bridge.listSessions()).sessions, hasLength(2));
+  });
+
+  test('accepted organization groups are shared with the gateway', () async {
+    final bridge = ScriptableBridge();
+    final gateway = ScriptableGateway(conversations: bridge.conversations);
+    final accepted = await bridge.acceptOrgGroupOffer(
+      orgPubkey: 'org-1',
+      offerId: 'offer-1',
+      displayName: 'alice',
+      listenPort: 8765,
+    );
+
+    expect((await bridge.listGroups()).groups, [accepted]);
+    expect(await gateway.poll(GroupTarget(accepted.groupId)), same(accepted));
+    expect(accepted.orgPubkey, 'org-1');
+    expect(accepted.displayName, 'alice');
+  });
+
   test('the test bridge createInvite -> listSessions -> leave round trip',
       () async {
     final bridge = ScriptableBridge();

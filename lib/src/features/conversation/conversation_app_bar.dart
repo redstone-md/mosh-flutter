@@ -1,13 +1,12 @@
-/// Shared conversation header with identity, search, kind actions and details.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/features/conversation/chat_header_menu.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
-import 'package:mosh/src/features/conversation/conversation_tools.dart';
+import 'package:mosh/src/features/conversation/conversation_chrome.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show ConversationFilter, MobileSearchToggle;
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -22,18 +21,12 @@ class ConversationAppBar extends StatelessWidget
   const ConversationAppBar({
     super.key,
     required this.title,
-    required this.onOpenPeerStatus,
-    required this.onRequestLeave,
-    required this.filter,
-    required this.onFilter,
-    required this.mobileSearchOpen,
-    required this.onToggleMobileSearch,
+    required this.chrome,
     required this.leaveMenuLabel,
     required this.leaveMenuIcon,
     this.avatarName,
     this.peerOnline = false,
     this.kind = ConversationKind.dm,
-    this.leadingActions = const [],
     this.menuActions = const [],
     this.inlineActions = const [],
   });
@@ -44,26 +37,9 @@ class ConversationAppBar extends StatelessWidget
   final bool peerOnline;
   final ConversationKind kind;
 
-  final VoidCallback onOpenPeerStatus;
-  final VoidCallback onRequestLeave;
-
-  /// The conversation filter + its setter, both owned by the screen (the
-  /// body's ConversationTools + the kebab's filter toggle both drive it).
-  final ConversationFilter filter;
-  final ValueChanged<ConversationFilter> onFilter;
-
-  /// The mobile search panel open state + toggle, owned by the screen (the
-  /// body's MobileConversationSearch reads the same value).
-  final bool mobileSearchOpen;
-  final VoidCallback onToggleMobileSearch;
-
   /// The kebab's leave item: label + icon. The item is always `danger`.
   final String leaveMenuLabel;
   final IconData leaveMenuIcon;
-
-  /// Kind-specific `actions:` widgets rendered first (before the search
-  /// toggle).
-  final List<Widget> leadingActions;
 
   /// Kind-specific kebab items, rendered between the filter toggle and the
   /// leave item.
@@ -72,21 +48,24 @@ class ConversationAppBar extends StatelessWidget
   /// Kind-specific primary actions, rendered before search and the menu.
   final List<Widget> inlineActions;
 
+  final ConversationChrome chrome;
+
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
   /// The filter toggle as a kebab item: attachments -> "All" (chat icon,
   /// flips to all); else "Files" (attach icon, flips to attachments).
-  ChatHeaderMenuAction _filterAction(AppLocalizations l) => switch (filter) {
+  ChatHeaderMenuAction _filterAction(AppLocalizations l) =>
+      switch (chrome.filter) {
         ConversationFilter.attachments => ChatHeaderMenuAction(
             label: l.chatFilterAll,
             icon: Icons.chat_bubble_outline,
-            onSelect: () => onFilter(ConversationFilter.all),
+            onSelect: () => chrome.onFilter(ConversationFilter.all),
           ),
         ConversationFilter.all => ChatHeaderMenuAction(
             label: l.chatFilterAttachments,
             icon: Icons.attach_file,
-            onSelect: () => onFilter(ConversationFilter.attachments),
+            onSelect: () => chrome.onFilter(ConversationFilter.attachments),
           ),
       };
 
@@ -129,7 +108,7 @@ class ConversationAppBar extends StatelessWidget
               label: l.chatDetailsTitle,
               button: true,
               child: InkWell(
-                onTap: onOpenPeerStatus,
+                onTap: chrome.onOpenPeerStatus,
                 customBorder: const CircleBorder(),
                 child: SizedBox.square(
                     dimension: 40,
@@ -150,22 +129,23 @@ class ConversationAppBar extends StatelessWidget
 
   List<Widget> _actions(AppLocalizations l) {
     final actions = [
-      ...leadingActions,
       ...inlineActions,
       MobileSearchToggle(
-          open: mobileSearchOpen, onToggle: onToggleMobileSearch, l: l),
+          open: chrome.mobileSearchOpen,
+          onToggle: chrome.onToggleMobileSearch,
+          l: l),
       ChatHeaderMenu(l: l, actions: [
         ChatHeaderMenuAction(
             label: l.chatDetailsTitle,
             icon: Icons.info_outline,
-            onSelect: onOpenPeerStatus),
+            onSelect: chrome.onOpenPeerStatus),
         _filterAction(l),
         ...menuActions,
         ChatHeaderMenuAction(
             label: leaveMenuLabel,
             icon: leaveMenuIcon,
             danger: true,
-            onSelect: onRequestLeave),
+            onSelect: chrome.onRequestLeave),
       ]),
     ];
     return [

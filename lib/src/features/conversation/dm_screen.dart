@@ -1,7 +1,3 @@
-/// A private DM. Everything but the header comes from the shared
-/// conversation screen.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,13 +23,8 @@ class _DmScreenState extends ConsumerState<DmScreen> {
   Widget build(BuildContext context) => ConversationScreen(
         target: DmTarget(widget.sessionId),
         header: (context, chrome) => DmScreenHeader(
+          chrome: chrome,
           sessionId: widget.sessionId,
-          onOpenPeerStatus: chrome.onOpenPeerStatus,
-          onLeave: chrome.onRequestLeave,
-          mobileSearchOpen: chrome.mobileSearchOpen,
-          onToggleMobileSearch: chrome.onToggleMobileSearch,
-          filter: chrome.filter,
-          onFilter: chrome.onFilter,
           onStartCall: _startCall,
         ),
       );

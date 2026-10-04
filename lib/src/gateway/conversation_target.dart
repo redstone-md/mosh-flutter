@@ -1,9 +1,3 @@
-// Which conversation an action is for: a DM, a channel, or a group.
-//
-// The Gateway takes one of these instead of carrying a DM, a channel and a
-// group copy of every method. Each kind knows the snapshot type it polls
-// back, so one `Gateway.poll` still returns the right type to the caller.
-
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'

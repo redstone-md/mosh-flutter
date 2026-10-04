@@ -1,19 +1,3 @@
-/// Thumbnail generator. Uses the
-/// pure-Dart `image` package (decode + copyResize + encodeJpg), so it works
-/// on desktop + mobile + web with no native plugin. The video branch uses
-/// `media_kit`'s headless `Player` + `screenshot()` -- see
-/// [_createVideoThumbnail].
-//
-// For non-image/non-video picks this returns null. A null thumbnail is
-// never fatal -- the gateway treats a null `thumbnailBase64` as "no
-// preview".
-//
-// Output: a base64-encoded JPEG (no `data:` prefix). The 320px max-edge +
-// 70% quality, shrinking further to fit the 32 KiB base64 manifest limit.
-// Aspect is preserved via `copyResize` (width-only
-// resize auto-computes height).
-library;
-
 import 'dart:async' show Completer, StreamSubscription;
 import 'dart:convert' show base64Encode;
 import 'dart:typed_data' show Uint8List;

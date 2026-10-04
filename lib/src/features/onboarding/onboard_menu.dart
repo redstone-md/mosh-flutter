@@ -1,15 +1,3 @@
-// Embeddable OnboardMenu body: identity chip, Start tiles, Join tiles.
-// No Scaffold so a caller embeds it (OnboardingScreen wraps in Center >
-// SingleChildScrollView > ConstrainedBox; atomic #3 embeds the same widget
-// inline in the desktop chat-pane).
-//
-// The Advanced + About disclosures moved to the settings screen (the gear
-// at the rail bottom): connection controls, device picks and the crypto
-// notice live there now, so the first-run surface is only identity + the
-// four tiles. This menu keeps the display-name chip (`inviteFlowProvider`
-// seeds it) and the tile taps, which call injected VoidCallbacks
-// (onPickChat/Group/Channel/Join) — the menu does NOT context.go itself;
-// the caller decides routing.
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -1,6 +1,3 @@
-// Invite-URI parser. Per ADR 0012, invite-URI parsing is UI work and
-// lives here in Dart (NOT in mosh-core).
-
 /// Error codes emitted by [InviteParseError].
 enum InviteParseErrorCode {
   invalidUrl,

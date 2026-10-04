@@ -6,12 +6,7 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Carries the secret material and metadata for one attachment. Hosts send
-/// this over their confidential control path (MLS-encrypted for DM and
-/// groups, plaintext broadcast for public channels).
-/// Voice-message metadata carried alongside an audio attachment. Its presence
-/// is the sole marker that an attachment is a recorded voice message rather
-/// than a user-picked audio file.
+/// Marks a recorded voice message, with duration and waveform.
 class VoiceMeta {
   /// Recording length in milliseconds.
   final int durationMs;

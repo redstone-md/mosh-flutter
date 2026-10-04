@@ -1,46 +1,3 @@
-// M-3 (ADR 0011): mobile secure-storage platform channel for the at-rest
-// history DEK. On Android, Dart owns BOTH the load AND the first-run mint of
-// the 32-byte DEK (Shape A1): it reads/mints the raw bytes from the Android
-// Keystore via `flutter_secure_storage` and hands them to Rust through the
-// new frb `set_history_dek` BEFORE the private-DM runtime constructs. Rust's
-// `construct_runtime` then opens the DB with `Persistence::open_with_dek`
-// instead of the OS keychain, so the live runtime uses the Keystore DEK on a
-// device. The DEK round-trips through the Keystore as base64 (the plugin's
-// API is String-only). M-7 (ADR 0011): user-presence gating is DEFAULT-ON
-// via `AndroidOptions.biometric(enforceBiometrics: true, ...)`, which
-// selects the KeyStore-backed AES-GCM/NoPadding key+storage ciphers (the
-// only combination that supports `setUserAuthenticationRequired`) and
-// requires the device to have a biometric OR device credential (PIN,
-// pattern, password) enrolled, failing closed on an insecure device rather
-// than storing the DEK unauthenticated. The namespace
-// `storageNamespace: "app.mosh.mobile"` is preserved from M-3, mirroring
-// the desktop `OsSecureSecretStore` SERVICE_NAME `app.mosh.desktop`.
-//
-// DESIGN (testability): the real Keystore read + the Rust call are device-only
-// and host-untestable, so the decision logic is split from the platform
-// wiring. `resolveHistoryDek(...)` is a pure-ish async that takes an injected
-// storage seam, an injected "DB exists" predicate, and an injected
-// `setHistoryDek` callback, and returns the branch it took. `initMobileDek()`
-// wires the REAL `FlutterSecureStorage`, the REAL db-exists check (mirroring
-// Rust's `temp_dir().join("mosh").join("history.redb")`), and the REAL frb
-// `setHistoryDek`. The unit test passes a hand-fake storage + a controllable
-// db-exists predicate + a recording setHistoryDek to cover the three branches
-// (present-key, missing-key+no-DB mint, missing-key+DB-exists fail-closed)
-// with no device and no Rust runtime.
-//
-// PLATFORM GATING: only Android runs the inject path. iOS and Desktop are
-// no-op stubs here -- they never call `setHistoryDek`, so Rust's
-// `INJECTED_DEK` OnceLock stays `None` and `construct_runtime` falls back to
-// the desktop `Persistence::open` (OsSecureSecretStore) path, unchanged.
-//
-// M-5 (ADR 0010 RESOLVED): the DB-exists check now uses the bridged
-// app_data_dir from `app_data_dir.appDataDir()` (Dart resolves it via
-// `getApplicationSupportDirectory()` at startup and hands it to Rust via
-// `setAppDataDir`), so `_historyRedbPath()` and Rust's `construct_runtime`
-// agree on `<app_data_dir>/mosh/history.redb` before the first construct.
-// If the bridge has not run yet, `_historyRedbPath()` falls back to the
-// pre-M-5 temp path with a warning so a misordered caller stays correct.
-
 import 'dart:convert' show base64Decode, base64Encode;
 import 'dart:io' show Directory, File, Platform;
 import 'dart:math' show Random;
@@ -245,18 +202,6 @@ Future<void> initMobileDek() async {
   await resolveHistoryDek(
     storage: _FlutterSecureStorageDek(),
     dbExists: () => _historyRedbPath().existsSync(),
-    // The frb-generated `setHistoryDek` takes a NAMED `dek:` parameter
-    // (`Future<void> setHistoryDek({required List<int> dek})`), but
-    // `resolveHistoryDek`'s seam uses a positional-arg callback so tests can
-    // pass a plain `(List<int> dek) async {}` recorder. This adapter wraps
-    // the frb call into the seam's shape. Idempotent across main() re-runs
-    // in a live process: a fresh Dart isolate on Android activity recreation
-    // re-reads the DEK (re-prompting biometric, which ADR 0011 wants on each
-    // launch) and re-injects the SAME bytes; Rust's `set_history_dek` accepts
-    // the same-value re-inject as a no-op (returns Ok) so the warm start does
-    // not crash main(). A DIFFERENT DEK still throws loudly (Rust side).
-    // Slice-3 device-pass finding: the prior non-idempotent inject
-    // blank-screened warm starts.
     setHistoryDek: (List<int> dek) => api.setHistoryDek(dek: dek),
   );
 }

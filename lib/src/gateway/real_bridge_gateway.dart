@@ -1,18 +1,3 @@
-// S5: the slice-one moment-of-truth backend (ADR 0013 close-out).
-//
-// RealBridgeGateway implements the conversation seam (the narrowed
-// `Gateway`, ADR 0025): it is a thin pass-through with one conversion --
-// the six shared conversation actions go over the bridge as a typed
-// `BridgeConversationRef`, and the bridge function picks the runtime
-// (ADR 0024). `dismissDmOffer` keeps its switch -- a DM has no offer list,
-// so only two kinds answer it (ADR 0017). The 1:1 mirrors that used to
-// share this class now live in `bridge_facade.dart`.
-//
-// Lifecycle: every method assumes `RustLib.init()` has run (main.dart calls
-// it on startup; the integration test calls it explicitly). Calling before
-// init throws via the generated `RustLib.instance.api` indirection -- the
-// behaviour a Dart double cannot reproduce.
-
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
 // The six shared conversation actions (ADR 0024): functions are prefixed

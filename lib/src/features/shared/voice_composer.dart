@@ -1,18 +1,3 @@
-/// Slice-3 voice composer. Microphone capture with three phases
-/// (idle -> recording -> review) before sending, via the `record` package
-/// (`AudioRecorder`); live amplitude samples feed a 64-bucket waveform
-/// (peak per bucket, base64-encoded for `VoiceMeta.peaksB64`).
-///
-/// idle renders a mic IconButton; recording renders dot + elapsed timer +
-/// discard + stop; review renders play + duration + discard + send.
-/// `disabled` gates the mic button (idle). `onSend(voice)` hands a
-/// [VoiceSend] to the screen; `onError(message)` surfaces mic-permission /
-/// start failures. The mic button always renders; the permission request
-/// happens on tap (`AudioRecorder.hasPermission`), never at mount — asking
-/// at chat open is what triggered the macOS TCC crash, and a dialog
-/// before intent is bad form anyway.
-library;
-
 import 'dart:async' show StreamSubscription, Timer;
 import 'dart:convert' show base64Encode;
 import 'dart:io' show Directory, File;

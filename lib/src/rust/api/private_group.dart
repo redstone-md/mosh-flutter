@@ -14,7 +14,7 @@ import '../private_group_runtime/wire_types.dart';
 import 'conversation_bridge.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_runtime`, `construct_runtime`, `ensure_runtime`
+// These functions are ignored because they are not marked as `pub`: `construct_runtime`, `ensure_runtime`
 
 /// Create a private MLS group.
 Future<GroupCreated> createGroup({required CreateGroupRequest request}) =>

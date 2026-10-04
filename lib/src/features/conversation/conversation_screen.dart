@@ -1,13 +1,3 @@
-/// The screen behind a DM, a channel and a group.
-///
-/// It owns the widget state -- the composer, the search text, the filter,
-/// the mobile search panel, the peer-status drawer -- and the two things the
-/// controller deliberately does not do: it clears the composer after a
-/// successful send, and it navigates.
-///
-/// Each kind supplies only its header. Everything else is shared.
-library;
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -66,6 +56,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   ConversationFilter _filter = ConversationFilter.all;
   bool _mobileSearchOpen = false;
   bool? _showPeerStatus;
+  bool _markedInitialView = false;
 
   bool get _detailsDocked => MediaQuery.sizeOf(context).width >= 1280;
   bool get _detailsOpen => _showPeerStatus ?? _detailsDocked;
@@ -92,26 +83,6 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     });
   }
 
-  /// The conversation is on screen: every snapshot that lands marks it
-  /// viewed, which auto-triggers the DM read receipts for not-yet-read
-  /// counterpart messages while the toggle is on. `ref.listen` in build
-  /// is the one subscription Riverpod allows from a widget; the fire on
-  /// the first build covers the snapshot that is already there.
-  void _listenViewed() {
-    ref.listen<AsyncValue<ConversationSnapshot>>(
-      conversationSnapshotProvider(_target),
-      (_, next) {
-        if (next.hasValue) _controller.markViewed();
-      },
-      // fireImmediately would call the listener during build, which
-      // cannot run the controller; the trailing read below covers the
-      // already-present snapshot instead.
-    );
-    if (ref.read(conversationSnapshotProvider(_target)).hasValue) {
-      _controller.markViewed();
-    }
-  }
-
   @override
   void dispose() {
     _composer.dispose();
@@ -129,6 +100,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       _showPeerStatus = null;
       _search = '';
       _filter = ConversationFilter.all;
+      _markedInitialView = false;
       _markActive();
     }
   }
@@ -182,8 +154,6 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     final sessionId = result.sessionId;
     if (sessionId != null) context.go(AppRoutes.dmFor(sessionId));
   }
-
-  void _onVoiceError(String message) => _showSnackBar(message);
 
   void _onAttachmentPickError(AttachmentPickError error) =>
       _showSnackBar(AppLocalizations.of(context)!.attachmentTooLargeMessage);
@@ -252,9 +222,16 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     // conversation viewed so the DM read receipts fire while it is open.
     ref.listen<AsyncValue<ConversationSnapshot>>(
       conversationSnapshotProvider(_target),
-      (_, next) => _resolvePendingOpen(next.value),
+      (_, next) {
+        _resolvePendingOpen(next.value);
+        if (next.hasValue) _markViewed();
+      },
     );
-    _listenViewed();
+    // Cover a cached snapshot once; later view marks come from the listener.
+    if (!_markedInitialView &&
+        ref.read(conversationSnapshotProvider(_target)).hasValue) {
+      _markViewed();
+    }
     final chrome = _chrome;
     final chat = Scaffold(
       // The wrapper aligns the header's preferredSize with the toolbar the
@@ -263,9 +240,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       // (56) while their AppBar draws 54 or 70: Scaffold clamps its slot to
       // the reported height, so a 70px toolbar was clipped to 56 and a 54px
       // one left a 2px band of app-bar background above the body.
-      appBar: _HeaderPreferredSize(
-        height: chatHeaderHeight(context),
-        header: widget.header(context, chrome),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(chatHeaderHeight(context)),
+        child: widget.header(context, chrome),
       ),
       body: ConversationScreenBody(
         target: _target,
@@ -276,7 +253,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         onRetrySend: _retryFailedSend,
         onOpenAttachment: _openAttachment,
         onPeerMessage: _onPeerMessage,
-        onVoiceError: _onVoiceError,
+        onVoiceError: _showSnackBar,
         onAttachmentPickError: _onAttachmentPickError,
       ),
     );
@@ -297,6 +274,11 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     ]);
   }
 
+  void _markViewed() {
+    _markedInitialView = true;
+    _controller.markViewed();
+  }
+
   void _resolvePendingOpen(ConversationSnapshot? snapshot) {
     final attachments = snapshot?.attachments;
     if (attachments == null || attachments.isEmpty) return;
@@ -308,33 +290,4 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         break;
     }
   }
-}
-
-/// Re-reports a kind header's [PreferredSizeWidget.preferredSize] as the
-/// height its AppBar actually draws.
-///
-/// The kind headers ([ConversationAppBar] via DmScreenHeader /
-/// GroupScreenHeader / ChannelScreen) size their toolbar with
-/// `chatHeaderHeight` (54px under the 640px breakpoint, 70px above it) but
-/// implement `preferredSize` as the constant `kToolbarHeight` (56). The
-/// Scaffold sizes its appBar slot from `preferredSize` -- it clamps the
-/// slot to the reported height, so the 70px desktop toolbar was clipped to
-/// 56px and the 54px compact one left a band of app-bar background above
-/// the body. This wrapper is rebuilt by [ConversationScreen] on every
-/// breakpoint change, so the reported height always matches the drawn one.
-class _HeaderPreferredSize extends StatelessWidget
-    implements PreferredSizeWidget {
-  const _HeaderPreferredSize({required this.height, required this.header});
-
-  /// The toolbar height the wrapped header's AppBar draws.
-  final double height;
-
-  /// The kind header (the real app bar).
-  final PreferredSizeWidget header;
-
-  @override
-  Size get preferredSize => Size.fromHeight(height);
-
-  @override
-  Widget build(BuildContext context) => header;
 }

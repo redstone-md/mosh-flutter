@@ -1,21 +1,3 @@
-// Shared onboarding step-frame: a Back button at the top (arrow-back
-// icon + the localized "Back" label), then the step title (the theme's
-// headlineSmall), then the step body (the `child`).
-//
-// Two widgets live here:
-//  - `OnboardStepFrame`: full-screen route wrapper -- Scaffold + SafeArea +
-//    Center + scroll + 32px padding + 460px column around the body, used
-//    by the chat / group / join / channel step screens pushed as routes.
-//  - `OnboardStepBody`: just the Column, exposed so the desktop chat-pane
-//    can compose a step INLINE. It adds no scroll, padding or width cap of
-//    its own: ChatPaneWelcome already supplies them, so an inline step sits
-//    exactly where the menu it replaced did.
-//
-// The frame is intentionally presentation-only: it owns no state and calls
-// back through `onBack` -- the parent owns the busy / copied / lastInvite
-// state and the routing decisions.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 

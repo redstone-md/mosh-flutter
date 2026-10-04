@@ -1,9 +1,3 @@
-/// The peer-status drawer, opened from a conversation's header.
-///
-/// The drawer itself reads the raw runtime snapshot -- transport path, mesh,
-/// members -- so this hands it whichever one the conversation has.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

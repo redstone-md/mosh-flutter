@@ -22,6 +22,11 @@ inputs:
 runs:
   using: composite
   steps:
+    - if: inputs.rust == 'true'
+      name: Prepare pinned OpenMLS sources
+      shell: bash
+      run: node scripts/openmls-prepare.mjs
+
     # moss-prepare pins GOTOOLCHAIN=go1.25.9; installing that exact version
     # makes the toolchain directive a no-op (no on-the-fly download).
     - if: inputs.moss != 'none'

@@ -1,14 +1,3 @@
-// Inline NewSessionPanel for the desktop chat-pane welcome when no
-// conversation is open: an `OnboardStep` enum, the
-// PersistenceWarningBanner, OnboardMenu(onPick -> setStep), and the four
-// steps each with onBack: backToMenu. The rail stays mounted.
-//
-// An [IndexedStack] keeps all five step widgets MOUNTED simultaneously,
-// so each step's controllers/state survive a menu round-trip.
-//
-// The banner renders inside the scroll so it scrolls with the step body.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -87,24 +76,24 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
             OnboardStepBody(
               title: l.onboardTileChatTitle,
               onBack: _backToMenu,
-              child: ChatCreateStep(onBack: _backToMenu),
+              child: const ChatCreateStep(),
             ),
             OnboardStepBody(
               title: l.onboardTileGroupTitle,
               onBack: _backToMenu,
-              child: GroupCreateStep(onBack: _backToMenu),
+              child: const GroupCreateStep(),
             ),
             OnboardStepBody(
               title: l.onboardTileJoinTitle,
               onBack: _backToMenu,
               // Inline join has no deep-link seed; the deep-link path
               // still routes to /join full-screen (InvitePasteScreen).
-              child: OnboardJoinStep(onBack: _backToMenu),
+              child: const OnboardJoinStep(),
             ),
             OnboardStepBody(
               title: l.onboardTileChannelTitle,
               onBack: _backToMenu,
-              child: ChannelJoinStep(onBack: _backToMenu),
+              child: const ChannelJoinStep(),
             ),
           ],
         ),

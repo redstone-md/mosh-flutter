@@ -1,12 +1,3 @@
-// The last gate before a crash report leaves the device (ADR 0035).
-//
-// Reports carry stack traces, error types and versions. They must not carry
-// invites (a join capability), network addresses, OS user names, or the
-// peer/session/group ids that would expose who talks to whom. Ids are
-// replaced by a salted hash, so one install's reports still correlate with
-// each other; the salt dies with the opt-out, so nothing links back.
-library;
-
 import 'dart:convert' show utf8;
 import 'dart:io' show InternetAddress, InternetAddressType;
 

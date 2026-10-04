@@ -1,5 +1,6 @@
 //! Reversible failures from real redb table validation, isolated to one store.
 use super::*;
+use redb::TableDefinition;
 use redb::TableHandle;
 use std::sync::Arc;
 
@@ -28,6 +29,10 @@ impl Persistence {
 
     pub(crate) fn refuse_group_snapshot_writes(self: &Arc<Self>) -> TableFault {
         self.refuse_table_writes(GROUP_MLS_SNAPSHOT)
+    }
+
+    pub(crate) fn refuse_org_record_writes(self: &Arc<Self>) -> TableFault {
+        self.refuse_table_writes(ORG_RECORDS)
     }
 
     fn refuse_table_writes(self: &Arc<Self>, table: Rows) -> TableFault {

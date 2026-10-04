@@ -1,18 +1,3 @@
-/// The `needs_rejoin` inline-error. Extracted from group_screen.dart to
-/// keep that file under the 500-line AGENTS.md budget (the screen is the
-/// only caller).
-//
-// Structure: a red-tinted alert box holding a bold title (with a trailing
-// period) + a space + the body. The tint is derived from the theme's
-// `colorScheme.error` (8% background, 35% border), 10px/14px padding and a
-// 10px radius.
-//
-// Accessibility: `Semantics(liveRegion: true, container: true)` announces
-// updates to assistive tech, which is what an inline alert does. The whole
-// box is one semantic node labeled by the title + body so it reads as a
-// single alert, not three nodes.
-library;
-
 import 'package:flutter/material.dart';
 
 class GroupRejoinNeededError extends StatelessWidget {

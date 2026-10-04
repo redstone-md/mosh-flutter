@@ -1,8 +1,3 @@
-/// The line above the first message of a block: who sent it, their
-/// fingerprint where there is one, the MLS badge, and the time. Tapping
-/// someone else's name offers to start a DM with them.
-library;
-
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';

@@ -1,22 +1,3 @@
-/// One snapshot provider, one list provider and one invalidate switch for
-/// every conversation kind.
-///
-/// A DM, a channel and a group read back three different generated types, so
-/// something has to name the kind. The invalidate switch is named here and
-/// nowhere else: [invalidateConversation] re-reads the snapshot a kind names,
-/// and the list family reads the list a kind names, so a new kind adds one
-/// arm to each of the two switches in this file plus one in
-/// [unreadCounts] (`unread_providers.dart`) -- instead of three edits in
-/// three files, with a fourth copy growing in whatever screen happens to
-/// refresh a conversation this month.
-///
-/// The three helpers take a torn-off `read` / `invalidate`
-/// ([ConversationReader] / [ConversationInvalidator]) instead of a `Ref`, so
-/// a provider body and a widget callback share the one branch -- Riverpod 3
-/// keeps `Ref` and `WidgetRef` unrelated types, and both of them tear off
-/// into these two shapes.
-library;
-
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'

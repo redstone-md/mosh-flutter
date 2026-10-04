@@ -1,8 +1,3 @@
-// Shared MediaViewer. The caller (the slice-3 attachment transfer seam)
-// resolves the URL and invokes [showMediaViewer]. Image uses Image.network;
-// video + audio use media_kit (Player + VideoController).
-library;
-
 import 'dart:async' show unawaited;
 import 'dart:io' show File;
 
@@ -15,6 +10,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
+import 'package:mosh/src/features/shared/attachment_media_src.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
 part 'media_viewer_stages.dart';
@@ -39,9 +35,6 @@ class MediaViewer extends StatelessWidget {
   /// semantics label + caption (`descriptor.fileName`).
   final AttachmentDescriptor descriptor;
 
-  /// The media source URL. For `image/*` this is loaded via
-  /// `Image.network`; for video/audio/other it is unused by the placeholder
-  /// and reserved for the slice-3 player wiring.
   final String src;
 
   /// Invoked when the user closes the viewer (close button, backdrop tap,
@@ -135,7 +128,6 @@ class MediaViewer extends StatelessWidget {
                               _MediaCaption(
                                 fileName: descriptor.fileName,
                                 maxWidth: media.size.width * 0.80,
-                                fg2: MoshColors.fg2,
                               ),
                             ],
                           ),
@@ -178,12 +170,6 @@ class _MediaStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mime = descriptor.mime;
-    // `isImage = mime.startsWith("image/")`, etc.
-    final isImage = mime.startsWith('image/');
-    final isVideo = mime.startsWith('video/');
-    final isAudio = mime.startsWith('audio/');
-
     return GestureDetector(
       // Swallow taps so the media itself does not close the viewer.
       onTap: () {},
@@ -193,34 +179,22 @@ class _MediaStage extends StatelessWidget {
           maxWidth: maxStageWidth,
           maxHeight: maxStageHeight,
         ),
-        child: isImage
-            ? _ImageStage(
-                descriptor: descriptor,
-                src: src,
-                maxStageWidth: maxStageWidth,
-                maxStageHeight: maxStageHeight,
-                bg0: MoshColors.bg0,
-              )
-            : isVideo
-                ? _VideoStage(
-                    descriptor: descriptor,
-                    src: src,
-                    maxStageWidth: maxStageWidth,
-                    maxStageHeight: maxStageHeight,
-                  )
-                : isAudio
-                    ? _AudioStage(
-                        descriptor: descriptor,
-                        src: src,
-                        maxStageWidth: maxStageWidth,
-                      )
-                    : _PlaybackPlaceholderCard(
-                        fileName: descriptor.fileName,
-                        // `Icons.insert_drive_file_outlined` (matches the
-                        // attachment_card file-card icon choice).
-                        icon: Icons.insert_drive_file_outlined,
-                        bg2: MoshColors.bg2,
-                      ),
+        child: switch (attachmentMediaKind(descriptor.mime)) {
+          AttachmentMediaKind.image => _ImageStage(
+              descriptor: descriptor,
+              src: src,
+              maxStageWidth: maxStageWidth,
+              maxStageHeight: maxStageHeight,
+            ),
+          AttachmentMediaKind.video =>
+            _VideoStage(descriptor: descriptor, src: src),
+          AttachmentMediaKind.audio =>
+            _AudioStage(descriptor: descriptor, src: src),
+          AttachmentMediaKind.file => _PlaybackPlaceholderCard(
+              fileName: descriptor.fileName,
+              icon: Icons.insert_drive_file_outlined,
+            ),
+        },
       ),
     );
   }
@@ -235,14 +209,12 @@ class _ImageStage extends StatelessWidget {
     required this.src,
     required this.maxStageWidth,
     required this.maxStageHeight,
-    required this.bg0,
   });
 
   final AttachmentDescriptor descriptor;
   final String src;
   final double maxStageWidth;
   final double maxStageHeight;
-  final Color bg0;
 
   /// A downloaded attachment is a `file://` URL (see `localFileSrc`), which
   /// `NetworkImage` cannot fetch: `HttpClient` rejects the scheme and the
@@ -259,8 +231,7 @@ class _ImageStage extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: ColoredBox(
-        // bg-0 background behind the image.
-        color: bg0,
+        color: MoshColors.bg0,
         child: Image(
           image: _image,
           fit: BoxFit.contain,
@@ -292,12 +263,10 @@ class _MediaCaption extends StatelessWidget {
   const _MediaCaption({
     required this.fileName,
     required this.maxWidth,
-    required this.fg2,
   });
 
   final String fileName;
   final double maxWidth;
-  final Color fg2;
 
   @override
   Widget build(BuildContext context) {
@@ -308,7 +277,7 @@ class _MediaCaption extends StatelessWidget {
         style: TextStyle(
           fontSize: 12.5,
           // Muted fg-2.
-          color: fg2,
+          color: MoshColors.fg2,
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
@@ -340,10 +309,6 @@ class _MediaCloseButton extends StatelessWidget {
       child: Tooltip(
         message: l.closeViewer,
         child: Material(
-          // bg-2 background; 1px line border; 9px border-radius.
-          // A custom Container (not IconButton) so the
-          // 36x36 bordered square is exact -- IconButton's
-          // default splash/padding would not match.
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9),

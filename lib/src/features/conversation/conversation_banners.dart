@@ -1,14 +1,3 @@
-/// The banners that sit between the header and the message list.
-///
-/// A linked DM shows its runtime history progress. A channel says its
-/// messages are public. A group says they are encrypted and can add a
-/// rejoin warning and an "add the missing org members" prompt.
-///
-/// Channel and group notices come from the target and remember dismissal
-/// across conversations and app restarts. History progress and group rejoin
-/// warnings wait for their runtime snapshot.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

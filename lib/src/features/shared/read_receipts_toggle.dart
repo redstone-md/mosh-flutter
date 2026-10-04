@@ -1,11 +1,3 @@
-/// The [[Read receipt]] app-level toggle: one answer covering every DM,
-/// persisted on the Rust side (read-receipts.json in the data dir).
-///
-/// Off by default and symmetric — a user who does not send receipts does
-/// not see others'. The card explains reciprocity in its details and needs
-/// no confirmation dialog. Mounted in the Privacy settings section.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

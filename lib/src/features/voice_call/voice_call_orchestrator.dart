@@ -1,17 +1,3 @@
-// VoiceCallOrchestrator -- the audio-transport lifecycle for an active
-// two-party voice call. Riverpod-free + Flutter-free so it is unit-testable
-// with Noop capture/playback factories and a scriptable bridge.
-//
-// attach() runs the setup: importCallKey -> reset seq/jitter/mute ->
-// start playback -> start capture (onFrame: snapshot+inc seq synchronously
-// then sealFrame + bridge.callSendFrame) -> a 20ms Timer.periodic
-// guarded by `draining` that runs drainCallFrames with the bridge,
-// playback as sink and a fresh JitterBuffer. detach() tears it all
-// down. Cancellation gates setup and pending frame seals, so a completed
-// seal cannot start a send after detach. Key identity keeps a later
-// attachment from reviving a seal started by the previous call.
-library;
-
 import 'dart:async';
 import 'dart:typed_data';
 

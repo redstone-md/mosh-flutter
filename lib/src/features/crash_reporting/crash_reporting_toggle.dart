@@ -1,7 +1,3 @@
-/// The opt-in crash-reporting card (ADR 0035). The native memory caveat
-/// remains visible even when report details are collapsed.
-library;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

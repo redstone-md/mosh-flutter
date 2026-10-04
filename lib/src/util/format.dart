@@ -1,12 +1,3 @@
-/// Pure UI-helper: text formatting utilities.
-///
-/// Byte counts preserve the compact default format; optional locale and
-/// precision support voice-message metadata. Kept free of Flutter widget
-/// dependencies; `readableError` imports
-/// `PlatformException` from `package:flutter/services.dart` to special-case
-/// method-channel errors.
-library;
-
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:intl/intl.dart' show NumberFormat;
 

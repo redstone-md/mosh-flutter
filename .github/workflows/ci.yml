@@ -50,6 +50,9 @@ jobs:
       - name: Rustfmt check
         run: cargo fmt --manifest-path mosh-core/Cargo.toml --check
 
+      - name: Pinned source preparation tests
+        run: node --test scripts/openmls-prepare.test.mjs scripts/source-lock.test.mjs
+
       # Strict lint gate (ADR 0015): warnings fail the job.
       - name: Clippy check
         run: cargo clippy --manifest-path mosh-core/Cargo.toml --all-targets -- -D warnings

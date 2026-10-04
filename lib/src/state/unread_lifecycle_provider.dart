@@ -1,30 +1,3 @@
-// The unread-message OS-toast lifecycle. This is the atomic that the
-// `unread_providers.dart` header deferred: it layers the poll-diff
-// lifecycle (clearOnActive + window-focus toasts + `lastSeen`
-// persistence) on top of the per-kind unread counts.
-//
-// It fixes two problems:
-//  1. The unread badge never cleared when a conversation was opened --
-//     the raw count maps recompute the full not-own count every poll
-//     regardless of which conversation is active. This provider exposes
-//     a `clearUnread` mutation + clears the active key on a focused poll.
-//  2. No OS toast fired on new messages in the background. This provider
-//     fires one flutter_local_notifications `show` per diffed non-active
-//     conversation when the window is unfocused + the notifications gate
-//     is open.
-//
-// Shape: a non-autoDispose `Notifier<Map<String,int>>` so `lastSeen`
-// (the poll-diff baseline) persists across count-provider rebuilds --
-// the Notifier instance is reused by Riverpod across `build` re-runs,
-// so the mutable instance field survives.
-// `build` watches the per-kind counts + the active-conversation key,
-// returns the current unread map (no flicker) and kicks off an async
-// `_runDiff` continuation that awaits the focus seam, computes the
-// diff, advances `lastSeen`, applies clearOnActive + newMessages, and
-// fires the OS toasts. A `_runToken` cancels stale continuations when
-// another watch fires before the focus check resolves.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart'

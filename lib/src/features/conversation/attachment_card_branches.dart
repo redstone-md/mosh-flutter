@@ -1,6 +1,3 @@
-// Branch widgets of the [AttachmentCard]: the image/video media-preview
-// card. A `part` of attachment_card.dart so the branch stays
-// library-private while the file stays under the 400-line repo cap.
 part of 'attachment_card.dart';
 
 /// Renders the image/video media preview: the decoded base64 thumbnail as

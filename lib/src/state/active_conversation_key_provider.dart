@@ -1,14 +1,3 @@
-// The currently-active conversation key: the key [ConversationRef.key]
-// renders, or null when no conversation is open.
-//
-// Kept in a Riverpod Notifier so the unread-lifecycle provider can read it
-// and the chat screens can set/clear it on open/leave without threading a
-// prop through every rebuild.
-//
-// Set by the sessions rail on select + the chat screens on open (initState);
-// cleared on leave/close. null = no conversation open.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/gateway/conversation_target.dart';

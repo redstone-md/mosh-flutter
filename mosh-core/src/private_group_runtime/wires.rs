@@ -58,17 +58,14 @@ impl GroupSession {
             device: self.display_name.clone(),
             until_ms: TypingGate::deadline(now),
         };
-        let Ok(body_json) = serde_json::to_vec(&body) else {
-            return;
-        };
-        let Ok(ciphertext) = self.crypto.encrypt(&body_json) else {
+        let Ok(ciphertext_b64) = self.crypto.encrypt_json(&body) else {
             return;
         };
         let envelope = ControlEnvelope::TypingIndicator {
             group_id: self.group_id.clone(),
             from_device: self.display_name.clone(),
             from_fingerprint: self.device_fingerprint.clone(),
-            typing_ciphertext_b64: encode(&ciphertext),
+            typing_ciphertext_b64: ciphertext_b64,
         };
         let _ = self.publish_control(&envelope);
     }
@@ -96,4 +93,91 @@ impl GroupSession {
             typing_shared::push_typing_event(&self.group_id, "stopped");
         }
     }
+}
+
+pub(super) fn channel_group_id(channel: &str) -> Option<&str> {
+    channel
+        .strip_prefix(CONTROL_CHANNEL_PREFIX)
+        .or_else(|| channel.strip_prefix(DATA_CHANNEL_PREFIX))
+        .or_else(|| channel.strip_prefix(BLOB_CHANNEL_PREFIX))
+}
+
+pub(super) fn group_channels(group_id: &str) -> [String; 3] {
+    [
+        format!("{CONTROL_CHANNEL_PREFIX}{group_id}"),
+        format!("{DATA_CHANNEL_PREFIX}{group_id}"),
+        format!("{BLOB_CHANNEL_PREFIX}{group_id}"),
+    ]
+}
+
+/// Always room-scoped: the shared node's own room is the substrate, so a
+/// room-less publish would land where none of this group's peers listen.
+///
+/// Best-effort: this carries control and blob frames, which report no delivery
+/// status of their own, so an empty group is not a failure to hand back. A
+/// user message does not come through here — it publishes directly in
+/// `publish_prepared`, where "no peers" does fail the send.
+pub(super) fn publish_json<T: Serialize>(
+    node: &MossNode,
+    mesh_id: &str,
+    channel: &str,
+    value: &T,
+) -> Result<(), PrivateGroupError> {
+    let payload =
+        serde_json::to_vec(value).map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
+    node.publish_room_best_effort(mesh_id, channel, &payload)
+        .map_err(|error| PrivateGroupError::Moss(error.to_string()))
+}
+
+pub(super) fn org_context<'a>(
+    org_pubkey: Option<&'a str>,
+    org_signer: Option<&'a SigningKey>,
+) -> Option<(&'a str, &'a SigningKey)> {
+    org_pubkey.zip(org_signer)
+}
+
+/// Publish on a group control channel: wrapped in the org signed envelope
+/// when an org binding is present, raw JSON otherwise (ADR 0007).
+pub(super) fn publish_control_message<T: Serialize>(
+    node: &MossNode,
+    control_channel: &str,
+    mesh_id: &str,
+    org: Option<(&str, &SigningKey)>,
+    value: &T,
+) -> Result<(), PrivateGroupError> {
+    match org {
+        Some((org_pubkey, signer)) => {
+            let payload = serde_json::to_vec(value)
+                .map_err(|error| PrivateGroupError::Codec(error.to_string()))?;
+            let ctx = OrgContext {
+                org_pubkey,
+                mesh_id,
+                channel_kind: control_channel,
+            };
+            let env = org_envelope::sign(signer, &ctx, &payload);
+            publish_json(node, mesh_id, control_channel, &env)
+        }
+        None => publish_json(node, mesh_id, control_channel, value),
+    }
+}
+
+/// The node identity key doubles as the org control-channel signer. Its
+/// absence is an error, not a downgrade: an org group must never fall back
+/// to unauthenticated control traffic.
+pub(super) fn load_org_signer(
+    persistence: Option<&Persistence>,
+) -> Result<SigningKey, PrivateGroupError> {
+    let blob = persistence
+        .ok_or_else(|| PrivateGroupError::Moss("org group requires persistence".to_string()))?
+        .get_moss_identity()
+        .map_err(|error| PrivateGroupError::Moss(error.to_string()))?
+        .ok_or_else(|| PrivateGroupError::Moss("moss identity unavailable".to_string()))?;
+    org_signing::signing_key_from_identity(&blob)
+        .map_err(|error| PrivateGroupError::Moss(error.to_string()))
+}
+
+pub(super) fn decode_json<T: for<'de> Deserialize<'de>>(
+    bytes: &[u8],
+) -> Result<T, PrivateGroupError> {
+    serde_json::from_slice(bytes).map_err(|error| PrivateGroupError::Codec(error.to_string()))
 }

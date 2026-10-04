@@ -1,31 +1,3 @@
-// Attachment card rendered inside a DM message bubble.
-//
-// FILE branch (in scope): file name, formatted size, transfer-state label,
-// viewable MIME thumb button or non-viewable file/error icon, and progress
-// bar while downloading.
-//
-// IMAGE preview branch: use the local image when available, otherwise the
-// descriptor's image/video thumbnail. The preview opens above the same bar
-// the file card uses (name + meta + progress + actions).
-//
-// Media viewing and external opening are dispatched by the owning screen;
-// this card only emits the shared onOpen callback.
-// Voice messages ARE in scope: descriptor.voice -> VoiceMessageCard
-// (voice_message_card.dart, a separate file to keep this one focused).
-// Branch order: if (voice) return VoiceMessage; then if (hasPreview)
-// return media-card; then return the file card with a viewable thumb button
-// or a non-viewable file/error icon.
-//
-// VIDEO play-overlay is IN SCOPE: a centered play glyph overlays the
-// thumbnail when the mime is a video; decorative
-// (`Semantics(excludeSemantics: true)`), the wrapper's image semantics
-// carries the label.
-//
-// Transfer controls live in [AttachmentActions]. Available files open by
-// tapping the row; media opens from its preview via `onOpen(descriptor)`.
-//
-// ConversationAttachment owns transfer interpretation and available actions.
-
 import 'dart:convert';
 import 'dart:io' show File;
 import 'dart:typed_data';

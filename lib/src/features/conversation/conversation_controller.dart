@@ -1,12 +1,3 @@
-/// The work behind one conversation screen, for any kind.
-///
-/// It owns what the screen is doing right now -- a send in flight, a failed
-/// send waiting to be retried, transfers running, an error to show, a peer
-/// already invited, an attachment waiting on its download -- and it talks to
-/// the Gateway. It never navigates and never touches the composer (the
-/// screen's job), so the methods that could trigger either return a result.
-library;
-
 import 'dart:async';
 import 'dart:convert' show base64Encode;
 import 'dart:io';
