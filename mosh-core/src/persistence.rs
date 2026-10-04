@@ -11,6 +11,9 @@ mod dm_history;
 mod group_commits;
 mod history;
 mod mls_state;
+mod org_acceptances;
+#[cfg(test)]
+mod org_acceptances_tests;
 mod outbound;
 mod records;
 mod schema;

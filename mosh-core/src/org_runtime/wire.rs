@@ -126,14 +126,19 @@ pub(super) enum OrgMessage {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(super) struct PersistedOrgRecord {
-    pub(super) org_pubkey: String,
-    pub(super) org_name: String,
-    pub(super) mesh_id: String,
-    pub(super) display_name: String,
-    pub(super) listen_port: u16,
-    pub(super) static_peer: Option<String>,
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct PersistedOrgRecord {
+    pub(crate) org_pubkey: String,
+    pub(crate) org_name: String,
+    pub(crate) mesh_id: String,
+    pub(crate) display_name: String,
+    pub(crate) listen_port: u16,
+    pub(crate) static_peer: Option<String>,
     #[serde(default)]
-    pub(super) dm_links: Vec<OrgDmLink>,
+    pub(crate) dm_links: Vec<OrgDmLink>,
+    /// Dismissed offers and acceptances whose native conversation is durable.
+    #[serde(default)]
+    pub(crate) resolved_offer_ids: std::collections::BTreeSet<String>,
+    #[serde(default)]
+    pub(crate) pending_acceptances: std::collections::BTreeMap<String, PendingAcceptance>,
 }

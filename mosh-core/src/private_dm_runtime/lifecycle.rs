@@ -2,7 +2,17 @@
 
 use super::*;
 
+#[cfg(test)]
+#[path = "lifecycle_tests.rs"]
+mod tests;
+
 impl PrivateDmRuntime {
+    pub(crate) fn session_signer_public(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<u8>, PrivateDmRuntimeError> {
+        Ok(self.session_ref(session_id)?.crypto.signer_public())
+    }
     /// Rebuild sessions + history from the encrypted store. Best-effort: a bad
     /// row is skipped, never fatal.
     pub fn rehydrate(&mut self) {
@@ -187,11 +197,9 @@ impl PrivateDmRuntime {
             Arc::clone(self.sessions.attachment_store()),
         );
 
+        self.persist_created_session(&session)?;
         self.sessions.insert(session_id.clone(), session);
-
-        // Alice's group exists from create_group(), so the record is final the
-        // moment it is written.
-        self.sessions.persist_record(&session_id, true)?;
+        self.sessions.mark_record_final(&session_id);
 
         Ok(InviteCreated {
             invite_uri,
@@ -202,72 +210,28 @@ impl PrivateDmRuntime {
         })
     }
 
+    fn persist_created_session(
+        &self,
+        session: &PrivateDmSession,
+    ) -> Result<(), PrivateDmRuntimeError> {
+        let Some(store) = self.sessions.persistence() else {
+            return Ok(());
+        };
+        if let Err(error) = session.write_extra(store) {
+            session.transport.close_room(
+                &session.mesh_id,
+                &session_channels(&session.session_id),
+                &format!("{KIND} {}", session.session_id),
+            );
+            return Err(error.into());
+        }
+        Ok(())
+    }
+
     pub fn accept_invite(
         &mut self,
         request: AcceptInviteRequest,
     ) -> Result<SessionSnapshot, PrivateDmRuntimeError> {
-        let invite = ParsedInvite::parse(&request.invite_uri)?;
-        if self.sessions.holds(&invite.session_id) {
-            return Err(PrivateDmRuntimeError::DuplicateSession(invite.session_id));
-        }
-        let persist_listen_port = request.listen_port;
-        let mut crypto = MlsSessionCrypto::new(&request.display_name)?;
-        let participant_id = crypto.random_token("participant")?;
-        let key_package = crypto.key_package_bytes()?;
-        let persist_static_peer = request.static_peer.clone().or(invite.peer_address.clone());
-        self.open_dm_room(
-            &invite.mesh_id,
-            &invite.session_id,
-            request.listen_port,
-            persist_static_peer.clone(),
-        )?;
-        let envelope = ControlEnvelope::KeyPackage {
-            session_id: invite.session_id.clone(),
-            participant_id: participant_id.clone(),
-            from_device: request.display_name.clone(),
-            key_package_b64: encode(&key_package),
-            moss_peer_id: self.transport.local_peer_id(),
-        };
-        // Keep the serialized KeyPackage so the drain loop can re-publish it
-        // until the Welcome arrives. The first publish below often lands before
-        // the mesh link to Alice exists and is silently dropped.
-        let key_package_payload = serde_json::to_vec(&envelope)
-            .map_err(|error| PrivateDmRuntimeError::Codec(error.to_string()))?;
-
-        let mut session = PrivateDmSession::new(
-            SessionRole::Bob,
-            request.display_name,
-            participant_id,
-            invite.session_id.clone(),
-            invite.mesh_id,
-            invite.fingerprint,
-            Some(request.invite_uri),
-            persist_listen_port,
-            persist_static_peer.clone(),
-            Arc::clone(&self.transport),
-            crypto,
-            Arc::clone(self.sessions.attachment_store()),
-        );
-        // Pre-seed the creator's moss id from the invite so the transport can
-        // be asked to reach it before any frame teaches it; a later
-        // KeyPackage/Welcome exchange only confirms the same value. A wrong id
-        // costs availability until the handshake corrects it, never identity:
-        // the fingerprint still gates MLS.
-        session.peer_moss_id = invite.peer_moss_id;
-        // One-shot create-time KeyPackage; the handshake pump repeats it.
-        session.route_send(ChannelKind::Control, &key_package_payload)?;
-        session.pending_key_package = Some(key_package_payload);
-        session.last_handshake_send_ms = now_ms();
-
-        let session_id = session.session_id.clone();
-        self.sessions.insert(session_id.clone(), session);
-
-        // Deliberately NOT persisted here. Bob has no MLS group until the
-        // Welcome, so a record written now would carry an empty group_id and
-        // no snapshot — a row rehydrate can never rebuild, warning at every
-        // startup. The first tick after the Welcome persists the record and
-        // the snapshot together (persist_tail sees the now-final session).
-
-        self.poll_session(&session_id)
+        self.accept_invite_restoring(request, None)
     }
 }

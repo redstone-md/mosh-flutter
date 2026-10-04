@@ -45,6 +45,7 @@ impl ConversationSession for GroupSession {
 }
 
 pub(super) struct GroupSession {
+    pub(super) pending_join_package: Option<Vec<u8>>,
     pub(super) group_id: String,
     pub(super) mesh_id: String,
     pub(super) label: Option<String>,
@@ -116,6 +117,7 @@ impl GroupSession {
         org_signer: Option<SigningKey>,
     ) -> Self {
         Self {
+            pending_join_package: None,
             control_channel: format!("{CONTROL_CHANNEL_PREFIX}{}", record.group_id),
             data_channel: format!("{DATA_CHANNEL_PREFIX}{}", record.group_id),
             blob_channel: format!("{BLOB_CHANNEL_PREFIX}{}", record.group_id),

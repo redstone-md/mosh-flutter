@@ -31,7 +31,18 @@ impl Persistence {
     }
 
     pub fn put_org_record(&self, org_pubkey: &str, record: &[u8]) -> Result<(), PersistenceError> {
-        self.put(ORG_RECORDS, org_pubkey, record)
+        let record = super::org_acceptances::decode_record(record)?;
+        self.write(|tx| self.write_org_record(tx, org_pubkey, record))
+            .map(|_| ())
+    }
+
+    /// Return the canonical record only after its encrypted transaction commits.
+    pub(crate) fn put_reconciled_org_record(
+        &self,
+        record: crate::org_runtime::PersistedOrgRecord,
+    ) -> Result<crate::org_runtime::PersistedOrgRecord, PersistenceError> {
+        let org = record.org_pubkey.clone();
+        self.write(|tx| self.write_org_record(tx, &org, record))
     }
 
     pub fn get_org_record(&self, org_pubkey: &str) -> Result<Option<Vec<u8>>, PersistenceError> {

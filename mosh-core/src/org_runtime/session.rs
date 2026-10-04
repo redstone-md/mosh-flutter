@@ -12,6 +12,8 @@ impl OrgSession {
             listen_port: self.listen_port,
             static_peer: self.static_peer.clone(),
             dm_links: self.dm_links.clone(),
+            resolved_offer_ids: self.resolved_offer_ids.clone(),
+            pending_acceptances: self.pending_acceptances.clone(),
         }
     }
 
@@ -196,7 +198,7 @@ impl OrgSession {
         }
     }
 
-    /// Gate offers once for both kinds; rejected or dismissed ids never reappear.
+    /// Deduplicate live offers; durable resolutions also survive a restart.
     fn accept_offer(&mut self, sender: &str, target: &str, id: &str, kind: &str) -> bool {
         if target != self.own_peer_id {
             return false;
@@ -210,7 +212,7 @@ impl OrgSession {
             );
             return false;
         }
-        self.seen_offer_ids.insert(id.to_string())
+        !self.resolved_offer_ids.contains(id) && self.seen_offer_ids.insert(id.to_string())
     }
 
     pub(super) fn sender_in_roster(&self, sender_peer_id: &str) -> bool {

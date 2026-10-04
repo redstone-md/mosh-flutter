@@ -365,6 +365,7 @@ mod tests;
 
 mod actions;
 mod lifecycle;
+mod pending_join;
 mod service;
 mod storage;
 

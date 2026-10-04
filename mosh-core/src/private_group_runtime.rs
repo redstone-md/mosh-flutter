@@ -335,6 +335,7 @@ mod control;
 mod data;
 mod lifecycle;
 mod org_gate;
+mod pending_join;
 mod rehydrate;
 mod snapshot;
 mod wires;

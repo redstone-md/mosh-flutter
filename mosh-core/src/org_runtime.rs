@@ -45,7 +45,7 @@ pub struct OrgMemberView {
     pub is_self: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrgDmOfferView {
     pub offer_id: String,
     pub from_peer_id: String,
@@ -59,7 +59,7 @@ pub struct OrgDmLink {
     pub session_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrgGroupOfferView {
     pub offer_id: String,
     pub from_peer_id: String,
@@ -179,6 +179,8 @@ struct OrgSession {
     group_offers: Vec<OrgGroupOfferView>,
     dm_links: Vec<OrgDmLink>,
     seen_offer_ids: std::collections::HashSet<String>,
+    resolved_offer_ids: std::collections::BTreeSet<String>,
+    pending_acceptances: std::collections::BTreeMap<String, PendingAcceptance>,
     #[cfg(test)]
     roster_publishes: u32,
 }
@@ -239,8 +241,10 @@ impl OrgRuntime {
             listen_port: request.listen_port,
             static_peer: request.static_peer.clone(),
             dm_links: Vec::new(),
+            resolved_offer_ids: Default::default(),
+            pending_acceptances: Default::default(),
         };
-        self.persist_record(&record)?;
+        let record = self.persist_record(record)?;
         let session = self.build_session(record, node, signer);
         session.publish_hello();
         let snapshot = session.snapshot();
@@ -267,6 +271,7 @@ impl OrgRuntime {
 
     pub fn poll(&mut self, org_pubkey: &str) -> Result<OrgSnapshot, OrgError> {
         self.drain_inbound();
+        self.refresh_acceptances();
         let session = self
             .orgs
             .get_mut(org_pubkey)
@@ -279,6 +284,7 @@ impl OrgRuntime {
 
     pub fn list(&mut self) -> Vec<OrgSnapshot> {
         self.drain_inbound();
+        self.refresh_acceptances();
         let mut out: Vec<OrgSnapshot> = self.orgs.values().map(OrgSession::snapshot).collect();
         out.sort_by(|a, b| a.org_name.cmp(&b.org_name));
         out
@@ -333,8 +339,11 @@ impl OrgRuntime {
 #[path = "org_runtime_tests.rs"]
 mod tests;
 
+pub(crate) use acceptance::{PendingAcceptance, PendingJoinRecovery};
+pub(crate) use wire::PersistedOrgRecord;
 use wire::*;
 
+mod acceptance;
 mod actions;
 mod session;
 mod storage;

@@ -81,3 +81,6 @@ mod roster;
 
 #[path = "org_runtime_tests/offers.rs"]
 mod offers;
+
+#[path = "org_runtime_tests/offer_recovery.rs"]
+mod offer_recovery;
