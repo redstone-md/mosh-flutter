@@ -32,7 +32,8 @@ impl Persistence {
         let snapshot = encrypt_blob(&self.dek, snapshot)?;
         self.write(|tx| {
             Self::update_row(tx, records, id, Some(&record))?;
-            Self::update_row(tx, snapshots, id, Some(&snapshot))
+            Self::update_row(tx, snapshots, id, Some(&snapshot))?;
+            self.retire_accepted_offers(tx, records, id)
         })
     }
 }

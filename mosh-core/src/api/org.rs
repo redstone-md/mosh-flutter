@@ -1,14 +1,14 @@
 //! Org bridge operations. Shared resources and runtime ownership live in
 //! `shared_runtime` and `runtime_owner` (ADRs 0016 and 0024).
+//! Paired acceptance and creation lock Org before DM/group. Their loaders and
+//! polling use shared resources and persisted rosters without reacquiring Org.
 
 use std::sync::MutexGuard;
 
 use super::runtime_owner::RuntimeOwner;
 
 use crate::api::conversation_bridge::{ConversationBridgeError, ConversationBridgeErrorKind};
-use crate::org_runtime::{
-    JoinOrgRequest, OrgDmOfferView, OrgError, OrgGroupOfferView, OrgRuntime, OrgSnapshot,
-};
+use crate::org_runtime::{JoinOrgRequest, OrgError, OrgRuntime, OrgSnapshot};
 use crate::private_dm_runtime::{
     AcceptInviteRequest, InviteCreated, SessionSnapshot, StartSessionRequest,
 };
@@ -17,6 +17,13 @@ use crate::private_group_runtime::{
 };
 
 static RUNTIME: RuntimeOwner<OrgRuntime> = RuntimeOwner::new("org");
+
+#[path = "org_workflows.rs"]
+pub(crate) mod workflows;
+
+#[cfg(test)]
+#[path = "org_workflow_tests.rs"]
+pub(crate) mod workflow_tests;
 
 const GROUP_WITHOUT_INVITE: &str = "group has no invite URI";
 
@@ -123,27 +130,21 @@ pub fn accept_dm_offer(
     listen_port: u16,
     static_peer: Option<String>,
 ) -> Result<SessionSnapshot, ConversationBridgeError> {
-    // Accept the offer in the org runtime (returns the offer view with the
-    // invite URI + the inviter peer id), then accept the invite via the
-    // private-DM runtime, then link the resulting session in the org runtime.
-    let offer: OrgDmOfferView = {
-        let mut runtime = ensure_runtime()?;
-        runtime.accept_dm_offer(&org_pubkey, &offer_id)?
-    };
-    let snapshot = {
-        let mut runtime = crate::api::private_dm::ensure_runtime()?;
-        runtime.accept_invite(AcceptInviteRequest {
-            invite_uri: offer.invite_uri.clone(),
+    let mut org = ensure_runtime()?;
+    let offer = org.peek_dm_offer(&org_pubkey, &offer_id)?;
+    let mut dm = crate::api::private_dm::ensure_runtime()?;
+    workflows::accept_and_link_dm(
+        &mut org,
+        &mut dm,
+        &org_pubkey,
+        &offer_id,
+        AcceptInviteRequest {
+            invite_uri: offer.invite_uri,
             display_name,
             listen_port,
             static_peer,
-        })?
-    };
-    {
-        let mut runtime = ensure_runtime()?;
-        runtime.link_dm(&org_pubkey, &offer.from_peer_id, &snapshot.session_id)?
-    }
-    Ok(snapshot)
+        },
+    )
 }
 
 /// Dismiss an org DM offer. Delegates to
@@ -169,32 +170,21 @@ pub fn create_group(
     listen_port: u16,
     static_peer: Option<String>,
 ) -> Result<GroupCreated, ConversationBridgeError> {
-    // Create the org-bound private group via the private-group runtime
-    // (org_pubkey stamped on the CreateGroupRequest so the group carries its
-    // roster binding), then offer it to each listed roster member via the org
-    // runtime send_group_offer path.
-    let created = {
-        let mut runtime = crate::api::private_group::ensure_runtime()?;
-        runtime.create_group(CreateGroupRequest {
-            label: label.clone(),
+    let mut org = ensure_runtime()?;
+    let mut groups = crate::api::private_group::ensure_runtime()?;
+    workflows::create_and_offer_group(
+        &mut org,
+        &mut groups,
+        &org_pubkey,
+        &member_peer_ids,
+        CreateGroupRequest {
+            label,
             display_name,
             listen_port,
             static_peer,
             org_pubkey: Some(org_pubkey.clone()),
-        })?
-    };
-    {
-        let mut runtime = ensure_runtime()?;
-        for target in &member_peer_ids {
-            runtime.send_group_offer(
-                &org_pubkey,
-                target,
-                &created.invite_uri,
-                created.label.clone(),
-            )?;
-        }
-    }
-    Ok(created)
+        },
+    )
 }
 
 /// Accept an org-carried group offer.
@@ -207,26 +197,22 @@ pub fn accept_group_offer(
     listen_port: u16,
     static_peer: Option<String>,
 ) -> Result<GroupSnapshot, ConversationBridgeError> {
-    // Accept the offer in the org runtime (returns the offer view with the
-    // group invite URI), then join the group via the private-group runtime
-    // (org_pubkey stamped on the JoinGroupRequest so the group carries its
-    // roster binding).
-    let offer: OrgGroupOfferView = {
-        let mut runtime = ensure_runtime()?;
-        runtime.accept_group_offer(&org_pubkey, &offer_id)?
-    };
-    {
-        let mut runtime = crate::api::private_group::ensure_runtime()?;
-        runtime
-            .join_group(JoinGroupRequest {
-                invite_uri: offer.group_invite_uri.clone(),
-                display_name,
-                org_pubkey: Some(org_pubkey.clone()),
-                listen_port,
-                static_peer,
-            })
-            .map_err(ConversationBridgeError::from)
-    }
+    let mut org = ensure_runtime()?;
+    let offer = org.peek_group_offer(&org_pubkey, &offer_id)?;
+    let mut groups = crate::api::private_group::ensure_runtime()?;
+    workflows::accept_and_join_group(
+        &mut org,
+        &mut groups,
+        &org_pubkey,
+        &offer_id,
+        JoinGroupRequest {
+            invite_uri: offer.group_invite_uri,
+            display_name,
+            listen_port,
+            static_peer,
+            org_pubkey: Some(org_pubkey.clone()),
+        },
+    )
 }
 
 /// Dismiss an org group offer. Delegates to

@@ -3,6 +3,84 @@
 use super::*;
 
 impl OrgRuntime {
+    /// Consume a pending offer; the returned view carries the invite URI
+    /// for the DM runtime's accept path and the peer to link afterwards.
+    pub fn accept_dm_offer(
+        &mut self,
+        org_pubkey: &str,
+        offer_id: &str,
+    ) -> Result<OrgDmOfferView, OrgError> {
+        let offer = self.peek_dm_offer(org_pubkey, offer_id)?;
+        self.resolve_offer(org_pubkey, offer_id, Some((&offer.from_peer_id, None)))?;
+        Ok(offer)
+    }
+
+    pub(crate) fn peek_dm_offer(
+        &mut self,
+        org_pubkey: &str,
+        offer_id: &str,
+    ) -> Result<OrgDmOfferView, OrgError> {
+        self.session_mut(org_pubkey)?
+            .dm_offers
+            .iter()
+            .find(|offer| offer.offer_id == offer_id)
+            .cloned()
+            .ok_or_else(|| OrgError::Codec(format!("unknown dm offer {offer_id}")))
+    }
+
+    /// Consume a pending group offer; the view carries the invite URI for
+    /// the group runtime's join path.
+    pub fn accept_group_offer(
+        &mut self,
+        org_pubkey: &str,
+        offer_id: &str,
+    ) -> Result<OrgGroupOfferView, OrgError> {
+        let offer = self.peek_group_offer(org_pubkey, offer_id)?;
+        self.resolve_offer(org_pubkey, offer_id, None)?;
+        Ok(offer)
+    }
+
+    pub(crate) fn peek_group_offer(
+        &mut self,
+        org_pubkey: &str,
+        offer_id: &str,
+    ) -> Result<OrgGroupOfferView, OrgError> {
+        self.session_mut(org_pubkey)?
+            .group_offers
+            .iter()
+            .find(|offer| offer.offer_id == offer_id)
+            .cloned()
+            .ok_or_else(|| OrgError::Codec(format!("unknown group offer {offer_id}")))
+    }
+
+    pub fn dismiss_group_offer(
+        &mut self,
+        org_pubkey: &str,
+        offer_id: &str,
+    ) -> Result<(), OrgError> {
+        if !self
+            .session_mut(org_pubkey)?
+            .group_offers
+            .iter()
+            .any(|offer| offer.offer_id == offer_id)
+        {
+            return Ok(());
+        }
+        self.resolve_offer(org_pubkey, offer_id, None)
+    }
+
+    pub fn dismiss_dm_offer(&mut self, org_pubkey: &str, offer_id: &str) -> Result<(), OrgError> {
+        if !self
+            .session_mut(org_pubkey)?
+            .dm_offers
+            .iter()
+            .any(|offer| offer.offer_id == offer_id)
+        {
+            return Ok(());
+        }
+        self.resolve_offer(org_pubkey, offer_id, None)
+    }
+
     /// Offer a DM to a roster member: lib.rs creates the invite via the DM
     /// runtime first, then routes the URI here. The link is recorded
     /// immediately so the sender's UI can navigate before the session id is
@@ -23,27 +101,7 @@ impl OrgRuntime {
         publish_signed(session, &message)?;
         upsert_link(&mut session.dm_links, target_peer_id, None);
         let record = session.to_record();
-        self.persist_record(&record)
-    }
-
-    /// Consume a pending offer; the returned view carries the invite URI
-    /// for the DM runtime's accept path and the peer to link afterwards.
-    pub fn accept_dm_offer(
-        &mut self,
-        org_pubkey: &str,
-        offer_id: &str,
-    ) -> Result<OrgDmOfferView, OrgError> {
-        let session = self.session_mut(org_pubkey)?;
-        let position = session
-            .dm_offers
-            .iter()
-            .position(|offer| offer.offer_id == offer_id)
-            .ok_or_else(|| OrgError::Codec(format!("unknown dm offer {offer_id}")))?;
-        let offer = session.dm_offers.remove(position);
-        upsert_link(&mut session.dm_links, &offer.from_peer_id, None);
-        let record = session.to_record();
-        self.persist_record(&record)?;
-        Ok(offer)
+        self.persist_record(record).map(|_| ())
     }
 
     /// Offer an org-bound group to a roster member over org-control.
@@ -65,37 +123,24 @@ impl OrgRuntime {
         publish_signed(session, &message)
     }
 
-    /// Consume a pending group offer; the view carries the invite URI for
-    /// the group runtime's join path.
-    pub fn accept_group_offer(
+    pub(crate) fn validate_group_targets(
         &mut self,
         org_pubkey: &str,
-        offer_id: &str,
-    ) -> Result<OrgGroupOfferView, OrgError> {
-        let session = self.session_mut(org_pubkey)?;
-        let position = session
-            .group_offers
-            .iter()
-            .position(|offer| offer.offer_id == offer_id)
-            .ok_or_else(|| OrgError::Codec(format!("unknown group offer {offer_id}")))?;
-        Ok(session.group_offers.remove(position))
-    }
-
-    pub fn dismiss_group_offer(
-        &mut self,
-        org_pubkey: &str,
-        offer_id: &str,
+        targets: &[String],
     ) -> Result<(), OrgError> {
+        self.drain_inbound();
         let session = self.session_mut(org_pubkey)?;
-        session
-            .group_offers
-            .retain(|offer| offer.offer_id != offer_id);
-        Ok(())
-    }
-
-    pub fn dismiss_dm_offer(&mut self, org_pubkey: &str, offer_id: &str) -> Result<(), OrgError> {
-        let session = self.session_mut(org_pubkey)?;
-        session.dm_offers.retain(|offer| offer.offer_id != offer_id);
+        if !session.in_roster() {
+            return Err(OrgError::Codec("org membership is pending".into()));
+        }
+        if let Some(target) = targets
+            .iter()
+            .find(|target| !session.sender_in_roster(target))
+        {
+            return Err(OrgError::Codec(format!(
+                "group invitation target is not in org roster: {target}"
+            )));
+        }
         Ok(())
     }
 
@@ -111,6 +156,6 @@ impl OrgRuntime {
         let session = self.session_mut(org_pubkey)?;
         upsert_link(&mut session.dm_links, peer_id, Some(session_id.to_string()));
         let record = session.to_record();
-        self.persist_record(&record)
+        self.persist_record(record).map(|_| ())
     }
 }

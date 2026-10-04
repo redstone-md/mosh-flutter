@@ -2,7 +2,18 @@
 
 use super::*;
 
+#[cfg(test)]
+#[path = "org_acceptance_durability_tests.rs"]
+mod org_acceptance_durability_tests;
+
 impl PrivateGroupRuntime {
+    pub(crate) fn group_signer_public(
+        &mut self,
+        group_id: &str,
+    ) -> Result<Vec<u8>, PrivateGroupError> {
+        Ok(self.group_mut(group_id)?.crypto.signer_public())
+    }
+
     pub fn close(&mut self, group_id: &str) -> Result<GroupLeaveResult, PrivateGroupError> {
         let session = self.group_mut(group_id)?;
 
@@ -36,9 +47,15 @@ impl PrivateGroupRuntime {
             }
         }
 
-        // On a shared node dropping the session no longer ends its
-        // subscriptions — the node lives on for the other groups, so leaving
-        // has to be said out loud or a closed group keeps receiving.
+        self.discard_local_group(group_id);
+        Ok(GroupLeaveResult {
+            group_id: group_id.to_string(),
+            closed: true,
+        })
+    }
+
+    /// Roll back a newly opened local group without a fallible departure publish.
+    pub(crate) fn discard_local_group(&mut self, group_id: &str) {
         if let Some(session) = self.groups.remove(group_id) {
             runtime::close_room(
                 &self.shared_node,
@@ -59,9 +76,5 @@ impl PrivateGroupRuntime {
                 );
             }
         }
-        Ok(GroupLeaveResult {
-            group_id: group_id.to_string(),
-            closed: true,
-        })
     }
 }

@@ -31,6 +31,10 @@ impl Persistence {
         self.refuse_table_writes(GROUP_MLS_SNAPSHOT)
     }
 
+    pub(crate) fn refuse_org_record_writes(self: &Arc<Self>) -> TableFault {
+        self.refuse_table_writes(ORG_RECORDS)
+    }
+
     fn refuse_table_writes(self: &Arc<Self>, table: Rows) -> TableFault {
         let tx = self.db.begin_write().expect("fault transaction");
         let rows = tx
