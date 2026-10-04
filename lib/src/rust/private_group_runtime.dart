@@ -114,6 +114,7 @@ class GroupMessage {
   final String? deliveryError;
   final bool? retryable;
   final int? retryCount;
+  final GroupNameChanged? nameChange;
 
   const GroupMessage({
     required this.fromDevice,
@@ -126,6 +127,7 @@ class GroupMessage {
     this.deliveryError,
     this.retryable,
     this.retryCount,
+    this.nameChange,
   });
 
   @override
@@ -139,7 +141,8 @@ class GroupMessage {
       deliveryStatus.hashCode ^
       deliveryError.hashCode ^
       retryable.hashCode ^
-      retryCount.hashCode;
+      retryCount.hashCode ^
+      nameChange.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -155,7 +158,47 @@ class GroupMessage {
           deliveryStatus == other.deliveryStatus &&
           deliveryError == other.deliveryError &&
           retryable == other.retryable &&
-          retryCount == other.retryCount;
+          retryCount == other.retryCount &&
+          nameChange == other.nameChange;
+}
+
+class GroupNameChanged {
+  final String name;
+
+  const GroupNameChanged({
+    required this.name,
+  });
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupNameChanged &&
+          runtimeType == other.runtimeType &&
+          name == other.name;
+}
+
+class GroupNameStatus {
+  final bool pending;
+  final String? error;
+
+  const GroupNameStatus({
+    required this.pending,
+    this.error,
+  });
+
+  @override
+  int get hashCode => pending.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupNameStatus &&
+          runtimeType == other.runtimeType &&
+          pending == other.pending &&
+          error == other.error;
 }
 
 class GroupSnapshot {
@@ -166,6 +209,7 @@ class GroupSnapshot {
   final String deviceFingerprint;
   final String creatorFingerprint;
   final bool isAdmin;
+  final GroupNameStatus? nameStatus;
   final String state;
   final BigInt memberCount;
   final String? inviteUri;
@@ -197,6 +241,7 @@ class GroupSnapshot {
     required this.deviceFingerprint,
     required this.creatorFingerprint,
     required this.isAdmin,
+    this.nameStatus,
     required this.state,
     required this.memberCount,
     this.inviteUri,
@@ -220,6 +265,7 @@ class GroupSnapshot {
       deviceFingerprint.hashCode ^
       creatorFingerprint.hashCode ^
       isAdmin.hashCode ^
+      nameStatus.hashCode ^
       state.hashCode ^
       memberCount.hashCode ^
       inviteUri.hashCode ^
@@ -245,6 +291,7 @@ class GroupSnapshot {
           deviceFingerprint == other.deviceFingerprint &&
           creatorFingerprint == other.creatorFingerprint &&
           isAdmin == other.isAdmin &&
+          nameStatus == other.nameStatus &&
           state == other.state &&
           memberCount == other.memberCount &&
           inviteUri == other.inviteUri &&

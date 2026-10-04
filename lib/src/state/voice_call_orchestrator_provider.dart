@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mosh/src/state/chat_names_provider.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart'
@@ -122,6 +124,9 @@ class VoiceCallOrchestratorNotifier
       _orchestrator = null;
       _attachedCallId = null;
     });
+    ref.listen(personalChatNameProvider(DmTarget(sessionId).ref), (_, next) {
+      state = _stateFor(ref.read(activeSessionProvider(sessionId)).value);
+    });
     ref.listen(activeSessionProvider(sessionId), (_, next) {
       state = _stateFor(next.value);
     });
@@ -133,7 +138,9 @@ class VoiceCallOrchestratorNotifier
   VoiceCallOrchestratorState _stateFor(SessionSnapshot? session) {
     _maybeReattach(session?.activeCall);
     return VoiceCallOrchestratorState(
-      dialog: callDialogFor(session),
+      dialog: callDialogFor(session,
+          personalName:
+              ref.read(personalChatNameProvider(DmTarget(sessionId).ref))),
       muted: _orchestrator?.isMuted ?? false,
       error: _error,
     );

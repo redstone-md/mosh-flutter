@@ -41,7 +41,7 @@ impl MossNode {
         payload: &[u8],
     ) -> Result<(), MossFfiError> {
         #[cfg(test)]
-        if let Some(outcome) = take_test_publish_outcome() {
+        if let Some(outcome) = take_test_publish_outcome(channel) {
             return outcome;
         }
 
@@ -76,7 +76,7 @@ impl MossNode {
 
     pub fn publish(&self, channel: &str, payload: &[u8]) -> Result<(), MossFfiError> {
         #[cfg(test)]
-        if let Some(outcome) = take_test_publish_outcome() {
+        if let Some(outcome) = take_test_publish_outcome(channel) {
             return outcome;
         }
 

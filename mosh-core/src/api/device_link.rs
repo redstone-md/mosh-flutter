@@ -37,13 +37,13 @@ fn construct() -> Result<DeviceLinkRuntime, DeviceLinkError> {
     DeviceLinkRuntime::open(resources.shared_node, persistence)
 }
 
-fn with_runtime(
-    action: impl FnOnce(&mut DeviceLinkRuntime) -> Result<DeviceLinkSnapshot, DeviceLinkError>,
-) -> Result<DeviceLinkSnapshot, DeviceLinkError> {
+pub(crate) fn with_runtime<T, E: From<DeviceLinkError>>(
+    action: impl FnOnce(&mut DeviceLinkRuntime) -> Result<T, E>,
+) -> Result<T, E> {
     let mut guard = runtime()?;
     match guard.as_mut() {
         Ok(rt) => action(rt),
-        Err(error) => Err(error.clone()),
+        Err(error) => Err(error.clone().into()),
     }
 }
 

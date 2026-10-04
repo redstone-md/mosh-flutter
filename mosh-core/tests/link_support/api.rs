@@ -20,6 +20,14 @@ pub(super) fn run(dir: PathBuf) {
             std::io::stdout().flush().unwrap();
             continue;
         }
+        if matches!(action, "names" | "name_set" | "name_reset") {
+            println!(
+                "{OUTPUT_PREFIX}{}",
+                names_command(action, &argument, &command)
+            );
+            std::io::stdout().flush().unwrap();
+            continue;
+        }
         let result = match command["action"].as_str().unwrap() {
             "shutdown" => break,
             "snapshot" => device_link::snapshot(),
@@ -77,5 +85,33 @@ fn dm_command(action: &str, argument: String, command: &Value) -> Value {
             json!({})
         }
         _ => panic!("unknown bridge DM command"),
+    }
+}
+
+fn names_command(action: &str, argument: &str, command: &Value) -> Value {
+    use conversation::{BridgeConversationKind as Kind, BridgeConversationRef as Ref};
+    let result = if action == "names" {
+        conversation::names::personal_names()
+    } else {
+        let (kind, id) = argument.split_once(':').unwrap();
+        let reference = Ref {
+            kind: match kind {
+                "dm" => Kind::Dm,
+                "channel" => Kind::Channel,
+                "group" => Kind::Group,
+                _ => panic!("invalid conversation kind"),
+            },
+            id: id.into(),
+        };
+        let accepted = if action == "name_set" {
+            conversation::names::rename(reference, command["name"].as_str().unwrap().into())
+        } else {
+            conversation::names::reset_name(reference)
+        };
+        accepted.and_then(|_| conversation::names::personal_names())
+    };
+    match result {
+        Ok(snapshot) => serde_json::to_value(snapshot).unwrap(),
+        Err(error) => json!({"error":format!("{:?}", error.kind)}),
     }
 }

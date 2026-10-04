@@ -40,6 +40,12 @@ final class ConversationRef {
   /// agree.
   String get key => '${kind.name}:$id';
 
+  AnyConversationTarget get target => switch (kind) {
+        ConversationKind.dm => DmTarget(id),
+        ConversationKind.channel => ChannelTarget(id),
+        ConversationKind.group => GroupTarget(id),
+      };
+
   /// Reads a [key] back, or returns null when it is not one: null, a key with
   /// no kind prefix, an unknown kind, or an empty id.
   ///

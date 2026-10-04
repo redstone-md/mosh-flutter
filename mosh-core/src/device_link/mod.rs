@@ -12,3 +12,6 @@ pub use runtime::DeviceLinkRuntime;
 mod identity_tests;
 #[cfg(test)]
 mod protocol_tests;
+
+#[cfg(test)]
+mod names_wire_tests;

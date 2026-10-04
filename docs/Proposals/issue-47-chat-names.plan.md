@@ -21,7 +21,7 @@
    synchronization on the encrypted directed stream. The trusted local roster
    authorizes senders and recipients. Keep a single owner of its inbox.
 3. Add authenticated group metadata updates, durable pending changes and
-   current-state recovery. Reuse MLS application encryption and SenderProof;
+   current-state recovery. Reuse MLS exporter-derived encryption and SenderProof;
    require actual runtime admin authority before accepting any new name.
    Custom MLS context extensions would require migrating all existing leaves,
    so they are unsuitable for this compatible change.

@@ -14,6 +14,7 @@ impl GroupSession {
             group_id: self.group_id.clone(),
             mesh_id: self.mesh_id.clone(),
             label: self.label.clone(),
+            names: self.names.clone(),
             display_name: self.display_name.clone(),
             participant_id: self.participant_id.clone(),
             device_fingerprint: self.device_fingerprint.clone(),

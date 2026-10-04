@@ -77,6 +77,7 @@ Map<ConversationBridgeErrorKind, String> _wordingByKind(AppLocalizations l) => {
       ConversationBridgeErrorKind.persistence: l.chatActionErrorPersistence,
       ConversationBridgeErrorKind.needsRejoin: l.chatActionErrorNeedsRejoin,
       ConversationBridgeErrorKind.revoked: l.chatActionErrorRevoked,
+      ConversationBridgeErrorKind.permissionDenied: l.chatNamePermissionDenied,
       ConversationBridgeErrorKind.internal:
           l.chatActionErrorInternal(_bridgeDetail),
     };

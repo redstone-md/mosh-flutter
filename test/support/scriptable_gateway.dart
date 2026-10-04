@@ -35,6 +35,8 @@ import 'scripted_conversations.dart';
 /// Every method on [Gateway]. Tests name a method through this enum, so a
 /// typo is a compile error instead of a call that is never scripted.
 enum GatewayMethod {
+  rename,
+  resetName,
   poll,
   send,
   retry,
@@ -80,6 +82,20 @@ class ScriptableGateway
       conversations.seedGroups(seeded);
 
   // ------------------------------------------------- the conversation seam
+
+  Map<String, String> get names => conversations.names;
+
+  @override
+  Future<void> rename(AnyConversationTarget target, {required String name}) =>
+      runScripted(GatewayMethod.rename, {'target': target, 'name': name}, () {
+        names[target.ref.key] = name;
+      });
+
+  @override
+  Future<void> resetName(AnyConversationTarget target) =>
+      runScripted(GatewayMethod.resetName, {'target': target}, () {
+        names.remove(target.ref.key);
+      });
 
   @override
   Future<S> poll<S>(ConversationTarget<S> target) => runScripted(

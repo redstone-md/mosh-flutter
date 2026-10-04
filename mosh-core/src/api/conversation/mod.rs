@@ -28,6 +28,8 @@
 
 use flutter_rust_bridge::frb;
 
+pub mod names;
+
 use crate::api::conversation_bridge::{ConversationBridgeError, ConversationBridgeErrorKind};
 use crate::attachment_runtime::VoiceMeta;
 

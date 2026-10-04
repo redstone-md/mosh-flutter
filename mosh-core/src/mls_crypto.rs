@@ -8,6 +8,7 @@ use crate::mls_storage::PersistentProvider;
 mod commits;
 mod membership;
 mod messages;
+mod metadata;
 mod roster;
 mod setup;
 mod storage;

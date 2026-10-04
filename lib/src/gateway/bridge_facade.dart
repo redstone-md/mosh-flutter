@@ -1,4 +1,6 @@
 import 'dart:typed_data' show Uint8List;
+import 'package:mosh/src/rust/chat_names/types.dart';
+import 'package:mosh/src/rust/api/conversation/names.dart' as names_api;
 
 import 'package:mosh/src/rust/channel_runtime.dart' show JoinChannelRequest;
 import 'package:mosh/src/rust/channel_runtime/types.dart'
@@ -77,6 +79,8 @@ import 'package:mosh/src/rust/vpn_consent.dart' show VpnBypassConsent;
 /// it through `bridgeFacadeProvider` only where a screen needs canned data
 /// or a scripted failure (test/support/scriptable_bridge.dart).
 class BridgeFacade {
+  Future<ChatNameSnapshot> personalNames() => names_api.personalNames();
+
   // Diagnostics: app identity + native runtime readiness (S4.8).
   Future<AppDiagnostics> appDiagnostics() => api.appDiagnostics();
 

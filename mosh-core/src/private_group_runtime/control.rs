@@ -87,10 +87,14 @@ impl GroupSession {
             ControlEnvelope::SelfRemove {
                 from_fingerprint,
                 proposal_b64,
+                name_state_proof_b64,
                 ..
-            } if from_fingerprint != own_fp => {
-                self.accept_departure(&from_fingerprint, &proposal_b64, own_fp)
-            }
+            } if from_fingerprint != own_fp => self.accept_departure(
+                &from_fingerprint,
+                &proposal_b64,
+                name_state_proof_b64,
+                own_fp,
+            ),
             ControlEnvelope::ResyncRequest {
                 from_fingerprint,
                 have_epoch,
@@ -199,8 +203,16 @@ impl GroupSession {
         &mut self,
         from_fingerprint: &str,
         proposal_b64: &str,
+        name_state_proof_b64: Option<String>,
         own_fp: String,
     ) -> Result<(), PrivateGroupError> {
+        if let Some(encoded) = name_state_proof_b64 {
+            // A bad optional handoff must not prevent a valid MLS departure.
+            let _ = decode(&encoded)
+                .map_err(PrivateGroupError::from)
+                .and_then(|bytes| decode_json(&bytes))
+                .and_then(|proof| self.handle_authenticated_control(proof));
+        }
         if !self.should_commit_departure(from_fingerprint) {
             return Ok(());
         }

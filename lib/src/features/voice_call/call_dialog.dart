@@ -121,20 +121,22 @@ final class ActiveCallDialog extends CallDialog {
 /// mosh-core cannot produce; it is written so a connected call outranks a
 /// dialled one, matching the "an active call hides the outgoing modal"
 /// rule the layer has always had.
-CallDialog callDialogFor(SessionSnapshot? snapshot) {
+CallDialog callDialogFor(SessionSnapshot? snapshot, {String? personalName}) {
   if (snapshot == null) return const NoCallDialog();
   final pending = snapshot.pendingCall;
   if (pending != null) {
-    return IncomingCallDialog(pending: pending, peerName: pending.fromDevice);
+    return IncomingCallDialog(
+        pending: pending, peerName: personalName ?? pending.fromDevice);
   }
   final active = snapshot.activeCall;
   if (active != null) {
-    return ActiveCallDialog(active: active, peerName: snapshot.peerDisplayName);
+    return ActiveCallDialog(
+        active: active, peerName: personalName ?? snapshot.peerDisplayName);
   }
   final outgoing = snapshot.outgoingCall;
   if (outgoing != null) {
     return OutgoingCallDialog(
-        call: outgoing, peerName: snapshot.peerDisplayName);
+        call: outgoing, peerName: personalName ?? snapshot.peerDisplayName);
   }
   return const NoCallDialog();
 }

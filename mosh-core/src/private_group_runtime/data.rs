@@ -26,6 +26,7 @@ impl GroupSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            name_change: None,
         });
         if self.messages.holds_copy_of(&message) {
             return Ok(());
@@ -83,6 +84,7 @@ impl GroupSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            name_change: None,
         });
         self.messages.push(message);
         Ok(())
@@ -132,6 +134,7 @@ impl GroupSession {
             delivery_error: None,
             retryable: None,
             retry_count: None,
+            name_change: None,
         });
         self.messages.push(message);
         Ok(AttachmentSendResult {

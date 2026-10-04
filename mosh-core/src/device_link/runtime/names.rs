@@ -97,7 +97,12 @@ impl DeviceLinkRuntime {
                 self.send_names(&sender, NameMessage::Batch { records, next });
             }
             NameMessage::Batch { records, next } if records.len() <= 16 => {
-                self.names.merge(&records).map_err(storage_error)?;
+                self.names
+                    .merge(&records)
+                    .map_err(|error| match error.kind {
+                        ChatNameErrorKind::Storage => storage_error(error),
+                        _ => super::super::roster::invalid(),
+                    })?;
                 match next {
                     Some(after) => {
                         self.send_names(&sender, NameMessage::Request { after: Some(after) })

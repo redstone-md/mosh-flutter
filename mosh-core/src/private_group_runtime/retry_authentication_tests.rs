@@ -21,9 +21,7 @@ fn saved_wire(fixture: &Fixture, id: &str) -> DataEnvelope {
     serde_json::from_slice(&sender.payload).unwrap()
 }
 
-#[test]
-fn legacy_retry_survives_a_refused_snapshot_and_restart_without_reusing_a_generation() {
-    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+fn legacy_outbound_attempt() -> (Fixture, MlsSessionCrypto, GroupSendResult) {
     let mut fixture = Fixture::new();
     let mut peer = MlsSessionCrypto::new("Bob").unwrap();
     let package = peer.key_package_bytes().unwrap();
@@ -37,7 +35,7 @@ fn legacy_retry_survives_a_refused_snapshot_and_restart_without_reusing_a_genera
         .unwrap();
     peer.join_welcome(&outcome.welcome_bytes, &outcome.tree_bytes)
         .unwrap();
-    let _failure = fail_next_test_publish("first attempt refused");
+    let _failure = fixture.refuse_data_publication("first attempt refused");
     let sent = fixture
         .runtime
         .send(&fixture.id, "legacy retry".into())
@@ -54,9 +52,16 @@ fn legacy_retry_survives_a_refused_snapshot_and_restart_without_reusing_a_genera
         .groups
         .persist_send(&fixture.id, &sent.message_id, true)
         .unwrap();
+    (fixture, peer, sent)
+}
+
+#[test]
+fn legacy_retry_survives_a_refused_snapshot_and_restart_without_reusing_a_generation() {
+    let _guard = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let (mut fixture, mut peer, sent) = legacy_outbound_attempt();
     fixture.restart();
     let fault = fixture.store.refuse_group_snapshot_writes();
-    let _deferred = fail_next_test_publish("deferred until checkpoint");
+    let _deferred = fixture.refuse_data_publication("deferred until checkpoint");
     assert!(matches!(
         fixture.runtime.retry_message(&fixture.id, &sent.message_id),
         Err(PrivateGroupError::Persistence(_))
@@ -81,7 +86,7 @@ fn legacy_retry_survives_a_refused_snapshot_and_restart_without_reusing_a_genera
         b"legacy retry"
     );
     fixture.restart();
-    let _failure = fail_next_test_publish("inspect next generation");
+    let _failure = fixture.refuse_data_publication("inspect next generation");
     let next = fixture
         .runtime
         .send(&fixture.id, "after restart".into())

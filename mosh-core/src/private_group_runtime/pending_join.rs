@@ -44,6 +44,7 @@ impl JoinPreparation {
             group_id: self.invite.group_id.clone(),
             mesh_id: self.invite.mesh_id.clone(),
             label: self.invite.label.clone(),
+            names: Default::default(),
             display_name: self.request.display_name.clone(),
             participant_id: self.participant_id.clone(),
             device_fingerprint,

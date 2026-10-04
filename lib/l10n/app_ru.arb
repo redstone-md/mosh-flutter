@@ -989,5 +989,35 @@
   "nativeMenuMinimize": "Свернуть",
   "nativeMenuZoom": "Изменить размер",
   "nativeMenuBringAllToFront": "Все окна на передний план",
-  "nativeMenuHelp": "Справка"
+  "nativeMenuHelp": "Справка",
+  "chatRename": "Переименовать чат",
+  "chatName": "Название чата",
+  "chatNameSave": "Сохранить",
+  "chatNameReset": "Сбросить название",
+  "chatNamePersonal": "Видно только вам. Синхронизируется с вашими связанными устройствами.",
+  "chatNameShared": "Новое название увидят все участники группы.",
+  "chatNameInvalid": "Введите от 1 до 64 символов в одну строку, без управляющих символов.",
+  "chatNameWaiting": "Изменение названия ожидает отправки",
+  "chatNamePermissionDenied": "Нет прав на переименование этого чата.",
+  "chatNameRejected": "Название не изменено: права админа изменились.",
+  "chatNameChanged": "{actor} изменил название группы на {name}",
+  "@chatNameChanged": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatOriginalName": "Исходное название: {name}",
+  "@chatOriginalName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNameSuperseded": "Изменение названия заменено более поздним."
 }

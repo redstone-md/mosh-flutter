@@ -1,4 +1,6 @@
 import 'dart:io' show Platform;
+import 'package:mosh/src/state/chat_names_provider.dart';
+import 'package:mosh/src/gateway/conversation_target.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -143,7 +145,14 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         barrierDismissible: false,
         builder: (dialogContext) {
           _dialogContext = dialogContext;
-          return _buildDialogFor(dialog, dialogContext, peerLabel);
+          return Consumer(
+              builder: (_, ref, __) => _buildDialogFor(
+                  dialog,
+                  dialogContext,
+                  chatDisplayName(
+                      peerLabel,
+                      ref.watch(personalChatNameProvider(
+                          DmTarget(widget.sessionId).ref)))));
         },
       ).then((_) {
         // Forget only the modal this route was. A pop that came from a

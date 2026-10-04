@@ -27,6 +27,7 @@ import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
 import 'pump.dart';
+import 'scriptable_bridge.dart';
 import 'scriptable_gateway.dart';
 
 /// The local device in every case, so a test can say "my own message".
@@ -44,6 +45,7 @@ class TestMessage {
     this.sentAtMs,
     this.attachment,
     this.callEvent,
+    this.nameChange,
     this.deliveryStatus,
     this.deliveryError,
     this.retryable,
@@ -80,6 +82,7 @@ class TestMessage {
   /// A call that started, ended or was missed. Only a DM carries one; the
   /// channel and group message types have no such field.
   final CallEvent? callEvent;
+  final GroupNameChanged? nameChange;
 
   final MessageDeliveryStatus? deliveryStatus;
   final String? deliveryError;
@@ -113,6 +116,7 @@ class TestMessage {
         fromDevice: fromDevice,
         fromFingerprint: fromFingerprint,
         body: body,
+        nameChange: nameChange,
         messageId: messageId,
         sentAtMs: sentAtMs,
         attachment: attachment,
@@ -272,7 +276,11 @@ Future<void> pumpConversation(
   bool useRouter = false,
 }) async {
   final overrides = <Override>[
-    if (gateway != null) gatewayProvider.overrideWithValue(gateway),
+    if (gateway != null) ...[
+      gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(
+          ScriptableBridge(conversations: gateway.conversations)),
+    ],
     if (launcher != null)
       attachmentLauncherProvider.overrideWithValue(launcher),
     testCase.snapshotOverride(messages: messages, attachments: attachments),

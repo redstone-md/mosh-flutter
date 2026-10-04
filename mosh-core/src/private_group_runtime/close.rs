@@ -23,11 +23,13 @@ impl PrivateGroupRuntime {
             // removal, so a self-Remove proposal goes out and a member who
             // stays commits it. For an ordinary member that is the admin; for
             // the admin it is the successor (`should_commit_departure`).
+            let name_state_proof_b64 = session.name_handoff_proof()?;
             let proposal_bytes = session.crypto.leave_proposal_bytes()?;
             let envelope = ControlEnvelope::SelfRemove {
                 group_id: session.group_id.clone(),
                 from_fingerprint: own_fp.clone(),
                 proposal_b64: encode(&proposal_bytes),
+                name_state_proof_b64,
             };
             session.publish_control(&envelope)?;
             if session.is_admin {

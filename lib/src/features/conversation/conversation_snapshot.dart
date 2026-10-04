@@ -11,7 +11,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
 import 'package:mosh/src/rust/conversation/attachments.dart'
     show AttachmentDescriptor, AttachmentView;
 import 'package:mosh/src/rust/private_group_runtime.dart'
-    show GroupMessage, GroupSnapshot;
+    show GroupMessage, GroupSnapshot, GroupNameChanged;
 import 'package:mosh/src/rust/private_group_runtime/wire_types.dart'
     show TypingMember;
 
@@ -31,6 +31,7 @@ class ConversationMessage {
     this.sentAtMs,
     this.attachment,
     this.callEvent,
+    this.nameChange,
     this.deliveryStatus,
     this.deliveryError,
     this.retryable,
@@ -53,6 +54,7 @@ class ConversationMessage {
 
   /// A call started, ended or was missed. DMs only.
   final CallEvent? callEvent;
+  final GroupNameChanged? nameChange;
 
   final MessageDeliveryStatus? deliveryStatus;
   final String? deliveryError;
@@ -88,6 +90,7 @@ class ConversationMessage {
           sentAtMs == other.sentAtMs &&
           attachment == other.attachment &&
           callEvent == other.callEvent &&
+          nameChange == other.nameChange &&
           deliveryStatus == other.deliveryStatus &&
           deliveryError == other.deliveryError &&
           retryable == other.retryable &&
@@ -103,6 +106,7 @@ class ConversationMessage {
         sentAtMs,
         attachment,
         callEvent,
+        nameChange,
         deliveryStatus,
         deliveryError,
         retryable,
@@ -259,6 +263,7 @@ ConversationMessage _fromMultiParty({
   required String body,
   required String ownFingerprint,
   String? messageId,
+  GroupNameChanged? nameChange,
   BigInt? sentAtMs,
   AttachmentDescriptor? attachment,
   MessageDeliveryStatus? deliveryStatus,
@@ -269,6 +274,7 @@ ConversationMessage _fromMultiParty({
       fromDevice: fromDevice,
       body: body,
       own: fromFingerprint == ownFingerprint,
+      nameChange: nameChange,
       fromFingerprint: fromFingerprint,
       messageId: messageId,
       sentAtMs: sentAtMs,
@@ -297,6 +303,7 @@ ConversationMessage _fromGroup(GroupMessage m, String ownFingerprint) =>
       fromDevice: m.fromDevice,
       fromFingerprint: m.fromFingerprint,
       body: m.body,
+      nameChange: m.nameChange,
       ownFingerprint: ownFingerprint,
       messageId: m.messageId,
       sentAtMs: m.sentAtMs,

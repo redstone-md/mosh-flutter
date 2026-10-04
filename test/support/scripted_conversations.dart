@@ -17,6 +17,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 /// was there before, so a test can seed again to change what the next read
 /// sees.
 class ScriptedConversations {
+  final names = <String, String>{};
   final Map<String, SessionSnapshot> sessions = {};
   final Map<String, ChannelSnapshot> channels = {};
   final Map<String, GroupSnapshot> groups = {};

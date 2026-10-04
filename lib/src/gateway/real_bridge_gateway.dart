@@ -1,5 +1,6 @@
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/gateway/gateway.dart';
+import 'package:mosh/src/rust/api/conversation/names.dart' as names_api;
 // The six shared conversation actions (ADR 0024): functions are prefixed
 // (they collide with the interface method names); the ref/payload types
 // come in unqualified, like the diagnostics types.
@@ -51,6 +52,14 @@ class RealBridgeGateway implements Gateway, ConversationSnapshotReader {
         },
         id: target.id,
       );
+
+  @override
+  Future<void> rename(AnyConversationTarget target, {required String name}) =>
+      names_api.rename(reference: _bridgeRef(target), name: name);
+
+  @override
+  Future<void> resetName(AnyConversationTarget target) =>
+      names_api.resetName(reference: _bridgeRef(target));
 
   @override
   Future<S> poll<S>(ConversationTarget<S> target) => target.readSnapshot(this);
