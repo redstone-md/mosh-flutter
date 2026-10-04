@@ -46,13 +46,13 @@ to remember dismissed offers and recover unfinished accepted joins.
 
 | Scope | Before | After | Reduction |
 | --- | ---: | ---: | ---: |
-| All tracked source, including local patches | 223,340 | 146,070 | 34.60% |
+| All tracked source, including local patches | 223,340 | 146,143 | 34.56% |
 | Dependency source and patches | 83,795 | 6,127 | 92.69% |
-| Application and tooling | 70,866 | 66,730 | 5.84% |
-| Tests | 45,170 | 49,711 | +4,541 lines |
-| First-party source and tests together | 116,036 | 116,441 | +405 lines (0.35%) |
+| Application and tooling | 70,866 | 66,733 | 5.83% |
+| Tests | 45,170 | 49,781 | +4,611 lines |
+| First-party source and tests together | 116,036 | 116,514 | +478 lines (0.41%) |
 | Generated bridge | 23,509 | 23,502 | 7 comment lines |
-| All tracked UTF-8 text, including docs/manifests | 262,151 | 179,665 | 31.47% |
+| All tracked UTF-8 text, including docs/manifests | 262,151 | 179,739 | 31.44% |
 
 The overall reduction exceeds 30%. Most of it replaces an upstream mirror with
 reproducible preparation; it does not shrink OpenMLS at runtime. Application and
@@ -127,18 +127,19 @@ existing public contracts are preserved here.
   argument errors and timeouts; changed probe lines cover 857/875 (97.94%).
 - Fresh bridge regeneration followed by Rust formatting has zero drift; Rust
   signatures and generated wire code stay unchanged.
-- All 254 OpenMLS files reconstruct byte-for-byte. Twelve preparation/locking
+- All 254 OpenMLS files reconstruct byte-for-byte. Fifteen preparation/locking
   tests pass, including local-edit preservation, partial/deleted manifest
   protection, damaged caches, offline rebuild, dead-process recovery and
   multi-process exclusion and drive-style archive paths. The latter reproduced
   the Windows setup failure before the extraction fix; all twelve cases also
   pass with automatic CRLF conversion enabled in Git configuration. Windows
-  readers can briefly block claim replacement; bounded retries preserve the
-  choosing claim until publication succeeds. Cleanup waits for every test worker.
+  handles can briefly block claim reads or replacement; shared bounded retries
+  preserve exclusion. Three new regressions cover transient reads, permanent
+  refusal and retry expiry. Cleanup waits for every test worker.
 - Changed instrumented executable lines, including moved source: Flutter
   272/305 (89.18%); core Rust 5,011/5,671 (88.36%). Comment/blank lines, generated
-  bindings and tests are excluded. Preparation/locking coverage is 90.18% lines
-  and 82.89% branches. Flutter changed branches cover 48/53 (90.57%); Rust branch
+  bindings and tests are excluded. Preparation/locking coverage is 92.07% lines
+  and 87.06% branches. Flutter changed branches cover 48/53 (90.57%); Rust branch
   coverage requires nightly, unavailable in the installed stable toolchain.
 - Independent standards and requirements reviews found two Escape parity
   regressions and source-preparation recovery/edit-protection issues. Regression
