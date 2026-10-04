@@ -49,7 +49,8 @@ sealed class RailEntry {
   String originalName(AppLocalizations l) => switch (this) {
         DmRailEntry(:final session) => peerLabel(l, session),
         ChannelRailEntry(:final channel) => '#${channel.name}',
-        GroupRailEntry(:final group) => group.label ?? l.groupUntitled,
+        GroupRailEntry(:final group) =>
+          group.label ?? shorten(group.groupId, 6),
         OfferRailEntry() => '',
       };
 
@@ -244,7 +245,7 @@ final class GroupRailEntry extends RailEntry {
   @override
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     final l = AppLocalizations.of(context)!;
-    final label = group.label ?? shorten(group.groupId, 6);
+    final label = displayName(l);
     return RailItem(
       kind: RailItemKind.group,
       leading: ConversationKindAvatar(kind: ref.kind, name: label),

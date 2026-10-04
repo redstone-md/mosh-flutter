@@ -28,6 +28,9 @@ class ChatNamesNotifier extends AsyncNotifier<ChatNameSnapshot> {
   }
 }
 
+final personalChatRenameAvailableProvider = Provider<bool>((ref) => ref.watch(
+    chatNamesProvider.select((names) => names.value?.canRename ?? false)));
+
 /// The canonical address stays separate from the name used for display.
 final personalChatNameProvider =
     Provider.family<String?, ConversationRef>((ref, conversation) {

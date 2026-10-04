@@ -62,6 +62,7 @@ class DmScreenHeader extends ConsumerWidget implements PreferredSizeWidget {
         ChatHeaderMenuAction(
             label: l.chatRename,
             icon: Icons.edit_outlined,
+            disabled: !ref.watch(personalChatRenameAvailableProvider),
             onSelect: () => showRenameChatDialog(context, target,
                 name: name,
                 originalName: original,

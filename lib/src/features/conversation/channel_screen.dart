@@ -37,6 +37,7 @@ class ChannelScreen extends ConsumerWidget {
           ChatHeaderMenuAction(
               label: AppLocalizations.of(context)!.chatRename,
               icon: Icons.edit_outlined,
+              disabled: !ref.watch(personalChatRenameAvailableProvider),
               onSelect: () => showRenameChatDialog(context, target,
                   name: title,
                   originalName: '#$name',
