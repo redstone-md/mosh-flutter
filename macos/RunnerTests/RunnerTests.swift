@@ -6,7 +6,8 @@ import XCTest
 
 class RunnerTests: XCTestCase {
 
-  func testLaunchCallbackIgnoresBrokenPipeWithoutThrowing() throws {
+  @MainActor
+  func testLaunchCallbackIgnoresBrokenPipeWithoutThrowing() async throws {
     let delegate = try XCTUnwrap(NSApp.delegate as? AppDelegate)
     let previous = signal(SIGPIPE, SIG_DFL)
     defer { signal(SIGPIPE, previous) }
@@ -15,7 +16,8 @@ class RunnerTests: XCTestCase {
     XCTAssertEqual(raise(SIGPIPE), 0)
   }
 
-  func testLocalizationPreservesCommandsAndSubmenus() {
+  @MainActor
+  func testLocalizationPreservesCommandsAndSubmenus() async {
     let menu = NSMenu(title: "Main")
     let edit = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
     edit.identifier = NSUserInterfaceItemIdentifier("nativeMenuEdit")
@@ -43,7 +45,8 @@ class RunnerTests: XCTestCase {
     XCTAssertEqual(copy.title, "Copy")
   }
 
-  func testFullscreenLabelFollowsWindowState() {
+  @MainActor
+  func testFullscreenLabelFollowsWindowState() async {
     let menu = NSMenu(title: "View")
     let item = NSMenuItem(title: "Enter Full Screen", action: nil, keyEquivalent: "f")
     item.identifier = NSUserInterfaceItemIdentifier("nativeMenuEnterFullScreen")
@@ -56,7 +59,8 @@ class RunnerTests: XCTestCase {
     XCTAssertEqual(item.title, labels["nativeMenuEnterFullScreen"])
   }
 
-  func testApplicationMenuHasLocalizationIdentifiers() {
+  @MainActor
+  func testApplicationMenuHasLocalizationIdentifiers() async {
     let menu = NSApp.mainMenu!
     func identifiers(_ menu: NSMenu) -> [String] {
       menu.items.flatMap { item in
@@ -73,7 +77,8 @@ class RunnerTests: XCTestCase {
     XCTAssertTrue(ids.contains("nativeMenuPreferencesAction"))
   }
 
-  func testApplicationMenuLocalizesEveryMatchingItem() throws {
+  @MainActor
+  func testApplicationMenuLocalizesEveryMatchingItem() async throws {
     let menu = try XCTUnwrap(NSApp.mainMenu)
     func items(_ menu: NSMenu) -> [NSMenuItem] {
       menu.items.flatMap { [$0] + ($0.submenu.map { items($0) } ?? []) }
