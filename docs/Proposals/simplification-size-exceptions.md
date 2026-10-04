@@ -56,11 +56,11 @@ These 46 retained caller-visible behavior/security proofs exceed 50 lines. Their
 | `mosh-core/src/private_dm_runtime/state_tests/calls.rs:142` | `a_failed_decline_keeps_the_call_for_a_retry` | 60 |
 | `mosh-core/src/private_dm_runtime/state_tests/calls.rs:207` | `a_ring_whose_subscribe_failed_is_retried_by_the_next_offer` | 84 |
 | `mosh-core/src/private_dm_runtime/state_tests/connection.rs:129` | `duplicate_inbound_data_reacks_without_decrypt` | 51 |
-| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:6` | `a_message_settles_from_sent_to_delivered_to_read` | 71 |
-| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:82` | `a_disabled_toggle_sends_nothing_and_ignores_inbound_receipts` | 69 |
-| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:157` | `a_forged_receipt_never_colors_a_message` | 80 |
+| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:41` | `a_message_settles_from_sent_to_delivered_to_read` | 71 |
+| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:117` | `a_disabled_toggle_sends_nothing_and_ignores_inbound_receipts` | 69 |
+| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:192` | `a_forged_receipt_never_colors_a_message` | 80 |
 | `mosh-core/src/private_dm_runtime/state_tests/typing.rs:159` | `forged_typing_indicator_does_not_set_the_hint` | 54 |
-| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:241` | `a_receipt_travels_encrypted_per_message` | 58 |
+| `mosh-core/src/private_dm_runtime/state_tests/receipt_authorization.rs:276` | `a_receipt_travels_encrypted_per_message` | 58 |
 | `mosh-core/src/private_dm_runtime/state_tests/receipt_recovery.rs:7` | `read_state_survives_a_restart` | 93 |
 | `mosh-core/src/private_dm_runtime/state_tests/receipt_recovery.rs:131` | `a_refused_receipt_is_resent_on_the_next_viewed` | 63 |
 | `mosh-core/src/private_dm_runtime/state_tests/typing.rs:6` | `typing_signal_travels_and_a_message_stops_it` | 64 |
