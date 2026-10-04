@@ -208,10 +208,13 @@ impl GroupSession {
     ) -> Result<(), PrivateGroupError> {
         if let Some(encoded) = name_state_proof_b64 {
             // A bad optional handoff must not prevent a valid MLS departure.
-            let _ = decode(&encoded)
+            let handoff = decode(&encoded)
                 .map_err(PrivateGroupError::from)
                 .and_then(|bytes| decode_json(&bytes))
                 .and_then(|proof| self.handle_authenticated_control(proof));
+            if let Err(error @ PrivateGroupError::Persistence(_)) = handoff {
+                return Err(error);
+            }
         }
         if !self.should_commit_departure(from_fingerprint) {
             return Ok(());

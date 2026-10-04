@@ -14,6 +14,8 @@ use std::sync::Arc;
 #[derive(Default, Clone, Serialize, Deserialize)]
 struct Register {
     clock: u64,
+    #[serde(default)]
+    initial_sync_complete: bool,
     entries: BTreeMap<String, NameRecord>,
 }
 
@@ -54,6 +56,10 @@ impl ChatNames {
         &self.user
     }
 
+    pub(crate) fn initial_sync_complete(&self) -> bool {
+        self.register.initial_sync_complete
+    }
+
     pub fn snapshot(&self, pending: bool) -> ChatNameSnapshot {
         ChatNameSnapshot {
             entries: self
@@ -90,21 +96,29 @@ impl ChatNames {
             .checked_add(1)
             .filter(|n| *n < u64::MAX)
             .ok_or_else(ChatNameError::invalid)?;
-        self.merge(&[NameRecord {
-            key: key.into(),
-            name,
-            version: NameVersion {
-                counter,
-                actor: self.actor.clone(),
-            },
-        }])?;
+        self.merge(
+            &[NameRecord {
+                key: key.into(),
+                name,
+                version: NameVersion {
+                    counter,
+                    actor: self.actor.clone(),
+                },
+            }],
+            true,
+        )?;
         Ok(())
     }
 
     /// Caller authenticates the account and active sender before importing a batch.
-    pub(crate) fn merge(&mut self, records: &[NameRecord]) -> Result<bool> {
+    pub(crate) fn merge(
+        &mut self,
+        records: &[NameRecord],
+        initial_sync_complete: bool,
+    ) -> Result<bool> {
         let mut next = self.register.clone();
-        let mut changed = false;
+        let mut changed = initial_sync_complete && !next.initial_sync_complete;
+        next.initial_sync_complete |= initial_sync_complete;
         for entry in records {
             entry.validate()?;
             let previous = next.entries.get(&entry.key);

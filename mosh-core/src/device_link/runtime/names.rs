@@ -13,7 +13,8 @@ impl DeviceLinkRuntime {
         let digest = self.names.digest();
         let pending = self.identity.roster().devices()?.iter().any(|device| {
             device.device_id != self.identity.device().device_id
-                && self.names_peer_digests.get(&device.device_id) != Some(&digest)
+                && (!self.names.initial_sync_complete()
+                    || self.names_peer_digests.get(&device.device_id) != Some(&digest))
         });
         Ok(self.names.snapshot(pending))
     }
@@ -48,6 +49,12 @@ impl DeviceLinkRuntime {
                 "device no longer belongs to this user",
             ));
         }
+        if !self.names.initial_sync_complete() && self.identity.roster().devices()?.len() > 1 {
+            return Err(ChatNameError::new(
+                ChatNameErrorKind::Unavailable,
+                "chat names are still synchronizing; try again in a moment",
+            ));
+        }
         Ok(())
     }
 
@@ -70,8 +77,12 @@ impl DeviceLinkRuntime {
             return Ok(());
         }
         self.names_last_pull = Some(Instant::now());
+        let digest = self.names.digest();
         for device in self.identity.roster().devices()? {
-            if device.device_id != self.identity.device().device_id {
+            if device.device_id != self.identity.device().device_id
+                && (!self.names.initial_sync_complete()
+                    || self.names_peer_digests.get(&device.device_id) != Some(&digest))
+            {
                 self.send_names(&device, NameMessage::Request { after: None });
             }
         }
@@ -92,13 +103,23 @@ impl DeviceLinkRuntime {
         let (sender, message) = names_wire::open(&self.identity, packet)?;
         match message {
             NameMessage::Request { after } => {
+                // Advertise our durable state so a restarting initiator can
+                // stop pulling without forcing a reciprocal request loop.
+                if after.is_none() {
+                    self.send_names(
+                        &sender,
+                        NameMessage::Saved {
+                            digest: self.names.digest(),
+                        },
+                    );
+                }
                 let records = self.names.page(after.as_deref());
                 let next = (records.len() == 16).then(|| records.last().unwrap().key.clone());
                 self.send_names(&sender, NameMessage::Batch { records, next });
             }
             NameMessage::Batch { records, next } if records.len() <= 16 => {
                 self.names
-                    .merge(&records)
+                    .merge(&records, next.is_none())
                     .map_err(|error| match error.kind {
                         ChatNameErrorKind::Storage => storage_error(error),
                         _ => super::super::roster::invalid(),

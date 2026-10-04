@@ -18,6 +18,9 @@ mod names;
 #[path = "durability_tests/name_wire.rs"]
 mod name_wire;
 
+#[path = "durability_tests/names_handoff.rs"]
+mod names_handoff;
+
 struct Fixture {
     store: Arc<Persistence>,
     runtime: PrivateGroupRuntime,

@@ -39,9 +39,12 @@ fn personal_metadata_requires_current_account_recipient_roster_and_signature() {
     assert!(names_wire::open(&second, &packet).is_ok());
     assert!(names_wire::open(&root, &packet).is_err());
     assert!(names_wire::open(&outsider, &packet).is_err());
-    let mut forged = packet.clone();
-    let index = forged.iter().position(|b| *b == b'R').unwrap();
-    forged[index] = b'r';
+    let mut body: serde_json::Value =
+        serde_json::from_slice(packet.strip_prefix(names_wire::PREFIX).unwrap()).unwrap();
+    body["message"]["Request"]["after"] = "channel:tampered".into();
+    assert!(serde_json::from_value::<NameMessage>(body["message"].clone()).is_ok());
+    let mut forged = names_wire::PREFIX.to_vec();
+    forged.extend(serde_json::to_vec(&body).unwrap());
     assert!(names_wire::open(&second, &forged).is_err());
     let revoked = root
         .roster()

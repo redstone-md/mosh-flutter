@@ -32,7 +32,7 @@ fn admin_rename_and_its_history_event_are_durable_before_acceptance() {
     );
 }
 
-fn admitted_pair() -> (Fixture, Fixture) {
+pub(super) fn admitted_pair() -> (Fixture, Fixture) {
     let mut admin = Fixture::new();
     let invite = admin.runtime.poll(&admin.id).unwrap().invite_uri.unwrap();
     let mut member = Fixture::empty();

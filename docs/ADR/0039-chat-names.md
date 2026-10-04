@@ -28,6 +28,23 @@ foreign accounts cannot read incoming packets or author writes. Linking an
 installation rebinds the register to the adopted account; old-account names do
 not migrate. Unknown channel names remain stored without joining a channel.
 
+A newly linked installation rejects personal-name writes until it durably
+imports every page of an initial register pull. The encrypted register retains
+that readiness across restart, including an empty initial pull. The imported
+Lamport clock then orders its first rename after the received names. Existing
+registers without the readiness field need one initial pull when other devices
+are linked. A sole installation can write immediately. Later offline writes
+remain available and concurrent edits use the existing total order.
+
+Matching durable-save digests stop periodic full-register pulls. A local write
+changes the digest and starts another pull. A first-page response also
+advertises the responder's durable digest using the existing Saved message.
+The initiator learns the responder's state without requiring a reciprocal
+pull; a differing digest resumes synchronization. This allows either device
+to deliver an edit without continually transferring all names or causing a
+request loop after restart. A saved digest alone cannot complete initial
+synchronization.
+
 A group's restoring record contains the shared-name certificate, pending status
 and rollback state. Accepting a name saves the record, MLS snapshot and typed
 history event in one encrypted transaction. No UI success precedes that commit.
@@ -60,7 +77,9 @@ Compatible resync requests recover missing membership commits before attempting
 new-epoch metadata. A departing admin includes an optional signed, MLS-encrypted
 name state inside the existing SelfRemove envelope, so the successor learns the
 last name before removing the author. Invalid optional state cannot block a
-valid departure. If admin rights disappear before acknowledgement, pending
+valid departure. A valid state's persistence failure prevents removal until
+the state can be saved on redelivery. If admin rights disappear before
+acknowledgement, pending
 changes roll back and their local history events show rejection.
 
 ## UI and compatibility

@@ -14,6 +14,8 @@ pub(crate) struct LinkTransport {
     shared: Arc<SharedMossNode>,
     node: Arc<MossNode>,
     requested: HashSet<String>,
+    #[cfg(test)]
+    pub(crate) sent_packets: Vec<Vec<u8>>,
 }
 
 impl LinkTransport {
@@ -28,6 +30,8 @@ impl LinkTransport {
             shared,
             node,
             requested: HashSet::new(),
+            #[cfg(test)]
+            sent_packets: Vec::new(),
         })
     }
 
@@ -36,6 +40,8 @@ impl LinkTransport {
     }
 
     pub fn send(&mut self, peer: &str, packet: &[u8]) -> Result<()> {
+        #[cfg(test)]
+        self.sent_packets.push(packet.to_vec());
         if !self.requested.contains(peer) {
             // Moss retains this target and retries its handshake itself.
             self.node

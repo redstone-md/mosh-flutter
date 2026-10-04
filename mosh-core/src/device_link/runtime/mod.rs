@@ -3,6 +3,8 @@ mod exchange;
 #[cfg(test)]
 mod legacy_tests;
 mod names;
+#[cfg(test)]
+mod names_tests;
 mod receive;
 mod revocation;
 mod service;
