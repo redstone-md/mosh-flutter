@@ -1,7 +1,9 @@
+mod admission_authentication;
 mod call_media;
 pub(crate) mod contracts;
 mod devices;
 mod invite;
+pub(crate) mod invite_ownership;
 mod outbox;
 pub(crate) mod transport;
 mod wire;

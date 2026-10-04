@@ -50,16 +50,28 @@ impl PrivateGroupRuntime {
         invite_uri: String,
     ) -> Result<(), PrivateGroupError> {
         let session = self.group_mut(group_id)?;
+        if !session.joined {
+            return Err(PrivateGroupError::NotReady);
+        }
+        crate::private_dm_runtime::invite_ownership::verify_offered_invite(
+            &invite_uri,
+            &session.device_fingerprint,
+            &target_fingerprint,
+        )
+        .map_err(PrivateGroupError::Codec)?;
         let offer = DmOffers::mint(
             session.display_name.clone(),
             session.device_fingerprint.clone(),
             target_fingerprint,
             invite_uri,
         );
-        session.publish_control(&ControlEnvelope::DmOffer {
+        let offer_ciphertext_b64 = session.crypto.encrypt_json(&offer)?;
+        let envelope = ControlEnvelope::DmOffer {
             group_id: session.group_id.clone(),
-            offer,
-        })
+            offer_ciphertext_b64,
+        };
+        self.groups.persist_record(group_id, true)?;
+        self.group_mut(group_id)?.publish_control(&envelope)
     }
 
     /// Leaving an org closes every group bound to it — otherwise the

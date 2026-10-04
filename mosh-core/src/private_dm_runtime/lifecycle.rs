@@ -182,6 +182,18 @@ impl PrivateDmRuntime {
             self.transport.local_peer_id().as_deref(),
         );
 
+        let invite_uri = match self.transport.authenticate_invite(&invite_uri, &crypto) {
+            Ok(invite) => invite,
+            Err(error) => {
+                self.transport.close_room(
+                    &mesh_id,
+                    &session_channels(&session_id),
+                    &format!("{KIND} {session_id}"),
+                );
+                return Err(PrivateDmRuntimeError::InvalidInvite(error));
+            }
+        };
+
         let session = PrivateDmSession::new(
             SessionRole::Alice,
             request.display_name,

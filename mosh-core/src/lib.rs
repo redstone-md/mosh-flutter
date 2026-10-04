@@ -37,6 +37,8 @@ pub mod vpn_consent;
 // Flutter-rewrite bridge facade (ADR 0010)
 pub mod api;
 
+mod sender_auth;
+
 // Reuse the independent-installation harness for private legacy-format fixtures.
 #[cfg(test)]
 extern crate self as mosh_core;

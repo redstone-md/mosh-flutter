@@ -15,8 +15,8 @@ pub struct ParsedInvite {
     /// Creator's moss peer id, when the invite carries one. Lets the joiner
     /// relay-send the MLS handshake to a hard-NAT creator before any direct
     /// window (or handshake reply) has taught it the peer's id. Malformed
-    /// values are dropped, not fatal: the id is routing data, not identity —
-    /// the fingerprint stays the trust anchor.
+    /// values are dropped for legacy manual invitations. Ownership proofs
+    /// require this ID to match their signer; targeted admission also pins it.
     pub peer_moss_id: Option<String>,
 }
 
@@ -31,7 +31,7 @@ impl ParsedInvite {
             ));
         }
 
-        Ok(Self {
+        let invite = Self {
             mesh_id: query(&url, "mesh")?,
             session_id: query(&url, "session")?,
             peer_address: optional_query(&url, "peer"),
@@ -42,7 +42,11 @@ impl ParsedInvite {
                     id.len() == MOSS_PEER_ID_HEX_LEN
                         && id.bytes().all(|byte| byte.is_ascii_hexdigit())
                 }),
-        })
+        };
+        super::invite_ownership::verify_invite_owner(raw, &invite)
+            .map_err(PrivateDmRuntimeError::InvalidInvite)?;
+        super::invite_ownership::target_peer(raw).map_err(PrivateDmRuntimeError::InvalidInvite)?;
+        Ok(invite)
     }
 }
 

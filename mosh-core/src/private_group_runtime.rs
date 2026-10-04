@@ -355,10 +355,12 @@ use sequencing::{
 use invite::*;
 
 mod actions;
+mod authentication;
 mod close;
 mod invite;
 mod outbound;
 mod sequencing;
 mod session;
+mod text;
 
 use wires::*;

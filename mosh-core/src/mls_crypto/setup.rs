@@ -68,6 +68,56 @@ impl MlsSessionCrypto {
         welcome_bytes: &[u8],
         tree_bytes: &[u8],
     ) -> Result<(), MlsCryptoError> {
+        let group = Self::stage_welcome(&self.provider, welcome_bytes, tree_bytes)?
+            .into_group(&self.provider)
+            .map_err(MlsCryptoError::openmls)?;
+        self.group = Some(group);
+        Ok(())
+    }
+
+    /// Stage against a copy: OpenMLS consumes the KeyPackage before exposing
+    /// the verified author, even when the caller rejects that author.
+    pub(crate) fn join_welcome_pinned(
+        &mut self,
+        welcome_bytes: &[u8],
+        tree_bytes: &[u8],
+        fingerprint: &str,
+        full_signer: Option<&[u8]>,
+        expected_identity: Option<&str>,
+    ) -> Result<String, MlsCryptoError> {
+        let provider =
+            PersistentProvider::from_snapshot(&self.snapshot()).map_err(MlsCryptoError::codec)?;
+        let staged = Self::stage_welcome(&provider, welcome_bytes, tree_bytes)?;
+        let author = staged.welcome_sender().map_err(MlsCryptoError::openmls)?;
+        let signer = author.signature_key().as_slice();
+        if fingerprint_from_signature_key(signer) != fingerprint
+            || full_signer.is_some_and(|expected| expected != signer)
+        {
+            return Err(MlsCryptoError::OpenMls(
+                "Welcome author differs from invitation owner".into(),
+            ));
+        }
+        let name = Self::credential_identity(author.credential()).ok_or_else(|| {
+            MlsCryptoError::OpenMls("Welcome author requires a basic credential".into())
+        })?;
+        if expected_identity.is_some_and(|expected| expected != name) {
+            return Err(MlsCryptoError::OpenMls(
+                "Welcome credential differs from authorized sender".into(),
+            ));
+        }
+        let group = staged
+            .into_group(&provider)
+            .map_err(MlsCryptoError::openmls)?;
+        self.provider = provider;
+        self.group = Some(group);
+        Ok(name)
+    }
+
+    fn stage_welcome(
+        provider: &PersistentProvider,
+        welcome_bytes: &[u8],
+        tree_bytes: &[u8],
+    ) -> Result<StagedWelcome, MlsCryptoError> {
         let welcome_message = MlsMessageIn::tls_deserialize(&mut &welcome_bytes[..])
             .map_err(MlsCryptoError::codec)?;
         let welcome = match welcome_message.extract() {
@@ -76,16 +126,13 @@ impl MlsSessionCrypto {
         };
         let tree =
             RatchetTreeIn::tls_deserialize(&mut &tree_bytes[..]).map_err(MlsCryptoError::codec)?;
-        let group = StagedWelcome::new_from_welcome(
-            &self.provider,
+        StagedWelcome::new_from_welcome(
+            provider,
             &MlsGroupJoinConfig::default(),
             welcome,
             Some(tree),
         )
-        .and_then(|staged| staged.into_group(&self.provider))
-        .map_err(MlsCryptoError::openmls)?;
-        self.group = Some(group);
-        Ok(())
+        .map_err(MlsCryptoError::openmls)
     }
 
     pub(super) fn decode_key_package(&self, bytes: &[u8]) -> Result<KeyPackage, MlsCryptoError> {

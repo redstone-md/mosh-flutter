@@ -167,12 +167,36 @@ impl MemberView {
             .cleo
             .encrypt(&serde_json::to_vec(&body).unwrap())
             .unwrap();
-        self.deliver(&ControlEnvelope::TypingIndicator {
+        let envelope = ControlEnvelope::TypingIndicator {
             group_id: self.group_id.clone(),
             from_device: "cleo".to_string(),
-            from_fingerprint: self.cleo.fingerprint(),
+            from_fingerprint: hex::encode(
+                SigningKey::from_bytes(&[6; 32]).verifying_key().to_bytes(),
+            ),
             typing_ciphertext_b64: encode(&ciphertext),
-        });
+        };
+        let payload = self.cleo_application(&envelope, &self.control_channel);
+        self.runtime
+            .groups
+            .get_mut(&self.group_id)
+            .unwrap()
+            .handle_control(payload, None)
+            .unwrap();
+    }
+
+    fn cleo_application<T: Serialize>(&self, envelope: &T, channel: &str) -> Vec<u8> {
+        let proof = crate::sender_auth::SenderProof::sign(
+            &SigningKey::from_bytes(&[6; 32]),
+            &self.cleo,
+            &OrgContext {
+                org_pubkey: "",
+                mesh_id: &self.session().mesh_id,
+                channel_kind: channel,
+            },
+            serde_json::to_vec(envelope).unwrap(),
+        )
+        .unwrap();
+        serde_json::to_vec(&proof).unwrap()
     }
 
     fn typing_member_of(&self) -> Option<TypingMember> {
@@ -224,3 +248,9 @@ mod delivery;
 
 #[path = "runtime_tests/typing.rs"]
 mod typing;
+
+#[path = "runtime_tests/authentication.rs"]
+mod authentication;
+
+#[path = "runtime_tests/authentication_org.rs"]
+mod authentication_org;

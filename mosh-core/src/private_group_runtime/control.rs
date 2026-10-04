@@ -12,7 +12,15 @@ impl GroupSession {
         payload: Vec<u8>,
         sender_peer_id: Option<String>,
     ) -> Result<(), PrivateGroupError> {
+        if let Ok(proof) = serde_json::from_slice::<crate::sender_auth::SenderProof>(&payload) {
+            return self.handle_authenticated_control(proof);
+        }
         let envelope: ControlEnvelope = decode_json(&payload)?;
+        // Admission stays compatible with existing MLS trees. Application
+        // traffic without a sender proof is never admitted, even after Welcome.
+        if envelope.is_application() {
+            return Ok(());
+        }
         if envelope.group_id() != self.group_id {
             return Ok(());
         }
@@ -97,36 +105,6 @@ impl GroupSession {
             } if self.joined && for_fingerprint == own_fp => {
                 self.accept_resync_response(commits, sender)
             }
-            other => self.handle_message_control(other, own_fp),
-        }
-    }
-
-    fn handle_message_control(
-        &mut self,
-        envelope: ControlEnvelope,
-        own_fp: String,
-    ) -> Result<(), PrivateGroupError> {
-        match envelope {
-            ControlEnvelope::AttachmentManifest {
-                participant_id,
-                from_device,
-                from_fingerprint,
-                manifest_ciphertext_b64,
-                ..
-            } if self.joined && participant_id != self.participant_id => self
-                .accept_manifest_control(from_device, from_fingerprint, &manifest_ciphertext_b64),
-            ControlEnvelope::DmOffer { offer, .. } => {
-                self.dm_offers.receive(offer, &self.device_fingerprint);
-                Ok(())
-            }
-            ControlEnvelope::TypingIndicator {
-                from_device,
-                from_fingerprint,
-                typing_ciphertext_b64,
-                ..
-            } if self.joined && from_fingerprint != own_fp => {
-                self.accept_typing_control(&from_device, from_fingerprint, &typing_ciphertext_b64)
-            }
             _ => Ok(()),
         }
     }
@@ -165,8 +143,13 @@ impl GroupSession {
         if !self.commit_author_authorized(from_fingerprint, sender) {
             return Ok(());
         }
-        self.crypto
-            .join_welcome(&decode(welcome_b64)?, &decode(tree_b64)?)?;
+        self.crypto.join_welcome_pinned(
+            &decode(welcome_b64)?,
+            &decode(tree_b64)?,
+            from_fingerprint,
+            None,
+            self.org_pubkey.as_ref().and(sender),
+        )?;
         self.joined = true;
         self.pending_join_package = None;
         // The Welcome already carries the admission commit's state. The
@@ -264,49 +247,5 @@ impl GroupSession {
             return Ok(());
         }
         self.absorb_resync_response(commits)
-    }
-    fn accept_manifest_control(
-        &mut self,
-        from_device: String,
-        from_fingerprint: String,
-        manifest_ciphertext_b64: &str,
-    ) -> Result<(), PrivateGroupError> {
-        let manifest_json = self.crypto.decrypt(&decode(manifest_ciphertext_b64)?)?;
-        let manifest: AttachmentManifest = decode_json(&manifest_json)?;
-        if from_fingerprint != manifest.from_fingerprint {
-            return Ok(());
-        }
-        self.accept_incoming_manifest(from_device, manifest.from_fingerprint.clone(), manifest)
-    }
-    fn accept_typing_control(
-        &mut self,
-        from_device: &str,
-        from_fingerprint: String,
-        typing_ciphertext_b64: &str,
-    ) -> Result<(), PrivateGroupError> {
-        // Decrypting authenticates: only a group member can produce a
-        // ciphertext this MLS group accepts, so a forged hint stops
-        // here. A wrong fingerprint claim is likewise dropped — the
-        // claim is self-asserted, but an inconsistent one is not worth
-        // a hint.
-        let Ok(ciphertext) = decode(typing_ciphertext_b64) else {
-            return Ok(());
-        };
-        let Ok(plaintext) = self.crypto.decrypt(&ciphertext) else {
-            dlog::write(
-                LogLevel::Warn,
-                kinds::VERIFY,
-                &self.group_id,
-                "dropping unverifiable typing hint",
-            );
-            return Ok(());
-        };
-        if let Ok(body) = decode_json::<GroupTypingBody>(&plaintext) {
-            if body.device != from_device {
-                return Ok(());
-            }
-        }
-        self.note_member_typing(from_fingerprint, from_device, now_ms());
-        Ok(())
     }
 }

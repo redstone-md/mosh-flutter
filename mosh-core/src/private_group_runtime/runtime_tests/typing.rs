@@ -15,7 +15,10 @@ fn group_typing_identifies_the_member_and_stops_on_their_message() {
     // name) with a receiver-stamped deadline.
     view.deliver_cleo_typing();
     let member = view.typing_member_of().expect("cleo's hint must stand");
-    assert_eq!(member.fingerprint, view.cleo.fingerprint());
+    assert_eq!(
+        member.fingerprint,
+        hex::encode(SigningKey::from_bytes(&[6; 32]).verifying_key().to_bytes())
+    );
     assert_eq!(member.display_name, "cleo");
     assert!(
         member.until_ms > now_ms(),
@@ -33,16 +36,17 @@ fn group_typing_identifies_the_member_and_stops_on_their_message() {
         group_id: view.group_id.clone(),
         participant_id: "cleo-participant".to_string(),
         from_device: "cleo".to_string(),
-        from_fingerprint: view.cleo.fingerprint(),
+        from_fingerprint: member.fingerprint,
         message_id: Some("g-typing-1".to_string()),
         sent_at_ms: Some(now_ms()),
         ciphertext_b64: encode(&ciphertext),
     };
+    let payload = view.cleo_application(&data, &view.session().data_channel);
     let session = view.runtime.groups.get_mut(&view.group_id).unwrap();
     session
         .handle_moss_message(MossReceivedMessage {
             channel: session.data_channel.clone(),
-            payload: serde_json::to_vec(&data).unwrap(),
+            payload,
         })
         .expect("cleo's message should be handled");
     assert!(

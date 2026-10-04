@@ -7,7 +7,6 @@ use super::GroupSession;
 use serde::{Deserialize, Serialize};
 
 use crate::attachment_runtime::{ChunkFrame, ChunkRequest};
-use crate::conversation::dm_offers::DmOffer;
 use crate::conversation::runtime::ConversationRuntime;
 use crate::shared_node::SharedMossNode;
 
@@ -59,7 +58,10 @@ pub(super) enum ControlEnvelope {
         manifest_ciphertext_b64: String,
     },
     /// A private-DM invitation aimed at one group member.
-    DmOffer { group_id: String, offer: DmOffer },
+    DmOffer {
+        group_id: String,
+        offer_ciphertext_b64: String,
+    },
     /// A member stuck behind missing commits asks for a replay (spec §7).
     ResyncRequest {
         group_id: String,
@@ -88,6 +90,12 @@ pub(super) enum ControlEnvelope {
 }
 
 impl ControlEnvelope {
+    pub(super) fn is_application(&self) -> bool {
+        matches!(
+            self,
+            Self::AttachmentManifest { .. } | Self::DmOffer { .. } | Self::TypingIndicator { .. }
+        )
+    }
     pub(super) fn group_id(&self) -> &str {
         match self {
             Self::KeyPackage { group_id, .. }

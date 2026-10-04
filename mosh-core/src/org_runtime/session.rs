@@ -167,15 +167,13 @@ impl OrgSession {
                 from_name,
                 invite_uri,
             } => {
-                if !self.accept_offer(sender_peer_id, &target_peer_id, &offer_id, "dm") {
-                    return;
-                }
-                self.dm_offers.push(OrgDmOfferView {
+                self.receive_dm_offer(
+                    sender_peer_id,
+                    target_peer_id,
                     offer_id,
-                    from_peer_id: sender_peer_id.to_string(),
                     from_name,
                     invite_uri,
-                });
+                );
             }
             OrgMessage::GroupOffer {
                 offer_id,
@@ -196,6 +194,28 @@ impl OrgSession {
                 });
             }
         }
+    }
+
+    fn receive_dm_offer(
+        &mut self,
+        sender: &str,
+        target: String,
+        id: String,
+        name: String,
+        uri: String,
+    ) {
+        if crate::private_dm_runtime::invite_ownership::verify_offered_invite(&uri, sender, &target)
+            .is_err()
+            || !self.accept_offer(sender, &target, &id, "dm")
+        {
+            return;
+        }
+        self.dm_offers.push(OrgDmOfferView {
+            offer_id: id,
+            from_peer_id: sender.to_string(),
+            from_name: name,
+            invite_uri: uri,
+        });
     }
 
     /// Deduplicate live offers; durable resolutions also survive a restart.
