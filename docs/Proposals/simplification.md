@@ -46,13 +46,13 @@ to remember dismissed offers and recover unfinished accepted joins.
 
 | Scope | Before | After | Reduction |
 | --- | ---: | ---: | ---: |
-| All tracked source, including local patches | 223,340 | 146,052 | 34.61% |
+| All tracked source, including local patches | 223,340 | 146,070 | 34.60% |
 | Dependency source and patches | 83,795 | 6,127 | 92.69% |
 | Application and tooling | 70,866 | 66,730 | 5.84% |
-| Tests | 45,170 | 49,693 | +4,523 lines |
-| First-party source and tests together | 116,036 | 116,423 | +387 lines (0.33%) |
+| Tests | 45,170 | 49,711 | +4,541 lines |
+| First-party source and tests together | 116,036 | 116,441 | +405 lines (0.35%) |
 | Generated bridge | 23,509 | 23,502 | 7 comment lines |
-| All tracked UTF-8 text, including docs/manifests | 262,151 | 179,646 | 31.47% |
+| All tracked UTF-8 text, including docs/manifests | 262,151 | 179,665 | 31.47% |
 
 The overall reduction exceeds 30%. Most of it replaces an upstream mirror with
 reproducible preparation; it does not shrink OpenMLS at runtime. Application and
@@ -119,8 +119,9 @@ existing public contracts are preserved here.
   with five existing skips. Held/modified Escape regression cases failed before
   the fix and pass after it.
 - Core build, formatting, strict all-target Clippy and full real-Moss Cargo tests
-  pass: 547 top-level tests and 21 existing ignores, plus subprocess workers.
-  The same complete suite passes under LLVM coverage. Probe unit tests pass
+  pass: 548 top-level tests and 21 existing ignores, plus subprocess workers.
+  Two new worker entries are ignored in ordinary discovery and invoked by their
+  parent tests. The complete suite passes under LLVM coverage. Probe unit tests pass
   (four cases) and strict all-target Clippy passes. Thirty-one fresh real local probe
   CLI checks cover DM, simultaneous DMs, groups, admin succession, doctor,
   argument errors and timeouts; changed probe lines cover 857/875 (97.94%).
@@ -135,7 +136,7 @@ existing public contracts are preserved here.
   readers can briefly block claim replacement; bounded retries preserve the
   choosing claim until publication succeeds. Cleanup waits for every test worker.
 - Changed instrumented executable lines, including moved source: Flutter
-  272/305 (89.18%); core Rust 5,016/5,671 (88.45%). Comment/blank lines, generated
+  272/305 (89.18%); core Rust 5,011/5,671 (88.36%). Comment/blank lines, generated
   bindings and tests are excluded. Preparation/locking coverage is 90.18% lines
   and 82.89% branches. Flutter changed branches cover 48/53 (90.57%); Rust branch
   coverage requires nightly, unavailable in the installed stable toolchain.
